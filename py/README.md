@@ -24,7 +24,7 @@ py/
 │   ├── huggingface/          # HuggingFace Inference API
 │   ├── mcp/                  # Model Context Protocol
 │   ├── mistral/              # Mistral models
-│   ├── msfoundry/            # Azure AI Foundry (11,000+ models) (community)
+│   ├── microsoft-foundry/            # Azure AI Foundry (11,000+ models) (community)
 │   ├── observability/        # 3rd party telemetry (Sentry, Datadog, etc.)
 │   ├── ollama/               # Local Ollama models
 │   ├── vertex-ai/            # Model Garden + Vector Search
@@ -70,7 +70,7 @@ print(response.text)
 
 | Category | Plugins | Purpose |
 |----------|---------|---------|
-| **Model Providers** | google-genai, anthropic, amazon-bedrock, ollama, compat-oai, deepseek, xai, mistral, huggingface, msfoundry, cloudflare-workers-ai | AI model access |
+| **Model Providers** | google-genai, anthropic, amazon-bedrock, ollama, compat-oai, deepseek, xai, mistral, huggingface, microsoft-foundry, cloudflare-workers-ai | AI model access |
 | **Telemetry** | google-cloud, amazon-bedrock, azure, firebase, cloudflare-workers-ai, observability | Distributed tracing & logging |
 | **Vector Stores** | firebase, vertex-ai, dev-local-vectorstore | Embeddings storage & retrieval |
 | **Safety** | checks, evaluators | Guardrails & evaluation |
@@ -83,7 +83,7 @@ Some plugins are community-maintained and supported on a best-effort basis:
 - **amazon-bedrock** - Amazon Bedrock models + AWS X-Ray telemetry
 - **azure** - Azure Monitor / Application Insights telemetry
 - **cloudflare-workers-ai** - Cloudflare Workers AI models + OTLP telemetry
-- **msfoundry** - Azure AI Foundry (11,000+ models)
+- **microsoft-foundry** - Azure AI Foundry (11,000+ models)
 - **observability** - Third-party backends (Sentry, Honeycomb, Datadog, etc.)
 
 ## Running Tests

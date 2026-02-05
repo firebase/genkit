@@ -39,7 +39,7 @@ prioritize implementation efforts.
 
 ### Feature Comparison
 
-| Feature | amazon-bedrock ❶ | google-genai ❶ | msfoundry ❶ | cloudflare-ai ❷ |
+| Feature | amazon-bedrock ❶ | google-genai ❶ | microsoft-foundry ❶ | cloudflare-ai ❷ |
 |---------|---------------|----------------|-------------|-----------------|
 | **Text Generation** | ✅ | ✅ | ✅ | ✅ |
 | **Streaming (SSE)** | ✅ | ✅ | ✅ | ✅ |
@@ -71,7 +71,7 @@ prioritize implementation efforts.
 |--------|----------|------|-----|------------|
 | **amazon-bedrock** ❶ | Converse API | IAM/Keys | boto3 | Medium |
 | **google-genai** ❶ | REST/gRPC | API Key/ADC | google-genai | Medium |
-| **msfoundry** ❶ | OpenAI-compat | API Key | openai | Low |
+| **microsoft-foundry** ❶ | OpenAI-compat | API Key | openai | Low |
 | **cloudflare-ai** ❷ | REST | API Token | httpx | Low-Medium |
 
 ### Cloudflare AI Feasibility Score
@@ -200,7 +200,7 @@ prioritize implementation efforts.
 | **Feature Richness** | 9/10 | Live Metrics, App Map included |
 | **Community Demand** | 9/10 | Enterprise Azure users |
 | **Maintenance Burden** | 9/10 | Microsoft maintains SDK |
-| **Strategic Value** | 9/10 | Pairs with msfoundry plugin |
+| **Strategic Value** | 9/10 | Pairs with microsoft-foundry plugin |
 | **TOTAL** | **92/100** | ✅ **BUILD NOW** |
 
 ### Cloudflare Telemetry Feasibility Score
@@ -274,7 +274,7 @@ prioritize implementation efforts.
 
 | Plugin | New Users | Ecosystem Fit | Differentiation |
 |--------|-----------|---------------|-----------------|
-| **azure** | High (enterprise) | Pairs with msfoundry | Good |
+| **azure** | High (enterprise) | Pairs with microsoft-foundry | Good |
 | **cloudflare-ai** | Medium (edge) | New market | High |
 | **cloudflare** | Medium | Pairs with cloudflare-ai | Medium |
 | **vercel** | Low | Standalone | Low |
@@ -328,7 +328,7 @@ prioritize implementation efforts.
 
 **1. Azure Telemetry (Priority 1)**
 - Official Microsoft SDK with one-liner setup
-- Pairs naturally with existing `msfoundry` plugin
+- Pairs naturally with existing `microsoft-foundry` plugin
 - High enterprise demand
 - Very low implementation effort
 

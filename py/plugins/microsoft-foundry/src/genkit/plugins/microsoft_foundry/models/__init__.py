@@ -14,21 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[project]
-dependencies    = ["genkit", "genkit-plugin-cloudflare-workers-ai", "rich>=13.0.0"]
-description     = "Cloudflare Workers AI Hello World Sample for Genkit"
-name            = "cloudflare-workers-ai-hello"
-readme          = "README.md"
-requires-python = ">=3.10"
-version         = "0.1.0"
+"""Microsoft Foundry model implementations.
 
-[tool.uv.sources]
-genkit                              = { workspace = true }
-genkit-plugin-cloudflare-workers-ai = { workspace = true }
+See: https://ai.azure.com/catalog/models
+"""
 
-[build-system]
-build-backend = "hatchling.build"
-requires      = ["hatchling"]
+from .model import MicrosoftFoundryModel
+from .model_info import (
+    MODELS_SUPPORTING_RESPONSE_FORMAT,
+    SUPPORTED_EMBEDDING_MODELS,
+    SUPPORTED_MICROSOFT_FOUNDRY_MODELS,
+    get_model_info,
+)
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
+__all__ = [
+    'MODELS_SUPPORTING_RESPONSE_FORMAT',
+    'SUPPORTED_EMBEDDING_MODELS',
+    'SUPPORTED_MICROSOFT_FOUNDRY_MODELS',
+    'MicrosoftFoundryModel',
+    'get_model_info',
+]

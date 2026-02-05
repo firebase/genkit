@@ -29,7 +29,7 @@ since 0.4.0 (May 2025), representing the most significant update to the Genkit P
 #### New Model Provider Plugins
 - **`genkit-plugin-anthropic`**: Full Anthropic Claude model support (#3919)
 - **`genkit-plugin-amazon-bedrock`**: AWS Bedrock integration for Claude, Titan, Llama models (#4389)
-- **`genkit-plugin-msfoundry`**: Azure OpenAI (Microsoft Foundry) support (#4383)
+- **`genkit-plugin-microsoft-foundry`**: Azure OpenAI (Microsoft Foundry) support (#4383)
 - **`genkit-plugin-cloudflare-workers-ai`**: Cloudflare Workers AI models (#4405)
 - **`genkit-plugin-deepseek`**: DeepSeek models with structured output (#4051)
 - **`genkit-plugin-xai`**: xAI (Grok) models with plugin config (#4001, #4289)
@@ -194,7 +194,7 @@ This release includes contributions from **13 developers** across **188 PRs**. T
 ### Added
 
 - **Telemetry Plugins**
-  - `genkit-plugin-azure`: Azure Application Insights integration
+  - `genkit-plugin-microsoft-foundry`: Azure Application Insights integration (consolidated with model access)
   - `genkit-plugin-cf`: Generic OTLP export for Cloudflare and other backends
   - `genkit-plugin-observability`: Unified presets for Sentry, Honeycomb, Datadog, Grafana Cloud, Axiom
 

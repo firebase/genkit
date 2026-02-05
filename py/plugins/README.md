@@ -27,7 +27,7 @@ This directory contains all official Genkit plugins for Python.
 │   │ • X-Ray telemetry       │        │ flask                   │               │
 │   └─────────────────────────┘        │ • HTTP endpoints        │               │
 │   ┌─────────────────────────┐        └─────────────────────────┘               │
-│   │ msfoundry               │        ┌─────────────────────────┐               │
+│   │ microsoft-foundry               │        ┌─────────────────────────┐               │
 │   │ • GPT-4o, Claude, Llama │        │ mcp                     │               │
 │   │ • 11,000+ models        │        │ • Model Context Protocol│               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
@@ -79,13 +79,13 @@ This directory contains all official Genkit plugins for Python.
 │       → google-genai (Gemini 2.0)                                               │
 │                                                                                 │
 │   "I need Claude models"                                                        │
-│       → anthropic (direct) OR amazon-bedrock OR msfoundry                          │
+│       → anthropic (direct) OR amazon-bedrock OR microsoft-foundry                          │
 │                                                                                 │
 │   "I'm on AWS and want managed models"                                          │
 │       → amazon-bedrock (Claude, Llama, Nova, Titan)                                │
 │                                                                                 │
 │   "I'm on Azure and want managed models"                                        │
-│       → msfoundry (GPT-4o, Claude, Llama, 11,000+ models)                       │
+│       → microsoft-foundry (GPT-4o, Claude, Llama, 11,000+ models)                       │
 │                                                                                 │
 │   "I'm on GCP and want third-party models"                                      │
 │       → vertex-ai (Model Garden - Claude, Llama, etc.)                          │
@@ -94,7 +94,7 @@ This directory contains all official Genkit plugins for Python.
 │       → ollama (Llama, Mistral, Phi, etc.)                                      │
 │                                                                                 │
 │   "I need OpenAI GPT models"                                                    │
-│       → compat-oai (direct OpenAI) OR msfoundry (via Azure)                     │
+│       → compat-oai (direct OpenAI) OR microsoft-foundry (via Azure)                     │
 │                                                                                 │
 │   "I want to use any OpenAI-compatible API"                                     │
 │       → compat-oai (works with OpenRouter, Together, etc.)                      │
@@ -145,23 +145,23 @@ This directory contains all official Genkit plugins for Python.
 │   │ Console │  │ Trace   │             │  Any OTLP Backend │                   │
 │   └─────────┘  └─────────┘             └───────────────────┘                   │
 │                                                                                 │
-│   ┌─────────┐  ┌─────────────┐                                                  │
-│   │  azure  │  │cloudflare-workers-ai│  ✅ NEW                                          │
-│   │ • Distro│  │ • OTLP      │  • Models + Telemetry                            │
-│   │ • AppIns│  │ • Token     │  • Single plugin                                 │
-│   └────┬────┘  └──────┬──────┘                                                  │
-│        │            │       CAN'T BE REPLICATED           CAN BE REPLICATED    │
-│        ▼            ▼       WITH GENERIC OTLP             WITH GENERIC OTLP    │
-│   ┌─────────┐  ┌─────────┐                                                      │
-│   │  App    │  │  OTLP   │                                                      │
-│   │Insights │  │ Backend │                                                      │
-│   └─────────┘  └─────────┘                                                      │
+│   ┌───────────────────┐  ┌─────────────┐                                        │
+│   │ microsoft-foundry │  │cloudflare-workers-ai│  ✅ NEW                         │
+│   │ • Models + AppIns │  │ • OTLP      │  • Models + Telemetry                   │
+│   │ • Azure Telemetry │  │ • Token     │  • Single plugin                        │
+│   └─────────┬─────────┘  └──────┬──────┘                                         │
+│             │                   │    CAN'T BE REPLICATED      CAN BE REPLICATED  │
+│             ▼                   ▼    WITH GENERIC OTLP        WITH GENERIC OTLP  │
+│   ┌───────────────────┐  ┌─────────┐                                             │
+│   │  App Insights     │  │  OTLP   │                                             │
+│   └───────────────────┘  │ Backend │                                             │
+│                          └─────────┘                                             │
 │                                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │   "I'm on AWS and want X-Ray"           → amazon-bedrock plugin                 │
 │   "I'm on GCP and want Cloud Trace"     → google-cloud plugin                  │
-│   "I'm on Azure and want App Insights"  → azure plugin                          │
+│   "I'm on Azure and want App Insights"  → microsoft-foundry plugin              │
 │   "I'm using Firebase"                  → firebase plugin (auto telemetry)     │
 │                                                                                 │
 │   "I want Sentry/Honeycomb/Datadog"     → observability plugin                 │
@@ -226,7 +226,7 @@ This directory contains all official Genkit plugins for Python.
 | **google-genai** | Gemini, Imagen, Veo, Lyria | Multimodal AI, Google ecosystem |
 | **anthropic** | Claude 3.5, Claude 4 | Direct Claude access |
 | **amazon-bedrock** 🌐 | Claude, Llama, Nova, Titan | AWS managed models (community) |
-| **msfoundry** 🌐 | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise (community) |
+| **microsoft-foundry** 🌐 | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise (community) |
 | **vertex-ai** | Model Garden (Claude, Llama) | GCP third-party models |
 | **ollama** | Llama, Mistral, Phi, etc. | Local/private deployment |
 | **compat-oai** | Any OpenAI-compatible | OpenAI, OpenRouter, etc. |
@@ -251,7 +251,7 @@ This directory contains all official Genkit plugins for Python.
 |--------|---------|----------|
 | **google-cloud** | Cloud Trace, Logging | GCP native, log correlation |
 | **amazon-bedrock** 🌐 | X-Ray | AWS native, SigV4 auth, built into model plugin (community) |
-| **azure** 🌐 | Application Insights | Azure Monitor, trace correlation (community) |
+| **microsoft-foundry** 🌐 | Application Insights | Azure Monitor, trace correlation, built into model plugin (community) |
 | **cloudflare-workers-ai** 🌐 | Any OTLP endpoint | Generic OTLP, Bearer auth, combined with models (community) |
 | **observability** 🌐 | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets (community) |
 | **firebase** | Firebase console | Auto-telemetry for Firebase apps |
@@ -291,8 +291,8 @@ All environment variables used by Genkit plugins. Configure these before running
 | `AWS_REGION` | amazon-bedrock | Yes | AWS region (e.g., `us-east-1`) | [AWS Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
 | `AWS_ACCESS_KEY_ID` | amazon-bedrock | Yes* | AWS access key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
 | `AWS_SECRET_ACCESS_KEY` | amazon-bedrock | Yes* | AWS secret key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AZURE_AI_FOUNDRY_ENDPOINT` | msfoundry | Yes | Azure AI Foundry endpoint URL | [Azure AI Foundry](https://ai.azure.com/) |
-| `AZURE_AI_FOUNDRY_API_KEY` | msfoundry | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
+| `AZURE_AI_FOUNDRY_ENDPOINT` | microsoft-foundry | Yes | Azure AI Foundry endpoint URL | [Azure AI Foundry](https://ai.azure.com/) |
+| `AZURE_AI_FOUNDRY_API_KEY` | microsoft-foundry | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | compat-oai | Yes | OpenAI API key | [OpenAI API Keys](https://platform.openai.com/api-keys) |
 | `OPENAI_ORG_ID` | compat-oai | No | OpenAI organization ID | [OpenAI Settings](https://platform.openai.com/account/organization) |
 | `DEEPSEEK_API_KEY` | deepseek | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
@@ -328,7 +328,7 @@ All environment variables used by Genkit plugins. Configure these before running
 
 *Can use IAM roles instead.
 
-#### Azure Plugin
+#### Microsoft Foundry Plugin (Azure Telemetry)
 
 | Variable | Required | Description | Documentation |
 |----------|----------|-------------|---------------|
@@ -422,7 +422,7 @@ Each plugin is a separate package. Install only what you need:
 pip install genkit-google-genai-plugin
 pip install genkit-anthropic-plugin
 pip install genkit-amazon-bedrock-plugin  # Also includes X-Ray telemetry
-pip install genkit-msfoundry-plugin
+pip install genkit-microsoft-foundry-plugin
 
 # Telemetry
 pip install genkit-google-cloud-plugin
