@@ -194,7 +194,7 @@ This release includes contributions from **13 developers** across **188 PRs**. T
 ### Added
 
 - **Telemetry Plugins**
-  - `genkit-plugin-azure`: Azure Application Insights integration
+  - `genkit-plugin-microsoft-foundry`: Azure Application Insights integration (consolidated with model access)
   - `genkit-plugin-cf`: Generic OTLP export for Cloudflare and other backends
   - `genkit-plugin-observability`: Unified presets for Sentry, Honeycomb, Datadog, Grafana Cloud, Axiom
 

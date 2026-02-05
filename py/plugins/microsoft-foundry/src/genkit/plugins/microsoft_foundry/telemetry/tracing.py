@@ -233,7 +233,7 @@ def _create_azure_monitor_exporter(
     try:
         # Try to import the official Azure Monitor exporter (optional dependency)
         # pyrefly: ignore[missing-import] - Optional dependency, handled by try/except
-        from azure.monitor.opentelemetry.exporter import (  # ty: ignore[unresolved-import]
+        from azure.monitor.opentelemetry.exporter import (
             AzureMonitorTraceExporter,
         )
 
