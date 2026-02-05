@@ -51,157 +51,6 @@ print_help() {
     print_help_footer
 }
 
-# Check if gcloud is installed
-check_gcloud_installed() {
-    if ! command -v gcloud &> /dev/null; then
-        echo -e "${RED}Error: gcloud CLI is not installed${NC}"
-        echo ""
-        echo "Install the Google Cloud SDK from:"
-        echo "  https://cloud.google.com/sdk/docs/install"
-        echo ""
-        return 1
-    fi
-    return 0
-}
-
-# Check if gcloud is authenticated
-check_gcloud_auth() {
-    echo -e "${BLUE}Checking gcloud authentication...${NC}"
-    
-    # Check application default credentials
-    if ! gcloud auth application-default print-access-token &> /dev/null; then
-        echo -e "${YELLOW}Application default credentials not found.${NC}"
-        echo ""
-        
-        if [[ -t 0 ]] && [ -c /dev/tty ]; then
-            echo -en "Run ${GREEN}gcloud auth application-default login${NC} now? [Y/n]: "
-            local response
-            read -r response < /dev/tty
-            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-                echo ""
-                gcloud auth application-default login
-                echo ""
-            else
-                echo -e "${YELLOW}Skipping authentication. You may encounter auth errors.${NC}"
-                return 1
-            fi
-        else
-            echo "Run: gcloud auth application-default login"
-            return 1
-        fi
-    else
-        echo -e "${GREEN}✓ Application default credentials found${NC}"
-    fi
-    
-    echo ""
-    return 0
-}
-
-# Check if an API is enabled
-is_api_enabled() {
-    local api="$1"
-    local project="$2"
-    
-    gcloud services list --project="$project" --enabled --filter="name:$api" --format="value(name)" 2>/dev/null | grep -q "$api"
-}
-
-# Enable required APIs
-enable_required_apis() {
-    local project="${GOOGLE_CLOUD_PROJECT:-}"
-    
-    if [[ -z "$project" ]]; then
-        echo -e "${YELLOW}GOOGLE_CLOUD_PROJECT not set, skipping API enablement${NC}"
-        return 1
-    fi
-    
-    echo -e "${BLUE}Checking required APIs for project: ${project}${NC}"
-    
-    local apis_to_enable=()
-    
-    for api in "${REQUIRED_APIS[@]}"; do
-        if is_api_enabled "$api" "$project"; then
-            echo -e "  ${GREEN}✓${NC} $api"
-        else
-            echo -e "  ${YELLOW}✗${NC} $api (not enabled)"
-            apis_to_enable+=("$api")
-        fi
-    done
-    
-    echo ""
-    
-    if [[ ${#apis_to_enable[@]} -eq 0 ]]; then
-        echo -e "${GREEN}All required APIs are already enabled!${NC}"
-        echo ""
-        return 0
-    fi
-    
-    # Prompt to enable APIs
-    if [[ -t 0 ]] && [ -c /dev/tty ]; then
-        echo -e "${YELLOW}The following APIs need to be enabled:${NC}"
-        for api in "${apis_to_enable[@]}"; do
-            echo "  - $api"
-        done
-        echo ""
-        echo -en "Enable these APIs now? [Y/n]: "
-        local response
-        read -r response < /dev/tty
-        
-        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-            echo ""
-            for api in "${apis_to_enable[@]}"; do
-                echo -e "${BLUE}Enabling $api...${NC}"
-                if gcloud services enable "$api" --project="$project"; then
-                    echo -e "${GREEN}✓ Enabled $api${NC}"
-                else
-                    echo -e "${RED}✗ Failed to enable $api${NC}"
-                    return 1
-                fi
-            done
-            echo ""
-            echo -e "${GREEN}All APIs enabled successfully!${NC}"
-        else
-            echo -e "${YELLOW}Skipping API enablement. You may encounter errors.${NC}"
-            return 1
-        fi
-    else
-        echo "Enable APIs with:"
-        for api in "${apis_to_enable[@]}"; do
-            echo "  gcloud services enable $api --project=$project"
-        done
-        return 1
-    fi
-    
-    echo ""
-    return 0
-}
-
-# Run full setup
-run_setup() {
-    print_banner "Setup" "⚙️"
-    
-    # Check gcloud is installed
-    check_gcloud_installed || exit 1
-    
-    # Check/prompt for project
-    check_env_var "GOOGLE_CLOUD_PROJECT" "" || {
-        echo -e "${RED}Error: GOOGLE_CLOUD_PROJECT is required${NC}"
-        echo ""
-        echo "Set it with:"
-        echo "  export GOOGLE_CLOUD_PROJECT=your-project-id"
-        echo ""
-        exit 1
-    }
-    
-    # Check authentication
-    check_gcloud_auth || true
-    
-    # Enable APIs
-    enable_required_apis || true
-    
-    echo -e "${GREEN}Setup complete!${NC}"
-    echo ""
-}
-
 # Main
 case "${1:-}" in
     --help|-h)
@@ -209,31 +58,18 @@ case "${1:-}" in
         exit 0
         ;;
     --setup)
-        run_setup
+        print_banner "Setup" "⚙️"
+        run_gcp_setup "${REQUIRED_APIS[@]}" || exit 1
+        echo -e "${GREEN}Setup complete!${NC}"
+        echo ""
         exit 0
         ;;
 esac
 
 print_banner "Vertex AI Rerankers & Evaluators" "🔍"
 
-# Check gcloud is installed
-check_gcloud_installed || exit 1
-
-# Check/prompt for project
-check_env_var "GOOGLE_CLOUD_PROJECT" "" || {
-    echo -e "${RED}Error: GOOGLE_CLOUD_PROJECT is required${NC}"
-    echo ""
-    echo "Set it with:"
-    echo "  export GOOGLE_CLOUD_PROJECT=your-project-id"
-    echo ""
-    exit 1
-}
-
-# Check authentication
-check_gcloud_auth || true
-
-# Enable APIs
-enable_required_apis || true
+# Run GCP setup (checks gcloud, auth, enables APIs)
+run_gcp_setup "${REQUIRED_APIS[@]}" || exit 1
 
 # Install dependencies
 install_deps
