@@ -50,7 +50,7 @@ cd py && ./bin/validate_release_docs  # Release doc validation
 - genkit-plugin-amazon-bedrock
 - genkit-plugin-azure
 - genkit-plugin-cf
-- genkit-plugin-cf-ai
+- genkit-plugin-cloudflare-workers-ai
 - genkit-plugin-deepseek
 - genkit-plugin-evaluators
 - genkit-plugin-huggingface
@@ -173,7 +173,7 @@ pip install genkit-plugin-mistral         # Mistral AI
 pip install genkit-plugin-deepseek        # DeepSeek
 pip install genkit-plugin-xai             # xAI (Grok)
 pip install genkit-plugin-huggingface     # Hugging Face
-pip install genkit-plugin-cf-ai           # Cloudflare Workers AI
+pip install genkit-plugin-cloudflare-workers-ai           # Cloudflare Workers AI
 pip install genkit-plugin-msfoundry       # Azure OpenAI
 
 # Telemetry

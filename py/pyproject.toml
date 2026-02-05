@@ -20,7 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
-  "genkit-plugin-cf-ai",
+  "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -36,7 +36,7 @@ dependencies = [
   "genkit-plugin-msfoundry",
   "genkit-plugin-amazon-bedrock",
   "genkit-plugin-azure",
-  "genkit-plugin-cf",
+
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
@@ -135,8 +135,7 @@ default-groups = ["dev", "lint"]
 amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
 azure-hello                       = { workspace = true }
-cf-ai-hello                       = { workspace = true }
-cf-hello                          = { workspace = true }
+cloudflare-workers-ai-hello           = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
 dev-local-vectorstore-hello       = { workspace = true }
@@ -173,8 +172,7 @@ genkit = { workspace = true }
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-azure                 = { workspace = true }
-genkit-plugin-cf                    = { workspace = true }
-genkit-plugin-cf-ai                 = { workspace = true }
+genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -379,8 +377,7 @@ root = [
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
   "plugins/azure/src",
-  "plugins/cf/src",
-  "plugins/cf-ai/src",
+  "plugins/cloudflare-workers-ai/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",

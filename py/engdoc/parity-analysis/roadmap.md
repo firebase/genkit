@@ -78,7 +78,7 @@ This document organizes the identified gaps into executable milestones with depe
 | mistral | ⚠️ Gaps | Agents API, Codestral FIM, Embeddings | None | Good | Medium |
 | xai | ⚠️ Gaps | Agent Tools API (server/client-side) | None | Fair | Medium |
 | deepseek | ⚠️ Gaps | reasoning_content handling | Param validation | Medium | **High** |
-| cf-ai | ✅ Verified | Async Batch API | None | Good | Low |
+| cloudflare-workers-ai | ✅ Verified | Async Batch API | None | Good | Low |
 | huggingface | ⚠️ Gaps | Inference Endpoints, TGI | None | Fair | Medium |
 | azure | ⚠️ Gaps | Azure AI Studio | None | Fair | Medium |
 
@@ -278,7 +278,7 @@ class DeepSeekModel:
 
 ---
 
-#### 8. cf-ai (Cloudflare Workers AI)
+#### 8. cloudflare-workers-ai (Cloudflare Workers AI)
 
 **Status**: ✅ Mostly Conformant
 
@@ -328,7 +328,7 @@ class DeepSeekModel:
 | Issue | Plugins Affected | Severity | Recommendation |
 |-------|-----------------|----------|----------------|
 | Silent parameter ignoring | deepseek (R1 mode) | **Medium** | Add warnings when params ignored |
-| SSRF via media URLs | cf-ai, amazon-bedrock | Low | Validate URL schemes, add allowlist |
+| SSRF via media URLs | cloudflare-workers-ai, amazon-bedrock | Low | Validate URL schemes, add allowlist |
 | Long timeouts | amazon-bedrock (Nova) | Low | Make timeouts configurable |
 | No PII sanitization | All plugins | Medium | Add optional PII scrubbing middleware |
 | Prompt injection | All plugins | Info | Document user responsibility |
@@ -344,7 +344,7 @@ class DeepSeekModel:
 | mistral | ✅ Good | ⚠️ Partial | ❌ None | Add vision model tests |
 | xai | ⚠️ Fair | ❌ None | ❌ None | Need more coverage |
 | deepseek | ⚠️ Fair | ❌ None | ❌ None | **Critical**: Add R1 tests |
-| cf-ai | ✅ Good | ❌ None | ❌ None | Add streaming tests |
+| cloudflare-workers-ai | ✅ Good | ❌ None | ❌ None | Add streaming tests |
 
 ---
 

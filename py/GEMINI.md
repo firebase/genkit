@@ -275,7 +275,7 @@
   **Key patterns**:
 
   * **Use unique `cache_key`** for each distinct client configuration (e.g.,
-    `'vertex-ai-reranker'`, `'cf-ai/account123'`)
+    `'vertex-ai-reranker'`, `'cloudflare-workers-ai/account123'`)
   * **Pass expiring auth per-request**: For Google Cloud, Azure, etc. where
     tokens expire, pass auth headers in the request, not in `get_cached_client()`
   * **Static auth in client**: For Cloudflare, OpenAI, etc. where API keys
@@ -2157,7 +2157,7 @@ client = get_cached_client(
 
 | Plugin | Change |
 |--------|--------|
-| **cf-ai** | Refactored `_get_client()` to use `get_cached_client()` |
+| **cloudflare-workers-ai** | Refactored `_get_client()` to use `get_cached_client()` |
 | **google-genai/rerankers** | Changed from `async with httpx.AsyncClient()` to cached client |
 | **google-genai/evaluators** | Changed from `async with httpx.AsyncClient()` to cached client |
 
@@ -2813,8 +2813,8 @@ This publishes all 23 packages in parallel:
 | Package Category | Packages |
 |------------------|----------|
 | **Core** | `genkit` |
-| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-amazon-bedrock`, `genkit-plugin-cf-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
-| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cf`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
+| **Model Providers** | `genkit-plugin-anthropic`, `genkit-plugin-amazon-bedrock`, `genkit-plugin-cloudflare-workers-ai`, `genkit-plugin-deepseek`, `genkit-plugin-google-genai`, `genkit-plugin-huggingface`, `genkit-plugin-mistral`, `genkit-plugin-msfoundry`, `genkit-plugin-ollama`, `genkit-plugin-vertex-ai`, `genkit-plugin-xai` |
+| **Telemetry** | `genkit-plugin-aws`, `genkit-plugin-azure`, `genkit-plugin-cloudflare-workers-ai`, `genkit-plugin-google-cloud`, `genkit-plugin-observability` |
 | **Data/Retrieval** | `genkit-plugin-dev-local-vectorstore`, `genkit-plugin-evaluators`, `genkit-plugin-firebase` |
 | **Other** | `genkit-plugin-flask`, `genkit-plugin-compat-oai`, `genkit-plugin-mcp` |
 
@@ -2858,7 +2858,7 @@ For the v0.5.0 release specifically:
 
 **New Packages (first publish at v0.5.0):**
 - genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-amazon-bedrock
-- genkit-plugin-azure, genkit-plugin-cf, genkit-plugin-cf-ai
+- genkit-plugin-azure, genkit-plugin-cloudflare-workers-ai
 - genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
 - genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-msfoundry
 - genkit-plugin-observability, genkit-plugin-xai

@@ -76,7 +76,7 @@ plugins:
             # Model provider plugins
             - plugins/anthropic/src
             - plugins/amazon-bedrock/src
-            - plugins/cf-ai/src
+            - plugins/cloudflare-workers-ai/src
             - plugins/deepseek/src
             - plugins/google-genai/src
             - plugins/huggingface/src
