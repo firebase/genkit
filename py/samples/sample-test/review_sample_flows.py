@@ -25,7 +25,6 @@ Example:
 
 import argparse
 import asyncio
-import builtins
 import importlib.util
 import sys
 from pathlib import Path
@@ -43,7 +42,7 @@ def open_file(path: str) -> None:
         elif platform.system() == 'Linux':
             subprocess.run(['xdg-open', path], check=False)  # noqa: S603, S607
         elif platform.system() == 'Windows':
-            subprocess.run(['start', path], shell=True, check=False)  # noqa: S602
+            subprocess.run(['start', path], shell=True, check=False)  # noqa: S602, S607
     except Exception:  # noqa: S110
         pass
 
@@ -183,10 +182,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 import json
                 import subprocess  # noqa: S404 - test script, subprocess usage is intentional
 
-                print(f'Flow: {flow_name}')
-                print('-' * 30)
-                print(f'Generated Input: {input_data}')
-
                 # Get path to helper script
                 script_dir = Path(__file__).parent
                 helper_script = script_dir / 'run_single_flow.py'
@@ -216,7 +211,9 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                     stdout = result_proc.stdout
                     try:
                         if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
-                            json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
+                            json_str = (
+                                stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
+                            )
                             result_data = json.loads(json_str)
                         else:
                             result_data = json.loads(stdout)
@@ -224,22 +221,17 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         detail_lines.append('Status: FAILED')
                         detail_lines.append('Error: Failed to parse subprocess output')
                         detail_lines.append(f'Stdout (partial): {stdout[:500]}')
-                        detail_lines.append(f'Stdout (partial): {stdout[:500]}')
+                        detail_lines.append(f'Stderr (partial): {result_proc.stderr[:500]}')
                         failed_flows.append(flow_name)
-                        print('Status: FAILED')
-                        print('Error: Failed to parse subprocess output')
-                        print('')
                         continue
 
                     if result_data.get('success'):
                         detail_lines.append('Status: SUCCESS')
-                        print('Status: SUCCESS')
 
                         # Format the result
                         flow_result = result_data.get('result')
                         formatted_output = format_output(flow_result, max_length=500)
                         detail_lines.append(f'Output: {formatted_output}')
-                        print(f'Output: {formatted_output}')
 
                         successful_flows.append(flow_name)
                     else:
@@ -247,21 +239,15 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         error_msg = result_data.get('error', 'Unknown error')
                         detail_lines.append(f'Error: {error_msg}')
                         failed_flows.append(flow_name)
-                        print('Status: FAILED')
-                        print(f'Error: {error_msg}')
 
                 except subprocess.TimeoutExpired:
                     detail_lines.append('Status: FAILED')
                     detail_lines.append('Error: Flow execution timed out (120s)')
                     failed_flows.append(flow_name)
-                    print('Status: FAILED')
-                    print('Error: Flow execution timed out (120s)')
                 except Exception as e:
                     detail_lines.append('Status: FAILED')
                     detail_lines.append(f'Error: Subprocess failed: {e}')
                     failed_flows.append(flow_name)
-                    print('Status: FAILED')
-                    print(f'Error: Subprocess failed: {e}')
             except Exception as e:
                 detail_lines.append('Status: FAILED')
                 error_msg = str(e)
@@ -275,20 +261,12 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 for line in tb_lines:
                     detail_lines.append(f'  {line}')
 
-                # Also truncate error messages in terminal
-                if len(error_msg) > 200:
-                    pass
-                else:
-                    pass
                 failed_flows.append(flow_name)
-                print('Status: FAILED')
-                print(f'Error: {e}')
 
             detail_lines.append('')
-            print('')
 
     except KeyboardInterrupt:
-        print('\n\nInterrupted by user. Generating partial report...')
+        pass
     finally:
         write_report(
             args.output,
@@ -298,7 +276,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
             detail_lines,
             sample_path.name,
         )
-        print(f'\nReport written to {args.output}')
         open_file(args.output)
 
 

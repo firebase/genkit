@@ -212,11 +212,7 @@ def main() -> None:
     # Run flow in async context
     import asyncio
 
-    result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
-
-    print('---JSON_RESULT_START---')
-    print(json.dumps(result))
-    print('---JSON_RESULT_END---')
+    asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
 
     # Output JSON result with markers to distinguish it from any debug logs
 
