@@ -163,6 +163,7 @@ short-n-long                      = { workspace = true }
 tool-interrupts                   = { workspace = true }
 vertex-ai-vector-search-bigquery  = { workspace = true }
 vertex-ai-vector-search-firestore = { workspace = true }
+vertexai-rerank-eval              = { workspace = true }
 xai-hello                         = { workspace = true }
 # Core packages
 genkit = { workspace = true }

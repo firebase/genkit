@@ -27,8 +27,9 @@ This directory contains sample applications demonstrating various Genkit feature
 │   ┌─────────────────────────┐        │ format-demo             │               │
 │   │ dev-local-vectorstore   │        │ multi-server            │               │
 │   │ vertex-ai-vector-search │        │ evaluator-demo          │               │
-│   │ firestore-retriever     │        │ flask-hello             │               │
-│   └─────────────────────────┘        └─────────────────────────┘               │
+│   │ firestore-retriever     │        │ vertexai-rerank-eval    │               │
+│   └─────────────────────────┘        │ flask-hello             │               │
+│                                      └─────────────────────────┘               │
 │                                                                                 │
 │   MULTIMODAL                         GOOGLE AI FEATURES                        │
 │   ──────────                         ──────────────────                        │
@@ -96,6 +97,7 @@ cd py/samples/<sample-name>
 | **format-demo** | Formats | Output formatting and schemas |
 | **multi-server** | Architecture | Multiple Genkit servers |
 | **evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
+| **vertexai-rerank-eval** | RAG, Evaluation | Vertex AI rerankers and evaluators |
 | **flask-hello** | Integrations | Flask HTTP endpoints |
 
 ### Multimodal Samples

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Copyright 2026 Google LLC
+# Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Vertex AI Hello World Demo
-# ==========================
+# Vertex AI Rerankers and Evaluators Demo
+# =======================================
 #
-# Demonstrates using Google Cloud Vertex AI with Genkit.
+# Demonstrates using Vertex AI rerankers for RAG quality improvement
+# and evaluators for assessing model outputs.
 #
 # This script automates most of the setup:
 #   - Detects/prompts for GOOGLE_CLOUD_PROJECT
@@ -25,11 +26,12 @@ source "../_common.sh"
 
 # Required APIs for this demo
 REQUIRED_APIS=(
-    "aiplatform.googleapis.com"  # Vertex AI API
+    "aiplatform.googleapis.com"      # Vertex AI API (models and evaluators)
+    "discoveryengine.googleapis.com" # Discovery Engine API (rerankers)
 )
 
 print_help() {
-    print_banner "Vertex AI Hello World" "☁️"
+    print_banner "Vertex AI Rerankers & Evaluators" "🔍"
     echo "Usage: ./run.sh [options]"
     echo ""
     echo "Options:"
@@ -45,6 +47,7 @@ print_help() {
     echo ""
     echo "Required APIs (enabled automatically):"
     echo "  - Vertex AI API (aiplatform.googleapis.com)"
+    echo "  - Discovery Engine API (discoveryengine.googleapis.com)"
     print_help_footer
 }
 
@@ -63,7 +66,7 @@ case "${1:-}" in
         ;;
 esac
 
-print_banner "Vertex AI Hello World" "☁️"
+print_banner "Vertex AI Rerankers & Evaluators" "🔍"
 
 # Run GCP setup (checks gcloud, auth, enables APIs)
 run_gcp_setup "${REQUIRED_APIS[@]}" || exit 1
