@@ -25,7 +25,7 @@ Architecture::
     │                    Vertex AI Reranker Module                            │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  Constants & Configuration                                              │
-    │  ├── DEFAULT_LOCATION (us-central1)                                     │
+    │  ├── DEFAULT_LOCATION (global)                                          │
     │  ├── DEFAULT_MODEL_NAME (semantic-ranker-default@latest)                │
     │  └── KNOWN_MODELS (supported model registry)                            │
     ├─────────────────────────────────────────────────────────────────────────┤

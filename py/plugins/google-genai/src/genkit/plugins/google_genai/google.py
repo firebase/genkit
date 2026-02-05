@@ -865,7 +865,7 @@ class VertexAI(Plugin):
         # This avoids accessing private attributes of the client library.
         client_options = VertexRerankerClientOptions(
             project_id=self._project,
-            location=self._location or const.DEFAULT_REGION,
+            location=self._location,
         )
 
         async def wrapper(

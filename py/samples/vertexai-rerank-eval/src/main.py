@@ -160,19 +160,15 @@ class EvalResult(BaseModel):
     scores: list[dict[str, Any]]
 
 
-def _extract_score(evaluation: Score | list[Score] | None) -> float | str | bool | None:
+def _extract_score(evaluation: Score | list[Score]) -> float | str | bool | None:
     """Extract score from evaluation result."""
-    if evaluation is None:
-        return None
     if isinstance(evaluation, list):
         return evaluation[0].score if evaluation else None
     return evaluation.score
 
 
-def _extract_reasoning(evaluation: Score | list[Score] | None) -> str | None:
+def _extract_reasoning(evaluation: Score | list[Score]) -> str | None:
     """Extract reasoning from evaluation result."""
-    if evaluation is None:
-        return None
     if isinstance(evaluation, list):
         if evaluation and evaluation[0].details:
             return evaluation[0].details.reasoning
