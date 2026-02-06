@@ -95,8 +95,6 @@ See Also:
 import os
 from typing import Any
 
-from genkit.blocks.background_model import BackgroundAction
-
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
@@ -104,6 +102,7 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
+from genkit.blocks.background_model import BackgroundAction
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata

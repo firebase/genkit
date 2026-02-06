@@ -87,44 +87,44 @@ Available Models:
     +--------------------------------+-----------------------------------------+
 
 Example:
-    Basic reranking::
+    Basic reranking:
 
-        from genkit import Genkit
-        from genkit.plugins.google_genai import VertexAI
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.google_genai import VertexAI
+        >>>
+        >>> ai = Genkit(plugins=[VertexAI(project='my-project')])
+        >>>
+        >>> # Rerank documents after retrieval
+        >>> ranked_docs = await ai.rerank(
+        ...     reranker='vertexai/semantic-ranker-default@latest',
+        ...     query='What is machine learning?',
+        ...     documents=retrieved_docs,
+        ...     options={'top_n': 5},
+        ... )
 
-        ai = Genkit(plugins=[VertexAI(project='my-project')])
+    Full RAG pipeline with reranking:
 
-        # Rerank documents after retrieval
-        ranked_docs = await ai.rerank(
-            reranker='vertexai/semantic-ranker-default@latest',
-            query='What is machine learning?',
-            documents=retrieved_docs,
-            options={'top_n': 5},
-        )
-
-    Full RAG pipeline with reranking::
-
-        # 1. Retrieve initial candidates
-        candidates = await ai.retrieve(
-            retriever='my-retriever',
-            query='How do neural networks learn?',
-            options={'limit': 50},
-        )
-
-        # 2. Rerank for quality
-        ranked = await ai.rerank(
-            reranker='vertexai/semantic-ranker-default@latest',
-            query='How do neural networks learn?',
-            documents=candidates,
-            options={'top_n': 5},
-        )
-
-        # 3. Generate with top results
-        response = await ai.generate(
-            model='vertexai/gemini-2.0-flash',
-            prompt='Explain how neural networks learn.',
-            docs=ranked,
-        )
+        >>> # 1. Retrieve initial candidates
+        >>> candidates = await ai.retrieve(
+        ...     retriever='my-retriever',
+        ...     query='How do neural networks learn?',
+        ...     options={'limit': 50},
+        ... )
+        >>>
+        >>> # 2. Rerank for quality
+        >>> ranked = await ai.rerank(
+        ...     reranker='vertexai/semantic-ranker-default@latest',
+        ...     query='How do neural networks learn?',
+        ...     documents=candidates,
+        ...     options={'top_n': 5},
+        ... )
+        >>>
+        >>> # 3. Generate with top results
+        >>> response = await ai.generate(
+        ...     model='vertexai/gemini-2.0-flash',
+        ...     prompt='Explain how neural networks learn.',
+        ...     docs=ranked,
+        ... )
 
 Caveats:
     - Requires Google Cloud project with Discovery Engine API enabled

@@ -81,17 +81,16 @@ class CloudflareWorkersAI(Plugin):
     This plugin provides access to Cloudflare Workers AI models for text
     generation and embeddings.
 
-    Example::
-
-        from genkit import Genkit
-        from genkit.plugins.cloudflare_workers_ai import CloudflareWorkersAI, cloudflare_model
-
-        ai = Genkit(
-            plugins=[CloudflareWorkersAI()],
-            model=cloudflare_model('@cf/meta/llama-3.1-8b-instruct'),
-        )
-
-        response = await ai.generate(prompt='Hello, world!')
+    Example:
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.cloudflare_workers_ai import CloudflareWorkersAI, cloudflare_model
+        >>>
+        >>> ai = Genkit(
+        ...     plugins=[CloudflareWorkersAI()],
+        ...     model=cloudflare_model('@cf/meta/llama-3.1-8b-instruct'),
+        ... )
+        >>>
+        >>> response = await ai.generate(prompt='Hello, world!')
 
     Attributes:
         account_id: Cloudflare account ID.
