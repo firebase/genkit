@@ -90,7 +90,7 @@ run_plugin() {
 
   genkit dev:test-model \
     --from-file "${spec_file}" \
-    -- uv run --active "${entry_point}"
+    -- uv run --directory "${REPO_ROOT}/py" --active "${entry_point}"
 }
 
 if [[ $# -eq 0 ]]; then
