@@ -313,6 +313,7 @@ def transform_dap_value(value: DapValue) -> list[ActionMetadataLike]:
             meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
             meta['name'] = action.name
             meta['description'] = action.description
+            meta['kind'] = action.kind
             metadata_list.append(meta)
     return metadata_list
 
@@ -396,6 +397,7 @@ class DynamicActionProvider:
             meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
             meta['name'] = action.name
             meta['description'] = action.description
+            meta['kind'] = action.kind
             metadata_list.append(meta)
 
         # Match all
@@ -438,6 +440,7 @@ class DynamicActionProvider:
                 meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
                 meta['name'] = action.name
                 meta['description'] = action.description
+                meta['kind'] = action.kind
                 dap_actions[key] = meta
 
         return dap_actions

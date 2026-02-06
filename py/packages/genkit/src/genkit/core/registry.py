@@ -173,13 +173,13 @@ def parse_registry_key(registry_key: str) -> ParsedRegistryKey | None:
     """
     if registry_key.startswith('/dynamic-action-provider'):
         # DAP format: '/dynamic-action-provider/mcp-host:tool/mytool' or 'mcp-host:tool/*'
-        key_tokens = registry_key.split(':')
+        key_tokens = registry_key.split(':', 1)
         host_tokens = key_tokens[0].split('/')
         if len(host_tokens) < 3:
             return None
         if len(key_tokens) < 2:
             return ParsedRegistryKey(
-                action_type='dynamic-action-provider',
+                action_type=ActionKind.DYNAMIC_ACTION_PROVIDER,
                 action_name=host_tokens[2],
             )
         tokens = key_tokens[1].split('/')
