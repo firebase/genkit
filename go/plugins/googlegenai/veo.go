@@ -19,6 +19,7 @@ package googlegenai
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -135,7 +136,7 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 
 	for _, message := range request.Messages {
 		for _, part := range message.Content {
-			if part.IsMedia() {
+			if part.IsMedia() && !part.IsVideo() {
 				_, data, err := uri.Data(part)
 				if err != nil {
 					return nil
@@ -159,15 +160,22 @@ func extractVeoVideoFromRequest(request *ai.ModelRequest) *genai.Video {
 
 	for _, message := range request.Messages {
 		for _, part := range message.Content {
-			if part.IsVideo() {
-				_, data, err := uri.Data(part)
+			if !part.IsVideo() {
+				continue
+			}
+			if strings.HasPrefix(part.Text, "data:") {
+				contentType, data, err := uri.Data(part)
 				if err != nil {
 					return nil
 				}
 				return &genai.Video{
 					VideoBytes: data,
-					MIMEType:   part.ContentType,
+					MIMEType:   contentType,
 				}
+			}
+			return &genai.Video{
+				URI: part.Text,
+				// MIMEType: part.ContentType,
 			}
 		}
 	}
