@@ -36,11 +36,10 @@ BASE_KEYWORDS = [
 # Plugin-specific keywords
 PLUGIN_KEYWORDS = {
     'anthropic': ['anthropic', 'claude'],
-    'aws-bedrock': ['aws', 'bedrock', 'amazon'],
+    'amazon-bedrock': ['aws', 'bedrock', 'amazon'],
     'aws': ['aws', 'amazon', 'xray', 'telemetry'],
     'azure': ['azure', 'microsoft', 'application-insights', 'telemetry'],
-    'cf-ai': ['cloudflare', 'workers-ai'],
-    'cf': ['cloudflare', 'otlp', 'telemetry'],
+    'cloudflare-workers-ai': ['cloudflare', 'workers-ai', 'otlp', 'telemetry'],
     'compat-oai': ['openai', 'openai-compatible'],
     'deepseek': ['deepseek'],
     'dev-local-vectorstore': ['vector-store', 'embeddings', 'local'],
@@ -52,7 +51,7 @@ PLUGIN_KEYWORDS = {
     'huggingface': ['huggingface', 'transformers', 'inference-api'],
     'mcp': ['mcp', 'model-context-protocol'],
     'mistral': ['mistral', 'mistral-ai'],
-    'msfoundry': ['azure', 'microsoft', 'azure-openai', 'foundry'],
+    'microsoft-foundry': ['azure', 'microsoft', 'azure-openai', 'foundry'],
     'observability': ['observability', 'telemetry', 'sentry', 'honeycomb', 'datadog'],
     'ollama': ['ollama', 'local', 'self-hosted'],
     'vertex-ai': ['google', 'vertex-ai', 'model-garden'],

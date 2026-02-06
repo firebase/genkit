@@ -20,7 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
-  "genkit-plugin-cf-ai",
+  "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -33,11 +33,9 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
   "genkit-plugin-mcp",
-  "genkit-plugin-msfoundry",
-  "genkit-plugin-aws-bedrock",
-  "genkit-plugin-aws",
-  "genkit-plugin-azure",
-  "genkit-plugin-cf",
+  "genkit-plugin-microsoft-foundry",
+  "genkit-plugin-amazon-bedrock",
+
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
@@ -77,6 +75,7 @@ dev = [
 lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
+  "litestar>=2.0.0",          # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
   "pypdf>=6.6.2",
@@ -133,12 +132,9 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
+amazon-bedrock-hello              = { workspace = true }
 anthropic-hello                   = { workspace = true }
-aws-bedrock-hello                 = { workspace = true }
-aws-hello                         = { workspace = true }
-azure-hello                       = { workspace = true }
-cf-ai-hello                       = { workspace = true }
-cf-hello                          = { workspace = true }
+cloudflare-workers-ai-hello       = { workspace = true }
 compat-oai-hello                  = { workspace = true }
 deepseek-hello                    = { workspace = true }
 dev-local-vectorstore-hello       = { workspace = true }
@@ -155,9 +151,9 @@ google-genai-vertexai-image       = { workspace = true }
 huggingface-hello                 = { workspace = true }
 media-models-demo                 = { workspace = true }
 menu                              = { workspace = true }
+microsoft-foundry-hello           = { workspace = true }
 mistral-hello                     = { workspace = true }
 model-garden                      = { workspace = true }
-msfoundry-hello                   = { workspace = true }
 multi-server                      = { workspace = true }
 observability-hello               = { workspace = true }
 ollama-hello                      = { workspace = true }
@@ -168,16 +164,14 @@ short-n-long                      = { workspace = true }
 tool-interrupts                   = { workspace = true }
 vertex-ai-vector-search-bigquery  = { workspace = true }
 vertex-ai-vector-search-firestore = { workspace = true }
+vertexai-rerank-eval              = { workspace = true }
 xai-hello                         = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
+genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-aws                   = { workspace = true }
-genkit-plugin-aws-bedrock           = { workspace = true }
-genkit-plugin-azure                 = { workspace = true }
-genkit-plugin-cf                    = { workspace = true }
-genkit-plugin-cf-ai                 = { workspace = true }
+genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -188,15 +182,15 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-huggingface           = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
+genkit-plugin-microsoft-foundry     = { workspace = true }
 genkit-plugin-mistral               = { workspace = true }
-genkit-plugin-msfoundry             = { workspace = true }
 genkit-plugin-observability         = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared", "testapps/*"]
+exclude = ["*/shared", "samples/sample-test", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
@@ -380,11 +374,8 @@ root = [
   "packages/genkit/src",
   # Plugins
   "plugins/anthropic/src",
-  "plugins/aws/src",
-  "plugins/aws-bedrock/src",
-  "plugins/azure/src",
-  "plugins/cf/src",
-  "plugins/cf-ai/src",
+  "plugins/amazon-bedrock/src",
+  "plugins/cloudflare-workers-ai/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",
@@ -395,8 +386,8 @@ root = [
   "plugins/google-genai/src",
   "plugins/huggingface/src",
   "plugins/mcp/src",
+  "plugins/microsoft-foundry/src",
   "plugins/mistral/src",
-  "plugins/msfoundry/src",
   "plugins/observability/src",
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
@@ -453,6 +444,7 @@ project_excludes = [
   "build",
   "dist",
   "testapps",
+  "samples/sample-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)

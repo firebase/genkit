@@ -16,6 +16,7 @@
 
 """Tests for xAI models."""
 
+import asyncio
 from collections.abc import Iterator
 from unittest.mock import MagicMock
 
@@ -215,6 +216,9 @@ async def test_streaming_generation() -> None:
     ctx.send_chunk = send_chunk
 
     response = await model.generate(sample_request, ctx)
+
+    # Allow event loop to process call_soon_threadsafe callbacks
+    await asyncio.sleep(0.1)
 
     assert len(collected_chunks) == 3
     assert response.usage

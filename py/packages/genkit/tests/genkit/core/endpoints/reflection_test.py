@@ -67,7 +67,7 @@ async def asgi_client(mock_registry: MagicMock) -> AsyncIterator[AsyncClient]:
         An AsyncClient configured to make requests to the test ASGI app.
     """
     app = create_reflection_asgi_app(mock_registry)
-    transport = ASGITransport(app=app)  # type: ignore[arg-type]
+    transport = ASGITransport(app=app)
     client = AsyncClient(transport=transport, base_url='http://test')
     try:
         yield client
@@ -95,7 +95,12 @@ async def test_list_actions(asgi_client: AsyncClient, mock_registry: MagicMock) 
             )
         ]
 
+    # Mock resolve_actions_by_kind to return empty dict (no registered actions in this test)
+    async def mock_resolve_actions_by_kind(kind: ActionKind) -> dict:
+        return {}
+
     mock_registry.list_actions = mock_list_actions_async
+    mock_registry.resolve_actions_by_kind = mock_resolve_actions_by_kind
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
     result = response.json()

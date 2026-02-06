@@ -776,8 +776,8 @@ Hello {{name}}!
 
         # Verify the prompt is registered
         # File-based prompts are registered with an empty namespace by default
-        prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
-        executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+        prompt_actions = await ai.registry.resolve_actions_by_kind(ActionKind.PROMPT)
+        executable_prompt_actions = await ai.registry.resolve_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
         assert 'test' in prompt_actions
         assert 'test' in executable_prompt_actions
 
@@ -788,8 +788,8 @@ async def test_automatic_prompt_loading_default_none() -> None:
     ai = Genkit(prompt_dir=None)
 
     # Check that no prompts are registered (assuming a clean environment)
-    prompt_actions = ai.registry.get_actions_by_kind(ActionKind.PROMPT)
-    executable_prompt_actions = ai.registry.get_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
+    prompt_actions = await ai.registry.resolve_actions_by_kind(ActionKind.PROMPT)
+    executable_prompt_actions = await ai.registry.resolve_actions_by_kind(ActionKind.EXECUTABLE_PROMPT)
     assert len(prompt_actions) == 0
     assert len(executable_prompt_actions) == 0
 

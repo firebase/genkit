@@ -189,18 +189,23 @@ class Registry:
                 self._entries[action.kind] = {}
             self._entries[action.kind][action.name] = action
 
-    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
-        """Returns a dictionary of all registered actions for a specific kind.
+    async def resolve_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns all registered actions for a specific kind, triggering lazy loading.
+
+        File-based prompts defer schema resolution until first access. This method
+        ensures all action metadata is fully loaded before returning.
 
         Args:
             kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
 
         Returns:
-            A dictionary mapping action names to Action instances.
-            Returns an empty dictionary if no actions of that kind are registered.
+            A dictionary mapping action names to Action instances with fully loaded metadata.
         """
         with self._lock:
-            return self._entries.get(kind, {}).copy()
+            actions = self._entries.get(kind, {}).copy()
+        for action in actions.values():
+            await self._trigger_lazy_loading(action)
+        return actions
 
     def register_value(self, kind: str, name: str, value: object) -> None:
         """Registers a value with a given kind and name.
@@ -330,6 +335,23 @@ class Registry:
                 self._entries[action.kind] = {}
             self._entries[action.kind][name] = action
 
+    async def _trigger_lazy_loading(self, action: Action | None) -> Action | None:
+        """Trigger lazy loading for an action if needed.
+
+        File-based prompts are registered with deferred metadata (schemas). This method
+        triggers the async factory to resolve that metadata before returning the action.
+        The factory is memoized, so subsequent calls return immediately.
+        """
+        if action is None:
+            return None
+        async_factory = getattr(action, '_async_factory', None)
+        if async_factory is not None and action.metadata.get('lazy'):
+            try:
+                await async_factory()
+            except Exception as e:
+                logger.warning(f'Failed to load lazy action {action.name}: {e}')
+        return action
+
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
         """Resolve an action by kind and name, supporting both prefixed and unprefixed names.
 
@@ -352,7 +374,7 @@ class Registry:
         # Cache hit
         with self._lock:
             if kind in self._entries and name in self._entries[kind]:
-                return self._entries[kind][name]
+                return await self._trigger_lazy_loading(self._entries[kind][name])
 
         action: Action | None = None
 
@@ -370,13 +392,13 @@ class Registry:
                 # Check cache again after init - init() might have registered this action
                 with self._lock:
                     if kind in self._entries and target in self._entries[kind]:
-                        return self._entries[kind][target]
+                        return await self._trigger_lazy_loading(self._entries[kind][target])
 
                 action = await plugin.resolve(kind, target)
                 if action is not None:
                     self.register_action_instance(action, namespace=plugin_name)
                     with self._lock:
-                        return self._entries.get(kind, {}).get(target)
+                        return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))
         else:
             # Unprefixed request: try all plugins
             successes: list[tuple[str, Action]] = []
@@ -408,7 +430,7 @@ class Registry:
                 plugin_name, action = successes[0]
                 self.register_action_instance(action, namespace=plugin_name)
                 with self._lock:
-                    return self._entries.get(kind, {}).get(f'{plugin_name}/{name}')
+                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))
 
         # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
         # Skip if we're looking up a dynamic action provider itself to avoid recursion
@@ -424,7 +446,7 @@ class Registry:
                     response = await provider.arun({'kind': kind, 'name': name})
                     if response.response:
                         self.register_action_instance(response.response)
-                        return response.response
+                        return await self._trigger_lazy_loading(response.response)
                 except Exception as e:
                     logger.debug(
                         f'Dynamic action provider {provider.name} failed for {kind}/{name}',

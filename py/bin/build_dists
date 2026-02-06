@@ -33,7 +33,7 @@ PROJECT_DIRS=()
 while IFS= read -r -d '' pyproject; do
   # Get the directory containing pyproject.toml, relative to py/
   project_dir=$(dirname "${pyproject}")
-  project_dir="${project_dir#${PY_DIR}/}"
+  project_dir="${project_dir#"${PY_DIR}"/}"
   PROJECT_DIRS+=("$project_dir")
 done < <(find "${PY_DIR}/packages" "${PY_DIR}/plugins" "${PY_DIR}/samples" "${PY_DIR}/tests" \
   -name "pyproject.toml" -type f -print0 2>/dev/null)
@@ -47,12 +47,18 @@ echo ""
 
 for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
   uv \
-    --directory=${TOP_DIR}/py \
+    --directory="${TOP_DIR}"/py \
     --project "$PROJECT_DIR" \
     build
 done
 
-TWINE_CHECK=$(uv run --directory ${TOP_DIR}/py twine check ${TOP_DIR}/py/dist/*)
+# Safely handle glob expansion for filenames with spaces
+dist_files=("${TOP_DIR}"/py/dist/*)
+if [[ ! -e "${dist_files[0]}" ]]; then
+  echo "Error: No distribution files found in dist/" >&2
+  exit 1
+fi
+TWINE_CHECK=$(uv run --directory "${TOP_DIR}"/py twine check "${dist_files[@]}")
 echo "$TWINE_CHECK"
 if echo "$TWINE_CHECK" | grep -q "FAIL"; then
   echo "Twine check failed."

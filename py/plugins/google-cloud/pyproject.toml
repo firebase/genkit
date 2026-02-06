@@ -57,7 +57,7 @@ license = "Apache-2.0"
 name = "genkit-plugin-google-cloud"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.4.0"
+version = "0.5.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
@@ -70,4 +70,5 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit", "src/genkit/plugins"]
+only-include = ["src/genkit/plugins/google_cloud"]
+sources      = ["src"]

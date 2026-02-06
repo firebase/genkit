@@ -70,11 +70,37 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: 
+          paths:
+            # Core package
             - packages/genkit/src
-            - plugins/ollama/src
+            # Model provider plugins
+            - plugins/anthropic/src
+            - plugins/amazon-bedrock/src
+            - plugins/cloudflare-workers-ai/src
+            - plugins/deepseek/src
             - plugins/google-genai/src
+            - plugins/huggingface/src
+            - plugins/mistral/src
+            - plugins/microsoft-foundry/src
+            - plugins/ollama/src
+            - plugins/vertex-ai/src
+            - plugins/xai/src
+            # Telemetry plugins
+            - plugins/aws/src
+            - plugins/azure/src
+            - plugins/cf/src
+            - plugins/google-cloud/src
+            - plugins/observability/src
+            # Framework integration plugins
+            - plugins/flask/src
+            # Data and retrieval plugins
+            - plugins/dev-local-vectorstore/src
+            - plugins/evaluators/src
             - plugins/firebase/src
+            # OpenAI compatibility
+            - plugins/compat-oai/src
+            # MCP (Model Context Protocol)
+            - plugins/mcp/src
           options:
             docstring_style: google
             annotations_path: full

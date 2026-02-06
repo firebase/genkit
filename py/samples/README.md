@@ -13,23 +13,23 @@ This directory contains sample applications demonstrating various Genkit feature
 │   ───────────────                    ─────────                                  │
 │   ┌─────────────────────────┐        ┌─────────────────────────┐               │
 │   │ google-genai-hello      │        │ aws-hello               │               │
-│   │ anthropic-hello         │        │ azure-hello             │               │
-│   │ aws-bedrock-hello       │        │ cf-hello                │               │
-│   │ msfoundry-hello         │        │ observability-hello     │               │
-│   │ ollama-hello            │        │ realtime-tracing-demo   │               │
-│   │ compat-oai-hello        │        └─────────────────────────┘               │
-│   │ deepseek-hello          │                                                  │
-│   │ xai-hello               │        ADVANCED FEATURES                         │
-│   │ cf-ai-hello             │        ─────────────────                         │
-│   └─────────────────────────┘        ┌─────────────────────────┐               │
+│   │ anthropic-hello         │        │ microsoft-foundry-hello             │               │
+│   │ amazon-bedrock-hello       │        │ observability-hello     │               │
+│   │ microsoft-foundry-hello         │        │ realtime-tracing-demo   │               │
+│   │ ollama-hello            │        └─────────────────────────┘               │
+│   │ compat-oai-hello        │                                                  │
+│   │ deepseek-hello          │        ADVANCED FEATURES                         │
+│   │ xai-hello               │        ─────────────────                         │
+│   │ cloudflare-workers-ai-hello │    ┌─────────────────────────┐               │
 │                                      │ tool-interrupts         │               │
 │   VECTOR STORES                      │ menu (tool examples)    │               │
 │   ─────────────                      │ prompt-demo             │               │
 │   ┌─────────────────────────┐        │ format-demo             │               │
 │   │ dev-local-vectorstore   │        │ multi-server            │               │
 │   │ vertex-ai-vector-search │        │ evaluator-demo          │               │
-│   │ firestore-retriever     │        │ flask-hello             │               │
-│   └─────────────────────────┘        └─────────────────────────┘               │
+│   │ firestore-retriever     │        │ vertexai-rerank-eval    │               │
+│   └─────────────────────────┘        │ flask-hello             │               │
+│                                      └─────────────────────────┘               │
 │                                                                                 │
 │   MULTIMODAL                         GOOGLE AI FEATURES                        │
 │   ──────────                         ──────────────────                        │
@@ -61,21 +61,20 @@ cd py/samples/<sample-name>
 |--------|--------|-------------|
 | **google-genai-hello** | google-genai | Gemini models with Google AI |
 | **anthropic-hello** | anthropic | Claude models directly |
-| **aws-bedrock-hello** | aws-bedrock | Claude, Llama, Nova via Bedrock |
-| **msfoundry-hello** | msfoundry | Azure AI Foundry models |
+| **amazon-bedrock-hello** | amazon-bedrock | Claude, Llama, Nova via Bedrock |
+| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
 | **ollama-hello** | ollama | Local models with Ollama |
 | **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
 | **deepseek-hello** | deepseek | DeepSeek V3 and R1 |
 | **xai-hello** | xai | Grok models |
-| **cf-ai-hello** | cf-ai | Cloudflare Workers AI |
+| **cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
 
 ### Telemetry Samples
 
 | Sample | Plugin | Description |
 |--------|--------|-------------|
 | **aws-hello** | aws | AWS X-Ray and CloudWatch integration |
-| **azure-hello** | azure | Azure Application Insights |
-| **cf-hello** | cf | Generic OTLP export (any backend) |
+| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
 | **observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 | **realtime-tracing-demo** | google-cloud | Real-time tracing visualization |
 
@@ -98,6 +97,7 @@ cd py/samples/<sample-name>
 | **format-demo** | Formats | Output formatting and schemas |
 | **multi-server** | Architecture | Multiple Genkit servers |
 | **evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
+| **vertexai-rerank-eval** | RAG, Evaluation | Vertex AI rerankers and evaluators |
 | **flask-hello** | Integrations | Flask HTTP endpoints |
 
 ### Multimodal Samples
@@ -119,16 +119,16 @@ Most samples require environment variables for API keys. Configure these before 
 |----------|--------|----------|-------------|-----------------|
 | `GOOGLE_GENAI_API_KEY` | google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | aws-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | aws-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | aws-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AZURE_AI_FOUNDRY_ENDPOINT` | msfoundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
-| `AZURE_AI_FOUNDRY_API_KEY` | msfoundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
+| `AWS_REGION` | amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
+| `AWS_ACCESS_KEY_ID` | amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_SECRET_ACCESS_KEY` | amazon-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AZURE_AI_FOUNDRY_ENDPOINT` | microsoft-foundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
+| `AZURE_AI_FOUNDRY_API_KEY` | microsoft-foundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
 | `DEEPSEEK_API_KEY` | deepseek-hello | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
 | `XAI_API_KEY` | xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
-| `CLOUDFLARE_ACCOUNT_ID` | cf-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
-| `CLOUDFLARE_API_TOKEN` | cf-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `CLOUDFLARE_ACCOUNT_ID` | cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
 
 *Can use IAM roles, managed identity, or other credential providers instead.
 
@@ -138,11 +138,11 @@ Most samples require environment variables for API keys. Configure these before 
 |----------|--------|----------|-------------|-----------------|
 | `GOOGLE_CLOUD_PROJECT` | realtime-tracing-demo | Yes | GCP project ID | [GCP Console](https://console.cloud.google.com/) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | realtime-tracing-demo | Yes* | Service account JSON path | [GCP IAM](https://cloud.google.com/docs/authentication/application-default-credentials) |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | azure-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
-| `CF_OTLP_ENDPOINT` | cf-hello | Yes | OTLP endpoint URL | Your OTLP backend |
-| `CF_API_TOKEN` | cf-hello | Yes | Bearer token for OTLP auth | Your OTLP backend |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | microsoft-foundry-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
+| `CF_OTLP_ENDPOINT` | cloudflare-workers-ai-hello | No* | OTLP endpoint URL | Your OTLP backend |
+| `CF_API_TOKEN` | cloudflare-workers-ai-hello | No* | Bearer token for OTLP auth | Your OTLP backend |
 
-*Not required when running on GCP with default credentials.
+*Only required if using OTLP telemetry export.
 
 ### Observability Plugin (Third-Party Backends)
 
@@ -198,19 +198,19 @@ export GOOGLE_GENAI_API_KEY="AIza..."
 # Anthropic (anthropic-hello)
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# AWS Bedrock (aws-bedrock-hello)
+# AWS Bedrock (amazon-bedrock-hello)
 export AWS_REGION="us-east-1"
 export AWS_ACCESS_KEY_ID="AKIA..."
 export AWS_SECRET_ACCESS_KEY="..."
 
-# Azure AI Foundry (msfoundry-hello)
+# Azure AI Foundry (microsoft-foundry-hello)
 export AZURE_AI_FOUNDRY_ENDPOINT="https://your-resource.services.ai.azure.com/"
 export AZURE_AI_FOUNDRY_API_KEY="..."
 
-# Azure Telemetry (azure-hello)
+# Azure Telemetry (microsoft-foundry-hello)
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 
-# Cloudflare AI (cf-ai-hello)
+# Cloudflare Workers AI (cloudflare-workers-ai-hello)
 export CLOUDFLARE_ACCOUNT_ID="abc123..."
 export CLOUDFLARE_API_TOKEN="..."
 

@@ -41,7 +41,8 @@ cd "$PY_DIR"
 
 # Parse arguments
 VERBOSE=false
-FIX_MODE=false
+# shellcheck disable=SC2034
+FIX_MODE=false  # Reserved for future use (--fix flag)
 CI_MODE=false
 SKIP_TESTS=false
 while [[ $# -gt 0 ]]; do
@@ -51,7 +52,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --fix)
-      FIX_MODE=true
+      # shellcheck disable=SC2034
+      FIX_MODE=true  # Reserved for future use
       shift
       ;;
     --ci)
@@ -387,6 +389,42 @@ else
   fi
 fi
 rm -f /tmp/typos_release_$$ 2>/dev/null || true
+
+echo -e "\n${CYAN}Checking shell scripts (shellcheck)...${NC}"
+if command -v shellcheck &> /dev/null; then
+  shell_errors=0
+  # Check both py/bin/ and root bin/ directories (consistent with bin/lint)
+  for script in bin/* "${TOP_DIR}"/bin/*; do
+    if [ -f "$script" ] && file "$script" | grep -q "shell\|bash\|sh" 2>/dev/null; then
+      script_name=$(basename "$script")
+      # Skip .py files
+      if [[ "$script_name" == *.py ]]; then
+        continue
+      fi
+      if shellcheck "$script" > /tmp/shellcheck_$$ 2>&1; then
+        if [ "$VERBOSE" = true ]; then
+          echo -e "  ${GREEN}✓${NC} $script_name"
+        fi
+      else
+        echo -e "  ${RED}ERROR${NC}: $script_name has shellcheck warnings"
+        if [ "$VERBOSE" = true ]; then
+          head -5 /tmp/shellcheck_$$
+        fi
+        shell_errors=$((shell_errors + 1))
+      fi
+    fi
+  done
+  rm -f /tmp/shellcheck_$$ 2>/dev/null || true
+  
+  if [ $shell_errors -eq 0 ]; then
+    echo -e "  ${GREEN}✓${NC} All shell scripts pass shellcheck"
+  else
+    echo -e "  ${RED}ERROR${NC}: $shell_errors script(s) have shellcheck warnings"
+    ERRORS=$((ERRORS + 1))
+  fi
+else
+  echo -e "  ${YELLOW}SKIP${NC}: shellcheck not installed (brew install shellcheck)"
+fi
 
 echo ""
 

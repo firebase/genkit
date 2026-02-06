@@ -138,11 +138,16 @@ from genkit.web.typing import (
 logger = get_logger(__name__)
 
 
-def _list_registered_actions(registry: Registry) -> dict[str, Action]:
-    """Return all locally registered actions keyed as `/<kind>/<name>`."""
+async def _list_registered_actions(registry: Registry) -> dict[str, Action]:
+    """Return all locally registered actions keyed as `/<kind>/<name>`.
+
+    Uses resolve_actions_by_kind() to trigger lazy loading for any actions with
+    deferred metadata (e.g., file-based prompts), ensuring schemas are available
+    for the Dev UI.
+    """
     registered: dict[str, Action] = {}
     for kind in ActionKind.__members__.values():
-        for name, action in registry.get_actions_by_kind(kind).items():
+        for name, action in (await registry.resolve_actions_by_kind(kind)).items():
             registered[f'/{kind.value}/{name}'] = action
     return registered
 
@@ -284,7 +289,7 @@ def create_reflection_asgi_app(
         Returns:
             A JSON response containing all serializable actions.
         """
-        registered = _list_registered_actions(registry)
+        registered = await _list_registered_actions(registry)
         metas = await registry.list_actions()
         actions = _build_actions_payload(registered_actions=registered, plugin_metas=metas)
 

@@ -172,6 +172,14 @@ for f in plugins/*/pyproject.toml; do
   fi
 done
 
+# Update all samples
+echo -e "\n${CYAN}Updating samples...${NC}"
+for f in samples/*/pyproject.toml; do
+  if [ -f "$f" ]; then
+    update_version "$f"
+  fi
+done
+
 echo ""
 
 if $DRY_RUN; then

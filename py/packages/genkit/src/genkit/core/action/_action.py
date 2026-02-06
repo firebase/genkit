@@ -282,9 +282,21 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def input_schema(self) -> dict[str, object]:
         return self._input_schema
 
+    @input_schema.setter
+    def input_schema(self, value: dict[str, object]) -> None:
+        """Update input schema (used by lazy-loaded prompts to set schema after registration)."""
+        self._input_schema = value
+        self._metadata[ActionMetadataKey.INPUT_KEY] = value
+
     @property
     def output_schema(self) -> dict[str, object]:
         return self._output_schema
+
+    @output_schema.setter
+    def output_schema(self, value: dict[str, object]) -> None:
+        """Update output schema (used by lazy-loaded prompts to set schema after registration)."""
+        self._output_schema = value
+        self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
 
     @property
     def is_async(self) -> bool:
