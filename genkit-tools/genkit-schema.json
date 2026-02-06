@@ -283,15 +283,12 @@
           "anyOf": [
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": false,
-              "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+              "additionalProperties": {}
             },
             {
               "type": "null"
             }
-          ],
-          "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+          ]
         }
       },
       "required": [
