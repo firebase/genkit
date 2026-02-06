@@ -40,12 +40,15 @@ Import as `aix "github.com/firebase/genkit/go/ai/x"`.
 ```go
 // SessionState is the portable conversation state.
 type SessionState[State any] struct {
-    // Messages is the conversation history.
+    // Messages is the conversation history (user/model exchanges, no system messages).
+    // Does NOT include prompt-rendered messages - those are rendered fresh each turn.
     Messages []*ai.Message `json:"messages,omitempty"`
     // Custom is the user-defined state associated with this conversation.
     Custom State `json:"custom,omitempty"`
     // Artifacts are named collections of parts produced during the conversation.
     Artifacts []*SessionFlowArtifact `json:"artifacts,omitempty"`
+    // PromptInput stores the input used to render the agent's base prompt.
+    PromptInput any `json:"promptInput,omitempty"`
 }
 
 // SessionSnapshot is a persisted point-in-time capture of session state.
@@ -97,11 +100,11 @@ type SessionFlowInit[State any] struct {
 
 // SessionFlowResponse is the output when a session flow invocation completes.
 type SessionFlowResponse[State any] struct {
-    // State contains the final conversation state.
-    State *SessionState[State] `json:"state"`
     // SnapshotID is the ID of the snapshot created at the end of this invocation.
     // Empty if no snapshot was created (callback returned false or no store configured).
     SnapshotID string `json:"snapshotId,omitempty"`
+    // State contains the final conversation state.
+    State *SessionState[State] `json:"state"`
 }
 ```
 
@@ -182,9 +185,9 @@ func (s *Session[State]) PatchCustom(fn func(State) State)
 // Artifacts returns the current artifacts.
 func (s *Session[State]) Artifacts() []*SessionFlowArtifact
 
-// AddArtifact adds an artifact to the session. If an artifact with the same
+// AddArtifacts adds artifacts to the session. If an artifact with the same
 // name already exists, it is replaced.
-func (s *Session[State]) AddArtifact(artifact *SessionFlowArtifact)
+func (s *Session[State]) AddArtifacts(artifacts ...*SessionFlowArtifact)
 
 // SetArtifacts replaces the entire artifact list.
 func (s *Session[State]) SetArtifacts(artifacts ...*SessionFlowArtifact)
@@ -224,7 +227,7 @@ func (r *Responder[Stream]) SendArtifact(artifact *SessionFlowArtifact)
 ```go
 // SessionFlowParams contains the parameters passed to a session flow function.
 // This struct may be extended with additional fields in the future.
-type SessionFlowParams[Stream, State any] struct {
+type SessionFlowParams[State any] struct {
     // Session provides access to the working state.
     Session *Session[State]
 }
@@ -460,7 +463,7 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
     }
     session.onEndTurn = responder.endTurn
 
-    params := &SessionFlowParams[Stream, State]{
+    params := &SessionFlowParams[State]{
         Session: session,
     }
 
@@ -552,7 +555,7 @@ func main() {
     )
 
     chatFlow := genkit.DefineSessionFlow(g, "chatFlow",
-        func(ctx context.Context, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatStatus, ChatState]) error {
+        func(ctx context.Context, resp *aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatState]) error {
             return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
                 sess := params.Session
 
@@ -625,7 +628,7 @@ func main() {
 ```go
 snapshotID := "abc123..."
 
-conn, _ := chatFlow.StreamBidi(ctx, aix.WithSnapshotID[ChatState](snapshotID))
+conn, _ := chatFlow.StreamBidi(ctx, aix.WithSnapshotID[State](snapshotID))
 
 conn.SendText("Continue our discussion about channels")
 for chunk, err := range conn.Receive() {
@@ -640,7 +643,7 @@ For clients that manage their own state (e.g., web apps with local storage):
 ```go
 clientState := &aix.SessionState[ChatState]{
     Messages: previousMessages,
-    Custom:    ChatState{UserPreferences: prefs},
+    Custom:   ChatState{UserPreferences: prefs},
 }
 
 conn, _ := chatFlow.StreamBidi(ctx, aix.WithState(clientState))
@@ -663,7 +666,7 @@ type CodeStatus struct {
 }
 
 codeFlow := genkit.DefineSessionFlow(g, "codeFlow",
-    func(ctx context.Context, resp *aix.Responder[CodeStatus], params *aix.SessionFlowParams[CodeStatus, CodeState]) error {
+    func(ctx context.Context, resp *aix.Responder[CodeStatus], params *aix.SessionFlowParams[CodeState]) error {
         return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
             sess := params.Session
 
