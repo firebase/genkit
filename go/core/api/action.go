@@ -68,11 +68,13 @@ const (
 
 // ActionDesc is a descriptor of an action.
 type ActionDesc struct {
-	Type         ActionType     `json:"type"`         // Type of the action.
-	Key          string         `json:"key"`          // Key of the action.
-	Name         string         `json:"name"`         // Name of the action.
-	Description  string         `json:"description"`  // Description of the action.
-	InputSchema  map[string]any `json:"inputSchema"`  // JSON schema to validate against the action's input.
-	OutputSchema map[string]any `json:"outputSchema"` // JSON schema to validate against the action's output.
-	Metadata     map[string]any `json:"metadata"`     // Metadata for the action.
+	Type         ActionType     `json:"type"`                   // Type of the action.
+	Key          string         `json:"key"`                    // Key of the action.
+	Name         string         `json:"name"`                   // Name of the action.
+	Description  string         `json:"description"`            // Description of the action.
+	InputSchema  map[string]any `json:"inputSchema"`            // JSON schema to validate against the action's input.
+	OutputSchema map[string]any `json:"outputSchema"`           // JSON schema to validate against the action's output.
+	StreamSchema map[string]any `json:"streamSchema,omitempty"` // JSON schema to validate against the action's streamed chunks.
+	InitSchema   map[string]any `json:"initSchema,omitempty"`   // JSON schema to validate against the action's initialization data.
+	Metadata     map[string]any `json:"metadata"`               // Metadata for the action.
 }
