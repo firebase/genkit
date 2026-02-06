@@ -96,6 +96,8 @@ type GenerateActionOptions struct {
 	ToolChoice ToolChoice `json:"toolChoice,omitempty"`
 	// Tools is a list of registered tool names for this generation if supported.
 	Tools []string `json:"tools,omitempty"`
+	// Use is middleware to apply to this generation, referenced by name with optional config.
+	Use []*MiddlewareRef `json:"use,omitempty"`
 }
 
 // GenerateActionResume holds options for resuming an interrupted generation.
