@@ -30,11 +30,11 @@ func ClassifyModel(name string) ModelType {
 		return ModelTypeVeo
 	case strings.HasPrefix(name, "imagen"), strings.HasPrefix(name, "image"):
 		return ModelTypeImagen
+	case strings.HasPrefix(name, "gemini"), strings.HasPrefix(name, "gemma"):
+		return ModelTypeGemini
 	case strings.Contains(name, "embedding"):
 		// Covers: text-embedding-*, embedding-*, textembedding-*, multimodalembedding
 		return ModelTypeEmbedder
-	case strings.HasPrefix(name, "gemini"), strings.HasPrefix(name, "gemma"):
-		return ModelTypeGemini
 	default:
 		return ModelTypeUnknown
 	}

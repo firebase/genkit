@@ -6,7 +6,6 @@ package googlegenai
 import (
 	"context"
 	"fmt"
-	"log"
 	"slices"
 	"strings"
 
@@ -515,7 +514,7 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 
 	for item, err := range client.Models.All(ctx) {
 		if err != nil {
-			log.Fatal(err)
+			return genaiModels{}, err
 		}
 		if !strings.HasPrefix(item.Name, "models/") {
 			continue
