@@ -27,9 +27,17 @@
 #   py/bin/test-model-conformance --all              # test all plugins
 #
 # Required environment variables per plugin:
-#   google-genai:  GEMINI_API_KEY
-#   anthropic:     ANTHROPIC_API_KEY
-#   compat-oai:    OPENAI_API_KEY
+#   google-genai:            GEMINI_API_KEY
+#   anthropic:               ANTHROPIC_API_KEY
+#   compat-oai:              OPENAI_API_KEY
+#   mistral:                 MISTRAL_API_KEY
+#   deepseek:                DEEPSEEK_API_KEY
+#   xai:                     XAI_API_KEY
+#   amazon-bedrock:          AWS_REGION (+ AWS credentials)
+#   huggingface:             HF_TOKEN
+#   microsoft-foundry:       AZURE_OPENAI_API_KEY
+#   cloudflare-workers-ai:   CLOUDFLARE_ACCOUNT_ID
+#   ollama:                  (none, local server)
 
 set -euo pipefail
 shopt -s nullglob
@@ -43,6 +51,13 @@ declare -A PLUGIN_ENV_VARS=(
   [google-genai]="GEMINI_API_KEY"
   [anthropic]="ANTHROPIC_API_KEY"
   [compat-oai]="OPENAI_API_KEY"
+  [mistral]="MISTRAL_API_KEY"
+  [deepseek]="DEEPSEEK_API_KEY"
+  [xai]="XAI_API_KEY"
+  [amazon-bedrock]="AWS_REGION"
+  [huggingface]="HF_TOKEN"
+  [microsoft-foundry]="AZURE_OPENAI_API_KEY"
+  [cloudflare-workers-ai]="CLOUDFLARE_ACCOUNT_ID"
 )
 
 usage() {
@@ -90,7 +105,7 @@ run_plugin() {
 
   genkit dev:test-model \
     --from-file "${spec_file}" \
-    -- uv run --active "${entry_point}"
+    -- uv run --directory "${REPO_ROOT}/py" --active "${entry_point}"
 }
 
 if [[ $# -eq 0 ]]; then
