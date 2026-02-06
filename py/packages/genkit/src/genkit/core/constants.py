@@ -23,3 +23,7 @@ DEFAULT_GENKIT_VERSION = '0.3.2'
 GENKIT_VERSION = DEFAULT_GENKIT_VERSION
 
 GENKIT_CLIENT_HEADER = f'genkit-python/{DEFAULT_GENKIT_VERSION}'
+
+# Reflection API specification version.
+# This should match the value in JS (genkit-tools).
+GENKIT_REFLECTION_API_SPEC_VERSION = 1
