@@ -33,8 +33,7 @@ ai = Genkit(plugins=[GoogleAI()])
 
 async def main() -> None:
     """Keep the process alive for the test runner."""
-    while True:
-        await asyncio.sleep(3600)
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

@@ -45,12 +45,12 @@ declare -A PLUGIN_ENV_VARS=(
 )
 
 usage() {
-  echo "Usage: $0 <plugin-name> | --all"
-  echo ""
-  echo "Available plugins:"
+  echo "Usage: $0 <plugin-name> | --all" >&2
+  echo "" >&2
+  echo "Available plugins:" >&2
   for plugin_dir in "${CONFORMANCE_DIR}"/*/; do
     plugin=$(basename "${plugin_dir}")
-    echo "  ${plugin}"
+    echo "  ${plugin}" >&2
   done
   exit 1
 }
@@ -59,8 +59,8 @@ check_env() {
   local plugin="$1"
   local env_var="${PLUGIN_ENV_VARS[${plugin}]:-}"
   if [[ -n "${env_var}" && -z "${!env_var:-}" ]]; then
-    echo "ERROR: ${env_var} is not set (required for ${plugin})"
-    exit 1
+    echo "ERROR: ${env_var} is not set (required for ${plugin})" >&2
+    return 1
   fi
 }
 
@@ -70,15 +70,17 @@ run_plugin() {
   local entry_point="${CONFORMANCE_DIR}/${plugin}/conformance_entry.py"
 
   if [[ ! -f "${spec_file}" ]]; then
-    echo "ERROR: Spec file not found: ${spec_file}"
+    echo "ERROR: Spec file not found: ${spec_file}" >&2
     return 1
   fi
   if [[ ! -f "${entry_point}" ]]; then
-    echo "ERROR: Entry point not found: ${entry_point}"
+    echo "ERROR: Entry point not found: ${entry_point}" >&2
     return 1
   fi
 
-  check_env "${plugin}"
+  if ! check_env "${plugin}"; then
+    return 1
+  fi
 
   echo "=== Testing ${plugin} ==="
   echo "  Spec:  ${spec_file}"
@@ -109,7 +111,7 @@ if [[ "$1" == "--all" ]]; then
 else
   plugin="$1"
   if [[ ! -d "${CONFORMANCE_DIR}/${plugin}" ]]; then
-    echo "ERROR: Unknown plugin '${plugin}'"
+    echo "ERROR: Unknown plugin '${plugin}'" >&2
     usage
   fi
   if ! run_plugin "${plugin}"; then
