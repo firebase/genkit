@@ -19,8 +19,10 @@
 import base64
 from typing import cast
 
+import httpx
 from google import genai
 
+from genkit.core.http_client import get_cached_client
 from genkit.core.typing import DocumentPart, Metadata
 from genkit.types import (
     CustomPart,
@@ -62,7 +64,7 @@ class PartConverter:
     DATA = 'data:'
 
     @classmethod
-    def to_gemini(cls, part: Part | DocumentPart) -> genai.types.Part | list[genai.types.Part]:
+    async def to_gemini(cls, part: Part | DocumentPart) -> genai.types.Part | list[genai.types.Part]:
         """Maps a Genkit Part to a Gemini Part.
 
         This method inspects the root type of the Genkit Part and converts it
@@ -164,6 +166,22 @@ class PartConverter:
                     )
                 )
 
+
+            if url.startswith('http'):
+                try:
+                    data, mime_type = await cls._download_image(url)
+                    # If mime type wasn't in headers, fallback to existing or default
+                    mime_type = mime_type or part.root.media.content_type or 'image/jpeg'
+                    return genai.types.Part(
+                        inline_data=genai.types.Blob(
+                            mime_type=mime_type,
+                            data=data,
+                        )
+                    )
+                except Exception:
+                    # Fallback to file_uri if download fails
+                    pass
+
             return genai.types.Part(
                 file_data=genai.types.FileData(
                     mime_type=part.root.media.content_type,
@@ -240,7 +258,7 @@ class PartConverter:
                         ref=ref or getattr(part.function_call, 'id', None),
                         # restore slashes
                         name=(part.function_call.name or '').replace('__', '/'),
-                        input=part.function_call.args,
+                        input=part.function_call.args if part.function_call.args is not None else {},
                     ),
                     metadata=cls._encode_thought_signature(part.thought_signature),
                 )
@@ -305,3 +323,18 @@ class PartConverter:
         if thought_signature:
             return Metadata(root={'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')})
         return None
+
+    @classmethod
+    async def _download_image(cls, url: str) -> tuple[bytes, str | None]:
+        """Downloads an image from a URL.
+
+        Args:
+            url: The URL to download.
+
+        Returns:
+            A tuple containing the image content (bytes) and its MIME type (str or None).
+        """
+        client = get_cached_client(cache_key='google_genai_media')
+        response = await client.get(url, timeout=60.0)
+        response.raise_for_status()
+        return response.content, response.headers.get('content-type')

@@ -16,9 +16,8 @@
 
 """Asynchronous server gateway interface implementation for Genkit."""
 
-import signal
 from collections.abc import Coroutine
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import anyio
 import httpx
@@ -127,7 +126,7 @@ class GenkitBase(GenkitRegistry):
             assert spec is not None
             # Capture spec in local var for nested functions (pyrefly doesn't narrow closures)
             server_spec: ServerSpec = spec
-            user_result: T | None = None
+            user_result: T = None  # type: ignore[assignment]
             user_task_finished_event = anyio.Event()
 
             async def run_user_coro_wrapper() -> None:
@@ -135,64 +134,25 @@ class GenkitBase(GenkitRegistry):
                 nonlocal user_result
                 try:
                     user_result = await coro
-                    logger.debug('User coroutine completed successfully.')
                 except Exception as err:
-                    # Log error but don't necessarily stop the server
                     logger.error(f'User coroutine failed: {err}', exc_info=True)
-                    # Store exception? Or let TaskGroup handle it if critical?
-                    # Depending on desired behavior, could raise here to stop everything.
-                    pass  # Continue running server for now
                 finally:
                     user_task_finished_event.set()
 
             reflection_server = _make_reflection_server(self.registry, server_spec)
 
-            # Setup signal handlers for graceful shutdown (parity with JS)
-
-            # Actually, anyio.run handles Ctrl+C (SIGINT) by raising KeyboardInterrupt/CancelledError
-            # For SIGTERM, we might need to be explicit if we run in a container/process manager.
-            # JS uses: process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
-
-            # Since anyio/asyncio handles SIGINT well, let's add a task to catch SIGTERM
-            async def handle_sigterm(tg_to_cancel: anyio.abc.TaskGroup) -> None:  # type: ignore[name-defined]
-                with anyio.open_signal_receiver(signal.SIGTERM) as signals:
-                    async for _signum in signals:
-                        logger.info('Received SIGTERM, cancelling tasks...')
-                        tg_to_cancel.cancel_scope.cancel()
-                        return
-
             try:
                 # Use lazy_write=True to prevent race condition where file exists before server is up
                 async with RuntimeManager(server_spec, lazy_write=True) as runtime_manager:
-                    # We use anyio.TaskGroup because it is compatible with
-                    # asyncio's event loop and works with Python 3.10
-                    # (asyncio.TaskGroup was added in 3.11, and we can switch to
-                    # that when we drop support for 3.10).
                     async with anyio.create_task_group() as tg:
                         # Start reflection server in the background.
-                        tg.start_soon(reflection_server.serve, name='genkit-reflection-server')
-                        await logger.ainfo(f'Started Genkit reflection server at {server_spec.url}')
+                        tg.start_soon(reflection_server.serve)
+                        logger.info(f'Started Genkit reflection server at {server_spec.url}')
 
-                        # Start SIGTERM handler
-                        tg.start_soon(handle_sigterm, tg, name='genkit-sigterm-handler')
-
-                        # Wait for server to be responsive
-                        # We need to loop and poll the health endpoint or wait for uvicorn to be ready
-                        # Since uvicorn run is blocking (but we are in a task), we can't easily hook into its startup
-                        # unless we use uvicorn's server object directly which we do.
-                        # reflection_server.started is set when uvicorn starts.
-
-                        # Simple polling loop
-
+                        # Wait for the server to be healthy before starting the user task.
                         max_retries = 20  # 2 seconds total roughly
                         for _i in range(max_retries):
                             try:
-                                # TODO(#4334): Use async http client if available to avoid blocking loop?
-                                # But we are in dev mode, so maybe okay.
-                                # Actually we should use anyio.to_thread to avoid blocking event loop
-                                # or assume standard lib urllib is fast enough for localhost.
-
-                                # Use httpx async client to avoid blocking the event loop
                                 health_url = f'{server_spec.url}/api/__health'
                                 async with httpx.AsyncClient(timeout=0.5) as client:
                                     response = await client.get(health_url)
@@ -207,29 +167,25 @@ class GenkitBase(GenkitRegistry):
                         _ = runtime_manager.write_runtime_file()
 
                         # Start the (potentially short-lived) user coroutine wrapper
-                        tg.start_soon(run_user_coro_wrapper, name='genkit-user-coroutine')
-                        await logger.ainfo('Started Genkit user coroutine')
+                        tg.start_soon(run_user_coro_wrapper)
+                        logger.info('Started Genkit user coroutine')
 
                         # Block here until the task group is canceled (e.g. Ctrl+C)
                         # or a task raises an unhandled exception. It should not
                         # exit just because the user coroutine finishes.
-
-            except anyio.get_cancelled_exc_class():
-                logger.info('Development server task group cancelled (e.g., Ctrl+C).')
-                raise
+                        await anyio.Event().wait()
             except Exception:
                 logger.exception('Development server task group error')
                 raise
 
-            # After the TaskGroup finishes (error or cancelation).
+            # After the TaskGroup finishes (normally or by task completion).
             if user_task_finished_event.is_set():
-                await logger.adebug('User coroutine finished before TaskGroup exit.')
-                if user_result is None:
-                    raise RuntimeError('User coroutine finished without a result.')
-                return user_result
+                if user_result is not None:
+                    return user_result
+                else:
+                    raise RuntimeError('User coroutine finished without a result (likely cancelled).')
 
-            await logger.adebug('User coroutine did not finish before TaskGroup exit.')
-            raise RuntimeError('User coroutine did not finish before TaskGroup exit.')
+            return None  # type: ignore[return-value]
 
         return anyio.run(dev_runner)
 
