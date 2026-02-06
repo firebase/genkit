@@ -20,7 +20,7 @@ from ._action import Action, ActionMetadata, ActionRunContext
 from ._key import create_action_key, parse_action_key
 from ._tracing import SpanAttributeValue
 from ._util import parse_plugin_name_from_action_name
-from .types import ActionKind, ActionResponse, is_action_type
+from .types import ActionKind, ActionResponse
 
 __all__ = [
     'Action',
@@ -30,7 +30,6 @@ __all__ = [
     'ActionRunContext',
     'SpanAttributeValue',
     'create_action_key',
-    'is_action_type',
     'parse_action_key',
     'parse_plugin_name_from_action_name',
 ]

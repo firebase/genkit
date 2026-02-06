@@ -56,8 +56,7 @@ from genkit.blocks.dap import (
 )
 from genkit.core.action import Action
 from genkit.core.action.types import ActionKind
-from genkit.core.error import GenkitError
-from genkit.core.registry import Registry, parse_registry_key
+from genkit.core.registry import Registry
 
 
 @pytest.fixture
@@ -148,9 +147,8 @@ async def test_lists_action_metadata(registry: Registry, tool1: Action, tool2: A
 
     metadata = await dap.list_action_metadata('tool', '*')
     assert len(metadata) == 2
-    # New API includes name/description in returned metadata
-    assert metadata[0].get('name') == 'tool1'
-    assert metadata[1].get('name') == 'tool2'
+    assert metadata[0] == tool1.metadata
+    assert metadata[1] == tool2.metadata
     assert call_count == 1
 
 
@@ -250,9 +248,8 @@ async def test_lists_actions_with_prefix(registry: Registry, tool1: Action, tool
 
     metadata = await dap.list_action_metadata('tool', 'tool*')
     assert len(metadata) == 2
-    # New API includes name/description in returned metadata
-    assert metadata[0].get('name') == 'tool1'
-    assert metadata[1].get('name') == 'tool2'
+    assert metadata[0] == tool1.metadata
+    assert metadata[1] == tool2.metadata
     assert call_count == 1
 
 
@@ -273,8 +270,7 @@ async def test_lists_actions_exact_match(registry: Registry, tool1: Action, tool
 
     metadata = await dap.list_action_metadata('tool', 'tool1')
     assert len(metadata) == 1
-    # New API includes name/description in returned metadata
-    assert metadata[0].get('name') == 'tool1'
+    assert metadata[0] == tool1.metadata
     assert call_count == 1
 
 
@@ -300,10 +296,9 @@ async def test_gets_action_metadata_record(registry: Registry, tool1: Action, to
     assert 'dap/my-dap:tool/tool1' in record
     assert 'dap/my-dap:tool/tool2' in record
     assert 'dap/my-dap:flow/tool1' in record
-    # New API returns dict with name/description included
-    assert record['dap/my-dap:tool/tool1'].get('name') == 'tool1'
-    assert record['dap/my-dap:tool/tool2'].get('name') == 'tool2'
-    assert record['dap/my-dap:flow/tool1'].get('name') == 'tool1'
+    assert record['dap/my-dap:tool/tool1'] == tool1.metadata
+    assert record['dap/my-dap:tool/tool2'] == tool2.metadata
+    assert record['dap/my-dap:flow/tool1'] == tool1.metadata
     assert call_count == 1
 
 
@@ -332,16 +327,18 @@ async def test_handles_concurrent_requests(registry: Registry, tool1: Action, to
     metadata1, metadata2 = results
     assert len(metadata1) == 2
     assert len(metadata2) == 2
-    # New API includes name/description in returned metadata
-    assert metadata1[0].get('name') == 'tool1'
-    assert metadata2[0].get('name') == 'tool1'
+    assert metadata1[0] == tool1.metadata
+    assert metadata2[0] == tool1.metadata
     # Only one fetch should have occurred
     assert call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_handles_fetch_errors(registry: Registry, tool1: Action, tool2: Action) -> None:
-    """Test that DAP raises GenkitError on fetch failure."""
+    """Test error handling and cache invalidation on fetch failure.
+
+    Corresponds to JS test: 'handles fetch errors'
+    """
     call_count = 0
 
     async def dap_fn() -> DapValue:
@@ -353,8 +350,8 @@ async def test_handles_fetch_errors(registry: Registry, tool1: Action, tool2: Ac
 
     dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
 
-    # First call should raise (wrapped in GenkitError by action tracing)
-    with pytest.raises(GenkitError):
+    # First call should raise
+    with pytest.raises(RuntimeError, match='Fetch failed'):
         await dap.list_action_metadata('tool', '*')
     assert call_count == 1
 
@@ -382,19 +379,15 @@ async def test_identifies_dap(registry: Registry, tool1: Action) -> None:
 
 
 def test_transform_dap_value(tool1: Action, tool2: Action) -> None:
-    """Test the transform_dap_value utility function.
-
-    Updated for PR #4050 parity: returns flat list instead of grouped dict.
-    """
+    """Test the transform_dap_value utility function."""
     value: DapValue = {'tool': [tool1, tool2]}
 
     metadata = transform_dap_value(value)
 
-    # New API returns flat list of action metadata
-    assert isinstance(metadata, list)
-    assert len(metadata) == 2
-    assert metadata[0].get('name') == 'tool1'
-    assert metadata[1].get('name') == 'tool2'
+    assert 'tool' in metadata
+    assert len(metadata['tool']) == 2
+    assert metadata['tool'][0] == tool1.metadata
+    assert metadata['tool'][1] == tool2.metadata
 
 
 def test_dap_config_string_normalization(registry: Registry) -> None:
@@ -538,118 +531,3 @@ async def test_get_action_metadata_record_raises_on_missing_name(registry: Regis
 
     with pytest.raises(ValueError, match='name required'):
         await dap.get_action_metadata_record('dap/my-dap')
-
-
-@pytest.mark.asyncio
-async def test_parse_registry_key_standard_format() -> None:
-    """Test parsing standard registry keys."""
-    # Standard model key
-    parsed = parse_registry_key('/model/googleai/gemini-2.0-flash')
-    assert parsed is not None
-    assert parsed.action_type == 'model'
-    assert parsed.plugin_name == 'googleai'
-    assert parsed.action_name == 'gemini-2.0-flash'
-    assert parsed.dynamic_action_host is None
-
-    # Util key (short format)
-    parsed = parse_registry_key('/util/generate')
-    assert parsed is not None
-    assert parsed.action_type == 'util'
-    assert parsed.action_name == 'generate'
-    assert parsed.plugin_name is None
-
-    # Invalid key
-    parsed = parse_registry_key('invalid')
-    assert parsed is None
-
-
-@pytest.mark.asyncio
-async def test_parse_registry_key_dap_format() -> None:
-    """Test parsing DAP-style registry keys."""
-    # DAP key with action type and name
-    parsed = parse_registry_key('/dynamic-action-provider/mcp-host:tool/my-tool')
-    assert parsed is not None
-    assert parsed.dynamic_action_host == 'mcp-host'
-    assert parsed.action_type == 'tool'
-    assert parsed.action_name == 'my-tool'
-
-    # DAP key without action type (just host)
-    parsed = parse_registry_key('/dynamic-action-provider/mcp-host')
-    assert parsed is not None
-    assert parsed.action_type == 'dynamic-action-provider'
-    assert parsed.action_name == 'mcp-host'
-
-
-@pytest.mark.asyncio
-async def test_list_resolvable_actions_includes_dap(registry: Registry, tool1: Action, tool2: Action) -> None:
-    """Test that list_resolvable_actions includes DAP-provided actions."""
-    call_count = 0
-
-    async def dap_fn() -> DapValue:
-        nonlocal call_count
-        call_count += 1
-        return {'tool': [tool1, tool2]}
-
-    define_dynamic_action_provider(registry, 'test-dap', dap_fn)
-
-    # Get resolvable actions
-    metas = await registry.list_resolvable_actions()
-
-    # Should include the DAP itself and the tools it provides (with full keys)
-    names = [m.name for m in metas]
-    assert 'test-dap' in names  # The DAP action
-    assert '/dynamic-action-provider/test-dap:tool/tool1' in names  # DAP-provided tool
-    assert '/dynamic-action-provider/test-dap:tool/tool2' in names  # DAP-provided tool
-
-
-@pytest.mark.asyncio
-async def test_runs_action_with_transformed_metadata(registry: Registry, tool1: Action, tool2: Action) -> None:
-    """Test that the DAP action returns transformed metadata when run.
-
-    Corresponds to JS test: 'runs the action with transformed metadata when fetching'
-    """
-
-    async def dap_fn() -> DapValue:
-        return {'tool': [tool1, tool2]}
-
-    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
-
-    # Fetch the DAP value through the cache (which runs the action)
-    await dap._cache.get_or_fetch()
-
-    # Run the action directly and check the result is transformed metadata
-    result = await dap.action.arun(None)
-    metadata_list = result.response
-
-    # Should return transformed metadata (list of ActionMetadata-like dicts)
-    assert len(metadata_list) == 2
-    names = [m['name'] for m in metadata_list]
-    assert 'tool1' in names
-    assert 'tool2' in names
-
-
-@pytest.mark.asyncio
-async def test_skips_trace_when_requested(registry: Registry, tool1: Action, tool2: Action) -> None:
-    """Test that skipTrace parameter skips creating a trace.
-
-    Corresponds to JS test: 'skips trace when requested'
-    """
-    call_count = 0
-
-    async def dap_fn() -> DapValue:
-        nonlocal call_count
-        call_count += 1
-        return {'tool': [tool1, tool2]}
-
-    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn)
-
-    # Fetch with skip_trace=True should call the dap_fn directly (not via action.run)
-    await dap._cache.get_or_fetch(skip_trace=True)
-    assert call_count == 1
-
-    # Invalidate cache
-    dap.invalidate_cache()
-
-    # Fetch without skip_trace should also work (calls via action.run which calls dap_fn)
-    await dap._cache.get_or_fetch(skip_trace=False)
-    assert call_count == 2

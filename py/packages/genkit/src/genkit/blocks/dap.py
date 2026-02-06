@@ -105,7 +105,6 @@ Caveats:
 See Also:
     - MCP Plugin: genkit.plugins.mcp for Model Context Protocol integration
     - JS Implementation: js/core/src/dynamic-action-provider.ts
-    - Sample: py/samples/dap-demo for comprehensive examples
 """
 
 import asyncio
@@ -178,25 +177,22 @@ class SimpleCache:
 
     This cache ensures that concurrent requests for the same data share
     a single fetch operation, preventing thundering herd problems.
-
-    Updated to match JS implementation (PR #4050):
-    - Cache is created before DAP action
-    - set_value method for external value assignment
-    - setDap pattern for deferred DAP reference
     """
 
     def __init__(
         self,
+        dap: 'DynamicActionProvider',
         config: DapConfig,
         dap_fn: DapFn,
     ) -> None:
         """Initialize the cache.
 
         Args:
+            dap: The parent DAP action.
             config: DAP configuration including TTL.
             dap_fn: Function to fetch actions from the external source.
         """
-        self._dap: DynamicActionProvider | None = None
+        self._dap = dap
         self._dap_fn = dap_fn
         self._value: DapValue | None = None
         self._expires_at: float | None = None
@@ -205,23 +201,6 @@ class SimpleCache:
         # Determine TTL (default 3000ms)
         ttl = config.cache_config.ttl_millis if config.cache_config else None
         self._ttl_millis = 3000 if ttl is None or ttl == 0 else ttl
-
-    def set_dap(self, dap: 'DynamicActionProvider') -> None:
-        """Set the DAP reference (deferred initialization).
-
-        Args:
-            dap: The parent DAP action provider.
-        """
-        self._dap = dap
-
-    def set_value(self, value: DapValue) -> None:
-        """Set cache value externally (called by DAP action).
-
-        Args:
-            value: The DAP value to cache.
-        """
-        self._value = value
-        self._expires_at = time.time() * 1000 + self._ttl_millis
 
     async def get_or_fetch(self, skip_trace: bool = False) -> DapValue:
         """Get cached value or fetch fresh data if stale.
@@ -261,10 +240,6 @@ class SimpleCache:
     async def _do_fetch(self, skip_trace: bool) -> DapValue:
         """Perform the actual fetch operation.
 
-        Updated to match JS implementation (PR #4050):
-        - If DAP is set and not skipping trace, run the action (which sets value)
-        - Otherwise, call dap_fn directly and set value
-
         Args:
             skip_trace: If True, skip running the DAP action.
 
@@ -272,15 +247,13 @@ class SimpleCache:
             Fresh DAP value.
         """
         try:
-            if self._dap is not None and not skip_trace:
-                # Run the DAP action - it calls set_value internally
-                await self._dap.action.arun(None)
-            else:
-                # Direct fetch without tracing
-                self.set_value(await self._dap_fn())
+            self._value = await self._dap_fn()
+            self._expires_at = time.time() * 1000 + self._ttl_millis
 
-            if self._value is None:
-                raise ValueError('DAP value is None after fetch')
+            # Run the DAP action for tracing (unless skipped)
+            if not skip_trace:
+                metadata = transform_dap_value(self._value)
+                await self._dap.action.arun(metadata)
 
             return self._value
         except Exception:
@@ -293,45 +266,24 @@ class SimpleCache:
         self._expires_at = None
 
 
-def _create_action_metadata(action: Action[Any, Any]) -> dict[str, object]:
-    """Create metadata dict from an Action, with Action properties taking precedence.
-
-    Copies action.metadata first, then overwrites name, description, kind, and
-    schemas from the Action object to ensure they are always correct.
-
-    Args:
-        action: The action to create metadata for.
-
-    Returns:
-        A metadata dictionary suitable for ActionMetadata.
-    """
-    meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
-    meta['name'] = action.name
-    meta['description'] = action.description
-    meta['kind'] = action.kind
-    meta['inputSchema'] = action.input_schema
-    meta['outputSchema'] = action.output_schema
-    return meta
-
-
-def transform_dap_value(value: DapValue) -> list[ActionMetadataLike]:
-    """Transform DAP value to flat list of action metadata.
-
-    Updated to match JS implementation (PR #4050):
-    - Returns flat list instead of grouped dict
-    - Matches ActionMetadataSchema structure
+def transform_dap_value(value: DapValue) -> DapMetadata:
+    """Transform DAP value to metadata format for logging.
 
     Args:
         value: DAP value with actions.
 
     Returns:
-        Flat list of action metadata.
+        DAP metadata with action metadata.
     """
-    metadata_list: list[ActionMetadataLike] = []
-    for actions in value.values():
-        for action in actions or []:
-            metadata_list.append(_create_action_metadata(action))
-    return metadata_list
+    metadata: DapMetadata = {}
+    for action_type, actions in value.items():
+        action_metadata_list: list[ActionMetadataLike] = []
+        for action in actions:
+            # Action.metadata is dict[str, object] which satisfies ActionMetadataLike
+            meta: ActionMetadataLike = action.metadata if action.metadata else {}
+            action_metadata_list.append(meta)
+        metadata[action_type] = action_metadata_list
+    return metadata
 
 
 class DynamicActionProvider:
@@ -345,20 +297,18 @@ class DynamicActionProvider:
         self,
         action: Action[Any, Any],
         config: DapConfig,
-        cache: SimpleCache,
+        dap_fn: DapFn,
     ) -> None:
         """Initialize the DAP.
 
         Args:
             action: The underlying DAP action.
             config: DAP configuration.
-            cache: The cache instance (created before action).
+            dap_fn: Function to fetch actions.
         """
         self.action = action
         self.config = config
-        self._cache = cache
-        # Set the DAP reference in cache (deferred init pattern from JS)
-        cache.set_dap(self)
+        self._cache = SimpleCache(self, config, dap_fn)
 
     def invalidate_cache(self) -> None:
         """Invalidate the cache, forcing a fresh fetch on next access."""
@@ -409,7 +359,8 @@ class DynamicActionProvider:
 
         metadata_list: list[ActionMetadataLike] = []
         for action in actions:
-            metadata_list.append(_create_action_metadata(action))
+            meta: ActionMetadataLike = action.metadata if action.metadata else {}
+            metadata_list.append(meta)
 
         # Match all
         if action_name == '*':
@@ -447,7 +398,7 @@ class DynamicActionProvider:
                 if not action.name:
                     raise ValueError(f'Invalid metadata when listing dynamic actions from {dap_prefix} - name required')
                 key = f'{dap_prefix}:{action_type}/{action.name}'
-                dap_actions[key] = _create_action_metadata(action)
+                dap_actions[key] = action.metadata if action.metadata else {}
 
         return dap_actions
 
@@ -480,11 +431,6 @@ def define_dynamic_action_provider(
     A DAP is a factory that can dynamically provide actions at runtime.
     This is useful for integrating with external systems like MCP servers
     or plugin marketplaces.
-
-    Updated to match JS implementation (PR #4050):
-    - DAP action takes no input (None) and returns list[ActionMetadata]
-    - Action calls the DAP function and caches the result
-    - Cache is created before the action
 
     Args:
         registry: The registry to register the DAP with.
@@ -530,9 +476,6 @@ def define_dynamic_action_provider(
     # Normalize config
     cfg = DapConfig(name=config) if isinstance(config, str) else config
 
-    # Create cache first (matches JS pattern from PR #4050)
-    cache = SimpleCache(cfg, fn)
-
     # Create metadata with DAP type marker
     action_metadata = {
         **cfg.metadata,
@@ -540,12 +483,9 @@ def define_dynamic_action_provider(
     }
 
     # Define the underlying action
-    # Updated to match JS: takes no input, returns list of action metadata
-    # The action itself calls the DAP function and caches the result
-    async def dap_action(_input: None) -> list[ActionMetadataLike]:
-        dap_value = await fn()
-        cache.set_value(dap_value)
-        return transform_dap_value(dap_value)
+    # The action itself just returns its input (for logging purposes)
+    async def dap_action(input: DapMetadata) -> DapMetadata:
+        return input
 
     action = registry.register_action(
         name=cfg.name,
@@ -556,10 +496,7 @@ def define_dynamic_action_provider(
     )
 
     # Wrap in DynamicActionProvider
-    dap = DynamicActionProvider(action, cfg, cache)
-
-    # Store reference so Registry.list_actions can access it for DevUI
-    action._dap_instance = dap  # type: ignore[attr-defined]
+    dap = DynamicActionProvider(action, cfg, fn)
 
     return dap
 
