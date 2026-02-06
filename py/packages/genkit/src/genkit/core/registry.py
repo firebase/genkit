@@ -580,7 +580,8 @@ class Registry:
     async def resolve_action_names(self, key: str) -> list[str]:
         """Resolve a registry key to a list of matching action names.
 
-        Supports wildcard expansion for DAP actions (e.g., 'mcp-host:tool/*').
+        Supports wildcard expansion for DAP actions
+        (e.g., '/dynamic-action-provider/mcp-host:tool/*').
 
         Args:
             key: The registry key, potentially with wildcards.

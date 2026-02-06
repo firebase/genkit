@@ -296,8 +296,8 @@ class SimpleCache:
 def _create_action_metadata(action: Action[Any, Any]) -> dict[str, object]:
     """Create metadata dict from an Action, with Action properties taking precedence.
 
-    Copies action.metadata first, then overwrites name, description, and kind
-    from the Action object to ensure they are always correct.
+    Copies action.metadata first, then overwrites name, description, kind, and
+    schemas from the Action object to ensure they are always correct.
 
     Args:
         action: The action to create metadata for.
@@ -309,6 +309,8 @@ def _create_action_metadata(action: Action[Any, Any]) -> dict[str, object]:
     meta['name'] = action.name
     meta['description'] = action.description
     meta['kind'] = action.kind
+    meta['inputSchema'] = action.input_schema
+    meta['outputSchema'] = action.output_schema
     return meta
 
 
