@@ -1,9 +1,6 @@
----
-title: Edit images with `gemini-2.5-flash-image-preview` (aka "Nano Banana")
-description: read this if you need to perform sophisticated image edits such as background removal, post matching, character replacement, relighting, on an existing image
----
+The Nano Banana models can perform sophisticated image edits.
 
-The `gemini-2.5-flash-image-preview` model (also known as "Nano Banana") can perform sophisticated image edits.
+- `gemini-2.5-flash-image-preview`
 
 - You must ALWAYS add `{config: {responseModalities: ['TEXT', 'IMAGE']}}` to your `ai.generate` calls when using this model.
 
