@@ -64,6 +64,9 @@ type SessionFlowInit[State any] struct {
 	// State provides direct state for the invocation.
 	// Mutually exclusive with SnapshotID.
 	State *SessionState[State] `json:"state,omitempty"`
+	// PromptInput overrides the default prompt input for this invocation.
+	// Used by prompt-backed session flows (DefineSessionFlowFromPrompt).
+	PromptInput any `json:"promptInput,omitempty"`
 }
 
 // SessionFlowOutput is the output when a session flow invocation completes.
@@ -198,6 +201,13 @@ func (s *Session[State]) UpdateCustom(fn func(State) State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Custom = fn(s.state.Custom)
+}
+
+// PromptInput returns the prompt input stored in the session state.
+func (s *Session[State]) PromptInput() any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.PromptInput
 }
 
 // Artifacts returns the current artifacts.
@@ -451,8 +461,9 @@ func (sf *SessionFlow[Stream, State]) StreamBidi(
 	}
 
 	init := &SessionFlowInit[State]{
-		SnapshotID: sbOpts.snapshotID,
-		State:      sbOpts.state,
+		SnapshotID:  sbOpts.snapshotID,
+		State:       sbOpts.state,
+		PromptInput: sbOpts.promptInput,
 	}
 
 	conn, err := sf.flow.StreamBidi(ctx, init)
@@ -496,7 +507,7 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
 	// Wire up onEndTurn: triggers snapshot + sends EndTurn chunk.
 	// Writes through respCh to preserve ordering with user chunks.
 	session.onEndTurn = func(turnCtx context.Context) {
-		snapshotID := session.maybeSnapshot(turnCtx, TurnEnd)
+		snapshotID := session.maybeSnapshot(turnCtx, SnapshotEventTurnEnd)
 		if snapshotID != "" {
 			respCh <- &SessionFlowStreamChunk[Stream]{SnapshotCreated: snapshotID}
 		}
@@ -516,7 +527,7 @@ func (sf *SessionFlow[Stream, State]) runWrapped(
 	}
 
 	// Final snapshot at invocation end.
-	snapshotID := session.maybeSnapshot(ctx, InvocationEnd)
+	snapshotID := session.maybeSnapshot(ctx, SnapshotEventInvocationEnd)
 
 	return &SessionFlowOutput[State]{
 		State:      session.State(),
@@ -550,6 +561,9 @@ func newSessionFromInit[State any](
 			s.turnIndex = snapshot.TurnIndex
 		} else if init.State != nil {
 			s.state = *init.State
+		}
+		if init.PromptInput != nil {
+			s.state.PromptInput = init.PromptInput
 		}
 	}
 
@@ -657,4 +671,75 @@ func (c *SessionFlowConnection[Stream, State]) Output() (*SessionFlowOutput[Stat
 // Done returns a channel closed when the connection completes.
 func (c *SessionFlowConnection[Stream, State]) Done() <-chan struct{} {
 	return c.conn.Done()
+}
+
+// --- Prompt-backed SessionFlow ---
+
+// PromptRenderer renders a prompt with typed input into GenerateActionOptions.
+// This interface is satisfied by both ai.Prompt (with In=any) and
+// *ai.DataPrompt[In, Out].
+type PromptRenderer[In any] interface {
+	Render(ctx context.Context, input In) (*ai.GenerateActionOptions, error)
+}
+
+// DefineSessionFlowFromPrompt creates a prompt-backed SessionFlow with an
+// automatic conversation loop. Each turn renders the prompt, appends
+// conversation history, calls GenerateWithRequest, streams chunks to the
+// client, and adds the model response to the session.
+//
+// The defaultInput is used for prompt rendering unless overridden per
+// invocation via WithPromptInput.
+func DefineSessionFlowFromPrompt[Stream, State, PromptIn any](
+	r api.Registry,
+	name string,
+	p PromptRenderer[PromptIn],
+	defaultInput PromptIn,
+	opts ...SessionFlowOption[State],
+) *SessionFlow[Stream, State] {
+	fn := func(ctx context.Context, resp Responder[Stream], params *SessionFlowParams[State]) error {
+		return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+			sess := params.Session
+
+			// Resolve prompt input: session state override > default.
+			var promptInput PromptIn
+			if stored := sess.PromptInput(); stored != nil {
+				typed, ok := stored.(PromptIn)
+				if !ok {
+					return fmt.Errorf("prompt input type mismatch: got %T, want %T", stored, promptInput)
+				}
+				promptInput = typed
+			} else {
+				promptInput = defaultInput
+			}
+
+			// Render the prompt template.
+			actionOpts, err := p.Render(ctx, promptInput)
+			if err != nil {
+				return fmt.Errorf("prompt render: %w", err)
+			}
+
+			// Append conversation history after the prompt-rendered messages.
+			actionOpts.Messages = append(actionOpts.Messages, sess.Messages()...)
+
+			// Call the model with streaming.
+			modelResp, err := ai.GenerateWithRequest(ctx, r, actionOpts, nil,
+				func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
+					resp.SendChunk(chunk)
+					return nil
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("generate: %w", err)
+			}
+
+			// Add the model response message to session history.
+			if modelResp.Message != nil {
+				sess.AddMessages(modelResp.Message)
+			}
+
+			return nil
+		})
+	}
+
+	return DefineSessionFlow(r, name, fn, opts...)
 }

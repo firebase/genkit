@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This sample demonstrates the SessionFlow API for multi-turn conversation
-// with token-level streaming. It runs a CLI REPL where conversation history
-// is managed automatically by the session.
+// This sample demonstrates DefineSessionFlowFromPrompt, which creates a
+// multi-turn conversational session flow backed by a .prompt file. The
+// conversation loop (render prompt, call model, stream chunks, update history)
+// is handled automatically. Compare with basic-session-flow which wires
+// the same loop manually.
 package main
 
 import (
@@ -24,50 +26,30 @@ import (
 	"os"
 	"strings"
 
-	"github.com/firebase/genkit/go/ai"
 	aix "github.com/firebase/genkit/go/ai/x"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"google.golang.org/genai"
 )
+
+type ChatPromptInput struct {
+	Personality string `json:"personality"`
+}
 
 func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	store := aix.NewInMemorySnapshotStore[struct{}]()
+	chatPrompt := genkit.LookupDataPrompt[ChatPromptInput, string](g, "chat")
 
-	chatFlow := genkit.DefineSessionFlow(g, "chat",
-		func(ctx context.Context, resp aix.Responder[any], params *aix.SessionFlowParams[struct{}]) error {
-			sess := params.Session
-			return sess.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
-				for chunk, err := range genkit.GenerateStream(ctx, g,
-					ai.WithModel(googlegenai.ModelRef("googleai/gemini-3-flash-preview", &genai.GenerateContentConfig{
-						ThinkingConfig: &genai.ThinkingConfig{
-							ThinkingBudget: genai.Ptr[int32](0),
-						},
-					})),
-					ai.WithSystem("You are a helpful assistant. Keep responses concise."),
-					ai.WithMessages(sess.Messages()...),
-				) {
-					if err != nil {
-						return err
-					}
-					if chunk.Done {
-						sess.AddMessages(chunk.Response.Message)
-						break
-					}
-					resp.SendChunk(chunk.Chunk)
-				}
-
-				return nil
-			})
-		},
-		aix.WithSnapshotStore(store),
-		aix.WithSnapshotCallback(aix.SnapshotOn[struct{}](aix.SnapshotEventTurnEnd)),
+	chatFlow := genkit.DefineSessionFlowFromPrompt[struct{}](
+		g, "chat", chatPrompt, ChatPromptInput{Personality: "a sarcastic pirate"},
+		aix.WithSnapshotStore(aix.NewInMemorySnapshotStore[struct{}]()),
+		aix.WithSnapshotCallback(func(ctx context.Context, sc *aix.SnapshotContext[struct{}]) bool {
+			return sc.Event == aix.SnapshotEventInvocationEnd || sc.TurnIndex%5 == 0
+		}),
 	)
 
-	fmt.Println("Session Flow Chat (type 'quit' to exit)")
+	fmt.Println("Prompt Session Flow Chat (type 'quit' to exit)")
 	fmt.Println()
 
 	conn, err := chatFlow.StreamBidi(ctx)

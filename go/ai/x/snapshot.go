@@ -35,6 +35,9 @@ type SessionState[State any] struct {
 	Custom State `json:"custom,omitempty"`
 	// Artifacts are named collections of parts produced during the conversation.
 	Artifacts []*SessionFlowArtifact `json:"artifacts,omitempty"`
+	// PromptInput is the input used for prompt rendering in prompt-backed session flows.
+	// Stored as any to support type-erased persistence across snapshot boundaries.
+	PromptInput any `json:"promptInput,omitempty"`
 }
 
 // SnapshotEvent identifies what triggered a snapshot.
@@ -42,9 +45,9 @@ type SnapshotEvent string
 
 const (
 	// TurnEnd indicates the snapshot was triggered at the end of a turn.
-	TurnEnd SnapshotEvent = "turnEnd"
+	SnapshotEventTurnEnd SnapshotEvent = "turnEnd"
 	// InvocationEnd indicates the snapshot was triggered at the end of the invocation.
-	InvocationEnd SnapshotEvent = "invocationEnd"
+	SnapshotEventInvocationEnd SnapshotEvent = "invocationEnd"
 )
 
 // SessionSnapshot is a persisted point-in-time capture of session state.

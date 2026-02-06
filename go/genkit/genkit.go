@@ -447,6 +447,27 @@ func DefineSessionFlow[Stream, State any](
 	return aix.DefineSessionFlow(g.reg, name, fn, opts...)
 }
 
+// DefineSessionFlowFromPrompt creates a prompt-backed SessionFlow with an
+// automatic conversation loop. Each turn renders the prompt, appends
+// conversation history, calls the model with streaming, and updates session state.
+//
+// The defaultInput is used for prompt rendering unless overridden per
+// invocation via [aix.WithPromptInput].
+//
+// Type parameters:
+//   - In: The prompt input type
+//   - Stream: Type for status updates sent via the responder
+//   - State: Type for user-defined state in snapshots
+func DefineSessionFlowFromPrompt[Stream, State, PromptIn any](
+	g *Genkit,
+	name string,
+	p aix.PromptRenderer[PromptIn],
+	defaultInput PromptIn,
+	opts ...aix.SessionFlowOption[State],
+) *aix.SessionFlow[Stream, State] {
+	return aix.DefineSessionFlowFromPrompt[Stream](g.reg, name, p, defaultInput, opts...)
+}
+
 // Run executes the given function `fn` within the context of the current flow run,
 // creating a distinct trace span for this step. It's used to add observability
 // to specific sub-operations within a flow defined by [DefineFlow] or [DefineStreamingFlow].

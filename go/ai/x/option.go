@@ -65,8 +65,9 @@ type StreamBidiOption[State any] interface {
 }
 
 type streamBidiOptions[State any] struct {
-	state      *SessionState[State]
-	snapshotID string
+	state       *SessionState[State]
+	snapshotID  string
+	promptInput any
 }
 
 func (o *streamBidiOptions[State]) applyStreamBidi(opts *streamBidiOptions[State]) error {
@@ -82,6 +83,12 @@ func (o *streamBidiOptions[State]) applyStreamBidi(opts *streamBidiOptions[State
 		}
 		opts.snapshotID = o.snapshotID
 	}
+	if o.promptInput != nil {
+		if opts.promptInput != nil {
+			return errors.New("cannot set prompt input more than once (WithPromptInput)")
+		}
+		opts.promptInput = o.promptInput
+	}
 	return nil
 }
 
@@ -95,4 +102,10 @@ func WithState[State any](state *SessionState[State]) StreamBidiOption[State] {
 // Use this for server-managed state where snapshots are stored.
 func WithSnapshotID[State any](id string) StreamBidiOption[State] {
 	return &streamBidiOptions[State]{snapshotID: id}
+}
+
+// WithPromptInput overrides the default prompt input for a prompt-backed session flow.
+// Used with DefineSessionFlowFromPrompt to customize the prompt rendering per invocation.
+func WithPromptInput[State any](input any) StreamBidiOption[State] {
+	return &streamBidiOptions[State]{promptInput: input}
 }
