@@ -1,4 +1,4 @@
-# Genkit Go Agent Abstraction - Design Document
+# Genkit Go Agent - Design Document
 
 ## Overview
 
@@ -20,50 +20,62 @@ Agent lives alongside SessionFlow in `go/ai/x/` (experimental). Import as `aix "
 
 ## 1. API Surface
 
-### 1.1 DefineAgent
-
 ```go
 // DefineAgent creates an Agent and registers it as a SessionFlow.
 // Type parameters:
 //   - Stream: Type for status updates (for subagent compatibility)
 //   - State: Type for user-defined state (accessible by tools via context)
-func DefineAgent[Stream, State any](r api.Registry, name string, opts ...AgentOption) *SessionFlow[Stream, State]
-```
-
-### 1.2 AgentOption
-
-```go
-// AgentOption configures an Agent. Non-generic for clean usage.
-type AgentOption interface {
-    applyAgent(*agentOptions) error
-}
+func DefineAgent[Stream, State any](r api.Registry, name string, opts ...AgentOption[State]) *SessionFlow[Stream, State]
 ```
 
 ---
 
 ## 2. Available Options
 
-### Generate API Options (non-generic)
+`AgentOption[State]` is generic, providing **compile-time type safety**. Generate API options are wrapped in `WithGenerateOpts` to avoid needing to pass the `State` type parameter to each:
 
-Standard Generate API options, applied to each turn:
+```go
+type AgentOption[State any] interface {
+    applyAgent(*agentOptions[State]) error
+}
 
-`WithModel`, `WithModelName`, `WithConfig`, `WithTools`, `WithToolChoice`, `WithMaxTurns`, `WithResources`, `WithDocs`, `WithTextDocs`, `WithOutputType`, `WithOutputSchema`, `WithOutputFormat`, `WithPrompt`, `WithMessages`
+DefineAgent[Stream, State](g, "myAgent",
+    WithBasePrompt[State](prompt, input),
+    WithGenerateOpts[State](
+        ai.WithModel(model),
+        ai.WithConfig(config),
+        ai.WithTools(tools...),
+    ),
+    WithSnapshotStore(store),
+)
+```
 
-### System Prompt Option (non-generic)
+### WithGenerateOpts
 
-`WithSystem(text string, args ...any)` - Sets the system prompt text.
+Wraps non-generic Generate API options:
+
+```go
+func WithGenerateOpts[State any](opts ...ai.GenerateOption) AgentOption[State]
+
+// Usage
+WithGenerateOpts[ChatState](
+    ai.WithModel(model),
+    ai.WithConfig(config),
+    ai.WithTools(tool1, tool2),
+    ai.WithOutputType(MyOutput{}),
+)
+```
 
 ### Snapshot Options (shared with SessionFlow)
 
 These options are shared between `DefineAgent` and `DefineSessionFlow`. The concrete return type implements both `AgentOption` and `SessionFlowOption[State]`.
 
 ```go
-// Returns *snapshotStoreOption[State] which implements both interfaces
-func WithSnapshotStore[State any](store SnapshotStore[State]) *snapshotStoreOption[State]
-func WithSnapshotCallback[State any](cb SnapshotCallback[State]) *snapshotCallbackOption[State]
+func WithSnapshotStore[State any](store SnapshotStore[State]) SessionFlowOption[State]
+func WithSnapshotCallback[State any](cb SnapshotCallback[State]) SessionFlowOption[State]
 ```
 
-### Base Prompt Option (generic)
+### Base Prompt Option
 
 ```go
 // PromptRenderer is satisfied by both Prompt (with In=any) and *DataPrompt[In, Out].
@@ -73,24 +85,15 @@ type PromptRenderer[In any] interface {
 }
 
 // Configure agent using a Prompt's settings as defaults.
-// Stores a closure that DefineAgent calls once to extract all settings.
+// The input parameter provides default values for {{variable}} style templates.
+// Pass nil if clients will always provide input via WithPromptInput at session start.
 //
-// The input parameter provides values for {{variable}} style templates.
-// Pass nil when the prompt has no input variables.
+// At session start, if State.PromptInput is set (via WithPromptInput), it overrides the default.
+// This allows the same agent definition to be customized per-session.
 //
 // When p is a *DataPrompt[In, Out], the input type is enforced at compile time.
 // When p is a Prompt, input is any.
-func WithBasePrompt[In any](p PromptRenderer[In], input In) AgentOption
-
-// Implementation stores a render closure to handle generic type erasure:
-//
-//   func WithBasePrompt[In any](p PromptRenderer[In], input In) AgentOption {
-//       return &basePromptOption{
-//           render: func(ctx context.Context) (*GenerateActionOptions, error) {
-//               return p.Render(ctx, input)
-//           },
-//       }
-//   }
+func WithBasePrompt[State, In any](p PromptRenderer[In], input In) AgentOption[State]
 ```
 
 ### Options NOT Included
@@ -104,168 +107,91 @@ func WithBasePrompt[In any](p PromptRenderer[In], input In) AgentOption
 
 ## 3. Prompt Integration
 
-### What WithBasePrompt Extracts
+### Rendering Strategy
 
-When `WithBasePrompt` is called, `prompt.Render(ctx, input)` is invoked once to extract:
+Prompts support two types of template variables:
+- `{{variable}}` - Substituted from PromptInput (static per session)
+- `{{@state.field}}` - Substituted from current session state (dynamic per turn)
 
-- Model, Config, Tools, ToolChoice, MaxTurns, OutputSchema, OutputFormat
-- System message(s) → stored as `SystemText`
-- Non-system messages (user/model) → stored as `InitialMessages`
+The **entire prompt is re-rendered each turn** because any message (system or user) may contain `{{@state}}` variables.
 
-All settings are static after definition. Template variables (`{{variable}}`) are substituted at definition time using the provided input.
+### What Gets Stored Where
+
+| Data | Storage Location | When Set |
+|------|------------------|----------|
+| PromptInput | `SessionState.PromptInput` | Session start |
+| Conversation messages | `SessionState.Messages` | After each turn |
+| Static settings (model, tools, etc.) | `agentOptions` (in-memory) | Definition time |
+| Prompt-rendered messages | Re-rendered each turn | N/A |
+
+**SessionState.Messages** contains actual conversation (user inputs, model responses) plus any `WithMessages` initial context—but NOT prompt-rendered messages. Prompt messages are re-rendered fresh each turn.
+
+**Snapshots store:** Messages + Custom + PromptInput. Prompt-rendered messages are not stored.
+
+### Per-Turn Rendering Flow
+
+```
+1. User sends message → added to SessionState.Messages
+2. Re-render prompt with (PromptInput, @state) → rendered messages
+3. Generate with: rendered messages + SessionState.Messages
+4. Model response → added to SessionState.Messages
+5. Snapshot saved (conversation + PromptInput, no rendered messages)
+```
+
+### WithBasePrompt Behavior
+
+When `WithBasePrompt[State](prompt, defaultInput)` is called:
+
+1. **At definition time** (if defaultInput != nil): Render to extract static settings (model, tools, config, outputSchema, etc.)
+2. **At session start**: Store effective PromptInput in `SessionState.PromptInput`
+3. **Each turn**: Re-render entire prompt with current PromptInput + @state
 
 ```go
 // DataPrompt with typed input - compile-time type safety
 rolePrompt := genkit.DefineDataPrompt[RoleInput, string](g, "roleAgent",
-    ai.WithSystem("You are a {{role}} assistant."),
+    ai.WithSystem("You are a {{role}} assistant. User mood: {{@state.mood}}"),
 )
 
 // Input type is enforced by the compiler
 agent := genkit.DefineAgent[Status, State](g, "roleAgent",
-    aix.WithBasePrompt(rolePrompt, RoleInput{Role: "coding"}),  // ✓ compiles
-    // aix.WithBasePrompt(rolePrompt, WrongType{}),             // ✗ compile error
+    aix.WithBasePrompt[State](rolePrompt, RoleInput{Role: "coding"}),  // ✓ compiles
+    // aix.WithBasePrompt[State](rolePrompt, WrongType{}),             // ✗ compile error
 )
 ```
+
+### Session-Start PromptInput Override
+
+Clients can provide `PromptInput` via `WithPromptInput` to override the default:
+
+- **No default input**: Define with `WithBasePrompt[State](prompt, nil)`, client must provide
+- **Default with override**: Define with default, client can optionally customize
 
 ### Option Precedence
 
-`WithBasePrompt` settings are always applied first as defaults. Other options override:
+`WithBasePrompt` settings are applied first as defaults. `WithGenerateOpts` can override:
 
 ```go
 myAgent := genkit.DefineAgent[Status, State](g, "myAgent",
-    aix.WithBasePrompt(myPrompt, nil),            // Applied first (defaults)
-    aix.WithModelName("googleai/gemini-2.5-pro"), // Overrides prompt's model
+    aix.WithBasePrompt[State](myPrompt, nil),
+    aix.WithGenerateOpts[State](
+        ai.WithModelName("googleai/gemini-2.5-pro"), // Overrides prompt's model
+    ),
 )
 ```
 
 ---
 
-## 4. Internal Implementation
-
-### agentOptions Structure
-
-```go
-type agentOptions struct {
-    // Generate API options (set directly or extracted from basePromptRender)
-    Model           ai.ModelArg
-    Config          any
-    Tools           []ai.ToolRef
-    ToolChoice      ai.ToolChoice
-    MaxTurns        int
-    Resources       []ai.Resource
-    Documents       []*ai.Document
-    OutputSchema    map[string]any
-    OutputFormat    string
-    InitialMessages []*ai.Message // Non-system messages, added to session once at start
-    SystemText      string        // System prompt text, passed to Generate each turn
-
-    // Base prompt render closure (from WithBasePrompt, called once by DefineAgent)
-    basePromptRender func(ctx context.Context) (*ai.GenerateActionOptions, error)
-
-    // Snapshot options
-    snapshotStore    any
-    snapshotCallback any
-}
-```
-
-### DefineAgent Implementation
-
-```go
-func DefineAgent[Stream, State any](r api.Registry, name string, opts ...AgentOption) *SessionFlow[Stream, State] {
-    agentOpts := &agentOptions{}
-    for _, opt := range opts {
-        opt.applyAgent(agentOpts)
-    }
-
-    // If WithBasePrompt was used, call the render closure to extract settings
-    if agentOpts.basePromptRender != nil {
-        rendered, err := agentOpts.basePromptRender(context.Background())
-        if err != nil {
-            panic(fmt.Errorf("failed to render base prompt: %w", err))
-        }
-
-        // Extract settings (only if not already set by other options)
-        if agentOpts.Model == nil && rendered.Model != "" {
-            agentOpts.Model = ai.ModelName(rendered.Model)
-        }
-        if agentOpts.Config == nil {
-            agentOpts.Config = rendered.Config
-        }
-        // ... extract tools, toolChoice, maxTurns, outputSchema, outputFormat ...
-
-        // Separate system from non-system messages
-        for _, msg := range rendered.Messages {
-            if msg.Role == ai.RoleSystem {
-                if agentOpts.SystemText == "" {
-                    agentOpts.SystemText = msg.Text()
-                }
-            } else {
-                agentOpts.InitialMessages = append(agentOpts.InitialMessages, msg)
-            }
-        }
-    }
-
-    // Create SessionFlow with automatic generate loop
-    fn := func(ctx context.Context, resp *Responder[Stream], params *SessionFlowParams[Stream, State]) error {
-        // Add initial messages to session once at start
-        if len(agentOpts.InitialMessages) > 0 {
-            params.Session.AddMessages(agentOpts.InitialMessages...)
-        }
-
-        return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-            genOpts := []ai.GenerateOption{ai.WithMessages(params.Session.Messages()...)}
-
-            // Add configured options
-            if agentOpts.Model != nil {
-                genOpts = append(genOpts, ai.WithModel(agentOpts.Model))
-            }
-            if agentOpts.Config != nil {
-                genOpts = append(genOpts, ai.WithConfig(agentOpts.Config))
-            }
-            if len(agentOpts.Tools) > 0 {
-                genOpts = append(genOpts, ai.WithTools(agentOpts.Tools...))
-            }
-            if len(agentOpts.OutputSchema) > 0 {
-                genOpts = append(genOpts, ai.WithOutputSchema(agentOpts.OutputSchema))
-            }
-            if agentOpts.OutputFormat != "" {
-                genOpts = append(genOpts, ai.WithOutputFormat(agentOpts.OutputFormat))
-            }
-            if agentOpts.SystemText != "" {
-                genOpts = append(genOpts, ai.WithSystem(agentOpts.SystemText))
-            }
-            // ... other options ...
-
-            // Stream generation
-            for result, err := range ai.GenerateStream(ctx, r, genOpts...) {
-                if err != nil {
-                    return err
-                }
-                if result.Done {
-                    params.Session.AddMessages(result.Response.Message)
-                } else {
-                    resp.SendChunk(result.Chunk)
-                }
-            }
-            return nil
-        })
-    }
-
-    return DefineSessionFlow[Stream, State](r, name, fn, /* snapshot options */)
-}
-```
-
----
-
-## 5. Example Usage
+## 4. Example Usage
 
 ### Basic Agent
 
 ```go
 chatAgent := genkit.DefineAgent[ChatStatus, ChatState](g, "chatAgent",
-    aix.WithModelName("googleai/gemini-3-flash-preview"),
-    aix.WithSystem("You are a helpful assistant."),
-    aix.WithTools(myTool),
+    aix.WithGenerateOpts[ChatState](
+        ai.WithModelName("googleai/gemini-3-flash"),
+        ai.WithSystem("You are a helpful assistant."),
+        ai.WithTools(myTool),
+    ),
 )
 
 conn, _ := chatAgent.StreamBidi(ctx)
@@ -285,13 +211,13 @@ conn.Close()
 
 ```go
 assistantPrompt := genkit.DefinePrompt(g, "assistant",
-    ai.WithModelName("googleai/gemini-3-flash-preview"),
+    ai.WithModelName("googleai/gemini-3-flash"),
     ai.WithSystem("You are a helpful coding assistant."),
     ai.WithTools(searchTool, calculatorTool),
 )
 
 assistantAgent := genkit.DefineAgent[Status, State](g, "assistant",
-    aix.WithBasePrompt(assistantPrompt, nil),
+    aix.WithBasePrompt[State](assistantPrompt, nil),
 )
 ```
 
@@ -300,11 +226,13 @@ assistantAgent := genkit.DefineAgent[Status, State](g, "assistant",
 ```go
 // Initial messages are added to session once at start, then user inputs append
 tutorAgent := genkit.DefineAgent[Status, State](g, "tutorAgent",
-    aix.WithModelName("googleai/gemini-3-flash-preview"),
-    aix.WithSystem("You are a coding tutor."),
-    aix.WithMessages(
-        ai.NewUserTextMessage("I'm learning Go and want to understand concurrency."),
-        ai.NewModelTextMessage("Great! Go's concurrency model is one of its strengths. What would you like to start with?"),
+    aix.WithGenerateOpts[State](
+        ai.WithModelName("googleai/gemini-3-flash"),
+        ai.WithSystem("You are a coding tutor."),
+        ai.WithMessages(
+            ai.NewUserTextMessage("I'm learning Go and want to understand concurrency."),
+            ai.NewModelTextMessage("Great! Go's concurrency model is one of its strengths. What would you like to start with?"),
+        ),
     ),
 )
 ```
@@ -319,9 +247,11 @@ type TaskResponse struct {
 }
 
 taskAgent := genkit.DefineAgent[Status, State](g, "taskAgent",
-    aix.WithModelName("googleai/gemini-3-flash-preview"),
-    aix.WithSystem("You are a task planning assistant. Break down tasks into steps."),
-    aix.WithOutputType(TaskResponse{}),
+    aix.WithGenerateOpts[State](
+        ai.WithModelName("googleai/gemini-3-flash"),
+        ai.WithSystem("Break down tasks into actionable steps."),
+        ai.WithOutputType(TaskResponse{}),
+    ),
 )
 ```
 
@@ -331,53 +261,110 @@ taskAgent := genkit.DefineAgent[Status, State](g, "taskAgent",
 store := aix.NewInMemorySnapshotStore[ChatState]()
 
 chatAgent := genkit.DefineAgent[ChatStatus, ChatState](g, "chatAgent",
-    aix.WithModelName("googleai/gemini-3-flash-preview"),
-    aix.WithSystem("You are a helpful assistant."),
     aix.WithSnapshotStore(store),
+    aix.WithGenerateOpts[ChatState](
+        ai.WithModelName("googleai/gemini-3-flash"),
+        ai.WithSystem("You are a helpful assistant."),
+    ),
 )
+```
+
+### Agent with Client-Provided Prompt Input
+
+```go
+type RoleInput struct {
+    Role    string `json:"role"`
+    Context string `json:"context"`
+}
+
+rolePrompt := genkit.DefineDataPrompt[RoleInput, string](g, "role",
+    ai.WithSystem("You are a {{role}} assistant. Context: {{context}}"),
+)
+
+// No default input - client must provide
+roleAgent := genkit.DefineAgent[Status, State](g, "roleAgent",
+    aix.WithBasePrompt[State](rolePrompt, nil),
+)
+
+// Client provides input at session start
+conn, _ := roleAgent.StreamBidi(ctx,
+    aix.WithPromptInput(RoleInput{Role: "coding", Context: "helping with Go"}),
+)
+```
+
+### Agent with Default Input and Optional Override
+
+```go
+// Agent with default input that clients can override
+codeAgent := genkit.DefineAgent[Status, State](g, "codeAgent",
+    aix.WithBasePrompt[State](rolePrompt, RoleInput{Role: "coding", Context: "general"}),
+)
+
+// Client can use default
+conn1, _ := codeAgent.StreamBidi(ctx)
+
+// Or override at session start
+conn2, _ := codeAgent.StreamBidi(ctx,
+    aix.WithPromptInput(RoleInput{Role: "coding", Context: "debugging a memory leak"}),
+)
+```
+
+### Agent with Dynamic System Prompt (@state)
+
+```go
+// State that changes during conversation
+type MoodState struct {
+    UserMood    string `json:"userMood"`    // Updated by sentiment analysis tool
+    TopicFocus  string `json:"topicFocus"`  // Updated as conversation evolves
+}
+
+// Prompt with @state variables - re-rendered each turn
+moodPrompt := genkit.DefineDataPrompt[RoleInput, string](g, "moodAgent",
+    ai.WithSystem(`You are a {{role}} assistant.
+Current user mood: {{@state.userMood}}
+Current topic: {{@state.topicFocus}}
+Adjust your tone accordingly.`),
+)
+
+moodAgent := genkit.DefineAgent[Status, MoodState](g, "moodAgent",
+    aix.WithBasePrompt[MoodState](moodPrompt, RoleInput{Role: "support"}),
+    aix.WithGenerateOpts[MoodState](
+        ai.WithTools(sentimentTool), // Tool that updates state.UserMood
+    ),
+)
+
+// The system prompt is re-rendered each turn with current state values
 ```
 
 ---
 
-## 6. Design Decisions
+## 5. Snapshot Behavior
 
-### Why Return SessionFlow?
-
-Returning `*SessionFlow` directly avoids API duplication and makes clear that Agent IS a SessionFlow with automatic behavior.
-
-### Why Non-Generic Options?
-
-Most options don't involve `State`, so generic options would add verbosity. Only snapshot options need type parameters (usually inferred from arguments).
-
-### How Snapshot Options Work With Both Agent and SessionFlow
-
-Snapshot options return a concrete generic type that implements both interfaces:
+### What Snapshots Contain
 
 ```go
-type snapshotStoreOption[State any] struct {
-    store SnapshotStore[State]
-}
-
-func (o *snapshotStoreOption[State]) applySessionFlow(opts *sessionFlowOptions[State]) error {
-    opts.SnapshotStore = o.store
-    return nil
-}
-
-func (o *snapshotStoreOption[State]) applyAgent(opts *agentOptions) error {
-    opts.snapshotStore = o.store // stored as any
-    return nil
-}
-
-func WithSnapshotStore[State any](store SnapshotStore[State]) *snapshotStoreOption[State] {
-    return &snapshotStoreOption[State]{store: store}
+// Snapshot stores SessionState, which includes:
+type SessionState[State any] struct {
+    Messages    []*ai.Message `json:"messages,omitempty"`    // Conversation only (no system messages)
+    Custom      State         `json:"custom,omitempty"`      // User-defined state
+    Artifacts   []*Artifact   `json:"artifacts,omitempty"`
+    PromptInput any           `json:"promptInput,omitempty"` // For re-rendering prompt
 }
 ```
 
-Go's structural typing allows `*snapshotStoreOption[State]` to satisfy both `SessionFlowOption[State]` and `AgentOption`.
+### Restoring from Snapshot
 
-### Why Does WithBasePrompt Store a Closure?
+When a session is restored from a snapshot:
 
-`WithBasePrompt[In any]` is generic, but `agentOptions` is not. We can't store the prompt directly because Go doesn't allow type assertions like `prompt.(PromptRenderer[any])` when the actual type is `*DataPrompt[MyInput, Out]`. The closure captures the concrete generic types at option creation time, allowing `DefineAgent` to call it without knowing the types.
+1. Load `SessionState` from snapshot store
+2. `PromptInput` is available for prompt re-rendering
+3. Each turn re-renders entire prompt with stored PromptInput + current @state
+4. Conversation continues from stored Messages
+
+This approach ensures:
+- Snapshots are compact (no prompt-rendered messages stored)
+- `{{@state}}` always reflects current state, not stale snapshot values
+- Prompt changes are picked up on restore (if prompt definition changed)
 
 ---
 
@@ -388,11 +375,3 @@ Go's structural typing allows `*snapshotStoreOption[State]` to satisfy both `Ses
 | `go/ai/x/agent.go` | DefineAgent function |
 | `go/ai/x/agent_options.go` | AgentOption interface and agent-specific options |
 | `go/ai/x/session_flow_options.go` | Update snapshot options to return concrete types and implement AgentOption |
-
----
-
-## 8. Future Considerations
-
-Out of scope for this design:
-- Per-turn system prompt rendering with `{{@state.field}}` support
-- Subagents, agent hooks, agent composition, agent routing
