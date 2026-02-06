@@ -315,7 +315,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	// Resolve middleware from Use refs.
 	var middlewareHandlers []Middleware
 	if len(opts.Use) > 0 {
 		middlewareHandlers = make([]Middleware, 0, len(opts.Use))
@@ -346,7 +345,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		fn = m.Generate
 	}
 
-	// Apply Model hooks from new middleware as a ModelMiddleware, then chain with legacy mw.
 	if len(middlewareHandlers) > 0 {
 		modelHook := func(next ModelFunc) ModelFunc {
 			wrapped := next
@@ -602,7 +600,6 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
-	// Register dynamic middleware (like dynamic tools) and build MiddlewareRefs.
 	if len(genOpts.Use) > 0 {
 		for _, mw := range genOpts.Use {
 			name := mw.Name()
@@ -610,7 +607,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 				if !r.IsChild() {
 					r = r.NewChild()
 				}
-				NewMiddleware("", mw).Register(r)
+				DefineMiddleware(r, "", mw)
 			}
 			configJSON, err := json.Marshal(mw)
 			if err != nil {
@@ -624,7 +621,6 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		}
 	}
 
-	// Process resources in messages
 	processedMessages, err := processResources(ctx, r, messages)
 	if err != nil {
 		return nil, core.NewError(core.INTERNAL, "ai.Generate: error processing resources: %v", err)

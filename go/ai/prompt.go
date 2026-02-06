@@ -249,7 +249,6 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		}
 	}
 
-	// Register dynamic middleware and build MiddlewareRefs.
 	if len(execOpts.Use) > 0 {
 		for _, mw := range execOpts.Use {
 			name := mw.Name()
@@ -257,7 +256,7 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 				if !r.IsChild() {
 					r = r.NewChild()
 				}
-				NewMiddleware("", mw).Register(r)
+				DefineMiddleware(r, "", mw)
 			}
 			configJSON, err := json.Marshal(mw)
 			if err != nil {
