@@ -467,9 +467,9 @@ class ReflectionClientV2:
         """
         actions: dict[str, dict[str, Any]] = {}
 
-        # Get registered actions
+        # Get registered actions (using resolve to trigger lazy loading)
         for kind in ActionKind.__members__.values():
-            for name, action in self._registry.get_actions_by_kind(kind).items():
+            for name, action in (await self._registry.resolve_actions_by_kind(kind)).items():
                 key = f'/{kind.value}/{name}'
                 actions[key] = self._action_to_desc(action, key)
 
@@ -523,10 +523,7 @@ class ReflectionClientV2:
             raise ValueError("The 'type' parameter is required for listValues.")
 
         if value_type != 'defaultModel':
-            raise ValueError(
-                f"Value type '{value_type}' is not supported. "
-                "Only 'defaultModel' is currently supported."
-            )
+            raise ValueError(f"Value type '{value_type}' is not supported. Only 'defaultModel' is currently supported.")
 
         return self._registry.list_values(value_type)
 

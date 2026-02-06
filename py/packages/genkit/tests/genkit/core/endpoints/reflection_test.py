@@ -46,7 +46,7 @@ from httpx import ASGITransport, AsyncClient
 
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.core.reflection import create_reflection_asgi_app
+from genkit.core.reflection_v1 import create_reflection_asgi_app
 from genkit.core.registry import Registry
 
 
@@ -188,7 +188,7 @@ async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: 
 
 
 @pytest.mark.asyncio
-@patch('genkit.core.reflection.is_streaming_requested')
+@patch('genkit.core.reflection_v1.is_streaming_requested')
 async def test_run_action_streaming(
     mock_is_streaming: MagicMock,
     asgi_client: AsyncClient,
