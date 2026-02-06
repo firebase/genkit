@@ -293,6 +293,25 @@ class SimpleCache:
         self._expires_at = None
 
 
+def _create_action_metadata(action: Action[Any, Any]) -> dict[str, object]:
+    """Create metadata dict from an Action, with Action properties taking precedence.
+
+    Copies action.metadata first, then overwrites name, description, and kind
+    from the Action object to ensure they are always correct.
+
+    Args:
+        action: The action to create metadata for.
+
+    Returns:
+        A metadata dictionary suitable for ActionMetadata.
+    """
+    meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
+    meta['name'] = action.name
+    meta['description'] = action.description
+    meta['kind'] = action.kind
+    return meta
+
+
 def transform_dap_value(value: DapValue) -> list[ActionMetadataLike]:
     """Transform DAP value to flat list of action metadata.
 
@@ -309,12 +328,7 @@ def transform_dap_value(value: DapValue) -> list[ActionMetadataLike]:
     metadata_list: list[ActionMetadataLike] = []
     for actions in value.values():
         for action in actions or []:
-            # Start with action.metadata, then set name/description to ensure they aren't overwritten
-            meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
-            meta['name'] = action.name
-            meta['description'] = action.description
-            meta['kind'] = action.kind
-            metadata_list.append(meta)
+            metadata_list.append(_create_action_metadata(action))
     return metadata_list
 
 
@@ -393,12 +407,7 @@ class DynamicActionProvider:
 
         metadata_list: list[ActionMetadataLike] = []
         for action in actions:
-            # Start with action.metadata, then set name/description to ensure they aren't overwritten
-            meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
-            meta['name'] = action.name
-            meta['description'] = action.description
-            meta['kind'] = action.kind
-            metadata_list.append(meta)
+            metadata_list.append(_create_action_metadata(action))
 
         # Match all
         if action_name == '*':
@@ -436,12 +445,7 @@ class DynamicActionProvider:
                 if not action.name:
                     raise ValueError(f'Invalid metadata when listing dynamic actions from {dap_prefix} - name required')
                 key = f'{dap_prefix}:{action_type}/{action.name}'
-                # Start with action.metadata, then set name/description to ensure they aren't overwritten
-                meta: dict[str, object] = dict(action.metadata) if action.metadata else {}
-                meta['name'] = action.name
-                meta['description'] = action.description
-                meta['kind'] = action.kind
-                dap_actions[key] = meta
+                dap_actions[key] = _create_action_metadata(action)
 
         return dap_actions
 
