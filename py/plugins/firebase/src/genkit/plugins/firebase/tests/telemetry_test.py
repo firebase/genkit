@@ -57,7 +57,7 @@ def _create_model_span(
     return mock_span
 
 
-@patch('genkit.plugins.firebase.add_gcp_telemetry')
+@patch('genkit.plugins.google_cloud.telemetry.tracing.add_gcp_telemetry')
 def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry: MagicMock) -> None:
     """Test that Firebase telemetry delegates to GCP telemetry."""
     add_firebase_telemetry()
