@@ -15,6 +15,7 @@
  */
 import { z } from 'zod';
 import { DocumentDataSchema } from './document';
+import { MiddlewareRefSchema } from './middleware';
 import {
   CustomPartSchema,
   DataPartSchema,
