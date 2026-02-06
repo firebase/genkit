@@ -742,11 +742,19 @@ class Registry:
             for _name, action in actions_dict.items():
                 # Add static action metadata if not already seen
                 if action.name not in seen_names:
-                    meta = ActionMetadata(
-                        name=action.name,
-                        kind=action.kind,
-                        description=action.description,
-                    )
+                    # Build metadata dict with all available fields from the action.
+                    # Using model_validate ensures we include schemas for DevUI.
+                    meta_dict: dict[str, object] = {
+                        'name': action.name,
+                        'kind': action.kind,
+                        'description': action.description,
+                        'inputSchema': action.input_schema,
+                        'outputSchema': action.output_schema,
+                    }
+                    # Include any additional metadata from the action
+                    if action.metadata:
+                        meta_dict['metadata'] = action.metadata
+                    meta = ActionMetadata.model_validate(meta_dict)
                     if allowed_kinds and meta.kind not in allowed_kinds:
                         continue
                     metas.append(meta)
