@@ -1489,7 +1489,7 @@ class GeminiModel:
             )
             client = client or self._client
             try:
-                generator = client.aio.models.generate_content_stream(
+                generator = await client.aio.models.generate_content_stream(
                     model=model_name,
                     contents=cast(genai_types.ContentListUnion, request_contents),
                     config=request_cfg,
@@ -1511,7 +1511,7 @@ class GeminiModel:
                     cause=e,
                 ) from e
         accumulated_content = []
-        async for response_chunk in await generator:
+        async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
                 accumulated_content.extend(content)
@@ -1632,13 +1632,11 @@ class GeminiModel:
             if isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
             elif isinstance(request_config, GenerationCommonConfig):
-                cfg = genai_types.GenerateContentConfig(
-                    max_output_tokens=request_config.max_output_tokens,
-                    top_k=request_config.top_k,
-                    top_p=request_config.top_p,
-                    temperature=request_config.temperature,
-                    stop_sequences=request_config.stop_sequences,
-                )
+                dumped = request_config.model_dump(exclude_none=True)
+                if dumped:
+                    cfg = genai_types.GenerateContentConfig(**dumped)
+                else:
+                    cfg = None
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
                     cfg = GeminiImageConfigSchema(**request_config)
@@ -1698,45 +1696,39 @@ class GeminiModel:
                     if key in dumped_config:
                         del dumped_config[key]
 
-                if 'image_config' in dumped_config and isinstance(dumped_config['image_config'], dict):
-                    valid_image_keys = {
-                        'aspect_ratio',
-                        'image_size',
-                        'person_generation',
-                        'output_mime_type',
-                        'output_compression_quality',
-                    }
-                    dumped_config['image_config'] = {
-                        k: v for k, v in dumped_config['image_config'].items() if k in valid_image_keys
-                    }
+                # Check for SDK support of newer fields
+                for key in ['image_config', 'thinking_config', 'response_modalities']:
+                    if key in dumped_config and key not in genai_types.GenerateContentConfig.model_fields:
+                        del dumped_config[key]
 
-                # Check if image_config is actually supported by the installed SDK version
-                if (
-                    'image_config' in dumped_config
-                    and 'image_config' not in genai_types.GenerateContentConfig.model_fields
-                ):
-                    del dumped_config['image_config']
+                if dumped_config:
+                    cfg = genai_types.GenerateContentConfig(**dumped_config)
+                else:
+                    cfg = None
 
-                cfg = genai_types.GenerateContentConfig(**dumped_config)
+        # Tools from top-level field and config-level fields
+        tools.extend(self._get_tools(request))
 
-        if not cfg:
-            cfg = genai_types.GenerateContentConfig()
+        if cfg is not None or tools or system_instruction or request.output:
+            if cfg is None:
+                cfg = genai_types.GenerateContentConfig()
 
-        if request.output:
-            response_mime_type = 'application/json' if request.output.format == 'json' and not request.tools else None
-            cfg.response_mime_type = response_mime_type
+            if request.output:
+                response_mime_type = (
+                    'application/json' if request.output.format == 'json' and not request.tools else None
+                )
+                cfg.response_mime_type = response_mime_type
 
-            if request.output.schema and request.output.constrained:
-                cfg.response_schema = self._convert_schema_property(request.output.schema)
+                if request.output.schema and request.output.constrained:
+                    cfg.response_schema = self._convert_schema_property(request.output.schema)
 
-        if request.tools:
-            tools.extend(self._get_tools(request))
+            if tools:
+                cfg.tools = tools
 
-        if tools:
-            cfg.tools = tools
+            cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
+            return cfg
 
-        cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
-        return cfg
+        return None
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
         """Create usage statistics.
