@@ -270,6 +270,48 @@
       ],
       "additionalProperties": false
     },
+    "MiddlewareDesc": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "configSchema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false,
+              "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "MiddlewareRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "config": {}
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
     "CandidateError": {
       "type": "object",
       "properties": {
@@ -466,6 +508,12 @@
         },
         "stepName": {
           "type": "string"
+        },
+        "use": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MiddlewareRef"
+          }
         }
       },
       "required": [
