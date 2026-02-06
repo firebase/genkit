@@ -25,7 +25,7 @@ import (
 // testMiddleware is a simple middleware for testing that tracks hook invocations.
 type testMiddleware struct {
 	BaseMiddleware
-	Label        string `json:"label"`
+	Label         string `json:"label"`
 	generateCalls int
 	modelCalls    int
 	toolCalls     int32 // atomic since tool hooks run in parallel
@@ -149,7 +149,7 @@ func TestMiddlewareModelHook(t *testing.T) {
 func TestMiddlewareToolHook(t *testing.T) {
 	r := newTestRegistry(t)
 	defineFakeModel(t, r, fakeModelConfig{
-		name: "test/toolModel",
+		name:    "test/toolModel",
 		handler: toolCallingModelHandler("myTool", map[string]any{"value": "test"}, "done"),
 	})
 	defineFakeTool(t, r, "myTool", "A test tool")
