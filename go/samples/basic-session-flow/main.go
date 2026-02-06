@@ -15,10 +15,6 @@
 // This sample demonstrates the SessionFlow API for multi-turn conversation
 // with token-level streaming. It runs a CLI REPL where conversation history
 // is managed automatically by the session.
-//
-// To run:
-//
-//	GOOGLE_GENAI_API_KEY=... go run .
 package main
 
 import (
