@@ -531,13 +531,12 @@ type BidiConnection[In, Out, Stream any] struct {
 
 // Send sends an input message to the bidi action.
 // Returns an error if the connection is closed or the context is cancelled.
-func (c *BidiConnection[In, Out, Stream]) Send(input In) error {
-	c.mu.Lock()
-	if c.closed {
-		c.mu.Unlock()
-		return NewError(FAILED_PRECONDITION, "connection is closed")
-	}
-	c.mu.Unlock()
+func (c *BidiConnection[In, Out, Stream]) Send(input In) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = NewError(FAILED_PRECONDITION, "connection is closed")
+		}
+	}()
 
 	select {
 	case c.inputCh <- input:
