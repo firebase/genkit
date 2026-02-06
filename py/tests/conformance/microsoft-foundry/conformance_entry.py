@@ -33,8 +33,8 @@ from genkit.plugins.microsoft_foundry import MicrosoftFoundry
 ai = Genkit(
     plugins=[
         MicrosoftFoundry(
-            api_key=os.environ.get('AZURE_OPENAI_API_KEY', ''),
-            endpoint=os.environ.get('AZURE_OPENAI_ENDPOINT', ''),
+            api_key=os.environ['AZURE_OPENAI_API_KEY'],
+            endpoint=os.environ['AZURE_OPENAI_ENDPOINT'],
         )
     ],
 )
