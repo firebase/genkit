@@ -93,10 +93,7 @@ See Also:
 """
 
 import os
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from genkit.blocks.background_model import BackgroundAction
+from typing import Any
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -105,6 +102,7 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
+from genkit.blocks.background_model import BackgroundAction
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
@@ -469,8 +467,6 @@ class GoogleAI(Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        from genkit.blocks.background_model import BackgroundAction
-
         clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
         veo = VeoModel(clean_name, self._client)

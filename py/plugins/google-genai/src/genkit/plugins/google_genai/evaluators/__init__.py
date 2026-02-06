@@ -96,33 +96,33 @@ Available Metrics:
     +-----------------------------+-------------------------------------------+
 
 Example:
-    Running evaluations::
+    Running evaluations:
 
-        from genkit import Genkit
-        from genkit.plugins.google_genai import VertexAI
-        from genkit.plugins.google_genai.evaluators import VertexAIEvaluationMetricType
-
-        ai = Genkit(plugins=[VertexAI(project='my-project')])
-
-        # Prepare test dataset
-        dataset = [
-            {
-                'input': 'Summarize this article about AI...',
-                'output': 'AI is transforming industries...',
-                'reference': 'The article discusses how AI impacts...',
-                'context': ['Article content here...'],
-            }
-        ]
-
-        # Run fluency evaluation
-        results = await ai.evaluate(
-            evaluator='vertexai/fluency',
-            dataset=dataset,
-        )
-
-        for result in results:
-            print(f'Score: {result.evaluation.score}')
-            print(f'Reasoning: {result.evaluation.details.get("reasoning")}')
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.google_genai import VertexAI
+        >>> from genkit.plugins.google_genai.evaluators import VertexAIEvaluationMetricType
+        >>>
+        >>> ai = Genkit(plugins=[VertexAI(project='my-project')])
+        >>>
+        >>> # Prepare test dataset
+        >>> dataset = [
+        ...     {
+        ...         'input': 'Summarize this article about AI...',
+        ...         'output': 'AI is transforming industries...',
+        ...         'reference': 'The article discusses how AI impacts...',
+        ...         'context': ['Article content here...'],
+        ...     }
+        ... ]
+        >>>
+        >>> # Run fluency evaluation
+        >>> results = await ai.evaluate(
+        ...     evaluator='vertexai/fluency',
+        ...     dataset=dataset,
+        ... )
+        >>>
+        >>> for result in results:
+        ...     print(f'Score: {result.evaluation.score}')
+        ...     print(f'Reasoning: {result.evaluation.details.get("reasoning")}')
 
 Caveats:
     - Requires Google Cloud project with Vertex AI API enabled

@@ -41,17 +41,15 @@ class Mistral(Plugin):
     enabling the use of Mistral models within the Genkit framework.
 
     Example:
-        ```python
-        from genkit import Genkit
-        from genkit.plugins.mistral import Mistral
-
-        ai = Genkit(
-            plugins=[Mistral()],
-            model='mistral/mistral-large-latest',
-        )
-
-        response = await ai.generate(prompt='Hello!')
-        ```
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.mistral import Mistral
+        >>>
+        >>> ai = Genkit(
+        ...     plugins=[Mistral()],
+        ...     model='mistral/mistral-large-latest',
+        ... )
+        >>>
+        >>> response = await ai.generate(prompt='Hello!')
     """
 
     name = MISTRAL_PLUGIN_NAME
