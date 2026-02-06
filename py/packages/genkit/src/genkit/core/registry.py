@@ -762,11 +762,11 @@ class Registry:
                             dap_metadata = await dap.get_action_metadata_record(dap_prefix)
                             for _dap_key, dap_meta in dap_metadata.items():
                                 if _dap_key not in seen_names:
-                                    dap_action_meta = ActionMetadata(
-                                        name=_dap_key,
-                                        kind=ActionKind(str(dap_meta.get('kind', 'tool'))),
-                                        description=str(dap_meta.get('description', '')),
-                                    )
+                                    # Create a mutable copy to set the fully-qualified name.
+                                    # Using model_validate preserves all metadata fields like schemas.
+                                    meta_dict = dict(dap_meta)
+                                    meta_dict['name'] = _dap_key
+                                    dap_action_meta = ActionMetadata.model_validate(meta_dict)
                                     if allowed_kinds and dap_action_meta.kind not in allowed_kinds:
                                         continue
                                     metas.append(dap_action_meta)
