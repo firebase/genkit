@@ -239,14 +239,24 @@ both); only the registration code needs updating.
 2. **`GoogleAI._resolve_model()`** -- Add Imagen detection branch (mirror
    VertexAI logic):
    ```python
-   if clean_name.lower().startswith('image'):
+   if clean_name.lower().startswith('imagen'):
        model_ref = vertexai_image_model_info(clean_name)
        model = ImagenModel(clean_name, self._client)
        IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
        config_schema = ImagenConfigSchema
        # ... create and return Action
    ```
-3. **`GoogleAI.list_actions()`** -- Include Imagen in discovered actions list.
+3. **`GoogleAI.list_actions()`** -- Include Imagen in discovered actions list:
+   ```python
+   for name in genai_models.imagen:
+       actions_list.append(
+           model_action_metadata(
+               name=googleai_name(name),
+               info=vertexai_image_model_info(name).model_dump(by_alias=True),
+               config_schema=ImagenConfigSchema,
+           )
+       )
+   ```
 
 ### Directory Layout
 
@@ -297,7 +307,7 @@ models with the same expectations:
 
 ```bash
 # From py/tests/conformance/google-genai/
-ln -s ../../../../js/plugins/google-genai/tests/model-tests-tts.yaml model-conformance.yaml
+ln -s "$(git rev-parse --show-toplevel)/js/plugins/google-genai/tests/model-tests-tts.yaml" model-conformance.yaml
 ```
 
 The JS spec tests:
@@ -338,6 +348,11 @@ The script:
 - Accepts a plugin name (or `--all`) as argument
 - Validates the required env vars are set for that plugin
 - Runs: `genkit dev:test-model --from-file <spec> -- uv run <entry_point>`
+
+> **Note:** [`uv`](https://docs.astral.sh/uv/) is the project's standard Python
+> package manager and task runner, already used throughout the repository (see
+> `py/pyproject.toml` workspace configuration and `py/bin/` scripts). It is
+> installed as part of the developer setup via `bin/setup`.
 - `dev:test-model` handles process lifecycle (start, wait for runtime, run
   tests, shut down)
 - Reports aggregate pass/fail and exits non-zero on failure
