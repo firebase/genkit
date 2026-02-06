@@ -766,8 +766,10 @@ async def tool_calling(input: ToolCallingInput) -> str:
 
 async def main() -> None:
     """Main function - keep alive for Dev UI."""
-    # Keep the process alive for Dev UI
-    _ = await asyncio.Event().wait()
+    await logger.ainfo('Starting main execution loop')
+    while True:
+        await asyncio.sleep(3600)
+    await logger.ainfo('Exiting main execution loop')
 
 
 if __name__ == '__main__':

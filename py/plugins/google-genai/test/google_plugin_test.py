@@ -726,7 +726,8 @@ def test_config_schema_extra_fields() -> None:
     assert config.model_dump()['new_experimental_param'] == 'test'
 
 
-def test_system_prompt_handling() -> None:
+@pytest.mark.asyncio
+async def test_system_prompt_handling() -> None:
     """Test that system prompts are correctly extracted to config."""
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
@@ -739,7 +740,7 @@ def test_system_prompt_handling() -> None:
         config=None,
     )
 
-    cfg = model._genkit_to_googleai_cfg(request)
+    cfg = await model._genkit_to_googleai_cfg(request)
 
     assert cfg is not None
     assert cfg.system_instruction is not None
