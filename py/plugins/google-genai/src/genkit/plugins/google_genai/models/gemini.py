@@ -157,14 +157,14 @@ from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.tracing import tracer
-from genkit.lang.deprecations import (
-    deprecated_enum_metafactory,
-)
-from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.core.typing import (
     Candidate,
     FinishReason,
 )
+from genkit.lang.deprecations import (
+    deprecated_enum_metafactory,
+)
+from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import (
     Constrained,
     GenerateRequest,
@@ -174,6 +174,7 @@ from genkit.types import (
     GenerationUsage,
     Message,
     ModelInfo,
+    Part,
     Role,
     Stage,
     Supports,
@@ -1400,7 +1401,7 @@ class GeminiModel:
 
         # Ensure we always have at least one content item to avoid UI errors
         if not content:
-            content = [TextPart(text='')]
+            content = [Part(root=TextPart(text=''))]
 
         finish_reason = FinishReason.OTHER
         candidates = []
@@ -1414,7 +1415,7 @@ class GeminiModel:
                             c_content.append(converted)
 
                 if not c_content:
-                    c_content = [TextPart(text='')]
+                    c_content = [Part(root=TextPart(text=''))]
 
                 c_finish_reason = FinishReason.OTHER
                 if c.finish_reason:
@@ -1441,7 +1442,7 @@ class GeminiModel:
 
         return GenerateResponse(
             message=Message(
-                content=content,  # type: ignore[arg-type] - content is list[Part] after conversion
+                content=content,
                 role=Role.MODEL,
             ),
             finish_reason=finish_reason,
@@ -1453,9 +1454,7 @@ class GeminiModel:
                 output_tokens=float(response.usage_metadata.candidates_token_count or 0)
                 if response.usage_metadata
                 else None,
-                total_tokens=float(response.usage_metadata.total_token_count or 0)
-                if response.usage_metadata
-                else None,
+                total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
             ),
         )
 
@@ -1513,7 +1512,7 @@ class GeminiModel:
                 ) from e
         accumulated_content = []
         async for response_chunk in await generator:
-            content = self._contents_from_response(response_chunk)
+            content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
                 accumulated_content.extend(content)
                 ctx.send_chunk(
@@ -1736,7 +1735,7 @@ class GeminiModel:
         if tools:
             cfg.tools = tools
 
-        cfg.system_instruction = system_instruction if system_instruction else None
+        cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
         return cfg
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:

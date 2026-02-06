@@ -19,7 +19,6 @@
 import base64
 from typing import cast
 
-import httpx
 from google import genai
 
 from genkit.core.http_client import get_cached_client
@@ -166,7 +165,6 @@ class PartConverter:
                     )
                 )
 
-
             if url.startswith('http'):
                 try:
                     data, mime_type = await cls._download_image(url)
@@ -178,7 +176,7 @@ class PartConverter:
                             data=data,
                         )
                     )
-                except Exception:
+                except Exception:  # noqa: S110 - intentionally silent, fallback to file_uri
                     # Fallback to file_uri if download fails
                     pass
 
