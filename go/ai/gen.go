@@ -208,6 +208,25 @@ type Message struct {
 	Role Role `json:"role,omitempty"`
 }
 
+// MiddlewareDesc is the registered descriptor for a middleware.
+type MiddlewareDesc struct {
+	// ConfigSchema is a JSON Schema describing the middleware's configuration.
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	// Description explains what the middleware does.
+	Description string `json:"description,omitempty"`
+	// Name is the middleware's unique identifier.
+	Name           string `json:"name,omitempty"`
+	configFromJSON middlewareConfigFunc
+}
+
+// MiddlewareRef is a serializable reference to a registered middleware with config.
+type MiddlewareRef struct {
+	// Config contains the middleware configuration.
+	Config any `json:"config,omitempty"`
+	// Name is the name of the registered middleware.
+	Name string `json:"name,omitempty"`
+}
+
 // ModelInfo contains metadata about a model's capabilities and characteristics.
 type ModelInfo struct {
 	// ConfigSchema defines the model-specific configuration schema.

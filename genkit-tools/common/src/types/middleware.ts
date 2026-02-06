@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { z } from 'zod';
-import { JSONSchema7Schema } from './action';
 
 /** Descriptor for a registered middleware, returned by reflection API. */
 export const MiddlewareDescSchema = z.object({
@@ -23,7 +22,7 @@ export const MiddlewareDescSchema = z.object({
   /** Human-readable description of what the middleware does. */
   description: z.string().optional(),
   /** JSON Schema for the middleware's configuration. */
-  configSchema: JSONSchema7Schema.optional(),
+  configSchema: z.record(z.any()).nullish(),
 });
 export type MiddlewareDesc = z.infer<typeof MiddlewareDescSchema>;
 

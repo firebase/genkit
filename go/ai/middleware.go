@@ -25,6 +25,9 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 )
 
+// middlewareConfigFunc creates a Middleware instance from JSON config.
+type middlewareConfigFunc = func([]byte) (Middleware, error)
+
 // Middleware provides hooks for different stages of generation.
 type Middleware interface {
 	// Name returns the middleware's unique identifier.
@@ -90,14 +93,6 @@ func (b *BaseMiddleware) Tool(ctx context.Context, state *ToolState, next ToolNe
 	return next(ctx, state)
 }
 
-// MiddlewareDesc is the registered descriptor for a middleware.
-type MiddlewareDesc struct {
-	Name           string         `json:"name"`
-	Description    string         `json:"description,omitempty"`
-	ConfigSchema   map[string]any `json:"configSchema,omitempty"`
-	configFromJSON func([]byte) (Middleware, error)
-}
-
 // Register registers the descriptor with the registry.
 func (d *MiddlewareDesc) Register(r api.Registry) {
 	r.RegisterValue("/middleware/"+d.Name, d)
@@ -141,12 +136,6 @@ func LookupMiddleware(r api.Registry, name string) *MiddlewareDesc {
 		return nil
 	}
 	return d
-}
-
-// MiddlewareRef is a serializable reference to a registered middleware with config.
-type MiddlewareRef struct {
-	Name   string `json:"name"`
-	Config any    `json:"config,omitempty"`
 }
 
 // MiddlewarePlugin is implemented by plugins that provide middleware.
