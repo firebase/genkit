@@ -196,6 +196,7 @@
       with urllib.request.urlopen(url) as response:  # ❌ Blocking!
           return response.read()
 
+
   # CORRECT - non-blocking
   async def fetch_data(url: str) -> bytes:
       async with httpx.AsyncClient() as client:
@@ -210,6 +211,7 @@
   async def read_file(path: str) -> str:
       with open(path) as f:  # ❌ Blocking!
           return f.read()
+
 
   # CORRECT - non-blocking
   async def read_file(path: str) -> str:
@@ -233,11 +235,13 @@
   ```python
   from genkit.core.http_client import get_cached_client
 
+
   # WRONG - creates new client per request (connection overhead)
   async def call_api(url: str) -> dict:
       async with httpx.AsyncClient() as client:
           response = await client.get(url)
           return response.json()
+
 
   # WRONG - stores client at init time (event loop binding issues)
   class MyPlugin:
@@ -248,6 +252,7 @@
           response = await self._client.get(url)  # May fail in different loop
           return response.json()
 
+
   # CORRECT - uses per-event-loop cached client
   async def call_api(url: str, token: str) -> dict:
       # For APIs with expiring tokens, pass auth headers per-request
@@ -257,6 +262,7 @@
       )
       response = await client.get(url, headers={'Authorization': f'Bearer {token}'})
       return response.json()
+
 
   # CORRECT - for static auth (API keys that don't expire)
   async def call_api_static_auth(url: str) -> dict:
@@ -817,8 +823,10 @@ Python-specific development and release scripts:
   ```python
   from pydantic import BaseModel, Field
 
+
   class MyFlowInput(BaseModel):
       prompt: str = Field(default='Hello world', description='User prompt')
+
 
   @ai.flow()
   async def my_flow(input: MyFlowInput) -> str:
@@ -831,19 +839,18 @@ Python-specific development and release scripts:
   from typing import Annotated
   from pydantic import Field
 
+
   @ai.flow()
   async def my_flow(
       prompt: Annotated[str, Field(default='Hello world')] = 'Hello world',
-  ) -> str:
-      ...
+  ) -> str: ...
   ```
 
   **Wrong** (defaults won't show in Dev UI):
 
   ```python
   @ai.flow()
-  async def my_flow(prompt: str = 'Hello world') -> str:
-      ...
+  async def my_flow(prompt: str = 'Hello world') -> str: ...
   ```
 
 * **Sample Media URLs**: When samples need to reference an image URL (e.g., for
@@ -879,13 +886,14 @@ Python-specific development and release scripts:
   ```python
   import asyncio
 
+
   async def main():
-    # ...
-    await asyncio.Event().wait()
+      # ...
+      await asyncio.Event().wait()
+
 
   # At the bottom of main.py
   if __name__ == '__main__':
-
       ai.run_main(main())
   ```
 
@@ -977,6 +985,7 @@ When developing Genkit plugins, follow these additional guidelines:
          system: str | None = None  # System prompt override
          metadata: dict[str, Any] | None = None  # Request metadata
 
+
      # Bad: Only basic parameters
      class AnthropicModelConfig(BaseModel):
          temperature: float | None = None
@@ -995,6 +1004,7 @@ When developing Genkit plugins, follow these additional guidelines:
              guardrailVersion: Version of the guardrail (default: "DRAFT").
              performanceConfig: Controls latency optimization settings.
          """
+
          guardrailIdentifier: str | None = None
          guardrailVersion: str | None = None
          performanceConfig: PerformanceConfiguration | None = None
@@ -1066,14 +1076,15 @@ deployment environment. This makes the code more portable and user-friendly glob
   # Good: Named constant with clear purpose
   DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
 
+
   class OllamaPlugin:
       def __init__(self, server_url: str | None = None):
           self.server_url = server_url or DEFAULT_OLLAMA_SERVER_URL
 
+
   # Bad: Inline hardcoded value
   class OllamaPlugin:
-      def __init__(self, server_url: str = 'http://127.0.0.1:11434'):
-          ...
+      def __init__(self, server_url: str = 'http://127.0.0.1:11434'): ...
   ```
 
 * **Region-Agnostic Helpers**: For cloud services with regional endpoints, provide helper
@@ -1088,9 +1099,9 @@ deployment environment. This makes the code more portable and user-friendly glob
           raise ValueError('Region is required.')
       # Map region to prefix...
 
+
   # Bad: Hardcoded US default
-  def get_inference_profile_prefix(region: str = 'us-east-1') -> str:
-      ...
+  def get_inference_profile_prefix(region: str = 'us-east-1') -> str: ...
   ```
 
 * **Documentation Examples**: In documentation and docstrings, use placeholder values
@@ -1098,10 +1109,10 @@ deployment environment. This makes the code more portable and user-friendly glob
 
   ```python
   # Good: Clear placeholder
-  endpoint='https://your-resource.openai.azure.com/'
+  endpoint = 'https://your-resource.openai.azure.com/'
 
   # Bad: Looks like it might work
-  endpoint='https://eastus.api.example.com/'
+  endpoint = 'https://eastus.api.example.com/'
   ```
 
 * **What IS Acceptable to Hardcode**:
@@ -1301,6 +1312,7 @@ plugins/{name}/tests/
 
 ```python
 from unittest.mock import AsyncMock, patch
+
 
 @patch('genkit.plugins.mistral.models.Mistral')
 async def test_generate(mock_client_class):
@@ -2306,6 +2318,7 @@ When mocking HTTP clients in tests, mock `get_cached_client` instead of
 ```python
 from unittest.mock import AsyncMock, patch
 
+
 @patch('my_module.get_cached_client')
 async def test_api_call(mock_get_client):
     mock_client = AsyncMock()
@@ -3079,3 +3092,171 @@ done
 
 **Exception:** `bin/install_cli` intentionally omits `pipefail` as it's a user-facing
 install script that handles errors differently for better user experience.
+
+### Session Learnings (2026-02-05): DAP, ASGI Types, and Sample Structure
+
+This session covered several important patterns for Genkit Python development.
+
+#### Dynamic Action Provider (DAP) Best Practices
+
+**1. DAP Tools Are NOT in the Global Registry**
+
+Dynamic tools created via `ai.dynamic_tool()` are intentionally NOT registered in the
+global registry. This means you cannot pass them to `ai.generate(tools=[...])` by name.
+
+```python
+# ❌ WRONG - dynamic tools aren't in the registry
+result = await ai.generate(
+    prompt=query,
+    tools=[t.name for t in dynamic_tools],  # Names won't resolve!
+)
+
+# ✅ CORRECT - invoke dynamic tools directly
+tool = await my_dap.get_action('tool', 'get_weather')
+result = await tool.arun(input)
+```
+
+**2. Combining Multiple DAP Tool Results**
+
+When a query might match multiple tools, collect results instead of returning early:
+
+```python
+# ❌ WRONG - returns after first match
+if tool_a and matches_a:
+    return await tool_a.arun(input)
+if tool_b and matches_b:
+    return await tool_b.arun(input)
+
+# ✅ CORRECT - collect all matching results
+results: list[str] = []
+if tool_a and matches_a:
+    results.append(str((await tool_a.arun(input)).response))
+if tool_b and matches_b:
+    results.append(str((await tool_b.arun(input)).response))
+return ' | '.join(results) if results else 'No matches'
+```
+
+**3. Use asyncio.gather for Concurrent DAP Fetches**
+
+When fetching from multiple DAPs, use `asyncio.gather` for efficiency:
+
+```python
+# ✅ Concurrent - efficient
+weather_cache, finance_cache = await asyncio.gather(
+    weather_dap._cache.get_or_fetch(),  # noqa: SLF001
+    finance_dap._cache.get_or_fetch(),  # noqa: SLF001
+)
+
+# ❌ Sequential - slower
+weather_cache = await weather_dap._cache.get_or_fetch()
+finance_cache = await finance_dap._cache.get_or_fetch()
+```
+
+#### Sample Package Structure
+
+**pyproject.toml `packages` vs Runtime Execution**
+
+The `[tool.hatch.build.targets.wheel].packages` setting is for **wheel building**, not
+runtime execution. Samples should be run directly:
+
+```toml
+# pyproject.toml
+[tool.hatch.build.targets.wheel]
+packages = ["src/dap_demo"]  # For wheel builds
+```
+
+```bash
+# run.sh - direct file execution (NOT -m module)
+uv run src/dap_demo/__init__.py "$@"
+```
+
+When using `-m` module execution, Python requires the module to be in `PYTHONPATH`.
+For samples, direct file execution is simpler and matches other samples.
+
+#### ASGI Type Compatibility
+
+**Protocol-Based Types for Framework Portability**
+
+Use `typing.Protocol` instead of Union types for ASGI compatibility across frameworks:
+
+```python
+# ✅ CORRECT - Protocol-based types work with any ASGI framework
+from typing import Protocol, runtime_checkable
+from collections.abc import Awaitable, Callable, MutableMapping
+
+Scope = MutableMapping[str, Any]
+Receive = Callable[[], Awaitable[MutableMapping[str, Any]]]
+Send = Callable[[MutableMapping[str, Any]], Awaitable[None]]
+
+
+@runtime_checkable
+class ASGIApp(Protocol):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: ...
+```
+
+**Framework-Specific Middleware Uses Native Types**
+
+When extending framework middleware classes (e.g., Litestar's `AbstractMiddleware`),
+use that framework's native types, not the portable ASGI protocols:
+
+```python
+# For Litestar middleware, use litestar.types
+from litestar.middleware.base import AbstractMiddleware
+from litestar.types import Receive, Scope, Send  # Framework-specific
+
+
+class MyMiddleware(AbstractMiddleware):
+    async def __call__(
+        self,
+        scope: Scope,  # litestar.types.Scope
+        receive: Receive,  # litestar.types.Receive
+        send: Send,  # litestar.types.Send
+    ) -> None: ...
+```
+
+**Application Type Uses Any**
+
+External frameworks define incompatible `Application` types, so use `Any`:
+
+```python
+# Intentional - frameworks have incompatible Application types
+Application = Any
+"""Type alias for ASGI application objects.
+
+Note: Uses Any because external frameworks define their own ASGI types
+that aren't structurally compatible with our Protocol.
+"""
+```
+
+#### Optional Dependencies in Lint Configuration
+
+For optional dependencies used only in type hints, add them to the `lint` dependency
+group rather than using inline ignore comments:
+
+```toml
+# In pyproject.toml [project.optional-dependencies]
+lint = [
+  "litestar>=2.0.0",  # For web/typing.py type resolution
+]
+```
+
+This allows type checkers to resolve imports during CI while keeping the package
+optional for runtime.
+
+#### Documentation Style: Avoid Section Marker Comments
+
+Per GEMINI.md guidelines, avoid boilerplate section marker comments:
+
+```python
+# ❌ WRONG - boilerplate markers
+# =============================================================================
+# ASGI Protocol Types
+# =============================================================================
+
+# ✅ CORRECT - descriptive comment only
+# These Protocol-based types follow the ASGI specification and are compatible
+# with any ASGI framework.
+```
+
+Comments should tell **why**, not **what**. Section markers add visual noise
+without adding information.

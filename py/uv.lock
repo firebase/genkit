@@ -15,6 +15,7 @@ members = [
     "anthropic-hello",
     "cloudflare-workers-ai-hello",
     "compat-oai-hello",
+    "dap-demo",
     "deepseek-hello",
     "dev-local-vectorstore-hello",
     "evaluator-demo",
@@ -1318,6 +1319,32 @@ sdist = { url = "https://files.pythonhosted.org/packages/89/ed/54ecfa25fc145c58b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/1b/534ad8a5e0f9470522811a8e5a9bc5d328fb7738ba29faf357467a4ef6d0/cyclonedx_python_lib-11.6.0-py3-none-any.whl", hash = "sha256:94f4aae97db42a452134dafdddcfab9745324198201c4777ed131e64c8380759", size = 511157, upload-time = "2025-12-02T12:28:44.158Z" },
 ]
+
+[[package]]
+name = "dap-demo"
+version = "0.1.0"
+source = { editable = "samples/dap-demo" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "datamodel-code-generator"
