@@ -41,25 +41,22 @@ class HuggingFace(Plugin):
     enabling the use of 1,000,000+ models within the Genkit framework.
 
     Example:
-        ```python
-        from genkit import Genkit
-        from genkit.plugins.huggingface import HuggingFace
-
-        ai = Genkit(
-            plugins=[HuggingFace()],
-            model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
-        )
-
-        response = await ai.generate(prompt='Hello!')
-        ```
+        >>> from genkit import Genkit
+        >>> from genkit.plugins.huggingface import HuggingFace
+        >>>
+        >>> ai = Genkit(
+        ...     plugins=[HuggingFace()],
+        ...     model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
+        ... )
+        >>>
+        >>> response = await ai.generate(prompt='Hello!')
 
     Using Inference Providers for faster inference:
-        ```python
-        ai = Genkit(
-            plugins=[HuggingFace(provider='groq')],  # Use Groq for speed
-            model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
-        )
-        ```
+
+        >>> ai = Genkit(
+        ...     plugins=[HuggingFace(provider='groq')],  # Use Groq for speed
+        ...     model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
+        ... )
     """
 
     name = HUGGINGFACE_PLUGIN_NAME

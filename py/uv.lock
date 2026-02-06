@@ -64,6 +64,7 @@ members = [
     "tool-interrupts",
     "vertex-ai-vector-search-bigquery",
     "vertex-ai-vector-search-firestore",
+    "vertexai-rerank-eval",
     "xai-hello",
 ]
 
@@ -2470,6 +2471,7 @@ dev = [
 lint = [
     { name = "bandit" },
     { name = "deptry" },
+    { name = "litestar" },
     { name = "mypy" },
     { name = "pip-audit" },
     { name = "pypdf" },
@@ -2535,6 +2537,7 @@ dev = [
 lint = [
     { name = "bandit", specifier = ">=1.7.0" },
     { name = "deptry", specifier = ">=0.22.0" },
+    { name = "litestar", specifier = ">=2.0.0" },
     { name = "mypy", specifier = ">=1.14.0" },
     { name = "pip-audit", specifier = ">=2.7.0" },
     { name = "pypdf", specifier = ">=6.6.2" },
@@ -7919,6 +7922,36 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "vertexai-rerank-eval"
+version = "0.1.0"
+source = { editable = "samples/vertexai-rerank-eval" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },

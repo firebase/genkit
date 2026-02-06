@@ -476,7 +476,7 @@ class TestVertexAIInit(unittest.TestCase):
 @patch('google.genai.client.Client')
 def vertexai_plugin_instance(client: MagicMock) -> VertexAI:
     """VertexAI fixture."""
-    return VertexAI()
+    return VertexAI(project='test-project', location='us-central1')
 
 
 @pytest.mark.asyncio

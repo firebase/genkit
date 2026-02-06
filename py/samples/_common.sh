@@ -215,3 +215,182 @@ print_help_footer() {
     echo "  2. Run: ./run.sh"  
     echo "  3. Browser opens automatically to http://localhost:${port}"
 }
+
+# ============================================================================
+# Google Cloud (gcloud) Helper Functions
+# ============================================================================
+# These functions provide interactive API enablement for samples that require
+# Google Cloud APIs.
+
+# Check if gcloud CLI is installed
+# Usage: check_gcloud_installed || exit 1
+check_gcloud_installed() {
+    if ! command -v gcloud &> /dev/null; then
+        echo -e "${RED}Error: gcloud CLI is not installed${NC}"
+        echo ""
+        echo "Install the Google Cloud SDK from:"
+        echo "  https://cloud.google.com/sdk/docs/install"
+        echo ""
+        return 1
+    fi
+    return 0
+}
+
+# Check if gcloud is authenticated with Application Default Credentials
+# Prompts the user to login if not authenticated (interactive)
+# Usage: check_gcloud_auth || true
+check_gcloud_auth() {
+    echo -e "${BLUE}Checking gcloud authentication...${NC}"
+    
+    # Check application default credentials
+    if ! gcloud auth application-default print-access-token &> /dev/null; then
+        echo -e "${YELLOW}Application default credentials not found.${NC}"
+        echo ""
+        
+        if [[ -t 0 ]] && [ -c /dev/tty ]; then
+            echo -en "Run ${GREEN}gcloud auth application-default login${NC} now? [Y/n]: "
+            local response
+            read -r response < /dev/tty
+            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+                echo ""
+                gcloud auth application-default login
+                echo ""
+            else
+                echo -e "${YELLOW}Skipping authentication. You may encounter auth errors.${NC}"
+                return 1
+            fi
+        else
+            echo "Run: gcloud auth application-default login"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}✓ Application default credentials found${NC}"
+    fi
+    
+    echo ""
+    return 0
+}
+
+# Check if a specific Google Cloud API is enabled
+# Usage: is_api_enabled "aiplatform.googleapis.com" "$GOOGLE_CLOUD_PROJECT"
+is_api_enabled() {
+    local api="$1"
+    local project="$2"
+    
+    gcloud services list --project="$project" --enabled --filter="name:$api" --format="value(name)" 2>/dev/null | grep -q "$api"
+}
+
+# Enable required Google Cloud APIs interactively
+# Usage: 
+#   REQUIRED_APIS=("aiplatform.googleapis.com" "discoveryengine.googleapis.com")
+#   enable_required_apis "${REQUIRED_APIS[@]}"
+#
+# The function will:
+#   1. Check which APIs are already enabled
+#   2. Prompt the user to enable missing APIs
+#   3. Enable APIs on user confirmation
+enable_required_apis() {
+    local project="${GOOGLE_CLOUD_PROJECT:-}"
+    local apis=("$@")
+    
+    if [[ -z "$project" ]]; then
+        echo -e "${YELLOW}GOOGLE_CLOUD_PROJECT not set, skipping API enablement${NC}"
+        return 1
+    fi
+    
+    if [[ ${#apis[@]} -eq 0 ]]; then
+        echo -e "${YELLOW}No APIs specified${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}Checking required APIs for project: ${project}${NC}"
+    
+    local apis_to_enable=()
+    
+    for api in "${apis[@]}"; do
+        if is_api_enabled "$api" "$project"; then
+            echo -e "  ${GREEN}✓${NC} $api"
+        else
+            echo -e "  ${YELLOW}✗${NC} $api (not enabled)"
+            apis_to_enable+=("$api")
+        fi
+    done
+    
+    echo ""
+    
+    if [[ ${#apis_to_enable[@]} -eq 0 ]]; then
+        echo -e "${GREEN}All required APIs are already enabled!${NC}"
+        echo ""
+        return 0
+    fi
+    
+    # Prompt to enable APIs
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -e "${YELLOW}The following APIs need to be enabled:${NC}"
+        for api in "${apis_to_enable[@]}"; do
+            echo "  - $api"
+        done
+        echo ""
+        echo -en "Enable these APIs now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            for api in "${apis_to_enable[@]}"; do
+                echo -e "${BLUE}Enabling $api...${NC}"
+                if gcloud services enable "$api" --project="$project"; then
+                    echo -e "${GREEN}✓ Enabled $api${NC}"
+                else
+                    echo -e "${RED}✗ Failed to enable $api${NC}"
+                    return 1
+                fi
+            done
+            echo ""
+            echo -e "${GREEN}All APIs enabled successfully!${NC}"
+        else
+            echo -e "${YELLOW}Skipping API enablement. You may encounter errors.${NC}"
+            return 1
+        fi
+    else
+        echo "Enable APIs with:"
+        for api in "${apis_to_enable[@]}"; do
+            echo "  gcloud services enable $api --project=$project"
+        done
+        return 1
+    fi
+    
+    echo ""
+    return 0
+}
+
+# Run common GCP setup: check gcloud, auth, and enable APIs
+# Usage:
+#   REQUIRED_APIS=("aiplatform.googleapis.com")
+#   run_gcp_setup "${REQUIRED_APIS[@]}"
+run_gcp_setup() {
+    local apis=("$@")
+    
+    # Check gcloud is installed
+    check_gcloud_installed || return 1
+    
+    # Check/prompt for project
+    check_env_var "GOOGLE_CLOUD_PROJECT" "" || {
+        echo -e "${RED}Error: GOOGLE_CLOUD_PROJECT is required${NC}"
+        echo ""
+        echo "Set it with:"
+        echo "  export GOOGLE_CLOUD_PROJECT=your-project-id"
+        echo ""
+        return 1
+    }
+    
+    # Check authentication
+    check_gcloud_auth || true
+    
+    # Enable APIs if any were specified
+    if [[ ${#apis[@]} -gt 0 ]]; then
+        enable_required_apis "${apis[@]}" || true
+    fi
+    
+    return 0
+}

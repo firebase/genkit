@@ -130,17 +130,9 @@ if [[ $# -lt 1 ]]; then
         else
             echo "Flow testing for '$SAMPLE_NAME' was interrupted or failed."
         fi
-        echo "Results saved to: $OUTPUT_FILE"
-        echo ""
         
-        # Open the results file only if testing completed successfully
-        if [[ "$TEST_SUCCESS" == "true" ]] && [[ -f "$OUTPUT_FILE" ]]; then
-            open_results "$OUTPUT_FILE"
-        fi
-        
-        echo ""
         trap '' SIGINT
-        read -p "Press Enter to continue..." || true
+        read -rp "Press Enter to continue..." || true
         trap - SIGINT
     done
 else
@@ -171,15 +163,9 @@ else
     cd "$PY_DIR"
     # Allow Ctrl+C to interrupt
     if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
-        # Open the results file only on successful completion
-        if [[ -f "$OUTPUT_FILE" ]]; then
-            echo ""
-            echo "Results saved to: $OUTPUT_FILE"
-            open_results "$OUTPUT_FILE"
-        fi
+        echo "Flow testing completed for $SAMPLE_NAME"
     else
         echo ""
         echo "Flow testing was interrupted or failed."
-        echo "Partial results saved to: $OUTPUT_FILE"
     fi
 fi
