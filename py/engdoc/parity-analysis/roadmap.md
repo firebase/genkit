@@ -4,7 +4,7 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Current Status (Updated 2026-02-05)
+## Current Status (Updated 2026-01-30)
 
 > [!IMPORTANT]
 > **Overall Parity: ~99% Complete** - Nearly all milestones done!
@@ -20,7 +20,6 @@ This document organizes the identified gaps into executable milestones with depe
 | **M4: Telemetry** | ✅ Complete | RealtimeSpanProcessor, flushTracing, AdjustingTraceExporter, GCP parity |
 | **M5: Advanced** | ✅ Complete | embed_many ✅, define_simple_retriever ✅, define_background_model ✅ |
 | **M6: Media Models** | ✅ Complete | Veo, Lyria, TTS, Gemini Image models |
-| **M7: DAP Core** | ✅ Complete | Dynamic Action Provider core implementation |
 
 ### Remaining Work
 
@@ -28,128 +27,14 @@ This document organizes the identified gaps into executable milestones with depe
 |----------|------|--------|--------|
 | **P0** | Testing Infrastructure (`genkit.testing`) | S | ✅ Complete |
 | **P0** | Context Caching (google-genai) | M | ✅ Complete |
-| **P0** | DAP Core Implementation | M | ✅ Complete |
 | **P1** | `define_background_model()` | M | ✅ Complete |
 | **P1** | Veo support in google-genai plugin | M | ✅ Complete |
 | **P1** | TTS (Text-to-Speech) models | S | ✅ Complete |
 | **P1** | Gemini Image models | S | ✅ Complete |
 | **P1** | Lyria audio generation (Vertex AI) | S | ✅ Complete |
-| **P1** | DAP DevUI Integration (`listResolvableActions`) | M | ✅ Complete |
-| **P1** | DAP Registry Key Parsing | S | ✅ Complete |
 | **P1** | Live/Realtime API | L | ❌ Not Started |
 | **P2** | Multi-agent sample | M | ❌ Not Started |
 | **P2** | MCP sample | M | ❌ Not Started |
-
----
-
-## M11: Dynamic Action Provider (DAP) Analysis (2026-02-05)
-
-> [!NOTE]
-> DAP enables external systems (e.g., MCP servers) to provide actions at runtime.
-> **Updated 2026-02-05:** Python implementation now at 100% parity with JS PR #4050.
-
-### JS PR #4050 Alignment (Complete)
-
-The Python DAP implementation has been updated to match the latest JavaScript
-changes from PR #4050 (merged 2026-02-05):
-
-| Change | JS (PR #4050) | Python | Status |
-|--------|---------------|--------|--------|
-| **DAP Action Signature** | `z.void()` input, `z.array(ActionMetadataSchema)` output | `None` input, `list[ActionMetadata]` output | ✅ |
-| **Cache Pattern** | `setDap()` / `setValue()` pattern | `set_dap()` / `set_value()` pattern | ✅ |
-| **transform_dap_value** | Returns flat `ActionMetadata[]` | Returns flat `list[ActionMetadataLike]` | ✅ |
-| **Metadata Format** | Includes `name`, `description` explicitly | Same | ✅ |
-| **Action Internal Logic** | Action calls DAP fn directly, caches result | Same | ✅ |
-
-### Feature Comparison: JS vs Python
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    DAP FEATURE COMPARISON: JS vs PYTHON                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│ CORE FUNCTIONALITY                                                          │
-├────────────────────────────┬────────────────────┬────────────────────┬──────┤
-│ Feature                    │ JS (Canonical)     │ Python             │Status│
-├────────────────────────────┼────────────────────┼────────────────────┼──────┤
-│ define_dynamic_action_prov │ ✅ dynamic-action- │ ✅ blocks/dap.py   │  ✅  │
-│                            │    provider.ts     │                    │      │
-│ is_dynamic_action_provider │ ✅ Lines 127-131   │ ✅ Lines 406-421   │  ✅  │
-│ DynamicActionProvider class│ ✅ Lines 100-125   │ ✅ Lines 289-403   │  ✅  │
-│ SimpleCache with TTL       │ ✅ Lines 31-98     │ ✅ Lines 175-266   │  ✅  │
-│ transform_dap_value        │ ✅ Lines 150-154   │ ✅ Lines 269-286   │  ✅  │
-├────────────────────────────┴────────────────────┴────────────────────┴──────┤
-│                                                                             │
-│ DAP METHODS                                                                 │
-├────────────────────────────┬────────────────────┬────────────────────┬──────┤
-│ getAction(type, name)      │ ✅ registry lookup │ ✅ Lines 317-336   │  ✅  │
-│ listActionMetadata(t,n)    │ ✅ wildcard/prefix │ ✅ Lines 338-375   │  ✅  │
-│ getActionMetadataRecord(p) │ ✅ reflection API  │ ✅ Lines 377-403   │  ✅  │
-│ invalidateCache()          │ ✅ manual cache    │ ✅ Lines 313-315   │  ✅  │
-│ get_or_fetch(skip_trace)   │ ✅ async fetch     │ ✅ Lines 205-238   │  ✅  │
-├────────────────────────────┴────────────────────┴────────────────────┴──────┤
-│                                                                             │
-│ CACHE CONFIGURATION                                                         │
-├────────────────────────────┬────────────────────┬────────────────────┬──────┤
-│ DapConfig interface        │ ✅ name, desc, ttl │ ✅ DapConfig class │  ✅  │
-│ DapCacheConfig (TTL)       │ ✅ ttlMillis       │ ✅ ttl_millis      │  ✅  │
-│ Default TTL (3000ms)       │ ✅ 3000ms default  │ ✅ 3000ms default  │  ✅  │
-│ Negative TTL (no cache)    │ ✅ ttlMillis < 0   │ ✅ ttl_millis < 0  │  ✅  │
-├────────────────────────────┴────────────────────┴────────────────────┴──────┤
-│                                                                             │
-│ REGISTRY INTEGRATION                                                        │
-├────────────────────────────┬────────────────────┬────────────────────┬──────┤
-│ ActionKind/ActionType      │ ✅ 'dynamic-action │ ✅ DYNAMIC_ACTION_ │  ✅  │
-│                            │    -provider'      │    PROVIDER        │      │
-│ DAP fallback in resolve    │ ✅ getDynamicAction│ ✅ registry.py     │  ✅  │
-│                            │                    │    lines 435-456   │      │
-│ listResolvableActions DAP  │ ✅ Includes DAP    │ ✅ list_resolvable_ │  ✅  │
-│                            │    actions in list │    _actions()      │      │
-│ resolveActionNames (DAP)   │ ✅ Wildcard expand │ ✅ resolve_action_ │  ✅  │
-│                            │                    │    _names()        │      │
-│ parseRegistryKey for DAP   │ ✅ Parses DAP keys │ ✅ parse_registry_ │  ✅  │
-│                            │                    │    _key()          │      │
-├────────────────────────────┴────────────────────┴────────────────────┴──────┤
-│                                                                             │
-│ TEST COVERAGE (13 core tests matching JS exactly + 7 additional)            │
-├────────────────────────────┬────────────────────┬────────────────────┬──────┤
-│ gets specific action       │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ lists action metadata      │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ caches the actions         │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ invalidates the cache      │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ respects cache ttl         │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ lists with prefix          │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ lists exact match          │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ gets action metadata rec   │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ handles concurrent reqs    │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ handles fetch errors       │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ skips trace when requested │ ✅ Test exists     │ ✅ via skip flag   │  ✅  │
-│ identifies DAPs            │ ✅ Test exists     │ ✅ dap_test.py     │  ✅  │
-│ Additional Python tests    │ -                  │ ✅ 8 extra tests   │  ✅  │
-└────────────────────────────┴────────────────────┴────────────────────┴──────┘
-```
-
-### DAP Completed Gaps ✅
-
-| Gap | JS Location | Impact | Status |
-|-----|-------------|--------|--------|
-| `listResolvableActions` DAP | `registry.ts:383-398` | DevUI shows DAP actions | ✅ `list_resolvable_actions()` |
-| `resolveActionNames` | `registry.ts:196-212` | Wildcard expansion | ✅ `resolve_action_names()` |
-| `parseRegistryKey` DAP | `registry.ts:96-141` | DAP key format parsing | ✅ `parse_registry_key()` |
-
-### Implementation Notes
-
-**Python DAP Core (Complete - 100% Parity with JS PR #4050):**
-- `py/packages/genkit/src/genkit/blocks/dap.py` - Full implementation
-- `py/packages/genkit/tests/genkit/blocks/dap_test.py` - 23 tests (all passing)
-- Documentation with ELI5 explanations and ASCII diagrams in docstrings
-- Sample: `py/samples/dap-demo/` - Comprehensive demonstration
-
-**Registry Integration (Complete 2026-02-05):**
-- `parse_registry_key()` - Parses DAP-style keys like `/dynamic-action-provider/mcp-host:tool/mytool`
-- `resolve_action_names()` - Expands wildcard keys via DAP
-- `list_resolvable_actions()` - Lists all actions including DAP-provided ones
-- `is_action_type()` - Helper to validate action type strings
 
 ---
 
@@ -162,14 +47,11 @@ changes from PR #4050 (merged 2026-02-05):
 |-----|-------------|----------|--------|
 | **Testing Infrastructure** | JS has `echoModel`, `ProgrammableModel`, `TestAction` for unit testing. | **P0** | ✅ Complete |
 | **Context Caching** | `ai.cacheContent()`, `cachedContent` option in generate | **P0** | ✅ Complete |
-| **DAP Core** | Dynamic Action Provider implementation | **P0** | ✅ Complete |
 | **define_background_model** | Core API for background models (Veo, etc.) | **P1** | ✅ Complete |
 | **Veo plugin support** | Add `veo.py` to google-genai plugin (JS has `veo.ts`) | **P1** | ✅ Complete |
 | **TTS models** | Text-to-speech Gemini models (gemini-*-tts) | **P1** | ✅ Complete |
 | **Gemini Image models** | Native image generation (gemini-*-image) | **P1** | ✅ Complete |
 | **Lyria audio generation** | Audio generation via Vertex AI (lyria-002) | **P1** | ✅ Complete |
-| **DAP DevUI Integration** | `listResolvableActions` includes DAP-provided actions | **P1** | ✅ Complete |
-| **DAP Key Parsing** | `parseRegistryKey` for DAP format (`dap:type/name`) | **P2** | ✅ Complete |
 | **Live/Realtime API** | Google GenAI Live API for real-time streaming | **P1** | ❌ Not Started |
 | **CLI/Tooling Parity** | `genkit` CLI commands and Python project behavior | Medium | ⚠️ Mostly Working |
 | **Error Types** | Python error hierarchy parity check | Low | ⚠️ Needs Review |
