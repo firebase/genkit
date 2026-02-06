@@ -112,7 +112,8 @@ func main() {
 				fmt.Printf("\n[snapshot: %s]", chunk.SnapshotCreated)
 			}
 			if chunk.EndTurn {
-				fmt.Println("\n")
+				fmt.Println()
+				fmt.Println()
 				break
 			}
 		}
