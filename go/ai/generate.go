@@ -976,8 +976,9 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 			return nil, err
 		}
 		return &ToolResponse{
-			Name:   state.Request.Name,
-			Output: resp.Output,
+			Name:    state.Request.Name,
+			Output:  resp.Output,
+			Content: resp.Content,
 		}, nil
 	}
 
@@ -994,7 +995,7 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		return nil, err
 	}
 
-	return &MultipartToolResponse{Output: toolResp.Output}, nil
+	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content}, nil
 }
 
 // Text returns the contents of the first candidate in a
