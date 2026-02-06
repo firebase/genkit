@@ -455,17 +455,16 @@ func DefineSessionFlow[Stream, State any](
 // invocation via [aix.WithPromptInput].
 //
 // Type parameters:
-//   - In: The prompt input type
-//   - Stream: Type for status updates sent via the responder
 //   - State: Type for user-defined state in snapshots
-func DefineSessionFlowFromPrompt[Stream, State, PromptIn any](
+//   - PromptIn: The prompt input type (inferred from the PromptRenderer)
+func DefineSessionFlowFromPrompt[State, PromptIn any](
 	g *Genkit,
 	name string,
 	p aix.PromptRenderer[PromptIn],
 	defaultInput PromptIn,
 	opts ...aix.SessionFlowOption[State],
-) *aix.SessionFlow[Stream, State] {
-	return aix.DefineSessionFlowFromPrompt[Stream](g.reg, name, p, defaultInput, opts...)
+) *aix.SessionFlow[struct{}, State] {
+	return aix.DefineSessionFlowFromPrompt(g.reg, name, p, defaultInput, opts...)
 }
 
 // Run executes the given function `fn` within the context of the current flow run,

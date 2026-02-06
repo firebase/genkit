@@ -689,27 +689,25 @@ type PromptRenderer[In any] interface {
 //
 // The defaultInput is used for prompt rendering unless overridden per
 // invocation via WithPromptInput.
-func DefineSessionFlowFromPrompt[Stream, State, PromptIn any](
+func DefineSessionFlowFromPrompt[State, PromptIn any](
 	r api.Registry,
 	name string,
 	p PromptRenderer[PromptIn],
 	defaultInput PromptIn,
 	opts ...SessionFlowOption[State],
-) *SessionFlow[Stream, State] {
-	fn := func(ctx context.Context, resp Responder[Stream], params *SessionFlowParams[State]) error {
+) *SessionFlow[struct{}, State] {
+	fn := func(ctx context.Context, resp Responder[struct{}], params *SessionFlowParams[State]) error {
 		return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
 			sess := params.Session
 
 			// Resolve prompt input: session state override > default.
-			var promptInput PromptIn
+			promptInput := defaultInput
 			if stored := sess.PromptInput(); stored != nil {
 				typed, ok := stored.(PromptIn)
 				if !ok {
 					return fmt.Errorf("prompt input type mismatch: got %T, want %T", stored, promptInput)
 				}
 				promptInput = typed
-			} else {
-				promptInput = defaultInput
 			}
 
 			// Render the prompt template.

@@ -74,7 +74,7 @@ func TestPromptSessionFlow_Basic(t *testing.T) {
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testStatus, testState](
+	sf := DefineSessionFlowFromPrompt[testState](
 		reg, "promptFlow", prompt, nil,
 	)
 
@@ -146,7 +146,7 @@ func TestPromptSessionFlow_PromptInputOverride(t *testing.T) {
 		ai.WithPrompt("Hello {{name}}!"),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testStatus, testState](
+	sf := DefineSessionFlowFromPrompt[testState](
 		reg, "promptInputFlow", prompt, greetInput{Name: "default"},
 	)
 
@@ -223,7 +223,7 @@ func TestPromptSessionFlow_MultiTurnHistory(t *testing.T) {
 		ai.WithSystem("system prompt"),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testStatus, testState](
+	sf := DefineSessionFlowFromPrompt[testState](
 		reg, "historyFlow", prompt, nil,
 	)
 
@@ -299,7 +299,7 @@ func TestPromptSessionFlow_SnapshotPersistsPromptInput(t *testing.T) {
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testStatus](
+	sf := DefineSessionFlowFromPrompt[testState](
 		reg, "snapPromptFlow", prompt, nil,
 		WithSnapshotStore(store),
 	)
