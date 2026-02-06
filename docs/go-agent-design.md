@@ -221,6 +221,17 @@ assistantAgent := genkit.DefineAgent[Status, State](g, "assistant",
 )
 ```
 
+### Agent from .prompt File
+
+```go
+// prompts/support.prompt
+supportPrompt := genkit.LookupPrompt(g, "supportPrompt")
+
+supportAgent := genkit.DefineAgent[Status, State](g, "supportPrompt",
+    aix.WithBasePrompt[State](supportPrompt, nil),
+)
+```
+
 ### Agent with Initial Context
 
 ```go
