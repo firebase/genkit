@@ -62,9 +62,13 @@ genkit start -- uv run src/main.py
 4. **Test advanced features**:
    - [ ] `thinking_demo` - Chain-of-thought reasoning
    - [ ] `describe_image` - Image description (multimodal)
+   - [ ] `cached_generation` - Prompt caching demo
+   - [ ] `analyze_pdf` - PDF document input demo
 
 5. **Expected behavior**:
    - Claude responds appropriately to prompts
    - Tools are invoked and responses integrated
    - Thinking mode shows reasoning process
    - Image descriptions are accurate
+   - Cache breakpoint metadata is applied (check traces)
+   - PDF content is analyzed and described correctly
