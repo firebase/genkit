@@ -61,7 +61,7 @@ Key Features
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
 | Multimodal (Image Input)                | `describe_image`                    |
 | Code Generation                         | `code_flow`                         |
-| Embeddings                              | `embed_text`                        |
+| Embeddings                              | `embed_flow`                        |
 
 Supported Models
 ================
@@ -445,7 +445,7 @@ async def describe_image_nova(input: ImageDescribeInput) -> str:
 
 
 @ai.flow()
-async def embed_text(input: EmbedInput) -> list[float]:
+async def embed_flow(input: EmbedInput) -> list[float]:
     """Generate text embeddings using Amazon Titan.
 
     When using API keys (AWS_BEARER_TOKEN_BEDROCK), this automatically uses
@@ -467,7 +467,7 @@ async def embed_text(input: EmbedInput) -> list[float]:
 
 
 @ai.flow()
-async def reasoning_demo(input: ReasoningInput) -> str:
+async def reasoning_flow(input: ReasoningInput) -> str:
     """Demonstrate reasoning with DeepSeek R1.
 
     Note: DeepSeek R1 includes reasoning content in the response.

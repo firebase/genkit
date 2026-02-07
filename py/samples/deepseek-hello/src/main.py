@@ -52,10 +52,10 @@ Key Features
 | Defining Tools                          | `@ai.tool()` decorator                  |
 | Pydantic for Tool Input Schema          | `WeatherInput`                          |
 | Simple Generation (Prompt String)       | `say_hi`                                |
-| Streaming Response                      | `streaming_flow`                        |
+| Streaming Response                      | `say_hi_stream`                         |
 | Generation with Tools                   | `weather_flow`                          |
 | Reasoning Model (deepseek-reasoner)     | `reasoning_flow`                        |
-| Generation with Config                  | `custom_config_flow`                    |
+| Generation with Config                  | `say_hi_with_config`                    |
 | Code Generation                         | `code_flow`                             |
 | Multi-turn Chat                         | `chat_flow`                             |
 """
@@ -320,7 +320,7 @@ async def currency_exchange(input: CurrencyExchangeInput) -> str:
 
 
 @ai.flow()
-async def custom_config_flow(input: CustomConfigInput) -> str:
+async def say_hi_with_config(input: CustomConfigInput) -> str:
     """Demonstrate custom model configurations for different tasks.
 
     Shows how different config parameters affect generation behavior:
@@ -415,7 +415,7 @@ async def say_hi(input: SayHiInput) -> str:
 
 
 @ai.flow()
-async def streaming_flow(
+async def say_hi_stream(
     input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:

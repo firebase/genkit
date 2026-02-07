@@ -61,7 +61,7 @@ Key Features
 | Streaming Generation                    | `say_hi_stream`                     |
 | Generation with Tools                   | `weather_flow`, `currency_exchange` |
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
-| Thinking (CoT)                          | `thinking_demo`                     |
+| Thinking (CoT)                          | `reasoning_flow`                    |
 | Code Generation                         | `code_flow`                         |
 | Multimodal (Image Input)                | `describe_image`                    |
 | Prompt Caching                          | `cached_generation`                 |
@@ -330,7 +330,7 @@ async def say_hi_with_config(input: SayHiInput) -> str:
 
 
 @ai.flow()
-async def thinking_demo(input: ThinkingInput) -> str:
+async def reasoning_flow(input: ThinkingInput) -> str:
     """Demonstrate Anthropic thinking capability.
 
     Note: 'thinking' requires a compatible model (e.g., Claude 3.7 Sonnet).

@@ -1728,6 +1728,37 @@ For each plugin, verify:
 4. **Authentication**: Use provider's recommended auth mechanism and headers
 5. **Endpoints**: URLs match provider's documented endpoints
 
+### Model Name Accuracy (Mandatory)
+
+**CRITICAL:** Model names in `model_info.py` files MUST exactly match the API model
+identifiers documented by each provider. Incorrect model names cause silent runtime
+failures that are difficult to debug. This is a production-breaking issue.
+
+**Before adding or updating any model in a plugin's catalog:**
+
+1. **Check the official API docs** — Not blog posts or news articles. Use the provider's
+   API reference or models page to confirm the exact model ID string:
+   * Anthropic: [docs.anthropic.com/en/docs/about-claude/models](https://docs.anthropic.com/en/docs/about-claude/models)
+   * OpenAI: [platform.openai.com/docs/models](https://platform.openai.com/docs/models)
+   * xAI: [docs.x.ai/docs/models](https://docs.x.ai/docs/models)
+   * Mistral: [docs.mistral.ai/getting-started/models/models_overview/](https://docs.mistral.ai/getting-started/models/models_overview/)
+   * HuggingFace: [huggingface.co/models](https://huggingface.co/models) (use the repo ID)
+   * AWS Bedrock: [docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html)
+   * Azure AI Foundry: [ai.azure.com/catalog/models](https://ai.azure.com/catalog/models)
+2. **Distinguish API model IDs from product/marketing names** — For example, "Grok 4.1"
+   may be the consumer product name while the API model ID remains `grok-4`. Always use
+   the API model ID string, not the product name.
+3. **Verify version strings** — For providers that use versioned model names (e.g.,
+   `claude-opus-4-6-20260205`), confirm the exact date suffix from the docs.
+4. **Test the model name** — If possible, make a test API call to confirm the model name
+   is accepted by the provider's API before committing.
+
+**Anti-patterns to avoid:**
+* Adding models based solely on news articles or press releases
+* Guessing model name patterns from existing entries
+* Using marketing/consumer product names instead of API model IDs
+* Adding models before they are publicly available via the API
+
 ### Common Issues Found During Verification
 
 | Issue Type | Example | How to Fix |
@@ -1737,6 +1768,7 @@ For each plugin, verify:
 | **Custom env var names** | `MY_API_KEY` vs `PROVIDER_API_KEY` | Use provider's official env var names |
 | **Incorrect auth headers** | Wrong header name or format | Check provider's authentication docs |
 | **Missing model capabilities** | Not supporting vision for multimodal models | Review model capabilities in provider docs |
+| **Product name vs API ID** | `grok-4.1` (product) vs `grok-4` (API) | Always use the API model ID string |
 
 ### Provider Documentation Links
 

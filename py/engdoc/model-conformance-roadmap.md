@@ -83,7 +83,7 @@ We need to:
 
 | Plugin | Models | Notes |
 |--------|--------|-------|
-| **mistral** | 30+ (Large 3, Medium 3.1, Small 3.2, Ministral 3, Magistral, Codestral, Devstral, Voxtral, Pixtral, Embed) | No JS plugin exists. PR #4485: embeddings + streaming fix. PR #4486: full capability update. |
+| **mistral** | 20+ (Large 3, Medium 3.1, Small 3.2, Ministral 3, Magistral, Codestral, Devstral, Voxtral, Pixtral, text/code Embed) | No JS plugin exists. PRs #4481–#4486: embeddings, streaming fix, full catalog, multimodal, reasoning (ThinkChunk), config alignment. 54 tests. |
 | **huggingface** | 10+ popular models + any HF model ID | No JS plugin exists |
 | **cloudflare-workers-ai** | 15+ (Llama, Mistral, Qwen, Gemma, Phi, DeepSeek) | No JS plugin exists |
 
@@ -394,7 +394,7 @@ which capabilities to test per plugin:
 
 | Plugin | Test Capabilities | Notes |
 |--------|-------------------|-------|
-| **mistral** | tool-request, structured-output, multiturn, system-role, streaming-multiturn, input-image-base64, input-image-url | All Large 3/Medium 3.1/Small 3.2/Ministral 3/Magistral support vision. Voxtral adds audio input. |
+| **mistral** | tool-request, structured-output, multiturn, system-role, streaming-multiturn, streaming-structured-output, input-image-base64, input-image-url, reasoning | Vision: Pixtral/Large 3/Medium 3.1/Small 3.2. Reasoning: Magistral (ThinkChunk). Audio input: Voxtral Mini (AudioChunk). Code: Codestral, Devstral. Embeddings: mistral-embed, codestral-embed-2505. |
 | **deepseek** | tool-request, structured-output, multiturn, system-role, streaming-multiturn | |
 | **xai** | tool-request, structured-output, multiturn, system-role, streaming-multiturn | grok-2-vision adds input-image |
 | **ollama** | tool-request, structured-output, multiturn, system-role | Depends on locally installed model |

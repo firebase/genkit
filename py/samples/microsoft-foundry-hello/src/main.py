@@ -60,6 +60,8 @@ Key Features
 | Generation Configuration         | `say_hi_with_config`              |
 | Code Generation                  | `code_flow`                       |
 | Multimodal (Image Input)         | `describe_image`                  |
+| Structured Output (JSON)         | `generate_character`              |
+| Embeddings                       | `embed_flow`                      |
 
 Endpoint Types
 ==============
@@ -143,10 +145,10 @@ import random
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o
+from genkit.plugins.microsoft_foundry import MicrosoftFoundry, gpt4o, microsoft_foundry_name
 from genkit.types import Media, MediaPart, Part, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
@@ -222,6 +224,38 @@ class CodeInput(BaseModel):
     task: str = Field(
         default='Write a Python function to calculate fibonacci numbers',
         description='Coding task description',
+    )
+
+
+class CharacterInput(BaseModel):
+    """Input for character generation."""
+
+    name: str = Field(default='Azure', description='Character name')
+
+
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character."""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
+class EmbedInput(BaseModel):
+    """Input for embedding flow."""
+
+    text: str = Field(
+        default='The quick brown fox jumps over the lazy dog.',
+        description='Text to generate embeddings for',
     )
 
 
@@ -336,6 +370,52 @@ async def code_flow(input: CodeInput) -> str:
         system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
+
+
+@ai.flow()
+async def generate_character(input: CharacterInput) -> RpgCharacter:
+    """Generate an RPG character using structured output.
+
+    Demonstrates JSON mode for structured output with Microsoft Foundry.
+    The model returns data that matches the RpgCharacter schema.
+
+    Args:
+        input: Input with character name.
+
+    Returns:
+        The generated RPG character.
+    """
+    prompt = (
+        f'Generate an RPG character named {input.name}. '
+        'Include a creative backstory, 3-4 unique abilities, '
+        'and skill ratings for strength, charisma, and endurance (0-100 each).'
+    )
+    result = await ai.generate(
+        prompt=prompt,
+        output=Output(schema=RpgCharacter),
+    )
+    return result.output
+
+
+@ai.flow()
+async def embed_flow(input: EmbedInput) -> list[float]:
+    """Generate text embeddings using Microsoft Foundry.
+
+    Demonstrates the embedding capability using text-embedding-3-small,
+    which is available through Azure OpenAI endpoints.
+
+    Args:
+        input: Input with text to embed.
+
+    Returns:
+        First 10 dimensions of the embedding vector.
+    """
+    embeddings = await ai.embed(
+        embedder=microsoft_foundry_name('text-embedding-3-small'),
+        content=input.text,
+    )
+    embedding = embeddings[0].embedding if embeddings else []
+    return embedding[:10] if len(embedding) > 10 else embedding
 
 
 async def main() -> None:

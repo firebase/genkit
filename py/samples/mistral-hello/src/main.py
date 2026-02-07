@@ -57,9 +57,9 @@ Key Features
 | Defining Flows                          | `@ai.flow()` decorator                  |
 | Defining Tools                          | `@ai.tool()` decorator                  |
 | Simple Generation (Prompt String)       | `say_hi`                                |
-| Streaming Response                      | `streaming_flow`                        |
+| Streaming Response                      | `say_hi_stream`                         |
 | Code Generation (Codestral)             | `code_flow`                             |
-| Generation with Config                  | `custom_config_flow`                    |
+| Generation with Config                  | `say_hi_with_config`                    |
 | Multi-turn Chat                         | `chat_flow`                             |
 | Tool Calling                            | `weather_flow`                          |
 | Structured Output (JSON)                | `generate_character`                    |
@@ -234,7 +234,7 @@ async def say_hi(input: SayHiInput) -> str:
 
 
 @ai.flow()
-async def streaming_flow(
+async def say_hi_stream(
     input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
@@ -273,7 +273,7 @@ async def code_flow(input: CodeInput) -> str:
 
 
 @ai.flow()
-async def custom_config_flow(input: CustomConfigInput) -> str:
+async def say_hi_with_config(input: CustomConfigInput) -> str:
     """Demonstrate custom model configurations for different tasks.
 
     Shows how different config parameters affect generation behavior:

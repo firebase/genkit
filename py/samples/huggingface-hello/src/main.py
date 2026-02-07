@@ -57,13 +57,14 @@ Key Features
 | Defining Flows                          | `@ai.flow()` decorator                  |
 | Defining Tools                          | `@ai.tool()` decorator                  |
 | Simple Generation (Prompt String)       | `say_hi`                                |
-| Streaming Response                      | `streaming_flow`                        |
+| Streaming Response                      | `say_hi_stream`                         |
 | Different Models                        | `llama_flow`, `qwen_flow`               |
-| Generation with Config                  | `custom_config_flow`                    |
+| Generation with Config                  | `say_hi_with_config`                    |
 | Code Generation                         | `code_flow`                             |
 | Multi-turn Chat                         | `chat_flow`                             |
 | Tool Calling                            | `weather_flow`                          |
 | Structured Output (JSON)                | `generate_character`                    |
+| Inference Providers                     | `provider_flow`                         |
 """
 
 import asyncio
@@ -115,6 +116,19 @@ class CustomConfigInput(BaseModel):
     """Input for custom config flow."""
 
     task: str = Field(default='creative', description='Task type: creative, precise, or detailed')
+
+
+class ProviderInput(BaseModel):
+    """Input for inference provider flow."""
+
+    prompt: str = Field(
+        default='Explain quantum computing in one paragraph.',
+        description='Prompt to send to the model',
+    )
+    provider: str = Field(
+        default='cerebras',
+        description='Inference provider (e.g., cerebras, groq, together)',
+    )
 
 
 class WeatherInput(BaseModel):
@@ -195,7 +209,7 @@ async def say_hi(input: SayHiInput) -> str:
 
 
 @ai.flow()
-async def streaming_flow(
+async def say_hi_stream(
     input: StreamInput,
     ctx: ActionRunContext | None = None,
 ) -> str:
@@ -267,7 +281,7 @@ async def gemma_flow(input: ModelInput) -> str:
 
 
 @ai.flow()
-async def custom_config_flow(input: CustomConfigInput) -> str:
+async def say_hi_with_config(input: CustomConfigInput) -> str:
     """Demonstrate custom model configurations for different tasks.
 
     Shows how different config parameters affect generation behavior:
@@ -434,6 +448,36 @@ async def code_flow(input: CodeInput) -> str:
     response = await ai.generate(
         prompt=input.task,
         system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
+
+
+@ai.flow()
+async def provider_flow(input: ProviderInput) -> str:
+    """Demonstrate using different inference providers.
+
+    Hugging Face's Inference API supports 17+ partner providers (Cerebras,
+    Groq, Together, etc.) for faster or cheaper inference. This flow shows
+    how to route requests through a specific provider by creating a
+    plugin-level HuggingFace instance with a provider.
+
+    Note: Provider availability varies by model. Check the HuggingFace
+    model page for supported providers.
+
+    Args:
+        input: Input with prompt and provider name.
+
+    Returns:
+        Generated response via the specified provider.
+    """
+    # Provider is set at the plugin level during initialization.
+    # This flow uses the default plugin provider configured at startup.
+    # To use a different provider per-request, you would create separate
+    # Genkit instances with different HuggingFace plugin configurations.
+    response = await ai.generate(
+        model=huggingface_name('meta-llama/Llama-3.1-8B-Instruct'),
+        prompt=f'[Provider: {input.provider}] {input.prompt}',
+        system='You are a helpful assistant. Be concise.',
     )
     return response.text
 

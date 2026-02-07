@@ -20,7 +20,7 @@
 | anthropic | ✅ Mostly Conformant (PR #4482) | Citations | None | ✅ Good | Low |
 | amazon-bedrock | ✅ Verified | Guardrails | None | Good | Low |
 | ollama | ✅ Verified | Vision via chat API | None | Fair | Low |
-| mistral | ✅ Mostly Conformant (PR #4481) | Agents API, Codestral FIM | None | ✅ Good | Low |
+| mistral | ✅ Conformant (PRs #4481–#4486 + branch) | Agents API, Codestral FIM | None | ✅ Excellent (54 tests) | Low |
 | xai | ⚠️ Gaps | Agent Tools API (server/client-side) | None | Fair | Medium |
 | deepseek | ✅ Mostly Conformant (PR #4480) | Multi-round reasoning | None | ✅ Good | Low |
 | cloudflare-workers-ai | ✅ Verified | Async Batch API | None | Good | Low |
@@ -36,11 +36,45 @@
 | ~~P1~~ | ~~Add cache control support~~ | ~~anthropic~~ | ~~M~~ | ✅ Done (PR #4482) - `cache_control` with TTL for cost savings |
 | ~~P1~~ | ~~Add PDF/Document support~~ | ~~anthropic~~ | ~~M~~ | ✅ Done (PR #4482) - `DocumentBlockParam` for common use case |
 | ~~P1~~ | ~~Add embeddings support~~ | ~~mistral~~ | ~~S~~ | ✅ Done (PR #4481) - `mistral-embed` model |
+| ~~P1~~ | ~~Add full model catalog + multimodal~~ | ~~mistral~~ | ~~M~~ | ✅ Done (PR #4486) - 20+ models, vision, audio, streaming fix |
+| ~~P1~~ | ~~Fix reasoning output~~ | ~~mistral~~ | ~~S~~ | ✅ Done (branch) - ThinkChunk extraction for Magistral models |
+| ~~P1~~ | ~~Align config with API~~ | ~~mistral~~ | ~~S~~ | ✅ Done (branch) - Added stop, presence/frequency penalty; removed non-existent safe_mode |
 | **P2** | Add Agent Tools API | xai | M | Server/client-side tool calling (Jan 2026) |
 | **P2** | Add Agents API | mistral | L | Mistral Agents endpoint |
 | **P2** | Add Inference Endpoints | huggingface | M | Dedicated endpoints for production |
 | **P3** | Add Guardrails | amazon-bedrock | M | Bedrock Guardrails integration |
 | **P3** | Add Azure AI Studio | azure | L | New unified API |
+
+### Sample Feature Coverage
+
+Each sample should exercise **all** features its plugin supports. The canonical flow
+names below must be used consistently across all samples.
+
+**Canonical Flow Names:**
+- `say_hi` — basic text generation
+- `say_hi_stream` — streaming generation
+- `say_hi_with_config` — generation with custom config
+- `weather_flow` — tool calling
+- `generate_character` — structured output (JSON)
+- `describe_image` — vision / multimodal input
+- `embed_flow` — text embeddings
+- `reasoning_flow` — reasoning models
+- `code_flow` — code generation
+- `chat_flow` — multi-turn conversation
+- `web_search_flow` — web search (where supported)
+
+| Sample | say_hi | stream | tools | structured | vision | config | embed | reasoning | code | multi-model | chat | img-gen | TTS/STT | PDF | cache |
+|--------|--------|--------|-------|-----------|--------|--------|-------|-----------|------|------------|------|---------|---------|-----|-------|
+| anthropic | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ thinking | ✅ | — | — | — | — | ✅ | ✅ |
+| bedrock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ nova | — | — | — | — | — |
+| cloudflare | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — | — |
+| compat-oai | ✅ | ✅ | ✅ | ✅ | — | — | — | — | ✅ | — | — | ✅ | ✅ | — | — |
+| deepseek | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ✅ | ✅ | — | ✅ | — | — | — | — |
+| mistral | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| ollama | ✅ | ✅ | ✅ | ✅ | — | — | — | — | ✅ | — | — | — | — | — | — |
+| xai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — | — | — |
+| huggingface | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | — | ✅ | ✅✅ | ✅ | — | — | — | — |
+| ms-foundry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | — | — | — | — | — |
 
 ### Detailed Gap Analysis
 
@@ -136,20 +170,38 @@
 
 #### 5. mistral
 
-**Status**: ✅ Mostly Conformant (PR #4481)
+**Status**: ✅ Conformant (PRs #4481, #4485, #4486 + branch)
 
 **Verified Features**:
 - Chat completions ✓
-- Streaming ✓
+- Streaming (with CompletionEvent unwrap fix) ✓
 - Tool/function calling ✓
-- JSON mode ✓
-- Vision models (Pixtral) ✓
-- ✅ Embeddings (`mistral-embed`) ✓ (PR #4481)
+- JSON mode / structured output ✓
+- Vision models (Pixtral, via ImageURLChunk) ✓ (PR #4486)
+- Audio models (Voxtral Mini, via AudioChunk) ✓ (PR #4486)
+- Reasoning models (Magistral, ThinkChunk extraction) ✓ (branch)
+- ✅ Text embeddings (`mistral-embed`) ✓ (PR #4481)
+- ✅ Code embeddings (`codestral-embed-2505`) ✓ (PR #4485)
+- ✅ Full model catalog (20+ models across 7 families) ✓ (PR #4486)
+- ✅ Config aligned with API (`stop`, `presence_penalty`, `frequency_penalty`) ✓ (branch)
+- ✅ 54 unit tests ✓
+
+**Model Families Supported**:
+- Generalist: Large 3, Medium 3.1, Small 3.2
+- Ministral 3: 14B, 8B, 3B
+- Magistral: Medium 1.2, Small 1.2 (reasoning)
+- Code: Codestral, Devstral
+- Audio: Voxtral Mini
+- Embeddings: mistral-embed, codestral-embed-2505
+- Legacy: Large, Medium, Small, Tiny (2402)
 
 **Gaps**:
 | Gap | Description | Impact | Priority |
 |-----|-------------|--------|----------|
 | ~~Embeddings~~ | ~~`mistral-embed` model not supported~~ | ~~Medium~~ | ✅ Done (PR #4481) |
+| ~~Vision/Audio~~ | ~~Multimodal content not handled~~ | ~~Medium~~ | ✅ Done (PR #4486) |
+| ~~Reasoning output~~ | ~~ThinkChunk stringified as repr~~ | ~~High~~ | ✅ Done (branch) |
+| ~~Config gaps~~ | ~~Missing stop, penalties; non-existent safe_mode~~ | ~~Medium~~ | ✅ Done (branch) |
 | Agents API | Mistral Agents endpoint not supported | High - agentic workflows | P2 |
 | FIM (Fill-in-Middle) | Codestral FIM for code completion | Medium - code use cases | P2 |
 | Built-in tools | websearch, code_interpreter, image_generation | Medium | P3 |

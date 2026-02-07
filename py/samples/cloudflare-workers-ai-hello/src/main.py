@@ -52,7 +52,7 @@ Data Flow::
          ▼
     ┌───────────────────┐
     │  Genkit Flow      │
-    │  (say_hello)      │
+    │  (say_hi)         │
     └─────────┬─────────┘
               │
               ▼
@@ -85,10 +85,10 @@ Testing Instructions:
     3. Open DevUI at http://localhost:4000
 
     4. Test flows:
-       - say_hello: Enter a name, get a greeting
-       - streaming_demo: Watch tokens stream in real-time
+       - say_hi: Enter a name, get a greeting
+       - say_hi_stream: Watch tokens stream in real-time
        - tool_demo: See weather tool in action
-       - embedding_demo: Generate text embeddings
+       - embed_flow: Generate text embeddings
 """
 
 import asyncio
@@ -120,7 +120,7 @@ ai = Genkit(
 
 
 class HelloInput(BaseModel):
-    """Input for the say_hello flow.
+    """Input for the say_hi flow.
 
     Attributes:
         name: Name of the person to greet.
@@ -133,7 +133,7 @@ class HelloInput(BaseModel):
 
 
 @ai.flow()
-async def say_hello(input: HelloInput) -> str:
+async def say_hi(input: HelloInput) -> str:
     """Generate a friendly greeting for someone.
 
     This flow demonstrates basic text generation with Cloudflare Workers AI.
@@ -164,7 +164,7 @@ class StreamingInput(BaseModel):
 
 
 @ai.flow()
-async def streaming_demo(input: StreamingInput) -> str:
+async def say_hi_stream(input: StreamingInput) -> str:
     """Demonstrate streaming text generation.
 
     This flow shows how to use streaming with Cloudflare Workers AI,
@@ -258,7 +258,7 @@ class EmbeddingInput(BaseModel):
 
 
 @ai.flow()
-async def embedding_demo(input: EmbeddingInput) -> dict[str, object]:
+async def embed_flow(input: EmbeddingInput) -> dict[str, object]:
     """Demonstrate text embedding generation.
 
     This flow shows how to generate vector embeddings for text using

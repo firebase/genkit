@@ -127,6 +127,20 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
         ),
     ),
     'gpt-5.1': ModelInfo(label='OpenAI - gpt-5.1', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5.2': ModelInfo(label='OpenAI - gpt-5.2', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5.2-chat': ModelInfo(
+        label='OpenAI - gpt-5.2-chat',
+        supports=Supports(
+            multiturn=True,
+            media=False,
+            tools=True,
+            system_role=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+        ),
+    ),
+    'gpt-5-codex': ModelInfo(label='OpenAI - gpt-5-codex', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5.1-codex-max': ModelInfo(label='OpenAI - gpt-5.1-codex-max', supports=GPT_5_MODEL_SUPPORTS),
+    'gpt-5.3-codex': ModelInfo(label='OpenAI - gpt-5.3-codex', supports=GPT_5_MODEL_SUPPORTS),
 }
 
 SUPPORTED_EMBEDDING_MODELS: dict[str, dict] = {

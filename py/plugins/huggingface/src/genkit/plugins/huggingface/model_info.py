@@ -153,6 +153,24 @@ POPULAR_HUGGINGFACE_MODELS: dict[str, ModelInfo] = {
         versions=['BAAI/bge-large-en-v1.5'],
         supports=_EMBEDDING_SUPPORTS,
     ),
+    # Llama 4 Models
+    'meta-llama/Llama-4-Maverick-17B-128E-Instruct': ModelInfo(
+        label='Meta - Llama 4 Maverick 17B 128E Instruct',
+        versions=['meta-llama/Llama-4-Maverick-17B-128E-Instruct'],
+        supports=_VISION_MODEL_SUPPORTS,
+    ),
+    # Qwen 3 Models
+    'Qwen/Qwen3-32B': ModelInfo(
+        label='Qwen - 3 32B',
+        versions=['Qwen/Qwen3-32B'],
+        supports=_TEXT_MODEL_SUPPORTS,
+    ),
+    # DeepSeek V3.1
+    'deepseek-ai/DeepSeek-V3.1': ModelInfo(
+        label='DeepSeek - V3.1',
+        versions=['deepseek-ai/DeepSeek-V3.1'],
+        supports=_TEXT_MODEL_SUPPORTS,
+    ),
 }
 
 

@@ -119,6 +119,19 @@ CLAUDE_OPUS_4_5 = ModelInfo(
     ),
 )
 
+CLAUDE_OPUS_4_6 = ModelInfo(
+    label='Anthropic - Claude Opus 4.6',
+    versions=['claude-opus-4-6-20260205'],
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        system_role=True,
+        output=['text', 'json'],
+        constrained=Constrained.ALL,
+    ),
+)
+
 SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
     'claude-3-haiku': CLAUDE_3_HAIKU,
     'claude-3-5-haiku': CLAUDE_3_5_HAIKU,
@@ -128,6 +141,7 @@ SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
     'claude-haiku-4-5': CLAUDE_HAIKU_4_5,
     'claude-opus-4-1': CLAUDE_OPUS_4_1,
     'claude-opus-4-5': CLAUDE_OPUS_4_5,
+    'claude-opus-4-6': CLAUDE_OPUS_4_6,
 }
 
 DEFAULT_SUPPORTS = Supports(

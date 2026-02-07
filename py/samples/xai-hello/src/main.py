@@ -54,6 +54,9 @@ Key Features
 | Generation Configuration                | `say_hi_with_config`                |
 | Code Generation                         | `code_flow`                         |
 | Tool Calling                            | `weather_flow`                      |
+| Vision (Image Input)                    | `describe_image`                    |
+| Web Search                              | `web_search_flow`                   |
+| Reasoning Effort (Grok 4)              | `reasoning_flow`                    |
 """
 
 import asyncio
@@ -67,6 +70,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.xai import XAI, xai_name
+from genkit.types import Media, MediaPart, Part, TextPart
 from samples.shared import (
     CalculatorInput,
     CurrencyExchangeInput,
@@ -133,6 +137,34 @@ class CodeInput(BaseModel):
     task: str = Field(
         default='Write a Python function to calculate fibonacci numbers',
         description='Coding task description',
+    )
+
+
+class ImageDescribeInput(BaseModel):
+    """Input for image description flow."""
+
+    # Public domain cat image from Wikimedia Commons
+    image_url: str = Field(
+        default='https://upload.wikimedia.org/wikipedia/commons/1/13/Cute_kitten.jpg',
+        description='URL of the image to describe',
+    )
+
+
+class WebSearchInput(BaseModel):
+    """Input for web search flow."""
+
+    query: str = Field(
+        default='What are the latest developments in AI?',
+        description='Query to search the web for',
+    )
+
+
+class ReasoningInput(BaseModel):
+    """Input for reasoning flow."""
+
+    problem: str = Field(
+        default='A farmer has 17 sheep. All but 9 run away. How many does the farmer have left?',
+        description='Problem requiring careful reasoning',
     )
 
 
@@ -246,6 +278,74 @@ async def code_flow(input: CodeInput) -> str:
     response = await ai.generate(
         prompt=input.task,
         system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
+
+
+@ai.flow()
+async def describe_image(input: ImageDescribeInput) -> str:
+    """Describe an image using Grok's vision capabilities.
+
+    Uses grok-2-vision-1212 to analyze images. Demonstrates multimodal
+    input by sending both text and image content to the model.
+
+    Args:
+        input: Input with image URL.
+
+    Returns:
+        Description of the image.
+    """
+    response = await ai.generate(
+        model=xai_name('grok-2-vision-1212'),
+        prompt=[
+            Part(root=TextPart(text='Describe this image in detail.')),
+            Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/jpeg'))),
+        ],
+    )
+    return response.text
+
+
+@ai.flow()
+async def web_search_flow(input: WebSearchInput) -> str:
+    """Search the web using Grok's built-in web search.
+
+    Demonstrates the web_search_options config parameter, which enables
+    Grok to access real-time web information when answering queries.
+    This is a server-side feature — xAI handles the search autonomously.
+
+    Args:
+        input: Input with search query.
+
+    Returns:
+        Response informed by web search results.
+    """
+    response = await ai.generate(
+        prompt=input.query,
+        config={
+            'web_search_options': {},
+        },
+    )
+    return response.text
+
+
+@ai.flow()
+async def reasoning_flow(input: ReasoningInput) -> str:
+    """Solve a problem using Grok 4's reasoning capabilities.
+
+    Demonstrates the reasoning_effort config parameter with Grok 4,
+    xAI's most capable reasoning model. The model thinks harder
+    about complex problems, similar to OpenAI's o-series models.
+
+    Args:
+        input: Input with problem to solve.
+
+    Returns:
+        Reasoned solution to the problem.
+    """
+    response = await ai.generate(
+        model=xai_name('grok-4'),
+        prompt=input.problem,
+        system='Think step by step. Show your reasoning clearly.',
     )
     return response.text
 

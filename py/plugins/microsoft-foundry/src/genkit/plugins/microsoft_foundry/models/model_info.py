@@ -27,9 +27,9 @@ Supported Model Categories
 +----------------+--------------------------------------------------+
 | Category       | Models                                           |
 +----------------+--------------------------------------------------+
-| GPT Series     | gpt-4, gpt-4o, gpt-4.1, gpt-5, gpt-5.1, gpt-5.2  |
+| GPT Series     | gpt-4, gpt-4o, gpt-4.1, gpt-5, gpt-5.1, gpt-5.2, gpt-5.3-codex |
 | O-Series       | o1, o3, o3-mini, o4-mini                         |
-| Claude         | claude-opus-4-5, claude-sonnet-4-5, claude-haiku |
+| Claude         | claude-opus-4-6, claude-opus-4-5, claude-sonnet-4-5, claude-haiku |
 | DeepSeek       | DeepSeek-V3.2, DeepSeek-R1-0528                  |
 | Grok           | grok-4, grok-3, grok-3-mini                      |
 | Llama          | Llama-4-Maverick-17B-128E-Instruct-FP8           |
@@ -284,6 +284,11 @@ SUPPORTED_MICROSOFT_FOUNDRY_MODELS: dict[str, ModelInfo] = {
         versions=['gpt-5.2-codex'],
         supports=MULTIMODAL_MODEL_SUPPORTS,
     ),
+    'gpt-5.3-codex': ModelInfo(
+        label='Microsoft Foundry - GPT-5.3 Codex',
+        versions=['gpt-5.3-codex'],
+        supports=MULTIMODAL_MODEL_SUPPORTS,
+    ),
     'gpt-oss-120B': ModelInfo(
         label='Microsoft Foundry - GPT-OSS 120B',
         versions=['gpt-oss-120B'],
@@ -315,6 +320,11 @@ SUPPORTED_MICROSOFT_FOUNDRY_MODELS: dict[str, ModelInfo] = {
     'claude-opus-4-1': ModelInfo(
         label='Microsoft Foundry - Claude Opus 4.1',
         versions=['claude-opus-4-1'],
+        supports=CLAUDE_MODEL_SUPPORTS,
+    ),
+    'claude-opus-4-6': ModelInfo(
+        label='Microsoft Foundry - Claude Opus 4.6',
+        versions=['claude-opus-4-6'],
         supports=CLAUDE_MODEL_SUPPORTS,
     ),
     # =========================================================================
@@ -456,6 +466,7 @@ MODELS_SUPPORTING_RESPONSE_FORMAT = [
     'gpt-5.2',
     'gpt-5.2-chat',
     'gpt-5.2-codex',
+    'gpt-5.3-codex',
     # OSS models
     'gpt-oss-20b',
     'gpt-oss-120B',

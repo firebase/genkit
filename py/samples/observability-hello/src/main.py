@@ -80,7 +80,7 @@ Data Flow::
     │         │  (1) You call a flow                                          │
     │         ▼                                                               │
     │    ┌─────────┐     ┌─────────┐                                          │
-    │    │say_hello│ ──▶ │ Gemini  │   Each creates a "span"                  │
+    │    │ say_hi │ ──▶ │ Gemini  │   Each creates a "span"                  │
     │    │ (flow)  │     │ (model) │                                          │
     │    └─────────┘     └─────────┘                                          │
     │         │               │                                               │
@@ -109,7 +109,7 @@ Testing This Sample:
 
     4. Open the DevUI at http://localhost:4000
 
-    5. Run the "say_hello" flow with a name
+    5. Run the "say_hi" flow with a name
 
     6. View traces in your backend's dashboard
 """
@@ -141,13 +141,13 @@ ai = Genkit(
 
 
 class HelloInput(BaseModel):
-    """Input for the say_hello flow."""
+    """Input for the say_hi flow."""
 
     name: str = Field(default='World', description='Name to greet')
 
 
 @ai.flow()
-async def say_hello(input: HelloInput) -> str:
+async def say_hi(input: HelloInput) -> str:
     """Say hello to someone.
 
     This flow demonstrates third-party observability tracing.
