@@ -73,8 +73,16 @@ genkit start -- uv run src/main.py
 6. **Test structured output**:
    - [ ] `generate_character` - RPG character generation
 
-7. **Expected behavior**:
+7. **Test multimodal**:
+   - [ ] `generate_image` - DALL-E image generation (returns base64 data URI)
+   - [ ] `text_to_speech` - TTS with voice selection (alloy, echo, nova, etc.)
+   - [ ] `round_trip_tts_stt` - Text → Speech → Text round-trip demo
+
+8. **Expected behavior**:
    - GPT models respond appropriately
    - Streaming shows incremental text
    - Tools are invoked and responses processed
    - Structured output matches Pydantic schema
+   - DALL-E returns a base64 image data URI
+   - TTS returns a base64 audio data URI
+   - Round-trip returns transcribed text matching the original input

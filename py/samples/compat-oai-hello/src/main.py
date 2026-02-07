@@ -17,7 +17,9 @@
 """OpenAI hello sample - GPT models with Genkit.
 
 This sample demonstrates how to use OpenAI's GPT models with Genkit
-using the OpenAI-compatible plugin.
+using the OpenAI-compatible plugin, including multimodal capabilities
+like image generation (DALL-E), text-to-speech (TTS), and
+speech-to-text (STT / Whisper).
 
 Key Concepts (ELI5)::
 
@@ -32,6 +34,9 @@ Key Concepts (ELI5)::
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ OpenAI-compatible   │ Many AI providers copy OpenAI's API format.        │
     │                     │ This plugin works with ALL of them!                │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ DALL-E / TTS / STT  │ OpenAI also generates images, speaks text          │
+    │                     │ aloud, and transcribes audio. All supported!       │
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Tool Calling        │ Let GPT use functions you define. Like giving      │
     │                     │ it a calculator or search engine to use.           │
@@ -54,6 +59,9 @@ Key Features
 | Streaming Generation                                     | `say_hi_stream`                        |
 | Generation with Tools                                    | `calculate_gablorken`                  |
 | Tool Response Handling with context                      | `generate_character`                   |
+| Image Generation (DALL-E)                                | `generate_image`                       |
+| Text-to-Speech (TTS)                                     | `text_to_speech`                       |
+| TTS → STT Round-Trip                                     | `round_trip_tts_stt`                   |
 
 See README.md for testing instructions.
 """
@@ -69,6 +77,7 @@ from rich.traceback import install as install_rich_traceback
 from genkit.ai import ActionRunContext, Genkit, Output
 from genkit.core.logging import get_logger
 from genkit.plugins.compat_oai import OpenAI, openai_model
+from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -442,10 +451,151 @@ async def sum_two_numbers2(my_input: MyInput) -> int:
     return my_input.a + my_input.b
 
 
+class ImagePromptInput(BaseModel):
+    """Input for image generation flow."""
+
+    prompt: str = Field(
+        default='A watercolor painting of a cat sitting on a windowsill at sunset',
+        description='Text prompt describing the image to generate',
+    )
+
+
+class TTSInput(BaseModel):
+    """Input for text-to-speech flow."""
+
+    text: str = Field(
+        default='Hello! This is Genkit speaking through OpenAI text-to-speech.',
+        description='Text to convert to speech',
+    )
+    voice: str = Field(
+        default='alloy',
+        description='Voice to use (alloy, echo, fable, onyx, nova, shimmer)',
+    )
+
+
+class RoundTripInput(BaseModel):
+    """Input for the TTS → STT round-trip demo.
+
+    Provide text to convert to speech, then transcribe back. This
+    demonstrates both TTS and STT in a single testable flow.
+    """
+
+    text: str = Field(
+        default='The quick brown fox jumps over the lazy dog.',
+        description='Text to speak and then transcribe back',
+    )
+    voice: str = Field(
+        default='alloy',
+        description='Voice to use for TTS (alloy, echo, fable, onyx, nova, shimmer)',
+    )
+
+
+def _extract_media_url(response: object) -> str:
+    """Extract the media data URI from a generate response.
+
+    Model responses for TTS and image generation return MediaParts
+    instead of TextParts. This helper finds the first MediaPart and
+    returns its URL (a base64 data URI).
+    """
+    msg = getattr(response, 'message', None)
+    if msg is not None:
+        for part in msg.content:
+            if isinstance(part.root, MediaPart) and part.root.media:
+                return part.root.media.url
+    # Fallback to text (empty string for media-only responses).
+    return getattr(response, 'text', '')
+
+
+@ai.flow()
+async def generate_image(input: ImagePromptInput) -> str:
+    """Generate an image using DALL-E.
+
+    Sends a text prompt to the DALL-E model and returns the generated
+    image as a base64 data URI. The image can be viewed directly in
+    the Genkit Dev UI.
+
+    Args:
+        input: Input with text prompt for image generation.
+
+    Returns:
+        The base64 data URI of the generated image.
+    """
+    response = await ai.generate(
+        model=openai_model('dall-e-3'),
+        prompt=input.prompt,
+    )
+    return _extract_media_url(response)
+
+
+@ai.flow()
+async def text_to_speech(input: TTSInput) -> str:
+    """Convert text to speech using OpenAI TTS.
+
+    Sends text to the TTS model and returns the audio as a base64
+    data URI. The Dev UI can play back the resulting audio.
+
+    Args:
+        input: Input with text and voice selection.
+
+    Returns:
+        The base64 data URI of the generated audio.
+    """
+    response = await ai.generate(
+        model=openai_model('tts-1'),
+        prompt=input.text,
+        config={'voice': input.voice},
+    )
+    return _extract_media_url(response)
+
+
+@ai.flow()
+async def round_trip_tts_stt(input: RoundTripInput) -> str:
+    """Round-trip demo: Text → Speech → Text.
+
+    Demonstrates the full TTS + STT pipeline:
+    1. Converts the input text to speech using OpenAI TTS.
+    2. Extracts the base64 audio from the TTS response.
+    3. Feeds that audio into OpenAI Whisper for transcription.
+    4. Returns the transcribed text (should match the original input).
+
+    This flow is self-contained and can be tested directly from the
+    Dev UI without needing to provide raw audio data.
+
+    Args:
+        input: Input with text to speak and voice selection.
+
+    Returns:
+        The transcribed text from the round-trip.
+    """
+    # Step 1: Generate audio from text via TTS.
+    tts_response = await ai.generate(
+        model=openai_model('tts-1'),
+        prompt=input.text,
+        config={'voice': input.voice},
+    )
+    audio_data_uri = _extract_media_url(tts_response)
+    if not audio_data_uri:
+        return 'Error: TTS did not return audio data.'
+
+    # Step 2: Transcribe the audio back to text via STT.
+    stt_response = await ai.generate(
+        model=openai_model('whisper-1'),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(root=MediaPart(media=Media(url=audio_data_uri, content_type='audio/mpeg'))),
+                    Part(root=TextPart(text='Transcribe this audio')),
+                ],
+            )
+        ],
+    )
+    return stt_response.text
+
+
 async def main() -> None:
     """Main entry point for the OpenAI sample - keep alive for Dev UI."""
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
-    # Keep the process alive for Dev UI
     _ = await asyncio.Event().wait()
 
 
