@@ -61,6 +61,7 @@ Key Features
 | Tool Response Handling with context                      | `generate_character`                   |
 | Image Generation (DALL-E)                                | `generate_image`                       |
 | Text-to-Speech (TTS)                                     | `text_to_speech`                       |
+| Code Generation                                          | `code_flow`                            |
 | TTS → STT Round-Trip                                     | `round_trip_tts_stt`                   |
 
 See README.md for testing instructions.
@@ -203,6 +204,15 @@ class WeatherFlowInput(BaseModel):
     """Input for weather flow."""
 
     location: str = Field(default='New York', description='Location to get weather for')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 @ai.tool(description='calculates a gablorken', name='gablorkenTool')
@@ -591,6 +601,23 @@ async def round_trip_tts_stt(input: RoundTripInput) -> str:
         ],
     )
     return stt_response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using OpenAI models.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
 
 
 async def main() -> None:

@@ -60,6 +60,7 @@ Key Features
 | Streaming Response                      | `streaming_flow`                        |
 | Different Models                        | `llama_flow`, `qwen_flow`               |
 | Generation with Config                  | `custom_config_flow`                    |
+| Code Generation                         | `code_flow`                             |
 | Multi-turn Chat                         | `chat_flow`                             |
 | Tool Calling                            | `weather_flow`                          |
 | Structured Output (JSON)                | `generate_character`                    |
@@ -132,6 +133,15 @@ class CharacterInput(BaseModel):
     """Input for character generation."""
 
     name: str = Field(default='Luna', description='Character name')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 class Skills(BaseModel):
@@ -409,6 +419,23 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
         output=Output(schema=RpgCharacter),
     )
     return result.output
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Hugging Face models.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
 
 
 async def main() -> None:

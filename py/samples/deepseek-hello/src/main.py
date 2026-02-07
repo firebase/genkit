@@ -56,6 +56,7 @@ Key Features
 | Generation with Tools                   | `weather_flow`                          |
 | Reasoning Model (deepseek-reasoner)     | `reasoning_flow`                        |
 | Generation with Config                  | `custom_config_flow`                    |
+| Code Generation                         | `code_flow`                             |
 | Multi-turn Chat                         | `chat_flow`                             |
 """
 
@@ -163,6 +164,15 @@ class CustomConfigInput(BaseModel):
     task: str = Field(default='creative', description='Task type: creative, precise, or detailed')
 
 
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
+
+
 @ai.tool()
 def get_weather(input: WeatherInput) -> str:
     """Return a random realistic weather string for a location.
@@ -195,6 +205,25 @@ async def reasoning_flow(input: ReasoningInput) -> str:
     response = await ai.generate(
         model=deepseek_name('deepseek-reasoner'),
         prompt=input.prompt,
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using DeepSeek.
+
+    DeepSeek excels at code generation tasks.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 
