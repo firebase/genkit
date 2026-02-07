@@ -16,8 +16,11 @@
 
 # OpenAI model conformance test spec.
 #
-# GPT-4o supports image input via both base64 and URL.
-# No YouTube video input. No image/audio generation via chat completions API.
+# Chat models: GPT-4o and GPT-4o-mini support image input (base64/URL).
+# Image gen: DALL-E 3 generates images from text prompts.
+# TTS: tts-1 generates audio from text.
+# STT: whisper-1 transcribes audio to text (tested via custom test with
+#      TTS-generated audio in the round-trip sample, not here).
 
 - model: openai/gpt-4o
   supports:
@@ -42,3 +45,11 @@
     - streaming-multiturn
     - streaming-tool-request
     - streaming-structured-output
+
+- model: openai/dall-e-3
+  supports:
+    - output-image
+
+- model: openai/tts-1
+  supports:
+    - output-audio

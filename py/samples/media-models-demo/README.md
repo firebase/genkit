@@ -5,6 +5,7 @@ This sample demonstrates all media generation capabilities in the Google GenAI p
 | Model | Output | Pattern | Latency |
 |-------|--------|---------|---------|
 | **TTS** | Audio (WAV) | Standard | ~1-5 seconds |
+| **Imagen** | Image (PNG) | Standard | ~5-15 seconds |
 | **Gemini Image** | Image (PNG) | Standard | ~5-15 seconds |
 | **Lyria** | Audio (WAV) | Standard | ~5-30 seconds |
 | **Veo** | Video (MP4) | Background | 30s - 5 minutes |
@@ -65,9 +66,21 @@ result = await tts_speech_generator_flow(
 - Zephyr, Puck, Charon, Kore, Fenrir, Leda
 - Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus
 
-### 2. Gemini Image Generator (`gemini_image_generator`)
+### 2. Imagen Image Generator (`imagen_image_generator`)
 
-Generates images from text descriptions.
+Generates photorealistic images from text descriptions using the Imagen predict API.
+Imagen models are discovered dynamically by the GoogleAI plugin under the `googleai/` prefix.
+
+```python
+result = await imagen_image_generator_flow(
+    prompt="A photorealistic image of a cat astronaut in space",
+    number_of_images=1  # 1-4 images
+)
+```
+
+### 3. Gemini Image Generator (`gemini_image_generator`)
+
+Generates images from text descriptions using Gemini's native generateContent API.
 
 ```python
 result = await gemini_image_generator_flow(
@@ -76,7 +89,7 @@ result = await gemini_image_generator_flow(
 )
 ```
 
-### 3. Lyria Audio Generator (`lyria_audio_generator`)
+### 4. Lyria Audio Generator (`lyria_audio_generator`)
 
 Generates music and audio from text descriptions. Requires Vertex AI.
 
@@ -87,7 +100,7 @@ result = await lyria_audio_generator_flow(
 )
 ```
 
-### 4. Veo Video Generator (`veo_video_generator`)
+### 5. Veo Video Generator (`veo_video_generator`)
 
 Generates videos using the background model pattern (long-running operation).
 
@@ -116,7 +129,7 @@ result = await veo_video_generator_flow(
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 5. Media Models Overview (`media_models_overview`)
+### 6. Media Models Overview (`media_models_overview`)
 
 Returns information about all available models and their status.
 
@@ -132,6 +145,7 @@ result = await media_models_overview_flow()
 - [ ] Run `./run.sh` without any API keys set
 - [ ] Open DevUI at http://localhost:4000
 - [ ] Test `tts_speech_generator` - should return fake audio in ~1s
+- [ ] Test `imagen_image_generator` - should return fake image in ~2s
 - [ ] Test `gemini_image_generator` - should return fake image in ~2s
 - [ ] Test `lyria_audio_generator` - should return fake audio in ~3s
 - [ ] Test `veo_video_generator` - should show progress updates over ~10s
@@ -142,6 +156,7 @@ result = await media_models_overview_flow()
 - [ ] Set `GEMINI_API_KEY` environment variable
 - [ ] Run `./run.sh`
 - [ ] Test `tts_speech_generator` with different voices
+- [ ] Test `imagen_image_generator` with different prompts
 - [ ] Test `gemini_image_generator` with different prompts
 - [ ] Test `veo_video_generator` (may take 30s-5min)
 - [ ] Verify returned URLs/data are real media content
@@ -174,7 +189,7 @@ config = {
 }
 ```
 
-### Image Config
+### Gemini Image Config
 
 ```python
 config = {
@@ -182,6 +197,15 @@ config = {
         'aspect_ratio': '16:9',  # or 1:1, 9:16, 4:3, 3:4, etc.
         'image_size': '2K',       # 1K, 2K, or 4K
     }
+}
+```
+
+### Imagen Config
+
+```python
+# Imagen uses the predict API with simpler config:
+config = {
+    'number_of_images': 1,  # 1-4 images
 }
 ```
 
@@ -233,5 +257,6 @@ For longer videos or complex prompts, consider increasing the timeout.
 
 - [Veo Documentation](https://ai.google.dev/gemini-api/docs/video)
 - [TTS Documentation](https://ai.google.dev/gemini-api/docs/speech)
+- [Imagen Documentation](https://ai.google.dev/gemini-api/docs/imagen)
 - [Gemini Image](https://ai.google.dev/gemini-api/docs/image-generation)
 - [Lyria (Vertex AI)](https://cloud.google.com/vertex-ai/docs/generative-ai/audio)
