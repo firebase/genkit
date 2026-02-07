@@ -67,11 +67,14 @@ Key Features
 | Reasoning (Magistral)                   | `reasoning_flow`                        |
 | Embeddings (Text)                       | `embed_flow`                            |
 | Embeddings (Code)                       | `code_embed_flow`                       |
+| Audio Transcription (Voxtral)           | `audio_flow`                            |
 """
 
 import asyncio
+import base64
 import os
 import random
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -168,6 +171,15 @@ class ReasoningInput(BaseModel):
     question: str = Field(
         default='John is one of 4 children. His sister is 4 years old. How old is John?',
         description='Reasoning question',
+    )
+
+
+class AudioInput(BaseModel):
+    """Input for audio transcription flow."""
+
+    audio_path: str = Field(
+        default='',
+        description='Path to audio file (defaults to bundled genkit.wav)',
     )
 
 
@@ -526,6 +538,43 @@ async def reasoning_flow(input: ReasoningInput) -> str:
     response = await ai.generate(
         model=mistral_name('magistral-small-latest'),
         prompt=input.question,
+    )
+    return response.text
+
+
+@ai.flow()
+async def audio_flow(input: AudioInput) -> str:
+    """Transcribe audio using Voxtral Mini.
+
+    Voxtral models accept audio input alongside text. The audio is
+    base64-encoded and sent as a MediaPart with audio/* content type.
+
+    Uses the bundled genkit.wav file by default.
+
+    See: https://docs.mistral.ai/capabilities/audio/
+
+    Args:
+        input: Input with optional path to an audio file.
+
+    Returns:
+        Transcription of the audio content.
+    """
+    audio_path = input.audio_path or str(Path(__file__).parent.parent / 'assets' / 'genkit.wav')
+    audio_bytes = Path(audio_path).read_bytes()
+    audio_b64 = base64.b64encode(audio_bytes).decode('ascii')
+    data_uri = f'data:audio/wav;base64,{audio_b64}'
+
+    response = await ai.generate(
+        model=mistral_name('voxtral-mini-latest'),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(root=MediaPart(media=Media(url=data_uri, content_type='audio/wav'))),
+                    Part(root=TextPart(text='Transcribe this audio. Return only the transcription.')),
+                ],
+            ),
+        ],
     )
     return response.text
 
