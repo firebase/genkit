@@ -113,6 +113,11 @@ class Registry:
         self._schema_types_by_name: dict[str, type[BaseModel]] = {}
         self._lock: threading.RLock = threading.RLock()
 
+        # Re-entrancy guard for _trigger_lazy_loading.  Prevents infinite
+        # recursion when a lazy factory resolves its own action key (see
+        # https://github.com/firebase/genkit/issues/4491).
+        self._loading_actions: set[str] = set()
+
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
         self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO(#4352): Figure out how to set this.
@@ -341,15 +346,25 @@ class Registry:
         File-based prompts are registered with deferred metadata (schemas). This method
         triggers the async factory to resolve that metadata before returning the action.
         The factory is memoized, so subsequent calls return immediately.
+
+        A re-entrancy guard (``_loading_actions``) prevents infinite recursion
+        when a factory resolves its own action key during initialization.
+        See https://github.com/firebase/genkit/issues/4491.
         """
         if action is None:
             return None
         async_factory = getattr(action, '_async_factory', None)
         if async_factory is not None and action.metadata.get('lazy'):
+            action_id = f'{action.kind}/{action.name}'
+            if action_id in self._loading_actions:
+                return action
+            self._loading_actions.add(action_id)
             try:
                 await async_factory()
             except Exception as e:
                 logger.warning(f'Failed to load lazy action {action.name}: {e}')
+            finally:
+                self._loading_actions.discard(action_id)
         return action
 
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
