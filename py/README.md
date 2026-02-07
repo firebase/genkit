@@ -107,7 +107,7 @@ See the [samples/README.md](samples/README.md) for instructions on running indiv
 Quick start:
 
 ```bash
-cd samples/google-genai-hello
+cd samples/provider-google-genai-hello
 ./run.sh
 ```
 

@@ -13,17 +13,24 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-"""Shared utilities and types for samples."""
+"""Shared utilities, types, and flow logic for provider samples."""
 
 from .flows import (
     calculation_logic,
-    currency_exchange_logic,
+    convert_currency_logic,
+    describe_image_logic,
     generate_character_logic,
-    say_hi_logic,
-    say_hi_stream_logic,
-    say_hi_with_config_logic,
-    weather_logic,
+    generate_code_logic,
+    generate_greeting_logic,
+    generate_multi_turn_chat_logic,
+    generate_streaming_story_logic,
+    generate_streaming_with_tools_logic,
+    generate_weather_logic,
+    generate_with_config_logic,
+    generate_with_system_prompt_logic,
+    solve_reasoning_problem_logic,
 )
+from .logging import setup_sample
 from .tools import (
     calculate,
     convert_currency,
@@ -31,24 +38,57 @@ from .tools import (
 )
 from .types import (
     CalculatorInput,
+    CharacterInput,
+    CodeInput,
+    ConfigInput,
     CurrencyExchangeInput,
+    GreetingInput,
+    ImageDescribeInput,
+    MultiTurnInput,
+    ReasoningInput,
     RpgCharacter,
+    Skills,
+    StreamingToolInput,
+    StreamInput,
+    SystemPromptInput,
     WeatherInput,
 )
 
 __all__ = [
-    get_weather,
-    convert_currency,
-    calculate,
-    weather_logic,
-    currency_exchange_logic,
-    calculation_logic,
-    say_hi_logic,
-    say_hi_stream_logic,
-    say_hi_with_config_logic,
-    WeatherInput,
-    CurrencyExchangeInput,
-    CalculatorInput,
-    RpgCharacter,
-    generate_character_logic,
+    # Setup
+    'setup_sample',
+    # Tools
+    'calculate',
+    'convert_currency',
+    'get_weather',
+    # Flow logic
+    'calculation_logic',
+    'describe_image_logic',
+    'convert_currency_logic',
+    'generate_character_logic',
+    'generate_code_logic',
+    'generate_greeting_logic',
+    'generate_multi_turn_chat_logic',
+    'generate_streaming_story_logic',
+    'generate_streaming_with_tools_logic',
+    'generate_weather_logic',
+    'generate_with_config_logic',
+    'generate_with_system_prompt_logic',
+    'solve_reasoning_problem_logic',
+    # Types
+    'CalculatorInput',
+    'CharacterInput',
+    'CodeInput',
+    'ConfigInput',
+    'CurrencyExchangeInput',
+    'GreetingInput',
+    'ImageDescribeInput',
+    'MultiTurnInput',
+    'ReasoningInput',
+    'RpgCharacter',
+    'Skills',
+    'StreamInput',
+    'StreamingToolInput',
+    'SystemPromptInput',
+    'WeatherInput',
 ]

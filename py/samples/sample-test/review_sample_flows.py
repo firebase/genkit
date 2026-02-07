@@ -20,7 +20,7 @@ Usage:
     python review_sample_flows.py <path_to_sample_directory>
 
 Example:
-    python review_sample_flows.py samples/google-genai-hello
+    python review_sample_flows.py samples/provider-google-genai-hello
 """
 
 import argparse
