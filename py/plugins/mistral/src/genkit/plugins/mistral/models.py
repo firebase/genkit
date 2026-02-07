@@ -108,32 +108,54 @@ def _extract_text(content: object) -> str:
     if isinstance(content, TextChunk):
         return content.text
     if isinstance(content, ThinkChunk):
-        return ''.join(
-            tp.text for tp in content.thinking if isinstance(tp, TextChunk)
-        )
+        return ''.join(tp.text for tp in content.thinking if isinstance(tp, TextChunk))
     if isinstance(content, list):
         return ''.join(_extract_text(item) for item in content)
     return ''
 
 
 class MistralConfig(BaseModel):
-    """Configuration options for Mistral AI models.
+    """Configuration options for Mistral AI chat completions.
+
+    See: https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
 
     Attributes:
-        temperature: Controls randomness (0.0-1.0). Lower = more deterministic.
-        max_tokens: Maximum number of tokens to generate.
-        top_p: Nucleus sampling parameter (0.0-1.0).
-        random_seed: Seed for reproducible outputs.
-        safe_prompt: Whether to inject safety prompt (deprecated, use safe_mode).
-        safe_mode: Whether to enable safe mode for content filtering.
+        temperature: Sampling temperature (0.0–1.5). Lower = more deterministic.
+            Defaults vary by model; call /models to check.
+        max_tokens: Maximum tokens to generate. Prompt + max_tokens must not
+            exceed the model's context length.
+        top_p: Nucleus sampling (0.0–1.0). Generally alter this or temperature,
+            not both.
+        random_seed: Seed for deterministic sampling.
+        stop: Stop generation when this token (or one of these tokens) appears.
+        presence_penalty: Penalises repetition of words/phrases to encourage
+            diversity (default 0).
+        frequency_penalty: Penalises word repetition based on frequency in the
+            generated text (default 0).
+        safe_prompt: Inject a safety prompt before all conversations.
     """
 
-    temperature: float | None = Field(default=None, ge=0.0, le=1.0)
+    temperature: float | None = Field(default=None, ge=0.0)
     max_tokens: int | None = Field(default=None, ge=1)
     top_p: float | None = Field(default=None, ge=0.0, le=1.0)
     random_seed: int | None = None
+    stop: str | list[str] | None = None
+    presence_penalty: float | None = None
+    frequency_penalty: float | None = None
     safe_prompt: bool | None = None
-    safe_mode: bool | None = None
+
+
+# Config keys forwarded to the Mistral chat completion API.
+_CONFIG_KEYS = (
+    'temperature',
+    'max_tokens',
+    'top_p',
+    'random_seed',
+    'stop',
+    'presence_penalty',
+    'frequency_penalty',
+    'safe_prompt',
+)
 
 
 class MistralModel:
@@ -427,18 +449,13 @@ class MistralModel:
             if response_format:
                 params['response_format'] = response_format
 
-        # Apply config if provided
+        # Apply config if provided — forward all recognised parameters.
         if request.config:
             config = request.config
             if isinstance(config, dict):
-                if config.get('temperature') is not None:
-                    params['temperature'] = config['temperature']
-                if config.get('max_tokens') is not None:
-                    params['max_tokens'] = config['max_tokens']
-                if config.get('top_p') is not None:
-                    params['top_p'] = config['top_p']
-                if config.get('random_seed') is not None:
-                    params['random_seed'] = config['random_seed']
+                for key in _CONFIG_KEYS:
+                    if config.get(key) is not None:
+                        params[key] = config[key]
 
         # Handle streaming
         if ctx and ctx.send_chunk:

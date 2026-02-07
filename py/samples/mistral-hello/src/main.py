@@ -300,6 +300,8 @@ async def custom_config_flow(input: CustomConfigInput) -> str:
             'temperature': 0.9,
             'max_tokens': 200,
             'top_p': 0.95,
+            'presence_penalty': 0.6,
+            'frequency_penalty': 0.4,
         },
         'precise': {
             'temperature': 0.1,

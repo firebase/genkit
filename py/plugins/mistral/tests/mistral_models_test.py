@@ -34,6 +34,7 @@ from mistralai.models import (
     UsageInfo,
     UserMessage,
 )
+from pydantic import ValidationError
 
 from genkit.core.typing import (
     GenerateRequest,
@@ -49,7 +50,7 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.plugins.mistral.models import MistralModel, _extract_text
+from genkit.plugins.mistral.models import MistralConfig, MistralModel, _extract_text
 
 
 @pytest.fixture
@@ -515,3 +516,108 @@ def test_convert_response_with_think_chunks(model: MistralModel) -> None:
     assert len(result.message.content) == 2
     assert result.message.content[0].root.text == 'Let me think.'
     assert result.message.content[1].root.text == 'The answer is 42.'
+
+
+def test_mistral_config_defaults() -> None:
+    """All MistralConfig fields should default to None."""
+    config = MistralConfig()
+    assert config.temperature is None
+    assert config.max_tokens is None
+    assert config.top_p is None
+    assert config.random_seed is None
+    assert config.stop is None
+    assert config.presence_penalty is None
+    assert config.frequency_penalty is None
+    assert config.safe_prompt is None
+
+
+def test_mistral_config_with_all_params() -> None:
+    """MistralConfig should accept all supported API parameters."""
+    config = MistralConfig(
+        temperature=0.7,
+        max_tokens=1024,
+        top_p=0.9,
+        random_seed=42,
+        stop=['\n', 'END'],
+        presence_penalty=0.5,
+        frequency_penalty=0.3,
+        safe_prompt=True,
+    )
+    assert config.temperature == 0.7
+    assert config.max_tokens == 1024
+    assert config.top_p == 0.9
+    assert config.random_seed == 42
+    assert config.stop == ['\n', 'END']
+    assert config.presence_penalty == 0.5
+    assert config.frequency_penalty == 0.3
+    assert config.safe_prompt is True
+
+
+def test_mistral_config_stop_accepts_string() -> None:
+    """Stop can be a single string, not just a list."""
+    config = MistralConfig(stop='END')
+    assert config.stop == 'END'
+
+
+def test_mistral_config_rejects_negative_temperature() -> None:
+    """Temperature must be >= 0.0."""
+    with pytest.raises(ValidationError):
+        MistralConfig(temperature=-0.1)
+
+
+def test_mistral_config_rejects_top_p_above_one() -> None:
+    """Top_p must be <= 1.0."""
+    with pytest.raises(ValidationError):
+        MistralConfig(top_p=1.5)
+
+
+@patch('genkit.plugins.mistral.models.MistralClient')
+@pytest.mark.asyncio
+async def test_generate_forwards_all_config_params(mock_client_class: MagicMock) -> None:
+    """Config params (stop, presence_penalty, etc.) should be forwarded to the API."""
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    mock_response = ChatCompletionResponse(
+        id='test-id',
+        object='chat.completion',
+        created=1234567890,
+        model='mistral-large-latest',
+        choices=[
+            ChatCompletionChoice(
+                index=0,
+                message=AssistantMessage(content='ok'),
+                finish_reason='stop',
+            )
+        ],
+        usage=UsageInfo(prompt_tokens=5, completion_tokens=2, total_tokens=7),
+    )
+    mock_client.chat.complete_async = AsyncMock(return_value=mock_response)
+
+    model_instance = MistralModel(model='mistral-large-latest', api_key='test-key')
+
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+        config={
+            'temperature': 0.3,
+            'max_tokens': 512,
+            'top_p': 0.8,
+            'random_seed': 99,
+            'stop': ['END'],
+            'presence_penalty': 0.4,
+            'frequency_penalty': 0.2,
+            'safe_prompt': True,
+        },
+    )
+
+    await model_instance.generate(request, None)
+
+    call_kwargs = mock_client.chat.complete_async.call_args[1]
+    assert call_kwargs['temperature'] == 0.3
+    assert call_kwargs['max_tokens'] == 512
+    assert call_kwargs['top_p'] == 0.8
+    assert call_kwargs['random_seed'] == 99
+    assert call_kwargs['stop'] == ['END']
+    assert call_kwargs['presence_penalty'] == 0.4
+    assert call_kwargs['frequency_penalty'] == 0.2
+    assert call_kwargs['safe_prompt'] is True
