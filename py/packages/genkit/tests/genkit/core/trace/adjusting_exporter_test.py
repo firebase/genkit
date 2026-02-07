@@ -30,12 +30,13 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 from unittest.mock import MagicMock
 
+import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.util.types import Attributes
 
-from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter
+from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 
 
 class MockSpanExporter(SpanExporter):
@@ -394,3 +395,31 @@ def test_error_handler_called_on_export_error() -> None:
 
     assert len(errors) == 1
     assert str(errors[0]) == 'Export failed'
+
+
+# =============================================================================
+# RedactedSpan dropped_* Property Tests
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    ('property_name', 'value'),
+    [
+        ('dropped_attributes', 0),
+        ('dropped_events', 2),
+        ('dropped_links', 1),
+    ],
+)
+def test_redacted_span_dropped_properties_delegate_to_inner_span(property_name: str, value: int) -> None:
+    """Regression test: RedactedSpan.dropped_* properties must not raise.
+
+    The OTLP trace encoder accesses these properties during serialization.
+    Before the fix, RedactedSpan did not call ``super().__init__()`` so the
+    private fields required by the base ``ReadableSpan`` properties were
+    missing, causing an ``AttributeError``.  This test verifies that the
+    overridden properties delegate to the wrapped span correctly.
+    """
+    inner = create_mock_span()
+    setattr(inner, property_name, value)
+    span = RedactedSpan(inner, {})
+    assert getattr(span, property_name) == value
