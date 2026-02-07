@@ -246,24 +246,52 @@ def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
     params = {}
     for param_name, param_schema in schema['properties'].items():
+        # Handle 'anyOf' schemas (common in Gemini for nullable types)
+        # e.g., "maxOutputTokens": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+        eff_schema = param_schema
+        if 'type' not in eff_schema and 'anyOf' in eff_schema:
+            for option in eff_schema['anyOf']:
+                if option.get('type') and option.get('type') != 'null':
+                    # Found the real type definition
+                    eff_schema = option
+                    break
+        
+        # If still no type, skip or look deeper (but simple type extraction is usually enough)
+        # Some fields like 'stopSequences' might be array of strings, so we need to check items too.
+        
+        param_type = eff_schema.get('type')
+        if not param_type and 'items' in eff_schema:
+             # Array type might be inferred if items is present, or check if type is 'array'
+             pass
+
         params[param_name] = {
-            'type': param_schema.get('type'),
-            'minimum': param_schema.get('minimum'),
-            'maximum': param_schema.get('maximum'),
-            'default': param_schema.get('default'),
-            'enum': param_schema.get('enum'),
-            'items': param_schema.get('items'),
+            'type': param_type,
+            'minimum': eff_schema.get('minimum'),
+            'maximum': eff_schema.get('maximum'),
+            'default': param_schema.get('default'), # Default usually at top level
+            'enum': eff_schema.get('enum'),
+            'items': eff_schema.get('items'),
         }
 
     return params
+
+
+    return variations
 
 
 def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     """Generate configuration variations for testing.
 
     Strategy:
-    1. First test: All parameters at default (empty config {})
-    2. Subsequent tests: Vary ONE parameter at a time, keeping others at default
+    For each discovered parameter:
+    - Numeric (temperature, top_k, top_p, etc.):
+      - Test: min, max, midpoint (if distinct from default)
+    - String (version, etc.):
+      - Test: all enum values (if enum, excluding default)
+    - Array (stop_sequences, etc.):
+      - Test: empty array, sample values (excluding default)
+    - Boolean:
+      - Test: opposite of default (or both if no default)
 
     Args:
         params: Parameter schema info from parse_config_schema
@@ -279,44 +307,59 @@ def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[s
     # Subsequent tests: Vary one parameter at a time
     for param_name, param_info in params.items():
         param_type = param_info['type']
+        default_value = param_info.get('default')
 
-        if param_type == 'number':
+        # Note/Optimization: We do NOT explicitly test the default value here
+        # because the first test case ({}) already covers defaults for all parameters.
+        # We only want to test deviations from the default.
+
+        if param_type == 'number' or param_type == 'integer':
             # Numeric parameters: test min, midpoint, max individually
-            minimum = param_info.get('minimum', 0.0)
-            maximum = param_info.get('maximum', 1.0)
+            minimum = param_info.get('minimum')
+            maximum = param_info.get('maximum')
 
-            # Test minimum
-            variations.append({param_name: minimum})
+            if minimum is not None and minimum != default_value:
+                variations.append({param_name: minimum})
 
-            # Test midpoint (only if range exists)
-            if minimum < maximum:
-                midpoint = (minimum + maximum) / 2
-                variations.append({param_name: midpoint})
+            if maximum is not None and maximum != default_value:
+                variations.append({param_name: maximum})
 
-            # Test maximum
-            variations.append({param_name: maximum})
+            if minimum is not None and maximum is not None and minimum < maximum:
+                 midpoint = (minimum + maximum) / 2
+                 if param_type == 'integer':
+                     midpoint = int(midpoint)
+                 
+                 if midpoint != default_value:
+                     variations.append({param_name: midpoint})
 
         elif param_type == 'boolean':
             # Boolean parameters: test true, then false
-            variations.append({param_name: True})
-            variations.append({param_name: False})
+            # Deduplicate with default if present
+            if default_value is not True:
+                variations.append({param_name: True})
+            if default_value is not False:
+                variations.append({param_name: False})
 
         elif param_type == 'string':
             # String parameters: test each enum value individually
             enum_values = param_info.get('enum')
             if enum_values:
                 for value in enum_values:
-                    variations.append({param_name: value})
+                    if value != default_value:
+                        variations.append({param_name: value})
 
         elif param_type == 'array':
             # Array parameters: test empty array, then sample value
-            variations.append({param_name: []})
+            if default_value != []:
+                variations.append({param_name: []})
 
             # Add sample array value if items are strings
             items_schema = param_info.get('items', {})
             if items_schema.get('type') == 'string':
-                variations.append({param_name: ["STOP"]})
-
+                sample = ["STOP"]
+                if sample != default_value:
+                    variations.append({param_name: sample})
+    
     return variations
 
 

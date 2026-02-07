@@ -272,8 +272,10 @@ async def run_comprehensive_test(request: ComprehensiveTestRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error running comprehensive test: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error running comprehensive test: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 # Wrapper to run async run_model_test inside the thread
 async def run_wrapper(model, config, user_prompt, system_prompt, script_path):

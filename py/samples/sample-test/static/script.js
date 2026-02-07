@@ -109,6 +109,9 @@ async function runTest() {
     els.runBtn.disabled = true;
     els.runBtn.textContent = 'Running...';
 
+    // Clear previous results (including comprehensive test summary)
+    els.resultsList.innerHTML = '';
+
     // Send empty config as we removed the inputs
     const config = {};
 

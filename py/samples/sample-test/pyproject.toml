@@ -18,8 +18,10 @@ dependencies = [
     "genkit-plugin-xai",
     "genkit-plugin-ollama",
     "genkit-plugin-mistral",
+    "genkit-plugin-evaluators",
     "fastapi",
     "uvicorn",
+    "datamodel-code-generator",
 ]
 
 [build-system]
@@ -40,3 +42,4 @@ genkit-plugin-deepseek = { path = "../../plugins/deepseek", editable = true }
 genkit-plugin-xai = { path = "../../plugins/xai", editable = true }
 genkit-plugin-ollama = { path = "../../plugins/ollama", editable = true }
 genkit-plugin-mistral = { path = "../../plugins/mistral", editable = true }
+genkit-plugin-evaluators = { path = "../../plugins/evaluators", editable = true }
