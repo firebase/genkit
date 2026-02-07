@@ -397,11 +397,6 @@ def test_error_handler_called_on_export_error() -> None:
     assert str(errors[0]) == 'Export failed'
 
 
-# =============================================================================
-# RedactedSpan dropped_* Property Tests
-# =============================================================================
-
-
 @pytest.mark.parametrize(
     ('property_name', 'value'),
     [
