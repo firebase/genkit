@@ -27,9 +27,17 @@
 #   py/bin/test-model-conformance --all              # test all plugins
 #
 # Required environment variables per plugin:
-#   google-genai:  GEMINI_API_KEY
-#   anthropic:     ANTHROPIC_API_KEY
-#   compat-oai:    OPENAI_API_KEY
+#   google-genai:            GEMINI_API_KEY
+#   anthropic:               ANTHROPIC_API_KEY
+#   compat-oai:              OPENAI_API_KEY
+#   mistral:                 MISTRAL_API_KEY
+#   deepseek:                DEEPSEEK_API_KEY
+#   xai:                     XAI_API_KEY
+#   amazon-bedrock:          AWS_REGION (+ AWS credentials)
+#   huggingface:             HF_TOKEN
+#   microsoft-foundry:       AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT
+#   cloudflare-workers-ai:   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN
+#   ollama:                  (none, local server)
 
 set -euo pipefail
 shopt -s nullglob
@@ -39,10 +47,18 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CONFORMANCE_DIR="${REPO_ROOT}/py/tests/conformance"
 
 # Map plugin names to required environment variables.
+# When a plugin requires multiple env vars, they are space-separated.
 declare -A PLUGIN_ENV_VARS=(
   [google-genai]="GEMINI_API_KEY"
   [anthropic]="ANTHROPIC_API_KEY"
   [compat-oai]="OPENAI_API_KEY"
+  [mistral]="MISTRAL_API_KEY"
+  [deepseek]="DEEPSEEK_API_KEY"
+  [xai]="XAI_API_KEY"
+  [amazon-bedrock]="AWS_REGION"
+  [huggingface]="HF_TOKEN"
+  [microsoft-foundry]="AZURE_OPENAI_API_KEY AZURE_OPENAI_ENDPOINT"
+  [cloudflare-workers-ai]="CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN"
 )
 
 usage() {
@@ -58,11 +74,15 @@ usage() {
 
 check_env() {
   local plugin="$1"
-  local env_var="${PLUGIN_ENV_VARS[${plugin}]:-}"
-  if [[ -n "${env_var}" && -z "${!env_var:-}" ]]; then
-    echo "ERROR: ${env_var} is not set (required for ${plugin})" >&2
-    return 1
-  fi
+  local env_vars="${PLUGIN_ENV_VARS[${plugin}]:-}"
+  local missing=0
+  for env_var in ${env_vars}; do
+    if [[ -z "${!env_var:-}" ]]; then
+      echo "ERROR: ${env_var} is not set (required for ${plugin})" >&2
+      missing=1
+    fi
+  done
+  return ${missing}
 }
 
 run_plugin() {
@@ -90,7 +110,7 @@ run_plugin() {
 
   genkit dev:test-model \
     --from-file "${spec_file}" \
-    -- uv run --active "${entry_point}"
+    -- uv run --project "${REPO_ROOT}/py" --active "${entry_point}"
 }
 
 if [[ $# -eq 0 ]]; then
