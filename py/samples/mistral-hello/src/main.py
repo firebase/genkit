@@ -17,7 +17,7 @@
 """Mistral AI hello sample - Mistral models with Genkit.
 
 This sample demonstrates how to use Mistral AI's models with Genkit,
-including Mistral Large, Mistral Small, and Codestral.
+including Mistral Large 3, Mistral Small 3.2, Codestral, Magistral
 
 See README.md for testing instructions.
 
@@ -63,12 +63,18 @@ Key Features
 | Multi-turn Chat                         | `chat_flow`                             |
 | Tool Calling                            | `weather_flow`                          |
 | Structured Output (JSON)                | `generate_character`                    |
-| Embeddings                              | `embed_flow`                            |
+| Multimodal (Image Input)                | `describe_image`                        |
+| Reasoning (Magistral)                   | `reasoning_flow`                        |
+| Embeddings (Text)                       | `embed_flow`                            |
+| Embeddings (Code)                       | `code_embed_flow`                       |
+| Audio Transcription (Voxtral)           | `audio_flow`                            |
 """
 
 import asyncio
+import base64
 import os
 import random
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
@@ -77,7 +83,7 @@ from genkit.ai import Genkit, Output
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
+from genkit.core.typing import Media, MediaPart, Message, Part, Role, TextPart, ToolChoice
 from genkit.plugins.mistral import Mistral, mistral_name
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
@@ -139,6 +145,42 @@ class EmbedInput(BaseModel):
     """Input for embedding flow."""
 
     text: str = Field(default='Artificial intelligence is transforming the world.', description='Text to embed')
+
+
+class CodeEmbedInput(BaseModel):
+    """Input for code embedding flow."""
+
+    code: str = Field(
+        default='def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)',
+        description='Code to embed',
+    )
+
+
+class ImageInput(BaseModel):
+    """Input for image description flow."""
+
+    image_url: str = Field(
+        default='https://picsum.photos/id/237/400/300',
+        description='URL of the image to describe',
+    )
+
+
+class ReasoningInput(BaseModel):
+    """Input for reasoning flow."""
+
+    question: str = Field(
+        default='John is one of 4 children. His sister is 4 years old. How old is John?',
+        description='Reasoning question',
+    )
+
+
+class AudioInput(BaseModel):
+    """Input for audio transcription flow."""
+
+    audio_path: str = Field(
+        default='',
+        description='Path to audio file (defaults to bundled genkit.wav)',
+    )
 
 
 class Skills(BaseModel):
@@ -258,6 +300,8 @@ async def custom_config_flow(input: CustomConfigInput) -> str:
             'temperature': 0.9,
             'max_tokens': 200,
             'top_p': 0.95,
+            'presence_penalty': 0.6,
+            'frequency_penalty': 0.4,
         },
         'precise': {
             'temperature': 0.1,
@@ -421,8 +465,120 @@ async def embed_flow(input: EmbedInput) -> list[float]:
         embedder=mistral_name('mistral-embed'),
         content=doc,
     )
-    # Return the first embedding vector.
     return embeddings[0].embedding
+
+
+@ai.flow()
+async def code_embed_flow(input: CodeEmbedInput) -> list[float]:
+    """Generate code embeddings using Mistral's codestral-embed model.
+
+    Codestral Embed produces semantic representations of code snippets,
+    useful for code search, clone detection, and similarity comparisons.
+
+    See: https://docs.mistral.ai/models/codestral-embed-25-05
+
+    Args:
+        input: Input with code snippet to embed.
+
+    Returns:
+        The embedding vector (list of floats).
+    """
+    doc = Document.from_text(input.code)
+    embeddings = await ai.embed(
+        embedder=mistral_name('codestral-embed-2505'),
+        content=doc,
+    )
+    return embeddings[0].embedding
+
+
+@ai.flow()
+async def describe_image(input: ImageInput) -> str:
+    """Describe an image using Mistral Large 3 (vision).
+
+    Mistral Large 3, Medium 3.1, Small 3.2, and Ministral 3 all support
+    image input alongside text. The model can analyze and describe the
+    contents of the image.
+
+    See: https://docs.mistral.ai/capabilities/vision/
+
+    Args:
+        input: Input with image URL.
+
+    Returns:
+        Description of the image.
+    """
+    response = await ai.generate(
+        model=mistral_name('mistral-large-latest'),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/png'))),
+                    Part(root=TextPart(text='Describe this image in detail.')),
+                ],
+            ),
+        ],
+    )
+    return response.text
+
+
+@ai.flow()
+async def reasoning_flow(input: ReasoningInput) -> str:
+    """Use Magistral for step-by-step reasoning.
+
+    Magistral models think through problems step by step before answering.
+    They are optimized for math, logic, and complex reasoning tasks.
+
+    See: https://docs.mistral.ai/capabilities/reasoning
+
+    Args:
+        input: Input with reasoning question.
+
+    Returns:
+        The reasoned answer.
+    """
+    response = await ai.generate(
+        model=mistral_name('magistral-small-latest'),
+        prompt=input.question,
+    )
+    return response.text
+
+
+@ai.flow()
+async def audio_flow(input: AudioInput) -> str:
+    """Transcribe audio using Voxtral Mini.
+
+    Voxtral models accept audio input alongside text. The audio is
+    base64-encoded and sent as a MediaPart with audio/* content type.
+
+    Uses the bundled genkit.wav file by default.
+
+    See: https://docs.mistral.ai/capabilities/audio/
+
+    Args:
+        input: Input with optional path to an audio file.
+
+    Returns:
+        Transcription of the audio content.
+    """
+    audio_path = input.audio_path or str(Path(__file__).parent.parent / 'assets' / 'genkit.wav')
+    audio_bytes = Path(audio_path).read_bytes()
+    audio_b64 = base64.b64encode(audio_bytes).decode('ascii')
+    data_uri = f'data:audio/wav;base64,{audio_b64}'
+
+    response = await ai.generate(
+        model=mistral_name('voxtral-mini-latest'),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(root=MediaPart(media=Media(url=data_uri, content_type='audio/wav'))),
+                    Part(root=TextPart(text='Transcribe this audio. Return only the transcription.')),
+                ],
+            ),
+        ],
+    )
+    return response.text
 
 
 async def main() -> None:

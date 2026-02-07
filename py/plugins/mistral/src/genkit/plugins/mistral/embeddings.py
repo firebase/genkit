@@ -40,9 +40,15 @@ __all__ = [
 
 # Mistral's supported embedding models and their default dimensions.
 # See: https://docs.mistral.ai/capabilities/embeddings/
+# See: https://docs.mistral.ai/models/codestral-embed-25-05
 SUPPORTED_EMBEDDING_MODELS: dict[str, dict[str, Any]] = {
     'mistral-embed': {
         'label': 'Mistral AI - Embed',
+        'dimensions': 1024,
+        'supports': {'input': ['text']},
+    },
+    'codestral-embed-2505': {
+        'label': 'Mistral AI - Codestral Embed',
         'dimensions': 1024,
         'supports': {'input': ['text']},
     },
