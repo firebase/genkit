@@ -2111,6 +2111,43 @@ After completing tasks in a session, add relevant learnings to appropriate secti
   -ignore '**/.nox/**/*' \
   ```
 
+### Session Learnings (2026-02-07): OpenTelemetry ReadableSpan Wrapper Pitfall
+
+**Issue:** When wrapping OpenTelemetry's `ReadableSpan` without calling
+`super().__init__()`, the OTLP trace encoder crashes with `AttributeError`
+on `dropped_attributes`, `dropped_events`, or `dropped_links`.
+
+**Root Cause:** The base `ReadableSpan` class defines these properties to access
+private instance variables (`_attributes`, `_events`, `_links`) that are only
+initialized by `ReadableSpan.__init__()`. If your wrapper skips `super().__init__()`
+(intentionally, to avoid duplicating span state), those fields are missing.
+
+**Fix Pattern:** Override all `dropped_*` properties to delegate to the wrapped span:
+
+```python
+class MySpanWrapper(ReadableSpan):
+    def __init__(self, span: ReadableSpan, ...) -> None:
+        # Intentionally skipping super().__init__()
+        self._span = span
+
+    @property
+    def dropped_attributes(self) -> int:
+        return self._span.dropped_attributes
+
+    @property
+    def dropped_events(self) -> int:
+        return self._span.dropped_events
+
+    @property
+    def dropped_links(self) -> int:
+        return self._span.dropped_links
+```
+
+**Testing:** Use `pytest.mark.parametrize` to test all three properties in a
+single test function to reduce duplication (per code review feedback).
+
+**Reference:** PR #4494, Issue #4493.
+
 ## Release Process
 
 ### Automated Release Scripts
