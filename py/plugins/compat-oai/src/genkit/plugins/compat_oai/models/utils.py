@@ -321,21 +321,36 @@ class MessageConverter:
     def to_openai(cls, message: Message) -> list[dict]:
         """Converts an internal `Message` object to OpenAI-compatible chat messages.
 
+        Handles TextPart, MediaPart (images), ToolRequestPart, and
+        ToolResponsePart. When a message contains MediaPart content, the
+        ``content`` field uses the array-of-content-blocks format required
+        by the OpenAI Chat Completions API for multimodal requests.
+
+        Matches the JS canonical implementation in ``toOpenAIMessages()``.
+
         Args:
             message: The internal `Message` instance.
 
         Returns:
             A list of OpenAI-compatible message dictionaries.
         """
-        text_parts = []
+        content_parts: list[dict[str, Any]] = []
         tool_calls = []
         tool_messages = []
+        has_media = False
 
         for part in message.content:
             root = part.root
 
             if isinstance(root, TextPart):
-                text_parts.append(root.text)
+                content_parts.append({'type': 'text', 'text': root.text})
+
+            elif isinstance(root, MediaPart):
+                has_media = True
+                content_parts.append({
+                    'type': 'image_url',
+                    'image_url': {'url': root.media.url},
+                })
 
             elif isinstance(root, ToolRequestPart):
                 tool_calls.append({
@@ -355,13 +370,21 @@ class MessageConverter:
                     'content': str(tool_call.output),
                 })
 
-        result = []
+        result: list[dict[str, Any]] = []
 
-        if text_parts:
-            result.append({
-                'role': cls._get_openai_role(message.role),
-                'content': ''.join(text_parts),
-            })
+        if content_parts:
+            role = cls._get_openai_role(message.role)
+            if has_media:
+                # Multimodal: content is an array of typed content blocks.
+                result.append({'role': role, 'content': content_parts})
+            else:
+                # Text-only: content is a plain string (matching JS behavior
+                # where text-only messages use string content for
+                # compatibility with older model endpoints).
+                result.append({
+                    'role': role,
+                    'content': ''.join(p['text'] for p in content_parts),
+                })
 
         if tool_calls:
             result.append({

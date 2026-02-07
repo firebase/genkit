@@ -41,7 +41,10 @@ from genkit.types import (
     ReasoningPart,
     Role,
     TextPart,
+    ToolRequest,
     ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
 )
 
 
@@ -368,7 +371,7 @@ class TestExtractMedia:
                 )
             ]
         )
-        url, ct = _extract_media(request)
+        _, ct = _extract_media(request)
         assert ct == 'image/png'
 
     def test_content_type_from_data_uri_without_base64_qualifier(self) -> None:
@@ -542,3 +545,149 @@ class TestMessageConverterReasoningContent:
         })
         msg = MessageConverter.to_genkit(adapter)
         assert msg.role == Role.MODEL
+
+
+class TestMessageConverterToOpenAI:
+    """Tests for MessageConverter.to_openai()."""
+
+    def test_text_only_message_uses_string_content(self) -> None:
+        """Text-only messages should produce a plain string content field."""
+        message = Message(
+            role=Role.USER,
+            content=[Part(root=TextPart(text='Hello world'))],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0] == {'role': 'user', 'content': 'Hello world'}
+
+    def test_multiple_text_parts_concatenated(self) -> None:
+        """Multiple text parts should be concatenated into one string."""
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part(root=TextPart(text='Hello ')),
+                Part(root=TextPart(text='world')),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['content'] == 'Hello world'
+
+    def test_media_part_produces_image_url_block(self) -> None:
+        """A MediaPart should produce an image_url content block."""
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part(root=MediaPart(media=Media(url='https://example.com/cat.jpg', content_type='image/jpeg'))),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'user'
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert len(content) == 1
+        assert content[0] == {
+            'type': 'image_url',
+            'image_url': {'url': 'https://example.com/cat.jpg'},
+        }
+
+    def test_text_and_media_produces_content_array(self) -> None:
+        """Mixed text + media should produce an array of content blocks.
+
+        This is the multimodal vision format required by the OpenAI Chat
+        Completions API, matching the JS canonical toOpenAIMessages().
+        """
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part(root=TextPart(text='Describe this image')),
+                Part(root=MediaPart(media=Media(url='https://example.com/cat.jpg', content_type='image/jpeg'))),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert len(content) == 2
+        assert content[0] == {'type': 'text', 'text': 'Describe this image'}
+        assert content[1] == {
+            'type': 'image_url',
+            'image_url': {'url': 'https://example.com/cat.jpg'},
+        }
+
+    def test_tool_request_parts(self) -> None:
+        """ToolRequestParts should produce tool_calls entries."""
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part(
+                    root=ToolRequestPart(
+                        tool_request=ToolRequest(
+                            ref='call_1',
+                            name='get_weather',
+                            input={'location': 'NYC'},
+                        )
+                    )
+                )
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'assistant'
+        assert 'tool_calls' in result[0]
+        tc = result[0]['tool_calls'][0]
+        assert tc['id'] == 'call_1'
+        assert tc['function']['name'] == 'get_weather'
+
+    def test_tool_response_parts(self) -> None:
+        """ToolResponseParts should produce tool role messages."""
+        message = Message(
+            role=Role.TOOL,
+            content=[
+                Part(
+                    root=ToolResponsePart(
+                        tool_response=ToolResponse(
+                            ref='call_1',
+                            name='get_weather',
+                            output='Sunny, 72F',
+                        )
+                    )
+                )
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0]['role'] == 'tool'
+        assert result[0]['tool_call_id'] == 'call_1'
+        assert result[0]['content'] == 'Sunny, 72F'
+
+    def test_model_role_maps_to_assistant(self) -> None:
+        """Role.MODEL should map to 'assistant' in OpenAI format."""
+        message = Message(
+            role=Role.MODEL,
+            content=[Part(root=TextPart(text='Hi there'))],
+        )
+        result = MessageConverter.to_openai(message)
+        assert result[0]['role'] == 'assistant'
+
+    def test_data_uri_media_url_preserved(self) -> None:
+        """Data URI media URLs should be passed through unchanged."""
+        data_uri = 'data:image/png;base64,iVBORw0KGgo='
+        message = Message(
+            role=Role.USER,
+            content=[
+                Part(root=TextPart(text='What is this?')),
+                Part(root=MediaPart(media=Media(url=data_uri))),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        content = result[0]['content']
+        assert isinstance(content, list)
+        assert content[1]['image_url']['url'] == data_uri
+
+    def test_empty_message_produces_no_result(self) -> None:
+        """A message with no content parts should produce an empty result."""
+        message = Message(role=Role.USER, content=[])
+        result = MessageConverter.to_openai(message)
+        assert result == []

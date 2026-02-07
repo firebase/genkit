@@ -119,5 +119,5 @@ for result in results.root:
 
 For comprehensive usage examples, see:
 
-- [`py/samples/google-genai-hello/README.md`](../../samples/google-genai-hello/README.md) - Basic Gemini usage
-- [`py/samples/vertexai-rerank-eval/README.md`](../../samples/vertexai-rerank-eval/README.md) - Rerankers and evaluators
+- [`py/samples/provider-google-genai-hello/README.md`](../../samples/provider-google-genai-hello/README.md) - Basic Gemini usage
+- [`py/samples/provider-vertex-ai-rerank-eval/README.md`](../../samples/provider-vertex-ai-rerank-eval/README.md) - Rerankers and evaluators

@@ -132,40 +132,41 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-amazon-bedrock-hello              = { workspace = true }
-anthropic-hello                   = { workspace = true }
-cloudflare-workers-ai-hello       = { workspace = true }
-compat-oai-hello                  = { workspace = true }
-deepseek-hello                    = { workspace = true }
-dev-local-vectorstore-hello       = { workspace = true }
-evaluator-demo                    = { workspace = true }
-firestore-retreiver               = { workspace = true }
-flask-hello                       = { workspace = true }
-format-demo                       = { workspace = true }
-google-genai-code-execution       = { workspace = true }
-google-genai-context-caching      = { workspace = true }
-google-genai-hello                = { workspace = true }
-google-genai-image                = { workspace = true }
-google-genai-vertexai-hello       = { workspace = true }
-google-genai-vertexai-image       = { workspace = true }
-huggingface-hello                 = { workspace = true }
-media-models-demo                 = { workspace = true }
-menu                              = { workspace = true }
-microsoft-foundry-hello           = { workspace = true }
-mistral-hello                     = { workspace = true }
-model-garden                      = { workspace = true }
-multi-server                      = { workspace = true }
-observability-hello               = { workspace = true }
-ollama-hello                      = { workspace = true }
-ollama-simple-embed               = { workspace = true }
-prompt-demo                       = { workspace = true }
-realtime-tracing-demo             = { workspace = true }
-short-n-long                      = { workspace = true }
-tool-interrupts                   = { workspace = true }
-vertex-ai-vector-search-bigquery  = { workspace = true }
-vertex-ai-vector-search-firestore = { workspace = true }
-vertexai-rerank-eval              = { workspace = true }
-xai-hello                         = { workspace = true }
+dev-local-vectorstore-hello                  = { workspace = true }
+framework-context-demo                       = { workspace = true }
+framework-dynamic-tools-demo                 = { workspace = true }
+framework-evaluator-demo                     = { workspace = true }
+framework-format-demo                        = { workspace = true }
+framework-middleware-demo                     = { workspace = true }
+framework-prompt-demo                        = { workspace = true }
+framework-realtime-tracing-demo              = { workspace = true }
+framework-restaurant-demo                    = { workspace = true }
+framework-tool-interrupts                    = { workspace = true }
+provider-amazon-bedrock-hello                = { workspace = true }
+provider-anthropic-hello                     = { workspace = true }
+provider-cloudflare-workers-ai-hello         = { workspace = true }
+provider-compat-oai-hello                    = { workspace = true }
+provider-deepseek-hello                      = { workspace = true }
+provider-firestore-retriever                 = { workspace = true }
+provider-google-genai-code-execution         = { workspace = true }
+provider-google-genai-context-caching        = { workspace = true }
+provider-google-genai-hello                  = { workspace = true }
+provider-google-genai-media-models-demo      = { workspace = true }
+provider-google-genai-vertexai-hello         = { workspace = true }
+provider-google-genai-vertexai-image         = { workspace = true }
+provider-huggingface-hello                   = { workspace = true }
+provider-microsoft-foundry-hello             = { workspace = true }
+provider-mistral-hello                       = { workspace = true }
+provider-observability-hello                 = { workspace = true }
+provider-ollama-hello                        = { workspace = true }
+provider-vertex-ai-model-garden              = { workspace = true }
+provider-vertex-ai-vector-search-bigquery    = { workspace = true }
+provider-vertex-ai-vector-search-firestore   = { workspace = true }
+provider-vertex-ai-rerank-eval               = { workspace = true }
+provider-xai-hello                           = { workspace = true }
+web-flask-hello                              = { workspace = true }
+web-multi-server                             = { workspace = true }
+web-short-n-long                             = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
@@ -394,8 +395,8 @@ root = [
   "plugins/xai/src",
   # Samples
   ".",                      # For samples.shared imports
-  "samples/evaluator-demo", # For evaluator_demo package imports
-  "samples/menu/src",       # For menu sample imports
+  "samples/framework-evaluator-demo", # For evaluator_demo package imports
+  "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
   "plugins/mcp/tests",      # For fakes module imports in tests
 ]
 
@@ -455,19 +456,19 @@ project_includes = [
   "plugins/*/tests/**/*.py",
   # Samples
   "samples/*/src/**/*.py",
-  "samples/evaluator-demo/evaluator_demo/**/*.py",
+  "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
 # The project root "." covers all packages. Additional paths are needed for:
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
-# - samples/evaluator-demo: has `evaluator_demo` package with internal imports
-# - samples/menu/src: has internal imports (menu_ai, menu_schemas)
+# - samples/framework-evaluator-demo: has `evaluator_demo` package with internal imports
+# - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
 search-path = [
   ".",
   "plugins/mcp/tests",
-  "samples/evaluator-demo",
-  "samples/menu/src",
+  "samples/framework-evaluator-demo",
+  "samples/framework-restaurant-demo/src",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime

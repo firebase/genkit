@@ -1378,6 +1378,8 @@ class GeminiModel:
                     status = 'PERMISSION_DENIED'
                 elif e.code == 404:
                     status = 'NOT_FOUND'
+                elif e.code == 429:
+                    status = 'RESOURCE_EXHAUSTED'
 
                 raise GenkitError(
                     status=status,
@@ -1504,6 +1506,8 @@ class GeminiModel:
                     status = 'PERMISSION_DENIED'
                 elif e.code == 404:
                     status = 'NOT_FOUND'
+                elif e.code == 429:
+                    status = 'RESOURCE_EXHAUSTED'
 
                 raise GenkitError(
                     status=status,

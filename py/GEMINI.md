@@ -1728,6 +1728,37 @@ For each plugin, verify:
 4. **Authentication**: Use provider's recommended auth mechanism and headers
 5. **Endpoints**: URLs match provider's documented endpoints
 
+### Model Catalog Accuracy (Mandatory)
+
+**CRITICAL: Never invent model names or IDs.** Every model ID in a plugin's catalog
+MUST be verified against the provider's official API documentation before being added.
+
+#### Verification Steps
+
+1. **Check the provider's official model page** (see Provider Documentation Links below)
+2. **Confirm the exact API model ID string** — not the marketing name, but the string
+   you pass to the API (e.g., `claude-opus-4-6-20260205`, not "Claude Opus 4.6")
+3. **Verify the model is GA (Generally Available)** — do not add models that are only
+   announced, in private preview, or behind waitlists
+4. **Confirm capabilities** — check if the model supports vision, tools, system role,
+   structured output, etc. from the official docs
+5. **Use date-suffixed IDs as versions** — store the alias (e.g., `claude-opus-4-6`)
+   as the key and the dated ID (e.g., `claude-opus-4-6-20260205`) in `versions=[]`
+
+#### Provider API Model Pages
+
+| Provider | Where to verify model IDs |
+|----------|---------------------------|
+| Anthropic | https://docs.anthropic.com/en/docs/about-claude/models |
+| OpenAI | https://platform.openai.com/docs/models |
+| xAI | https://docs.x.ai/docs/models |
+| Mistral | https://docs.mistral.ai/getting-started/models/models_overview/ |
+| DeepSeek | https://api-docs.deepseek.com/quick_start/pricing |
+| HuggingFace | https://huggingface.co/docs/api-inference/ |
+| AWS Bedrock | https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html |
+| Azure/Foundry | https://ai.azure.com/catalog/models |
+| Cloudflare | https://developers.cloudflare.com/workers-ai/models/ |
+
 ### Common Issues Found During Verification
 
 | Issue Type | Example | How to Fix |
