@@ -2184,6 +2184,13 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
             _ns=ns,  # Store namespace for action lookup
         )
 
+        # Cache the result BEFORE resolving actions to break self-recursion.
+        # resolve_action_by_key() triggers _trigger_lazy_loading(), which calls
+        # this factory again.  Without the early cache assignment the memoization
+        # guard (_cached_prompt is not None) never fires and we recurse until
+        # RecursionError.  See https://github.com/firebase/genkit/issues/4491
+        _cached_prompt = executable_prompt
+
         # Store reference to PROMPT action on the ExecutablePrompt
         # Actions are already registered at this point (lazy loading happens after registration)
         definition_key = registry_definition_key(name, variant, ns)
@@ -2210,8 +2217,6 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
                 if output_json_schema:
                     action.output_schema = output_json_schema
 
-        # Cache the result for subsequent calls
-        _cached_prompt = executable_prompt
         return executable_prompt
 
     # Store the async factory in a way that can be accessed later
