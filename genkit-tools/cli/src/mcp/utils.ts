@@ -35,7 +35,7 @@ export function getCommonSchema(
         projectRoot: z
           .string()
           .describe(
-            'The path to the current project root (a.k.a workspace directory or project directory)'
+            'The path to the current project root (a.k.a workspace directory or project directory); type: string'
           ),
         ...shape,
       };
