@@ -30,6 +30,7 @@ from mistralai.models import (
     ChatCompletionChoice,
     ChatCompletionResponse,
     CompletionChunk,
+    CompletionEvent,
     Function,
     FunctionCall,
     SystemMessage,
@@ -416,9 +417,10 @@ class MistralModel:
         # Track tool calls being streamed (by index)
         tool_calls: dict[int, dict[str, Any]] = {}
 
-        stream: AsyncIterator[CompletionChunk] = await self.client.chat.stream_async(**params)
+        stream: AsyncIterator[CompletionEvent] = await self.client.chat.stream_async(**params)
 
-        async for chunk in stream:
+        async for event in stream:
+            chunk: CompletionChunk = event.data
             if chunk.choices:
                 choice = chunk.choices[0]
 
