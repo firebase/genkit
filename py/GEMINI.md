@@ -803,7 +803,15 @@ Python-specific development and release scripts:
 * Update the roadmap.md file as and when features are implemented.
 
 * When a plugin such as a model provider is updated or changes, please also
-  update relevant documentation and samples.
+  update relevant documentation and samples. **This is mandatory — every plugin
+  change MUST include a sample audit:**
+  * Check if any sample under `py/samples/` uses the updated plugin.
+  * If new models or features were added, add demo flows to the appropriate
+    sample (e.g., `media-models-demo` for new media models, `compat-oai-hello`
+    for OpenAI models).
+  * Update `README.md` files in affected samples.
+  * Update the conformance test specs under `py/tests/conformance/` if model
+    capabilities changed.
 
 * Try to make running the sample flows a one-click operation by always defining
   default input values.
