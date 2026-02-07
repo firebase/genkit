@@ -108,6 +108,9 @@ Supported Models:
     - ministral-8b-latest: Compact model for edge deployment
     - ministral-3b-latest: Smallest model for resource-constrained environments
 
+Supported Embedders:
+    - mistral-embed: 1024-dimensional text embeddings for RAG and search
+
 Example:
     ```python
     from genkit import Genkit
@@ -131,6 +134,7 @@ See Also:
     - Genkit documentation: https://genkit.dev/
 """
 
+from .embeddings import SUPPORTED_EMBEDDING_MODELS, MistralEmbedConfig
 from .model_info import SUPPORTED_MISTRAL_MODELS
 from .models import MISTRAL_PLUGIN_NAME, mistral_name
 from .plugin import Mistral
@@ -141,7 +145,9 @@ DEFAULT_MISTRAL_API_URL = 'https://api.mistral.ai'
 __all__ = [
     'DEFAULT_MISTRAL_API_URL',
     'MISTRAL_PLUGIN_NAME',
-    'SUPPORTED_MISTRAL_MODELS',
+    'MistralEmbedConfig',
     'Mistral',
+    'SUPPORTED_EMBEDDING_MODELS',
+    'SUPPORTED_MISTRAL_MODELS',
     'mistral_name',
 ]
