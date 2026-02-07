@@ -4,7 +4,7 @@ This document organizes the identified gaps into executable milestones with depe
 
 ---
 
-## Current Status (Updated 2026-01-30)
+## Current Status (Updated 2026-02-06)
 
 > [!IMPORTANT]
 > **Overall Parity: ~99% Complete** - Nearly all milestones done!
@@ -77,7 +77,7 @@ This document organizes the identified gaps into executable milestones with depe
 | ollama | ✅ Verified | Vision via chat API | None | Fair | Low |
 | mistral | ⚠️ Gaps | Agents API, Codestral FIM, Embeddings | None | Good | Medium |
 | xai | ⚠️ Gaps | Agent Tools API (server/client-side) | None | Fair | Medium |
-| deepseek | ⚠️ Gaps | reasoning_content handling | Param validation | Medium | **High** |
+| deepseek | ✅ Verified | Multi-round reasoning | None | Good | Low |
 | cloudflare-workers-ai | ✅ Verified | Async Batch API | None | Good | Low |
 | huggingface | ⚠️ Gaps | Inference Endpoints, TGI | None | Fair | Medium |
 | azure | ⚠️ Gaps | Azure AI Studio | None | Fair | Medium |
@@ -86,8 +86,8 @@ This document organizes the identified gaps into executable milestones with depe
 
 | Priority | Task | Plugin | Effort | Description |
 |----------|------|--------|--------|-------------|
-| **P0** | Fix `reasoning_content` extraction | deepseek | M | R1 CoT output not exposed - core feature broken |
-| **P0** | Add parameter validation warnings | deepseek | S | R1 silently ignores temp/top_p |
+| ~~P0~~ | ~~Fix `reasoning_content` extraction~~ | ~~deepseek~~ | ~~M~~ | ✅ Done (PR #4480) - Extracted via `MessageAdapter` in compat-oai, emits `ReasoningPart` |
+| ~~P0~~ | ~~Add parameter validation warnings~~ | ~~deepseek~~ | ~~S~~ | ✅ Done (PR #4480) - `_warn_reasoning_params()` logs warnings for ignored params |
 | **P1** | Add cache control support | anthropic | M | `cache_control` with TTL for cost savings |
 | **P1** | Add PDF/Document support | anthropic | M | `DocumentBlockParam` for common use case |
 | **P1** | Add embeddings support | mistral | S | `mistral-embed` model |
@@ -244,37 +244,27 @@ async def _create_embedder_action(self, name: str) -> Action:
 
 #### 7. deepseek
 
-**Status**: ⚠️ **Critical Gaps**
+**Status**: ✅ Mostly Conformant (PR #4480)
 
 **Verified Features**:
 - Chat completions (OpenAI-compatible) ✓
 - Streaming ✓
 - Uses compat-oai for implementation ✓
+- `reasoning_content` extraction for R1/reasoner models ✓ (PR #4480)
+- Parameter validation warnings for R1 (temp, top_p, tools) ✓ (PR #4480)
+- Chat vs. reasoning model capability split ✓ (PR #4480)
+- `is_reasoning_model()` helper ✓ (PR #4480)
 
-**Gaps**:
+**Implementation Details (PR #4480)**:
+- **compat-oai layer**: `MessageAdapter` wraps raw Pydantic `ChatCompletionMessage` for safe `reasoning_content` access (Pydantic raises `AttributeError` for unknown fields). `MessageConverter.to_genkit()` emits `ReasoningPart` before `TextPart` (matching JS order).
+- **Streaming**: `MessageAdapter(delta).reasoning_content` in `_generate_stream()` replaces unsafe `getattr()` pattern.
+- **deepseek plugin**: `_warn_reasoning_params()` logs warnings when `temperature`, `top_p`, or `tools` are passed to R1 models. Model capabilities split into chat (`tools=True`) vs. reasoning (`tools=False`).
+
+**Remaining Gaps**:
 | Gap | Description | Impact | Priority |
 |-----|-------------|--------|----------|
-| `reasoning_content` | CoT output not extracted/exposed | **Critical** - core R1 feature | **P0** |
-| Parameter validation | R1 ignores temp/top_p but no warning | High - silent failures | **P0** |
 | Multi-round reasoning | Must strip reasoning_content from context | High - breaks multi-turn | P1 |
 | Tool calling in R1 | Not supported in reasoner mode | Medium - documented limitation | P2 |
-
-**Critical Implementation Required**:
-```python
-# DeepSeek R1 returns reasoning_content separately from content
-# Current implementation via compat-oai loses this
-
-class DeepSeekModel:
-    async def generate(self, request, ctx):
-        response = await self._client.chat.completions.create(...)
-        
-        # Extract reasoning content (CoT)
-        reasoning = getattr(response.choices[0].message, 'reasoning_content', None)
-        content = response.choices[0].message.content
-        
-        # Return both in Genkit response
-        # Need to extend GenerateResponse to support reasoning metadata
-```
 
 ---
 
@@ -343,7 +333,7 @@ class DeepSeekModel:
 | ollama | ⚠️ Fair | ❌ None | ❌ None | Need integration tests |
 | mistral | ✅ Good | ⚠️ Partial | ❌ None | Add vision model tests |
 | xai | ⚠️ Fair | ❌ None | ❌ None | Need more coverage |
-| deepseek | ⚠️ Fair | ❌ None | ❌ None | **Critical**: Add R1 tests |
+| deepseek | ✅ Good | ❌ None | ❌ None | R1 reasoning tests added (PR #4480) |
 | cloudflare-workers-ai | ✅ Good | ❌ None | ❌ None | Add streaming tests |
 
 ---

@@ -27,6 +27,7 @@ from genkit.types import (
     MediaPart,
     Message,
     Part,
+    ReasoningPart,
     Role,
     TextPart,
     ToolRequest,
@@ -232,6 +233,15 @@ class DictMessageAdapter:
         """
         return self._data.get('role', None)
 
+    @property
+    def reasoning_content(self) -> str | None:
+        """Returns the 'reasoning_content' if present in the message.
+
+        Returns:
+            The reasoning content string or None.
+        """
+        return self._data.get('reasoning_content', None)
+
 
 class MessageAdapter:
     """Adapter for object-based chat message objects with OpenAI-compatible fields."""
@@ -270,6 +280,25 @@ class MessageAdapter:
             The role string or None.
         """
         return getattr(self._data, 'role', None)
+
+    @property
+    def reasoning_content(self) -> str | None:
+        """Returns the 'reasoning_content' attribute if available.
+
+        DeepSeek R1/reasoner models return chain-of-thought reasoning
+        in this separate field alongside the regular content.
+
+        Note: Pydantic models (like openai's ChatCompletionMessage) raise
+        AttributeError in __getattr__ for unknown fields, so getattr()
+        with a default doesn't work. We must catch the exception.
+
+        Returns:
+            The reasoning content string or None.
+        """
+        try:
+            return self._data.reasoning_content  # type: ignore[union-attr]
+        except AttributeError:
+            return None
 
 
 ChatCompletionMessageAdapter = DictMessageAdapter | MessageAdapter
@@ -347,6 +376,10 @@ class MessageConverter:
     def to_genkit(cls, message: ChatCompletionMessageAdapter) -> Message:
         """Converts an OpenAI-style message into a Genkit `Message` object.
 
+        Handles tool calls, reasoning content (from DeepSeek R1 / reasoner),
+        and regular text content. Matches the JS canonical implementation
+        in fromOpenAIChoice().
+
         Args:
             message: A ChatCompletionMessageAdapter instance.
 
@@ -354,13 +387,23 @@ class MessageConverter:
             A Genkit `Message` object.
 
         Raises:
-            ValueError: If neither content nor tool_calls are present in the message.
+            ValueError: If neither content, tool_calls, nor reasoning_content
+                are present in the message.
         """
-        if message.content:
-            content = [cls.text_part_to_genkit(message.content)]
-        elif message.tool_calls:
+        content: list[Part] = []
+
+        if message.tool_calls:
             content = [cls.tool_call_to_genkit(tool_call, args_parser=json.loads) for tool_call in message.tool_calls]
         else:
+            # Reasoning content comes before regular content (matching JS order).
+            reasoning = message.reasoning_content
+            if reasoning:
+                content.append(Part(root=ReasoningPart(reasoning=reasoning)))
+
+            if message.content:
+                content.append(cls.text_part_to_genkit(message.content))
+
+        if not content:
             raise ValueError('Unable to determine content part')
 
         role = message.role or Role.MODEL
