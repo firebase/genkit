@@ -17,7 +17,7 @@
 
 """Tests for the OpenAI compatible plugin."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from openai.types import Model
@@ -80,9 +80,9 @@ async def test_openai_plugin_list_actions() -> None:
 
     mock_result_ = MagicMock()
     mock_result_.data = entries
-    mock_client.models.list.return_value = mock_result_
+    mock_client.models.list = AsyncMock(return_value=mock_result_)
 
-    plugin._openai_client = mock_client
+    plugin._async_client = mock_client
 
     actions: list[ActionMetadata] = await plugin.list_actions()
     mock_client.models.list.assert_called_once()

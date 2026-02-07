@@ -3079,3 +3079,305 @@ done
 
 **Exception:** `bin/install_cli` intentionally omits `pipefail` as it's a user-facing
 install script that handles errors differently for better user experience.
+
+## Code Reviewer Preferences
+
+These preferences were distilled from reviewer feedback on Python PRs and should
+be followed to minimize review round-trips.
+
+### DRY (Don't Repeat Yourself)
+
+* **Eliminate duplicated logic aggressively.** If the same pattern appears more
+  than once (even twice), extract it into a helper function or use data-driven
+  lookup tables (`dict`, `enum`).
+* **Prefer data-driven patterns over repeated conditionals.** Instead of:
+  ```python
+  if 'image' in name:
+      do_thing(ImageModel, IMAGE_REGISTRY)
+  elif 'tts' in name:
+      do_thing(TTSModel, TTS_REGISTRY)
+  elif 'stt' in name:
+      do_thing(STTModel, STT_REGISTRY)
+  ```
+  Use a lookup table:
+  ```python
+  _CONFIG: dict[ModelType, tuple[type[Model], dict[str, ModelInfo]]] = {
+      ModelType.IMAGE: (ImageModel, IMAGE_REGISTRY),
+      ModelType.TTS: (TTSModel, TTS_REGISTRY),
+      ModelType.STT: (STTModel, STT_REGISTRY),
+  }
+  config = _CONFIG.get(model_type)
+  if config:
+      do_thing(*config)
+  ```
+* **Shared utility functions across sibling modules.** When two modules
+  (e.g., `audio.py` and `image.py`) have identical helper functions, consolidate
+  into one and import from the other. Re-export with an alias if needed for
+  backward compatibility.
+* **Extract common logic into utility functions that can be tested
+  independently and exhaustively.** Data URI parsing, config extraction,
+  media extraction, and similar reusable patterns should live in a `utils.py`
+  module with comprehensive unit tests covering edge cases (malformed input,
+  empty strings, missing fields, etc.). This improves coverage and makes the
+  correct behavior verifiable without mocking external APIs.
+* **Extract shared info dict builders.** When the same metadata serialization
+  logic (e.g., `model_info.model_dump()` with fallback) appears in both Action
+  creation and ActionMetadata creation, extract a single helper like
+  `_get_multimodal_info_dict(name, model_type, registry)` and call it from both.
+* **Re-assert `isinstance` after `next()` for type narrowing.** Type checkers
+  can't track narrowing inside generator expressions. After `next()`, re-assert
+  `isinstance(part.root, MediaPart)` locally so the checker can narrow:
+  ```python
+  part_with_media = next(
+      (p for p in content if isinstance(p.root, MediaPart)),
+      None,
+  )
+  if part_with_media:
+      # Re-assert to help type checkers narrow the type of part_with_media.root
+      assert isinstance(part_with_media.root, MediaPart)
+      # Now the type checker knows part_with_media.root is a MediaPart
+      url = part_with_media.root.media.url
+  ```
+* **Hoist constant lookup tables to module level.** Don't recreate `dict`
+  literals inside functions on every call. Define them once at module scope:
+  ```python
+  # Module level — created once.
+  _CONTENT_TYPE_TO_EXTENSION: dict[str, str] = {'audio/mpeg': 'mp3', ...}
+
+  def _to_stt_params(...):
+      ext = _CONTENT_TYPE_TO_EXTENSION.get(content_type, 'mp3')
+  ```
+### Type Safety and Redundancy
+
+* **Remove redundant `str()` casts after `isinstance` checks.** If you guard
+  with `isinstance(part.root, TextPart)`, then `part.root.text` is already `str`.
+  Don't wrap it in `str()` again.
+* **Remove unnecessary fallbacks on required fields.** If a Pydantic model field
+  is required (not `Optional`), don't write `str(field or '')` — just use `field`
+  directly.
+* **Use `isinstance` over `hasattr` for type checks.** Prefer
+  `isinstance(part.root, TextPart)` over `hasattr(part.root, 'text')` for
+  type-safe attribute access.
+
+### Pythonic Idioms
+
+* **Use `next()` with generators for find-first patterns.** Instead of a loop
+  with `break`:
+  ```python
+  # Don't do this:
+  result = None
+  for item in collection:
+      if condition(item):
+          result = item
+          break
+
+  # Do this:
+  result = next((item for item in collection if condition(item)), None)
+  ```
+* **Use `split(',', 1)` over `index(',')` for parsing.** `split` with `maxsplit`
+  is more robust and Pythonic for separating a string into parts:
+  ```python
+  # Don't do this:
+  data = s[s.index(',') + 1:]
+
+  # Do this:
+  _, data = s.split(',', 1)
+  ```
+
+### Async/Sync Correctness
+
+* **Don't mark functions `async` if they contain only synchronous code.** A
+  function that only does `response.read()`, `base64.b64encode()`, etc., should
+  be a regular `def`, not `async def`.
+* **Use `AsyncOpenAI` consistently for async code paths.** New async model
+  classes should use `AsyncOpenAI`, not the synchronous `OpenAI` client.
+* **Never use sync clients for network calls inside `async` methods.** If
+  `list_actions` or `resolve` is `async def`, all network calls within it must
+  use the async client and `await`. A sync call like
+  `self._openai_client.models.list()` blocks the event loop.
+* **Update tests when switching sync→async.** When changing a method to use
+  the async client, update the corresponding test mocks to use `AsyncMock`
+  and patch the `_async_client` attribute instead of the sync one.
+
+### Configuration and State
+
+* **Never mutate `request.config` in-place.** Always `.copy()` the config dict
+  before calling `.pop()` on it to avoid side effects on callers:
+  ```python
+  # Don't do this:
+  config = request.config  # mutates caller's dict!
+  model = config.pop('version', None)
+
+  # Do this:
+  config = request.config.copy()
+  model = config.pop('version', None)
+  ```
+
+### Metadata and Fallbacks
+
+* **Always provide default metadata for dynamically discovered models.** When a
+  model isn't found in a registry, provide sensible defaults (label, supports)
+  rather than returning an empty dict. This ensures all resolved actions have
+  usable metadata.
+
+### Testing Style
+
+* **Use `assert` statements, not `if: pytest.fail()`.** For consistency:
+  ```python
+  # Don't do this:
+  if not isinstance(part, MediaPart):
+      pytest.fail('Expected MediaPart')
+
+  # Do this:
+  assert isinstance(part, MediaPart)
+  ```
+* **Add `assert obj is not None` before accessing optional attributes.** This
+  satisfies type checker null-safety checks and serves as documentation:
+  ```python
+  got = some_function()
+  assert got.message is not None
+  part = got.message.content[0].root
+  ```
+
+### Exports and Organization
+
+* **Keep `__all__` lists sorted alphabetically (case-sensitive).** Uppercase
+  names sort before lowercase (e.g., `'OpenAIModel'` before `'get_default_model_info'`).
+  This makes diffs cleaner and items easier to find.
+
+### Module Dependencies
+
+* **Never import between sibling model modules.** If `image.py` and `audio.py`
+  share utility functions, move the shared code to a `utils.py` in the same
+  package. This avoids creating fragile coupling between otherwise independent
+  model implementations.
+
+### Input Validation and Robustness
+
+* **Validate data URI schemes explicitly.** Don't rely on heuristics like
+  `',' in url` to detect data URIs. Check for known prefixes:
+  ```python
+  # Don't do this:
+  if ',' in url:
+      _, data = url.split(',', 1)
+  else:
+      data = url  # Could be https://... which will crash b64decode
+
+  # Do this:
+  if url.startswith('data:'):
+      _, data = url.split(',', 1)
+      result = base64.b64decode(data)
+  elif url.startswith(('http://', 'https://')):
+      raise ValueError('Remote URLs not supported; provide a data URI')
+  else:
+      result = base64.b64decode(url)  # raw base64 fallback
+  ```
+* **Wrap decode calls in try/except.** `base64.b64decode` and `split` can fail
+  on malformed input. Wrap with descriptive `ValueError`:
+  ```python
+  try:
+      _, b64_data = media_url.split(',', 1)
+      audio_bytes = base64.b64decode(b64_data)
+  except (ValueError, TypeError) as e:
+      raise ValueError('Invalid data URI format') from e
+  ```
+* **Use `TypeAlias` for complex type annotations.** When a type hint is long
+  or repeated, extract a `TypeAlias` for readability:
+  ```python
+  from typing import TypeAlias
+
+  _MultimodalModel: TypeAlias = OpenAIImageModel | OpenAITTSModel | OpenAISTTModel
+  _MultimodalModelConfig: TypeAlias = tuple[type[_MultimodalModel], dict[str, ModelInfo]]
+
+  _MULTIMODAL_CONFIG: dict[_ModelType, _MultimodalModelConfig] = { ... }
+  ```
+* **Use raising helpers and non-raising helpers.** When the same extraction
+  logic is needed in both required and optional contexts, split into two
+  functions — one that returns `None` on failure, and a strict wrapper:
+  ```python
+  def _find_text(request) -> str | None:
+      """Non-raising: returns None if not found."""
+      ...
+
+  def _extract_text(request) -> str:
+      """Raising: delegates to _find_text, raises ValueError on None."""
+      text = _find_text(request)
+      if text is not None:
+          return text
+      raise ValueError('No text content found')
+  ```
+
+### Defensive Action Resolution
+
+* **Guard symmetrically against misrouted action types in `resolve()`.** Apply
+  `_classify_model` checks in both directions — prevent embedders from being
+  resolved as models AND prevent non-embedders from being resolved as embedders:
+  ```python
+  if action_type == ActionKind.EMBEDDER:
+      if _classify_model(name) != _ModelType.EMBEDDER:
+          return None  # Not an embedder name.
+      return self._create_embedder_action(name)
+
+  if action_type == ActionKind.MODEL:
+      model_type = _classify_model(name)
+      if model_type == _ModelType.EMBEDDER:
+          return None  # Embedder name shouldn't create a model action.
+      ...
+  ```
+
+### Code Simplification
+
+* **Collapse multi-branch conditionals into single expressions.** When multiple
+  branches assign a value and fall through to a default:
+  ```python
+  # Don't do this:
+  if custom_format:
+      params['response_format'] = custom_format
+  elif output_format == 'json':
+      params['response_format'] = 'json'
+  elif output_format == 'text':
+      params['response_format'] = 'text'
+  else:
+      params.setdefault('response_format', 'text')
+
+  # Do this:
+  response_format = config.pop('response_format', None)
+  if not response_format and request.output and request.output.format in ('json', 'text'):
+      response_format = request.output.format
+  params['response_format'] = response_format or 'text'
+  ```
+* **Separate find-first from processing.** When using `next()` to find an
+  element and then processing it, keep both steps distinct. Don't combine
+  complex processing logic inside the generator expression:
+  ```python
+  # Do this:
+  part = next(
+      (p for p in content if isinstance(p.root, MediaPart) and p.root.media),
+      None,
+  )
+  if not part:
+      raise ValueError('No media found')
+  media = part.root.media
+  # ... process media ...
+  ```
+* **Avoid `continue` in loops when a simple conditional suffices.** Compute
+  the value first, then conditionally use it:
+  ```python
+  # Don't do this:
+  for image in images:
+      if image.url:
+          url = image.url
+      elif image.b64_json:
+          url = f'data:...;base64,{image.b64_json}'
+      else:
+          continue
+      content.append(...)
+
+  # Do this:
+  for image in images:
+      url = image.url
+      if not url and image.b64_json:
+          url = f'data:...;base64,{image.b64_json}'
+      if url:
+          content.append(...)
+  ```

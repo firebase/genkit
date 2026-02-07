@@ -17,11 +17,14 @@
 
 """Utility functions for OpenAI compatible models."""
 
+import base64
 import json
 from collections.abc import Callable
 from typing import Any
 
 from genkit.types import (
+    GenerateRequest,
+    MediaPart,
     Message,
     Part,
     Role,
@@ -30,6 +33,165 @@ from genkit.types import (
     ToolRequestPart,
     ToolResponsePart,
 )
+
+
+def _find_text(request: GenerateRequest) -> str | None:
+    """Find the first text content from the first message, if any.
+
+    Args:
+        request: The generate request.
+
+    Returns:
+        The text content, or None if no text is found.
+    """
+    if not request.messages:
+        return None
+
+    return next(
+        (part.root.text for part in request.messages[0].content if isinstance(part.root, TextPart) and part.root.text),
+        None,
+    )
+
+
+def _extract_text(request: GenerateRequest) -> str:
+    """Extract text content from the first message.
+
+    Args:
+        request: The generate request.
+
+    Returns:
+        The text content.
+
+    Raises:
+        ValueError: If no text content is found.
+    """
+    text = _find_text(request)
+    if text is not None:
+        return text
+
+    if not request.messages:
+        raise ValueError('No messages found in the request')
+    raise ValueError('No text content found in the first message')
+
+
+def parse_data_uri_content_type(url: str) -> str:
+    """Extract the content type from a data URI.
+
+    Parses the header part of a ``data:`` URI to extract the media type.
+    Handles URIs with and without the ``;base64`` qualifier.
+
+    Args:
+        url: A data URI string (must start with ``data:``).
+
+    Returns:
+        The extracted content type, or an empty string if parsing fails.
+
+    Examples:
+        >>> parse_data_uri_content_type('data:audio/mpeg;base64,AAAA')
+        'audio/mpeg'
+        >>> parse_data_uri_content_type('data:text/plain,hello')
+        'text/plain'
+        >>> parse_data_uri_content_type('data:;base64,AAAA')
+        ''
+    """
+    if not url.startswith('data:'):
+        return ''
+    try:
+        header, _ = url.split(',', 1)
+        media_type_part = header[len('data:') :]
+        return media_type_part.split(';', 1)[0]
+    except ValueError:
+        return ''
+
+
+def decode_data_uri_bytes(url: str) -> bytes:
+    """Decode the payload of a data URI or raw base64 string to bytes.
+
+    Supports three formats:
+    - ``data:`` URIs — extracts and decodes the base64 payload after the comma
+    - Raw base64 strings — decoded directly
+    - Remote URLs (``http://``, ``https://``) — raises ``ValueError``
+
+    Args:
+        url: A data URI, raw base64 string, or URL.
+
+    Returns:
+        The decoded bytes.
+
+    Raises:
+        ValueError: If the URL is a remote URL or contains invalid base64.
+    """
+    if url.startswith('data:'):
+        try:
+            _, b64_data = url.split(',', 1)
+            return base64.b64decode(b64_data)
+        except (ValueError, TypeError) as e:
+            raise ValueError('Invalid data URI format') from e
+
+    if url.startswith(('http://', 'https://')):
+        raise ValueError(f'Remote URLs are not supported; provide a base64 data URI instead: {url[:50]}...')
+
+    try:
+        return base64.b64decode(url)
+    except (ValueError, TypeError) as e:
+        raise ValueError('Invalid base64 data provided in media URL') from e
+
+
+def extract_config_dict(request: GenerateRequest) -> dict[str, Any]:
+    """Extract the config from a GenerateRequest as a mutable dictionary.
+
+    Handles both dict configs and Pydantic model configs uniformly.
+
+    Args:
+        request: The generate request.
+
+    Returns:
+        A mutable copy of the config as a dictionary, or an empty dict.
+    """
+    if not request.config:
+        return {}
+    if isinstance(request.config, dict):
+        return request.config.copy()
+    if hasattr(request.config, 'model_dump'):
+        return request.config.model_dump(exclude_none=True)
+    return {}
+
+
+def _extract_media(request: GenerateRequest) -> tuple[str, str]:
+    """Extract media content from the first message.
+
+    Finds the first part with a MediaPart root and returns its URL and
+    content type. If the content type is missing, attempts to parse it
+    from a data URI.
+
+    Args:
+        request: The generate request.
+
+    Returns:
+        A tuple of (media_url, content_type).
+
+    Raises:
+        ValueError: If no media content is found.
+    """
+    if not request.messages:
+        raise ValueError('No messages found in the request')
+
+    part_with_media = next(
+        (p for p in request.messages[0].content if isinstance(p.root, MediaPart) and p.root.media),
+        None,
+    )
+
+    if not part_with_media:
+        raise ValueError('No media content found in the first message')
+
+    # Re-assert to help type checkers narrow through the generator boundary.
+    assert isinstance(part_with_media.root, MediaPart)
+    media = part_with_media.root.media
+    content_type = media.content_type or ''
+    url = media.url
+    if not content_type and url.startswith('data:'):
+        content_type = parse_data_uri_content_type(url)
+    return url, content_type
 
 
 class DictMessageAdapter:
