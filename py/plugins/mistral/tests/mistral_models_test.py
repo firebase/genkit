@@ -21,10 +21,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from mistralai.models import (
     AssistantMessage,
+    AudioChunk,
     ChatCompletionChoice,
     ChatCompletionResponse,
     FunctionCall,
+    ImageURLChunk,
     SystemMessage,
+    TextChunk,
     ToolCall,
     ToolMessage,
     UsageInfo,
@@ -33,6 +36,8 @@ from mistralai.models import (
 
 from genkit.core.typing import (
     GenerateRequest,
+    Media,
+    MediaPart,
     Message,
     Part,
     Role,
@@ -357,3 +362,91 @@ def test_to_generate_fn(model: MistralModel) -> None:
     fn = model.to_generate_fn()
     assert callable(fn)
     assert fn == model.generate
+
+
+def test_convert_messages_with_image_url(model: MistralModel) -> None:
+    """Test converting messages with image media parts uses ImageURLChunk."""
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(
+                    root=MediaPart(
+                        media=Media(
+                            url='https://example.com/photo.jpg',
+                            content_type='image/jpeg',
+                        )
+                    )
+                ),
+                Part(root=TextPart(text='Describe this image.')),
+            ],
+        ),
+    ]
+
+    mistral_messages = model._convert_messages(messages)
+
+    assert len(mistral_messages) == 1
+    msg = mistral_messages[0]
+    assert isinstance(msg, UserMessage)
+    # Multimodal: content should be a list of chunks, not a string.
+    content = msg.content
+    assert isinstance(content, list)
+    assert len(content) == 2
+    assert isinstance(content[0], ImageURLChunk)
+    assert content[0].image_url == 'https://example.com/photo.jpg'
+    assert isinstance(content[1], TextChunk)
+    assert content[1].text == 'Describe this image.'
+
+
+def test_convert_messages_with_audio_data_uri(model: MistralModel) -> None:
+    """Test converting messages with audio data URIs uses AudioChunk."""
+    audio_b64 = 'SGVsbG8gV29ybGQ='
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(
+                    root=MediaPart(
+                        media=Media(
+                            url=f'data:audio/mp3;base64,{audio_b64}',
+                            content_type='audio/mp3',
+                        )
+                    )
+                ),
+                Part(root=TextPart(text='What is in this audio?')),
+            ],
+        ),
+    ]
+
+    mistral_messages = model._convert_messages(messages)
+
+    assert len(mistral_messages) == 1
+    msg = mistral_messages[0]
+    assert isinstance(msg, UserMessage)
+    content = msg.content
+    assert isinstance(content, list)
+    assert len(content) == 2
+    assert isinstance(content[0], AudioChunk)
+    # Data URI prefix should be stripped — only base64 payload goes to Mistral.
+    assert content[0].input_audio == audio_b64
+    assert isinstance(content[1], TextChunk)
+    assert content[1].text == 'What is in this audio?'
+
+
+def test_convert_messages_text_only_stays_string(model: MistralModel) -> None:
+    """Text-only user messages should use a plain string, not a list."""
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[Part(root=TextPart(text='Just text, no media.'))],
+        ),
+    ]
+
+    mistral_messages = model._convert_messages(messages)
+
+    assert len(mistral_messages) == 1
+    msg = mistral_messages[0]
+    assert isinstance(msg, UserMessage)
+    # No media means plain string content.
+    assert isinstance(msg.content, str)
+    assert msg.content == 'Just text, no media.'

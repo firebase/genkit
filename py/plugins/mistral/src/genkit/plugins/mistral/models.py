@@ -18,6 +18,13 @@
 
 This module provides the model implementation for Mistral AI,
 converting between Genkit and Mistral SDK formats.
+
+Supports multimodal content including text, images (via ImageURLChunk),
+and audio input (via AudioChunk) for Voxtral models.
+
+See:
+    - https://docs.mistral.ai/capabilities/vision/
+    - https://docs.mistral.ai/capabilities/audio_transcription
 """
 
 import json
@@ -27,12 +34,14 @@ from typing import Any
 from mistralai import Mistral as MistralClient
 from mistralai.models import (
     AssistantMessage,
+    AudioChunk,
     ChatCompletionChoice,
     ChatCompletionResponse,
     CompletionChunk,
     CompletionEvent,
     Function,
     FunctionCall,
+    ImageURLChunk,
     SystemMessage,
     TextChunk,
     Tool,
@@ -49,6 +58,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
+    MediaPart,
     Message,
     OutputConfig,
     Part,
@@ -149,16 +159,31 @@ class MistralModel:
         mistral_messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage] = []
 
         for msg in messages:
-            content_parts: list[str] = []
+            text_parts: list[str] = []
+            media_chunks: list[TextChunk | ImageURLChunk | AudioChunk] = []
+            has_media = False
             tool_calls: list[ToolCall] = []
             tool_responses: list[tuple[str, str, str]] = []  # (ref, name, output)
 
             for part in msg.content:
                 part_root = part.root
                 if isinstance(part_root, TextPart):
-                    content_parts.append(part_root.text)
+                    text_parts.append(part_root.text)
+                    media_chunks.append(TextChunk(text=part_root.text))
+                elif isinstance(part_root, MediaPart):
+                    has_media = True
+                    media = part_root.media
+                    content_type = media.content_type or ''
+                    url = media.url
+                    if content_type.startswith('audio/'):
+                        # Audio input for Voxtral models — expects base64 data.
+                        # Strip the data URI prefix if present.
+                        audio_data = url.split(',', 1)[-1] if url.startswith('data:') else url
+                        media_chunks.append(AudioChunk(input_audio=audio_data))
+                    else:
+                        # Image input for vision models.
+                        media_chunks.append(ImageURLChunk(image_url=url))
                 elif isinstance(part_root, ToolRequestPart):
-                    # Convert Genkit ToolRequest to Mistral ToolCall
                     tool_req = part_root.tool_request
                     tool_calls.append(
                         ToolCall(
@@ -171,7 +196,6 @@ class MistralModel:
                         )
                     )
                 elif isinstance(part_root, ToolResponsePart):
-                    # Collect tool responses to add as ToolMessage
                     tool_resp = part_root.tool_response
                     output = tool_resp.output
                     if isinstance(output, dict):
@@ -180,22 +204,24 @@ class MistralModel:
                         output_str = str(output) if output is not None else ''
                     tool_responses.append((tool_resp.ref or '', tool_resp.name or '', output_str))
 
-            content = '\n'.join(content_parts) if content_parts else ''
+            content_str = '\n'.join(text_parts) if text_parts else ''
 
             if msg.role == Role.SYSTEM:
-                mistral_messages.append(SystemMessage(content=content))
+                mistral_messages.append(SystemMessage(content=content_str))
             elif msg.role == Role.USER:
-                mistral_messages.append(UserMessage(content=content))
+                if has_media:
+                    # Multimodal: use content list with typed chunks.
+                    mistral_messages.append(UserMessage(content=media_chunks))  # type: ignore[arg-type]
+                else:
+                    mistral_messages.append(UserMessage(content=content_str))
             elif msg.role == Role.MODEL:
-                # Assistant message may have text and/or tool calls
                 if tool_calls:
                     mistral_messages.append(
-                        AssistantMessage(content=content if content else None, tool_calls=tool_calls)
+                        AssistantMessage(content=content_str if content_str else None, tool_calls=tool_calls)
                     )
                 else:
-                    mistral_messages.append(AssistantMessage(content=content))
+                    mistral_messages.append(AssistantMessage(content=content_str))
             elif msg.role == Role.TOOL:
-                # Tool responses become ToolMessage
                 for ref, name, output_str in tool_responses:
                     mistral_messages.append(ToolMessage(tool_call_id=ref, name=name, content=output_str))
 
