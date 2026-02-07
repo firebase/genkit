@@ -1,9 +1,10 @@
 # Model Conformance Testing Plan for Python Plugins
 
-> **Status:** Draft  
-> **Date:** 2026-02-06  
+> **Status:** Infrastructure Complete (P0–P2 done, P3 pending manual validation)  
+> **Date:** 2026-02-06 (updated)  
 > **Owner:** Python Genkit Team  
-> **Scope:** Phase 1 covers google-genai, anthropic, and compat-oai (OpenAI)
+> **Scope:** Phase 1 covers google-genai, anthropic, and compat-oai (OpenAI).  
+>   All 10 plugins have entry points and specs (Phase 2 plugins included early).
 
 ---
 
@@ -68,7 +69,7 @@ We need to:
 |--------|-------------|-----------|---------------|--------|----------------|---------------|
 | **google-genai** | In-repo `js/plugins/google-genai/` | 24 (Gemini, TTS, Gemini-Image, Gemma, Imagen, Veo) | 23+ (same families) | **Partial** | Imagen under `googleai/` prefix (only registered under `vertexai/`) | More legacy Gemini preview versions |
 | **anthropic** | In-repo `js/plugins/anthropic/` | 8 (Claude 3-haiku through opus-4-5) | 8 (identical list and capabilities) | **Full** | None | None |
-| **compat-oai** | In-repo `js/plugins/compat-oai/` | 49 (30 chat, 2 image gen, 3 TTS, 3 STT, 3 embed, 2 DeepSeek, 6 xAI) | 25+ (22+ chat, 3 embed) | **Partial** | Image gen (dall-e-3, gpt-image-1), TTS, STT, Vision (gpt-4-vision*), gpt-4-32k | DeepSeek/xAI split into dedicated plugins |
+| **compat-oai** | In-repo `js/plugins/compat-oai/` | 49 (30 chat, 2 image gen, 3 TTS, 3 STT, 3 embed, 2 DeepSeek, 6 xAI) | 30+ (22+ chat, 2 image gen, 3 TTS, 3 STT, 3 embed) | **Full** | Vision (gpt-4-vision*), gpt-4-32k (older models) | DeepSeek/xAI split into dedicated plugins |
 | **ollama** | In-repo `js/plugins/ollama/` | Dynamic discovery | Dynamic discovery | **Full** | Cosmetic: JS declares `media=true`, `toolChoice=true`; Python omits | Python declares `output=['text','json']` |
 | **amazon-bedrock** | External [aws-bedrock-js-plugin][bedrock-js] | ~35 (Amazon, Claude 2-3.7, Cohere, Mistral, AI21, Llama) | 50+ (all JS models included) | **Python superset** | None | DeepSeek, Gemma, NVIDIA, Qwen, Writer, Moonshot, newer Claude 4.x |
 | **microsoft-foundry** | External [azure-foundry-js-plugin][foundry-js] | ~32 chat + DALL-E + TTS + Whisper + embed | 30+ chat + embed + dynamic catalog | **Partial** | DALL-E image gen, TTS, Whisper STT | Claude, DeepSeek, Grok, Llama, Mistral; dynamic Azure catalog (11k+ models) |
@@ -91,9 +92,9 @@ We need to:
 | Priority | Plugin | Gap | Impact | Fix Effort |
 |----------|--------|-----|--------|------------|
 | **HIGH** | google-genai | Imagen under `googleai/` prefix | Blocks spec symlink for conformance tests | Low (~20 lines in `google.py`) |
-| **MEDIUM** | compat-oai | Image gen (dall-e-3, gpt-image-1) | Missing feature category | Medium (new handler) |
-| **MEDIUM** | compat-oai | TTS (tts-1, tts-1-hd, gpt-4o-mini-tts) | Missing feature category | Medium (new handler) |
-| **MEDIUM** | compat-oai | STT (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe) | Missing feature category | Medium (new handler) |
+| ~~MEDIUM~~ | compat-oai | ~~Image gen (dall-e-3, gpt-image-1)~~ | ✅ Done (PR #4477) | -- |
+| ~~MEDIUM~~ | compat-oai | ~~TTS (tts-1, tts-1-hd, gpt-4o-mini-tts)~~ | ✅ Done (PR #4477) | -- |
+| ~~MEDIUM~~ | compat-oai | ~~STT (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)~~ | ✅ Done (PR #4477) | -- |
 | **MEDIUM** | microsoft-foundry | DALL-E, TTS, Whisper | Mirrors compat-oai gaps | Medium |
 | **LOW** | xai | Image gen (grok-2-image-1212) | Single model missing | Medium (new handler) |
 | **LOW** | compat-oai | Vision models (gpt-4-vision*), gpt-4-32k | Older models, multimodal works via gpt-4o | Low (add model defs) |
@@ -160,37 +161,37 @@ phase are independent and should run in parallel** for fastest completion.
 **Critical path:** `fix-imagen-gap` -> `symlink-gemini-spec` -> `runner-script`
 -> `validate-google-genai`
 
-### Phase 0: Leaves (no dependencies -- start here)
+### Phase 0: Leaves ✅ COMPLETE
 
-| Task | Description | File(s) | Effort |
-|------|-------------|---------|--------|
-| `fix-imagen-gap` | Add `googleai/` Imagen support to Python google-genai plugin (`GoogleAI.init`, `_resolve_model`, `list_actions`) | `py/plugins/google-genai/src/genkit/plugins/google_genai/google.py` | Low (~20 lines) |
-| `setup-dir` | Create `py/tests/conformance/` directory tree with subdirectories for each Phase 1 plugin | `py/tests/conformance/{google-genai,anthropic,compat-oai}/` | Trivial |
+| Task | Description | File(s) | Effort | Status |
+|------|-------------|---------|--------|--------|
+| `fix-imagen-gap` | GoogleAI already registers Imagen under `googleai/` (verified in code) | `google.py` lines 378-380, 523-527, 596-601 | N/A | ✅ Already done |
+| `setup-dir` | Created `py/tests/conformance/` with dirs for all 10 plugins | `py/tests/conformance/{google-genai,anthropic,compat-oai,...}/` | Trivial | ✅ Done |
 
 **Parallelizable:** Yes, both tasks are independent.
 
-### Phase 1: Specs + Entry Points (depends on Phase 0)
+### Phase 1: Specs + Entry Points ✅ COMPLETE
 
-| Task | Description | Depends On | File(s) |
-|------|-------------|------------|---------|
-| `symlink-gemini-spec` | Symlink JS spec into conformance dir | `fix-imagen-gap`, `setup-dir` | `py/tests/conformance/google-genai/model-conformance.yaml` -> `js/plugins/google-genai/tests/model-tests-tts.yaml` |
-| `entry-google-genai` | Create minimal google-genai entry point | `fix-imagen-gap`, `setup-dir` | `py/tests/conformance/google-genai/conformance_entry.py` |
-| `spec-anthropic` | Create anthropic entry point + YAML spec (claude-sonnet-4, claude-haiku-4-5) | `setup-dir` | `py/tests/conformance/anthropic/{conformance_entry.py,model-conformance.yaml}` |
-| `spec-compat-oai` | Create compat-oai entry point + YAML spec (gpt-4o, gpt-4o-mini) | `setup-dir` | `py/tests/conformance/compat-oai/{conformance_entry.py,model-conformance.yaml}` |
+| Task | Description | Depends On | File(s) | Status |
+|------|-------------|------------|---------|--------|
+| `symlink-gemini-spec` | Symlinked JS spec into conformance dir | P0 | `google-genai/model-conformance.yaml` → JS spec | ✅ Done |
+| `entry-google-genai` | Minimal google-genai entry point | P0 | `google-genai/conformance_entry.py` | ✅ Done |
+| `spec-anthropic` | Anthropic entry point + YAML spec | P0 | `anthropic/{conformance_entry.py,model-conformance.yaml}` | ✅ Done |
+| `spec-compat-oai` | compat-oai entry point + YAML spec (gpt-4o, gpt-4o-mini, dall-e-3, tts-1) | P0 | `compat-oai/{conformance_entry.py,model-conformance.yaml}` | ✅ Done (updated with multimodal, PR #4477) |
 
-**Parallelizable:** Yes, all four tasks are independent once Phase 0 is done.
+**Note:** All 10 plugins (including Phase 2 plugins) have entry points and specs.
 
-### Phase 2: Orchestration (depends on Phase 1)
+### Phase 2: Orchestration ✅ COMPLETE
 
-| Task | Description | Depends On | File(s) |
-|------|-------------|------------|---------|
-| `runner-script` | Create shell script to orchestrate per-plugin conformance test runs | All Phase 1 tasks | `py/bin/test-model-conformance` |
+| Task | Description | Depends On | File(s) | Status |
+|------|-------------|------------|---------|--------|
+| `runner-script` | Shell script to orchestrate per-plugin conformance test runs | All Phase 1 tasks | `py/bin/test-model-conformance` | ✅ Done |
 
-### Phase 3: Validation (depends on Phase 2)
+### Phase 3: Validation ⏳ PENDING
 
-| Task | Description | Depends On | File(s) |
-|------|-------------|------------|---------|
-| `validate-google-genai` | Manual end-to-end validation with live API via `genkit dev:test-model` | `runner-script` | -- (manual run) |
+| Task | Description | Depends On | File(s) | Status |
+|------|-------------|------------|---------|--------|
+| `validate-google-genai` | Manual end-to-end validation with live API via `genkit dev:test-model` | `runner-script` | -- (manual run) | ⏳ Not yet run |
 
 ### Execution Timeline
 
