@@ -142,7 +142,7 @@ Supported Models:
 
 Supported Embedders:
     - mistral-embed: 1024-dimensional text embeddings for RAG and search
-    - codestral-embed-latest: Code-specific embeddings
+    - codestral-embed-2505: Code-specific embeddings
 
 Example:
     ```python

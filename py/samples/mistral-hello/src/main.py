@@ -471,7 +471,7 @@ async def code_embed_flow(input: CodeEmbedInput) -> list[float]:
     """
     doc = Document.from_text(input.code)
     embeddings = await ai.embed(
-        embedder=mistral_name('codestral-embed-latest'),
+        embedder=mistral_name('codestral-embed-2505'),
         content=doc,
     )
     return embeddings[0].embedding

@@ -47,7 +47,7 @@ SUPPORTED_EMBEDDING_MODELS: dict[str, dict[str, Any]] = {
         'dimensions': 1024,
         'supports': {'input': ['text']},
     },
-    'codestral-embed-latest': {
+    'codestral-embed-2505': {
         'label': 'Mistral AI - Codestral Embed',
         'dimensions': 1024,
         'supports': {'input': ['text']},

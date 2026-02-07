@@ -149,14 +149,14 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['codestral-latest', 'codestral-2508'],
         supports=_CODE_MODEL_SUPPORTS,
     ),
-    # Devstral 2 — frontier code agent model for SWE tasks.
+    # Devstral 2 — frontier code agent model for SWE tasks (123B dense).
     # https://docs.mistral.ai/models/devstral-2-25-12
-    'devstral-large-latest': ModelInfo(
+    'devstral-latest': ModelInfo(
         label='Mistral AI - Devstral 2 (Code Agent)',
-        versions=['devstral-large-latest', 'devstral-large-2512'],
+        versions=['devstral-latest', 'devstral-2512'],
         supports=_CODE_MODEL_SUPPORTS,
     ),
-    # Devstral Small 2 — smaller code agent model.
+    # Devstral Small 2 — smaller code agent model (24B, Labs).
     'devstral-small-latest': ModelInfo(
         label='Mistral AI - Devstral Small 2 (Code Agent)',
         versions=['devstral-small-latest', 'devstral-small-2512'],
@@ -190,10 +190,11 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         supports=_EMBEDDING_SUPPORTS,
     ),
     # Codestral Embed — semantic code embeddings.
+    # No -latest alias; use the dated version directly.
     # https://docs.mistral.ai/models/codestral-embed-25-05
-    'codestral-embed-latest': ModelInfo(
+    'codestral-embed-2505': ModelInfo(
         label='Mistral AI - Codestral Embed',
-        versions=['codestral-embed-latest', 'codestral-embed-2505'],
+        versions=['codestral-embed-2505'],
         supports=_EMBEDDING_SUPPORTS,
     ),
     # =========================================================================
