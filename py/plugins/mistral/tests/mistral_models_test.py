@@ -28,6 +28,7 @@ from mistralai.models import (
     ImageURLChunk,
     SystemMessage,
     TextChunk,
+    ThinkChunk,
     ToolCall,
     ToolMessage,
     UsageInfo,
@@ -48,7 +49,7 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.plugins.mistral.models import MistralModel
+from genkit.plugins.mistral.models import MistralModel, _extract_text
 
 
 @pytest.fixture
@@ -450,3 +451,67 @@ def test_convert_messages_text_only_stays_string(model: MistralModel) -> None:
     # No media means plain string content.
     assert isinstance(msg.content, str)
     assert msg.content == 'Just text, no media.'
+
+
+def test_extract_text_from_string() -> None:
+    """_extract_text returns plain strings unchanged."""
+    assert _extract_text('hello') == 'hello'
+
+
+def test_extract_text_from_text_chunk() -> None:
+    """_extract_text extracts text from a TextChunk."""
+    assert _extract_text(TextChunk(text='hello')) == 'hello'
+
+
+def test_extract_text_from_think_chunk() -> None:
+    """_extract_text extracts text from ThinkChunk thinking fragments."""
+    chunk = ThinkChunk(thinking=[TextChunk(text='Let '), TextChunk(text='me think')])
+    assert _extract_text(chunk) == 'Let me think'
+
+
+def test_extract_text_from_list() -> None:
+    """_extract_text handles mixed lists of TextChunk and ThinkChunk."""
+    items = [
+        ThinkChunk(thinking=[TextChunk(text='reasoning ')]),
+        TextChunk(text='answer'),
+    ]
+    assert _extract_text(items) == 'reasoning answer'
+
+
+def test_extract_text_from_unknown_type() -> None:
+    """_extract_text returns empty string for unrecognised types."""
+    assert _extract_text(42) == ''
+
+
+def test_convert_response_with_think_chunks(model: MistralModel) -> None:
+    """Test _convert_response extracts text from ThinkChunk content.
+
+    Magistral reasoning models return a list of ThinkChunk + TextChunk
+    instead of a plain string.
+    """
+    response = ChatCompletionResponse(
+        id='test-id',
+        object='chat.completion',
+        created=1234567890,
+        model='magistral-small-latest',
+        choices=[
+            ChatCompletionChoice(
+                index=0,
+                message=AssistantMessage(
+                    content=[
+                        ThinkChunk(thinking=[TextChunk(text='Let me think.')]),
+                        TextChunk(text='The answer is 42.'),
+                    ],
+                ),
+                finish_reason='stop',
+            )
+        ],
+        usage=UsageInfo(prompt_tokens=10, completion_tokens=20, total_tokens=30),
+    )
+
+    result = model._convert_response(response)
+
+    assert result.message is not None
+    assert len(result.message.content) == 2
+    assert result.message.content[0].root.text == 'Let me think.'
+    assert result.message.content[1].root.text == 'The answer is 42.'

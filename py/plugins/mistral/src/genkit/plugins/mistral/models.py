@@ -44,6 +44,7 @@ from mistralai.models import (
     ImageURLChunk,
     SystemMessage,
     TextChunk,
+    ThinkChunk,
     Tool,
     ToolCall,
     ToolMessage,
@@ -87,6 +88,32 @@ def mistral_name(name: str) -> str:
         The fully qualified Mistral action name.
     """
     return f'{MISTRAL_PLUGIN_NAME}/{name}'
+
+
+def _extract_text(content: object) -> str:
+    """Extract text from a Mistral delta content value.
+
+    Handles plain strings, TextChunk, ThinkChunk (Magistral reasoning),
+    and lists of mixed ContentChunk items.
+
+    Args:
+        content: The delta content — may be str, TextChunk, ThinkChunk,
+            or a list of ContentChunk items.
+
+    Returns:
+        Concatenated text extracted from the content.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, TextChunk):
+        return content.text
+    if isinstance(content, ThinkChunk):
+        return ''.join(
+            tp.text for tp in content.thinking if isinstance(tp, TextChunk)
+        )
+    if isinstance(content, list):
+        return ''.join(_extract_text(item) for item in content)
+    return ''
 
 
 class MistralConfig(BaseModel):
@@ -240,15 +267,19 @@ class MistralModel:
         content: list[Part] = []
 
         if choice.message.content:
-            # Handle string or list content
+            # Handle string or list content (may include ThinkChunk from
+            # Magistral reasoning models alongside regular TextChunks).
             msg_content = choice.message.content
             if isinstance(msg_content, str):
                 content.append(Part(root=TextPart(text=msg_content)))
             elif isinstance(msg_content, list):
-                # Extract text from content chunks
                 for chunk in msg_content:
                     if isinstance(chunk, TextChunk):
                         content.append(Part(root=TextPart(text=chunk.text)))
+                    elif isinstance(chunk, ThinkChunk):
+                        for thinking_part in chunk.thinking:
+                            if isinstance(thinking_part, TextChunk):
+                                content.append(Part(root=TextPart(text=thinking_part.text)))
 
         # Handle tool calls in the response
         if choice.message.tool_calls:
@@ -450,20 +481,19 @@ class MistralModel:
             if chunk.choices:
                 choice = chunk.choices[0]
 
-                # Handle text content
+                # Handle text content (may be str, TextChunk, ThinkChunk,
+                # or a list of ContentChunks from Magistral reasoning models).
                 if choice.delta and choice.delta.content:
-                    content = choice.delta.content
-                    # Handle TextChunk or string
-                    text = content.text if isinstance(content, TextChunk) else str(content)
-                    full_text += text
-
-                    # Send chunk to client
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            content=[Part(root=TextPart(text=text))],
+                    delta_content = choice.delta.content
+                    text = _extract_text(delta_content)
+                    if text:
+                        full_text += text
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                content=[Part(root=TextPart(text=text))],
+                            )
                         )
-                    )
 
                 # Handle tool calls in streaming
                 if choice.delta and choice.delta.tool_calls:
