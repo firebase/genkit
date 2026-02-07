@@ -157,7 +157,7 @@ class ImageInput(BaseModel):
     """Input for image description flow."""
 
     image_url: str = Field(
-        default='https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/300px-PNG_transparency_demonstration_1.png',
+        default='https://picsum.photos/id/237/400/300',
         description='URL of the image to describe',
     )
 
