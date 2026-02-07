@@ -63,6 +63,7 @@ Key Features
 | Multi-turn Chat                         | `chat_flow`                             |
 | Tool Calling                            | `weather_flow`                          |
 | Structured Output (JSON)                | `generate_character`                    |
+| Embeddings                              | `embed_flow`                            |
 """
 
 import asyncio
@@ -73,6 +74,7 @@ from pydantic import BaseModel, Field
 from rich.traceback import install as install_rich_traceback
 
 from genkit.ai import Genkit, Output
+from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.core.typing import Message, Part, Role, TextPart, ToolChoice
@@ -131,6 +133,12 @@ class CharacterInput(BaseModel):
     """Input for character generation."""
 
     name: str = Field(default='Whiskers', description='Character name')
+
+
+class EmbedInput(BaseModel):
+    """Input for embedding flow."""
+
+    text: str = Field(default='Artificial intelligence is transforming the world.', description='Text to embed')
 
 
 class Skills(BaseModel):
@@ -391,6 +399,30 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
         output=Output(schema=RpgCharacter),
     )
     return result.output
+
+
+@ai.flow()
+async def embed_flow(input: EmbedInput) -> list[float]:
+    """Generate embeddings for text using Mistral's mistral-embed model.
+
+    Embeddings are dense vector representations of text, useful for:
+    - Semantic search: find documents similar to a query
+    - Clustering: group similar documents together
+    - RAG: retrieve relevant context for generation
+
+    Args:
+        input: Input with text to embed.
+
+    Returns:
+        The embedding vector (list of floats).
+    """
+    doc = Document.from_text(input.text)
+    embeddings = await ai.embed(
+        embedder=mistral_name('mistral-embed'),
+        content=doc,
+    )
+    # Return the first embedding vector.
+    return embeddings[0].embedding
 
 
 async def main() -> None:

@@ -64,7 +64,10 @@ genkit start -- uv run src/main.py
 5. **Test chat**:
    - [ ] `chat_flow` - Multi-turn conversation
 
-6. **Expected behavior**:
+6. **Test embeddings**:
+   - [ ] `embed_flow` - Generate embeddings using mistral-embed
+
+7. **Expected behavior**:
    - mistral-small: Fast, capable responses
    - mistral-large: More detailed, nuanced responses
    - codestral: High-quality code generation
@@ -78,3 +81,4 @@ genkit start -- uv run src/main.py
 | `codestral-latest` | Code generation and explanation |
 | `pixtral-large-latest` | Vision tasks (image understanding) |
 | `ministral-8b-latest` | Edge deployment, resource-constrained |
+| `mistral-embed` | Text embeddings for search and RAG |
