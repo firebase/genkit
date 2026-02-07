@@ -26,7 +26,11 @@ from genkit.types import (
     GenerateRequest,
     GenerateResponseChunk,
     GenerationCommonConfig,
+    Media,
+    MediaPart,
     Message,
+    Metadata,
+    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -187,8 +191,6 @@ def test_to_anthropic_messages() -> None:
 class MockStreamManager:
     """Mock stream manager for testing Anthropic streaming."""
 
-    """Mock stream manager for testing streaming."""
-
     def __init__(self, chunks: list[Any], final_content: list[Any] | None = None) -> None:
         """Initialize the MockStreamManager."""
         self.chunks = chunks
@@ -241,7 +243,7 @@ async def test_streaming_generation() -> None:
 
     ctx = MagicMock()
     ctx.is_streaming = True
-    collected_chunks = []
+    collected_chunks: list[GenerateResponseChunk] = []
 
     def send_chunk(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk)
@@ -274,3 +276,241 @@ async def test_streaming_generation() -> None:
     assert isinstance(final_part, Part)
     assert isinstance(final_part.root, TextPart)
     assert final_part.root.text == 'Hello world!'
+
+
+# ---------------------------------------------------------------------------
+# Cache control tests
+# ---------------------------------------------------------------------------
+
+
+def test_cache_control_on_text_block() -> None:
+    """Test that cache_control metadata is forwarded to Anthropic blocks."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(root=TextPart(text='Cached context', metadata=Metadata({'cache_control': {'type': 'ephemeral'}}))),
+                Part(root=TextPart(text='Question about the context')),
+            ],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+
+    assert len(anthropic_messages) == 1
+    blocks = anthropic_messages[0]['content']
+    assert len(blocks) == 2
+
+    # First block should have cache_control.
+    assert blocks[0]['type'] == 'text'
+    assert blocks[0]['text'] == 'Cached context'
+    assert blocks[0]['cache_control'] == {'type': 'ephemeral'}
+
+    # Second block should not have cache_control.
+    assert blocks[1]['type'] == 'text'
+    assert 'cache_control' not in blocks[1]
+
+
+def test_cache_control_not_applied_without_metadata() -> None:
+    """Test that no cache_control is applied when metadata is absent."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[Part(root=TextPart(text='No cache'))],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+    blocks = anthropic_messages[0]['content']
+    assert 'cache_control' not in blocks[0]
+
+
+@pytest.mark.asyncio
+async def test_cache_token_tracking_in_usage() -> None:
+    """Test that cache creation/read tokens are included in usage."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(type='text', text='Cached response')]
+    mock_response.usage = MagicMock(
+        input_tokens=100,
+        output_tokens=50,
+        cache_creation_input_tokens=80,
+        cache_read_input_tokens=20,
+    )
+    mock_response.stop_reason = 'end_turn'
+
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
+    )
+
+    response = await model.generate(request)
+
+    assert response.usage is not None
+    assert response.usage.input_tokens == 100
+    assert response.usage.output_tokens == 50
+    assert response.usage.custom is not None
+    assert response.usage.custom['cache_creation_input_tokens'] == 80
+    assert response.usage.custom['cache_read_input_tokens'] == 20
+
+
+@pytest.mark.asyncio
+async def test_no_cache_tokens_when_caching_not_used() -> None:
+    """Test that custom is None when no cache tokens are present."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(type='text', text='Response')]
+    mock_response.usage = MagicMock(input_tokens=10, output_tokens=5)
+    mock_response.stop_reason = 'end_turn'
+    # Simulate no cache attributes.
+    del mock_response.usage.cache_creation_input_tokens
+    del mock_response.usage.cache_read_input_tokens
+
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
+    )
+
+    response = await model.generate(request)
+    assert response.usage is not None
+    assert response.usage.custom is None
+
+
+# ---------------------------------------------------------------------------
+# PDF / Document support tests
+# ---------------------------------------------------------------------------
+
+
+def test_pdf_base64_becomes_document_block() -> None:
+    """Test that a base64 PDF MediaPart converts to Anthropic document block."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    pdf_data = 'data:application/pdf;base64,JVBERi0xLjQ='
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(root=MediaPart(media=Media(url=pdf_data, content_type='application/pdf'))),
+                Part(root=TextPart(text='Summarize this PDF')),
+            ],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+    blocks = anthropic_messages[0]['content']
+
+    assert blocks[0]['type'] == 'document'
+    assert blocks[0]['source']['type'] == 'base64'
+    assert blocks[0]['source']['media_type'] == 'application/pdf'
+    assert blocks[0]['source']['data'] == 'JVBERi0xLjQ='
+
+    assert blocks[1]['type'] == 'text'
+    assert blocks[1]['text'] == 'Summarize this PDF'
+
+
+def test_pdf_url_becomes_document_block() -> None:
+    """Test that a URL-based PDF converts to Anthropic document block."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(
+                    root=MediaPart(
+                        media=Media(
+                            url='https://example.com/doc.pdf',
+                            content_type='application/pdf',
+                        )
+                    )
+                ),
+            ],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+    blocks = anthropic_messages[0]['content']
+
+    assert blocks[0]['type'] == 'document'
+    assert blocks[0]['source']['type'] == 'url'
+    assert blocks[0]['source']['url'] == 'https://example.com/doc.pdf'
+
+
+def test_image_still_works() -> None:
+    """Test that non-document images still produce image blocks."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(root=MediaPart(media=Media(url='https://example.com/cat.jpg', content_type='image/jpeg'))),
+            ],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+    blocks = anthropic_messages[0]['content']
+
+    assert blocks[0]['type'] == 'image'
+    assert blocks[0]['source']['type'] == 'url'
+
+
+def test_pdf_with_cache_control() -> None:
+    """Test that cache_control can be applied to document blocks."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    pdf_data = 'data:application/pdf;base64,JVBERi0xLjQ='
+    messages = [
+        Message(
+            role=Role.USER,
+            content=[
+                Part(
+                    root=MediaPart(
+                        media=Media(url=pdf_data, content_type='application/pdf'),
+                        metadata=Metadata({'cache_control': {'type': 'ephemeral'}}),
+                    )
+                ),
+            ],
+        ),
+    ]
+
+    anthropic_messages = model._to_anthropic_messages(messages)
+    blocks = anthropic_messages[0]['content']
+
+    assert blocks[0]['type'] == 'document'
+    assert blocks[0]['cache_control'] == {'type': 'ephemeral'}
+
+
+def test_structured_output_injects_json_instruction() -> None:
+    """Test that JSON schema is injected into system prompt when output format is JSON."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
+        output=OutputConfig(
+            format='json',
+            schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
+        ),
+    )
+
+    params = model._build_params(request)
+
+    assert 'system' in params
+    assert 'Output valid JSON matching this schema' in params['system']
+    assert '"name":' in params['system']

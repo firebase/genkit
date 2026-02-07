@@ -63,6 +63,8 @@ Key Features
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
 | Thinking (CoT)                          | `thinking_demo`                     |
 | Multimodal (Image Input)                | `describe_image`                    |
+| Prompt Caching                          | `cached_generation`                 |
+| PDF Document Input                      | `analyze_pdf`                       |
 """
 
 import asyncio
@@ -76,7 +78,7 @@ from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import GenerationCommonConfig, Media, MediaPart, Part, TextPart
+from genkit.types import GenerationCommonConfig, Media, MediaPart, Message, Metadata, Part, Role, TextPart
 
 install_rich_traceback(show_locals=True, width=120, extra_lines=3)
 
@@ -347,6 +349,95 @@ async def weather_flow(input: WeatherFlowInput) -> str:
     response = await ai.generate(
         prompt=f'What is the weather in {input.location}?',
         tools=['get_weather'],
+    )
+    return response.text
+
+
+class CacheInput(BaseModel):
+    """Input for prompt caching demo."""
+
+    question: str = Field(default='What are the key themes?', description='Question about the cached text')
+
+
+class PdfInput(BaseModel):
+    """Input for PDF analysis demo."""
+
+    pdf_url: str = Field(
+        # Public domain sample PDF.
+        default='https://pdfobject.com/pdf/sample.pdf',
+        description='URL of the PDF to analyze',
+    )
+    question: str = Field(default='Describe the contents of this document.', description='Question about the PDF')
+
+
+@ai.flow()
+async def cached_generation(input: CacheInput) -> str:
+    """Demonstrate Anthropic prompt caching.
+
+    Prompt caching lets Anthropic cache large context blocks across requests,
+    reducing latency and cost for repeated prompts with shared prefixes.
+
+    Set ``cache_control`` metadata on any content part to mark it as a
+    cache breakpoint. Anthropic will cache everything up to and including
+    that part.
+
+    See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+
+    Args:
+        input: Input with question about the cached context.
+
+    Returns:
+        Model response leveraging cached context.
+    """
+    # The long context is marked with cache_control metadata.
+    # On subsequent calls with the same prefix, Anthropic reuses the cache.
+    long_context = (
+        'The Genkit framework provides a unified interface for working with '
+        'generative AI models across multiple providers. It supports flows, '
+        'tools, structured output, streaming, and advanced features like '
+        'prompt caching and document input. ' * 10
+    )
+    response = await ai.generate(
+        model=anthropic_name('claude-3-5-haiku'),
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(
+                        root=TextPart(
+                            text=long_context,
+                            metadata=Metadata({'cache_control': {'type': 'ephemeral'}}),
+                        )
+                    ),
+                    Part(root=TextPart(text=input.question)),
+                ],
+            ),
+        ],
+    )
+    return response.text
+
+
+@ai.flow()
+async def analyze_pdf(input: PdfInput) -> str:
+    """Analyze a PDF document using Anthropic's document input.
+
+    Anthropic supports sending PDF files directly to Claude for analysis.
+    PDFs can be provided as URLs or base64-encoded data URIs.
+
+    See: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
+
+    Args:
+        input: Input with PDF URL and question.
+
+    Returns:
+        Model's analysis of the PDF document.
+    """
+    response = await ai.generate(
+        model=anthropic_name('claude-3-5-haiku'),
+        prompt=[
+            Part(root=TextPart(text=input.question)),
+            Part(root=MediaPart(media=Media(url=input.pdf_url, content_type='application/pdf'))),
+        ],
     )
     return response.text
 
