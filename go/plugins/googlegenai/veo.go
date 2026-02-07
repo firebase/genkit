@@ -19,6 +19,7 @@ package googlegenai
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -41,15 +42,19 @@ func newVeoModel(
 			return nil, fmt.Errorf("no text prompt found in request")
 		}
 
+		video := extractVeoVideoFromRequest(req)
 		image := extractVeoImageFromRequest(req)
-
 		videoConfig := toVeoParameters(req)
+		sourceConfig := &genai.GenerateVideosSource{
+			Prompt: prompt,
+			Image:  image,
+			Video:  video,
+		}
 
-		operation, err := client.Models.GenerateVideos(
+		operation, err := client.Models.GenerateVideosFromSource(
 			ctx,
 			name,
-			prompt,
-			image,
+			sourceConfig,
 			videoConfig,
 		)
 		if err != nil {
@@ -131,7 +136,7 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 
 	for _, message := range request.Messages {
 		for _, part := range message.Content {
-			if part.IsMedia() {
+			if part.IsMedia() && !part.IsVideo() {
 				_, data, err := uri.Data(part)
 				if err != nil {
 					return nil
@@ -140,6 +145,37 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 					ImageBytes: data,
 					MIMEType:   part.ContentType,
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// extractVeoVideoFromRequest extracts video content from a model request for Veo.
+func extractVeoVideoFromRequest(request *ai.ModelRequest) *genai.Video {
+	if len(request.Messages) == 0 {
+		return nil
+	}
+
+	for _, message := range request.Messages {
+		for _, part := range message.Content {
+			if !part.IsVideo() {
+				continue
+			}
+			if strings.HasPrefix(part.Text, "data:") {
+				contentType, data, err := uri.Data(part)
+				if err != nil {
+					return nil
+				}
+				return &genai.Video{
+					VideoBytes: data,
+					MIMEType:   contentType,
+				}
+			}
+			return &genai.Video{
+				URI: part.Text,
+				// MIMEType: part.ContentType,
 			}
 		}
 	}

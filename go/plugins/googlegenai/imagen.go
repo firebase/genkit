@@ -26,16 +26,6 @@ import (
 	"google.golang.org/genai"
 )
 
-// Media describes model capabilities for Gemini models with media and text
-// input and image only output
-var Media = ai.ModelSupports{
-	Media:      true,
-	Multiturn:  false,
-	Tools:      false,
-	ToolChoice: false,
-	SystemRole: false,
-}
-
 // imagenConfigFromRequest translates an [*ai.ModelRequest] configuration to [*genai.GenerateImagesConfig]
 func imagenConfigFromRequest(input *ai.ModelRequest) (*genai.GenerateImagesConfig, error) {
 	var result genai.GenerateImagesConfig

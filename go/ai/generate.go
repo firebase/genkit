@@ -284,7 +284,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && outputCfg.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && m != nil && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -313,12 +313,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	fn := m.Generate
+	var fn ModelFunc
 	if bm != nil {
 		if cb != nil {
 			logger.FromContext(ctx).Warn("background model does not support streaming", "model", bm.Name())
 		}
 		fn = backgroundModelToModelFn(bm.Start)
+	} else {
+		fn = m.Generate
 	}
 	fn = core.ChainMiddleware(mw...)(fn)
 
