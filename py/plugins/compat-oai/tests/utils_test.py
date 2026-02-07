@@ -19,8 +19,12 @@
 import base64
 
 import pytest
+from pydantic import BaseModel
 
 from genkit.plugins.compat_oai.models.utils import (
+    DictMessageAdapter,
+    MessageAdapter,
+    MessageConverter,
     _extract_media,
     _extract_text,
     _find_text,
@@ -34,8 +38,10 @@ from genkit.types import (
     MediaPart,
     Message,
     Part,
+    ReasoningPart,
     Role,
     TextPart,
+    ToolRequestPart,
 )
 
 
@@ -377,3 +383,162 @@ class TestExtractMedia:
         )
         _, ct = _extract_media(request)
         assert ct == 'text/plain'
+
+
+class TestDictMessageAdapterReasoningContent:
+    """Tests for DictMessageAdapter.reasoning_content property."""
+
+    def test_returns_reasoning_content_when_present(self) -> None:
+        """Return reasoning_content from the dict."""
+        adapter = DictMessageAdapter({
+            'content': 'The answer is 42.',
+            'reasoning_content': 'Let me think step by step...',
+            'role': 'assistant',
+        })
+        assert adapter.reasoning_content == 'Let me think step by step...'
+
+    def test_returns_none_when_missing(self) -> None:
+        """Return None when reasoning_content is not in the dict."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello',
+            'role': 'assistant',
+        })
+        assert adapter.reasoning_content is None
+
+
+class TestMessageAdapterReasoningContent:
+    """Tests for MessageAdapter.reasoning_content property."""
+
+    def test_returns_reasoning_content_when_present(self) -> None:
+        """Return reasoning_content from the object."""
+
+        class FakeMessage:
+            content = 'The answer is 42.'
+            reasoning_content = 'Let me think step by step...'
+            tool_calls = None
+            role = 'assistant'
+
+        adapter = MessageAdapter(FakeMessage())
+        assert adapter.reasoning_content == 'Let me think step by step...'
+
+    def test_returns_none_when_missing(self) -> None:
+        """Return None when object has no reasoning_content attribute."""
+
+        class FakeMessage:
+            content = 'Hello'
+            tool_calls = None
+            role = 'assistant'
+
+        adapter = MessageAdapter(FakeMessage())
+        assert adapter.reasoning_content is None
+
+    def test_returns_none_for_pydantic_model_without_field(self) -> None:
+        """Return None for Pydantic models that raise AttributeError on unknown attrs.
+
+        The openai library's ChatCompletionMessage is a Pydantic model whose
+        __getattr__ raises AttributeError for unknown fields, bypassing
+        Python's getattr(obj, name, default) fallback. This test verifies
+        the try/except pattern handles this correctly.
+        """
+
+        class PydanticMessage(BaseModel):
+            content: str | None = None
+            tool_calls: list | None = None
+            role: str = 'assistant'
+
+        adapter = MessageAdapter(PydanticMessage(content='Hello'))
+        assert adapter.reasoning_content is None
+
+
+class TestMessageConverterReasoningContent:
+    """Tests for reasoning_content handling in MessageConverter.to_genkit()."""
+
+    def test_reasoning_content_only(self) -> None:
+        """Convert message with only reasoning_content to ReasoningPart."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'reasoning_content': 'Let me think about this step by step...',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 1
+        assert isinstance(msg.content[0].root, ReasoningPart)
+        assert msg.content[0].root.reasoning == 'Let me think about this step by step...'
+
+    def test_reasoning_and_text_content(self) -> None:
+        """Convert message with both reasoning_content and content."""
+        adapter = DictMessageAdapter({
+            'content': 'The answer is 42.',
+            'reasoning_content': 'Let me think...',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        # Reasoning comes first, then text (matching JS order).
+        assert len(msg.content) == 2
+        assert isinstance(msg.content[0].root, ReasoningPart)
+        assert msg.content[0].root.reasoning == 'Let me think...'
+        assert isinstance(msg.content[1].root, TextPart)
+        assert msg.content[1].root.text == 'The answer is 42.'
+
+    def test_text_content_without_reasoning(self) -> None:
+        """Convert a regular message without reasoning_content."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello!',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert len(msg.content) == 1
+        assert isinstance(msg.content[0].root, TextPart)
+        assert msg.content[0].root.text == 'Hello!'
+
+    def test_empty_reasoning_content_is_ignored(self) -> None:
+        """Ignore reasoning_content when it is an empty string."""
+        adapter = DictMessageAdapter({
+            'content': 'Hello!',
+            'reasoning_content': '',
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        # Empty reasoning is falsy, so only text part is created.
+        assert len(msg.content) == 1
+        assert isinstance(msg.content[0].root, TextPart)
+
+    def test_raises_when_no_content_at_all(self) -> None:
+        """Raise ValueError when all content fields are None/empty."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'role': 'assistant',
+        })
+        with pytest.raises(ValueError, match='Unable to determine content part'):
+            MessageConverter.to_genkit(adapter)
+
+    def test_tool_calls_take_precedence_over_reasoning(self) -> None:
+        """Tool calls take precedence; reasoning_content is ignored."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'reasoning_content': 'Some reasoning',
+            'tool_calls': [
+                {
+                    'id': 'call_1',
+                    'function': {
+                        'name': 'get_weather',
+                        'arguments': '{"location": "NYC"}',
+                    },
+                }
+            ],
+            'role': 'assistant',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        # Should produce tool request parts, not reasoning.
+        assert len(msg.content) == 1
+
+        assert isinstance(msg.content[0].root, ToolRequestPart)
+
+    def test_role_defaults_to_model(self) -> None:
+        """Default role should be MODEL when not provided."""
+        adapter = DictMessageAdapter({
+            'content': None,
+            'reasoning_content': 'Thinking...',
+        })
+        msg = MessageConverter.to_genkit(adapter)
+        assert msg.role == Role.MODEL

@@ -454,6 +454,54 @@ async def hello(name: str) -> str:
     return response.text
 ```
 
+## Plugin Dependency Graph
+
+Shows how plugins relate to each other and the core `genkit` package. Most
+plugins are independent leaf nodes; only a few have inter-plugin dependencies.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        PLUGIN DEPENDENCY GRAPH                                   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│                           ┌──────────┐                                           │
+│                           │  genkit   │ (core SDK)                               │
+│                           └─────┬────┘                                           │
+│                                 │                                                │
+│              ┌──────────────────┼──────────────────┐                             │
+│              │                  │                   │                             │
+│              ▼                  ▼                   ▼                             │
+│   ┌──────────────────┐ ┌──────────────┐ ┌───────────────────┐                   │
+│   │   compat-oai     │ │ google-genai │ │ All other plugins │                   │
+│   │ (OpenAI compat)  │ │              │ │ (independent)     │                   │
+│   └────────┬─────────┘ └──────┬───────┘ └───────────────────┘                   │
+│            │                  │                                                   │
+│     ┌──────┴──────┐          │                                                   │
+│     │             │          │                                                   │
+│     ▼             ▼          ▼                                                   │
+│ ┌─────────┐ ┌──────────┐ ┌──────────┐                                           │
+│ │deepseek │ │vertex-ai │ │  flask   │                                           │
+│ │(extends)│ │(Model    │ │(uses     │                                           │
+│ │         │ │ Garden)  │ │ google-  │                                           │
+│ │         │ │          │ │ genai)   │                                           │
+│ └─────────┘ └──────────┘ └──────────┘                                           │
+│                                                                                  │
+│   INDEPENDENT PLUGINS (no inter-plugin dependencies):                            │
+│   ─────────────────────────────────────────────────                               │
+│   google-genai, anthropic, amazon-bedrock, microsoft-foundry,                    │
+│   ollama, xai, mistral, huggingface, cloudflare-workers-ai,                      │
+│   google-cloud, firebase, observability, mcp, evaluators,                        │
+│   dev-local-vectorstore, checks                                                  │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key relationships:**
+- **`compat-oai`** provides the shared OpenAI-compatible model layer (chat, image, TTS, STT)
+- **`deepseek`** extends `compat-oai` with reasoning model detection and param validation
+- **`vertex-ai`** (Model Garden) uses `compat-oai` for third-party model support
+- **`flask`** has a dev dependency on `google-genai` for its sample
+
 ## Further Reading
 
 - [Plugin Planning & Roadmap](../engdoc/planning/)
