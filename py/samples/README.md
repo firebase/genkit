@@ -274,6 +274,78 @@ export AXIOM_TOKEN="xaat-..."
 
 Each sample's README.md contains specific environment requirements.
 
+## Cross-Language Sample Parity
+
+> **Last audited**: 2026-02-07
+
+The table below compares sample coverage across Python and JavaScript SDKs.
+Python currently has **32 samples/testapps** covering more provider diversity
+than JavaScript's **32 testapps + 9 top-level samples**.
+
+### Parity Status
+
+| JS Testapp / Sample | Python Equivalent | Status |
+|---------------------|-------------------|:------:|
+| `basic-gemini` | `provider-google-genai-hello` | ✅ |
+| `anthropic` | `provider-anthropic-hello` | ✅ |
+| `ollama` | `provider-ollama-hello` | ✅ |
+| `compat-oai` | `provider-compat-oai-hello` | ✅ |
+| `prompt-file` | `framework-prompt-demo` | ✅ |
+| `context-caching` | `provider-google-genai-context-caching` | ✅ |
+| `custom-evaluators`, `evals` | `framework-evaluator-demo` | ✅ |
+| `format-tester` | `framework-format-demo` | ✅ |
+| `express` | `web-flask-hello` | ✅ |
+| `vertexai-vector-search-bigquery` | `provider-vertex-ai-vector-search-bigquery` | ✅ |
+| `vertexai-vector-search-firestore` | `provider-vertex-ai-vector-search-firestore` | ✅ |
+| `vertexai-modelgarden` | `provider-vertex-ai-model-garden` | ✅ |
+| `vertexai-reranker` | `provider-vertex-ai-rerank-eval` | ✅ |
+| `menu`, `docs-menu-rag` | `framework-restaurant-demo` | ✅ |
+| `multimodal` | `provider-google-genai-media-models-demo` | ✅ |
+| `mcp` | — | ❌ |
+| `multiagents-demo` | — | ❌ |
+| `rag` | — | ❌ |
+| `dev-ui-gallery` | — | 🟡 |
+| `durable-streaming` | — | 🟡 |
+| `firebase-functions-sample1` | — | 🟡 |
+| `next`, `esm` | — | 🟡 |
+| `model-armor` | — | 🟡 |
+| `model-tester` | — | 🟡 |
+| `js-chatbot`, `js-coffee-shop`, etc. | — | 🟡 |
+
+**Legend**: ✅ = parity achieved, ❌ = gap (should port), 🟡 = low priority or JS-specific
+
+### Python-Only Samples (No JS Equivalent)
+
+Python has significantly broader provider and framework coverage:
+
+| Python Sample | Category |
+|---------------|----------|
+| `provider-amazon-bedrock-hello` | Model provider |
+| `provider-microsoft-foundry-hello` | Model provider |
+| `provider-deepseek-hello` | Model provider |
+| `provider-xai-hello` | Model provider |
+| `provider-cloudflare-workers-ai-hello` | Model provider |
+| `provider-mistral-hello` | Model provider |
+| `provider-huggingface-hello` | Model provider |
+| `provider-observability-hello` | Telemetry (5 backends) |
+| `provider-firestore-retriever` | Vector store |
+| `provider-google-genai-vertexai-image` | Image generation |
+| `framework-middleware-demo` | Framework |
+| `framework-realtime-tracing-demo` | Framework |
+| `framework-context-demo` | Framework |
+| `framework-dynamic-tools-demo` | Framework |
+| `web-multi-server` | Web (Litestar + Starlette) |
+| `web-short-n-long` | Web (ASGI long-running) |
+| `genkit-chat` (testapp) | Full-stack testapp |
+
+### Gaps to Close (Prioritized)
+
+| Priority | Sample to Create | JS Reference | Why |
+|:--------:|------------------|--------------|-----|
+| 🔴 High | `framework-multiagent-demo` | `multiagents-demo` | Multi-agent orchestration with handoffs is a flagship feature |
+| 🟡 Medium | `framework-mcp-demo` | `mcp` | Python has the MCP plugin but no sample demonstrating it |
+| 🟡 Medium | `framework-rag-demo` | `rag` | End-to-end RAG pipeline (index → embed → retrieve → generate) |
+
 ## Creating New Samples
 
 When creating new samples, follow these guidelines:
