@@ -238,14 +238,17 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         detail_lines.append('Status: FAILED')
                         error_msg = result_data.get('error', 'Unknown error')
                         detail_lines.append(f'Error: {error_msg}')
+                        detail_lines.append(f'Error: {error_msg}')
                         failed_flows.append(flow_name)
 
                 except subprocess.TimeoutExpired:
                     detail_lines.append('Status: FAILED')
                     detail_lines.append('Error: Flow execution timed out (120s)')
+                    detail_lines.append('Error: Flow execution timed out (120s)')
                     failed_flows.append(flow_name)
                 except Exception as e:
                     detail_lines.append('Status: FAILED')
+                    detail_lines.append(f'Error: Subprocess failed: {e}')
                     detail_lines.append(f'Error: Subprocess failed: {e}')
                     failed_flows.append(flow_name)
             except Exception as e:

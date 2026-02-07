@@ -211,8 +211,12 @@ def main() -> None:
 
     # Run flow in async context
     import asyncio
+    import contextlib
+    import io
 
-    asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    # Redirect stdout to avoid polluting the JSON output with logs/prints from the flow
+    with contextlib.redirect_stdout(io.StringIO()):
+        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
 
     # Output JSON result with markers to distinguish it from any debug logs
 
