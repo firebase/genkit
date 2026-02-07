@@ -58,6 +58,7 @@ Key Features
 | Streaming Generation             | `say_hi_stream`                   |
 | Generation with Tools            | `weather_flow`                    |
 | Generation Configuration         | `say_hi_with_config`              |
+| Code Generation                  | `code_flow`                       |
 | Multimodal (Image Input)         | `describe_image`                  |
 
 Endpoint Types
@@ -215,6 +216,15 @@ class ImageDescribeInput(BaseModel):
     )
 
 
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
+
+
 @ai.flow()
 async def say_hi(input: SayHiInput) -> str:
     """Generate a simple greeting.
@@ -307,6 +317,23 @@ async def say_hi_with_config(input: SayHiInput) -> str:
             'max_tokens': 50,
             'frequency_penalty': 0.5,
         },
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Microsoft Foundry models.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 

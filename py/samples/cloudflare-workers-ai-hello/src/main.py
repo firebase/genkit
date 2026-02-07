@@ -390,6 +390,15 @@ class ConfigDemoInput(BaseModel):
     )
 
 
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
+
+
 @ai.flow()
 async def say_hi_with_config(input: ConfigDemoInput) -> str:
     """Generate text with custom configuration.
@@ -411,6 +420,23 @@ async def say_hi_with_config(input: ConfigDemoInput) -> str:
             repetition_penalty=1.2,  # Discourage repetition
             max_output_tokens=256,
         ),
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Cloudflare Workers AI models.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 

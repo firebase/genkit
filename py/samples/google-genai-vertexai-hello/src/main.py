@@ -61,6 +61,7 @@ Key Features
 | Structured Output (Schema)                               | `generate_character`                   |
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
+| Code Generation                                          | `code_flow`                            |
 
 Testing This Demo
 =================
@@ -209,6 +210,15 @@ class ToolsFlowInput(BaseModel):
     """Input for tools flow."""
 
     value: int = Field(default=42, description='Value for gablorken calculation')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 @ai.tool()
@@ -449,6 +459,23 @@ async def simple_generate_with_tools_flow(input: ToolsFlowInput) -> str:
     response = await ai.generate(
         prompt=f'what is a gablorken of {input.value}',
         tools=['gablorkenTool'],
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Vertex AI Gemini.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 

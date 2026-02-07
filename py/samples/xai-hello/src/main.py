@@ -52,6 +52,7 @@ Key Features
 | Streaming Generation                    | `say_hi_stream`                     |
 | Tool Usage (Decorated)                  | `get_weather`, `calculate`          |
 | Generation Configuration                | `say_hi_with_config`                |
+| Code Generation                         | `code_flow`                         |
 | Tool Calling                            | `weather_flow`                      |
 """
 
@@ -124,6 +125,15 @@ class ConfigInput(BaseModel):
     """Input for config flow."""
 
     name: str = Field(default='Ginger', description='User name for greeting')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 # Decorated tools
@@ -221,6 +231,23 @@ async def weather_flow(input_data: WeatherInput) -> str:
     Exposes weather logic as a traceable Genkit flow.
     """
     return await weather_logic(ai, input_data)
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Grok.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
 
 
 async def main() -> None:

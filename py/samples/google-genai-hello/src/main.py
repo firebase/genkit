@@ -76,6 +76,7 @@ Key Features
 | Multi-modal Output Configuration                         | `generate_images`                      |
 | GCP Telemetry (Traces and Metrics)                       | `add_gcp_telemetry()`                  |
 | Thinking Mode (CoT)                                      | `thinking_level_pro`, `thinking_level_flash` |
+| Code Generation                                          | `code_flow`                            |
 | Search Grounding                                         | `search_grounding`                     |
 | URL Context                                              | `url_context`                          |
 | Multimodal Generation (Video input)                      | `youtube_videos`                       |
@@ -228,6 +229,15 @@ class ToolCallingInput(BaseModel):
     """Input for tool calling flow."""
 
     location: str = Field(default='Paris, France', description='Location to get weather for')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 @ai.tool()
@@ -760,6 +770,23 @@ async def tool_calling(input: ToolCallingInput) -> str:
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
         config=GenerationCommonConfig(temperature=1),
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Gemini.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 

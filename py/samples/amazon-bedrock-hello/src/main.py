@@ -60,6 +60,7 @@ Key Features
 | Generation with Tools                   | `weather_flow`, `currency_exchange` |
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
 | Multimodal (Image Input)                | `describe_image`                    |
+| Code Generation                         | `code_flow`                         |
 | Embeddings                              | `embed_text`                        |
 
 Supported Models
@@ -233,6 +234,15 @@ class ReasoningInput(BaseModel):
     question: str = Field(
         default='What is 15% of 240? Show your work step by step.',
         description='Question requiring reasoning',
+    )
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
     )
 
 
@@ -479,6 +489,23 @@ async def reasoning_demo(input: ReasoningInput) -> str:
             'max_tokens': 4096,
             'temperature': 0.5,
         },
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using AWS Bedrock models.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 

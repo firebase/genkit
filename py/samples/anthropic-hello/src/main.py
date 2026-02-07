@@ -62,6 +62,7 @@ Key Features
 | Generation with Tools                   | `weather_flow`, `currency_exchange` |
 | Generation Configuration (temperature)  | `say_hi_with_config`                |
 | Thinking (CoT)                          | `thinking_demo`                     |
+| Code Generation                         | `code_flow`                         |
 | Multimodal (Image Input)                | `describe_image`                    |
 | Prompt Caching                          | `cached_generation`                 |
 | PDF Document Input                      | `analyze_pdf`                       |
@@ -171,6 +172,15 @@ class WeatherFlowInput(BaseModel):
     """Input for weather flow."""
 
     location: str = Field(default='San Francisco', description='Location to get weather for')
+
+
+class CodeInput(BaseModel):
+    """Input for code generation flow."""
+
+    task: str = Field(
+        default='Write a Python function to calculate fibonacci numbers',
+        description='Coding task description',
+    )
 
 
 @ai.tool()
@@ -332,6 +342,23 @@ async def thinking_demo(input: ThinkingInput) -> str:
             'thinking': {'type': 'enabled', 'budget_tokens': 1024},
             'max_output_tokens': 4096,  # Required when thinking is enabled
         },
+    )
+    return response.text
+
+
+@ai.flow()
+async def code_flow(input: CodeInput) -> str:
+    """Generate code using Claude.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=input.task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
     return response.text
 
