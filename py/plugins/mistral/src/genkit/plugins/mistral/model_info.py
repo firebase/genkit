@@ -74,9 +74,6 @@ _AUDIO_MODEL_SUPPORTS = Supports(
 )
 
 SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
-    # =========================================================================
-    # Frontier Generalist Models
-    # =========================================================================
     # Mistral Large 3 — state-of-the-art, open-weight, multimodal (vision).
     # https://docs.mistral.ai/models/mistral-large-3-25-12
     'mistral-large-latest': ModelInfo(
@@ -98,9 +95,6 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['mistral-small-latest', 'mistral-small-2506'],
         supports=_VISION_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Ministral 3 — Compact Models (all with vision)
-    # =========================================================================
     # Ministral 3 14B — best-in-class text and vision capabilities.
     # https://docs.mistral.ai/models/ministral-3-14b-25-12
     'ministral-14b-latest': ModelInfo(
@@ -122,9 +116,6 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['ministral-3b-latest', 'ministral-3b-2512'],
         supports=_VISION_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Magistral — Reasoning Models
-    # =========================================================================
     # Magistral Medium 1.2 — frontier-class multimodal reasoning.
     # https://docs.mistral.ai/models/magistral-medium-1-2-25-09
     'magistral-medium-latest': ModelInfo(
@@ -139,9 +130,6 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['magistral-small-latest', 'magistral-small-2509'],
         supports=_VISION_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Specialist — Code Models
-    # =========================================================================
     # Codestral — cutting-edge code completion.
     # https://docs.mistral.ai/models/codestral-25-08
     'codestral-latest': ModelInfo(
@@ -162,9 +150,6 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['devstral-small-latest', 'devstral-small-2512'],
         supports=_CODE_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Specialist — Audio Models (Voxtral)
-    # =========================================================================
     # Voxtral Small — audio input for chat use cases.
     # https://docs.mistral.ai/models/voxtral-small-25-07
     'voxtral-small-latest': ModelInfo(
@@ -179,9 +164,6 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['voxtral-mini-latest'],
         supports=_AUDIO_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Specialist — Embedding Models
-    # =========================================================================
     # Mistral Embed — 1024-dimensional text embeddings for RAG and search.
     # https://docs.mistral.ai/models/mistral-embed-23-12
     'mistral-embed': ModelInfo(
@@ -197,27 +179,19 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['codestral-embed-2505'],
         supports=_EMBEDDING_SUPPORTS,
     ),
-    # =========================================================================
-    # Specialist — Creative
-    # =========================================================================
     # Mistral Small Creative — creative writing and character interaction.
     'mistral-small-creative-latest': ModelInfo(
         label='Mistral AI - Small Creative',
         versions=['mistral-small-creative-latest'],
         supports=_TEXT_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Other / Research Models
-    # =========================================================================
     # Mistral Saba — regional / research model.
     'mistral-saba-latest': ModelInfo(
         label='Mistral AI - Saba (Latest)',
         versions=['mistral-saba-latest'],
         supports=_TEXT_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Vision Models (Legacy Pixtral — superseded by Large 3 / Medium 3.1)
-    # =========================================================================
+    # Pixtral Large — legacy vision model (superseded by Large 3 / Medium 3.1).
     'pixtral-large-latest': ModelInfo(
         label='Mistral AI - Pixtral Large (Vision)',
         versions=['pixtral-large-latest', 'pixtral-large-2411'],
@@ -228,9 +202,7 @@ SUPPORTED_MISTRAL_MODELS: dict[str, ModelInfo] = {
         versions=['pixtral-12b-latest', 'pixtral-12b-2409'],
         supports=_VISION_MODEL_SUPPORTS,
     ),
-    # =========================================================================
-    # Legacy Models (still available)
-    # =========================================================================
+    # Legacy open-weight models.
     'open-mistral-nemo': ModelInfo(
         label='Mistral AI - Nemo 12B (Open)',
         versions=['open-mistral-nemo', 'open-mistral-nemo-2407'],
