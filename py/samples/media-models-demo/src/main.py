@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Media Generation Models Demo - Veo, TTS, Lyria, and Gemini Image.
+"""Media Generation Models Demo - Veo, TTS, Lyria, Imagen, and Gemini Image.
 
 This demo showcases all media generation capabilities in the Google GenAI plugin.
 See README.md for detailed testing instructions and configuration options.
@@ -52,6 +52,7 @@ Key Concepts (ELI5)::
     │   Veo (Video)     │ MP4 video URL  │ Background Model │ 30s - 5min     │
     │   TTS (Speech)    │ Audio (WAV)    │ Standard Model   │ ~1-5 seconds   │
     │   Lyria (Audio)   │ Audio (WAV)    │ Standard Model   │ ~5-30 seconds  │
+    │   Imagen          │ Image (PNG)    │ Standard Model   │ ~5-15 seconds  │
     │   Gemini Image    │ Image          │ Standard Model   │ ~5-15 seconds  │
     │                                                                         │
     └────────────────────────────────────────────────────────────────────────┘
@@ -79,7 +80,8 @@ Why Different Model Patterns?
 Available Flows
 ===============
 - `tts_speech_generator` - Text-to-speech with voice selection
-- `gemini_image_generator` - Image generation with Gemini
+- `imagen_image_generator` - Image generation with Imagen (predict API)
+- `gemini_image_generator` - Image generation with Gemini (native)
 - `lyria_audio_generator` - Music/audio generation (Vertex AI)
 - `veo_video_generator` - Video generation (background model)
 """
@@ -158,6 +160,19 @@ class ImageInput(BaseModel):
     aspect_ratio: str = Field(
         default='16:9',
         description='Image aspect ratio (e.g., 16:9, 1:1, 9:16).',
+    )
+
+
+class ImagenInput(BaseModel):
+    """Input for Imagen image generation flow."""
+
+    prompt: str = Field(
+        default='A photorealistic image of a cat astronaut floating in space with Earth in the background',
+        description='Description of the image to generate with Imagen.',
+    )
+    number_of_images: int = Field(
+        default=1,
+        description='Number of images to generate (1-4).',
     )
 
 
@@ -438,11 +453,26 @@ def get_image_model() -> str:
     Available image generation models:
     - gemini-2.5-flash-image: Fast, efficient image generation (Nano Banana)
     - gemini-3-pro-image-preview: Professional quality (Nano Banana Pro)
-
-    Note: Imagen models (imagen-4, etc.) are only available on Vertex AI.
     """
     if HAS_GEMINI_API_KEY:
         return 'googleai/gemini-2.5-flash-image'
+    return 'simulated-image'
+
+
+def get_imagen_model() -> str:
+    """Get the Imagen model name based on environment.
+
+    Imagen models use the predict API (not generateContent) and are
+    discovered dynamically by the GoogleAI plugin. They produce
+    high-quality images with excellent prompt following.
+
+    Available models (discovered dynamically):
+    - imagen-3.0-generate-002: Production quality
+    - imagen-3.0-fast-generate-001: Fast generation
+    - imagen-4.0-generate-001: Latest Imagen model
+    """
+    if HAS_GEMINI_API_KEY:
+        return 'googleai/imagen-3.0-generate-002'
     return 'simulated-image'
 
 
@@ -555,7 +585,70 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
 
 
 # ============================================================================
-# Demo Flows - Gemini Image Generation
+# Demo Flows - Imagen Image Generation (predict API)
+# ============================================================================
+
+
+@ai.flow(name='imagen_image_generator', description='Generate images using Imagen (predict API)')
+async def imagen_image_generator_flow(input: ImagenInput) -> dict[str, Any]:
+    """Generate images using Imagen.
+
+    Imagen models use the predict API (not generateContent) and produce
+    photorealistic, high-quality images with excellent prompt following.
+    They are discovered dynamically by the GoogleAI plugin.
+
+    Imagen vs Gemini Image:
+    - Imagen: Dedicated image gen model, predict API, photorealistic output
+    - Gemini Image: Multimodal model, generateContent API, good for editing
+
+    Args:
+        input: ImagenInput containing the prompt description.
+
+    Returns:
+        Dictionary with image data (base64 PNG).
+
+    Example:
+        >>> result = await imagen_image_generator_flow(ImagenInput(prompt='A cat in a space suit'))
+    """
+    prompt = input.prompt
+    model = get_imagen_model()
+
+    config: dict[str, Any] = {}
+    if HAS_GEMINI_API_KEY:
+        config = {'number_of_images': input.number_of_images}
+
+    try:
+        response = await ai.generate(model=model, prompt=prompt, config=config)
+    except Exception as e:
+        error_msg = str(e)
+        if 'RESOURCE_EXHAUSTED' in error_msg or 'quota' in error_msg.lower():
+            return {
+                'error': 'QUOTA_EXCEEDED',
+                'message': 'Imagen requires quota or billing.',
+                'model': model,
+            }
+        raise
+
+    # Extract image from response
+    image_url = None
+    if response.message and response.message.content:
+        for part in response.message.content:
+            if hasattr(part.root, 'media') and part.root.media:
+                image_url = getattr(part.root.media, 'url', None)
+                break
+
+    return {
+        'model': model,
+        'prompt': prompt,
+        'number_of_images': input.number_of_images,
+        'image_url': image_url,
+        # pyrefly: ignore[unbound-name] - HAS_GEMINI_API_KEY defined at module level
+        'using_real_model': HAS_GEMINI_API_KEY,
+    }
+
+
+# ============================================================================
+# Demo Flows - Gemini Image Generation (generateContent API)
 # ============================================================================
 
 
@@ -812,10 +905,16 @@ async def media_models_overview_flow() -> dict[str, Any]:
             'description': 'Text-to-Speech - converts text to audio',
             'voices': ['Zephyr', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Leda', 'Orus'],
         },
-        'image': {
+        'imagen': {
+            'model': get_imagen_model(),
+            'real_available': HAS_GEMINI_API_KEY,
+            'description': 'Imagen - photorealistic image generation (predict API)',
+            'note': 'Discovered dynamically by GoogleAI plugin under googleai/ prefix',
+        },
+        'gemini_image': {
             'model': get_image_model(),
             'real_available': HAS_GEMINI_API_KEY,
-            'description': 'Gemini Image - generates images from text',
+            'description': 'Gemini Image - generates images from text (generateContent API)',
             'aspect_ratios': ['1:1', '16:9', '9:16', '4:3', '3:4'],
         },
         'lyria': {
