@@ -34,6 +34,8 @@
   | Broad type ignores | No `# type: ignore` without codes | ✅ Automated |
   | Python classifiers | All packages have 3.10-3.14 classifiers | ✅ Automated |
   | Namespace `__init__.py` | Plugins must not have `__init__.py` in `genkit/` or `genkit/plugins/` | ✅ Automated |
+  | Sample LICENSE files | All samples include LICENSE file | ✅ Automated |
+  | Google OSS files | Repo root has CONTRIBUTING.md, LICENSE | ✅ Automated |
 
   **Release Checks** (`py/bin/release_check`):
 
