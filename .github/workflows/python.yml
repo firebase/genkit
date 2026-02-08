@@ -99,12 +99,7 @@ jobs:
 
       - name: Type check with Pyrefly
         if: matrix.checker == 'pyrefly'
-        # TODO(https://github.com/firebase/genkit/pull/4502): Remove --project-excludes
-        # after granian embed.Server API migration merges.
-        run: >-
-          uv run --directory py pyrefly check
-          --project-excludes 'packages/genkit/src/genkit/web/manager/_adapters.py'
-          .
+        run: uv run --directory py pyrefly check .
 
       - name: Type check with Pyright
         if: matrix.checker == 'pyright'
