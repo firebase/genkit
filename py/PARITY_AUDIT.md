@@ -137,18 +137,18 @@ Per Google OSS guidelines:
 | checks | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
 | cloudflare-workers-ai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
 | compat-oai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (7) | ⚠️ |
-| deepseek | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| dev-local-vectorstore | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| evaluators | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| firebase | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
+| deepseek | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
+| dev-local-vectorstore | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
+| evaluators | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
+| firebase | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
 | flask | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| google-cloud | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
+| google-cloud | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
 | google-genai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
 | huggingface | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
 | mcp | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (5) | ⚠️ |
-| microsoft-foundry | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
+| microsoft-foundry | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
 | mistral | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| observability | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
+| observability | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
 | ollama | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
 | vertex-ai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
 | xai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
@@ -187,26 +187,26 @@ All samples except `provider-checks-hello` had `LICENSE` ✅ (now fixed).
 |-----------|:----------:|-------|
 | **Core** (`packages/genkit`) | 44 | Comprehensive |
 | **compat-oai** | 7 | Best-covered plugin |
+| **google-genai** | 7 | Best-covered plugin |
 | **mcp** | 5 | Well-covered |
+| **dev-local-vectorstore** | 4 | Good |
 | **ollama** | 4 | Good |
 | **vertex-ai** | 4 | Good |
+| **amazon-bedrock** | 3 | Good |
 | **anthropic** | 3 | Good |
-| **google-genai** | 3 | Good |
+| **cloudflare-workers-ai** | 3 | Good |
+| **deepseek** | 3 | Good |
+| **evaluators** | 3 | Good |
+| **firebase** | 3 | Good |
+| **flask** | 3 | Good |
+| **google-cloud** | 3 | Good |
+| **huggingface** | 3 | Good |
+| **microsoft-foundry** | 3 | Good |
 | **mistral** | 3 | Good |
-| **amazon-bedrock** | 2 | Adequate |
-| **deepseek** | 2 | Adequate |
-| **huggingface** | 2 | Adequate |
-| **xai** | 2 | Adequate |
-| **checks** | 1 | Minimum |
-| **cloudflare-workers-ai** | 1 | Minimum |
-| **dev-local-vectorstore** | 1 | Minimum |
-| **evaluators** | 1 | Minimum |
-| **firebase** | 1 | Minimum |
-| **flask** | 1 | Minimum |
-| **google-cloud** | 1 | Minimum |
-| **microsoft-foundry** | 1 | Minimum |
-| **observability** | 1 | Minimum |
-| **Total** | 95 | |
+| **observability** | 3 | Good |
+| **xai** | 3 | Good |
+| **Total (plugins)** | 70 | All plugins ≥ 3 |
+| **Total (workspace)** | 136 | Including core + samples |
 
 ---
 
@@ -353,7 +353,7 @@ Python users typically use `httpx` or `requests` directly.
 | **Community Ecosystem** (BloomLabs etc.) | | | | | |
 | Groq provider (`genkitx-groq`) | ✅ (community) | — | ❌ | Python | P3 |
 | Cohere provider (`genkitx-cohere`) | ✅ (community) | — | ❌ | Python | P3 |
-| Azure OpenAI (`genkitx-azure-openai`) | ✅ (community) | — | ⚠️ `microsoft-foundry` | Python | P3 |
+| Azure OpenAI (`genkitx-azure-openai`) | ✅ (community) | — | ✅ `microsoft-foundry` (superset) | Python | ✅ |
 | Convex vector store (`genkitx-convex`) | ✅ (community) | — | ❌ | Python | P3 |
 | HNSW vector store (`genkitx-hnsw`) | ✅ (community) | — | ❌ | Python | P3 |
 | Milvus vector store (`genkitx-milvus`) | ✅ (community) | — | ❌ | Python | P3 |

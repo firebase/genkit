@@ -30,3 +30,4 @@ site/
 var/
 venv/
 wheels/
+.gemini/artifacts/
