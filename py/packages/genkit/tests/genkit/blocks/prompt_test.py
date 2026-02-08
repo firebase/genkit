@@ -818,3 +818,39 @@ async def test_automatic_prompt_loading_defaults_missing() -> None:
 
         Genkit()
         mock_load.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_variant_prompt_loading_does_not_recurse() -> None:
+    """Regression: loading a .variant.prompt file must not cause infinite recursion.
+
+    Before the fix, create_prompt_from_file() called resolve_action_by_key()
+    on its own action key before setting _cached_prompt.  This triggered
+    _trigger_lazy_loading() which re-invoked create_prompt_from_file(),
+    recursing until RecursionError.
+    See https://github.com/firebase/genkit/issues/4491.
+    """
+    ai, *_ = setup_test()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prompt_dir = Path(tmpdir) / 'prompts'
+        prompt_dir.mkdir()
+
+        # Base prompt
+        base = prompt_dir / 'recipe.prompt'
+        base.write_text('---\nmodel: echoModel\n---\nMake a recipe for {{food}}.')
+
+        # Variant prompt (this was the trigger for the visible failure)
+        variant = prompt_dir / 'recipe.robot.prompt'
+        variant.write_text('---\nmodel: echoModel\n---\nYou are a robot chef. Make a recipe for {{food}}.')
+
+        load_prompt_folder(ai.registry, prompt_dir)
+
+        # Should resolve without RecursionError
+        base_exec = await prompt(ai.registry, 'recipe')
+        base_response = await base_exec({'food': 'pizza'})
+        assert 'pizza' in base_response.text
+
+        robot_exec = await prompt(ai.registry, 'recipe', variant='robot')
+        robot_response = await robot_exec({'food': 'pizza'})
+        assert 'pizza' in robot_response.text
