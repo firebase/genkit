@@ -55,6 +55,15 @@ export {
   type ResumeOptions,
   type ToolChoice,
 } from './generate.js';
+export {
+  MiddlewareDescSchema,
+  MiddlewareRefSchema,
+  generateMiddleware,
+  type GenerateMiddleware,
+  type GenerateMiddlewareDef,
+  type MiddlewareDesc,
+  type MiddlewareRef,
+} from './generate/middleware.js';
 export { Message } from './message.js';
 export {
   GenerateResponseChunkSchema,
@@ -83,6 +92,7 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export { type ToolRequest, type ToolResponse } from './parts.js';
+export { type GenkitPluginV2 } from './plugin.js';
 export {
   defineHelper,
   definePartial,

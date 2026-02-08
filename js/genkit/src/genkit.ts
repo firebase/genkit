@@ -977,6 +977,14 @@ export class Genkit implements HasRegistry {
             resolvedActions?.forEach((resolvedAction) => {
               registerActionV2(activeRegistry, resolvedAction, plugin);
             });
+            const definedMiddleware = plugin.generateMiddleware?.();
+            definedMiddleware?.forEach((middleware) => {
+              activeRegistry.registerValue(
+                'middleware',
+                middleware.name,
+                middleware
+              );
+            });
           },
           async resolver(action: ActionType, target: string) {
             if (!plugin.resolve) return;
