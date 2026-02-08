@@ -49,6 +49,25 @@
 | LangChain | `langchain` | ✅ | — | — | JS-only |
 | Internal helpers | `internal` | — | ✅ | — | Go internal |
 
+### 1b. Coverage Metrics
+
+| Metric | JS | Go | Python |
+|--------|:--:|:--:|:------:|
+| Total in-tree plugins | 18 | 16 | 20 |
+| Shared (JS+Go+Python) | 11 | 11 | 11 |
+| Model provider plugins | 6 | 4 | 12 |
+| Vector store plugins | 4 | 4 | 1 |
+| Unique to this SDK | 7 | 5 | 9 |
+
+### 1c. Plugin Gap Table (Parity Focus)
+
+| Gap Group | JS Canonical Plugins | Go Status | Python Status | Priority | Status |
+|-----------|----------------------|-----------|---------------|----------|:------:|
+| Vector stores | `pinecone`, `chroma`, `cloud-sql-pg` | `pinecone` ✅, others ❌ | all 3 missing | High | ❌ |
+| Web framework adapters | `express`, `next` | n/a (framework-specific) | n/a (framework-specific) | Info | ⚠️ |
+| Integration ecosystem | `langchain` | missing | missing | Medium | ❌ |
+| Legacy compatibility | `googleai` | n/a | missing | Low | ⚠️ |
+
 ### 1d. External Ecosystem Plugins (genkit-ai org + community)
 
 | Plugin | Org/Source | SDK | Python Equivalent | Status |
@@ -68,25 +87,6 @@
 | `genkitx-hnsw` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
 | `genkitx-milvus` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
 | `genkitx-graph` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
-
-### 1b. Coverage Metrics
-
-| Metric | JS | Go | Python |
-|--------|:--:|:--:|:------:|
-| Total in-tree plugins | 18 | 16 | 20 |
-| Shared (JS+Go+Python) | 11 | 11 | 11 |
-| Model provider plugins | 6 | 4 | 12 |
-| Vector store plugins | 4 | 4 | 1 |
-| Unique to this SDK | 7 | 5 | 9 |
-
-### 1c. Plugin Gap Table (Parity Focus)
-
-| Gap Group | JS Canonical Plugins | Go Status | Python Status | Priority | Status |
-|-----------|----------------------|-----------|---------------|----------|:------:|
-| Vector stores | `pinecone`, `chroma`, `cloud-sql-pg` | `pinecone` ✅, others ❌ | all 3 missing | High | ❌ |
-| Web framework adapters | `express`, `next` | n/a (framework-specific) | n/a (framework-specific) | Info | ⚠️ |
-| Integration ecosystem | `langchain` | missing | missing | Medium | ❌ |
-| Legacy compatibility | `googleai` | n/a | missing | Low | ⚠️ |
 
 ---
 
