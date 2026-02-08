@@ -31,10 +31,18 @@ Output:
 """
 
 import argparse
+import asyncio
+import contextlib
+import importlib.util
+import io
 import json
+import logging
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
+
+from genkit.core.action import ActionKind
 
 
 def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any for arbitrary flow outputs
@@ -103,12 +111,14 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
         if not main_py.exists():
             main_py = sample_path / 'main.py'
 
-        if not main_py.exists():
             result['error'] = f'No main.py found in {sample_path}'
             return result
 
+        # Add the py/ root directory to sys.path so 'samples.shared' imports work
+        # sample_path is .../py/samples/sample-name
+        sys.path.insert(0, str(sample_path.parent.parent))
+
         # Load the module
-        import importlib.util
 
         spec = importlib.util.spec_from_file_location('sample_main', main_py)
         if not spec or not spec.loader:
@@ -138,8 +148,6 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
 
         # Get the flow action from registry
         try:
-            from genkit.core.action import ActionKind
-
             registry = ai_instance.registry
             actions_map = await registry.resolve_actions_by_kind(ActionKind.FLOW)
 
@@ -154,8 +162,6 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
 
         # Run the flow - use arun() in async context
         try:
-            import traceback
-
             # Convert dict input to Pydantic model if an input schema is defined
             validated_input = input_data
             if isinstance(input_data, dict) and hasattr(flow_action, 'input_type') and flow_action.input_type:
@@ -197,8 +203,6 @@ def main() -> None:
     args = parser.parse_args()
 
     # Suppress verbose logging
-    import logging
-
     logging.basicConfig(level=logging.ERROR)
     logging.getLogger('genkit').setLevel(logging.ERROR)
     logging.getLogger('google').setLevel(logging.ERROR)
@@ -210,15 +214,10 @@ def main() -> None:
         return
 
     # Run flow in async context
-    import asyncio
-    import contextlib
-    import io
 
     # Redirect stdout to avoid polluting the JSON output with logs/prints from the flow
     with contextlib.redirect_stdout(io.StringIO()):
         asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
-
-    # Output JSON result with markers to distinguish it from any debug logs
 
 
 if __name__ == '__main__':
