@@ -96,14 +96,13 @@ See README.md for testing instructions.
 import asyncio
 import os
 
-from rich.traceback import install as install_rich_traceback
-
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
 from genkit.types import Document, RetrieverResponse
+from samples.shared.logging import setup_sample
 
-install_rich_traceback(show_locals=True, width=120, extra_lines=3)
+setup_sample()
 
 if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
@@ -145,7 +144,7 @@ async def index_documents() -> None:
 
 
 @ai.flow()
-async def retreive_documents() -> RetrieverResponse:
+async def retrieve_documents() -> RetrieverResponse:
     """Retrieve documents from the vector store."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),

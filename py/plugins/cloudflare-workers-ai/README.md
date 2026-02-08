@@ -108,7 +108,7 @@ add_cloudflare_telemetry()
 Run the sample application:
 
 ```bash
-cd py/samples/cloudflare-workers-ai-hello
+cd py/samples/provider-cloudflare-workers-ai-hello
 ./run.sh
 ```
 

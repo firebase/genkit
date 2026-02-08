@@ -5,40 +5,46 @@ This directory contains sample applications demonstrating various Genkit feature
 ## Sample Categories
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           GENKIT SAMPLE APPLICATIONS                            │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│   MODEL PROVIDERS                    TELEMETRY                                  │
-│   ───────────────                    ─────────                                  │
-│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
-│   │ google-genai-hello      │        │ aws-hello               │               │
-│   │ anthropic-hello         │        │ microsoft-foundry-hello             │               │
-│   │ amazon-bedrock-hello       │        │ observability-hello     │               │
-│   │ microsoft-foundry-hello         │        │ realtime-tracing-demo   │               │
-│   │ ollama-hello            │        └─────────────────────────┘               │
-│   │ compat-oai-hello        │                                                  │
-│   │ deepseek-hello          │        ADVANCED FEATURES                         │
-│   │ xai-hello               │        ─────────────────                         │
-│   │ cloudflare-workers-ai-hello │    ┌─────────────────────────┐               │
-│                                      │ tool-interrupts         │               │
-│   VECTOR STORES                      │ menu (tool examples)    │               │
-│   ─────────────                      │ prompt-demo             │               │
-│   ┌─────────────────────────┐        │ format-demo             │               │
-│   │ dev-local-vectorstore   │        │ multi-server            │               │
-│   │ vertex-ai-vector-search │        │ evaluator-demo          │               │
-│   │ firestore-retriever     │        │ vertexai-rerank-eval    │               │
-│   └─────────────────────────┘        │ flask-hello             │               │
-│                                      └─────────────────────────┘               │
-│                                                                                 │
-│   MULTIMODAL                         GOOGLE AI FEATURES                        │
-│   ──────────                         ──────────────────                        │
-│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
-│   │ media-models-demo       │        │ google-genai-image      │               │
-│   │ google-genai-image      │        │ google-genai-code-exec  │               │
-│   └─────────────────────────┘        │ google-genai-context    │               │
-│                                      └─────────────────────────┘               │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│                              GENKIT SAMPLE APPLICATIONS                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│   MODEL PROVIDERS (provider-*)              FRAMEWORK FEATURES (framework-*)             │
+│   ────────────────────────────              ────────────────────────────────             │
+│   ┌──────────────────────────────────┐      ┌──────────────────────────────────┐        │
+│   │ provider-google-genai-hello      │      │ framework-context-demo           │        │
+│   │ provider-google-genai-vertexai-  │      │ framework-dynamic-tools-demo     │        │
+│   │   hello                          │      │ framework-evaluator-demo         │        │
+│   │ provider-anthropic-hello         │      │ framework-format-demo            │        │
+│   │ provider-amazon-bedrock-hello    │      │ framework-middleware-demo        │        │
+│   │ provider-microsoft-foundry-hello │      │ framework-prompt-demo            │        │
+│   │ provider-ollama-hello            │      │ framework-realtime-tracing-demo  │        │
+│   │ provider-compat-oai-hello        │      │ framework-restaurant-demo        │        │
+│   │ provider-deepseek-hello          │      │ framework-tool-interrupts        │        │
+│   │ provider-xai-hello               │      └──────────────────────────────────┘        │
+│   │ provider-cloudflare-workers-ai-  │                                                   │
+│   │   hello                          │      WEB FRAMEWORKS (web-*)                      │
+│   │ provider-mistral-hello           │      ──────────────────────────                  │
+│   │ provider-huggingface-hello       │      ┌──────────────────────────────────┐        │
+│   │ provider-observability-hello     │      │ web-endpoints-hello              │        │
+│   │ provider-vertex-ai-model-garden  │      │ web-flask-hello                  │        │
+│   │ provider-vertex-ai-rerank-eval    │      │ web-multi-server                 │        │
+│   │ provider-firestore-retriever     │      │ web-short-n-long                 │        │
+│   │ provider-google-genai-code-      │      └──────────────────────────────────┘        │
+│   │   execution                      │                                                   │
+│   │ provider-google-genai-context-   │      OTHER                                       │
+│   │   caching                        │      ─────                                       │
+│   │ provider-google-genai-vertexai-  │      ┌──────────────────────────────────┐        │
+│   │   image                          │      │ dev-local-vectorstore-hello      │        │
+│   │ provider-google-genai-media-     │      └──────────────────────────────────┘        │
+│   │   models-demo                    │                                                   │
+│   │ provider-vertex-ai-vector-       │                                                   │
+│   │   search-bigquery                │                                                   │
+│   │ provider-vertex-ai-vector-       │                                                   │
+│   │   search-firestore               │                                                   │
+│   └──────────────────────────────────┘                                                   │
+│                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
@@ -55,59 +61,93 @@ cd py/samples/<sample-name>
 
 ## Sample List
 
-### Model Provider Samples
+### Model Provider Samples (`provider-*`)
 
 | Sample | Plugin | Description |
 |--------|--------|-------------|
-| **google-genai-hello** | google-genai | Gemini models with Google AI |
-| **anthropic-hello** | anthropic | Claude models directly |
-| **amazon-bedrock-hello** | amazon-bedrock | Claude, Llama, Nova via Bedrock |
-| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
-| **ollama-hello** | ollama | Local models with Ollama |
-| **compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
-| **deepseek-hello** | deepseek | DeepSeek V3 and R1 |
-| **xai-hello** | xai | Grok models |
-| **cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
+| **provider-google-genai-hello** | google-genai | Gemini models with Google AI |
+| **provider-google-genai-vertexai-hello** | vertex-ai | Gemini models with Vertex AI |
+| **provider-anthropic-hello** | anthropic | Claude models directly |
+| **provider-amazon-bedrock-hello** | amazon-bedrock | Claude, Llama, Nova via Bedrock |
+| **provider-microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
+| **provider-ollama-hello** | ollama | Local models with Ollama |
+| **provider-compat-oai-hello** | compat-oai | OpenAI-compatible APIs |
+| **provider-deepseek-hello** | deepseek | DeepSeek V3 and R1 |
+| **provider-xai-hello** | xai | Grok models |
+| **provider-cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
+| **provider-mistral-hello** | mistral | Mistral models |
+| **provider-huggingface-hello** | huggingface | HuggingFace Inference API models |
+| **provider-vertex-ai-model-garden** | vertex-ai | Third-party models via Vertex AI Model Garden |
+| **provider-observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 
-### Telemetry Samples
-
-| Sample | Plugin | Description |
-|--------|--------|-------------|
-| **aws-hello** | aws | AWS X-Ray and CloudWatch integration |
-| **microsoft-foundry-hello** | microsoft-foundry | Azure AI Foundry models + Application Insights |
-| **observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
-| **realtime-tracing-demo** | google-cloud | Real-time tracing visualization |
-
-### Vector Store Samples
+### Provider Feature Samples (`provider-*`)
 
 | Sample | Plugin | Description |
 |--------|--------|-------------|
-| **dev-local-vectorstore-hello** | dev-local-vectorstore | Local development vector store |
-| **vertex-ai-vector-search-firestore** | vertex-ai | Firestore with Vertex AI vectors |
-| **vertex-ai-vector-search-bigquery** | vertex-ai | BigQuery with Vertex AI vectors |
-| **firestore-retriever** | firebase | Firestore vector search |
+| **provider-google-genai-code-execution** | google-genai | Gemini server-side code execution |
+| **provider-google-genai-context-caching** | google-genai | Context caching for long prompts |
+| **provider-google-genai-vertexai-image** | vertex-ai | Image generation with Vertex AI Imagen |
+| **provider-google-genai-media-models-demo** | google-genai | Media generation: TTS, Veo, Lyria, Imagen, Gemini Image, editing |
+| **provider-vertex-ai-rerank-eval** | vertex-ai | Vertex AI rerankers and evaluators |
+| **provider-vertex-ai-vector-search-bigquery** | vertex-ai | BigQuery with Vertex AI vectors |
+| **provider-vertex-ai-vector-search-firestore** | vertex-ai | Firestore with Vertex AI vectors |
+| **provider-firestore-retriever** | firebase | Firestore vector search retriever |
 
-### Advanced Feature Samples
+### Framework Feature Samples (`framework-*`)
 
 | Sample | Features | Description |
 |--------|----------|-------------|
-| **tool-interrupts** | Tools | Human-in-the-loop tool approval |
-| **menu** | Tools | Restaurant menu ordering with tools |
-| **prompt-demo** | Prompts | Dotprompt templates and partials |
-| **format-demo** | Formats | Output formatting and schemas |
-| **multi-server** | Architecture | Multiple Genkit servers |
-| **evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
-| **vertexai-rerank-eval** | RAG, Evaluation | Vertex AI rerankers and evaluators |
-| **flask-hello** | Integrations | Flask HTTP endpoints |
+| **framework-context-demo** | Context | Context propagation through flows, tools, and generate |
+| **framework-dynamic-tools-demo** | Tools | Dynamic tool registration at runtime |
+| **framework-evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
+| **framework-format-demo** | Formats | Output formatting and schemas |
+| **framework-middleware-demo** | Middleware | Custom retry and logging middleware |
+| **framework-prompt-demo** | Prompts | Dotprompt templates and partials |
+| **framework-realtime-tracing-demo** | Telemetry | Real-time tracing visualization |
+| **framework-restaurant-demo** | Tools, RAG | Restaurant menu ordering with tools |
+| **framework-tool-interrupts** | Tools | Human-in-the-loop tool approval |
 
-### Multimodal Samples
+### Web Framework Samples (`web-*`)
 
 | Sample | Features | Description |
 |--------|----------|-------------|
-| **google-genai-image** | Imagen | Image generation with Imagen |
-| **media-models-demo** | Vision | Image understanding demos |
-| **google-genai-code-execution** | Code | Gemini code execution |
-| **google-genai-context-caching** | Performance | Context caching for long prompts |
+| **web-endpoints-hello** | FastAPI, Litestar, Quart, gRPC | REST + gRPC endpoints with multi-cloud deploy, auto-telemetry |
+| **web-flask-hello** | Flask | Flask HTTP endpoints with Genkit |
+| **web-multi-server** | Litestar, Starlette | Multiple Genkit servers |
+| **web-short-n-long** | ASGI | ASGI deployment with long-running flows |
+
+### Other Samples
+
+| Sample | Features | Description |
+|--------|----------|-------------|
+| **dev-local-vectorstore-hello** | Vector Store | Local development vector store |
+
+## Feature Coverage Matrix
+
+The table below tracks which capabilities each model provider sample exercises.
+This is a living document — update it as new flows are added to samples.
+
+> **Last audited**: 2026-02-07
+
+| Sample | Basic | Stream | Tools | Struct | Vision | Embed | Code | Reasoning | TTS | Cache | PDF |
+|--------|:-----:|:------:|:-----:|:------:|:------:|:-----:|:----:|:---------:|:---:|:-----:|:---:|
+| **provider-amazon-bedrock-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| **provider-anthropic-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ✅ | ✅ |
+| **provider-cloudflare-workers-ai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| **provider-compat-oai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | — |
+| **provider-deepseek-hello** | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | — | — | — |
+| **provider-google-genai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| **provider-google-genai-vertexai-hello** | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — |
+| **provider-huggingface-hello** | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | — | — | — | — |
+| **provider-microsoft-foundry-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — |
+| **provider-mistral-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| **provider-ollama-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — |
+| **provider-xai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — |
+
+**Legend**: ✅ = exercised in sample, — = plugin does not support this feature
+
+All plugin-supported features are now exercised in their respective samples.
+The matrix is complete — no remaining gaps (❌) exist.
 
 ## Environment Setup
 
@@ -117,18 +157,18 @@ Most samples require environment variables for API keys. Configure these before 
 
 | Variable | Sample | Required | Description | Get Credentials |
 |----------|--------|----------|-------------|-----------------|
-| `GOOGLE_GENAI_API_KEY` | google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
-| `ANTHROPIC_API_KEY` | anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | amazon-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AZURE_AI_FOUNDRY_ENDPOINT` | microsoft-foundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
-| `AZURE_AI_FOUNDRY_API_KEY` | microsoft-foundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
-| `OPENAI_API_KEY` | compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
-| `DEEPSEEK_API_KEY` | deepseek-hello | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
-| `XAI_API_KEY` | xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
-| `CLOUDFLARE_ACCOUNT_ID` | cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
-| `CLOUDFLARE_API_TOKEN` | cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `GOOGLE_GENAI_API_KEY` | provider-google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `ANTHROPIC_API_KEY` | provider-anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
+| `AWS_REGION` | provider-amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
+| `AWS_ACCESS_KEY_ID` | provider-amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AWS_SECRET_ACCESS_KEY` | provider-amazon-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
+| `AZURE_AI_FOUNDRY_ENDPOINT` | provider-microsoft-foundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
+| `AZURE_AI_FOUNDRY_API_KEY` | provider-microsoft-foundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
+| `OPENAI_API_KEY` | provider-compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| `DEEPSEEK_API_KEY` | provider-deepseek-hello | Yes | DeepSeek API key | [DeepSeek Platform](https://platform.deepseek.com/) |
+| `XAI_API_KEY` | provider-xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
+| `CLOUDFLARE_ACCOUNT_ID` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
+| `CLOUDFLARE_API_TOKEN` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
 
 *Can use IAM roles, managed identity, or other credential providers instead.
 
@@ -136,17 +176,17 @@ Most samples require environment variables for API keys. Configure these before 
 
 | Variable | Sample | Required | Description | Get Credentials |
 |----------|--------|----------|-------------|-----------------|
-| `GOOGLE_CLOUD_PROJECT` | realtime-tracing-demo | Yes | GCP project ID | [GCP Console](https://console.cloud.google.com/) |
-| `GOOGLE_APPLICATION_CREDENTIALS` | realtime-tracing-demo | Yes* | Service account JSON path | [GCP IAM](https://cloud.google.com/docs/authentication/application-default-credentials) |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | microsoft-foundry-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
-| `CF_OTLP_ENDPOINT` | cloudflare-workers-ai-hello | No* | OTLP endpoint URL | Your OTLP backend |
-| `CF_API_TOKEN` | cloudflare-workers-ai-hello | No* | Bearer token for OTLP auth | Your OTLP backend |
+| `GOOGLE_CLOUD_PROJECT` | framework-realtime-tracing-demo | Yes | GCP project ID | [GCP Console](https://console.cloud.google.com/) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | framework-realtime-tracing-demo | Yes* | Service account JSON path | [GCP IAM](https://cloud.google.com/docs/authentication/application-default-credentials) |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | provider-microsoft-foundry-hello | Yes | Azure App Insights connection string | [Azure Portal](https://learn.microsoft.com/azure/azure-monitor/app/create-workspace-resource) |
+| `CF_OTLP_ENDPOINT` | provider-cloudflare-workers-ai-hello | No* | OTLP endpoint URL | Your OTLP backend |
+| `CF_API_TOKEN` | provider-cloudflare-workers-ai-hello | No* | Bearer token for OTLP auth | Your OTLP backend |
 
 *Only required if using OTLP telemetry export.
 
 ### Observability Plugin (Third-Party Backends)
 
-The `observability-hello` sample supports multiple backends. Configure based on your choice:
+The `provider-observability-hello` sample supports multiple backends. Configure based on your choice:
 
 #### Sentry
 
@@ -192,43 +232,43 @@ Sites: `datadoghq.com`, `datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`
 ### Quick Setup Examples
 
 ```bash
-# Google AI (google-genai-hello)
+# Google AI (provider-google-genai-hello)
 export GOOGLE_GENAI_API_KEY="AIza..."
 
-# Anthropic (anthropic-hello)
+# Anthropic (provider-anthropic-hello)
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# AWS Bedrock (amazon-bedrock-hello)
+# AWS Bedrock (provider-amazon-bedrock-hello)
 export AWS_REGION="us-east-1"
 export AWS_ACCESS_KEY_ID="AKIA..."
 export AWS_SECRET_ACCESS_KEY="..."
 
-# Azure AI Foundry (microsoft-foundry-hello)
+# Azure AI Foundry (provider-microsoft-foundry-hello)
 export AZURE_AI_FOUNDRY_ENDPOINT="https://your-resource.services.ai.azure.com/"
 export AZURE_AI_FOUNDRY_API_KEY="..."
 
-# Azure Telemetry (microsoft-foundry-hello)
+# Azure Telemetry (provider-microsoft-foundry-hello)
 export APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=..."
 
-# Cloudflare Workers AI (cloudflare-workers-ai-hello)
+# Cloudflare Workers AI (provider-cloudflare-workers-ai-hello)
 export CLOUDFLARE_ACCOUNT_ID="abc123..."
 export CLOUDFLARE_API_TOKEN="..."
 
-# Sentry (observability-hello)
+# Sentry (provider-observability-hello)
 export SENTRY_DSN="https://abc123@o123456.ingest.us.sentry.io/4507654321"
 
-# Honeycomb (observability-hello)
+# Honeycomb (provider-observability-hello)
 export HONEYCOMB_API_KEY="..."
 
-# Datadog (observability-hello)
+# Datadog (provider-observability-hello)
 export DD_API_KEY="..."
 
-# Grafana Cloud (observability-hello)
+# Grafana Cloud (provider-observability-hello)
 export GRAFANA_OTLP_ENDPOINT="https://otlp-gateway-prod-us-central-0.grafana.net/otlp"
 export GRAFANA_USER_ID="123456"
 export GRAFANA_API_KEY="glc_..."
 
-# Axiom (observability-hello)
+# Axiom (provider-observability-hello)
 export AXIOM_TOKEN="xaat-..."
 ```
 

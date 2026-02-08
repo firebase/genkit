@@ -332,7 +332,7 @@ async def _generate_stream(
 ## Sample Application
 
 ```python
-# py/samples/cloudflare-workers-ai-hello/src/main.py
+# py/samples/provider-cloudflare-workers-ai-hello/src/main.py
 """Cloudflare Workers AI hello sample - Edge AI with Genkit."""
 
 from genkit.ai import Genkit

@@ -14,56 +14,92 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Common flows for samples."""
+"""Common flow logic for provider samples.
+
+Each function takes a ``Genkit`` instance (and typed inputs) so that
+provider samples can delegate to them from thin ``@ai.flow()`` wrappers.
+Provider-specific flow logic stays in each sample's main.py.
+"""
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
 
 
-async def calculation_logic(ai: Genkit, input: CalculatorInput) -> str:
-    """Business logic to perform currency conversion via an LLM tool call.
+async def calculation_logic(ai: Genkit, input: CalculatorInput, model: str | None = None) -> str:
+    """Perform a calculation via an LLM tool call.
 
     Args:
         ai: The initialized Genkit instance.
-        input: Validated currency exchange parameters.
+        input: Calculator parameters.
+        model: Optional model override (needed for providers whose default
+            model doesn't support tool calling, e.g. Ollama/Gemma).
 
     Returns:
-        Conversion result.
+        Calculation result.
     """
     response = await ai.generate(
+        model=model,
         prompt=f'Calculate {input.a} {input.operation} {input.b}',
         tools=['calculate'],
     )
-
     return response.text
 
 
-async def currency_exchange_logic(ai: Genkit, input: CurrencyExchangeInput) -> str:
-    """Business logic to perform currency conversion via an LLM tool call.
+async def describe_image_logic(ai: Genkit, image_url: str, model: str | None = None) -> str:
+    """Describe an image using multimodal generation.
+
+    Args:
+        ai: The Genkit instance.
+        image_url: URL of the image to describe.
+        model: Optional model override for provider-specific vision models.
+
+    Returns:
+        A textual description of the image.
+    """
+    response = await ai.generate(
+        model=model,
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[
+                    Part(root=TextPart(text='Describe this image in detail')),
+                    Part(root=MediaPart(media=Media(url=image_url, content_type='image/jpeg'))),
+                ],
+            )
+        ],
+    )
+    return response.text
+
+
+async def convert_currency_logic(ai: Genkit, input: CurrencyExchangeInput, model: str | None = None) -> str:
+    """Convert currency using tool calling.
 
     Args:
         ai: The initialized Genkit instance.
         input: Validated currency exchange parameters.
+        model: Optional model override (needed for providers whose default
+            model doesn't support tool calling, e.g. Ollama/Gemma).
 
     Returns:
         Conversion result.
     """
     response = await ai.generate(
+        model=model,
         prompt=f'Convert {input.amount} {input.from_currency} to {input.to_currency}',
         tools=['convert_currency'],
     )
-
     return response.text
 
 
 async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
-    """Generate an RPG character.
+    """Generate an RPG character with structured output.
 
     Args:
         ai: The Genkit instance.
-        name: The name of the character
+        name: The name of the character.
 
     Returns:
         The generated RPG character.
@@ -72,11 +108,28 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
         prompt=f'Generate a structured RPG character named {name}. Output ONLY the JSON object.',
         output=Output(schema=RpgCharacter),
     )
-    return result.output  # type: RpgCharacter from Output(schema=RpgCharacter)
+    return result.output
 
 
-async def say_hi_logic(ai: Genkit, name: str) -> str:
-    """Generates a simple greeting via the AI model.
+async def generate_code_logic(ai: Genkit, task: str) -> str:
+    """Generate code for a given task.
+
+    Args:
+        ai: The Genkit instance.
+        task: Coding task description.
+
+    Returns:
+        Generated code.
+    """
+    response = await ai.generate(
+        prompt=task,
+        system='You are an expert programmer. Provide clean, well-documented code with explanations.',
+    )
+    return response.text
+
+
+async def generate_greeting_logic(ai: Genkit, name: str) -> str:
+    """Generate a simple greeting.
 
     Args:
         ai: The Genkit instance.
@@ -89,13 +142,51 @@ async def say_hi_logic(ai: Genkit, name: str) -> str:
     return response.text
 
 
-async def say_hi_stream_logic(ai: Genkit, name: str, ctx: ActionRunContext | None) -> str:
-    """Generates a streaming story.
+async def generate_multi_turn_chat_logic(ai: Genkit, destination: str) -> str:
+    """Demonstrate multi-turn conversations using the messages parameter.
+
+    Builds a 2-turn travel conversation where the second turn requires
+    context from the first.
+
+    Args:
+        ai: The Genkit instance.
+        destination: Travel destination.
+
+    Returns:
+        The model's final response, demonstrating context retention.
+    """
+    response1 = await ai.generate(
+        system='You are a helpful travel assistant.',
+        messages=[
+            Message(
+                role=Role.USER,
+                content=[Part(root=TextPart(text=f'I want to visit {destination} for two weeks in spring.'))],
+            ),
+        ],
+    )
+    response2 = await ai.generate(
+        system='You are a helpful travel assistant.',
+        messages=[
+            *response1.messages,
+            Message(
+                role=Role.USER,
+                content=[Part(root=TextPart(text='What should I pack for that trip?'))],
+            ),
+        ],
+    )
+    return response2.text
+
+
+async def generate_streaming_story_logic(ai: Genkit, name: str, ctx: ActionRunContext | None) -> str:
+    """Generate a streaming story response.
 
     Args:
         ai: The Genkit instance.
         name: Name to greet.
         ctx: Action context for streaming.
+
+    Returns:
+        Complete story text.
     """
     response = await ai.generate(
         prompt=f'Tell me a short story about {name}',
@@ -104,8 +195,59 @@ async def say_hi_stream_logic(ai: Genkit, name: str, ctx: ActionRunContext | Non
     return response.text
 
 
-async def say_hi_with_config_logic(ai: Genkit, name: str) -> str:
-    """Generates a greeting with custom model configuration.
+async def generate_streaming_with_tools_logic(
+    ai: Genkit, location: str, ctx: ActionRunContext | None, model: str | None = None
+) -> str:
+    """Demonstrate streaming generation with tool calling.
+
+    The model streams its response while also calling tools mid-generation.
+
+    Args:
+        ai: The Genkit instance.
+        location: Location for weather lookup.
+        ctx: Action context for streaming chunks to the client.
+        model: Optional model override (needed for providers whose default
+            model doesn't support tool calling, e.g. Ollama/Gemma).
+
+    Returns:
+        The complete generated text.
+    """
+    stream, response = ai.generate_stream(
+        model=model,
+        prompt=f'What is the weather in {location}? Describe it poetically.',
+        tools=['get_weather'],
+    )
+    full_text = ''
+    async for chunk in stream:
+        if chunk.text:
+            if ctx is not None:
+                ctx.send_chunk(chunk.text)
+            full_text += chunk.text
+    return (await response).text
+
+
+async def generate_weather_logic(ai: Genkit, input: WeatherInput, model: str | None = None) -> str:
+    """Get weather information using tool calling.
+
+    Args:
+        ai: The Genkit instance.
+        input: Weather input data.
+        model: Optional model override (needed for providers whose default
+            model doesn't support tool calling, e.g. Ollama/Gemma).
+
+    Returns:
+        Formatted weather string.
+    """
+    response = await ai.generate(
+        model=model,
+        prompt=f'What is the weather in {input.location}?',
+        tools=['get_weather'],
+    )
+    return response.text
+
+
+async def generate_with_config_logic(ai: Genkit, name: str) -> str:
+    """Generate a greeting with custom model configuration.
 
     Args:
         ai: The Genkit instance.
@@ -121,22 +263,39 @@ async def say_hi_with_config_logic(ai: Genkit, name: str) -> str:
     return response.text
 
 
-async def weather_logic(ai: Genkit, input: WeatherInput) -> str:
-    """Get weather info using the weather tool (via model tool calling).
+async def generate_with_system_prompt_logic(ai: Genkit, question: str) -> str:
+    """Demonstrate system prompts to control model persona and behavior.
+
+    Uses a pirate captain persona as a fun, recognizable example.
 
     Args:
-        ai: The AI model or client used to generate the weather response.
-        input: Weather input data.
+        ai: The Genkit instance.
+        question: Question to ask.
 
     Returns:
-        Formatted weather string.
-
-    Example:
-        >>> await weather_flow(WeatherInput(location='London'))
-        "Weather in London: 15°C, cloudy"
+        The model's response in the persona defined by the system prompt.
     """
     response = await ai.generate(
-        prompt=f'What is the weather in {input.location}?',
-        tools=['get_weather'],
+        prompt=question,
+        system='You are a pirate captain from the 18th century. Always respond in character, '
+        'using pirate slang and nautical terminology.',
+    )
+    return response.text
+
+
+async def solve_reasoning_problem_logic(ai: Genkit, prompt: str, model: str | None = None) -> str:
+    """Solve reasoning problems using a reasoning model.
+
+    Args:
+        ai: The Genkit instance.
+        prompt: Reasoning question to solve.
+        model: Optional model override for provider-specific reasoning models.
+
+    Returns:
+        The reasoning and answer.
+    """
+    response = await ai.generate(
+        model=model,
+        prompt=prompt,
     )
     return response.text

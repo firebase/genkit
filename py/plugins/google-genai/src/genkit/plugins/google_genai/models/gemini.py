@@ -157,6 +157,10 @@ from genkit.blocks.model import get_basic_usage_stats
 from genkit.codec import dump_dict, dump_json
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.tracing import tracer
+from genkit.core.typing import (
+    Candidate,
+    FinishReason,
+)
 from genkit.lang.deprecations import (
     deprecated_enum_metafactory,
 )
@@ -170,6 +174,7 @@ from genkit.types import (
     GenerationUsage,
     Message,
     ModelInfo,
+    Part,
     Role,
     Stage,
     Supports,
@@ -1219,7 +1224,7 @@ class GeminiModel:
 
         # TODO(#4361): Do not move - this method mutates `request` by extracting system
         # prompts into configuration object
-        request_cfg = self._genkit_to_googleai_cfg(request=request)
+        request_cfg = await self._genkit_to_googleai_cfg(request=request)
 
         # TTS models require response_modalities: ["AUDIO"]
         if is_tts_model(model_name):
@@ -1229,11 +1234,6 @@ class GeminiModel:
 
         # Image models require response_modalities: ["TEXT", "IMAGE"]
         if is_image_model(model_name):
-            if request.tools:
-                raise ValueError(
-                    f'Model {model_name} does not support tools. '
-                    'Please remove the tools config or use a model that supports tools.'
-                )
             if not request_cfg:
                 request_cfg = genai_types.GenerateContentConfig()
             request_cfg.response_modalities = ['TEXT', 'IMAGE']
@@ -1378,6 +1378,8 @@ class GeminiModel:
                     status = 'PERMISSION_DENIED'
                 elif e.code == 404:
                     status = 'NOT_FOUND'
+                elif e.code == 429:
+                    status = 'RESOURCE_EXHAUSTED'
 
                 raise GenkitError(
                     status=status,
@@ -1397,17 +1399,65 @@ class GeminiModel:
                 ) from e
             span.set_attribute('genkit:output', dump_json(response))
 
-        content = self._contents_from_response(response)
+        content = await self._contents_from_response(response)
 
         # Ensure we always have at least one content item to avoid UI errors
         if not content:
-            content = [TextPart(text='')]
+            content = [Part(root=TextPart(text=''))]
+
+        finish_reason = FinishReason.OTHER
+        candidates = []
+        if response.candidates:
+            for i, c in enumerate(response.candidates):
+                c_content = []
+                if c.content and c.content.parts:
+                    for j, part in enumerate(c.content.parts):
+                        converted = PartConverter.from_gemini(part=part, ref=str(j))
+                        if converted:
+                            c_content.append(converted)
+
+                if not c_content:
+                    c_content = [Part(root=TextPart(text=''))]
+
+                c_finish_reason = FinishReason.OTHER
+                if c.finish_reason:
+                    fr_name = c.finish_reason.name
+                    if fr_name == 'STOP':
+                        c_finish_reason = FinishReason.STOP
+                    elif fr_name == 'MAX_TOKENS':
+                        c_finish_reason = FinishReason.LENGTH
+                    elif fr_name in ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII']:
+                        c_finish_reason = FinishReason.BLOCKED
+                    elif fr_name == 'OTHER':
+                        c_finish_reason = FinishReason.OTHER
+
+                if i == 0:
+                    finish_reason = c_finish_reason
+
+                candidates.append(
+                    Candidate(
+                        index=float(i),
+                        message=Message(role=Role.MODEL, content=c_content),
+                        finish_reason=c_finish_reason,
+                    )
+                )
 
         return GenerateResponse(
             message=Message(
-                content=content,  # type: ignore[arg-type] - content is list[Part] after conversion
+                content=content,
                 role=Role.MODEL,
-            )
+            ),
+            finish_reason=finish_reason,
+            candidates=candidates,
+            usage=GenerationUsage(
+                input_tokens=float(response.usage_metadata.prompt_token_count or 0)
+                if response.usage_metadata
+                else None,
+                output_tokens=float(response.usage_metadata.candidates_token_count or 0)
+                if response.usage_metadata
+                else None,
+                total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
+            ),
         )
 
     async def _streaming_generate(
@@ -1441,7 +1491,7 @@ class GeminiModel:
             )
             client = client or self._client
             try:
-                generator = client.aio.models.generate_content_stream(
+                generator = await client.aio.models.generate_content_stream(
                     model=model_name,
                     contents=cast(genai_types.ContentListUnion, request_contents),
                     config=request_cfg,
@@ -1456,6 +1506,8 @@ class GeminiModel:
                     status = 'PERMISSION_DENIED'
                 elif e.code == 404:
                     status = 'NOT_FOUND'
+                elif e.code == 429:
+                    status = 'RESOURCE_EXHAUSTED'
 
                 raise GenkitError(
                     status=status,
@@ -1463,8 +1515,8 @@ class GeminiModel:
                     cause=e,
                 ) from e
         accumulated_content = []
-        async for response_chunk in await generator:
-            content = self._contents_from_response(response_chunk)
+        async for response_chunk in generator:
+            content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
                 accumulated_content.extend(content)
                 ctx.send_chunk(
@@ -1520,7 +1572,7 @@ class GeminiModel:
                 continue
             content_parts: list[genai_types.Part] = []
             for p in msg.content:
-                converted = PartConverter.to_gemini(p)
+                converted = await PartConverter.to_gemini(p)
                 if isinstance(converted, list):
                     content_parts.extend(converted)
                 else:
@@ -1540,7 +1592,7 @@ class GeminiModel:
 
         return request_contents, cache
 
-    def _contents_from_response(self, response: genai_types.GenerateContentResponse) -> list:
+    async def _contents_from_response(self, response: genai_types.GenerateContentResponse) -> list:
         """Retrieve contents from google-genai response.
 
         Args:
@@ -1561,15 +1613,21 @@ class GeminiModel:
         # Ensure we always return a list, even if empty
         return content if content else []
 
-    def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
-        """Translate GenerationCommonConfig to Google Ai GenerateContentConfig.
+    async def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
+        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig."""
+        system_instruction: list[genai.types.Part] = []
 
-        Args:
-            request: Genkit request.
+        # 1. System messages
+        system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))
+        for m in system_messages:
+            if m.content:
+                for p in m.content:
+                    converted = await PartConverter.to_gemini(p)
+                    if isinstance(converted, list):
+                        system_instruction.extend(converted)
+                    else:
+                        system_instruction.append(converted)
 
-        Returns:
-            Google Ai request config or None.
-        """
         cfg = None
         tools = []
 
@@ -1578,13 +1636,11 @@ class GeminiModel:
             if isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
             elif isinstance(request_config, GenerationCommonConfig):
-                cfg = genai_types.GenerateContentConfig(
-                    max_output_tokens=request_config.max_output_tokens,
-                    top_k=request_config.top_k,
-                    top_p=request_config.top_p,
-                    temperature=request_config.temperature,
-                    stop_sequences=request_config.stop_sequences,
-                )
+                dumped = request_config.model_dump(exclude_none=True)
+                if dumped:
+                    cfg = genai_types.GenerateContentConfig(**dumped)
+                else:
+                    cfg = None
             elif isinstance(request_config, dict):
                 if 'image_config' in request_config:
                     cfg = GeminiImageConfigSchema(**request_config)
@@ -1644,64 +1700,39 @@ class GeminiModel:
                     if key in dumped_config:
                         del dumped_config[key]
 
-                if 'image_config' in dumped_config and isinstance(dumped_config['image_config'], dict):
-                    valid_image_keys = {
-                        'aspect_ratio',
-                        'image_size',
-                        'person_generation',
-                        'output_mime_type',
-                        'output_compression_quality',
-                    }
-                    dumped_config['image_config'] = {
-                        k: v for k, v in dumped_config['image_config'].items() if k in valid_image_keys
-                    }
+                # Check for SDK support of newer fields
+                for key in ['image_config', 'thinking_config', 'response_modalities']:
+                    if key in dumped_config and key not in genai_types.GenerateContentConfig.model_fields:
+                        del dumped_config[key]
 
-                # Check if image_config is actually supported by the installed SDK version
-                if (
-                    'image_config' in dumped_config
-                    and 'image_config' not in genai_types.GenerateContentConfig.model_fields
-                ):
-                    del dumped_config['image_config']
+                if dumped_config:
+                    cfg = genai_types.GenerateContentConfig(**dumped_config)
+                else:
+                    cfg = None
 
-                cfg = genai_types.GenerateContentConfig(**dumped_config)
+        # Tools from top-level field and config-level fields
+        tools.extend(self._get_tools(request))
 
-        if request.output:
-            if not cfg:
+        if cfg is not None or tools or system_instruction or request.output:
+            if cfg is None:
                 cfg = genai_types.GenerateContentConfig()
 
-            response_mime_type = 'application/json' if request.output.format == 'json' and not request.tools else None
-            cfg.response_mime_type = response_mime_type
+            if request.output:
+                response_mime_type = (
+                    'application/json' if request.output.format == 'json' and not request.tools else None
+                )
+                cfg.response_mime_type = response_mime_type
 
-            if request.output.schema and request.output.constrained:
-                cfg.response_schema = self._convert_schema_property(request.output.schema)
+                if request.output.schema and request.output.constrained:
+                    cfg.response_schema = self._convert_schema_property(request.output.schema)
 
-        if request.tools:
-            if not cfg:
-                cfg = genai_types.GenerateContentConfig()
+            if tools:
+                cfg.tools = tools
 
-            tools.extend(self._get_tools(request))
+            cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
+            return cfg
 
-        if tools:
-            if not cfg:
-                cfg = genai_types.GenerateContentConfig()
-            cfg.tools = tools
-
-        system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))
-        if system_messages:
-            system_parts = []
-            if not cfg:
-                cfg = genai.types.GenerateContentConfig()
-
-            for msg in system_messages:
-                for p in msg.content:
-                    converted = PartConverter.to_gemini(p)
-                    if isinstance(converted, list):
-                        system_parts.extend(converted)
-                    else:
-                        system_parts.append(converted)
-            cfg.system_instruction = genai.types.Content(parts=system_parts)
-
-        return cfg
+        return None
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
         """Create usage statistics.

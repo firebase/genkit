@@ -52,7 +52,7 @@ genkit start -- uv run src/main.py
 
 4. **Test the flows**:
    - [ ] `index_documents` - Index sample film documents
-   - [ ] `retreive_documents` - Query for similar films
+   - [ ] `retrieve_documents` - Query for similar films
    - [ ] Try different query terms
 
 5. **Expected behavior**:

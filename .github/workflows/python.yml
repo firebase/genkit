@@ -99,7 +99,12 @@ jobs:
 
       - name: Type check with Pyrefly
         if: matrix.checker == 'pyrefly'
-        run: uv run --directory py pyrefly check .
+        # TODO(https://github.com/firebase/genkit/pull/4502): Remove --project-excludes
+        # after granian embed.Server API migration merges.
+        run: >-
+          uv run --directory py pyrefly check
+          --project-excludes 'packages/genkit/src/genkit/web/manager/_adapters.py'
+          .
 
       - name: Type check with Pyright
         if: matrix.checker == 'pyright'
@@ -207,6 +212,36 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --active --isolated --directory py \
             pytest -xvs --log-level=DEBUG .
+  # =============================================================================
+  # Sample integration tests (isolated per-sample, runs in parallel)
+  # =============================================================================
+  sample-tests:
+    name: Sample Tests (${{ matrix.sample }}, Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add new samples with tests here as they are created.
+        sample: [web-endpoints-hello]
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install sample dependencies
+        run: |
+          cd py
+          uv sync --package ${{ matrix.sample }} --extra test --extra dev
+
+      - name: Run sample tests
+        run: |
+          cd py/samples/${{ matrix.sample }}
+          uv run pytest tests/ -xvs
 
   # =============================================================================
   # Build verification (runs after tests pass)
@@ -214,7 +249,7 @@ jobs:
   build:
     name: Build Distributions
     runs-on: ubuntu-latest
-    needs: [lint-and-format, type-check, security-and-compliance, tests]
+    needs: [lint-and-format, type-check, security-and-compliance, tests, sample-tests]
     steps:
       - uses: actions/checkout@v5
 

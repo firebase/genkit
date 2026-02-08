@@ -126,6 +126,56 @@ async def test_googleai_resolve_model(mock_list_models: MagicMock, mock_client: 
 @patch('genkit.plugins.google_genai.google.genai.client.Client')
 @patch('genkit.plugins.google_genai.google._list_genai_models')
 @pytest.mark.asyncio
+async def test_googleai_resolve_imagen_model(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Test GoogleAI plugin resolves Imagen image generation models."""
+    mock_list_models.return_value = GenaiModels()
+
+    plugin = GoogleAI(api_key='test-key')
+    action = await plugin.resolve(ActionKind.MODEL, 'googleai/imagen-3.0-generate-002')
+
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+    assert action.name == 'googleai/imagen-3.0-generate-002'
+
+
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google._list_genai_models')
+@pytest.mark.asyncio
+async def test_googleai_init_registers_imagen_models(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Test GoogleAI init registers Imagen models from dynamic discovery."""
+    models = GenaiModels()
+    models.imagen = ['imagen-3.0-generate-002']
+    mock_list_models.return_value = models
+
+    plugin = GoogleAI(api_key='test-key')
+    actions = await plugin.init()
+
+    imagen_actions = [a for a in actions if 'imagen' in a.name]
+    assert len(imagen_actions) == 1
+    assert imagen_actions[0].name == 'googleai/imagen-3.0-generate-002'
+    assert imagen_actions[0].kind == ActionKind.MODEL
+
+
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google._list_genai_models')
+@pytest.mark.asyncio
+async def test_googleai_list_actions_includes_imagen(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Test GoogleAI list_actions includes Imagen models."""
+    models = GenaiModels()
+    models.imagen = ['imagen-3.0-generate-002']
+    mock_list_models.return_value = models
+
+    plugin = GoogleAI(api_key='test-key')
+    actions_list = await plugin.list_actions()
+
+    imagen_actions = [a for a in actions_list if 'imagen' in a.name]
+    assert len(imagen_actions) == 1
+    assert imagen_actions[0].name == 'googleai/imagen-3.0-generate-002'
+
+
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google._list_genai_models')
+@pytest.mark.asyncio
 async def test_googleai_resolve_embedder(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
     """Test GoogleAI plugin resolves embedder actions."""
     mock_list_models.return_value = GenaiModels()

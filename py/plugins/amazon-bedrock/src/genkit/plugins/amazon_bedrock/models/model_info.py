@@ -229,6 +229,11 @@ SUPPORTED_BEDROCK_MODELS: dict[str, ModelInfo] = {
         versions=['anthropic.claude-opus-4-1-20250805-v1:0'],
         supports=CLAUDE_MODEL_SUPPORTS,
     ),
+    'anthropic.claude-opus-4-6-20260205-v1:0': ModelInfo(
+        label='Claude Opus 4.6',
+        versions=['anthropic.claude-opus-4-6-20260205-v1:0'],
+        supports=CLAUDE_MODEL_SUPPORTS,
+    ),
     'anthropic.claude-haiku-4-5-20251001-v1:0': ModelInfo(
         label='Claude Haiku 4.5',
         versions=['anthropic.claude-haiku-4-5-20251001-v1:0'],

@@ -20,22 +20,26 @@ Usage:
     python review_sample_flows.py <path_to_sample_directory>
 
 Example:
-    python review_sample_flows.py samples/google-genai-hello
+    python review_sample_flows.py samples/provider-google-genai-hello
 """
 
 import argparse
 import asyncio
 import importlib.util
+import json
+import logging
+import platform
+import subprocess  # noqa: S404
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
+
+from genkit.core.action import ActionKind
 
 
 def open_file(path: str) -> None:
     """Open a file with the default system application."""
-    import platform
-    import subprocess  # noqa: S404
-
     try:
         if platform.system() == 'Darwin':  # macOS
             subprocess.run(['open', path], check=False)  # noqa: S603, S607
@@ -102,8 +106,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     args = parser.parse_args()
 
     # Suppress verbose logging from genkit framework to avoid printing full data URLs
-    import logging
-
     logging.basicConfig(level=logging.WARNING)
     logging.getLogger('genkit').setLevel(logging.WARNING)
     logging.getLogger('google').setLevel(logging.WARNING)
@@ -123,6 +125,12 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     src_dir = main_py_path.parent
     sys.path.insert(0, str(src_dir))
 
+    # Add the py/ root directory to sys.path so 'samples.shared' imports work
+    # sample_path is .../py/samples/sample-name
+    # sample_path.parent is .../py/samples
+    # sample_path.parent.parent is .../py
+    sys.path.insert(0, str(sample_path.parent.parent))
+
     # Import the module dynamically
     spec = importlib.util.spec_from_file_location('sample_main', main_py_path)
     if spec is None or spec.loader is None:
@@ -137,8 +145,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     try:
         spec.loader.exec_module(module)
     except Exception:
-        import traceback  # noqa: F823
-
         traceback.print_exc()
         sys.exit(1)
 
@@ -156,8 +162,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     assert ai_instance is not None  # Type narrowing for ai_instance.registry
 
-    from genkit.core.action import ActionKind
-
     # List all flows
     registry = ai_instance.registry
     actions_map = asyncio.run(registry.resolve_actions_by_kind(ActionKind.FLOW))
@@ -167,7 +171,11 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     failed_flows = []
 
     # We'll add the summary after testing all flows
-    detail_lines = []
+    class LiveLogger(list):
+        def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
+            super().append(item)
+
+    detail_lines = LiveLogger()
 
     try:
         for flow_name, flow_action in actions_map.items():
@@ -179,9 +187,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 detail_lines.append(f'Generated Input: {input_data}')
 
                 # Run flow in subprocess to avoid event loop conflicts
-                import json
-                import subprocess  # noqa: S404 - test script, subprocess usage is intentional
-
                 # Get path to helper script
                 script_dir = Path(__file__).parent
                 helper_script = script_dir / 'run_single_flow.py'
@@ -254,8 +259,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 detail_lines.append(f'Error: {error_msg}')
 
                 # Add traceback for debugging
-                import traceback
-
                 tb_lines = traceback.format_exc().split('\n')
                 detail_lines.append('Traceback:')
                 for line in tb_lines:
@@ -289,8 +292,6 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
     Returns:
         Formatted string representation
     """
-    import json
-
     from genkit.types import Media
 
     # Handle None
