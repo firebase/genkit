@@ -249,6 +249,27 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		}
 	}
 
+	if len(execOpts.Use) > 0 {
+		for _, mw := range execOpts.Use {
+			name := mw.Name()
+			if LookupMiddleware(r, name) == nil {
+				if !r.IsChild() {
+					r = r.NewChild()
+				}
+				DefineMiddleware(r, "", mw)
+			}
+			configJSON, err := json.Marshal(mw)
+			if err != nil {
+				return nil, fmt.Errorf("Prompt.Execute: failed to marshal middleware %q config: %w", name, err)
+			}
+			var config any
+			if err := json.Unmarshal(configJSON, &config); err != nil {
+				return nil, fmt.Errorf("Prompt.Execute: failed to unmarshal middleware %q config: %w", name, err)
+			}
+			actionOpts.Use = append(actionOpts.Use, &MiddlewareRef{Name: name, Config: config})
+		}
+	}
+
 	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 

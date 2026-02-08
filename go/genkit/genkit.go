@@ -228,6 +228,16 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 			action.Register(r)
 		}
 		r.RegisterPlugin(plugin.Name(), plugin)
+
+		if mp, ok := plugin.(ai.MiddlewarePlugin); ok {
+			descs, err := mp.ListMiddleware(ctx)
+			if err != nil {
+				panic(fmt.Errorf("genkit.Init: plugin %q ListMiddleware failed: %w", plugin.Name(), err))
+			}
+			for _, d := range descs {
+				d.Register(r)
+			}
+		}
 	}
 
 	ai.ConfigureFormats(r)
