@@ -509,7 +509,9 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G36 | Python | Add Cohere provider (or document compat-oai usage) | §1d/§6b | ⬜ |
 | G37 | Python | Track BloomLabs graph workflows plugin | §1d/§6b | ⬜ |
 
-### 7b. Go Roadmap (JS-Canonical Parity)
+### 7b. Go Roadmap (JS-Canonical Parity) — Deferred
+
+> **Note**: Go parity work is deferred to a future effort. Current focus is exclusively on Python SDK parity.
 
 | Gap ID | SDK | Work Item | Reference | Status |
 |--------|-----|-----------|-------|:------:|
