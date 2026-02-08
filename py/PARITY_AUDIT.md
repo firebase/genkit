@@ -482,7 +482,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | Gap ID | SDK | Work Item | Reference | Status |
 |--------|-----|-----------|-----------|:------:|
 | G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ⬜ |
-| G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ⬜ |
+| G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ⏳ Deferred |
 | G6 → G5 | Python | Pass `span_id` in `on_trace_start`, send `X-Genkit-Span-Id` | §8c.3, §8c.4 | ⬜ |
 | G3 | Python | Implement `simulate_constrained_generation` middleware | §8b.3, §8f | ⬜ |
 | G12 | Python | Implement `retry` middleware | §8f | ⬜ |
@@ -499,8 +499,8 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G9 | Python | Add Pinecone vector store plugin | §5g | ⬜ |
 | G10 | Python | Add ChromaDB vector store plugin | §5g | ⬜ |
 | G30 | Python | Add Cloud SQL PG vector store parity | §5g | ⬜ |
-| G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | ⬜ |
-| G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⬜ |
+| G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | ⏳ Deferred |
+| G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⏳ Deferred |
 | G17 | Python | Add built-in `api_key()` context provider | §8g | ⬜ |
 | G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ⬜ |
 | G33 | Python | Consider LangChain integration parity | §1c/§9 | ⬜ |
