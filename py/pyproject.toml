@@ -445,9 +445,7 @@ exclude = [
 # TODO(https://github.com/firebase/genkit/pull/4502): Remove after granian
 # embed.Server API migration merges — the old granian.Granian() API uses
 # string literals that no longer match the expected enum types.
-ignore = [
-  "packages/genkit/src/genkit/web/manager/_adapters.py",
-]
+ignore = ["packages/genkit/src/genkit/web/manager/_adapters.py"]
 # Use the venv where packages are installed as editable installs
 pythonVersion          = "3.10"
 reportMissingImports   = true
