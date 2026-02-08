@@ -502,6 +502,72 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 - **`vertex-ai`** (Model Garden) uses `compat-oai` for third-party model support
 - **`flask`** has a dev dependency on `google-genai` for its sample
 
+## Cross-Language Plugin Coverage
+
+> **Last audited**: 2026-02-07
+
+The table below compares plugin availability across Python and JavaScript SDKs.
+Python currently has **20 plugins** vs JavaScript's **17 plugins**, with broader
+model provider diversity.
+
+### Model Providers
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| Google GenAI (Gemini, Imagen, Veo, Lyria) | ✅ | ✅ | |
+| Vertex AI (Model Garden, Vector Search) | ✅ | ✅ | |
+| Anthropic (Claude) | ✅ | ✅ | |
+| Ollama | ✅ | ✅ | |
+| OpenAI-Compatible (compat-oai) | ✅ | ✅ | |
+| Amazon Bedrock | ✅ | — | Python-only; community 🌐 |
+| Microsoft Foundry (Azure AI) | ✅ | — | Python-only; community 🌐 |
+| DeepSeek | ✅ | — | Python-only |
+| xAI (Grok) | ✅ | — | Python-only |
+| Cloudflare Workers AI | ✅ | — | Python-only; community 🌐 |
+| Mistral | ✅ | — | Python-only |
+| HuggingFace | ✅ | — | Python-only |
+
+### Telemetry & Observability
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| Google Cloud (Trace, Logging) | ✅ | ✅ | |
+| Firebase | ✅ | ✅ | |
+| Observability (Sentry, Honeycomb, Datadog, Grafana, Axiom) | ✅ | — | Python-only; community 🌐 |
+
+### Integrations
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| MCP (Model Context Protocol) | ✅ | ✅ | |
+| Flask | ✅ | — | Python-only |
+| Express | — | ✅ | JS-only |
+| Next.js | — | ✅ | JS-only |
+
+### Vector Stores
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| Dev Local Vectorstore | ✅ | ✅ | |
+| Firebase (Firestore vectors) | ✅ | ✅ | |
+| Vertex AI Vector Search | ✅ | ✅ | |
+| Chroma | — | ✅ | JS-only |
+| Pinecone | — | ✅ | JS-only |
+| Cloud SQL PG | — | ✅ | JS-only |
+
+### Safety & Evaluation
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| Evaluators (RAGAS) | ✅ | ✅ | |
+| Checks (Content Safety) | ✅ | ✅ | |
+
+### Other
+
+| Plugin | Python | JavaScript | Notes |
+|--------|:------:|:----------:|-------|
+| LangChain | — | ✅ | JS-only |
+
 ## Further Reading
 
 - [Plugin Planning & Roadmap](../engdoc/planning/)
