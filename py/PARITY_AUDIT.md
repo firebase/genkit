@@ -502,7 +502,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | ⏳ Deferred |
 | G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⏳ Deferred |
 | G17 | Python | Add built-in `api_key()` context provider | §8g | ⬜ |
-| G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ⬜ |
+| G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ✅ Done |
 | G33 | Python | Consider LangChain integration parity | §1c/§9 | ⬜ |
 | G34 | Python | Track BloomLabs vector stores (Convex, HNSW, Milvus) | §6b/§9 | ⬜ |
 | G35 | Python | Add Groq provider (or document compat-oai usage) | §1d/§6b | ⬜ |
