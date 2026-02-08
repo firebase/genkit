@@ -15,12 +15,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-dependencies    = ["genkit", "genkit-plugin-cloudflare-workers-ai", "rich>=13.0.0"]
-description     = "Cloudflare Workers AI Hello World Sample for Genkit"
-name            = "provider-cloudflare-workers-ai-hello"
-readme          = "README.md"
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
+dependencies = ["genkit", "genkit-plugin-cloudflare-workers-ai", "rich>=13.0.0"]
+description = "Cloudflare Workers AI Hello World Sample for Genkit"
+name = "provider-cloudflare-workers-ai-hello"
+readme = "README.md"
 requires-python = ">=3.10"
-version         = "0.1.0"
+version = "0.1.0"
 
 [tool.uv.sources]
 genkit                              = { workspace = true }

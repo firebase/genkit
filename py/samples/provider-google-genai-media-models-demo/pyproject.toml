@@ -15,12 +15,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-dependencies    = ["genkit", "genkit-plugin-google-genai", "rich>=13.0.0"]
-description     = "Demo of media generation models: Veo, TTS, Lyria, Gemini Image"
-name            = "provider-google-genai-media-models-demo"
-readme          = "README.md"
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
+dependencies = ["genkit", "genkit-plugin-google-genai", "rich>=13.0.0"]
+description = "Demo of media generation models: Veo, TTS, Lyria, Gemini Image"
+name = "provider-google-genai-media-models-demo"
+readme = "README.md"
 requires-python = ">=3.10"
-version         = "0.1.0"
+version = "0.1.0"
 
 [project.optional-dependencies]
 dev = ["watchdog>=4.0.0"]
