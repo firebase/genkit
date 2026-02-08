@@ -101,6 +101,11 @@ class Registry:
     Attributes:
         entries: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
+        context: Optional default context data for flows and tools. Set by the
+            ``Genkit`` constructor and made available to actions via
+            ``ActionRunContext``. Mirrors JS's ``registry.context``.
+        name: Optional display name shown in developer tooling (e.g., Genkit
+            Dev UI). Written to the runtime file for identification.
     """
 
     default_model: str | None = None
@@ -117,6 +122,12 @@ class Registry:
         # recursion when a lazy factory resolves its own action key (see
         # https://github.com/firebase/genkit/issues/4491).
         self._loading_actions: set[str] = set()
+
+        # Default context for flows and tools (set by Genkit constructor).
+        self.context: dict[str, object] | None = None
+
+        # Display name for developer tooling (set by Genkit constructor).
+        self.name: str | None = None
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
         # Use async function to avoid thread pool deadlock in resolve_json_schema

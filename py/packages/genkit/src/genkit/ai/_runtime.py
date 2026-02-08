@@ -77,12 +77,13 @@ def _register_atexit_cleanup_handler(path_to_remove: Path | None) -> None:
     _ = atexit.register(sync_cleanup)
 
 
-def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
+def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec, name: str | None = None) -> Path:
     """Calculates metadata, creates filename, and writes the runtime file.
 
     Args:
         runtime_dir: The directory to write the file into.
         spec: The ServerSpec containing reflection server details.
+        name: Optional display name for developer tooling identification.
 
     Returns:
         The Path object of the created file.
@@ -99,14 +100,18 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec) -> Path:
     runtime_file_name = f'{runtime_id}-{timestamp_ms}.json'
     runtime_file_path = runtime_dir / runtime_file_name
 
-    metadata = json.dumps({
+    runtime_data: dict[str, object] = {
         'reflectionApiSpecVersion': 1,
         'id': runtime_id,
         'pid': pid,
         'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': spec.url,
         'timestamp': current_datetime.isoformat(),
-    })
+    }
+    if name is not None:
+        runtime_data['name'] = name
+
+    metadata = json.dumps(runtime_data)
 
     logger.debug(f'Writing runtime file: {runtime_file_path}')
     with Path(runtime_file_path).open('w', encoding='utf-8') as f:
@@ -150,6 +155,7 @@ class RuntimeManager:
         spec: ServerSpec,
         runtime_dir: str | Path | None = None,
         lazy_write: bool = False,
+        name: str | None = None,
     ) -> None:
         """Initialize the RuntimeManager.
 
@@ -160,6 +166,7 @@ class RuntimeManager:
             lazy_write: If True, the runtime file will not be written immediately
                         on context entry. It must be written manually by calling
                         write_runtime_file().
+            name: Optional display name for developer tooling identification.
         """
         self.spec: ServerSpec = spec
         if runtime_dir is None:
@@ -168,6 +175,7 @@ class RuntimeManager:
             self._runtime_dir = Path(runtime_dir)
 
         self.lazy_write: bool = lazy_write
+        self._name: str | None = name
         self._runtime_file_path: Path | None = None
 
     async def __aenter__(self) -> RuntimeManager:
@@ -246,7 +254,7 @@ class RuntimeManager:
         if self._runtime_file_path:
             return self._runtime_file_path
 
-        self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
+        self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec, self._name)
         _register_atexit_cleanup_handler(self._runtime_file_path)
         return self._runtime_file_path
 

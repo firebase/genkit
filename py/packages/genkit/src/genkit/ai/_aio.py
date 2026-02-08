@@ -61,6 +61,7 @@ from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_a
 from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.constants import set_client_header
 from genkit.core.error import GenkitError
 from genkit.core.plugin import Plugin
 from genkit.core.tracing import run_in_new_span
@@ -101,6 +102,9 @@ class Genkit(GenkitBase):
         model: str | None = None,
         prompt_dir: str | Path | None = None,
         reflection_server_spec: ServerSpec | None = None,
+        context: dict[str, object] | None = None,
+        name: str | None = None,
+        client_header: str | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -111,8 +115,25 @@ class Genkit(GenkitBase):
                 If not provided, defaults to loading from './prompts' if it exists.
             reflection_server_spec: Server spec for the reflection
                 server.
+            context: Optional default context data for flows and tools.
+                Made available via ``ActionRunContext``. Mirrors JS's
+                ``GenkitOptions.context``.
+            name: Optional display name shown in developer tooling (e.g.,
+                Genkit Dev UI). Mirrors JS's ``GenkitOptions.name``.
+            client_header: Optional additional attribution information
+                appended to the ``x-goog-api-client`` header. Mirrors JS's
+                ``GenkitOptions.clientHeader``.
         """
-        super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
+        super().__init__(
+            plugins=plugins,
+            model=model,
+            reflection_server_spec=reflection_server_spec,
+            context=context,
+            name=name,
+        )
+
+        if client_header is not None:
+            set_client_header(client_header)
 
         load_path = prompt_dir
         if load_path is None:

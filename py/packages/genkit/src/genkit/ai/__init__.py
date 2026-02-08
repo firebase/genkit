@@ -97,7 +97,7 @@ from genkit.blocks.prompt import (
     ResumeOptions,
 )
 from genkit.blocks.tools import ToolRunContext, tool_response
-from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION, get_client_header, set_client_header
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
@@ -109,6 +109,9 @@ __all__ = [
     # Version info
     'GENKIT_CLIENT_HEADER',
     'GENKIT_VERSION',
+    # Client header functions
+    'get_client_header',
+    'set_client_header',
     # Main class
     'Genkit',
     'Input',

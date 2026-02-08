@@ -96,7 +96,7 @@ See Also:
     - genkit.types: Re-exported type definitions from core.typing
 """
 
-from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION, get_client_header, set_client_header
 from .http_client import clear_client_cache, close_cached_clients, get_cached_client
 from .logging import Logger, get_logger
 
@@ -117,6 +117,8 @@ __all__ = [
     'clear_client_cache',
     'close_cached_clients',
     'get_cached_client',
+    'get_client_header',
     'get_logger',
     'package_name',
+    'set_client_header',
 ]
