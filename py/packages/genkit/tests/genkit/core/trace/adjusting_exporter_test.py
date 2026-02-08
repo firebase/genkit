@@ -394,3 +394,98 @@ def test_error_handler_called_on_export_error() -> None:
 
     assert len(errors) == 1
     assert str(errors[0]) == 'Export failed'
+
+
+# =============================================================================
+# RedactedSpan Dropped Properties Tests (OTLP Compatibility)
+# =============================================================================
+
+
+def test_redacted_span_exposes_dropped_attributes() -> None:
+    """Test that RedactedSpan delegates dropped_attributes to wrapped span.
+
+    This is critical for OTLP export compatibility. The OTLP trace encoder
+    accesses dropped_attributes when serializing spans, and will crash with
+    AttributeError if this property is not properly delegated.
+    """
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter, log_input_and_output=False)
+
+    span = create_mock_span(
+        attributes={
+            'genkit:input': 'sensitive',
+            'other': 'value',
+        }
+    )
+    # Mock the dropped_attributes property
+    span.dropped_attributes = 5
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    # The RedactedSpan should delegate to the wrapped span
+    assert exported.dropped_attributes == 5
+
+
+def test_redacted_span_exposes_dropped_events() -> None:
+    """Test that RedactedSpan delegates dropped_events to wrapped span.
+
+    This is critical for OTLP export compatibility.
+    """
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter, log_input_and_output=False)
+
+    span = create_mock_span(
+        attributes={
+            'genkit:input': 'sensitive',
+        }
+    )
+    span.dropped_events = 3
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    assert exported.dropped_events == 3
+
+
+def test_redacted_span_exposes_dropped_links() -> None:
+    """Test that RedactedSpan delegates dropped_links to wrapped span.
+
+    This is critical for OTLP export compatibility.
+    """
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter, log_input_and_output=False)
+
+    span = create_mock_span(
+        attributes={
+            'genkit:input': 'sensitive',
+        }
+    )
+    span.dropped_links = 2
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    assert exported.dropped_links == 2
+
+
+def test_redacted_span_dropped_properties_default_to_zero() -> None:
+    """Test that dropped_* properties work when wrapped span returns 0."""
+    exporter = MockSpanExporter()
+    adjusting = AdjustingTraceExporter(exporter, log_input_and_output=False)
+
+    span = create_mock_span(
+        attributes={
+            'genkit:input': 'sensitive',
+        }
+    )
+    span.dropped_attributes = 0
+    span.dropped_events = 0
+    span.dropped_links = 0
+
+    adjusting.export([span])
+
+    exported = exporter.exported_spans[0]
+    assert exported.dropped_attributes == 0
+    assert exported.dropped_events == 0
+    assert exported.dropped_links == 0

@@ -182,6 +182,24 @@ class RedactedSpan(ReadableSpan):
         """Return the instrumentation scope."""
         return self._span.instrumentation_scope
 
+    @property
+    @override
+    def dropped_attributes(self) -> int:
+        """Return the number of dropped attributes."""
+        return self._span.dropped_attributes
+
+    @property
+    @override
+    def dropped_events(self) -> int:
+        """Return the number of dropped events."""
+        return self._span.dropped_events
+
+    @property
+    @override
+    def dropped_links(self) -> int:
+        """Return the number of dropped links."""
+        return self._span.dropped_links
+
 
 class AdjustingTraceExporter(SpanExporter):
     """Adjusts spans before exporting for PII redaction and enhancement.
