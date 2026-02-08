@@ -37,12 +37,13 @@ print_help() {
     echo "  --grpc-port PORT              gRPC server port (default: 50051)"
     echo "  --no-grpc                     Disable gRPC server (REST only)"
     echo "  --env ENV                     Load .<ENV>.env file"
-    echo "  --no-telemetry                Disable telemetry"
+    echo "  --no-telemetry                Disable Jaeger + OTLP tracing"
     echo "  --help                        Show this help message"
     echo ""
     echo "Servers started:"
     echo "  REST  (ASGI)   http://localhost:8080  (Swagger UI at /docs)"
     echo "  gRPC           localhost:50051        (reflection enabled)"
+    echo "  Jaeger UI      http://localhost:16686 (trace viewer)"
     echo "  Genkit DevUI   http://localhost:4000  (dev mode only)"
     echo ""
     echo "Test gRPC endpoints:"
@@ -56,6 +57,15 @@ print_help() {
     print_help_footer
 }
 
+# Check for --no-telemetry flag (before parsing with case, since we
+# also forward all args to the app).
+NO_TELEMETRY=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-telemetry) NO_TELEMETRY=true ;;
+    esac
+done
+
 case "${1:-}" in
     --help|-h)
         print_help
@@ -67,12 +77,31 @@ print_banner "Genkit Endpoints Demo" "⚡"
 
 check_env_var "GEMINI_API_KEY" "https://aistudio.google.com/apikey" || true
 
+# Set the service name for OpenTelemetry traces. Genkit's TracerProvider
+# is created at import time (before our code runs), so we must set this
+# as an env var so OTel's Resource.create() picks it up automatically.
+export OTEL_SERVICE_NAME="${OTEL_SERVICE_NAME:-genkit-endpoints-hello}"
+
 install_deps
 
 # Generate gRPC stubs if they don't exist.
 if [[ ! -f src/generated/genkit_sample_pb2_grpc.py ]]; then
     echo -e "${BLUE}Generating gRPC stubs...${NC}"
     bash scripts/generate_proto.sh
+fi
+
+# ── Jaeger (tracing) ────────────────────────────────────────────────
+# Auto-start Jaeger so traces are visible at http://localhost:16686.
+# Pass --no-telemetry to skip this step.
+JAEGER_OTLP_PORT="${JAEGER_OTLP_PORT:-4318}"
+OTEL_ARGS=()
+if [[ "$NO_TELEMETRY" == "false" ]]; then
+    if ./scripts/jaeger.sh start 2>/dev/null; then
+        OTEL_ARGS=(--otel-endpoint "http://localhost:${JAEGER_OTLP_PORT}")
+        echo -e "${GREEN}Jaeger started — traces at http://localhost:16686${NC}"
+    else
+        echo -e "${YELLOW}Jaeger skipped (continuing without tracing)${NC}"
+    fi
 fi
 
 # Auto-open Swagger UI once the server is ready.
@@ -97,4 +126,4 @@ genkit_start_with_browser -- \
         "${WATCH_DIRS[@]}" \
         -p '*.py;*.prompt;*.json' \
         -R \
-        -- uv run python -m src --debug "$@"
+        -- uv run python -m src --debug "${OTEL_ARGS[@]}" "$@"

@@ -36,12 +36,8 @@ default:
     @just --list
 
 # Start dev server (auto-starts Jaeger for tracing).
-
-# jaeger.sh handles podman/docker install + machine init if needed.
 dev *ARGS:
-    #!/usr/bin/env bash
-    ./scripts/jaeger.sh start || echo "→ Jaeger skipped (continuing without tracing)"
-    ./run.sh --otel-endpoint http://localhost:{{ JAEGER_OTLP_PORT }} {{ ARGS }}
+    ./run.sh {{ ARGS }}
 
 # Start with Litestar and hot reload.
 dev-litestar *ARGS:

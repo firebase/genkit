@@ -21,8 +21,17 @@ every incoming HTTP request creates a trace span.  Supports FastAPI
 (via ``opentelemetry-instrumentation-fastapi``), Litestar and Quart
 (via ``opentelemetry-instrumentation-asgi``).
 
-The resulting traces flow:
-  HTTP request → ASGI middleware → Genkit flow → model call.
+The resulting traces flow::
+
+    HTTP request → ASGI middleware → Genkit flow → model call
+
+Important: This module adds the OTLP exporter to Genkit's existing
+``TracerProvider`` (via ``genkit.core.tracing.add_custom_exporter``)
+instead of creating a competing provider.  This ensures both the
+Genkit DevUI **and** an external collector (Jaeger, Grafana Tempo,
+etc.) receive the same spans.  Without this, only one exporter would
+work because OpenTelemetry's global ``set_tracer_provider()`` is
+effectively a one-shot call.
 """
 
 import fastapi
@@ -35,43 +44,54 @@ from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import SpanExporter
+
+from genkit.core.tracing import add_custom_exporter
 
 logger = structlog.get_logger(__name__)
 
 
-def _create_provider(
-    endpoint: str,
-    protocol: str,
-    service_name: str,
-) -> TracerProvider:
-    """Create and register a TracerProvider with an OTLP exporter.
+def _ensure_resource(service_name: str) -> None:
+    """Ensure the global TracerProvider has a proper service name Resource.
 
-    Returns:
-        The configured ``TracerProvider``.
+    If no TracerProvider exists yet (e.g. running without the DevUI),
+    create one with the ``SERVICE_NAME`` resource attribute so that
+    traces appear with the correct service name in Jaeger / Tempo.
+
+    If Genkit already created a provider (DevUI is active), this is a
+    no-op — the provider is already registered.
     """
-    resource = Resource(attributes={SERVICE_NAME: service_name})
-    provider = TracerProvider(resource=resource)
+    current = trace.get_tracer_provider()
+    if current is None or not isinstance(current, TracerProvider):
+        resource = Resource(attributes={SERVICE_NAME: service_name})
+        provider = TracerProvider(resource=resource)
+        trace.set_tracer_provider(provider)
+        logger.debug(
+            "Created TracerProvider with service name",
+            service_name=service_name,
+        )
 
-    # Default to HTTP; gRPC is optional — only used if the package is installed.
-    exporter = HTTPSpanExporter(endpoint=f"{endpoint}/v1/traces")
 
+def _create_exporter(endpoint: str, protocol: str) -> SpanExporter:
+    """Create an OTLP span exporter for the given protocol.
+
+    Defaults to HTTP; falls back from gRPC to HTTP if the gRPC
+    exporter package is not installed.
+    """
     if protocol == "grpc":
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # noqa: PLC0415 — conditional on OTEL protocol selection
                 OTLPSpanExporter as GRPCSpanExporter,
             )
 
-            exporter = GRPCSpanExporter(endpoint=endpoint)
+            return GRPCSpanExporter(endpoint=endpoint)
         except ImportError:
             logger.warning(
                 "gRPC OTLP exporter not installed, falling back to HTTP. "
                 "Install with: pip install opentelemetry-exporter-otlp-proto-grpc"
             )
 
-    provider.add_span_processor(BatchSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
-    return provider
+    return HTTPSpanExporter(endpoint=f"{endpoint}/v1/traces")
 
 
 def _instrument_fastapi(app: fastapi.FastAPI) -> None:
@@ -103,9 +123,12 @@ def setup_otel_instrumentation(
 ) -> None:
     """Configure OpenTelemetry tracing with OTLP export.
 
-    Detects the framework type (FastAPI, Litestar, or Quart) and applies
-    the appropriate instrumentation so every incoming request creates a
-    trace span.
+    Adds an OTLP exporter to Genkit's existing ``TracerProvider`` so
+    that traces flow to **both** the Genkit DevUI and an external
+    collector (Jaeger, Grafana Tempo, etc.) simultaneously.
+
+    If no provider exists yet (running without the DevUI), one is
+    created with the ``SERVICE_NAME`` resource attribute.
 
     Args:
         app: The ASGI application to instrument.
@@ -113,7 +136,15 @@ def setup_otel_instrumentation(
         protocol: Export protocol — ``'grpc'`` or ``'http/protobuf'``.
         service_name: Service name that appears in traces.
     """
-    _create_provider(endpoint, protocol, service_name)
+    # Ensure a TracerProvider with SERVICE_NAME exists before adding
+    # the exporter. If Genkit already created one (DevUI), this is a
+    # no-op; otherwise we create one with proper resource attributes.
+    _ensure_resource(service_name)
+
+    # Add the OTLP exporter to the existing provider — this coexists
+    # with Genkit's DevUI exporter when running in dev mode.
+    exporter = _create_exporter(endpoint, protocol)
+    add_custom_exporter(exporter, "otlp_collector")
 
     # Detect framework and apply appropriate instrumentation.
     app_type = type(app).__name__

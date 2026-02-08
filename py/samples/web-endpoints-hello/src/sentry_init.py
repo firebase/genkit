@@ -45,8 +45,12 @@ Usage::
 
 from __future__ import annotations
 
+import typing
+
 import structlog
-from sentry_sdk.integrations import Integration
+
+if typing.TYPE_CHECKING:
+    from sentry_sdk.integrations import Integration
 
 logger = structlog.get_logger(__name__)
 

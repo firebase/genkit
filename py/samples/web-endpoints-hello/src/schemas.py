@@ -51,6 +51,16 @@ class TranslateInput(BaseModel):
     """Input for the translation endpoint."""
 
     text: str = Field(
+        default=(
+            "The Northern Lights, or Aurora Borealis, are one of nature's most "
+            "spectacular displays. Charged particles from the Sun collide with "
+            "gases in Earth's atmosphere, creating shimmering curtains of green, "
+            "pink, and violet light that dance across the polar sky. For centuries, "
+            "cultures around the world have woven myths and legends around these "
+            "ethereal lights — the Vikings believed they were reflections of the "
+            "Valkyries' armor, while the Sámi people considered them the energies "
+            "of departed souls."
+        ),
         description="Text to translate",
         min_length=1,
         max_length=10_000,

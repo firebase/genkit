@@ -16,8 +16,8 @@
 
 """Tests for OpenTelemetry instrumentation setup.
 
-Validates _create_provider, _instrument_fastapi, _instrument_asgi,
-and setup_otel_instrumentation with mocked OTLP exporters.
+Validates _ensure_resource, _create_exporter, _instrument_fastapi,
+_instrument_asgi, and setup_otel_instrumentation with mocked exporters.
 
 Run with::
 
@@ -29,39 +29,63 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import fastapi
+from opentelemetry.sdk.trace import TracerProvider
 
 from src.telemetry import (
-    _create_provider,  # noqa: PLC2701 - testing private function
+    _create_exporter,  # noqa: PLC2701 - testing private function
+    _ensure_resource,  # noqa: PLC2701 - testing private function
     _instrument_asgi,  # noqa: PLC2701 - testing private function
     _instrument_fastapi,  # noqa: PLC2701 - testing private function
     setup_otel_instrumentation,
 )
 
 
-def test_create_provider_http() -> None:
-    """_create_provider creates a TracerProvider with HTTP exporter."""
+def test_ensure_resource_creates_provider_when_none_exists() -> None:
+    """_ensure_resource creates a TracerProvider with SERVICE_NAME."""
     with (
-        patch("src.telemetry.HTTPSpanExporter") as mock_exporter_cls,
-        patch("src.telemetry.BatchSpanProcessor") as mock_processor_cls,
+        patch("src.telemetry.trace.get_tracer_provider", return_value=None),
+        patch("src.telemetry.trace.set_tracer_provider") as mock_set,
+        patch("src.telemetry.TracerProvider") as mock_tp_cls,
+        patch("src.telemetry.Resource") as mock_resource_cls,
+    ):
+        _ensure_resource("my-service")
+
+    mock_resource_cls.assert_called_once()
+    mock_tp_cls.assert_called_once()
+    mock_set.assert_called_once()
+
+
+def test_ensure_resource_noop_when_provider_exists() -> None:
+    """_ensure_resource is a no-op when a TracerProvider already exists."""
+    mock_existing = MagicMock(spec=TracerProvider)
+    mock_existing.__class__ = TracerProvider  # pyright: ignore[reportAttributeAccessIssue] - mock pattern for isinstance
+
+    with (
+        patch("src.telemetry.trace.get_tracer_provider", return_value=mock_existing),
         patch("src.telemetry.trace.set_tracer_provider") as mock_set,
     ):
-        provider = _create_provider("http://localhost:4318", "http/protobuf", "test-service")
+        _ensure_resource("my-service")
 
-    mock_exporter_cls.assert_called_once_with(endpoint="http://localhost:4318/v1/traces")
-    mock_processor_cls.assert_called_once()
-    mock_set.assert_called_once_with(provider)
+    mock_set.assert_not_called()
 
 
-def test_create_provider_grpc() -> None:
-    """_create_provider uses gRPC exporter when protocol is 'grpc'."""
+def test_create_exporter_http() -> None:
+    """_create_exporter creates an HTTP exporter by default."""
+    with patch("src.telemetry.HTTPSpanExporter") as mock_http_cls:
+        exporter = _create_exporter("http://localhost:4318", "http/protobuf")
+
+    mock_http_cls.assert_called_once_with(endpoint="http://localhost:4318/v1/traces")
+    assert exporter == mock_http_cls.return_value
+
+
+def test_create_exporter_grpc() -> None:
+    """_create_exporter uses gRPC exporter when protocol is 'grpc'."""
     mock_grpc_cls = MagicMock()
     mock_grpc_module = MagicMock()
     mock_grpc_module.OTLPSpanExporter = mock_grpc_cls
 
     with (
         patch("src.telemetry.HTTPSpanExporter"),
-        patch("src.telemetry.BatchSpanProcessor"),
-        patch("src.telemetry.trace.set_tracer_provider"),
         patch.dict(
             "sys.modules",
             {
@@ -70,15 +94,14 @@ def test_create_provider_grpc() -> None:
             },
         ),
     ):
-        _create_provider("http://localhost:4317", "grpc", "test-service")
+        exporter = _create_exporter("http://localhost:4317", "grpc")
 
     mock_grpc_cls.assert_called_once_with(endpoint="http://localhost:4317")
+    assert exporter == mock_grpc_cls.return_value
 
 
-def test_create_provider_grpc_fallback_on_import_error() -> None:
-    """_create_provider falls back to HTTP if gRPC exporter is missing."""
-    # Remove the gRPC module from sys.modules so the import inside
-    # _create_provider triggers a fresh import attempt.
+def test_create_exporter_grpc_fallback_on_import_error() -> None:
+    """_create_exporter falls back to HTTP if gRPC exporter is missing."""
     saved = {}
     for key in list(sys.modules):
         if "grpc" in key and "opentelemetry" in key:
@@ -87,8 +110,6 @@ def test_create_provider_grpc_fallback_on_import_error() -> None:
     try:
         with (
             patch("src.telemetry.HTTPSpanExporter") as mock_http,
-            patch("src.telemetry.BatchSpanProcessor"),
-            patch("src.telemetry.trace.set_tracer_provider"),
             patch.dict(
                 "sys.modules",
                 {
@@ -97,8 +118,7 @@ def test_create_provider_grpc_fallback_on_import_error() -> None:
                 },
             ),
         ):
-            # Should not raise — falls back to HTTP.
-            _create_provider("http://localhost:4317", "grpc", "test-service")
+            _create_exporter("http://localhost:4317", "grpc")
 
         mock_http.assert_called_once()
     finally:
@@ -135,15 +155,18 @@ def test_instrument_asgi_without_handler() -> None:
 def test_setup_otel_fastapi() -> None:
     """setup_otel_instrumentation instruments a FastAPI app."""
     mock_app = MagicMock(spec=fastapi.FastAPI)
-    # Make isinstance check work.
     mock_app.__class__ = fastapi.FastAPI  # pyright: ignore[reportAttributeAccessIssue] - mock pattern for isinstance
 
     with (
-        patch("src.telemetry._create_provider"),
+        patch("src.telemetry._ensure_resource"),
+        patch("src.telemetry._create_exporter") as mock_create,
+        patch("src.telemetry.add_custom_exporter") as mock_add,
         patch("src.telemetry._instrument_fastapi") as mock_inst,
     ):
         setup_otel_instrumentation(mock_app, "http://localhost:4318", "http/protobuf", "svc")
 
+    mock_create.assert_called_once_with("http://localhost:4318", "http/protobuf")
+    mock_add.assert_called_once_with(mock_create.return_value, "otlp_collector")
     mock_inst.assert_called_once_with(mock_app)
 
 
@@ -159,7 +182,9 @@ def test_setup_otel_litestar() -> None:
     mock_app = FakeLitestar()
 
     with (
-        patch("src.telemetry._create_provider"),
+        patch("src.telemetry._ensure_resource"),
+        patch("src.telemetry._create_exporter"),
+        patch("src.telemetry.add_custom_exporter"),
         patch("src.telemetry._instrument_asgi") as mock_inst,
     ):
         setup_otel_instrumentation(mock_app, "http://localhost:4318", "http/protobuf", "svc")
@@ -176,7 +201,9 @@ def test_setup_otel_unknown_framework() -> None:
         pass
 
     with (
-        patch("src.telemetry._create_provider"),
+        patch("src.telemetry._ensure_resource"),
+        patch("src.telemetry._create_exporter"),
+        patch("src.telemetry.add_custom_exporter"),
         patch("src.telemetry._instrument_fastapi") as mock_fa,
         patch("src.telemetry._instrument_asgi") as mock_asgi,
     ):

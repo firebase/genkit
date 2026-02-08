@@ -70,8 +70,9 @@ def test_joke_input_accepts_valid_name() -> None:
 
 
 def test_translate_input_defaults() -> None:
-    """TranslateInput requires text and has a default language."""
-    inp = TranslateInput(text="Hello")
+    """TranslateInput has default text and default language."""
+    inp = TranslateInput()
+    assert "Northern Lights" in inp.text
     assert inp.target_language == "French"
 
 
