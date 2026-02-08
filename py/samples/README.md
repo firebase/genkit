@@ -26,17 +26,17 @@ This directory contains sample applications demonstrating various Genkit feature
 │   │   hello                          │      WEB FRAMEWORKS (web-*)                      │
 │   │ provider-mistral-hello           │      ──────────────────────────                  │
 │   │ provider-huggingface-hello       │      ┌──────────────────────────────────┐        │
-│   │ provider-observability-hello     │      │ web-flask-hello                  │        │
-│   │ provider-vertex-ai-model-garden  │      │ web-multi-server                 │        │
-│   │ provider-vertex-ai-rerank-eval    │      │ web-short-n-long                 │        │
-│   │ provider-firestore-retriever     │      └──────────────────────────────────┘        │
-│   │ provider-google-genai-code-      │                                                   │
-│   │   execution                      │      OTHER                                       │
-│   │ provider-google-genai-context-   │      ─────                                       │
-│   │   caching                        │      ┌──────────────────────────────────┐        │
-│   │ provider-google-genai-vertexai-  │      │ dev-local-vectorstore-hello      │        │
-│   │   image                          │      └──────────────────────────────────┘        │
-│   │ provider-google-genai-media-     │                                                   │
+│   │ provider-observability-hello     │      │ web-endpoints-hello              │        │
+│   │ provider-vertex-ai-model-garden  │      │ web-flask-hello                  │        │
+│   │ provider-vertex-ai-rerank-eval    │      │ web-multi-server                 │        │
+│   │ provider-firestore-retriever     │      │ web-short-n-long                 │        │
+│   │ provider-google-genai-code-      │      └──────────────────────────────────┘        │
+│   │   execution                      │                                                   │
+│   │ provider-google-genai-context-   │      OTHER                                       │
+│   │   caching                        │      ─────                                       │
+│   │ provider-google-genai-vertexai-  │      ┌──────────────────────────────────┐        │
+│   │   image                          │      │ dev-local-vectorstore-hello      │        │
+│   │ provider-google-genai-media-     │      └──────────────────────────────────┘        │
 │   │   models-demo                    │                                                   │
 │   │ provider-vertex-ai-vector-       │                                                   │
 │   │   search-bigquery                │                                                   │
@@ -111,6 +111,7 @@ cd py/samples/<sample-name>
 
 | Sample | Features | Description |
 |--------|----------|-------------|
+| **web-endpoints-hello** | FastAPI, Litestar, Quart, gRPC | REST + gRPC endpoints with multi-cloud deploy, auto-telemetry |
 | **web-flask-hello** | Flask | Flask HTTP endpoints with Genkit |
 | **web-multi-server** | Litestar, Starlette | Multiple Genkit servers |
 | **web-short-n-long** | ASGI | ASGI deployment with long-running flows |

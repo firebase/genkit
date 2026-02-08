@@ -75,9 +75,11 @@ dev = [
 lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
-  "litestar>=2.0.0",     # For web/typing.py type resolution
+  "granian>=1.0.0",           # For web-endpoints-hello type resolution
+  "litestar>=2.0.0",          # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
+  "pydantic-settings>=2.0.0", # For web-endpoints-hello type resolution
   "pypdf>=6.6.2",
   "pyrefly>=0.15.0",
   "pyright>=1.1.392",
@@ -87,6 +89,22 @@ lint = [
   "streamlit>=1.41.0",
   "ty>=0.0.1",
   "typos>=1.42.0",
+  # ── web-endpoints-hello type resolution ──
+  # These are needed so workspace-level type checkers can resolve all
+  # imports in the sample. The sample is checked in both the workspace
+  # pipeline AND its own `just lint` pipeline with identical settings.
+  "fastapi>=0.115.0",
+  "grpcio>=1.68.0",
+  "grpcio-reflection>=1.68.0",
+  "gunicorn>=22.0.0",
+  "hypercorn>=0.17.0",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+  "opentelemetry-instrumentation-asgi>=0.41b0",
+  "opentelemetry-instrumentation-fastapi>=0.41b0",
+  "quart>=0.19.0",
+  "secure>=1.0.0",
+  "sentry-sdk>=2.0.0",
+  "structlog>=24.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -105,6 +123,9 @@ addopts = [
   "-ra",
   "-vv",
   "--ignore=testapps",
+  # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
+  # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
+  "--ignore=samples/web-endpoints-hello/tests",
 ]
 asyncio_default_fixture_loop_scope = "session"
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
@@ -132,41 +153,42 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-dev-local-vectorstore-hello                  = { workspace = true }
-framework-context-demo                       = { workspace = true }
-framework-dynamic-tools-demo                 = { workspace = true }
-framework-evaluator-demo                     = { workspace = true }
-framework-format-demo                        = { workspace = true }
-framework-middleware-demo                     = { workspace = true }
-framework-prompt-demo                        = { workspace = true }
-framework-realtime-tracing-demo              = { workspace = true }
-framework-restaurant-demo                    = { workspace = true }
-framework-tool-interrupts                    = { workspace = true }
-provider-amazon-bedrock-hello                = { workspace = true }
-provider-anthropic-hello                     = { workspace = true }
-provider-cloudflare-workers-ai-hello         = { workspace = true }
-provider-compat-oai-hello                    = { workspace = true }
-provider-deepseek-hello                      = { workspace = true }
-provider-firestore-retriever                 = { workspace = true }
-provider-google-genai-code-execution         = { workspace = true }
-provider-google-genai-context-caching        = { workspace = true }
-provider-google-genai-hello                  = { workspace = true }
-provider-google-genai-media-models-demo      = { workspace = true }
-provider-google-genai-vertexai-hello         = { workspace = true }
-provider-google-genai-vertexai-image         = { workspace = true }
-provider-huggingface-hello                   = { workspace = true }
-provider-microsoft-foundry-hello             = { workspace = true }
-provider-mistral-hello                       = { workspace = true }
-provider-observability-hello                 = { workspace = true }
-provider-ollama-hello                        = { workspace = true }
-provider-vertex-ai-model-garden              = { workspace = true }
-provider-vertex-ai-vector-search-bigquery    = { workspace = true }
-provider-vertex-ai-vector-search-firestore   = { workspace = true }
-provider-vertex-ai-rerank-eval               = { workspace = true }
-provider-xai-hello                           = { workspace = true }
-web-flask-hello                              = { workspace = true }
-web-multi-server                             = { workspace = true }
-web-short-n-long                             = { workspace = true }
+dev-local-vectorstore-hello                = { workspace = true }
+framework-context-demo                     = { workspace = true }
+framework-dynamic-tools-demo               = { workspace = true }
+framework-evaluator-demo                   = { workspace = true }
+framework-format-demo                      = { workspace = true }
+framework-middleware-demo                  = { workspace = true }
+framework-prompt-demo                      = { workspace = true }
+framework-realtime-tracing-demo            = { workspace = true }
+framework-restaurant-demo                  = { workspace = true }
+framework-tool-interrupts                  = { workspace = true }
+provider-amazon-bedrock-hello              = { workspace = true }
+provider-anthropic-hello                   = { workspace = true }
+provider-cloudflare-workers-ai-hello       = { workspace = true }
+provider-compat-oai-hello                  = { workspace = true }
+provider-deepseek-hello                    = { workspace = true }
+provider-firestore-retriever               = { workspace = true }
+provider-google-genai-code-execution       = { workspace = true }
+provider-google-genai-context-caching      = { workspace = true }
+provider-google-genai-hello                = { workspace = true }
+provider-google-genai-media-models-demo    = { workspace = true }
+provider-google-genai-vertexai-hello       = { workspace = true }
+provider-google-genai-vertexai-image       = { workspace = true }
+provider-huggingface-hello                 = { workspace = true }
+provider-microsoft-foundry-hello           = { workspace = true }
+provider-mistral-hello                     = { workspace = true }
+provider-observability-hello               = { workspace = true }
+provider-ollama-hello                      = { workspace = true }
+provider-vertex-ai-model-garden            = { workspace = true }
+provider-vertex-ai-rerank-eval             = { workspace = true }
+provider-vertex-ai-vector-search-bigquery  = { workspace = true }
+provider-vertex-ai-vector-search-firestore = { workspace = true }
+provider-xai-hello                         = { workspace = true }
+web-endpoints-hello                        = { workspace = true }
+web-flask-hello                            = { workspace = true }
+web-multi-server                           = { workspace = true }
+web-short-n-long                           = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
@@ -369,6 +391,11 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 
 # Ty (Astral/Ruff) type checking configuration.
 # See: https://docs.astral.sh/ty/modules/#first-party-modules
+[tool.ty.src]
+# Auto-generated protobuf stubs use grpc.experimental implicit submodule
+# access that ty warns about. We can't modify generated code.
+exclude = ["**/generated"]
+
 [tool.ty.environment]
 root = [
   # Core package
@@ -394,10 +421,11 @@ root = [
   "plugins/vertex-ai/src",
   "plugins/xai/src",
   # Samples
-  ".",                      # For samples.shared imports
-  "samples/framework-evaluator-demo", # For evaluator_demo package imports
+  ".",                                     # For samples.shared imports
+  "samples/framework-evaluator-demo",      # For evaluator_demo package imports
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
-  "plugins/mcp/tests",      # For fakes module imports in tests
+  "samples/web-endpoints-hello",           # For src imports in tests
+  "plugins/mcp/tests",                     # For fakes module imports in tests
 ]
 
 # Pyright type checking configuration.
@@ -412,6 +440,12 @@ exclude = [
   ".tox",
   "build",
   "dist",
+]
+# TODO(https://github.com/firebase/genkit/pull/4502): Remove after granian
+# embed.Server API migration merges — the old granian.Granian() API uses
+# string literals that no longer match the expected enum types.
+ignore = [
+  "packages/genkit/src/genkit/web/manager/_adapters.py",
 ]
 # Use the venv where packages are installed as editable installs
 pythonVersion          = "3.10"
@@ -456,6 +490,7 @@ project_includes = [
   "plugins/*/tests/**/*.py",
   # Samples
   "samples/*/src/**/*.py",
+  "samples/*/tests/**/*.py",
   "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
 ]
 
@@ -469,6 +504,7 @@ search-path = [
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
   "samples/framework-restaurant-demo/src",
+  "samples/web-endpoints-hello",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime

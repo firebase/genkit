@@ -67,6 +67,9 @@ export PATH="${GOPATH}:${PATH}"
   -ignore '**/*.toml' \
   -ignore '**/*.nix' \
   -ignore '**/*.yaml' \
+  -ignore '**/site/**/*' \
+  -ignore '**/generated/*_pb2.py' \
+  -ignore '**/generated/*_pb2_grpc.py' \
   "$TOP_DIR"
 
 uv run --directory "${PY_DIR}" liccheck

@@ -3238,6 +3238,132 @@ be followed to minimize review round-trips.
   the async client, update the corresponding test mocks to use `AsyncMock`
   and patch the `_async_client` attribute instead of the sync one.
 
+### Threading, Asyncio & Event-Loop Audit Checklist
+
+When reviewing code that involves concurrency, locks, or shared mutable state,
+check for every issue in this list. These are real bugs found during audits —
+not theoretical concerns.
+
+#### Lock type mismatches
+
+* **Never use `threading.Lock` or `threading.RLock` in async code.** These
+  block the *entire* event loop thread while held. Use `asyncio.Lock` instead.
+  This applies to locks you create *and* to locks inside third-party libraries
+  you call (e.g. `pybreaker` uses a `threading.RLock` internally).
+  ```python
+  # BAD — blocks event loop
+  self._lock = threading.Lock()
+  with self._lock:
+      ...
+
+  # GOOD — cooperatively yields
+  self._lock = asyncio.Lock()
+  async with self._lock:
+      ...
+  ```
+* **Be wary of third-party libraries that use threading locks internally.**
+  If you wrap a sync library for async use and access its internals (private
+  `_lock`, `_state_storage`, etc.), you inherit its threading-lock problem.
+  This is a reason to prefer custom async-native implementations over
+  wrapping sync-only libraries — see the OSS evaluation notes below.
+
+#### Time functions
+
+* **Use `time.monotonic()` for interval/duration measurement, not
+  `time.time()` or `datetime.now()`.** Wall-clock time is subject to NTP
+  corrections that can jump forward or backward, breaking timeouts, TTLs,
+  and retry-after calculations. `time.monotonic()` only moves forward.
+  ```python
+  # BAD — subject to NTP jumps
+  start = time.time()
+  elapsed = time.time() - start
+
+  # BAD — same problem, datetime edition
+  opened_at = datetime.now(timezone.utc)
+  elapsed = datetime.now(timezone.utc) - opened_at
+
+  # GOOD — monotonically increasing
+  start = time.monotonic()
+  elapsed = time.monotonic() - start
+  ```
+* **Call time functions once and reuse the value** when the same timestamp
+  is needed in multiple expressions. Two calls can return different values.
+* **Clamp computed `retry_after` values** to a reasonable range (e.g.
+  `[0, 3600]`) to guard against anomalous clock behavior.
+
+#### Race conditions (TOCTOU)
+
+* **Check-then-act on shared state must be atomic.** If you check a condition
+  (e.g. cache miss) and then act on it (execute expensive call + store result),
+  the two steps must be inside the same lock acquisition or protected by
+  per-key coalescing. Otherwise concurrent coroutines all see the same "miss"
+  and duplicate the work (cache stampede / thundering herd).
+  ```python
+  # BAD — stampede window between check and set
+  async with self._lock:
+      entry = self._store.get(key)
+      if entry is not None:
+          return entry.value
+  result = await expensive_call()  # N coroutines all reach here
+  async with self._lock:
+      self._store[key] = result
+
+  # GOOD — per-key lock prevents concurrent duplicate calls
+  async with self._get_key_lock(key):
+      async with self._store_lock:
+          entry = self._store.get(key)
+          if entry is not None:
+              return entry.value
+      result = await expensive_call()  # only 1 coroutine per key
+      async with self._store_lock:
+          self._store[key] = result
+  ```
+* **Half-open circuit breaker probes** must be gated so only one probe
+  coroutine is in flight. Without a flag or counter checked inside the lock,
+  the lock is released before `await fn()`, and multiple coroutines can all
+  transition to half-open and probe simultaneously.
+* **`exists()` + `delete()` is a TOCTOU race.** The key can expire or be
+  deleted between the two calls. Prefer a single `delete()` call.
+
+#### Blocking the event loop
+
+* **Any synchronous library call that does network I/O will block the event
+  loop.** This includes: Redis clients, Memcached clients, database drivers,
+  HTTP clients, file I/O, and DNS resolution. Wrap in `asyncio.to_thread()`
+  or use an async-native library.
+* **Sub-microsecond sync calls are acceptable** (dict lookups, counter
+  increments, in-memory data structure operations) — wrapping them in
+  `to_thread()` would add more overhead than the call itself.
+
+#### Counter and stat safety
+
+* **Integer `+=` between `await` points is safe** in single-threaded asyncio
+  (CPython's GIL ensures `+=` on an int is atomic at the bytecode level, and
+  no other coroutine can interleave between the read and write without an
+  `await`). But this assumption is fragile:
+  - Document it explicitly in docstrings.
+  - If the counter is mutated near `await` calls, move it inside a lock.
+  - If the code might run from multiple threads (e.g. `to_thread()`), use
+    a lock or `asyncio.Lock`.
+
+#### OSS library evaluation: when custom is better
+
+* **Prefer custom async-native implementations** over wrapping sync-only
+  libraries when the wrapper must access private internals, reimplement half
+  the library's logic, or ends up the same line count. Specific examples:
+  - `pybreaker` — sync-only, uses `threading.RLock`, requires accessing
+    `_lock`, `_state_storage`, `_handle_error`, `_handle_success` (all
+    private). Uses `datetime.now()` instead of `time.monotonic()`.
+  - `aiocache.SimpleMemoryCache` — no LRU eviction, no stampede prevention,
+    weak type hints (`Any` return). Custom `OrderedDict` cache is fewer lines.
+  - `limits` — sync-only API, uses `time.time()`, fixed-window algorithm
+    allows boundary bursts. Custom token bucket is ~25 lines.
+* **Prefer OSS when the library is genuinely async, well-typed, and provides
+  functionality you'd otherwise have to maintain.** Example: `secure` for
+  OWASP security headers — it tracks evolving browser standards and header
+  deprecations (e.g. X-XSS-Protection removal) that are tedious to follow
+  manually.
+
 ### Configuration and State
 
 * **Never mutate `request.config` in-place.** Always `.copy()` the config dict
@@ -3420,3 +3546,382 @@ be followed to minimize review round-trips.
       if url:
           content.append(...)
   ```
+
+### Security Design & Production Hardening
+
+When building samples, plugins, or services in this repository, follow these
+security design principles. These are not theoretical guidelines — they come
+from real issues found during audits of the `web-endpoints-hello` sample and
+apply broadly to any Python service that uses Genkit.
+
+#### Secure-by-default philosophy
+
+* **Every default must be the restrictive option.** If someone deploys with
+  zero configuration, the system should be locked down. Development
+  convenience (Swagger UI, open CORS, colored logs, gRPC reflection) requires
+  explicit opt-in.
+  ```python
+  # BAD — open by default, must remember to close
+  cors_allowed_origins: str = "*"
+  debug: bool = True
+
+  # GOOD — closed by default, must opt in
+  cors_allowed_origins: str = ""   # same-origin only
+  debug: bool = False              # no Swagger, no reflection
+  ```
+* **When adding a new setting, ask:** "If someone forgets to configure this,
+  should the system be open or closed?" Always choose closed.
+* **Log a warning for insecure configurations** at startup so operators notice
+  immediately. Don't silently accept an insecure state.
+  ```python
+  # GOOD — warn when host-header validation is disabled in production
+  if not trusted_hosts and not debug:
+      logger.warning(
+          "No TRUSTED_HOSTS configured — Host-header validation is disabled."
+      )
+  ```
+
+#### Debug mode gating
+
+* **Gate all development-only features behind a single `debug` flag.**
+  This includes: API documentation (Swagger UI, ReDoc, OpenAPI schema), gRPC
+  reflection, relaxed Content-Security-Policy, verbose error responses,
+  wildcard CORS fallbacks, and colored console log output.
+  ```python
+  # GOOD — single flag controls all dev features
+  app = FastAPI(
+      docs_url="/docs" if debug else None,
+      redoc_url="/redoc" if debug else None,
+      openapi_url="/openapi.json" if debug else None,
+  )
+  ```
+* **Never expose API schema in production.** Swagger UI, ReDoc, `/openapi.json`,
+  and gRPC reflection all reveal the full API surface. Disable them when
+  `debug=False`.
+* **Use `--debug` as the CLI flag** and `DEBUG` as the env var. The `run.sh`
+  dev script should pass `--debug` automatically; production entry points
+  (gunicorn, Kubernetes manifests, Cloud Run) should never set it.
+
+#### Content-Security-Policy
+
+* **Production CSP should be `default-src none`** for API-only servers. This
+  blocks all resource loading (scripts, styles, images, fonts, frames).
+* **Debug CSP must explicitly allowlist CDN origins** for Swagger UI (e.g.
+  `cdn.jsdelivr.net` for JS/CSS, `fastapi.tiangolo.com` for the favicon).
+  Never use `unsafe-eval`.
+* **Use the `secure` library** rather than hand-crafting header values. It
+  tracks evolving OWASP recommendations (e.g. it dropped `X-XSS-Protection`
+  before most people noticed the deprecation).
+
+#### CORS
+
+* **Default to same-origin (empty allowlist)**, not wildcard. Wildcard CORS
+  allows any website to make cross-origin requests to your API.
+  ```python
+  # BAD — any website can call your API
+  cors_allowed_origins: str = "*"
+
+  # GOOD — deny cross-origin by default
+  cors_allowed_origins: str = ""
+  ```
+* **In debug mode, fall back to `["*"]`** when no origins are configured so
+  Swagger UI and local dev tools work without manual config.
+* **Use explicit `allow_headers` lists**, not `["*"]`. Wildcard allowed headers
+  let arbitrary custom headers through CORS preflight, enabling cache
+  poisoning or header injection attacks.
+  ```python
+  # BAD — any header allowed
+  allow_headers=["*"]
+
+  # GOOD — only headers the API actually uses
+  allow_headers=["Content-Type", "Authorization", "X-Request-ID"]
+  ```
+
+#### Rate limiting
+
+* **Apply rate limits at both REST and gRPC layers.** They share the same
+  algorithm (token bucket per client IP / peer) but are independent middleware.
+* **Exempt health check paths** (`/health`, `/healthz`, `/ready`, `/readyz`)
+  from rate limiting so orchestration platforms can always probe.
+* **Include `Retry-After` in 429 responses** so well-behaved clients know when
+  to retry.
+* **Use `time.monotonic()` for token bucket timing**, not `time.time()`. See
+  the "Threading, Asyncio & Event-Loop Audit Checklist" above.
+
+#### Request body limits
+
+* **Enforce body size limits before parsing.** Use an ASGI middleware that
+  checks `Content-Length` before the framework reads the body. This prevents
+  memory exhaustion from oversized payloads.
+* **Apply the same limit to gRPC** via `grpc.max_receive_message_length`.
+* **Default to 1 MB** (1,048,576 bytes). LLM API requests are typically text,
+  not file uploads.
+
+#### Input validation
+
+* **Use Pydantic `Field` constraints on every input model** — `max_length`,
+  `min_length`, `ge`, `le`, `pattern`. This rejects malformed input before
+  it reaches any flow or LLM call.
+* **Use `pattern` for freeform string fields** that should be constrained
+  (e.g. programming language names: `^[a-zA-Z#+]+$`).
+* **Sanitize text before passing to the LLM** — `strip()` whitespace and
+  truncate to a reasonable maximum. This is a second line of defense after
+  Pydantic validation.
+
+#### ASGI middleware stack order
+
+* **Apply middleware inside-out** in `apply_security_middleware()`. The
+  request-flow order is:
+
+  ```
+  AccessLog → GZip → CORS → TrustedHost → Timeout → MaxBodySize
+    → ExceptionHandler → SecurityHeaders → RequestId → App
+  ```
+
+  The response passes through the same layers in reverse.
+
+#### Security headers (OWASP)
+
+* **Use pure ASGI middleware**, not framework-specific mechanisms. This ensures
+  headers are applied identically across FastAPI, Litestar, Quart, or any
+  future framework.
+* **Mandatory headers** for every HTTP response:
+
+  | Header | Value | Purpose |
+  |--------|-------|---------|
+  | `Content-Security-Policy` | `default-src none` | Block resource loading |
+  | `X-Content-Type-Options` | `nosniff` | Prevent MIME-sniffing |
+  | `X-Frame-Options` | `DENY` | Block clickjacking |
+  | `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer leakage |
+  | `Permissions-Policy` | `geolocation=(), camera=(), microphone=()` | Disable browser APIs |
+  | `Cross-Origin-Opener-Policy` | `same-origin` | Isolate browsing context |
+
+* **Add HSTS conditionally** — only when the request arrived over HTTPS.
+  Sending `Strict-Transport-Security` over plaintext HTTP is meaningless and
+  can confuse testing.
+* **Omit `X-XSS-Protection`** — the browser XSS auditor it controlled was
+  removed from all modern browsers, and setting it can introduce XSS in
+  older browsers (OWASP recommendation since 2023).
+
+#### Request ID / correlation
+
+* **Generate or propagate `X-Request-ID` on every request.** If the client
+  sends one (e.g. from a load balancer), reuse it for end-to-end tracing.
+  Otherwise, generate a UUID4.
+* **Bind the ID to structlog context vars** so every log line includes
+  `request_id` without manual passing.
+* **Echo the ID in the response header** for client-side correlation.
+
+#### Trusted host validation
+
+* **Validate the `Host` header** when running behind a reverse proxy. Without
+  this, host-header poisoning can cause cache poisoning, password-reset
+  hijacking, and SSRF.
+* **Log a warning at startup** if `TRUSTED_HOSTS` is empty in production
+  mode so operators notice immediately.
+
+#### Structured logging & secret masking
+
+* **Default to JSON log format** in production. Colored console output is
+  human-friendly but breaks log aggregation pipelines (CloudWatch, Stackdriver,
+  Datadog).
+* **Override to `console` in `local.env`** for development.
+* **Include `request_id` in every log entry** (via structlog context vars).
+* **Never log secrets.** Use a structlog processor to automatically redact
+  API keys, tokens, passwords, and DSNs from log output. Match patterns like
+  `AIza...`, `Bearer ...`, `token=...`, `password=...`, and any field whose
+  name contains `key`, `secret`, `token`, `password`, `credential`, or `dsn`.
+  Show only the first 4 and last 2 characters (e.g. `AI****Qw`).
+
+#### HTTP access logging
+
+* **Log every request** with method, path, status code, and duration. This is
+  essential for observability and debugging latency issues.
+* **Place the access log middleware outermost** so timing includes all
+  middleware layers (security checks, compression, etc.).
+
+#### Per-request timeout
+
+* **Enforce a per-request timeout** via ASGI middleware. If a handler exceeds
+  the configured timeout, return 504 Gateway Timeout immediately instead of
+  letting it hang indefinitely.
+* **Make the timeout configurable** via `REQUEST_TIMEOUT` env var and CLI flag.
+  Default to a generous value (120s) for LLM calls.
+
+#### Global exception handler
+
+* **Catch unhandled exceptions in middleware** and return a consistent JSON
+  error body (`{"error": "Internal Server Error", "detail": "..."}`).
+* **Never expose stack traces to clients in production.** Log the full
+  traceback server-side (via structlog / Sentry) for debugging.
+* **In debug mode**, include the traceback in the response for developer
+  convenience.
+
+#### Server header suppression
+
+* **Remove the `Server` response header** to prevent version fingerprinting.
+  ASGI servers (uvicorn, granian, hypercorn) emit `Server: ...` by default,
+  which reveals the server software and version to attackers.
+
+#### Cache-Control
+
+* **Set `Cache-Control: no-store`** on all API responses. This prevents
+  intermediaries (CDNs, proxies) and browsers from caching sensitive API
+  responses.
+
+#### GZip response compression
+
+* **Compress responses above a configurable threshold** (default: 500 bytes)
+  using `GZipMiddleware`. This reduces bandwidth for JSON-heavy API responses.
+* **Make the minimum size configurable** via `GZIP_MIN_SIZE` env var and CLI.
+
+#### Graceful shutdown
+
+* **Handle SIGTERM with a configurable grace period.** Cloud Run sends SIGTERM
+  and gives 10s by default. Kubernetes may give 30s.
+* **Drain in-flight requests** before exiting. For gRPC, use
+  `server.stop(grace=N)`. For ASGI servers, rely on the server's native
+  shutdown signal handling.
+
+#### Connection tuning
+
+* **Set keep-alive timeout above the load balancer's idle timeout.** If the LB
+  has a 60s idle timeout (typical for Cloud Run, ALB), set the server's
+  keep-alive to 75s. Otherwise the server closes the connection while the LB
+  thinks it's still alive, causing 502s.
+* **Set explicit LLM API timeouts.** The default should be generous (120s) but
+  not infinite. Without a timeout, a hung LLM call ties up a worker forever.
+* **Cap connection pool size** to prevent unbounded outbound connections (e.g.
+  100 max connections, 20 keepalive).
+
+#### Circuit breaker
+
+* **Use async-native circuit breakers** (not sync wrappers like `pybreaker`
+  that use `threading.RLock` — see the async/event-loop checklist above).
+* **States**: Closed (normal) → Open (fail fast) → Half-open (probe).
+* **Use `time.monotonic()`** for recovery timeout measurement.
+* **Gate half-open probes** so only one coroutine probes at a time (prevent
+  stampede on recovery).
+
+#### Response cache
+
+* **Use per-key request coalescing** to prevent cache stampedes. Without it,
+  N concurrent requests for the same key all trigger N expensive LLM calls
+  (thundering herd).
+* **Use `asyncio.Lock` per cache key**, not a single global lock (which
+  serializes all cache operations).
+* **Use `time.monotonic()` for TTL**, not `time.time()`.
+* **Hash cache keys with SHA-256** for fixed-length, collision-resistant keys.
+
+#### Container security
+
+* **Use distroless base images** (`gcr.io/distroless/python3-debian13:nonroot`):
+  - No shell — cannot `exec` into the container
+  - No package manager — no `apt install` attack vector
+  - No `setuid` binaries
+  - Runs as uid 65534 (`nonroot`)
+  - ~50 MB (vs ~150 MB for `python:3.13-slim`)
+* **Multi-stage builds** — install dependencies in a builder stage, copy only
+  the virtual environment and source code to the final distroless stage.
+* **Pin base image digests** in production Containerfiles to prevent supply
+  chain attacks from tag mutations.
+* **Never copy `.env` files or secrets into container images.** Pass secrets
+  via environment variables or a secrets manager at runtime.
+
+#### Dependency auditing
+
+* **Run `pip-audit` in CI** to check for known CVEs in dependencies.
+* **Run `pysentry-rs`** against frozen (exact) dependency versions, not version
+  ranges from `pyproject.toml`. Version ranges can report false positives for
+  vulnerabilities fixed in later versions.
+  ```bash
+  # BAD — false positives from minimum version ranges
+  pysentry-rs pyproject.toml
+
+  # GOOD — audit exact installed versions
+  uv pip freeze > /tmp/requirements.txt
+  pysentry-rs /tmp/requirements.txt
+  ```
+* **Run `liccheck`** to verify all dependencies use approved licenses (Apache-2.0,
+  MIT, BSD, PSF, ISC, MPL-2.0). Add exceptions for packages with unknown
+  metadata to `[tool.liccheck.authorized_packages]` in `pyproject.toml`.
+* **Run `addlicense`** to verify all source files have the correct license header.
+
+#### Platform telemetry auto-detection
+
+* **Auto-detect cloud platform at startup** by checking environment variables
+  set by the platform (e.g. `K_SERVICE` for Cloud Run, `AWS_EXECUTION_ENV`
+  for ECS).
+* **Don't trigger on ambiguous signals.** `GOOGLE_CLOUD_PROJECT` is set on
+  most developer machines for `gcloud` CLI use — it doesn't mean the app is
+  running on GCP. Require a stronger signal (`K_SERVICE`, `GCE_METADATA_HOST`)
+  or an explicit opt-in (`GENKIT_TELEMETRY_GCP=1`).
+* **Guard all platform plugin imports with `try/except ImportError`** since
+  they are optional dependencies. Log a warning (not an error) if the plugin
+  is not installed.
+
+#### Sentry integration
+
+* **Only activate when `SENTRY_DSN` is set** (no DSN = completely disabled).
+* **Set `send_default_pii=False`** to strip personally identifiable information.
+* **Auto-detect the active framework** (FastAPI, Litestar, Quart) and enable
+  the matching Sentry integration. Don't require the operator to configure it.
+* **Include gRPC integration** so both REST and gRPC errors are captured.
+
+#### Error tracking and responses
+
+* **Never expose stack traces to clients in production.** Framework default
+  error handlers may include tracebacks in HTML responses. Use middleware or
+  exception handlers to return consistent JSON error bodies.
+* **Consistent error format** for all error paths:
+  ```json
+  {"error": "Short Error Name", "detail": "Human-readable explanation"}
+  ```
+* **Log the full traceback server-side** (via structlog / Sentry) for debugging.
+
+#### Health check endpoints
+
+* **Provide both `/health` (liveness) and `/ready` (readiness)** probes.
+* **Keep them lightweight** — don't call the LLM API or do expensive work.
+* **Exempt them from rate limiting** so orchestration platforms can always probe.
+* **Return minimal JSON** (`{"status": "ok"}`) — don't expose internal state,
+  version numbers, or configuration in health responses.
+
+#### Environment variable conventions
+
+* **Use `SCREAMING_SNAKE_CASE`** for all environment variables.
+* **Use pydantic-settings `BaseSettings`** to load from env vars and `.env`
+  files with type validation.
+* **Support `.env` file layering**: `.env` (shared defaults) → `.<env>.env`
+  (environment-specific overrides, e.g. `.local.env`, `.staging.env`).
+* **Gitignore all `.env` files** (`**/*.env`) to prevent secret leakage.
+  Commit only the `local.env.example` template.
+
+#### Production hardening checklist
+
+When reviewing a sample or service for production readiness, verify each item:
+
+| Check | What to verify |
+|-------|---------------|
+| `DEBUG=false` | Swagger UI, gRPC reflection, relaxed CSP all disabled |
+| CORS locked down | `CORS_ALLOWED_ORIGINS` is not `*` (or empty for same-origin) |
+| Trusted hosts set | `TRUSTED_HOSTS` configured for the deployment domain |
+| Rate limits tuned | `RATE_LIMIT_DEFAULT` appropriate for expected traffic |
+| Body size limit | `MAX_BODY_SIZE` set for the expected payload sizes |
+| Request timeout | `REQUEST_TIMEOUT` set appropriately (default: 120s) |
+| Secret masking | Log processor redacts API keys, tokens, passwords, DSNs |
+| Access logging | Every request logged with method, path, status, duration |
+| Exception handler | Global middleware returns JSON 500; no tracebacks to clients |
+| Server header removed | `Server` response header suppressed (no version fingerprinting) |
+| Cache-Control | `no-store` on all API responses |
+| GZip compression | `GZIP_MIN_SIZE` tuned for response payload sizes |
+| HSTS enabled | `HSTS_MAX_AGE` set; only sent over HTTPS |
+| Log format | `LOG_FORMAT=json` for structured log aggregation |
+| Secrets managed | No `.env` files in production; use secrets manager |
+| TLS termination | HTTPS via load balancer or reverse proxy |
+| Error tracking | `SENTRY_DSN` set (or equivalent monitoring) |
+| Container hardened | Distroless, nonroot, no shell, no secrets baked in |
+| Dependencies audited | `pip-audit` and `liccheck` pass in CI |
+| Telemetry configured | Platform telemetry or OTLP endpoint set |
+| Graceful shutdown | `SHUTDOWN_GRACE` appropriate for the platform |
+| Keep-alive tuned | Server keep-alive > load balancer idle timeout |
