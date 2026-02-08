@@ -49,8 +49,9 @@ type MCPHost struct {
 	clients map[string]*GenkitMCPClient // Internal map for efficient lookups
 }
 
-// NewMCPHost creates a new MCPHost with the given options
-func NewMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
+// NewMCPHostWithContext creates a new MCPHost with the given options and context.
+// It connects to the configured servers using the provided context.
+func NewMCPHostWithContext(ctx context.Context, g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
 	// Set default values
 	if options.Name == "" {
 		options.Name = "genkit-mcp"
@@ -66,7 +67,6 @@ func NewMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
 	}
 
 	// Connect to all servers synchronously during initialization
-	ctx := context.Background()
 	for _, serverConfig := range options.MCPServers {
 		if err := host.Connect(ctx, g, serverConfig.Name, serverConfig.Config); err != nil {
 			logger.FromContext(ctx).Error("Failed to connect to MCP server", "server", serverConfig.Name, "host", host.name, "error", err)
@@ -75,6 +75,12 @@ func NewMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
 	}
 
 	return host, nil
+}
+
+// NewMCPHost creates a new MCPHost with the given options.
+// Deprecated: Use NewMCPHostWithContext instead.
+func NewMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
+	return NewMCPHostWithContext(context.Background(), g, options)
 }
 
 // Connect connects to a single MCP server with the provided configuration
@@ -95,7 +101,7 @@ func (h *MCPHost) Connect(ctx context.Context, g *genkit.Genkit, serverName stri
 	}
 
 	// Create and connect the client
-	client, err := NewGenkitMCPClient(config)
+	client, err := NewClient(ctx, config)
 	if err != nil {
 		return fmt.Errorf("error connecting to server %s: %w", serverName, err)
 	}
