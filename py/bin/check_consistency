@@ -37,6 +37,8 @@
 #  16. IDE autocomplete - No broad "type: ignore" comments
 #  17. Python version classifiers (3.10-3.14)
 #  18. Namespace package __init__.py (plugins must not have __init__.py in genkit/ or genkit/plugins/)
+#  19. Sample LICENSE files exist (Google OSS requirement)
+#  20. Google OSS files (CONTRIBUTING.md, LICENSE at repo root)
 
 set -euo pipefail
 
@@ -58,7 +60,7 @@ PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$PY_DIR"
 
 # Total number of checks
-TOTAL_CHECKS=18
+TOTAL_CHECKS=21
 
 echo -e "${BLUE}=== Genkit Python Consistency Checks ===${NC}"
 echo ""
@@ -596,6 +598,84 @@ if [ $namespace_errors -eq 0 ]; then
   echo -e "  ${GREEN}✓${NC} No __init__.py files in namespace directories"
 else
   ERRORS=$((ERRORS + namespace_errors))
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 19: Sample LICENSE Files (Google OSS Requirement)
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[19/$TOTAL_CHECKS] Checking sample LICENSE files...${NC}"
+sample_license_missing=0
+
+for d in samples/*/; do
+  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ]; then
+    sample_name=$(basename "$d")
+    # Skip utility directories
+    if [ "$sample_name" = "shared" ] || [ "$sample_name" = "sample-test" ]; then
+      continue
+    fi
+    if [ ! -f "$d/LICENSE" ]; then
+      echo -e "  ${RED}ERROR${NC}: samples/$sample_name/ is missing LICENSE file"
+      sample_license_missing=$((sample_license_missing + 1))
+    fi
+  fi
+done
+
+if [ $sample_license_missing -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All samples have LICENSE files"
+else
+  ERRORS=$((ERRORS + sample_license_missing))
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 20: Google OSS Files (CONTRIBUTING.md, LICENSE at repo root)
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[20/$TOTAL_CHECKS] Checking Google OSS files...${NC}"
+oss_errors=0
+
+# Determine repo root (parent of py/)
+REPO_ROOT="$(cd "$PY_DIR/.." && pwd)"
+
+# Required at repo root per Google OSS guidelines:
+# https://opensource.google/documentation/reference/releasing/preparing
+GOOGLE_OSS_FILES=(
+  "LICENSE"         # Apache 2.0 license
+  "CONTRIBUTING.md" # Contribution guidelines with CLA reference
+)
+
+for f in "${GOOGLE_OSS_FILES[@]}"; do
+  if [ ! -f "$REPO_ROOT/$f" ]; then
+    echo -e "  ${RED}MISSING${NC}: Repo root missing Google OSS file: $f"
+    oss_errors=$((oss_errors + 1))
+  fi
+done
+
+if [ $oss_errors -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All Google OSS required files present at repo root"
+else
+  ERRORS=$((ERRORS + oss_errors))
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 21: CHANGELOG Files Exist
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[21/$TOTAL_CHECKS] Checking CHANGELOG files...${NC}"
+changelog_missing=0
+
+# Check plugins
+for d in plugins/*/; do
+  if [ -d "$d" ] && [ ! -f "$d/CHANGELOG.md" ]; then
+    pkg_name=$(basename "$d")
+    echo -e "  ${YELLOW}WARNING${NC}: plugins/$pkg_name/ is missing CHANGELOG.md"
+    WARNINGS=$((WARNINGS + 1))
+    changelog_missing=$((changelog_missing + 1))
+  fi
+done
+
+if [ $changelog_missing -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All plugins have CHANGELOG.md"
 fi
 echo ""
 

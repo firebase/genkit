@@ -20,6 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
+  "genkit-plugin-checks",
   "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
@@ -166,6 +167,7 @@ framework-restaurant-demo                  = { workspace = true }
 framework-tool-interrupts                  = { workspace = true }
 provider-amazon-bedrock-hello              = { workspace = true }
 provider-anthropic-hello                   = { workspace = true }
+provider-checks-hello                      = { workspace = true }
 provider-cloudflare-workers-ai-hello       = { workspace = true }
 provider-compat-oai-hello                  = { workspace = true }
 provider-deepseek-hello                    = { workspace = true }
@@ -195,6 +197,7 @@ genkit = { workspace = true }
 # Plugins (alphabetical)
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
+genkit-plugin-checks                = { workspace = true }
 genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
@@ -404,6 +407,7 @@ root = [
   # Plugins
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
+  "plugins/checks/src",
   "plugins/cloudflare-workers-ai/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
@@ -445,9 +449,7 @@ exclude = [
 # TODO(https://github.com/firebase/genkit/pull/4502): Remove after granian
 # embed.Server API migration merges — the old granian.Granian() API uses
 # string literals that no longer match the expected enum types.
-ignore = [
-  "packages/genkit/src/genkit/web/manager/_adapters.py",
-]
+ignore = ["packages/genkit/src/genkit/web/manager/_adapters.py"]
 # Use the venv where packages are installed as editable installs
 pythonVersion          = "3.10"
 reportMissingImports   = true
