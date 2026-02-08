@@ -62,6 +62,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
   "opentelemetry-instrumentation-fastapi>=0.41b0",
   "opentelemetry-instrumentation-asgi>=0.41b0",
+  "opentelemetry-instrumentation-grpc>=0.41b0",
   # OSS security headers — tracks OWASP recommendations automatically.
   "secure>=1.0.0",
 ]

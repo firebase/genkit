@@ -25,10 +25,24 @@ Run with::
     uv run pytest tests/sentry_init_test.py -v
 """
 
+import importlib
 import sys
 from unittest.mock import MagicMock, patch
 
+from src import sentry_init
 from src.sentry_init import _build_integrations, setup_sentry  # noqa: PLC2701 — testing internal helper
+
+
+def test_module_importable_without_sentry_sdk() -> None:
+    """Regression: sentry_init must load when sentry-sdk is absent.
+
+    The TYPE_CHECKING guard on the ``Integration`` import means the
+    module should reload cleanly even when ``sentry_sdk`` is not
+    installed.  This test prevents a future change from accidentally
+    moving that import back to the top level.
+    """
+    with patch.dict(sys.modules, {"sentry_sdk": None, "sentry_sdk.integrations": None}):
+        importlib.reload(sentry_init)
 
 
 def test_setup_sentry_empty_dsn_returns_false() -> None:

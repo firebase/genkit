@@ -49,6 +49,7 @@ from typing import Any
 import grpc
 import structlog
 from grpc_reflection.v1alpha import reflection
+from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
 from .flows import (
     describe_image,
@@ -281,6 +282,11 @@ async def serve_grpc(
             grpcurl).  Must be ``False`` in production — reflection
             exposes the full API schema to unauthenticated clients.
     """
+    # Auto-instrument gRPC with OpenTelemetry semantic conventions.
+    # Adds rpc.system, rpc.service, rpc.method span attributes so gRPC
+    # traces are clearly distinguishable from REST traces in Jaeger.
+    GrpcAioInstrumentorServer().instrument()  # pyrefly: ignore[missing-attribute] — incomplete type stubs
+
     interceptors = [
         GrpcLoggingInterceptor(),
         GrpcRateLimitInterceptor(rate=rate_limit),

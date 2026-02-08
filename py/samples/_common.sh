@@ -305,6 +305,20 @@ check_aws_installed() {
                     ;;
                 Linux)
                     echo -e "${BLUE}Installing AWS CLI v2...${NC}"
+                    # The AWS CLI zip installer requires unzip.
+                    if ! command -v unzip &> /dev/null; then
+                        echo -e "${YELLOW}unzip is required but not installed. Attempting to install...${NC}"
+                        if command -v apt-get &> /dev/null; then
+                            sudo apt-get update -qq && sudo apt-get install -yqq unzip
+                        elif command -v dnf &> /dev/null; then
+                            sudo dnf install -yq unzip
+                        elif command -v yum &> /dev/null; then
+                            sudo yum install -yq unzip
+                        else
+                            echo -e "${RED}Error: unzip is required. Install it manually and retry.${NC}"
+                            return 1
+                        fi
+                    fi
                     curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
                     unzip -qo /tmp/awscliv2.zip -d /tmp
                     sudo /tmp/aws/install || /tmp/aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$HOME/.local/bin"
@@ -354,8 +368,29 @@ check_az_installed() {
                     fi
                     ;;
                 Linux)
-                    echo -e "${BLUE}Installing via script...${NC}"
-                    curl -fsSL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                    # Detect distro and use the appropriate Azure CLI install.
+                    # https://learn.microsoft.com/cli/azure/install-azure-cli-linux
+                    if [ -f /etc/os-release ]; then
+                        # shellcheck disable=SC1091
+                        . /etc/os-release
+                    fi
+                    case "${ID:-}" in
+                        debian|ubuntu|linuxmint|pop)
+                            echo -e "${BLUE}Installing via InstallAzureCLIDeb...${NC}"
+                            curl -fsSL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                            ;;
+                        fedora|rhel|centos|rocky|alma)
+                            echo -e "${BLUE}Installing via dnf/yum...${NC}"
+                            sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+                            sudo dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm \
+                                || sudo yum install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+                            sudo dnf install -y azure-cli || sudo yum install -y azure-cli
+                            ;;
+                        *)
+                            echo -e "${BLUE}Installing via pip (distro '${ID:-unknown}' not directly supported)...${NC}"
+                            pip install azure-cli
+                            ;;
+                    esac
                     ;;
                 *)
                     echo "Visit: https://learn.microsoft.com/cli/azure/install-azure-cli"

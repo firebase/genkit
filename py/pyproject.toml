@@ -101,6 +101,7 @@ lint = [
   "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
   "opentelemetry-instrumentation-asgi>=0.41b0",
   "opentelemetry-instrumentation-fastapi>=0.41b0",
+  "opentelemetry-instrumentation-grpc>=0.41b0",
   "quart>=0.19.0",
   "secure>=1.0.0",
   "sentry-sdk>=2.0.0",
