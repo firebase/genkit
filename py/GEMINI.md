@@ -1329,9 +1329,28 @@ Some code may be excluded from coverage requirements:
 
 ### Logging
 
-* **Library**: Use `structlog` for structured logging.
-* **Async**: Use `await logger.ainfo(...)` within coroutines.
-* **Format**: Avoid f-strings for async logging; use structured key-values.
+* **Library**: Use `structlog` via the typed `genkit.core.logging.get_logger` wrapper.
+  **Do NOT use the standard library `logging` module directly.** The typed wrapper
+  provides IDE support, async variants, and structured key-value logging.
+* **Import pattern**:
+
+  ```python
+  from genkit.core.logging import get_logger
+
+  logger = get_logger(__name__)
+  ```
+
+* **Sync vs Async**: Use `logger.info(...)` in synchronous code and
+  `await logger.ainfo(...)` within coroutines.
+* **Structured key-values**: Pass context as keyword arguments, not f-strings:
+
+  ```python
+  # Correct
+  logger.info("Request processed", model=model_name, latency_ms=elapsed)
+
+  # Wrong — unstructured f-string
+  logger.info(f"Request processed for {model_name} in {elapsed}ms")
+  ```
 
 ### Licensing
 
