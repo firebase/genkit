@@ -63,6 +63,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 version = "0.5.0"
 
+[project.optional-dependencies]
+# Telemetry export uses the Google Cloud telemetry exporters (Cloud Trace/Monitoring).
+telemetry = ["genkit-plugin-google-cloud"]
+
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
 "Documentation" = "https://firebase.google.com/docs/genkit"

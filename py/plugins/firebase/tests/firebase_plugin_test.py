@@ -30,7 +30,7 @@ def test_package_name() -> None:
     assert package_name() == 'genkit.plugins.firebase'
 
 
-@patch('genkit.plugins.firebase.add_gcp_telemetry')
+@patch('genkit.plugins.google_cloud.telemetry.tracing.add_gcp_telemetry')
 def test_add_firebase_telemetry_calls_gcp_telemetry(mock_add_gcp: MagicMock) -> None:
     """Test add_firebase_telemetry delegates to GCP telemetry."""
     add_firebase_telemetry()

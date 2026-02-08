@@ -175,8 +175,6 @@ See Also:
     - Genkit documentation: https://genkit.dev/
 """
 
-from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
-
 from .firestore import define_firestore_vector_store
 
 
@@ -195,6 +193,15 @@ def add_firebase_telemetry() -> None:
     Exports traces to Cloud Trace and metrics to Cloud Monitoring.
     In development (GENKIT_ENV=dev), telemetry is disabled by default.
     """
+    try:
+        # Imported lazily so Firestore-only users don't need telemetry deps.
+        from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
+    except ImportError as e:  # pragma: no cover
+        raise ImportError(
+            'Firebase telemetry requires the Google Cloud telemetry exporter. '
+            'Install it with: pip install "genkit-plugin-firebase[telemetry]"'
+        ) from e
+
     add_gcp_telemetry(force_export=False)
 
 
