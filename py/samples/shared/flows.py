@@ -107,24 +107,40 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
     Returns:
         The generated RPG character.
     """
+    # Example schema hint for models that don't fully support constrained JSON output
+    schema_hint = """
+        Example output:
+        {
+            "name": "<character_name>",
+            "backStory": "<character_backStory>",
+            "abilities": ["<character_ability1>", "<character_ability2>"],
+            "skills": {
+                "strength": <character_strength>,
+                "charisma": <character_charisma>,
+                "endurance": <character_endurance>
+            }
+        }
+    """
     result = await ai.generate(
-        prompt=f'Generate a structured RPG character named {name}. Output ONLY the JSON object.',
+        prompt=f'Generate a RPG character named {name}.\n{schema_hint}',
         output=Output(schema=RpgCharacter),
     )
     return result.output
 
 
-async def generate_code_logic(ai: Genkit, task: str) -> str:
+async def generate_code_logic(ai: Genkit, task: str, model: str | None = None) -> str:
     """Generate code for a given task.
 
     Args:
         ai: The Genkit instance.
         task: Coding task description.
+        model: Optional model override for provider-specific code models.
 
     Returns:
         Generated code.
     """
     response = await ai.generate(
+        model=model,
         prompt=task,
         system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )

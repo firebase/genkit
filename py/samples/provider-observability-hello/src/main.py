@@ -115,6 +115,8 @@ Testing This Sample:
 """
 
 import asyncio
+import logging
+import os
 
 from pydantic import BaseModel, Field
 
@@ -125,13 +127,56 @@ from samples.shared.logging import setup_sample
 
 setup_sample()
 
-# Configure observability telemetry FIRST (before creating Genkit instance)
-# Change backend to: "sentry", "datadog", "grafana", "axiom" as needed
-configure_telemetry(
-    backend='honeycomb',  # Change this to your preferred backend
-    service_name='observability-hello',
-    service_version='1.0.0',
-)
+# Backend auto-detection: pick the first backend whose API key is set.
+# Set one of the env vars below to enable a backend, or set
+# OBSERVABILITY_BACKEND to override auto-detection.
+_BACKEND_ENV_VARS: list[tuple[str, str]] = [
+    ('honeycomb', 'HONEYCOMB_API_KEY'),
+    ('datadog', 'DD_API_KEY'),
+    ('sentry', 'SENTRY_DSN'),
+    ('grafana', 'GRAFANA_API_KEY'),
+    ('axiom', 'AXIOM_TOKEN'),
+]
+
+
+def _detect_backend() -> str | None:
+    """Auto-detect observability backend from environment variables.
+
+    Checks for an explicit override via OBSERVABILITY_BACKEND first, then
+    probes for backend-specific API key env vars in priority order.
+
+    Returns:
+        The backend name, or None if no backend credentials are found.
+    """
+    explicit = os.environ.get('OBSERVABILITY_BACKEND')
+    if explicit:
+        return explicit
+
+    for backend, env_var in _BACKEND_ENV_VARS:
+        if os.environ.get(env_var):
+            return backend
+
+    return None
+
+
+# Configure observability telemetry FIRST (before creating Genkit instance).
+# Auto-detects backend from env vars. Set one of:
+#   HONEYCOMB_API_KEY, DD_API_KEY, SENTRY_DSN, GRAFANA_API_KEY, AXIOM_TOKEN
+# Or override with OBSERVABILITY_BACKEND=<backend-name>.
+_backend = _detect_backend()
+if _backend:
+    configure_telemetry(
+        backend=_backend,
+        service_name='observability-hello',
+        service_version='1.0.0',
+    )
+else:
+    logging.getLogger(__name__).warning(
+        'No observability backend detected. Set one of: %s '
+        '(or OBSERVABILITY_BACKEND=<name>) to enable telemetry export. '
+        'Traces are still visible in the Genkit DevUI.',
+        ', '.join(env for _, env in _BACKEND_ENV_VARS),
+    )
 
 # Initialize Genkit with Google AI
 ai = Genkit(

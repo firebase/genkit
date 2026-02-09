@@ -43,7 +43,7 @@ ai = Genkit(...)
 # Register Checks evaluators
 define_checks_evaluators(
     ai,
-    project_id='my-gcp-project',
+    project_id='your-gcp-project-id',
     metrics=[
         ChecksEvaluationMetricType.DANGEROUS_CONTENT,
         ChecksEvaluationMetricType.HARASSMENT,
@@ -67,7 +67,7 @@ response = await ai.generate(
     prompt='Tell me a story',
     use=[
         checks_middleware(
-            project_id='my-gcp-project',
+            project_id='your-gcp-project-id',
             metrics=[
                 ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                 ChecksEvaluationMetricType.HARASSMENT,
@@ -95,7 +95,7 @@ from genkit.plugins.checks import (
 
 define_checks_evaluators(
     ai,
-    project_id='my-gcp-project',
+    project_id='your-gcp-project-id',
     metrics=[
         # Use default threshold
         ChecksEvaluationMetricType.DANGEROUS_CONTENT,

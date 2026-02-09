@@ -36,6 +36,7 @@ Key features:
 from typing import Any
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from openai.lib._pydantic import _ensure_strict_json_schema
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
@@ -319,7 +320,24 @@ class MicrosoftFoundryModel:
                 output_modes = (model_info.supports.output or []) if model_info.supports else []
 
                 if request.output.format == 'json' and 'json' in output_modes:
-                    body['response_format'] = {'type': 'json_object'}
+                    if request.output.schema:
+                        # Use Structured Outputs (json_schema) when a schema
+                        # is provided — the API constrains the model to emit
+                        # JSON that conforms exactly to the schema.
+                        body['response_format'] = {
+                            'type': 'json_schema',
+                            'json_schema': {
+                                'name': request.output.schema.get('title', 'Response'),
+                                'schema': _ensure_strict_json_schema(
+                                    request.output.schema,
+                                    path=(),
+                                    root=request.output.schema,
+                                ),
+                                'strict': True,
+                            },
+                        }
+                    else:
+                        body['response_format'] = {'type': 'json_object'}
                 elif request.output.format == 'text' and 'text' in output_modes:
                     body['response_format'] = {'type': 'text'}
 

@@ -15,37 +15,56 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Cloudflare Workers AI Hello World Demo
+# =======================================
+#
+# Demonstrates usage of Cloudflare Workers AI models with Genkit.
+#
+# Prerequisites:
+#   - CLOUDFLARE_ACCOUNT_ID environment variable set
+#   - CLOUDFLARE_API_TOKEN environment variable set
+#
+# Usage:
+#   ./run.sh          # Start the demo with Dev UI
+#   ./run.sh --help   # Show this help message
+
 set -euo pipefail
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$(dirname "$0")"
+source "../_common.sh"
 
-# Source common utilities if available
-if [[ -f "${SCRIPT_DIR}/../_common.sh" ]]; then
-    source "${SCRIPT_DIR}/../_common.sh"
-fi
+print_help() {
+    print_banner "Cloudflare Workers AI Hello World" "☁️"
+    echo "Usage: ./run.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  --help     Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  CLOUDFLARE_ACCOUNT_ID    Required. Your Cloudflare account ID"
+    echo "  CLOUDFLARE_API_TOKEN     Required. API token with Workers AI permissions"
+    echo ""
+    echo "Get credentials from: https://dash.cloudflare.com/"
+    print_help_footer
+}
 
-# Prompt for required environment variables
-if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
-    echo "CLOUDFLARE_ACCOUNT_ID is not set."
-    echo "Get your Account ID from: https://dash.cloudflare.com/"
-    read -rp "Enter your Cloudflare Account ID: " CLOUDFLARE_ACCOUNT_ID
-    export CLOUDFLARE_ACCOUNT_ID
-fi
+case "${1:-}" in
+    --help|-h)
+        print_help
+        exit 0
+        ;;
+esac
 
-if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-    echo "CLOUDFLARE_API_TOKEN is not set."
-    echo "Create an API token at: https://dash.cloudflare.com/profile/api-tokens"
-    read -rp "Enter your Cloudflare API Token: " CLOUDFLARE_API_TOKEN
-    export CLOUDFLARE_API_TOKEN
-fi
+print_banner "Cloudflare Workers AI Hello World" "☁️"
 
-echo "Starting CF AI Hello sample..."
-echo "Using Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}..."
+check_env_var "CLOUDFLARE_ACCOUNT_ID" "https://dash.cloudflare.com/" || true
+check_env_var "CLOUDFLARE_API_TOKEN" "https://dash.cloudflare.com/profile/api-tokens" || true
 
-cd "${SCRIPT_DIR}"
+echo ""
 
-genkit start -- \
+install_deps
+
+genkit_start_with_browser -- \
     uv tool run --from watchdog watchmedo auto-restart \
         -d src \
         -d ../../packages \

@@ -123,6 +123,49 @@
   # Verify license compliance
   ./bin/check_license
   ```
+  **Import-to-Dependency Completeness** *(common error)*:
+
+  Every non-optional `from genkit.plugins.<name> import ...` statement in a
+  package's source code **MUST** have a corresponding `genkit-plugin-<name>`
+  entry in that package's `pyproject.toml` `dependencies` list. This is the
+  most common dependency error — the code imports a plugin but the
+  `pyproject.toml` doesn't declare it, causing `ModuleNotFoundError` at
+  runtime when the package is installed standalone.
+
+  **Example of the bug** (real case from `provider-vertex-ai-model-garden`):
+  ```python
+  # src/main.py imports VertexAI from google_genai plugin
+  from genkit.plugins.google_genai import VertexAI  # ← needs genkit-plugin-google-genai
+  from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin  # ← needs genkit-plugin-vertex-ai
+  ```
+  ```toml
+  # pyproject.toml was MISSING genkit-plugin-google-genai
+  dependencies = [
+    "genkit",
+    "genkit-plugin-vertex-ai",  # ✅ present
+    # "genkit-plugin-google-genai",  # ❌ MISSING — causes ModuleNotFoundError
+  ]
+  ```
+
+  **Manual verification** (run from `py/` directory):
+  ```bash
+  for sample_dir in samples/*/; do
+    pyproject="$sample_dir/pyproject.toml"
+    [ ! -f "$pyproject" ] && continue
+    imports=$(grep -rh 'from genkit\.plugins\.' "$sample_dir/src/" 2>/dev/null \
+      | sed 's/.*from genkit\.plugins\.\([a-z_]*\).*/\1/' | sort -u)
+    for imp in $imports; do
+      pkg="genkit-plugin-$(echo "$imp" | tr '_' '-')"
+      if ! grep -q "\"$pkg\"" "$pyproject" 2>/dev/null; then
+        echo "⚠️  $sample_dir: imports genkit.plugins.$imp but missing $pkg in pyproject.toml"
+      fi
+    done
+  done
+  ```
+
+  **Note**: Imports inside `try/except ImportError` blocks (for optional
+  platform auto-detection) are exempt from this rule.
+
   **Dependency Best Practices**:
   * Add dependencies directly to the package that uses them, not transitively
   * Each plugin's `pyproject.toml` should list all packages it imports
@@ -1329,9 +1372,54 @@ Some code may be excluded from coverage requirements:
 
 ### Logging
 
-* **Library**: Use `structlog` for structured logging.
-* **Async**: Use `await logger.ainfo(...)` within coroutines.
-* **Format**: Avoid f-strings for async logging; use structured key-values.
+* **Library**: Use `structlog` exclusively for all logging. **Do NOT use the
+  standard library `logging` module** (`import logging`) in any new code.
+  Existing code using stdlib `logging` should be migrated to structlog when
+  touched.
+
+* **Helper**: Use `genkit.core.logging.get_logger(__name__)` to obtain a
+  properly typed structlog logger. This is a thin wrapper around
+  `structlog.get_logger()` that returns a typed `Logger` instance:
+
+  ```python
+  from genkit.core.logging import get_logger
+
+  logger = get_logger(__name__)
+
+  # Sync logging
+  logger.info('Model registered', model_name=name, plugin='anthropic')
+  logger.debug('Request payload', payload=payload)
+  logger.warning('Deprecated config', key=key)
+
+  # Async logging (inside coroutines)
+  await logger.ainfo('Generation complete', tokens=usage.total_tokens)
+  await logger.adebug('Streaming chunk', index=i)
+  ```
+
+* **Async**: Use `await logger.ainfo(...)`, `await logger.adebug(...)`, etc.
+  within coroutines. Never use the sync variants (`logger.info(...)`) inside
+  `async def` functions — structlog's async methods ensure proper event loop
+  integration.
+
+* **Format**: Use structured key-value pairs, not f-strings:
+
+  ```python
+  # WRONG - f-string logging
+  logger.info(f'Processing model {model_name} with {num_tokens} tokens')
+
+  # CORRECT - structured key-value logging
+  logger.info('Processing model', model_name=model_name, num_tokens=num_tokens)
+  ```
+
+* **Known Violations**: The following plugins still use stdlib `logging` and
+  should be migrated to `genkit.core.logging.get_logger()` when next modified:
+
+  | Plugin | Files |
+  |--------|-------|
+  | `anthropic` | `models.py`, `utils.py` |
+  | `checks` | `plugin.py`, `middleware.py`, `guardrails.py`, `evaluation.py` |
+  | `deepseek` | `models.py`, tests |
+  | `google-cloud` | `telemetry/tracing.py` |
 
 ### Licensing
 

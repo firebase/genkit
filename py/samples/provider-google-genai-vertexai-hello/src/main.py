@@ -156,7 +156,7 @@ if 'GCLOUD_PROJECT' not in os.environ:
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model='vertexai/gemini-3-pro-preview',
+    model='vertexai/gemini-2.5-flash',
 )
 
 

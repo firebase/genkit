@@ -143,7 +143,7 @@ Example:
             MicrosoftFoundry(
                 api_key='your-api-key',
                 endpoint='https://your-resource.openai.azure.com/',
-                api_version='2024-10-21',
+                # api_version is optional; defaults to DEFAULT_API_VERSION
             )
         ],
         model=gpt4o,
@@ -159,6 +159,7 @@ Note:
 """
 
 from .plugin import (
+    DEFAULT_API_VERSION,
     MICROSOFT_FOUNDRY_PLUGIN_NAME,
     MicrosoftFoundry,
     get_config_schema_for_model,
@@ -230,6 +231,7 @@ __all__ = [
     'CohereConfig',
     'CohereSafetyMode',
     'CohereToolChoice',
+    'DEFAULT_API_VERSION',
     'DbrxConfig',
     'DeepSeekConfig',
     'DeepSeekThinkingType',

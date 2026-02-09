@@ -16,9 +16,7 @@
 
 """Tests for DeepSeek model helpers and validation logic."""
 
-import logging
-
-import pytest
+import structlog.testing
 
 from genkit.plugins.deepseek.models import (
     DEEPSEEK_PLUGIN_NAME,
@@ -81,43 +79,50 @@ class TestWarnReasoningParams:
 
     Reasoning models (deepseek-r1, deepseek-reasoner) silently ignore
     temperature and top_p. The function should warn users about this.
+
+    Uses structlog.testing.capture_logs() because the logger is structlog-based
+    (via genkit.core.logging.get_logger) and does not route through the
+    standard logging module, so pytest's caplog fixture cannot capture it.
     """
 
-    def test_no_warning_for_chat_model(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_for_chat_model(self) -> None:
         """Chat models never produce warnings, even with temperature set."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-chat', {'temperature': 0.7})
-        assert len(caplog.records) == 0
+        assert len(captured) == 0
 
-    def test_warning_for_r1_with_temperature(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_warning_for_r1_with_temperature(self) -> None:
         """R1 model with temperature triggers exactly one warning."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', {'temperature': 0.7})
-        assert len(caplog.records) == 1
-        assert 'temperature' in caplog.records[0].message
-        assert 'deepseek-r1' in caplog.records[0].message
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 1
+        assert warnings[0]['parameter'] == 'temperature'
+        assert warnings[0]['model_name'] == 'deepseek-r1'
 
-    def test_warning_for_reasoner_with_top_p(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_warning_for_reasoner_with_top_p(self) -> None:
         """Reasoner model with top_p triggers a warning."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-reasoner', {'top_p': 0.9})
-        assert len(caplog.records) == 1
-        assert 'top_p' in caplog.records[0].message
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 1
+        assert warnings[0]['parameter'] == 'top_p'
 
-    def test_two_warnings_for_both_params(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_two_warnings_for_both_params(self) -> None:
         """Setting both temperature and top_p triggers two warnings."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', {'temperature': 0.7, 'top_p': 0.9})
-        assert len(caplog.records) == 2
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 2
 
-    def test_no_warning_when_config_is_none(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_when_config_is_none(self) -> None:
         """None config produces no warnings."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', None)
-        assert len(caplog.records) == 0
+        assert len(captured) == 0
 
-    def test_no_warning_for_unrelated_params(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_for_unrelated_params(self) -> None:
         """Parameters not in the ignored set don't trigger warnings."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', {'max_tokens': 100})
-        assert len(caplog.records) == 0
+        assert len(captured) == 0

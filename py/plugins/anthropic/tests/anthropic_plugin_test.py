@@ -105,7 +105,10 @@ def test_supported_models() -> None:
         assert info.supports is not None
         assert info.supports.multiturn is True
         assert info.supports.tools is True
-        assert info.supports.media is True
+        if _name == 'claude-3-5-haiku':
+            assert info.supports.media is False
+        else:
+            assert info.supports.media is True
         assert info.supports.system_role is True
 
 

@@ -50,6 +50,7 @@ from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
     Message,
+    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -262,6 +263,60 @@ class TestMicrosoftFoundryModel:
         assert response.usage is not None
         assert response.usage.input_tokens == 10
         assert response.usage.output_tokens == 8
+
+    def test_build_request_body_json_schema_format(self) -> None:
+        """Test that structured output uses json_schema format with schema."""
+        mock_client = AsyncMock()
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
+
+        schema = {
+            'title': 'RpgCharacter',
+            'type': 'object',
+            'properties': {
+                'name': {'type': 'string'},
+                'backstory': {'type': 'string'},
+            },
+            'required': ['name', 'backstory'],
+        }
+
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Generate a character'))],
+                )
+            ],
+            output=OutputConfig(format='json', schema=schema),
+        )
+
+        config = normalize_config(None)
+        body = model._build_request_body(request, config)
+
+        # Must use json_schema format when schema is provided
+        assert body['response_format']['type'] == 'json_schema'
+        assert body['response_format']['json_schema']['name'] == 'RpgCharacter'
+        assert body['response_format']['json_schema']['strict'] is True
+        assert 'schema' in body['response_format']['json_schema']
+
+    def test_build_request_body_json_object_without_schema(self) -> None:
+        """Test that JSON mode without schema uses json_object format."""
+        mock_client = AsyncMock()
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
+
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Give me JSON'))],
+                )
+            ],
+            output=OutputConfig(format='json'),
+        )
+
+        config = normalize_config(None)
+        body = model._build_request_body(request, config)
+
+        assert body['response_format'] == {'type': 'json_object'}
 
 
 class TestMicrosoftFoundryEmbed:
