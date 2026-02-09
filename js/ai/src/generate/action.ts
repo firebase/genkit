@@ -277,7 +277,7 @@ async function generateActionImpl(
     context,
   } = args;
 
-  if (currentTurn === 0 && middleware && middleware.length > 0) {
+  if (middleware && middleware.length > 0) {
     const dispatchGenerate = async (
       index: number,
       req: GenerateActionOptions,

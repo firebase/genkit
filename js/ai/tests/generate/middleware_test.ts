@@ -135,26 +135,30 @@ describe('generateMiddleware', () => {
 
     const testMiddleware = generateMiddleware(
       { name: 'testMiddleware' },
-      () => ({
-        generate: async (req, ctx, next) => {
-          executionOrder.push('generateBefore');
-          const res = await next(req, ctx);
-          executionOrder.push('generateAfter');
-          return res;
-        },
-        model: async (req, ctx, next) => {
-          executionOrder.push('modelBefore');
-          const res = await next(req, ctx);
-          executionOrder.push('modelAfter');
-          return res;
-        },
-        tool: async (req, ctx, next) => {
-          executionOrder.push('toolBefore');
-          const res = await next(req, ctx);
-          executionOrder.push('toolAfter');
-          return res;
-        },
-      })
+      () => {
+        let turnCount = 0;
+        return {
+          generate: async (req, ctx, next) => {
+            const t = ++turnCount;
+            executionOrder.push('generateBefore-' + t);
+            const res = await next(req, ctx);
+            executionOrder.push('generateAfter-' + t);
+            return res;
+          },
+          model: async (req, ctx, next) => {
+            executionOrder.push(`modelBefore-${turnCount}`);
+            const res = await next(req, ctx);
+            executionOrder.push(`modelAfter-${turnCount}`);
+            return res;
+          },
+          tool: async (req, ctx, next) => {
+            executionOrder.push(`toolBefore-${turnCount}`);
+            const res = await next(req, ctx);
+            executionOrder.push(`toolAfter-${turnCount}`);
+            return res;
+          },
+        };
+      }
     );
 
     await generate(registry, {
@@ -165,17 +169,19 @@ describe('generateMiddleware', () => {
     });
 
     assert.deepStrictEqual(executionOrder, [
-      'generateBefore',
-      'modelBefore', // Turn 1
+      'generateBefore-1',
+      'modelBefore-1', // Turn 1
       'modelExecution',
-      'modelAfter',
-      'toolBefore', // Tool execution
+      'modelAfter-1',
+      'toolBefore-1', // Tool execution
       'toolExecution',
-      'toolAfter',
-      'modelBefore', // Turn 2
+      'toolAfter-1',
+      'generateBefore-2',
+      'modelBefore-2', // Turn 2
       'modelExecution',
-      'modelAfter',
-      'generateAfter',
+      'modelAfter-2',
+      'generateAfter-2',
+      'generateAfter-1',
     ]);
   });
 
