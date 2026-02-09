@@ -496,6 +496,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G21 | Python | Add `clientHeader` parameter to `Genkit()` constructor | §8j | ⬜ |
 | G22 | Python | Add `name` parameter to `Genkit()` constructor | §8j | ⬜ |
 | G4 | Python | Move `augment_with_context` to define-model time | §8b.2 | ⬜ |
+| G38 | Python | Implement `get_model_middleware()` auto-wiring (like JS `getModelMiddleware()`) | §8f.1 | ⬜ |
 | G9 | Python | Add Pinecone vector store plugin | §5g | ⬜ |
 | G10 | Python | Add ChromaDB vector store plugin | §5g | ⬜ |
 | G30 | Python | Add Cloud SQL PG vector store parity | §5g | ⬜ |
@@ -853,6 +854,93 @@ export function simulateSystemPrompt(options?: {
 ```
 
 **Impact**: Models without native system prompt support (e.g., some older or fine-tuned models) get automatic simulation in JS but not in Python.
+
+### 8f.1. Model Middleware vs Plugin Inline Implementation — Impact Analysis
+
+**Status**: 🔍 Analysis Complete — Action Items Identified
+
+The JS SDK's `getModelMiddleware()` function (in `model.ts:337-358`) **automatically**
+wires built-in middleware into every model at `defineModel()` time based on the model's
+`supports` metadata. This means JS plugins do **not** need to implement these concerns
+themselves — the framework handles them.
+
+In contrast, Python plugins currently implement some of these concerns **inline** in their
+model runner functions. Now that Python has `define_model(use=[...])`, we can optionally
+migrate these plugins to use middleware instead, but more importantly we need to implement
+the **auto-wiring** pattern from JS.
+
+#### JS `getModelMiddleware()` auto-wiring
+
+```typescript
+// js/ai/src/model.ts:337-358
+function getModelMiddleware(options) {
+  const middleware = options.use || [];                  // user-supplied
+  if (!options?.supports?.context)
+    middleware.push(augmentWithContext());               // auto-add context MW
+  const constrainedSim = simulateConstrainedGeneration();
+  middleware.push((req, next) => {                      // auto-add constrained MW
+    if (!options?.supports?.constrained || ...)
+      return constrainedSim(req, next);
+    return next(req);
+  });
+  return middleware;
+}
+```
+
+This means in JS, **every** model automatically gets:
+1. `augmentWithContext()` — unless `supports.context` is true
+2. `simulateConstrainedGeneration()` — unless `supports.constrained` is truthy and compatible
+
+#### Overlap Analysis: What Python Plugins Do Inline Today
+
+| Concern | JS (Framework MW) | Python Plugin Inline? | Plugins Affected | Migration Path |
+|---------|--------------------|-----------------------|------------------|----------------|
+| **System prompt simulation** | `simulateSystemPrompt()` | ❌ Not inline — plugins either support `system_role: true` natively or simply don't handle it | All plugins declare `system_role` in `ModelInfo.supports` | Implement `simulateSystemPrompt()` middleware (G16); auto-wire for models with `system_role=False` |
+| **Constrained generation** | `simulateConstrainedGeneration()` | ❌ Not inline — plugins rely on `output.schema` passthrough | google-genai, compat-oai, anthropic, ollama | Implement `simulateConstrainedGeneration()` middleware (G3); auto-wire based on `supports.constrained` |
+| **Media download (URL→base64)** | `downloadRequestMedia()` | ⚠️ Some plugins handle this inline | google-genai (partially), compat-oai | Implement `downloadRequestMedia()` middleware (G15); plugins can remove inline handling |
+| **Context augmentation** | `augmentWithContext()` | ✅ Already middleware in Python | — | ✅ Already done, but wired in `generate_action()` instead of at define-model time (G4) |
+| **Support validation** | `validateSupport()` | ❌ Not implemented | All plugins | Implement `validateSupport()` middleware (G14); auto-wire at define-model time |
+| **Retry** | `retry()` | ❌ Not implemented — users must wrap generate() | — | Implement as standalone middleware (G12), not auto-wired |
+| **Fallback** | `fallback()` | ❌ Not implemented — users must manually try/catch | — | Implement as standalone middleware (G13), not auto-wired |
+
+#### Key Architectural Gap: Auto-Wiring (New Gap G38)
+
+The most important missing piece is **auto-wiring**: Python's `define_model()` should
+automatically inject middleware based on the model's `ModelInfo.supports` metadata, just
+like JS's `getModelMiddleware()`. This is separate from (and more important than) the
+individual middleware implementations.
+
+**What needs to happen:**
+
+1. **G38** (New): Implement `get_model_middleware()` helper in Python that mirrors JS
+   - Read `supports.context` → auto-add `augment_with_context()` (currently done in `generate_action()`, should move to define-model time)
+   - Read `supports.constrained` → auto-add `simulate_constrained_generation()` when implemented (G3)
+   - Read `supports.system_role` → auto-add `simulate_system_prompt()` when implemented (G16)
+   - Prepend auto-wired middleware **after** user-supplied `use=[...]` middleware
+
+2. **Plugin impact: None for now**
+   - Since Python plugins don't currently implement these concerns inline, adding the
+     auto-wiring middleware won't conflict with existing plugin logic
+   - Plugins only need to ensure their `ModelInfo.supports` metadata is accurate
+   - No breaking changes required
+
+3. **Plugin impact: Future**
+   - Once `downloadRequestMedia()` (G15) is implemented as middleware, plugins that
+     currently handle media download inline can remove that code
+   - This is a simplification, not a breaking change
+
+#### Updated Gap Priority
+
+| Gap | Depends On | Impact |
+|-----|-----------|--------|
+| **G38** (New) | G2 ✅, G1 ✅ | Auto-wire middleware at define-model time — critical for parity |
+| G3 | G38 | `simulateConstrainedGeneration()` — auto-wired via G38 |
+| G16 | G38 | `simulateSystemPrompt()` — auto-wired via G38 |
+| G4 | G38 | Move `augmentWithContext()` from generate-time to define-model time |
+| G14 | G38 | `validateSupport()` — auto-wired via G38 |
+| G15 | G38 | `downloadRequestMedia()` — auto-wired via G38; plugins can remove inline code |
+| G12 | G2 ✅ | `retry()` — standalone, not auto-wired |
+| G13 | G2 ✅ | `fallback()` — standalone, not auto-wired |
 
 ### 8g. Context Providers — Built-in Helpers
 
