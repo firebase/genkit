@@ -14,7 +14,44 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware for the Genkit framework."""
+"""Model middleware for the Genkit framework.
+
+This module contains **Layer 4 (Model Middleware)** — the primary user-facing
+middleware in Genkit. Model middleware intercepts and transforms
+``GenerateRequest`` and ``GenerateResponse`` objects in a chain around the
+model runner.
+
+Genkit has four distinct middleware layers, each at a different level:
+
+- **Layer 1 — ASGI / HTTP Middleware** (Starlette, FastAPI, etc.):
+  Runs on every HTTP request. Use for CORS, rate limiting, security headers.
+
+- **Layer 2 — Context Providers** (``Genkit(context=...)``):
+  Extracts auth/context from the HTTP request before every action.
+  Use for API key validation, JWT parsing, user session extraction.
+
+- **Layer 3 — Action Middleware** (``Action.use`` in JS core):
+  Wraps any action type. Primarily internal framework wiring in Python.
+
+- **Layer 4 — Model Middleware** (this module):
+  Runs only on model calls via ``generate()`` or ``prompt.generate()``.
+  Use for safety guardrails, retry, fallback, constrained generation
+  simulation, system prompt simulation, and media downloading.
+
+Model middleware can be applied at three levels:
+
+- **Call-time**: ``generate(use=[mw])`` — per-request.
+- **Model-level**: ``define_model(use=[mw])`` — baked into the model.
+- **Auto-wired**: Injected at model definition time based on model
+  capabilities (e.g., ``augment_with_context`` for models without
+  native context support).
+
+Execution order: call-time → model-level → auto-wired → model runner.
+
+See Also:
+    ``genkit.blocks.model``: ``ModelMiddleware`` type definition.
+    ``genkit.blocks.generate``: Middleware dispatch in ``generate_action()``.
+"""
 
 from genkit.blocks.model import (
     ModelMiddleware,
