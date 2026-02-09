@@ -68,6 +68,7 @@ Key Features
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Structured Output (Instruction-Based)                    | `generate_character_instructions`      |
 | Multi-modal Output Configuration                         | `generate_images`                      |
+| API Key Context Provider (Endpoint Auth)                 | `api_key()` in `server_main`           |
 
 See README.md for testing instructions.
 """
@@ -82,6 +83,7 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.blocks.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
+from genkit.core.context import api_key
 from genkit.core.flows import create_flows_asgi_app
 from genkit.core.logging import get_logger
 from genkit.core.typing import Part
@@ -578,20 +580,51 @@ def parse_args() -> argparse.Namespace:
 
 
 async def server_main(ai: Genkit) -> None:
-    """Entry point function for the server application."""
+    """Entry point function for the server application.
+
+    Demonstrates the ``api_key()`` context provider for protecting
+    deployed flows.  The provider reads the ``Authorization`` header
+    from incoming HTTP requests and validates it.
+
+    Set the ``FLOWS_API_KEY`` env var to enable exact-match validation:
+
+    .. code-block:: bash
+
+        export FLOWS_API_KEY="my-secret"
+        python -m src --server
+
+    Then call a flow::
+
+        curl -X POST http://localhost:3400/say_hi \
+          -H 'Content-Type: application/json' \
+          -H 'Authorization: my-secret' \
+          -d '{"data": {"name": "Mittens"}}'
+
+    Without the header (or with a wrong key), the server returns
+    UNAUTHENTICATED / PERMISSION_DENIED.  If ``FLOWS_API_KEY`` is
+    unset, ``api_key()`` runs in pass-through mode (extracts the key
+    but does not validate it).
+    """
 
     async def on_app_startup() -> None:
         """Handle application startup."""
         await logger.ainfo('[LIFESPAN] Starting flows server...')
-        # Any initialization could go here
 
     async def on_app_shutdown() -> None:
         """Handle application shutdown."""
         await logger.ainfo('[LIFESPAN] Shutting down flows server...')
 
+    # Build the context provider list.  When FLOWS_API_KEY is set,
+    # api_key(value) validates every request against it.  Otherwise,
+    # api_key() extracts the key without validation (pass-through).
+    flows_api_key = os.environ.get('FLOWS_API_KEY')
+    context_providers = [
+        api_key(flows_api_key) if flows_api_key else api_key(),
+    ]
+
     app = create_flows_asgi_app(
         registry=ai.registry,
-        context_providers=[],
+        context_providers=context_providers,
         on_app_startup=on_app_startup,
         on_app_shutdown=on_app_shutdown,
     )
