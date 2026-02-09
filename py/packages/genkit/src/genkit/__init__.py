@@ -61,6 +61,9 @@ from genkit.blocks.model import GenerateResponseWrapper
 # Setup plugin discovery (must be done before any plugin imports)
 from genkit.core._plugins import extend_plugin_namespace
 
+# Context providers
+from genkit.core.context import ApiKeyContext, api_key
+
 # Errors (user-facing)
 from genkit.core.error import GenkitError, UserFacingError
 
@@ -85,6 +88,9 @@ __all__ = [
     # Response types
     'GenerateResponseWrapper',
     'GenerateStreamResponse',
+    # Context providers
+    'ApiKeyContext',
+    'api_key',
     # Errors
     'GenkitError',
     'UserFacingError',
