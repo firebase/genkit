@@ -143,145 +143,148 @@ func newTestOllama(serverAddress string) *Ollama {
 	return o
 }
 
-func TestListLocalModels(t *testing.T) {
-	tests := []struct {
-		name       string
-		response   ollamaTagsResponse
-		statusCode int
-		wantCount  int
-		wantErr    bool
-	}{
-		{
-			name: "successful response with multiple models",
-			response: ollamaTagsResponse{
+func TestDynamicPlugin(t *testing.T) {
+	t.Run("listLocalModels", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			response   ollamaTagsResponse
+			statusCode int
+			wantCount  int
+			wantErr    bool
+		}{
+			{
+				name: "successful response with multiple models",
+				response: ollamaTagsResponse{
+					Models: []ollamaLocalModel{
+						{Name: "llama3:latest", Model: "llama3:latest"},
+						{Name: "mistral:7b", Model: "mistral:7b"},
+					},
+				},
+				statusCode: http.StatusOK,
+				wantCount:  2,
+			},
+			{
+				name:       "empty model list",
+				response:   ollamaTagsResponse{Models: []ollamaLocalModel{}},
+				statusCode: http.StatusOK,
+				wantCount:  0,
+			},
+			{
+				name:       "server error",
+				statusCode: http.StatusInternalServerError,
+				wantErr:    true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != "/api/tags" {
+						t.Errorf("unexpected path: %s", r.URL.Path)
+					}
+					if r.Method != http.MethodGet {
+						t.Errorf("unexpected method: %s", r.Method)
+					}
+					w.WriteHeader(tt.statusCode)
+					if tt.statusCode == http.StatusOK {
+						json.NewEncoder(w).Encode(tt.response)
+					}
+				}))
+				defer server.Close()
+
+				models, err := listLocalModels(context.Background(), server.URL)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("listLocalModels() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				if !tt.wantErr && len(models) != tt.wantCount {
+					t.Errorf("listLocalModels() returned %d models, want %d", len(models), tt.wantCount)
+				}
+			})
+		}
+	})
+
+	t.Run("ListActions", func(t *testing.T) {
+		t.Run("filters embed models", func(t *testing.T) {
+			response := ollamaTagsResponse{
 				Models: []ollamaLocalModel{
 					{Name: "llama3:latest", Model: "llama3:latest"},
-					{Name: "mistral:7b", Model: "mistral:7b"},
+					{Name: "nomic-embed-text:latest", Model: "nomic-embed-text:latest"},
+					{Name: "moondream:v2", Model: "moondream:v2"},
 				},
-			},
-			statusCode: http.StatusOK,
-			wantCount:  2,
-		},
-		{
-			name:       "empty model list",
-			response:   ollamaTagsResponse{Models: []ollamaLocalModel{}},
-			statusCode: http.StatusOK,
-			wantCount:  0,
-		},
-		{
-			name:       "server error",
-			statusCode: http.StatusInternalServerError,
-			wantErr:    true,
-		},
-	}
+			}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path != "/api/tags" {
-					t.Errorf("unexpected path: %s", r.URL.Path)
-				}
-				if r.Method != http.MethodGet {
-					t.Errorf("unexpected method: %s", r.Method)
-				}
-				w.WriteHeader(tt.statusCode)
-				if tt.statusCode == http.StatusOK {
-					json.NewEncoder(w).Encode(tt.response)
-				}
+				json.NewEncoder(w).Encode(response)
 			}))
 			defer server.Close()
 
-			models, err := listLocalModels(context.Background(), server.URL)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("listLocalModels() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			o := newTestOllama(server.URL)
+			actions := o.ListActions(context.Background())
+
+			if len(actions) != 2 {
+				t.Fatalf("ListActions() returned %d actions, want 2", len(actions))
 			}
-			if !tt.wantErr && len(models) != tt.wantCount {
-				t.Errorf("listLocalModels() returned %d models, want %d", len(models), tt.wantCount)
+
+			names := make(map[string]bool)
+			for _, a := range actions {
+				names[a.Name] = true
+			}
+			if !names["ollama/llama3:latest"] {
+				t.Error("ListActions() missing ollama/llama3:latest")
+			}
+			if !names["ollama/moondream:v2"] {
+				t.Error("ListActions() missing ollama/moondream:v2")
+			}
+			if names["ollama/nomic-embed-text:latest"] {
+				t.Error("ListActions() should have filtered out embed model")
 			}
 		})
-	}
-}
 
-func TestListActions(t *testing.T) {
-	response := ollamaTagsResponse{
-		Models: []ollamaLocalModel{
-			{Name: "llama3:latest", Model: "llama3:latest"},
-			{Name: "nomic-embed-text:latest", Model: "nomic-embed-text:latest"},
-			{Name: "moondream:v2", Model: "moondream:v2"},
-		},
-	}
+		t.Run("server unreachable", func(t *testing.T) {
+			o := newTestOllama("http://localhost:0")
+			actions := o.ListActions(context.Background())
+			if actions != nil {
+				t.Errorf("ListActions() should return nil when server is unreachable, got %v", actions)
+			}
+		})
+	})
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
+	t.Run("ResolveAction", func(t *testing.T) {
+		o := newTestOllama("http://localhost:11434")
 
-	o := newTestOllama(server.URL)
-	actions := o.ListActions(context.Background())
+		t.Run("model action type", func(t *testing.T) {
+			action := o.ResolveAction(api.ActionTypeModel, "llama3:latest")
+			if action == nil {
+				t.Fatal("ResolveAction() returned nil for model type")
+			}
+			desc := action.Desc()
+			if desc.Name != "ollama/llama3:latest" {
+				t.Errorf("ResolveAction() name = %q, want %q", desc.Name, "ollama/llama3:latest")
+			}
+		})
 
-	// Should filter out the embed model
-	if len(actions) != 2 {
-		t.Fatalf("ListActions() returned %d actions, want 2", len(actions))
-	}
+		t.Run("non-model action type", func(t *testing.T) {
+			action := o.ResolveAction(api.ActionTypeExecutablePrompt, "llama3:latest")
+			if action != nil {
+				t.Error("ResolveAction() should return nil for non-model action type")
+			}
+		})
+	})
 
-	names := make(map[string]bool)
-	for _, a := range actions {
-		names[a.Name] = true
-	}
-	if !names["ollama/llama3:latest"] {
-		t.Error("ListActions() missing ollama/llama3:latest")
-	}
-	if !names["ollama/moondream:v2"] {
-		t.Error("ListActions() missing ollama/moondream:v2")
-	}
-	if names["ollama/nomic-embed-text:latest"] {
-		t.Error("ListActions() should have filtered out embed model")
-	}
-}
-
-func TestListActions_ServerDown(t *testing.T) {
-	o := newTestOllama("http://localhost:0")
-	actions := o.ListActions(context.Background())
-	if actions != nil {
-		t.Errorf("ListActions() should return nil when server is unreachable, got %v", actions)
-	}
-}
-
-func TestResolveAction(t *testing.T) {
-	o := newTestOllama("http://localhost:11434")
-
-	t.Run("model action type", func(t *testing.T) {
-		action := o.ResolveAction(api.ActionTypeModel, "llama3:latest")
-		if action == nil {
-			t.Fatal("ResolveAction() returned nil for model type")
+	t.Run("newModel", func(t *testing.T) {
+		o := newTestOllama("http://localhost:11434")
+		model := o.newModel("test-model", ai.ModelOptions{Supports: &defaultOllamaSupports})
+		if model == nil {
+			t.Fatal("newModel() returned nil")
+		}
+		action, ok := model.(api.Action)
+		if !ok {
+			t.Fatal("newModel() result does not implement api.Action")
 		}
 		desc := action.Desc()
-		if desc.Name != "ollama/llama3:latest" {
-			t.Errorf("ResolveAction() name = %q, want %q", desc.Name, "ollama/llama3:latest")
+		if desc.Name != "ollama/test-model" {
+			t.Errorf("newModel() name = %q, want %q", desc.Name, "ollama/test-model")
 		}
 	})
-
-	t.Run("non-model action type", func(t *testing.T) {
-		action := o.ResolveAction(api.ActionTypeExecutablePrompt, "llama3:latest")
-		if action != nil {
-			t.Error("ResolveAction() should return nil for non-model action type")
-		}
-	})
-}
-
-func TestNewModel(t *testing.T) {
-	o := newTestOllama("http://localhost:11434")
-	model := o.newModel("test-model", ai.ModelOptions{Supports: &defaultOllamaSupports})
-	if model == nil {
-		t.Fatal("newModel() returned nil")
-	}
-	action, ok := model.(api.Action)
-	if !ok {
-		t.Fatal("newModel() result does not implement api.Action")
-	}
-	desc := action.Desc()
-	if desc.Name != "ollama/test-model" {
-		t.Errorf("newModel() name = %q, want %q", desc.Name, "ollama/test-model")
-	}
 }
