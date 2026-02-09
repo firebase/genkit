@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Mistral AI hello sample - Mistral models with Genkit.
+"""Cohere AI hello sample — Cohere models with Genkit.
 
-This sample demonstrates how to use Mistral AI's models with Genkit,
-including Mistral Large 3, Mistral Small 3.2, Codestral, Magistral
+This sample demonstrates how to use Cohere's models with Genkit,
+including Command A, Command A Reasoning, Command A Translate,
+Command R+, Command R, and embedding models.
 
 See README.md for testing instructions.
 
@@ -26,17 +27,23 @@ Key Concepts (ELI5)::
     ┌─────────────────────┬────────────────────────────────────────────────────┐
     │ Concept             │ ELI5 Explanation                                   │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Mistral AI          │ French AI company known for efficient, powerful    │
-    │                     │ models. Great balance of speed and quality.        │
+    │ Cohere              │ AI company known for enterprise-grade language     │
+    │                     │ models and excellent multilingual support.         │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ mistral-large       │ Most capable model. Best for complex reasoning,    │
-    │                     │ coding, and nuanced tasks.                         │
+    │ Command A           │ Most capable model. Best for complex reasoning,    │
+    │                     │ coding, and tool calling.                          │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ mistral-small       │ Fast and efficient. Great for everyday tasks       │
+    │ Command A Reasoning │ Reasoning-optimised variant. Excels at multi-step  │
+    │                     │ agentic workflows and complex problem solving.     │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Command A Translate │ Translation-optimised variant. 23 languages with   │
+    │                     │ excellent cross-lingual transfer quality.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Command R+          │ Strong general-purpose model. Great for RAG,       │
+    │                     │ summarization, and multi-step tasks.               │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Command R           │ Fast and efficient. Great for everyday tasks       │
     │                     │ like chat, summarization, and simple coding.       │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ codestral           │ Specialized coding model. Optimized for code       │
-    │                     │ generation, completion, and explanation.           │
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Tool Calling        │ Let the model call your functions. Like giving     │
     │                     │ the AI a toolbox to help answer questions.         │
@@ -46,62 +53,60 @@ Key Concepts (ELI5)::
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Streaming           │ Get the response word-by-word as it's generated.   │
     │                     │ Feels faster, like watching someone type.          │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Embeddings          │ Convert text to numbers for finding similar        │
+    │                     │ content. Powers semantic search and RAG.           │
     └─────────────────────┴────────────────────────────────────────────────────┘
 
 Key Features
 ============
 | Feature Description                     | Example Function / Code Snippet         |
 |-----------------------------------------|-----------------------------------------|
-| Plugin Initialization                   | `ai = Genkit(plugins=[Mistral(...)])`   |
-| Default Model Configuration             | `ai = Genkit(model=mistral_name(...))` |
+| Plugin Initialization                   | `ai = Genkit(plugins=[Cohere(...)])`    |
+| Default Model Configuration             | `ai = Genkit(model=cohere_name(...))`  |
 | Defining Flows                          | `@ai.flow()` decorator                  |
 | Defining Tools                          | `@ai.tool()` decorator                  |
 | Simple Generation (Prompt String)       | `generate_greeting`                      |
 | System Prompt                           | `generate_with_system_prompt`            |
 | Multi-turn Conversation                 | `generate_multi_turn_chat`               |
 | Streaming Response                      | `generate_streaming_story`               |
-| Code Generation (Codestral)             | `generate_code`                          |
 | Generation with Config                  | `generate_with_config`                   |
-| Multi-turn Chat                         | `chat_flow`                              |
 | Tool Calling                            | `generate_weather`                       |
+| Currency Conversion (Tool Calling)      | `convert_currency`                       |
 | Structured Output (JSON)                | `generate_character`                     |
-| Streaming Structured Output             | `streaming_structured_output`            |
-| Multimodal (Image Input)                | `describe_image`                         |
-| Reasoning (Magistral)                   | `solve_reasoning_problem`                |
+| Code Generation                         | `generate_code`                          |
+| Reasoning (Command A Reasoning)         | `solve_reasoning_problem`                |
+| Translation (Command A Translate)       | `translate_flow`                         |
+| Streaming with Tools                    | `generate_streaming_with_tools`          |
 | Embeddings (Text)                       | `embed_flow`                            |
-| Embeddings (Code)                       | `code_embed_flow`                       |
-| Audio Transcription (Voxtral)           | `audio_flow`                            |
 """
 
 import asyncio
-import base64
 import os
-from pathlib import Path
 
-from pydantic import BaseModel, Field
-
-from genkit.ai import Genkit, Output
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.core.typing import Media, MediaPart, Message, Part, Role, TextPart
-from genkit.plugins.mistral import Mistral, mistral_name
+from genkit.plugins.cohere import Cohere, cohere_name
 from samples.shared import (
     CharacterInput,
     CodeInput,
     ConfigInput,
+    CurrencyExchangeInput,
     EmbedInput,
     GreetingInput,
-    ImageDescribeInput,
     MultiTurnInput,
     ReasoningInput,
     RpgCharacter,
     StreamingToolInput,
     StreamInput,
     SystemPromptInput,
+    TranslateInput,
     WeatherInput,
     chat_flow_logic,
-    describe_image_logic,
+    convert_currency as _convert_currency_tool,
+    convert_currency_logic,
     generate_character_logic,
     generate_code_logic,
     generate_greeting_logic,
@@ -114,39 +119,23 @@ from samples.shared import (
     get_weather,
     setup_sample,
     solve_reasoning_problem_logic,
+    translate_text_logic,
 )
 
 setup_sample()
 
-if 'MISTRAL_API_KEY' not in os.environ:
-    os.environ['MISTRAL_API_KEY'] = input('Please enter your MISTRAL_API_KEY: ')
+if 'COHERE_API_KEY' not in os.environ and 'CO_API_KEY' not in os.environ:
+    os.environ['COHERE_API_KEY'] = input('Please enter your COHERE_API_KEY: ')
 
 logger = get_logger(__name__)
 
 ai = Genkit(
-    plugins=[Mistral()],
-    model=mistral_name('mistral-small-latest'),
+    plugins=[Cohere()],
+    model=cohere_name('command-a-03-2025'),
 )
 
 ai.tool()(get_weather)
-
-
-class CodeEmbedInput(BaseModel):
-    """Input for code embedding flow."""
-
-    code: str = Field(
-        default='def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)',
-        description='Code to embed',
-    )
-
-
-class AudioInput(BaseModel):
-    """Input for audio transcription flow."""
-
-    audio_path: str = Field(
-        default='',
-        description='Path to audio file (defaults to bundled genkit.wav)',
-    )
+ai.tool()(_convert_currency_tool)
 
 
 @ai.flow()
@@ -206,53 +195,6 @@ async def generate_streaming_story(
 
 
 @ai.flow()
-async def streaming_structured_output(
-    input: CharacterInput,
-    ctx: ActionRunContext | None = None,
-) -> RpgCharacter:
-    """Streaming with structured output schema.
-
-    Combines `generate_stream` with `Output(schema=...)` so the model
-    streams JSON tokens that are progressively parsed into the Pydantic
-    model. Each chunk exposes a partial `.output` you can forward to
-    clients for incremental rendering.
-
-    Args:
-        input: Input with character name.
-        ctx: Action context for streaming partial outputs.
-
-    Returns:
-        The fully-parsed RPG character once streaming completes.
-    """
-    stream, result = ai.generate_stream(
-        prompt=(
-            f'Generate an RPG character named {input.name}. '
-            'Include a creative backstory, 3-4 unique abilities, '
-            'and skill ratings for strength, charisma, and endurance (0-100 each).'
-        ),
-        output=Output(schema=RpgCharacter),
-    )
-    async for chunk in stream:
-        if ctx is not None:
-            ctx.send_chunk(chunk.output)
-
-    return (await result).output
-
-
-@ai.flow()
-async def generate_code(input: CodeInput) -> str:
-    """Generate code using Codestral model.
-
-    Args:
-        input: Input with coding task description.
-
-    Returns:
-        Generated code.
-    """
-    return await generate_code_logic(ai, input.task)
-
-
-@ai.flow()
 async def generate_with_config(input: ConfigInput) -> str:
     """Generate a greeting with custom model configuration.
 
@@ -263,6 +205,19 @@ async def generate_with_config(input: ConfigInput) -> str:
         Greeting message.
     """
     return await generate_with_config_logic(ai, input.name)
+
+
+@ai.flow()
+async def generate_code(input: CodeInput) -> str:
+    """Generate code using Cohere.
+
+    Args:
+        input: Input with coding task description.
+
+    Returns:
+        Generated code.
+    """
+    return await generate_code_logic(ai, input.task)
 
 
 @ai.flow()
@@ -282,24 +237,6 @@ async def chat_flow() -> str:
         followup_question='What foods did I say I enjoy?',
         final_question='Based on our conversation, suggest one bakery I should visit.',
     )
-
-
-@ai.flow()
-async def large_model_flow() -> str:
-    """Use Mistral Large for complex reasoning tasks.
-
-    Returns:
-        Response from Mistral Large model.
-    """
-    response = await ai.generate(
-        model=mistral_name('mistral-large-latest'),
-        prompt=(
-            'Analyze the pros and cons of microservices vs monolithic architecture. '
-            'Consider scalability, maintainability, and team organization.'
-        ),
-        system='You are a senior software architect with 20 years of experience.',
-    )
-    return response.text
 
 
 @ai.flow()
@@ -329,8 +266,30 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
 
 
 @ai.flow()
+async def convert_currency(input: CurrencyExchangeInput) -> str:
+    """Convert currency using tool calling.
+
+    Args:
+        input: Currency exchange parameters.
+
+    Returns:
+        Conversion result.
+    """
+    return await convert_currency_logic(ai, input)
+
+
+@ai.flow()
+async def generate_streaming_with_tools(
+    input: StreamingToolInput,
+    ctx: ActionRunContext | None = None,
+) -> str:
+    """Demonstrate streaming generation with tool calling."""
+    return await generate_streaming_with_tools_logic(ai, input.location, ctx)
+
+
+@ai.flow()
 async def embed_flow(input: EmbedInput) -> list[float]:
-    """Generate embeddings for text using Mistral's mistral-embed model.
+    """Generate embeddings for text using Cohere's embed-v4.0 model.
 
     Args:
         input: Input with text to embed.
@@ -340,46 +299,18 @@ async def embed_flow(input: EmbedInput) -> list[float]:
     """
     doc = Document.from_text(input.text)
     embeddings = await ai.embed(
-        embedder=mistral_name('mistral-embed'),
+        embedder=cohere_name('embed-v4.0'),
         content=doc,
     )
     return embeddings[0].embedding
-
-
-@ai.flow()
-async def code_embed_flow(input: CodeEmbedInput) -> list[float]:
-    """Generate code embeddings using Mistral's codestral-embed model.
-
-    Args:
-        input: Input with code snippet to embed.
-
-    Returns:
-        The embedding vector (list of floats).
-    """
-    doc = Document.from_text(input.code)
-    embeddings = await ai.embed(
-        embedder=mistral_name('codestral-embed-2505'),
-        content=doc,
-    )
-    return embeddings[0].embedding
-
-
-@ai.flow()
-async def describe_image(input: ImageDescribeInput) -> str:
-    """Describe an image using Mistral Large 3 (vision).
-
-    Args:
-        input: Input with image URL to describe.
-
-    Returns:
-        A textual description of the image.
-    """
-    return await describe_image_logic(ai, input.image_url, model=mistral_name('mistral-large-latest'))
 
 
 @ai.flow()
 async def solve_reasoning_problem(input: ReasoningInput) -> str:
-    """Solve reasoning problems using Magistral.
+    """Solve reasoning problems using Cohere's reasoning-optimised model.
+
+    Uses ``command-a-reasoning-08-2025`` which excels at multi-step
+    reasoning, agentic workflows, and complex problem solving.
 
     Args:
         input: Input with reasoning question to solve.
@@ -387,62 +318,30 @@ async def solve_reasoning_problem(input: ReasoningInput) -> str:
     Returns:
         The reasoning and answer.
     """
-    return await solve_reasoning_problem_logic(ai, input.prompt, model=mistral_name('magistral-small-latest'))
+    return await solve_reasoning_problem_logic(ai, input.prompt, model=cohere_name('command-a-reasoning-08-2025'))
 
 
 @ai.flow()
-async def audio_flow(input: AudioInput) -> str:
-    """Transcribe audio using Voxtral Mini.
+async def translate_flow(input: TranslateInput) -> str:
+    """Translate text using Cohere's translation-optimised model.
 
-    Uses the bundled genkit.wav file by default.
+    Uses ``command-a-translate-08-2025`` which supports 23 languages
+    with excellent cross-lingual transfer quality.
 
     Args:
-        input: Input with optional path to an audio file.
+        input: Input with text and target language.
 
     Returns:
-        Transcription of the audio content.
+        The translated text.
     """
-    audio_path = input.audio_path or str(Path(__file__).parent.parent / 'assets' / 'genkit.wav')
-    audio_bytes = Path(audio_path).read_bytes()
-    audio_b64 = base64.b64encode(audio_bytes).decode('ascii')
-    data_uri = f'data:audio/wav;base64,{audio_b64}'
-
-    response = await ai.generate(
-        model=mistral_name('voxtral-mini-latest'),
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    Part(root=MediaPart(media=Media(url=data_uri, content_type='audio/wav'))),
-                    Part(root=TextPart(text='Transcribe this audio. Return only the transcription.')),
-                ],
-            ),
-        ],
+    return await translate_text_logic(
+        ai, input.text, input.target_language, model=cohere_name('command-a-translate-08-2025')
     )
-    return response.text
-
-
-@ai.flow()
-async def generate_streaming_with_tools(
-    input: StreamingToolInput,
-    ctx: ActionRunContext | None = None,
-) -> str:
-    """Demonstrate streaming generation with tool calling.
-
-    Args:
-        input: Input with location for weather lookup.
-        ctx: Action context for streaming chunks to the client.
-
-    Returns:
-        The complete generated text.
-    """
-    return await generate_streaming_with_tools_logic(ai, input.location, ctx)
 
 
 async def main() -> None:
-    """Main entry point for the Mistral sample - keep alive for Dev UI."""
+    """Main entry point for the Cohere sample — keep alive for Dev UI."""
     await logger.ainfo('Genkit server running. Press Ctrl+C to stop.')
-    # Keep the process alive for Dev UI
     await asyncio.Event().wait()
 
 

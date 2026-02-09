@@ -60,6 +60,12 @@ class CurrencyExchangeInput(BaseModel):
     to_currency: str = Field(description='Target currency code (e.g., EUR)', default='EUR')
 
 
+class EmbedInput(BaseModel):
+    """Input for embedding flow."""
+
+    text: str = Field(default='Artificial intelligence is transforming the world.', description='Text to embed')
+
+
 class ImageDescribeInput(BaseModel):
     """Input for image description flow."""
 
@@ -123,6 +129,19 @@ class SystemPromptInput(BaseModel):
     """Input for system_prompt flow."""
 
     question: str = Field(default='What is your quest?', description='Question to ask')
+
+
+class TranslateInput(BaseModel):
+    """Input for translation flow."""
+
+    text: str = Field(
+        default='Artificial intelligence is transforming how we build software.',
+        description='Text to translate',
+    )
+    target_language: str = Field(
+        default='French',
+        description='Target language for translation',
+    )
 
 
 class WeatherInput(BaseModel):
