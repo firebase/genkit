@@ -28,6 +28,7 @@ import (
 
 var serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
 var modelName = flag.String("model-name", "tinyllama", "model name")
+var dynamicModelName = flag.String("dynamic-model-name", "moondream", "model name for dynamic discovery test (must not be in hardcoded lists)")
 var testLive = flag.Bool("test-live", false, "run live tests")
 
 /*
@@ -75,5 +76,50 @@ func TestLive(t *testing.T) {
 	// Assert that the response text is as expected
 	if text == "" {
 		t.Fatalf("expected non-empty response, got: %s", text)
+	}
+}
+
+// TestLiveDynamicDiscovery verifies that a model NOT registered via DefineModel
+// can be discovered and used through the DynamicPlugin interface (ListActions + ResolveAction).
+func TestLiveDynamicDiscovery(t *testing.T) {
+	if !*testLive {
+		t.Skip("skipping go/plugins/ollama live dynamic discovery test")
+	}
+
+	ctx := context.Background()
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
+	g := genkit.Init(ctx, genkit.WithPlugins(o))
+
+	// Verify ListActions discovers local models
+	actions := o.ListActions(ctx)
+	if len(actions) == 0 {
+		t.Fatal("ListActions() returned no actions, ensure Ollama has local models")
+	}
+	t.Logf("ListActions() discovered %d models:", len(actions))
+	for _, a := range actions {
+		t.Logf("  - %s", a.Name)
+	}
+
+	// Use a model that is NOT in the hardcoded lists via LookupModel,
+	// which triggers ResolveAction under the hood.
+	m := ollamaPlugin.Model(g, *dynamicModelName+":latest")
+	if m == nil {
+		t.Fatalf("Model(%q) returned nil — ResolveAction did not work", *dynamicModelName)
+	}
+
+	// Generate a response from the dynamically resolved model
+	resp, err := genkit.Generate(ctx, g,
+		ai.WithModel(m),
+		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
+		ai.WithPrompt("Say hello in one sentence."),
+	)
+	if err != nil {
+		t.Fatalf("failed to generate with dynamic model %q: %s", *dynamicModelName, err)
+	}
+
+	text := resp.Text()
+	t.Logf("Dynamic model %q response: %s", *dynamicModelName, text)
+	if text == "" {
+		t.Fatalf("expected non-empty response from dynamic model %q", *dynamicModelName)
 	}
 }
