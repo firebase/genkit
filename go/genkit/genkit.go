@@ -30,6 +30,7 @@ import (
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
+	aix "github.com/firebase/genkit/go/ai/x"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -405,6 +406,65 @@ func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.St
 //	fmt.Println(output) // Output: "processed 2 messages"
 func DefineBidiFlow[In, Out, Stream, Init any](g *Genkit, name string, fn core.BidiFunc[In, Out, Stream, Init]) *core.Flow[In, Out, Stream, Init] {
 	return core.DefineBidiFlow(g.reg, name, fn)
+}
+
+// DefineSessionFlow creates a SessionFlow with automatic snapshot management
+// and registers it as a flow action.
+//
+// A SessionFlow is a stateful, multi-turn conversational flow with automatic
+// snapshot persistence and turn semantics. It builds on bidirectional streaming
+// to enable ongoing conversations with managed state.
+//
+// Type parameters:
+//   - Stream: Type for status updates sent via the responder
+//   - State: Type for user-defined state in snapshots
+//
+// Example:
+//
+//	type ChatState struct {
+//	    TopicHistory []string `json:"topicHistory,omitempty"`
+//	}
+//
+//	type ChatStatus struct {
+//	    Phase string `json:"phase"`
+//	}
+//
+//	chatFlow := genkit.DefineSessionFlow(g, "chatFlow",
+//	    func(ctx context.Context, resp aix.Responder[ChatStatus], params *aix.SessionFlowParams[ChatState]) error {
+//	        return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
+//	            // ... handle each turn ...
+//	            return nil
+//	        })
+//	    },
+//	    aix.WithSnapshotStore(store),
+//	)
+func DefineSessionFlow[Stream, State any](
+	g *Genkit,
+	name string,
+	fn aix.SessionFlowFunc[Stream, State],
+	opts ...aix.SessionFlowOption[State],
+) *aix.SessionFlow[Stream, State] {
+	return aix.DefineSessionFlow(g.reg, name, fn, opts...)
+}
+
+// DefineSessionFlowFromPrompt creates a prompt-backed SessionFlow with an
+// automatic conversation loop. Each turn renders the prompt, appends
+// conversation history, calls the model with streaming, and updates session state.
+//
+// The defaultInput is used for prompt rendering unless overridden per
+// invocation via [aix.WithPromptInput].
+//
+// Type parameters:
+//   - State: Type for user-defined state in snapshots
+//   - PromptIn: The prompt input type (inferred from the PromptRenderer)
+func DefineSessionFlowFromPrompt[State, PromptIn any](
+	g *Genkit,
+	name string,
+	p aix.PromptRenderer[PromptIn],
+	defaultInput PromptIn,
+	opts ...aix.SessionFlowOption[State],
+) *aix.SessionFlow[struct{}, State] {
+	return aix.DefineSessionFlowFromPrompt(g.reg, name, p, defaultInput, opts...)
 }
 
 // Run executes the given function `fn` within the context of the current flow run,
