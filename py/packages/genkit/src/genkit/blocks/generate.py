@@ -216,7 +216,7 @@ async def generate_action(
     # then model-level middleware (from define_model(use=[...])).
     # This matches JS SDK execution order:
     # call-time[0..N] → model-level[0..M] → runner
-    model_middleware: list[ModelMiddleware] = model.middleware if model.middleware else []
+    model_middleware: list[ModelMiddleware] = cast(list[ModelMiddleware], model.middleware)
     combined_middleware: list[ModelMiddleware] = list(middleware) + model_middleware
 
     async def dispatch(index: int, req: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
