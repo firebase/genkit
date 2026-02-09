@@ -1622,3 +1622,107 @@ The current `yesudeep/feat/checks-plugin` branch bundles 32 changed files spanni
 | Estimated calendar time to active P2 closure | ~9 weeks |
 | Plugins needing test uplift | 13 of 20 |
 | New test files needed (est.) | ~40–50 across all plugins |
+
+### 10j. Open PR Merge Order — Dependency Graph
+
+**Current open PRs** (as of 2026-02-08):
+
+```
+INDEPENDENT (merge in any order)
+════════════════════════════════════════════════════════════════════
+
+  #4494  fix: RedactedSpan dropped_* overrides
+         Files: core/trace/adjusting_exporter.py
+         Conflicts: NONE → merge anytime
+
+  #4504  feat: Google Checks AI Safety plugin
+         Files: plugins/checks/*, samples/provider-checks-hello/*
+         Conflicts: NONE (new plugin/sample) → merge anytime
+
+  #4510  feat: Model middleware functions (retry, fallback, etc.)
+         Files: blocks/middleware.py
+         Conflicts: NONE → merge anytime
+
+
+LAYER 1 — merge these next (independent of each other)
+════════════════════════════════════════════════════════════════════
+
+  #4495  fix: Prompt recursion fix
+         Files: blocks/prompt.py, core/registry.py
+         Conflicts with: #4512, #4516 (core/registry.py)
+         → merge BEFORE #4512 and #4516, or rebase them after
+
+  #4514  fix: Transfer-Encoding chunked
+         Files: core/reflection.py
+         Conflicts with: #4401 (core/reflection.py)
+         → merge BEFORE #4401 (simpler fix, easier to rebase #4401)
+
+
+LAYER 2 — merge after Layer 1
+════════════════════════════════════════════════════════════════════
+
+  #4401  feat: Reflection API v2
+         Files: ai/_base_async.py, core/constants.py, core/reflection.py
+         Conflicts with: #4512 (ai/_base_async.py, core/constants.py)
+                          #4514 (core/reflection.py)
+         → merge AFTER #4514, BEFORE #4512
+
+  #4513  feat: Multipart tool support (tool.v2)
+         Files: ai/_registry.py, blocks/generate.py, core/action/types.py
+         Conflicts with: #4516 (ai/_registry.py, blocks/generate.py)
+         → merge BEFORE #4516, then rebase #4516
+
+
+LAYER 3 — merge last (most file overlaps)
+════════════════════════════════════════════════════════════════════
+
+  #4512  feat: Genkit constructor parity (context, name, client_header)
+         Files: ai/_aio.py, ai/_base_async.py, ai/_runtime.py,
+                core/constants.py, core/registry.py
+         Conflicts with: #4401 (ai/_base_async.py, core/constants.py)
+                          #4495 (core/registry.py)
+                          #4516 (core/registry.py)
+         → merge AFTER #4401 and #4495
+
+  #4516  feat: Model-level middleware (define_model use=[...])
+         Files: ai/_registry.py, blocks/generate.py,
+                core/action/_action.py, core/registry.py
+         Conflicts with: #4495 (core/registry.py)
+                          #4512 (core/registry.py)
+                          #4513 (ai/_registry.py, blocks/generate.py)
+         → merge LAST (after #4495, #4512, #4513)
+```
+
+**Recommended merge sequence:**
+
+```
+ ┌─ #4494 (RedactedSpan)  ──┐
+ ├─ #4504 (Checks plugin) ──┤
+ ├─ #4510 (MW functions)  ──┤── all independent, merge in parallel
+ ├─ #4495 (Prompt fix)    ──┤
+ └─ #4514 (Transfer-Enc)  ──┘
+              │
+              ▼
+      #4401 (Reflection v2)     ← rebase onto #4514
+      #4513 (Multipart tools)   ← independent of #4401
+              │
+              ▼
+      #4512 (Constructor)       ← rebase onto #4401 + #4495
+      #4516 (MW storage)        ← rebase onto #4513 + #4495 + #4512
+```
+
+**File conflict matrix:**
+
+| File | #4401 | #4494 | #4495 | #4504 | #4510 | #4512 | #4513 | #4514 | #4516 |
+|------|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|
+| `ai/_base_async.py` | ✏️ | | | | | ✏️ | | | |
+| `ai/_registry.py` | | | | | | | ✏️ | | ✏️ |
+| `blocks/generate.py` | | | | | | | ✏️ | | ✏️ |
+| `blocks/middleware.py` | | | | | ✏️ | | | | |
+| `core/action/_action.py` | | | | | | | | | ✏️ |
+| `core/action/types.py` | | | | | | | ✏️ | | |
+| `core/constants.py` | ✏️ | | | | | ✏️ | | | |
+| `core/reflection.py` | ✏️ | | | | | | | ✏️ | |
+| `core/registry.py` | | | ✏️ | | | ✏️ | | | ✏️ |
+| `core/trace/*` | | ✏️ | | | | | | | |
+| `plugins/checks/*` | | | | ✏️ | | | | | |
