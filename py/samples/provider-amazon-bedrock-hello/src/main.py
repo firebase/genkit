@@ -78,20 +78,15 @@ Supported Models
 import asyncio
 import os
 
-from pydantic import BaseModel, Field
-
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
-    # Telemetry
     add_aws_telemetry,
     bedrock_model,
-    # Direct model IDs (for IAM credentials)
     claude_sonnet_4_5,
     deepseek_r1,
-    # Inference profile helper (for API keys)
     inference_profile,
     nova_pro,
 )
@@ -100,6 +95,7 @@ from samples.shared import (
     CharacterInput,
     CodeInput,
     CurrencyExchangeInput,
+    EmbedInput,
     GreetingInput,
     ImageDescribeInput,
     MultiTurnInput,
@@ -177,12 +173,6 @@ ai = Genkit(
 
 ai.tool()(get_weather)
 ai.tool()(_convert_currency_tool)
-
-
-class EmbedInput(BaseModel):
-    """Input for embedding flow."""
-
-    text: str = Field(default='Hello, world!', description='Text to embed')
 
 
 @ai.flow()

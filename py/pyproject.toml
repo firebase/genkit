@@ -36,6 +36,7 @@ dependencies = [
   "genkit-plugin-microsoft-foundry",
   "genkit-plugin-amazon-bedrock",
 
+  "genkit-plugin-cohere",
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
@@ -167,6 +168,7 @@ framework-tool-interrupts                  = { workspace = true }
 provider-amazon-bedrock-hello              = { workspace = true }
 provider-anthropic-hello                   = { workspace = true }
 provider-cloudflare-workers-ai-hello       = { workspace = true }
+provider-cohere-hello                      = { workspace = true }
 provider-compat-oai-hello                  = { workspace = true }
 provider-deepseek-hello                    = { workspace = true }
 provider-firestore-retriever               = { workspace = true }
@@ -196,6 +198,7 @@ genkit = { workspace = true }
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-cloudflare-workers-ai = { workspace = true }
+genkit-plugin-cohere                = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -405,6 +408,7 @@ root = [
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
   "plugins/cloudflare-workers-ai/src",
+  "plugins/cohere/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",
