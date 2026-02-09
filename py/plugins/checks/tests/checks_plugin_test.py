@@ -293,8 +293,9 @@ class TestDefineChecksEvaluators:
         define_checks_evaluators(ai, project_id='test-project', metrics=[])
         ai.define_evaluator.assert_not_called()
 
+    @patch('genkit.plugins.checks.plugin.GuardrailsClient')
     @patch('genkit.plugins.checks.plugin.create_checks_evaluators')
-    def test_calls_create_checks_evaluators(self, mock_create: MagicMock) -> None:
+    def test_calls_create_checks_evaluators(self, mock_create: MagicMock, _mock_client: MagicMock) -> None:
         """Calls create_checks_evaluators with the right arguments."""
         ai = MagicMock()
         metrics = [ChecksEvaluationMetricType.DANGEROUS_CONTENT]
