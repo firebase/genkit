@@ -174,7 +174,8 @@ done
 
 # Check samples are in sources
 for d in samples/*/; do
-  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ]; then
+  name=$(basename "$d")
+  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ] && [ "$name" != "sample-test" ]; then
     pkg=$(grep '^name' "$d/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
     if ! echo "$sources_content" | grep -q "^$pkg$"; then
       echo -e "  ${RED}MISSING${NC}: Sample '$pkg' not in [tool.uv.sources]"
@@ -389,7 +390,8 @@ echo -e "${BLUE}[12/$TOTAL_CHECKS] Checking sample run.sh scripts...${NC}"
 runsh_missing=0
 
 for d in samples/*/; do
-  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ]; then
+  name=$(basename "$d")
+  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ] && [ "$name" != "sample-test" ]; then
     if [ ! -f "$d/run.sh" ]; then
       sample_name=$(basename "$d")
       echo -e "  ${YELLOW}WARNING${NC}: samples/$sample_name/ is missing run.sh"
