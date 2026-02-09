@@ -2,6 +2,84 @@
 
 This directory contains all official Genkit plugins for Python.
 
+## Plugin Architecture
+
+All plugins inherit from `genkit.core.plugin.Plugin` and implement three
+async methods. The registry calls them lazily — `init()` runs only on
+first use, not at registration time.
+
+```
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                  Plugin (Abstract Base Class)                       │
+  │                  genkit.core.plugin.Plugin                          │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │                                                                     │
+  │  name: str              Plugin namespace (e.g., 'googleai')        │
+  │                                                                     │
+  │  async init()           One-time setup; returns actions to          │
+  │    → list[Action]       pre-register. Called lazily on first use.   │
+  │                                                                     │
+  │  async resolve(kind, name)   Resolve a single action by kind/name. │
+  │    → Action | None           Called on each action lookup.          │
+  │                                                                     │
+  │  async list_actions()   Advertise available actions (for Dev UI).   │
+  │    → list[ActionMetadata]   Must be fast — no heavy initialization.│
+  │                                                                     │
+  └─────────────────────────────────────────────────────────────────────┘
+                                  │
+          ┌───────────┬───────────┼───────────┬───────────┐
+          ▼           ▼           ▼           ▼           ▼
+     GoogleAI   Anthropic     Ollama     Cohere       ... etc.
+```
+
+### Plugin Lifecycle
+
+```
+  ai = Genkit(plugins=[GoogleAI()])      ← Phase 1: REGISTER
+       │
+       ▼
+  registry.register_plugin(GoogleAI())   (stored, not initialized)
+       │
+       ⋮  (later, on first use)
+       │
+  await ai.generate(model="googleai/gemini-2.0-flash", ...)
+       │
+       ▼
+  registry._ensure_plugin_initialized()  ← Phase 2: LAZY INIT
+       │
+       ▼
+  actions = await plugin.init()          (called exactly once)
+  for action in actions:
+      registry.register_action_instance(action)
+       │
+       ▼
+  await plugin.resolve(MODEL, name)      ← Phase 3: RESOLVE
+       │
+       ▼
+  Action cached in registry              (subsequent lookups skip init)
+```
+
+### Action Resolution Algorithm
+
+```
+  ai.generate(model="googleai/gemini-2.0-flash")
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  1. CACHE HIT?                                                   │
+  │     Name already in registry._entries?                           │
+  │     YES → return cached Action  │  NO → continue                │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  2. NAMESPACED? (name contains "/")                              │
+  │     YES → find plugin by prefix, init it, resolve via plugin    │
+  │     NO  → try ALL plugins; 1 match = ok, 2+ = ValueError        │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  3. DYNAMIC ACTION PROVIDERS (fallback)                          │
+  │     Try MCP servers / dynamic providers → found? register it    │
+  │     Not found → return None                                      │
+  └──────────────────────────────────────────────────────────────────┘
+```
+
 ## Plugin Categories
 
 ```
@@ -53,14 +131,19 @@ This directory contains all official Genkit plugins for Python.
 │   │ • Grok models           │        │ checks                  │               │
 │   └─────────────────────────┘        │ • Content moderation    │               │
 │   ┌─────────────────────────┐        │ • Safety guardrails     │               │
-│   │ mistral           ✅ NEW│        └─────────────────────────┘               │
-│   │ • Mistral Large, Small  │        ┌─────────────────────────┐               │
-│   │ • Codestral, Pixtral    │        │ evaluators              │               │
-│   └─────────────────────────┘        │ • RAGAS metrics         │               │
-│   ┌─────────────────────────┐        │ • Custom evaluators     │               │
-│   │ huggingface       ✅ NEW│        └─────────────────────────┘               │
+│   │ mistral                 │        ┌─────────────────────────┐               │
+│   │ • Mistral Large, Small  │        │ evaluators              │               │
+│   │ • Codestral, Pixtral    │        │ • RAGAS metrics         │               │
+│   └─────────────────────────┘        │ • Custom evaluators     │               │
+│   ┌─────────────────────────┐        └─────────────────────────┘               │
+│   │ huggingface             │                                                  │
 │   │ • 1M+ open models       │                                                  │
 │   │ • Inference providers   │                                                  │
+│   └─────────────────────────┘                                                  │
+│   ┌─────────────────────────┐                                                  │
+│   │ cohere             🌐   │                                                  │
+│   │ • Command R/R+          │                                                  │
+│   │ • Embed, Rerank         │                                                  │
 │   └─────────────────────────┘                                                  │
 │                                                                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
@@ -114,6 +197,9 @@ This directory contains all official Genkit plugins for Python.
 │   "I want access to 1M+ open source models"                                     │
 │       → huggingface (Inference API + 17 providers)                              │
 │                                                                                 │
+│   "I want Cohere command models + reranking"                                    │
+│       → cohere (Command R/R+, Embed, Rerank)                                    │
+│                                                                                 │
 │   "I want one API for 500+ models from 60+ providers"                           │
 │       → compat-oai with OpenRouter (works TODAY)                                │
 │         OR openrouter plugin (COMING SOON - adds model discovery)               │
@@ -132,7 +218,7 @@ This directory contains all official Genkit plugins for Python.
 │   ────────────────────────              ────────────────────                    │
 │                                                                                 │
 │   ┌─────────┐  ┌─────────┐             ┌───────────────────┐                   │
-│   │ amazon- │  │ google- │             │   observability   │  ✅ NEW           │
+│   │ amazon- │  │ google- │             │   observability   │               │
 │   │ bedrock │  │ cloud   │             │   • Sentry        │                   │
 │   │ • SigV4 │  │ • ADC   │             │   • Honeycomb     │                   │
 │   │ • X-Ray │  │ • Trace │             │   • Datadog       │                   │
@@ -146,7 +232,7 @@ This directory contains all official Genkit plugins for Python.
 │   └─────────┘  └─────────┘             └───────────────────┘                   │
 │                                                                                 │
 │   ┌───────────────────┐  ┌─────────────┐                                        │
-│   │ microsoft-foundry │  │cloudflare-workers-ai│  ✅ NEW                         │
+│   │ microsoft-foundry │  │cloudflare-workers-ai│                                │
 │   │ • Models + AppIns │  │ • OTLP      │  • Models + Telemetry                   │
 │   │ • Azure Telemetry │  │ • Token     │  • Single plugin                        │
 │   └─────────┬─────────┘  └──────┬──────┘                                         │
@@ -235,6 +321,7 @@ This directory contains all official Genkit plugins for Python.
 | **cloudflare-workers-ai** 🌐 | Llama, Mistral, Qwen, Gemma | Cloudflare Workers AI + OTLP telemetry (community) |
 | **mistral** | Mistral Large, Small, Codestral, Pixtral | French AI, efficient models, code generation |
 | **huggingface** | 1M+ models via HF Hub | Open source models, inference providers |
+| **cohere** 🌐 | Command R/R+, Embed, Rerank | Cohere models, embeddings, reranking (community) |
 
 ### Planned Model Providers
 
@@ -301,8 +388,10 @@ All environment variables used by Genkit plugins. Configure these before running
 | `CLOUDFLARE_API_TOKEN` | cloudflare-workers-ai | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
 | `MISTRAL_API_KEY` | mistral | Yes | Mistral AI API key | [Mistral Console](https://console.mistral.ai/) |
 | `HF_TOKEN` | huggingface | Yes | Hugging Face API token | [HF Tokens](https://huggingface.co/settings/tokens) |
+| `COHERE_API_KEY` | cohere | Yes | Cohere API key | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) |
+| `CO_API_KEY` | cohere | Yes* | Cohere API key (alternative) | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) |
 
-*Can use IAM roles, managed identity, or other credential providers instead.
+*Can use IAM roles, managed identity, or other credential providers instead. For cohere, either `COHERE_API_KEY` or `CO_API_KEY` is accepted.
 
 ### Telemetry Environment Variables
 
@@ -434,6 +523,7 @@ pip install genkit-evaluators-plugin
 # Integrations
 pip install genkit-flask-plugin
 pip install genkit-mcp-plugin
+pip install genkit-cohere-plugin
 ```
 
 ## Quick Start
@@ -490,7 +580,7 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 │   ─────────────────────────────────────────────────                               │
 │   google-genai, anthropic, amazon-bedrock, microsoft-foundry,                    │
 │   ollama, xai, mistral, huggingface, cloudflare-workers-ai,                      │
-│   google-cloud, firebase, observability, mcp, evaluators,                        │
+│   cohere, google-cloud, firebase, observability, mcp, evaluators,                │
 │   dev-local-vectorstore, checks                                                  │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
@@ -504,10 +594,10 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 
 ## Cross-Language Plugin Coverage
 
-> **Last audited**: 2026-02-07
+> **Last audited**: 2026-02-08
 
 The table below compares plugin availability across Python and JavaScript SDKs.
-Python currently has **20 plugins** vs JavaScript's **17 plugins**, with broader
+Python currently has **21 plugins** vs JavaScript's **17 plugins**, with broader
 model provider diversity.
 
 ### Model Providers
@@ -526,6 +616,7 @@ model provider diversity.
 | Cloudflare Workers AI | ✅ | — | Python-only; community 🌐 |
 | Mistral | ✅ | — | Python-only |
 | HuggingFace | ✅ | — | Python-only |
+| Cohere | ✅ | — | Python-only; community 🌐 |
 
 ### Telemetry & Observability
 

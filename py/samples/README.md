@@ -26,11 +26,12 @@ This directory contains sample applications demonstrating various Genkit feature
 │   │   hello                          │      WEB FRAMEWORKS (web-*)                      │
 │   │ provider-mistral-hello           │      ──────────────────────────                  │
 │   │ provider-huggingface-hello       │      ┌──────────────────────────────────┐        │
-│   │ provider-observability-hello     │      │ web-endpoints-hello              │        │
-│   │ provider-vertex-ai-model-garden  │      │ web-flask-hello                  │        │
-│   │ provider-vertex-ai-rerank-eval    │      │ web-multi-server                 │        │
-│   │ provider-firestore-retriever     │      │ web-short-n-long                 │        │
-│   │ provider-google-genai-code-      │      └──────────────────────────────────┘        │
+│   │ provider-cohere-hello            │      │ web-endpoints-hello              │        │
+│   │ provider-observability-hello     │      │ web-flask-hello                  │        │
+│   │ provider-vertex-ai-model-garden  │      │ web-multi-server                 │        │
+│   │ provider-vertex-ai-rerank-eval   │      │ web-short-n-long                 │        │
+│   │ provider-firestore-retriever     │      └──────────────────────────────────┘        │
+│   │ provider-google-genai-code-      │                                                   │
 │   │   execution                      │                                                   │
 │   │ provider-google-genai-context-   │      OTHER                                       │
 │   │   caching                        │      ─────                                       │
@@ -77,6 +78,7 @@ cd py/samples/<sample-name>
 | **provider-cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
 | **provider-mistral-hello** | mistral | Mistral models |
 | **provider-huggingface-hello** | huggingface | HuggingFace Inference API models |
+| **provider-cohere-hello** | cohere | Cohere models, embeddings, reranking |
 | **provider-vertex-ai-model-garden** | vertex-ai | Third-party models via Vertex AI Model Garden |
 | **provider-observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 
@@ -127,13 +129,14 @@ cd py/samples/<sample-name>
 The table below tracks which capabilities each model provider sample exercises.
 This is a living document — update it as new flows are added to samples.
 
-> **Last audited**: 2026-02-07
+> **Last audited**: 2026-02-08
 
 | Sample | Basic | Stream | Tools | Struct | Vision | Embed | Code | Reasoning | TTS | Cache | PDF |
 |--------|:-----:|:------:|:-----:|:------:|:------:|:-----:|:----:|:---------:|:---:|:-----:|:---:|
 | **provider-amazon-bedrock-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | **provider-anthropic-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ✅ | ✅ |
 | **provider-cloudflare-workers-ai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| **provider-cohere-hello** | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — |
 | **provider-compat-oai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | — |
 | **provider-deepseek-hello** | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | — | — | — |
 | **provider-google-genai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
@@ -169,6 +172,7 @@ Most samples require environment variables for API keys. Configure these before 
 | `XAI_API_KEY` | provider-xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
 | `CLOUDFLARE_ACCOUNT_ID` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
 | `CLOUDFLARE_API_TOKEN` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `COHERE_API_KEY` | provider-cohere-hello | Yes | Cohere API key | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) |
 
 *Can use IAM roles, managed identity, or other credential providers instead.
 
@@ -270,16 +274,19 @@ export GRAFANA_API_KEY="glc_..."
 
 # Axiom (provider-observability-hello)
 export AXIOM_TOKEN="xaat-..."
+
+# Cohere (provider-cohere-hello)
+export COHERE_API_KEY="..."
 ```
 
 Each sample's README.md contains specific environment requirements.
 
 ## Cross-Language Sample Parity
 
-> **Last audited**: 2026-02-07
+> **Last audited**: 2026-02-08
 
 The table below compares sample coverage across Python and JavaScript SDKs.
-Python currently has **32 samples/testapps** covering more provider diversity
+Python currently has **33 samples/testapps** covering more provider diversity
 than JavaScript's **32 testapps + 9 top-level samples**.
 
 ### Parity Status
@@ -329,6 +336,7 @@ Python has significantly broader provider and framework coverage:
 | `provider-huggingface-hello` | Model provider |
 | `provider-observability-hello` | Telemetry (5 backends) |
 | `provider-firestore-retriever` | Vector store |
+| `provider-cohere-hello` | Model provider |
 | `provider-google-genai-vertexai-image` | Image generation |
 | `framework-middleware-demo` | Framework |
 | `framework-realtime-tracing-demo` | Framework |
