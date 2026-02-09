@@ -641,12 +641,13 @@ When implementing low-level action execution (like `arun_raw`), **always check i
 input_action = self._input_type.validate_python(raw_input)
 
 # CORRECT - raises clear GenkitError
-if raw_input is None and self._input_type is not None:
-    raise GenkitError(
-        message=f"Action '{self.name}' requires input.",
-        status='INVALID_ARGUMENT'
-    )
-input_action = self._input_type.validate_python(raw_input)
+if self._input_type is not None:
+    if raw_input is None:
+        raise GenkitError(
+            message=f"Action '{self.name}' requires input.",
+            status='INVALID_ARGUMENT'
+        )
+    input_action = self._input_type.validate_python(raw_input)
 ```
 
 * This is critical for the Dev UI, which sends `None` payload when the user clicks "Run" without providing JSON input.
