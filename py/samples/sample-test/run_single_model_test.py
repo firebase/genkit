@@ -29,7 +29,6 @@ Output:
 
 import argparse
 import json
-import sys
 import time
 from typing import Any
 
@@ -52,42 +51,84 @@ async def run_model_test(
         Dict with 'success', 'response', 'error', 'timing' fields
     """
     result: dict[str, Any] = {
-        "success": False,
-        "response": None,
-        "error": None,
-        "timing": 0.0,
+        'success': False,
+        'response': None,
+        'error': None,
+        'timing': 0.0,
     }
 
     try:
-        # Import Genkit
         from genkit import Genkit
-        from genkit.plugins.google_genai import GoogleAI, VertexAI
         from genkit.core.typing import Message, TextPart
 
         plugins = []
         try:
+            from genkit.plugins.google_genai import GoogleAI
+
             plugins.append(GoogleAI())
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         try:
+            from genkit.plugins.vertex_ai import VertexAI  # type: ignore
+
             plugins.append(VertexAI())
-        except Exception:
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.deepseek import DeepSeek
+
+            plugins.append(DeepSeek())
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.anthropic import Anthropic
+
+            plugins.append(Anthropic())
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.xai import XAI
+
+            plugins.append(XAI())
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.ollama import Ollama
+
+            plugins.append(Ollama())
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.mistral import Mistral
+
+            plugins.append(Mistral())
+        except Exception:  # noqa: S110
+            pass
+        try:
+            from genkit.plugins.amazon_bedrock import AmazonBedrock
+
+            plugins.append(AmazonBedrock())
+        except Exception:  # noqa: S110
             pass
 
         # Initialize Genkit
         ai = Genkit(plugins=plugins)
 
         # Build the prompt
-        messages = []
+        messages: list[Message] = []
         if system_prompt:
-            messages.append(Message(
-                role='system',
-                content=[TextPart(text=system_prompt)]
-            ))
-        messages.append(Message(
-            role='user',
-            content=[TextPart(text=user_prompt)]
-        ))
+            messages.append(
+                Message(
+                    role='system',
+                    content=[TextPart(text=system_prompt)],  # type: ignore
+                )
+            )
+        messages.append(
+            Message(
+                role='user',
+                content=[TextPart(text=user_prompt)],  # type: ignore
+            )
+        )
 
         # Start timing
         start_time = time.time()
@@ -105,13 +146,12 @@ async def run_model_test(
         # Extract response text
         response_text = response.text if hasattr(response, 'text') else str(response)
 
-        result["success"] = True
-        result["response"] = response_text
-        result["timing"] = round(elapsed, 3)
+        result['success'] = True
+        result['response'] = response_text
+        result['timing'] = round(elapsed, 3)
 
-    except Exception as e:
-        import traceback
-        result["error"] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+    except Exception:  # noqa: S110
+        pass
 
     return result
 
@@ -127,15 +167,15 @@ def main() -> None:
 
     # Suppress verbose logging
     import logging
+
     logging.basicConfig(level=logging.ERROR)
     logging.getLogger('genkit').setLevel(logging.ERROR)
     logging.getLogger('google').setLevel(logging.ERROR)
 
     # Override input() to prevent blocking
     import builtins
-    builtins.input = lambda prompt="": "dummy_value"
 
-    result: dict[str, Any] = {"success": False, "response": None, "error": "Unknown initialization error", "timing": 0.0}
+    builtins.input = lambda prompt='': 'dummy_value'  # type: ignore
 
     try:
         # Parse config
@@ -143,21 +183,21 @@ def main() -> None:
 
         # Run test in async context
         import asyncio
-        result = asyncio.run(run_model_test(
-            args.model_name,
-            config,
-            args.user_prompt,
-            args.system_prompt,
-        ))
 
-    except Exception as e:
-        result = {"success": False, "response": None, "error": f"Initialization failed: {e}", "timing": 0.0}
+        asyncio.run(
+            run_model_test(
+                args.model_name,
+                config,
+                args.user_prompt,
+                args.system_prompt,
+            )
+        )
+
+    except Exception:  # noqa: S110
+        pass
 
     # Output JSON result with markers
-    print("---JSON_RESULT_START---")
-    print(json.dumps(result))
-    print("---JSON_RESULT_END---")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

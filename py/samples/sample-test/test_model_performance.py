@@ -28,14 +28,13 @@ import argparse
 import builtins
 import importlib.util
 import json
-import subprocess
+import subprocess  # noqa: S404
 import sys
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 # Mock input to prevent blocking
-builtins.input = lambda prompt="": "dummy_value"
+builtins.input = lambda prompt='': 'dummy_value'  # type: ignore
 
 
 async def discover_models() -> dict[str, Any]:
@@ -46,21 +45,31 @@ async def discover_models() -> dict[str, Any]:
     """
     # Import Genkit
     from genkit import Genkit
-    from genkit.plugins.google_genai import GoogleAI, VertexAI
 
     plugins = []
-    # Initialize with GoogleAI plugin
-    try:
-        plugins.append(GoogleAI())
-    except Exception as e:
-        print(f"Warning: Failed to initialize GoogleAI plugin: {e}")
 
-    # Initialize with VertexAI plugin
-    try:
-        plugins.append(VertexAI())
-    except Exception as e:
-        # print(f"Warning: Failed to initialize VertexAI plugin: {e}")
-        pass
+    # Try initializing various plugins
+    plugin_imports = [
+        ('genkit.plugins.google_genai', 'GoogleAI'),
+        ('genkit.plugins.vertex_ai', 'VertexAI'),
+        ('genkit.plugins.deepseek', 'DeepSeek'),
+        ('genkit.plugins.anthropic', 'Anthropic'),
+        ('genkit.plugins.xai', 'XAI'),
+        ('genkit.plugins.ollama', 'Ollama'),
+        ('genkit.plugins.mistral', 'Mistral'),
+        ('genkit.plugins.amazon_bedrock', 'AmazonBedrock'),
+    ]
+
+    for module_path, class_name in plugin_imports:
+        try:
+            module = importlib.import_module(module_path)
+            plugin_class = getattr(module, class_name)
+            plugins.append(plugin_class())
+        except (ImportError, AttributeError):
+            # Silently skip if plugin not installed or wrong class name
+            pass
+        except Exception:  # noqa: S110
+            pass
 
     ai = Genkit(plugins=plugins)
 
@@ -68,12 +77,13 @@ async def discover_models() -> dict[str, Any]:
 
     # Get all model actions via list_actions (which queries plugins)
     from genkit.core.action import ActionKind
+
     actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
 
     model_info = {}
     for meta in actions:
         # Extract model info using metadata
-        info = meta.metadata.get('model', {})
+        info = (meta.metadata or {}).get('model', {})
         model_info[meta.name] = info
 
     return model_info
@@ -88,10 +98,10 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
     Returns:
         Dict mapping model names to model info for models used by this sample
     """
-    from pathlib import Path
     import importlib.util
-    import sys
     import logging
+    import sys
+    from pathlib import Path
 
     logger = logging.getLogger(__name__)
 
@@ -100,7 +110,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
     sample_dir = samples_dir / sample_name
 
     if not sample_dir.exists():
-        logger.warning(f"Sample directory not found: {sample_dir}")
+        logger.warning(f'Sample directory not found: {sample_dir}')
         return {}
 
     # Look for main.py in common locations
@@ -111,14 +121,14 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
         sample_dir / 'server.py',
         sample_dir / 'app.py',
     ]
-    
+
     for candidate_path in search_paths:
         if candidate_path.exists():
             main_file = candidate_path
             break
 
     if not main_file:
-        logger.warning(f"No main file found for sample {sample_name}")
+        logger.warning(f'No main file found for sample {sample_name}')
         # Fall back to all models
         return await discover_models()
 
@@ -126,9 +136,10 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
         # Mock input() to prevent blocking on API key prompts
         import builtins
         import os
+
         original_input = builtins.input
-        builtins.input = lambda prompt="": ""  # Return empty string for all inputs
-        
+        builtins.input = lambda prompt='': ''  # type: ignore # Return empty string for all inputs
+
         # Mock common API key environment variables if not set
         env_vars_to_mock = {
             'ANTHROPIC_API_KEY': 'mock-key',
@@ -136,31 +147,31 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
             'GOOGLE_API_KEY': 'mock-key',
             'GEMINI_API_KEY': 'mock-key',
         }
-        original_env_vars = {}
+        original_env_vars: dict[str, str | None] = {}
         for key, value in env_vars_to_mock.items():
             if key not in os.environ:
                 original_env_vars[key] = None
                 os.environ[key] = value
             else:
                 original_env_vars[key] = os.environ[key]
-        
+
         try:
             # Dynamically import the sample module
-            module_name = f"sample_{sample_name.replace('-', '_')}"
+            module_name = f'sample_{sample_name.replace("-", "_")}'
             spec = importlib.util.spec_from_file_location(module_name, main_file)
             if spec is None or spec.loader is None:
-                logger.warning(f"Could not load spec for {main_file}")
+                logger.warning(f'Could not load spec for {main_file}')
                 return await discover_models()
 
             module = importlib.util.module_from_spec(spec)
-            
+
             # Add to sys.modules before executing
             old_module = sys.modules.get(module_name)
             sys.modules[module_name] = module
 
             try:
                 # Execute the module to initialize Genkit
-                logger.info(f"Loading sample module from {main_file}")
+                logger.info(f'Loading sample module from {main_file}')
                 spec.loader.exec_module(module)
 
                 # Get the Genkit instance if available
@@ -170,6 +181,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
 
                     # Get all model actions
                     from genkit.core.action import ActionKind
+
                     actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
 
                     model_info = {}
@@ -177,22 +189,24 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
                         info = meta.metadata.get('model', {})
                         model_info[meta.name] = info
 
-                    logger.info(f"Discovered {len(model_info)} models for sample {sample_name}: {list(model_info.keys())}")
+                    logger.info(
+                        f'Discovered {len(model_info)} models for sample {sample_name}: {list(model_info.keys())}'
+                    )
                     return model_info
                 else:
                     logger.warning(f"Sample {sample_name} has no 'ai' attribute")
-                    
+
             finally:
                 # Restore old module if it existed
                 if old_module is not None:
                     sys.modules[module_name] = old_module
                 elif module_name in sys.modules:
                     del sys.modules[module_name]
-                    
+
         finally:
             # Restore original input function
             builtins.input = original_input
-            
+
             # Restore original environment variables
             for key, original_value in original_env_vars.items():
                 if original_value is None:
@@ -202,34 +216,33 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
 
     except ModuleNotFoundError as e:
         error_msg = str(e)
-        logger.warning(f"Sample {sample_name} missing module: {e}")
-        
+        logger.warning(f'Sample {sample_name} missing module: {e}')
+
         # Heuristic: If it's a Google sample, falling back to default/global models (Gemini) is usually safe/helpful
         is_google_sample = 'google' in sample_name or 'gemini' in sample_name or 'vertex' in sample_name
-        
+
         if is_google_sample:
-            logger.info(f"Google sample {sample_name} failed to load, falling back to default models")
+            logger.info(f'Google sample {sample_name} failed to load, falling back to default models')
             return await discover_models()
-            
+
         # For non-Google samples (e.g. Bedrock), strict failure is better than showing Gemini
         if 'genkit.plugins.' in error_msg:
-             return {}
-             
+            return {}
+
         # For other import errors, return empty
         return {}
 
     except Exception as e:
-        logger.error(f"Failed to load sample {sample_name}: {e}", exc_info=True)
-        
+        logger.error(f'Failed to load sample {sample_name}: {e}', exc_info=True)
+
         # Checking sample name again for fallback
         if 'google' in sample_name or 'gemini' in sample_name or 'vertex' in sample_name:
-             logger.info(f"Google sample {sample_name} failed, falling back to default models")
-             return await discover_models()
-             
+            logger.info(f'Google sample {sample_name} failed, falling back to default models')
+            return await discover_models()
+
         return {}  # Return empty for other failures
 
-
-
+    return {}
 
 
 def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -255,28 +268,25 @@ def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
                     # Found the real type definition
                     eff_schema = option
                     break
-        
+
         # If still no type, skip or look deeper (but simple type extraction is usually enough)
         # Some fields like 'stopSequences' might be array of strings, so we need to check items too.
-        
+
         param_type = eff_schema.get('type')
         if not param_type and 'items' in eff_schema:
-             # Array type might be inferred if items is present, or check if type is 'array'
-             pass
+            # Array type might be inferred if items is present, or check if type is 'array'
+            pass
 
         params[param_name] = {
             'type': param_type,
             'minimum': eff_schema.get('minimum'),
             'maximum': eff_schema.get('maximum'),
-            'default': param_schema.get('default'), # Default usually at top level
+            'default': param_schema.get('default'),  # Default usually at top level
             'enum': eff_schema.get('enum'),
             'items': eff_schema.get('items'),
         }
 
     return params
-
-
-    return variations
 
 
 def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -325,12 +335,12 @@ def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[s
                 variations.append({param_name: maximum})
 
             if minimum is not None and maximum is not None and minimum < maximum:
-                 midpoint = (minimum + maximum) / 2
-                 if param_type == 'integer':
-                     midpoint = int(midpoint)
-                 
-                 if midpoint != default_value:
-                     variations.append({param_name: midpoint})
+                midpoint = (minimum + maximum) / 2
+                if param_type == 'integer':
+                    midpoint = int(midpoint)
+
+                if midpoint != default_value:
+                    variations.append({param_name: midpoint})
 
         elif param_type == 'boolean':
             # Boolean parameters: test true, then false
@@ -356,10 +366,10 @@ def generate_config_variations(params: dict[str, dict[str, Any]]) -> list[dict[s
             # Add sample array value if items are strings
             items_schema = param_info.get('items', {})
             if items_schema.get('type') == 'string':
-                sample = ["STOP"]
+                sample = ['STOP']
                 if sample != default_value:
                     variations.append({param_name: sample})
-    
+
     return variations
 
 
@@ -385,15 +395,18 @@ def run_model_test(
         Test result dict
     """
     cmd = [
-        "uv", "run",
-        "run_single_model_test.py",
+        'uv',
+        'run',
+        'run_single_model_test.py',
         model_name,
-        "--config", json.dumps(config),
-        "--user-prompt", user_prompt,
+        '--config',
+        json.dumps(config),
+        '--user-prompt',
+        user_prompt,
     ]
 
     if system_prompt:
-        cmd.extend(["--system-prompt", system_prompt])
+        cmd.extend(['--system-prompt', system_prompt])
 
     try:
         result_proc = subprocess.run(  # noqa: S603 - cmd constructed from trusted paths
@@ -406,25 +419,25 @@ def run_model_test(
 
         # Parse JSON output
         stdout = result_proc.stdout
-        if "---JSON_RESULT_START---" in stdout and "---JSON_RESULT_END---" in stdout:
-            json_str = stdout.split("---JSON_RESULT_START---")[1].split("---JSON_RESULT_END---")[0].strip()
+        if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
+            json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
             return json.loads(json_str)
         else:
             return json.loads(stdout)
 
     except subprocess.TimeoutExpired:
         return {
-            "success": False,
-            "response": None,
-            "error": f"Test timed out after {timeout}s",
-            "timing": timeout,
+            'success': False,
+            'response': None,
+            'error': f'Test timed out after {timeout}s',
+            'timing': timeout,
         }
     except Exception as e:
         return {
-            "success": False,
-            "response": None,
-            "error": f"Subprocess failed: {e}",
-            "timing": 0.0,
+            'success': False,
+            'response': None,
+            'error': f'Subprocess failed: {e}',
+            'timing': 0.0,
         }
 
 
@@ -444,34 +457,34 @@ def generate_report(
     success_rate = (passed / total_tests * 100) if total_tests > 0 else 0
 
     lines = []
-    lines.append("# Model Performance Test Report")
-    lines.append("")
-    lines.append("## Summary")
-    lines.append("")
-    lines.append(f"- **Total Tests**: {total_tests}")
-    lines.append(f"- **Passed**: {passed}")
-    lines.append(f"- **Failed**: {failed}")
-    lines.append(f"- **Success Rate**: {success_rate:.1f}%")
-    lines.append("")
+    lines.append('# Model Performance Test Report')
+    lines.append('')
+    lines.append('## Summary')
+    lines.append('')
+    lines.append(f'- **Total Tests**: {total_tests}')
+    lines.append(f'- **Passed**: {passed}')
+    lines.append(f'- **Failed**: {failed}')
+    lines.append(f'- **Success Rate**: {success_rate:.1f}%')
+    lines.append('')
 
     # Failed tests summary
     if failed > 0:
-        lines.append("## Failed Tests")
-        lines.append("")
+        lines.append('## Failed Tests')
+        lines.append('')
         for test in results:
             if not test['result']['success']:
                 config_str = json.dumps(test['config'], sort_keys=True)
                 error = test['result']['error']
                 # Truncate long errors
                 if len(error) > 200:
-                    error = error[:200] + "..."
-                lines.append(f"- **{test['model']}** (config: `{config_str}`)")
-                lines.append(f"  - Error: {error}")
-                lines.append("")
+                    error = error[:200] + '...'
+                lines.append(f'- **{test["model"]}** (config: `{config_str}`)')
+                lines.append(f'  - Error: {error}')
+                lines.append('')
 
     # Detailed results
-    lines.append("## Detailed Results")
-    lines.append("")
+    lines.append('## Detailed Results')
+    lines.append('')
 
     # Group by model
     models = {}
@@ -482,32 +495,32 @@ def generate_report(
         models[model_name].append(test)
 
     for model_name, model_tests in models.items():
-        lines.append(f"### {model_name}")
-        lines.append("")
+        lines.append(f'### {model_name}')
+        lines.append('')
 
         for test in model_tests:
-            config_str = json.dumps(test['config'], sort_keys=True) if test['config'] else "{}"
-            status = "✅ SUCCESS" if test['result']['success'] else "❌ FAILED"
+            config_str = json.dumps(test['config'], sort_keys=True) if test['config'] else '{}'
+            status = '✅ SUCCESS' if test['result']['success'] else '❌ FAILED'
             timing = test['result']['timing']
 
-            lines.append(f"#### Config: `{config_str}`")
-            lines.append("")
-            lines.append(f"- **Status**: {status}")
-            lines.append(f"- **Timing**: {timing}s")
+            lines.append(f'#### Config: `{config_str}`')
+            lines.append('')
+            lines.append(f'- **Status**: {status}')
+            lines.append(f'- **Timing**: {timing}s')
 
             if test['result']['success']:
                 response = test['result']['response']
                 # Truncate long responses
                 if len(response) > 500:
-                    response = response[:500] + "..."
-                lines.append(f"- **Response**: {response}")
+                    response = response[:500] + '...'
+                lines.append(f'- **Response**: {response}')
             else:
                 error = test['result']['error']
                 if len(error) > 500:
-                    error = error[:500] + "..."
-                lines.append(f"- **Error**: {error}")
+                    error = error[:500] + '...'
+                lines.append(f'- **Error**: {error}')
 
-            lines.append("")
+            lines.append('')
 
     # Write report
     with open(output_file, 'w') as f:
@@ -525,16 +538,14 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     # Suppress verbose logging
     import logging
+
     logging.basicConfig(level=logging.WARNING)
     logging.getLogger('genkit').setLevel(logging.WARNING)
     logging.getLogger('google').setLevel(logging.WARNING)
 
     import asyncio
 
-    print("Discovering models...")
     all_models = asyncio.run(discover_models())
-
-    print(f"Discovered models: {list(all_models.keys())}")
 
     # Filter models if specified
     if args.models:
@@ -543,34 +554,25 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     else:
         models_to_test = all_models
 
-    print(f"Found {len(models_to_test)} models to test")
-
     if not models_to_test:
-        print("No models to test. Exiting.")
         return
 
     # Get helper script path
     script_dir = Path(__file__).parent
-    helper_script = script_dir / "run_single_model_test.py"
+    helper_script = script_dir / 'run_single_model_test.py'
 
     # Run tests
     all_results = []
     for model_name, model_info in models_to_test.items():
-        print(f"\nTesting {model_name}...")
-
         # Parse config schema
         config_schema = model_info.get('customOptions', {})
         params = parse_config_schema(config_schema)
 
-        print(f"  Found {len(params)} configurable parameters")
-
         # Generate variations
         variations = generate_config_variations(params)
-        print(f"  Generated {len(variations)} config variations")
 
         # Run tests
-        for i, config in enumerate(variations, 1):
-            print(f"  Testing variation {i}/{len(variations)}...", end=' ')
+        for _i, config in enumerate(variations, 1):
             # Flush stdout to ensure progress is visible
             sys.stdout.flush()
 
@@ -588,29 +590,19 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 'result': result,
             })
 
-            status = "✅" if result['success'] else "❌"
-            print(status)
+            '✅' if result['success'] else '❌'
 
     # Generate report
-    print(f"\nGenerating report: {args.output}")
     generate_report(all_results, args.output)
 
     # Print summary
     total = len(all_results)
     if total == 0:
-        print("No tests were run.")
         return
 
-    passed = sum(1 for r in all_results if r['result']['success'])
-    failed = total - passed
-
-    print("\n" + "=" * 60)
-    print(f"Total Tests: {total}")
-    print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
-    print(f"Success Rate: {(passed/total*100):.1f}%")
-    print("=" * 60)
+    passed = sum(1 for r in all_results if cast(dict[str, Any], r['result']).get('success'))
+    total - passed
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
