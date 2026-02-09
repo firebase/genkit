@@ -481,8 +481,8 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 
 | Gap ID | SDK | Work Item | Reference | Status |
 |--------|-----|-----------|-----------|:------:|
-| G1 | Python | `define_model(use=[...])` — model-level middleware | §8b.1 | ✅ Done (PR #4516) |
-| G2 | Python | Action-level middleware storage | §8b.1 | ✅ Done (PR #4516) |
+| G1 | Python | `define_model(use=[...])` — model-level middleware | §8b.1 | 🔄 PR #4516 open |
+| G2 | Python | Action-level middleware storage | §8b.1 | 🔄 PR #4516 open |
 | G5 | Python | `X-Genkit-Span-Id` response header | §8c.4 | ✅ Done (PR #4511, merged) |
 | G6 | Python | `on_trace_start` pass `span_id` | §8c.3 | ✅ Done (PR #4511, merged) |
 | G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ✅ Done (PR #4507 + #4508, merged) |
@@ -638,7 +638,7 @@ to wire model middleware — it's not a user-facing API.
 prompt simulation, media downloading, request validation, caching.
 **Scope**: Runs **only on model calls** (via `generate()` or `prompt.generate()`).
 
-Model middleware can be applied at **two levels**:
+Model middleware can be applied at **three levels**:
 
 | Level | API | When Applied | Typical Use |
 |-------|-----|:------------:|-------------|
@@ -1179,8 +1179,8 @@ export interface GenkitOptions {
 
 | Gap ID | SDK | Gap | Priority | Primary Files to Touch | Fast Validation |
 |--------|-----|-----|:--------:|------------------------|-----------------|
-| G1 | Python | `define_model(use=[...])` ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | ✅ PR #4516 |
-| G2 | Python | Action-level middleware storage ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | ✅ PR #4516 |
+| G1 | Python | `define_model(use=[...])` ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | 🔄 PR #4516 |
+| G2 | Python | Action-level middleware storage ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | 🔄 PR #4516 |
 | G3 | Python | `simulate_constrained_generation` ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
 | G4 | Python | `augment_with_context` lifecycle mismatch | P2 | `py/packages/genkit/src/genkit/blocks/generate.py`, `.../blocks/model.py` | ⬜ depends on G38 |
 | G5 | Python | `X-Genkit-Span-Id` header ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/core/reflection.py` | ✅ PR #4511 (merged) |
@@ -1201,7 +1201,7 @@ export interface GenkitOptions {
 | G20 | Python | `Genkit(context=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py` | 🔄 PR #4512 |
 | G21 | Python | `Genkit(clientHeader=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/http_client.py` | 🔄 PR #4512 |
 | G22 | Python | `Genkit(name=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/reflection.py` | 🔄 PR #4512 |
-| G38 | Python | `get_model_middleware()` auto-wiring (new) | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | ⬜ depends on G1 ✅ |
+| G38 | Python | `get_model_middleware()` auto-wiring (new) | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | ⬜ depends on G1 (🔄 PR #4516) |
 | G23 | Go | `defineDynamicActionProvider` parity missing | P2 | `go/genkit/genkit.go`, `go/core/registry.go` | DAP action discovery + resolve test |
 | G24 | Go | `defineIndexer` parity missing | P2 | `go/genkit/genkit.go`, `go/ai` indexing action | indexer registration + invoke test |
 | G25 | Go | `defineReranker` + `rerank` runtime missing | P1 | `go/genkit/genkit.go`, `go/ai` reranker block | reranker registration + scoring call |
@@ -1222,8 +1222,8 @@ export interface GenkitOptions {
 
 | Depends On | Unblocks | Why | Status |
 |------------|----------|-----|:------:|
-| G2 | G1, G3, G4, G12, G13, G14, G16 | Python model middleware architecture must exist before feature middleware parity | ✅ G2 done |
-| G1 | G38 | Auto-wiring needs define_model(use=) to exist | ✅ G1 done |
+| G2 | G1, G3, G4, G12, G13, G14, G16 | Python model middleware architecture must exist before feature middleware parity | 🔄 PR #4516 |
+| G1 | G38 | Auto-wiring needs define_model(use=) to exist | 🔄 PR #4516 |
 | G38 | G3, G4, G14, G15, G16 | Auto-wired middleware needs the wiring helper | ⬜ |
 | G6 | G5 | Need span ID in callback before header emission | ✅ Both done |
 | G7, G23 | G31 | MCP parity sample quality depends on DAP discoverability in tooling | ⏳ |
@@ -1685,10 +1685,11 @@ LAYER 3 (last)
 | Metric | Value |
 |--------|-------|
 | Total Python gaps | 31 (G1–G22, G30–G31, G33–G38) |
-| **Done (merged to main)** | **5** — G5, G6, G11 (+ plugin test coverage) |
-| **In review (PRs open)** | **14** — G1, G2, G3, G12–G16, G18, G20–G22 |
+| **Done (merged to main)** | **3** — G5, G6, G11 (+ plugin test coverage, #4514 Transfer-Encoding) |
+| **In review (PRs open)** | **16** — G1, G2, G3, G12–G16, G18, G20–G22 |
 | **Not started** | **12** — G4, G7–G10, G17, G19, G30–G31, G33–G38 |
 | Deferred | 5 items (G7, G8, G31, G33–G37) |
-| Open PRs | 9 (#4401, #4494, #4495, #4504, #4510, #4512, #4513, #4514, #4516) |
-| Critical path remaining | G38 → G4 (auto-wiring → context lifecycle) |
+| Open PRs | 8 (#4401, #4494, #4495, #4504, #4510, #4512, #4513, #4516) |
+| Recently merged | #4514 (Transfer-Encoding fix) |
+| Critical path remaining | G1/G2 (PR #4516) → G38 → G4 |
 | Plugins needing test uplift | ~~13~~ improved via PR #4509 (merged) |
