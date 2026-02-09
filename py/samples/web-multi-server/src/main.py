@@ -340,7 +340,7 @@ async def main() -> None:
     g = Genkit(plugins=[])
 
     @g.flow()
-    async def multi_server_flow(name: str) -> str:
+    async def multi_server_flow(name: str = 'World') -> str:
         """A sample flow for multi-server demo."""
         return f'Hello from multi-server, {name}!'
 

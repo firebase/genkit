@@ -73,7 +73,7 @@ Example - Azure OpenAI Endpoint::
             MicrosoftFoundry(
                 azure_ad_token_provider=token_provider,
                 endpoint='https://your-resource.openai.azure.com/',
-                api_version='2024-10-21',
+                # api_version is optional; defaults to DEFAULT_API_VERSION
             )
         ]
     )
@@ -101,7 +101,7 @@ ai = Genkit(
         MicrosoftFoundry(
             api_key='your-api-key',
             endpoint='https://your-resource.openai.azure.com/',
-            api_version='2024-10-21',
+            # api_version is optional; defaults to DEFAULT_API_VERSION
         )
     ],
     model=microsoft_foundry_model('gpt-4o'),
@@ -304,6 +304,11 @@ class _AzureADTokenAuth(httpx.Auth):
 # Plugin name
 MICROSOFT_FOUNDRY_PLUGIN_NAME = 'microsoft-foundry'
 
+# Default Azure OpenAI API version.
+# Must be >= 2024-08-01-preview to support response_format: json_schema.
+# See: https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation
+DEFAULT_API_VERSION = '2024-10-21'
+
 # Logger for this module
 logger = get_logger(__name__)
 
@@ -374,7 +379,7 @@ class MicrosoftFoundry(Plugin):
             plugin = MicrosoftFoundry(
                 api_key="your-key",
                 endpoint="https://your-resource.openai.azure.com/",
-                api_version="2024-10-21",
+                # api_version is optional; defaults to DEFAULT_API_VERSION
             )
 
             # Using API key with Foundry project endpoint:
@@ -407,7 +412,7 @@ class MicrosoftFoundry(Plugin):
         api_version = (
             api_version
             or os.environ.get('AZURE_OPENAI_API_VERSION')
-            or os.environ.get('OPENAI_API_VERSION', '2024-05-01-preview')
+            or os.environ.get('OPENAI_API_VERSION', DEFAULT_API_VERSION)
         )
 
         if not resolved_endpoint:

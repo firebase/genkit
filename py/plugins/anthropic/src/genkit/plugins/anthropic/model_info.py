@@ -39,7 +39,7 @@ CLAUDE_3_5_HAIKU = ModelInfo(
     versions=['claude-3-5-haiku-20241022'],
     supports=Supports(
         multiturn=True,
-        media=True,
+        media=False,
         tools=True,
         system_role=True,
     ),
@@ -124,7 +124,7 @@ CLAUDE_OPUS_4_5 = ModelInfo(
 # and enterprise workflows. Supports 1M context window (beta).
 CLAUDE_OPUS_4_6 = ModelInfo(
     label='Anthropic - Claude Opus 4.6',
-    versions=['claude-opus-4-6-20260205'],
+    versions=['claude-opus-4-6'],
     supports=Supports(
         multiturn=True,
         media=True,

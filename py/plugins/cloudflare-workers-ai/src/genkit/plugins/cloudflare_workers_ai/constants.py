@@ -14,12 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Hugging Face model conformance test spec.
-#
-# Uses Llama-3.1-8B-Instruct via the Inference API.
-# Capabilities are limited by the Inference API endpoints.
+"""Cloudflare Workers AI shared constants.
 
-- model: huggingface/meta-llama/Llama-3.1-8B-Instruct
-  supports:
-    - multiturn
-    - system-role
+Centralizes configuration values used by both the model and embedder
+implementations to avoid duplication.
+"""
+
+# Base URL for Cloudflare Workers AI API.
+# See: https://developers.cloudflare.com/workers-ai/get-started/rest-api/
+CF_API_BASE_URL = 'https://api.cloudflare.com/client/v4/accounts'
+
+__all__ = ['CF_API_BASE_URL']

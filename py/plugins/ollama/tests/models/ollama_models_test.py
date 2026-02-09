@@ -725,6 +725,7 @@ class TestResolveImage(unittest.IsolatedAsyncioTestCase):
             headers={
                 'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
             },
+            follow_redirects=True,
         )
         mock_client.get.assert_awaited_once_with('https://example.com/cat.jpg')
         mock_response.raise_for_status.assert_called_once()

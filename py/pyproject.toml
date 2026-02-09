@@ -42,6 +42,7 @@ dependencies = [
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
   "liccheck>=0.9.2",
+  "setuptools>=75.0.0,<82",  # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
   "mcp>=1.25.0",
   "python-multipart>=0.0.22",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -78,7 +79,7 @@ lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
   "granian>=1.0.0",           # For web-endpoints-hello type resolution
-  "litestar>=2.0.0",          # For web/typing.py type resolution
+  "litestar>=2.20.0",         # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
   "pydantic-settings>=2.0.0", # For web-endpoints-hello type resolution
@@ -451,7 +452,34 @@ exclude = [
   "dist",
 ]
 
-# Use the venv where packages are installed as editable installs
+# Use the venv where packages are installed as editable installs.
+# extraPaths lists all source roots so pyright can resolve PEP 420
+# namespace packages (genkit.plugins.*) across the workspace without
+# relying solely on the venv's editable install paths.
+extraPaths = [
+  "packages/genkit/src",
+  "plugins/amazon-bedrock/src",
+  "plugins/anthropic/src",
+  "plugins/checks/src",
+  "plugins/cloudflare-workers-ai/src",
+  "plugins/cohere/src",
+  "plugins/compat-oai/src",
+  "plugins/deepseek/src",
+  "plugins/dev-local-vectorstore/src",
+  "plugins/evaluators/src",
+  "plugins/firebase/src",
+  "plugins/flask/src",
+  "plugins/google-cloud/src",
+  "plugins/google-genai/src",
+  "plugins/huggingface/src",
+  "plugins/mcp/src",
+  "plugins/microsoft-foundry/src",
+  "plugins/mistral/src",
+  "plugins/observability/src",
+  "plugins/ollama/src",
+  "plugins/vertex-ai/src",
+  "plugins/xai/src",
+]
 pythonVersion          = "3.10"
 reportMissingImports   = true
 reportMissingTypeStubs = false
@@ -511,8 +539,9 @@ search-path = [
   "samples/web-endpoints-hello",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
-# namespace packages but these imports work at runtime
-ignore-missing-imports = ["genkit.plugins.*"]
+# namespace packages but these imports work at runtime.
+# model_performance_test is local to sample-test (excluded from workspace).
+ignore-missing-imports = ["genkit.plugins.*", "model_performance_test"]
 python_version         = "3.10"
 
 # Treat warnings as errors.

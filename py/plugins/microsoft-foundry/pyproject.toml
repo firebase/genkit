@@ -44,6 +44,7 @@ dependencies = [
   "openai>=1.0.0",
   "azure-identity>=1.15.0",
   "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+  "opentelemetry-exporter-otlp-proto-http>=1.20.0",
 ]
 description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability (Community)"
 keywords = [

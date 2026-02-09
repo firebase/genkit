@@ -133,6 +133,26 @@ setup_sample()
 HAS_GEMINI_API_KEY = bool(os.getenv('GEMINI_API_KEY'))
 HAS_GCP_PROJECT = bool(os.getenv('GOOGLE_CLOUD_PROJECT'))
 
+
+def _exception_chain_message(exc: BaseException) -> str:
+    """Collect error messages from the full exception ``__cause__`` chain.
+
+    The Genkit framework wraps provider exceptions in ``GenkitError``,
+    so the top-level ``str(e)`` only contains a generic wrapper message
+    like ``'INTERNAL: Error while running action ...'``.  The original
+    API error—e.g. ``'404 NOT_FOUND'``—is buried in ``e.__cause__``.
+    This helper concatenates messages from every exception in the chain
+    so that keyword checks (``'NOT_FOUND'``, ``'quota'``, etc.) work
+    regardless of wrapping depth.
+    """
+    parts: list[str] = []
+    current: BaseException | None = exc
+    while current is not None:
+        parts.append(str(current))
+        current = current.__cause__
+    return ' '.join(parts)
+
+
 # Initialize Genkit
 if HAS_GEMINI_API_KEY:
     from genkit.plugins.google_genai import (
@@ -222,6 +242,63 @@ class GenerateImagesInput(BaseModel):
     """Input for multimodal image generation flow."""
 
     name: str = Field(default='a fluffy cat', description='Subject to generate images about')
+
+
+class DescribeImageInput(BaseModel):
+    """Input for image description flow."""
+
+    data: str = Field(
+        default='auto',
+        description=(
+            "Image data as a data URI (e.g., 'data:image/jpeg;base64,...'). "
+            "Set to 'auto' to use the bundled default image."
+        ),
+    )
+
+
+class ImageEditingInput(BaseModel):
+    """Input for image editing flow."""
+
+    prompt: str = Field(
+        default='add the plant to my room',
+        description='Editing instruction for how to combine/modify the images.',
+    )
+
+
+class ToolCallingInput(BaseModel):
+    """Input for multipart tool calling flow."""
+
+    prompt: str = Field(
+        default="Tell me what I'm seeing on the screen.",
+        description='Prompt asking the model to use the screenshot tool.',
+    )
+
+
+class NanoBananaProInput(BaseModel):
+    """Input for 4K image generation flow."""
+
+    prompt: str = Field(
+        default='Generate a picture of a sunset in the mountains by a lake',
+        description='Description of the image to generate in 4K.',
+    )
+
+
+class MediaResolutionInput(BaseModel):
+    """Input for media resolution query flow."""
+
+    prompt: str = Field(
+        default='What is in this picture?',
+        description='Question to ask about the bundled image.',
+    )
+
+
+class MultimodalInput(BaseModel):
+    """Input for multimodal prompting flow."""
+
+    prompt: str = Field(
+        default='describe this photo',
+        description='Instruction for describing the bundled photo.',
+    )
 
 
 _operations: dict[str, dict[str, Any]] = {}
@@ -500,7 +577,7 @@ def get_veo_model() -> str:
 
 
 @ai.flow(name='tts_speech_generator', description='Generate speech from text using TTS')
-async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
+async def tts_speech_generator_flow(input: TtsInput | None = None) -> dict[str, Any]:
     """Generate speech audio from text.
 
     Text-to-Speech (TTS) converts written text into natural-sounding speech.
@@ -542,6 +619,8 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
         >>> print(result['audio_url'][:50])
         data:audio/wav;base64,...
     """
+    if input is None:
+        input = TtsInput()
     text = input.text
     voice = input.voice
     model = get_tts_model()
@@ -553,7 +632,7 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
     try:
         response = await ai.generate(model=model, prompt=text, config=config)
     except Exception as e:
-        error_msg = str(e)
+        error_msg = _exception_chain_message(e)
         if 'RESOURCE_EXHAUSTED' in error_msg or 'quota' in error_msg.lower():
             return {
                 'error': 'QUOTA_EXCEEDED',
@@ -589,7 +668,7 @@ async def tts_speech_generator_flow(input: TtsInput) -> dict[str, Any]:
 
 
 @ai.flow(name='imagen_image_generator', description='Generate images using Imagen (predict API)')
-async def imagen_image_generator_flow(input: ImagenInput) -> dict[str, Any]:
+async def imagen_image_generator_flow(input: ImagenInput | None = None) -> dict[str, Any]:
     """Generate images using Imagen.
 
     Imagen models use the predict API (not generateContent) and produce
@@ -609,6 +688,8 @@ async def imagen_image_generator_flow(input: ImagenInput) -> dict[str, Any]:
     Example:
         >>> result = await imagen_image_generator_flow(ImagenInput(prompt='A cat in a space suit'))
     """
+    if input is None:
+        input = ImagenInput()
     prompt = input.prompt
     model = get_imagen_model()
 
@@ -619,7 +700,14 @@ async def imagen_image_generator_flow(input: ImagenInput) -> dict[str, Any]:
     try:
         response = await ai.generate(model=model, prompt=prompt, config=config)
     except Exception as e:
-        error_msg = str(e)
+        error_msg = _exception_chain_message(e)
+        if 'NOT_FOUND' in error_msg or '404' in error_msg:
+            return {
+                'error': 'MODEL_NOT_FOUND',
+                'message': f'{model} is not available on this API endpoint.',
+                'details': 'Imagen models may not be available on v1beta with an API key. Try Vertex AI.',
+                'model': model,
+            }
         if 'RESOURCE_EXHAUSTED' in error_msg or 'quota' in error_msg.lower():
             return {
                 'error': 'QUOTA_EXCEEDED',
@@ -647,7 +735,7 @@ async def imagen_image_generator_flow(input: ImagenInput) -> dict[str, Any]:
 
 
 @ai.flow(name='gemini_image_generator', description='Generate images using Imagen')
-async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
+async def gemini_image_generator_flow(input: ImageInput | None = None) -> dict[str, Any]:
     """Generate images using Imagen image generation.
 
     Imagen models can generate high-quality images from text descriptions
@@ -662,6 +750,8 @@ async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
     Example:
         >>> result = await gemini_image_generator_flow(ImageInput(prompt='A cat astronaut'))
     """
+    if input is None:
+        input = ImageInput()
     prompt = input.prompt
     aspect_ratio = input.aspect_ratio
     model = get_image_model()
@@ -673,7 +763,7 @@ async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
     try:
         response = await ai.generate(model=model, prompt=prompt, config=config)
     except Exception as e:
-        error_msg = str(e)
+        error_msg = _exception_chain_message(e)
         if 'RESOURCE_EXHAUSTED' in error_msg or 'quota' in error_msg.lower():
             return {
                 'error': 'QUOTA_EXCEEDED',
@@ -710,7 +800,7 @@ async def gemini_image_generator_flow(input: ImageInput) -> dict[str, Any]:
 
 
 @ai.flow(name='lyria_audio_generator', description='Generate music/audio using Lyria')
-async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
+async def lyria_audio_generator_flow(input: AudioInput | None = None) -> dict[str, Any]:
     """Generate audio/music using Lyria.
 
     Lyria is Google's audio generation model available through Vertex AI.
@@ -727,6 +817,8 @@ async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
     Example:
         >>> result = await lyria_audio_generator_flow(AudioInput(prompt='Dance music'))
     """
+    if input is None:
+        input = AudioInput()
     prompt = input.prompt
     negative_prompt = input.negative_prompt
     model = get_lyria_model()
@@ -740,7 +832,14 @@ async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
     try:
         response = await ai.generate(model=model, prompt=prompt, config=config)
     except Exception as e:
-        error_msg = str(e)
+        error_msg = _exception_chain_message(e)
+        if 'resolve model' in error_msg.lower() or 'not found' in error_msg.lower():
+            return {
+                'error': 'MODEL_NOT_AVAILABLE',
+                'message': f'{model} could not be resolved.',
+                'details': 'Lyria requires the Vertex AI plugin with GOOGLE_CLOUD_PROJECT set.',
+                'model': model,
+            }
         if 'RESOURCE_EXHAUSTED' in error_msg or 'quota' in error_msg.lower():
             return {
                 'error': 'QUOTA_EXCEEDED',
@@ -774,7 +873,7 @@ async def lyria_audio_generator_flow(input: AudioInput) -> dict[str, Any]:
 
 
 @ai.flow(name='veo_video_generator', description='Generate video using Veo (background model)')
-async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
+async def veo_video_generator_flow(input: VideoInput | None = None) -> dict[str, Any]:
     """Generate video using Veo.
 
     Veo uses the **background model** pattern because video generation
@@ -795,6 +894,8 @@ async def veo_video_generator_flow(input: VideoInput) -> dict[str, Any]:
         >>> result = await veo_video_generator_flow(VideoInput(prompt='A sunset over the ocean'))
         >>> print(result['video_url'])
     """
+    if input is None:
+        input = VideoInput()
     prompt = input.prompt
     aspect_ratio = input.aspect_ratio
     duration_seconds = input.duration_seconds
@@ -929,16 +1030,19 @@ def screenshot() -> dict:
 
 
 @ai.flow()
-async def describe_image_with_gemini(data: str = '') -> str:
+async def describe_image_with_gemini(input: DescribeImageInput | None = None) -> str:
     """Describe an image using Gemini.
 
     Args:
-        data: The image data as a data URI (e.g., 'data:image/jpeg;base64,...').
+        input: DescribeImageInput with image data URI or 'auto' for bundled default.
 
     Returns:
         The description of the image.
     """
-    if not data:
+    if input is None:
+        input = DescribeImageInput()
+    data = input.data
+    if not data or data == 'auto':
         try:
             current_dir = pathlib.Path(pathlib.Path(__file__).resolve()).parent
             image_path = os.path.join(current_dir, '..', 'image.jpg')
@@ -969,7 +1073,7 @@ async def describe_image_with_gemini(data: str = '') -> str:
 
 @ai.flow()
 async def generate_images(
-    input: GenerateImagesInput,
+    input: GenerateImagesInput | None = None,
     ctx: ActionRunContext | None = None,
 ) -> GenerateResponseWrapper:
     """Generate images for the given subject using multimodal prompting.
@@ -981,6 +1085,8 @@ async def generate_images(
     Returns:
         The generated response with text and images.
     """
+    if input is None:
+        input = GenerateImagesInput()
     return await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=f'tell me about {input.name} with photos',
@@ -992,34 +1098,44 @@ async def generate_images(
 
 
 @ai.flow()
-async def multipart_tool_calling() -> str:
+async def multipart_tool_calling(input: ToolCallingInput | None = None) -> str:
     """Tool calling with image input and output.
 
     Demonstrates a tool that returns image content (screenshot) and
     the model reasoning about the image.
 
+    Args:
+        input: ToolCallingInput with the prompt for tool use.
+
     Returns:
         The model's description of the screenshot.
     """
+    if input is None:
+        input = ToolCallingInput()
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
         tools=['screenshot'],
         config=GenerationCommonConfig(temperature=1),
-        prompt="Tell me what I'm seeing on the screen.",
+        prompt=input.prompt,
     )
     return response.text
 
 
 @ai.flow()
-async def gemini_image_editing() -> Media | None:
+async def gemini_image_editing(input: ImageEditingInput | None = None) -> Media | None:
     """Image editing with Gemini (inpainting/outpainting).
 
     Combines two images (a plant and a room) and asks Gemini to
     composite them together, demonstrating image editing capabilities.
 
+    Args:
+        input: ImageEditingInput with the editing instruction prompt.
+
     Returns:
         The edited image media, or None if no image was generated.
     """
+    if input is None:
+        input = ImageEditingInput()
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
 
@@ -1031,7 +1147,7 @@ async def gemini_image_editing() -> Media | None:
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            Part(root=TextPart(text='add the plant to my room')),
+            Part(root=TextPart(text=input.prompt)),
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{plant_b64}'))),
             Part(root=MediaPart(media=Media(url=f'data:image/png;base64,{room_b64}'))),
         ],
@@ -1049,18 +1165,23 @@ async def gemini_image_editing() -> Media | None:
 
 
 @ai.flow()
-async def nano_banana_pro() -> Media | None:
+async def nano_banana_pro(input: NanoBananaProInput | None = None) -> Media | None:
     """Generate a 4K image with custom aspect ratio.
 
     Demonstrates advanced image configuration options including
     aspect ratio and image size settings.
 
+    Args:
+        input: NanoBananaProInput with the image description prompt.
+
     Returns:
         The generated image media, or None if no image was generated.
     """
+    if input is None:
+        input = NanoBananaProInput()
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
-        prompt='Generate a picture of a sunset in the mountains by a lake',
+        prompt=input.prompt,
         config={
             'response_modalities': ['TEXT', 'IMAGE'],
             'image_config': {
@@ -1077,22 +1198,27 @@ async def nano_banana_pro() -> Media | None:
 
 
 @ai.flow()
-async def gemini_media_resolution() -> str:
+async def gemini_media_resolution(input: MediaResolutionInput | None = None) -> str:
     """Query an image with high media resolution.
 
     Demonstrates the mediaResolution metadata option for higher-fidelity
     image analysis.
 
+    Args:
+        input: MediaResolutionInput with the question about the image.
+
     Returns:
         The model's description of the image.
     """
+    if input is None:
+        input = MediaResolutionInput()
     plant_path = pathlib.Path(__file__).parent.parent / 'palm_tree.png'
     with pathlib.Path(plant_path).open('rb') as f:
         plant_b64 = base64.b64encode(f.read()).decode('utf-8')
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            Part(root=TextPart(text='What is in this picture?')),
+            Part(root=TextPart(text=input.prompt)),
             Part(
                 root=MediaPart(
                     media=Media(url=f'data:image/png;base64,{plant_b64}'),
@@ -1106,15 +1232,20 @@ async def gemini_media_resolution() -> str:
 
 
 @ai.flow()
-async def multimodal_input() -> str:
+async def multimodal_input(input: MultimodalInput | None = None) -> str:
     """Describe a photo using multimodal prompting.
 
     Demonstrates sending both text and image content to the model
     in a single prompt.
 
+    Args:
+        input: MultimodalInput with the instruction for describing the photo.
+
     Returns:
         The model's description of the photo.
     """
+    if input is None:
+        input = MultimodalInput()
     photo_path = pathlib.Path(__file__).parent.parent / 'photo.jpg'
     with pathlib.Path(photo_path).open('rb') as f:
         photo_b64 = base64.b64encode(f.read()).decode('utf-8')
@@ -1122,7 +1253,7 @@ async def multimodal_input() -> str:
     response = await ai.generate(
         model='googleai/gemini-3-pro-image-preview',
         prompt=[
-            Part(root=TextPart(text='describe this photo')),
+            Part(root=TextPart(text=input.prompt)),
             Part(root=MediaPart(media=Media(url=f'data:image/jpeg;base64,{photo_b64}', content_type='image/jpeg'))),
         ],
     )

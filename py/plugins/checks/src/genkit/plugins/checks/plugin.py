@@ -31,7 +31,6 @@ See Also:
 
 from __future__ import annotations
 
-import logging
 import os
 
 from google.auth.credentials import Credentials
@@ -39,13 +38,14 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import Action, ActionMetadata
+from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.registry import ActionKind
 from genkit.plugins.checks.evaluation import create_checks_evaluators
 from genkit.plugins.checks.guardrails import GuardrailsClient
 from genkit.plugins.checks.metrics import ChecksEvaluationMetric
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CHECKS_PLUGIN_NAME = 'checks'
 
@@ -83,7 +83,7 @@ def define_checks_evaluators(
 
         define_checks_evaluators(
             ai,
-            project_id='my-gcp-project',
+            project_id='your-gcp-project-id',
             metrics=[
                 ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                 ChecksEvaluationMetricType.HARASSMENT,
@@ -143,7 +143,7 @@ class Checks(Plugin):
         # Register evaluators separately (plugin validates project_id):
         define_checks_evaluators(
             ai,
-            project_id='my-gcp-project',
+            project_id='your-gcp-project-id',
             metrics=[
                 ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                 ChecksEvaluationMetricType.HARASSMENT,

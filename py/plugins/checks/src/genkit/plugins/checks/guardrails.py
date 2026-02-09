@@ -42,7 +42,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 from typing import Any
 
@@ -54,12 +53,13 @@ from pydantic import BaseModel, Field
 
 from genkit.core.error import GenkitError
 from genkit.core.http_client import get_cached_client
+from genkit.core.logging import get_logger
 from genkit.plugins.checks.metrics import (
     ChecksEvaluationMetric,
     ChecksEvaluationMetricConfig,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 GUARDRAILS_URL = 'https://checks.googleapis.com/v1alpha/aisafety:classifyContent'
 
@@ -129,8 +129,8 @@ def _resolve_credentials(
             )
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(
-                'Failed to parse GCLOUD_SERVICE_ACCOUNT_CREDS: %s. Falling back to Application Default Credentials.',
-                e,
+                'Failed to parse GCLOUD_SERVICE_ACCOUNT_CREDS. Falling back to Application Default Credentials.',
+                error=str(e),
             )
 
     resolved, _ = google_auth_default(scopes=_CHECKS_OAUTH_SCOPES)
@@ -174,10 +174,9 @@ class GuardrailsClient:
         quota_project = getattr(self._credentials, 'quota_project_id', None)
         if quota_project and quota_project != project_id:
             logger.warning(
-                'Checks: Your credentials have a default quota project '
-                '(%s) which will override the configured project_id (%s).',
-                quota_project,
-                project_id,
+                'Checks: Your credentials have a default quota project which will override the configured project_id.',
+                quota_project=quota_project,
+                configured_project_id=project_id,
             )
 
     async def classify_content(

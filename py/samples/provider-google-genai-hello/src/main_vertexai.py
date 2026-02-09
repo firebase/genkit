@@ -19,6 +19,7 @@ import pathlib
 from enum import Enum
 
 import structlog
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import GeminiImageConfigSchema, VertexAI
@@ -247,10 +248,16 @@ def get_weather(location: str) -> dict:
     }
 
 
+class CelsiusInput(BaseModel):
+    """Input for the Celsius to Fahrenheit conversion tool."""
+
+    celsius: float = Field(description='Temperature in Celsius to convert')
+
+
 @ai.tool(name='celsiusToFahrenheit')
-def celsius_to_fahrenheit(celsius: float) -> float:
+def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
     """Converts Celsius to Fahrenheit."""
-    return (celsius * 9) / 5 + 32
+    return (input_.celsius * 9) / 5 + 32
 
 
 @ai.flow()

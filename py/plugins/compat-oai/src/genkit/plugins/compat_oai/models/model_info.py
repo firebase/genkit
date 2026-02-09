@@ -81,6 +81,14 @@ GPT_5_MODEL_SUPPORTS = Supports(
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
 )
 
+GPT_OSS_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=False,
+    tools=True,
+    system_role=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
+
 LLAMA_3_1 = 'meta/llama-3.1-405b-instruct-maas'
 LLAMA_3_2 = 'meta/llama-3.2-90b-vision-instruct-maas'
 
@@ -142,6 +150,9 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     'gpt-5.2-chat': ModelInfo(label='OpenAI - gpt-5.2-chat', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.2-pro': ModelInfo(label='OpenAI - gpt-5.2-pro', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.3-codex': ModelInfo(label='OpenAI - gpt-5.3-codex', supports=GPT_5_MODEL_SUPPORTS),
+    # --- OSS models (hosted) ---
+    'gpt-oss-120b': ModelInfo(label='OpenAI - gpt-oss-120b', supports=GPT_OSS_MODEL_SUPPORTS),
+    'gpt-oss-20b': ModelInfo(label='OpenAI - gpt-oss-20b', supports=GPT_OSS_MODEL_SUPPORTS),
 }
 
 SUPPORTED_EMBEDDING_MODELS: dict[str, dict] = {

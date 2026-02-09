@@ -495,6 +495,7 @@ class OllamaModel:
             return url[comma_idx + 1 :]
 
         if url.startswith(('http://', 'https://')):
+            # TODO(#4360): Replace with downloadRequestMedia middleware (G15 parity).
             # Some servers (e.g., Wikipedia/Wikimedia) block requests
             # without a proper User-Agent, returning HTTP 403 Forbidden.
             client = get_cached_client(
@@ -503,6 +504,7 @@ class OllamaModel:
                 headers={
                     'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
                 },
+                follow_redirects=True,
             )
             response = await client.get(url)
             response.raise_for_status()

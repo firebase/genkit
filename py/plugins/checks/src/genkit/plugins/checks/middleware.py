@@ -55,17 +55,16 @@ See Also:
 
 from __future__ import annotations
 
-import logging
-
 from google.auth.credentials import Credentials
 
 from genkit.blocks.model import ModelMiddleware, ModelMiddlewareNext
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import FinishReason, GenerateRequest, GenerateResponse
 from genkit.plugins.checks.guardrails import GuardrailsClient
 from genkit.plugins.checks.metrics import ChecksEvaluationMetric
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def checks_middleware(
@@ -87,7 +86,7 @@ def checks_middleware(
             prompt='Tell me a story',
             use=[
                 checks_middleware(
-                    project_id='my-gcp-project',
+                    project_id='your-gcp-project-id',
                     metrics=[
                         ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                         ChecksEvaluationMetricType.HARASSMENT,

@@ -72,4 +72,4 @@ export PATH="${GOPATH}:${PATH}"
   -ignore '**/generated/*_pb2_grpc.py' \
   "$TOP_DIR"
 
-uv run --directory "${PY_DIR}" liccheck
+uv run --active --directory "${PY_DIR}" liccheck

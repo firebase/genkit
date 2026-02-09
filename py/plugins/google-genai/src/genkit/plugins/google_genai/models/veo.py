@@ -212,8 +212,16 @@ def _to_veo_parameters(config: Any) -> dict[str, Any]:  # noqa: ANN401
 def _from_veo_operation(api_op: dict[str, Any]) -> Operation:
     """Convert Veo API operation to Genkit Operation.
 
+    The ``response`` value in ``api_op`` may be either:
+
+    * A plain dict (from the ``start`` method, or legacy REST responses).
+    * A ``GenerateVideosResponse`` Pydantic model (from the ``check`` method,
+      which stores the SDK object directly).
+
+    This function handles both cases when extracting video URIs.
+
     Args:
-        api_op: The raw API operation response.
+        api_op: The raw API operation response dict.
 
     Returns:
         A Genkit Operation object.
@@ -228,28 +236,36 @@ def _from_veo_operation(api_op: dict[str, Any]) -> Operation:
         op.error = Error(message=api_op['error'].get('message', 'Unknown error'))
         return op
 
-    # Handle response with generated videos
-    response = api_op.get('response', {})
-    video_response = response.get('generateVideoResponse', {})
-    samples = video_response.get('generatedSamples', [])
+    # Handle response with generated videos.
+    response = api_op.get('response')
+    if response is None:
+        return op
 
-    if samples:
-        # Build content from generated videos
-        content = []
-        for sample in samples:
+    # Extract video URIs — response may be a Pydantic model or a dict.
+    uris: list[str] = []
+    if hasattr(response, 'generated_videos'):
+        # Pydantic GenerateVideosResponse from the SDK (check path).
+        for gv in response.generated_videos or []:
+            if gv.video and gv.video.uri:
+                uris.append(gv.video.uri)
+    elif isinstance(response, dict):
+        # Plain dict (start path or legacy REST).
+        video_response = response.get('generateVideoResponse', {})
+        for sample in video_response.get('generatedSamples', []):
             video = sample.get('video', {})
             uri = video.get('uri')
             if uri:
-                content.append({'media': {'url': uri}})
+                uris.append(uri)
 
-        if content:
-            op.output = {
-                'finishReason': 'stop',
-                'message': {
-                    'role': 'model',
-                    'content': content,
-                },
-            }
+    if uris:
+        content = [{'media': {'url': uri}} for uri in uris]
+        op.output = {
+            'finishReason': 'stop',
+            'message': {
+                'role': 'model',
+                'content': content,
+            },
+        }
 
     return op
 

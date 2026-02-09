@@ -41,16 +41,16 @@ You'll find the following information:
 
 | Field | Example | Environment Variable |
 |-------|---------|---------------------|
-| **Target URI** | `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview` | Extract base URL for `AZURE_OPENAI_ENDPOINT` |
+| **Target URI** | `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21` | Extract base URL for `AZURE_OPENAI_ENDPOINT` |
 | **Key** | (hidden) | `AZURE_OPENAI_API_KEY` |
 | **Name** (Deployment) | `gpt-4o` | `AZURE_OPENAI_DEPLOYMENT` |
-| **api-version** (from Target URI) | `2024-05-01-preview` | `AZURE_OPENAI_API_VERSION` |
+| **api-version** (from Target URI) | `2024-10-21` | `AZURE_OPENAI_API_VERSION` (optional, plugin has a default) |
 
 **Extracting the endpoint from Target URI:**
 
 If your Target URI is:
 ```
-https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview
+https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21
 ```
 
 Your endpoint is just the base URL:

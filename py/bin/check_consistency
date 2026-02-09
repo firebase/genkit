@@ -59,7 +59,7 @@ PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$PY_DIR"
 
 # Total number of checks
-TOTAL_CHECKS=19
+TOTAL_CHECKS=20
 
 echo -e "${BLUE}=== Genkit Python Consistency Checks ===${NC}"
 echo ""
@@ -645,6 +645,36 @@ else
 fi
 echo ""
 
+# -----------------------------------------------------------------------------
+# Check 20: CHANGELOG.md Files Exist
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[20/$TOTAL_CHECKS] Checking CHANGELOG.md files exist...${NC}"
+changelog_missing=0
+
+
+# Check core package
+if [ ! -f "packages/genkit/CHANGELOG.md" ]; then
+  echo -e "  ${YELLOW}WARNING${NC}: packages/genkit/ is missing CHANGELOG.md"
+  WARNINGS=$((WARNINGS + 1))
+  changelog_missing=$((changelog_missing + 1))
+fi
+
+# Check plugins
+for d in plugins/*/; do
+  if [ -d "$d" ] && [ ! -f "$d/CHANGELOG.md" ]; then
+    pkg_name=$(basename "$d")
+    echo -e "  ${YELLOW}WARNING${NC}: plugins/$pkg_name/ is missing CHANGELOG.md"
+    WARNINGS=$((WARNINGS + 1))
+    changelog_missing=$((changelog_missing + 1))
+  fi
+done
+
+if [ $changelog_missing -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All publishable packages have CHANGELOG.md files"
+else
+  echo -e "  ${YELLOW}!${NC} Some packages are missing CHANGELOG.md files (warnings only)"
+fi
+echo ""
 # -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------

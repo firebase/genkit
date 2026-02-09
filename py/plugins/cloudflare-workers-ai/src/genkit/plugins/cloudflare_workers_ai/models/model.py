@@ -113,12 +113,18 @@ We parse these events using httpx async streaming and accumulate text chunks.
 
 **JSON Output Mode**
 
-Cloudflare supports JSON mode via ``response_format``::
+Cloudflare supports two JSON modes via ``response_format``:
 
-    {'response_format': {'type': 'json_object'}}
+- Unstructured JSON: ``{'response_format': {'type': 'json_object'}}``
+- Schema-constrained: ``{'response_format': {'type': 'json_schema', 'json_schema': {...}}}``
 
-We use this when the request specifies JSON output format. If a schema is provided,
-it's included as ``json_schema`` in the response format configuration.
+See: https://developers.cloudflare.com/workers-ai/json-mode/
+
+When a JSON schema is provided, we use ``type: json_schema`` with the schema inlined.
+Cloudflare does NOT support ``$ref`` / ``$defs`` in schemas, so we resolve all
+references before sending. Note: JSON Mode does not support streaming.
+
+When no schema is provided, we use ``type: json_object`` for unstructured JSON.
 
 **Logging & Error Handling**
 
@@ -133,12 +139,14 @@ ensuring errors are visible in logs even when caught by upstream code.
 
 import base64
 import json
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
 from genkit.ai import ActionRunContext
+from genkit.core.http_client import get_cached_client
 from genkit.core.logging import get_logger
+from genkit.plugins.cloudflare_workers_ai.constants import CF_API_BASE_URL
 from genkit.plugins.cloudflare_workers_ai.models.model_info import get_model_info
 from genkit.plugins.cloudflare_workers_ai.typing import CloudflareConfig
 from genkit.types import (
@@ -162,9 +170,6 @@ from genkit.types import (
 
 logger = get_logger(__name__)
 
-# Base URL for Cloudflare Workers AI API
-CF_API_BASE_URL = 'https://api.cloudflare.com/client/v4/accounts'
-
 
 class CfModel:
     """Cloudflare Workers AI model for chat completions.
@@ -177,6 +182,13 @@ class CfModel:
         account_id: The Cloudflare account ID.
         client: httpx.AsyncClient for making API requests.
     """
+
+    # TODO(#4360): Replace with downloadRequestMedia middleware (G15 parity).
+    # User-Agent is required because many servers (e.g. Wikipedia) return
+    # 403 Forbidden for the default httpx user-agent string.
+    _DOWNLOAD_HEADERS: dict[str, str] = {
+        'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
+    }
 
     def __init__(
         self,
@@ -372,9 +384,14 @@ class CfModel:
 
         content: list[Part] = []
 
-        # Extract text response (only if non-empty)
+        # Extract text response (only if non-empty).
+        # In JSON Mode, Cloudflare returns a dict instead of a string.
+        # Serialize to JSON so TextPart gets a string and the framework
+        # can parse structured output downstream.
         text_response = result.get('response', '')
         if text_response:
+            if isinstance(text_response, dict):
+                text_response = json.dumps(text_response)
             content.append(Part(root=TextPart(text=text_response)))
 
         # Extract tool calls
@@ -502,11 +519,19 @@ class CfModel:
             body['raw'] = config.raw
 
         # Handle JSON output format
+        # See: https://developers.cloudflare.com/workers-ai/json-mode/
         if request.output and request.output.format == 'json':
-            response_format: dict[str, Any] = {'type': 'json_object'}
             if request.output.schema:
-                response_format['json_schema'] = request.output.schema
-            body['response_format'] = response_format
+                # Schema-constrained JSON mode: resolve $ref/$defs since
+                # Cloudflare doesn't support JSON Schema references.
+                resolved = _resolve_json_schema_refs(request.output.schema)
+                body['response_format'] = {
+                    'type': 'json_schema',
+                    'json_schema': resolved,
+                }
+            else:
+                # Unstructured JSON mode (no schema)
+                body['response_format'] = {'type': 'json_object'}
 
         # Handle tools
         if request.tools:
@@ -679,11 +704,12 @@ class CfModel:
         # For HTTP/HTTPS URLs, we must fetch and convert to base64
         # because Cloudflare does NOT accept URLs directly
         try:
-            # Add User-Agent header - required by some sites (e.g., Wikimedia)
-            headers = {
-                'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
-            }
-            response = await self.client.get(url, headers=headers)
+            client = get_cached_client(
+                cache_key='cloudflare-workers-ai/media-fetch',
+                headers=self._DOWNLOAD_HEADERS,
+                follow_redirects=True,
+            )
+            response = await client.get(url)
             response.raise_for_status()
             image_bytes = response.content
 
@@ -707,6 +733,57 @@ class CfModel:
             }
         except httpx.HTTPStatusError as e:
             raise ValueError(f'Failed to fetch image from URL {url}: {e}') from e
+
+
+# JSON Schema nodes can be dicts, lists, or scalar values.
+# A proper recursive type isn't needed here — we only care about
+# dict/list dispatch in _resolve, and isinstance handles the rest.
+JsonSchemaNode = dict[str, object] | list[object] | str | int | float | bool | None
+
+
+def _resolve_json_schema_refs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Resolve ``$ref`` / ``$defs`` in a JSON Schema by inlining definitions.
+
+    Cloudflare Workers AI does not support ``$ref`` or ``$defs`` in
+    ``json_schema``.  Pydantic generates these for nested models (e.g.
+    ``RpgCharacter`` containing ``Skills``).  This helper recursively
+    inlines all ``$ref`` pointers so the resulting schema is self-contained.
+
+    Only ``#/$defs/<name>`` references are resolved (the format Pydantic
+    uses).  Circular references are **not** handled because Pydantic
+    doesn't produce them for concrete models.
+
+    Args:
+        schema: JSON Schema dict, possibly containing ``$defs`` and ``$ref``.
+
+    Returns:
+        A new dict with all ``$ref`` pointers replaced by their definitions
+        and the top-level ``$defs`` key removed.
+    """
+    defs: dict[str, Any] = schema.get('$defs', {})
+    if not defs:
+        return schema
+
+    def _resolve(node: JsonSchemaNode) -> JsonSchemaNode:
+        if isinstance(node, dict):
+            # Replace {"$ref": "#/$defs/Foo"} with the definition of Foo
+            if '$ref' in node:
+                ref_val = node['$ref']
+                if isinstance(ref_val, str) and ref_val.startswith('#/$defs/'):
+                    ref_name = ref_val[len('#/$defs/') :]
+                    if ref_name in defs:
+                        return _resolve(defs[ref_name])
+                # Unknown ref — leave as-is (shouldn't happen with Pydantic)
+                return node
+            return {k: _resolve(cast(JsonSchemaNode, v)) for k, v in node.items() if k != '$defs'}
+        if isinstance(node, list):
+            return [_resolve(cast(JsonSchemaNode, item)) for item in node]
+        return node
+
+    resolved = _resolve(schema)
+    # _resolve always returns a dict when given a dict input
+    assert isinstance(resolved, dict)  # noqa: S101 - type narrowing assertion
+    return resolved
 
 
 __all__ = ['CF_API_BASE_URL', 'CfModel']

@@ -17,6 +17,7 @@ dependencies = [
   "fastapi",
   "uvicorn",
   "datamodel-code-generator",
+  "tomli>=2.0.0; python_version < '3.11'",
 ]
 description = "Model Performance Testing Tool"
 name = "sample-test"

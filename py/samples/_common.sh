@@ -409,6 +409,82 @@ check_az_installed() {
     return 1
 }
 
+# Check if Ollama is installed; offer to install if missing.
+# Also ensures the Ollama server is running.
+# Usage: check_ollama_installed || exit 1
+check_ollama_installed() {
+    if command -v ollama &> /dev/null; then
+        echo -e "${GREEN}✓ Ollama found${NC}"
+    else
+        echo -e "${YELLOW}Ollama is not installed.${NC}"
+        echo ""
+        if [[ -t 0 ]] && [ -c /dev/tty ]; then
+            echo -en "Install Ollama now? [Y/n]: "
+            local response
+            read -r response < /dev/tty
+            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+                echo ""
+                case "$(uname -s)" in
+                    Darwin)
+                        if command -v brew &> /dev/null; then
+                            echo -e "${BLUE}Installing via Homebrew...${NC}"
+                            brew install ollama
+                        else
+                            echo -e "${BLUE}Installing via official script...${NC}"
+                            curl -fsSL https://ollama.com/install.sh | sh
+                        fi
+                        ;;
+                    Linux)
+                        echo -e "${BLUE}Installing via official script...${NC}"
+                        curl -fsSL https://ollama.com/install.sh | sh
+                        ;;
+                    *)
+                        echo "Visit: https://ollama.com/download"
+                        return 1
+                        ;;
+                esac
+                if command -v ollama &> /dev/null; then
+                    echo -e "${GREEN}✓ Ollama installed successfully${NC}"
+                else
+                    echo -e "${RED}Error: Ollama installation failed${NC}"
+                    return 1
+                fi
+            else
+                echo -e "${RED}Error: Ollama is required${NC}"
+                echo "Install from: https://ollama.com/download"
+                return 1
+            fi
+        else
+            echo -e "${RED}Error: Ollama is required${NC}"
+            echo "Install from: https://ollama.com/download"
+            return 1
+        fi
+    fi
+
+    # Ensure the Ollama server is running
+    if curl -sf http://localhost:11434/api/tags &> /dev/null; then
+        echo -e "${GREEN}✓ Ollama server is running${NC}"
+    else
+        echo -e "${YELLOW}Ollama server not responding, starting it...${NC}"
+        ollama serve &> /dev/null &
+        # Wait up to 10 seconds for the server to start
+        local retries=20
+        while (( retries > 0 )); do
+            if curl -sf http://localhost:11434/api/tags &> /dev/null; then
+                echo -e "${GREEN}✓ Ollama server started${NC}"
+                break
+            fi
+            sleep 0.5
+            retries=$((retries - 1))
+        done
+        if (( retries == 0 )); then
+            echo -e "${YELLOW}⚠ Ollama server may not have started. Try 'ollama serve' manually.${NC}"
+        fi
+    fi
+
+    return 0
+}
+
 # Check if flyctl CLI is installed; offer to install if missing.
 # Usage: check_flyctl_installed || exit 1
 check_flyctl_installed() {
