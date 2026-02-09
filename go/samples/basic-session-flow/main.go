@@ -35,12 +35,9 @@ func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	store := aix.NewInMemorySnapshotStore[struct{}]()
-
 	chatFlow := genkit.DefineSessionFlow(g, "chat",
-		func(ctx context.Context, resp aix.Responder[any], params *aix.SessionFlowParams[struct{}]) error {
-			sess := params.Session
-			return sess.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
+		func(ctx context.Context, resp aix.Responder[any], params *aix.SessionFlowParams[any]) error {
+			return params.Session.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
 				for chunk, err := range genkit.GenerateStream(ctx, g,
 					ai.WithModel(googlegenai.ModelRef("googleai/gemini-3-flash-preview", &genai.GenerateContentConfig{
 						ThinkingConfig: &genai.ThinkingConfig{
@@ -48,13 +45,13 @@ func main() {
 						},
 					})),
 					ai.WithSystem("You are a helpful assistant. Keep responses concise."),
-					ai.WithMessages(sess.Messages()...),
+					ai.WithMessages(params.Session.Messages()...),
 				) {
 					if err != nil {
 						return err
 					}
 					if chunk.Done {
-						sess.AddMessages(chunk.Response.Message)
+						params.Session.AddMessages(chunk.Response.Message)
 						break
 					}
 					resp.SendChunk(chunk.Chunk)
@@ -63,8 +60,8 @@ func main() {
 				return nil
 			})
 		},
-		aix.WithSnapshotStore(store),
-		aix.WithSnapshotCallback(aix.SnapshotOn[struct{}](aix.SnapshotEventTurnEnd)),
+		aix.WithSnapshotStore(aix.NewInMemorySnapshotStore[any]()),
+		aix.WithSnapshotCallback(aix.SnapshotOn[any](aix.SnapshotEventTurnEnd)),
 	)
 
 	fmt.Println("Session Flow Chat (type 'quit' to exit)")

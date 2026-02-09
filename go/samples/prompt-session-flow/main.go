@@ -41,10 +41,10 @@ func main() {
 
 	chatPrompt := genkit.LookupDataPrompt[ChatPromptInput, string](g, "chat")
 
-	chatFlow := genkit.DefineSessionFlowFromPrompt[struct{}](
+	chatFlow := genkit.DefineSessionFlowFromPrompt(
 		g, "chat", chatPrompt, ChatPromptInput{Personality: "a sarcastic pirate"},
-		aix.WithSnapshotStore(aix.NewInMemorySnapshotStore[struct{}]()),
-		aix.WithSnapshotCallback(func(ctx context.Context, sc *aix.SnapshotContext[struct{}]) bool {
+		aix.WithSnapshotStore(aix.NewInMemorySnapshotStore[any]()),
+		aix.WithSnapshotCallback(func(ctx context.Context, sc *aix.SnapshotContext[any]) bool {
 			return sc.Event == aix.SnapshotEventInvocationEnd || sc.TurnIndex%5 == 0
 		}),
 	)
