@@ -166,6 +166,8 @@ class GenaiModels:
     imagen: list[str]
     embedders: list[str]
     veo: list[str]
+    lyria: list[str]
+
 
     def __init__(self) -> None:
         """Initialize empty model lists."""
@@ -173,6 +175,8 @@ class GenaiModels:
         self.imagen = []
         self.embedders = []
         self.veo = []
+        self.lyria = []
+
 
 
 def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
@@ -236,8 +240,9 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
         # Gemini / Gemma
         if 'generateContent' in m.supported_actions:
             lower_name = name.lower()
-            if 'gemini' in lower_name or 'gemma' in lower_name:
+            if 'gemini' in lower_name or 'gemma' in lower_name or 'lyria' in lower_name:
                 models.gemini.append(name)
+
 
     return models
 

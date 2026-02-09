@@ -217,7 +217,12 @@ def main() -> None:
 
     # Redirect stdout to avoid polluting the JSON output with logs/prints from the flow
     with contextlib.redirect_stdout(io.StringIO()):
-        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+        result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+
+    # Print result to stdout for parent process to read
+    print('---JSON_RESULT_START---')
+    print(json.dumps(result))
+    print('---JSON_RESULT_END---')
 
 
 if __name__ == '__main__':

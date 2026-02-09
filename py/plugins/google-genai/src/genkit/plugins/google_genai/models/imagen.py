@@ -50,9 +50,11 @@ from genkit.types import (
 class ImagenVersion(StrEnum):
     """Supported text-to-image models."""
 
-    IMAGEN3 = 'imagen-3.0-generate-002'
+    IMAGEN3 = 'imagen-3.0-generate-001'
+    IMAGEN3_V2 = 'imagen-3.0-generate-002'
     IMAGEN3_FAST = 'imagen-3.0-fast-generate-001'
     IMAGEN2 = 'imagegeneration@006'
+
 
 
 SUPPORTED_MODELS = {
@@ -66,6 +68,17 @@ SUPPORTED_MODELS = {
             output=['media'],
         ),
     ),
+    ImagenVersion.IMAGEN3_V2: ModelInfo(
+        label='Vertex AI - Imagen3 V2',
+        supports=Supports(
+            media=True,
+            multiturn=False,
+            tools=False,
+            system_role=True,
+            output=['media'],
+        ),
+    ),
+
     ImagenVersion.IMAGEN3_FAST: ModelInfo(
         label='Vertex AI - Imagen3 Fast',
         supports=Supports(

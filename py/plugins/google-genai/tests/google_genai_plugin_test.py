@@ -39,6 +39,7 @@ from genkit.plugins.google_genai.google import (
     googleai_name,
     vertexai_name,
 )
+from genkit.plugins.google_genai.models.veo import _from_veo_operation
 
 
 def test_googleai_name() -> None:
@@ -131,11 +132,16 @@ async def test_googleai_resolve_imagen_model(mock_list_models: MagicMock, mock_c
     mock_list_models.return_value = GenaiModels()
 
     plugin = GoogleAI(api_key='test-key')
-    action = await plugin.resolve(ActionKind.MODEL, 'googleai/imagen-3.0-generate-002')
+    action = await plugin.resolve(ActionKind.MODEL, 'googleai/imagen-3.0-generate-001')
 
     assert action is not None
     assert action.kind == ActionKind.MODEL
-    assert action.name == 'googleai/imagen-3.0-generate-002'
+    assert action.name == 'googleai/imagen-3.0-generate-001'
+
+    action_v2 = await plugin.resolve(ActionKind.MODEL, 'googleai/imagen-3.0-generate-002')
+    assert action_v2 is not None
+    assert action_v2.name == 'googleai/imagen-3.0-generate-002'
+
 
 
 @patch('genkit.plugins.google_genai.google.genai.client.Client')
@@ -261,3 +267,35 @@ def test_gemini_config_schema_defaults() -> None:
     # All fields should be optional with None defaults
     assert config.temperature is None
     assert config.max_output_tokens is None
+
+
+def test_from_veo_operation_with_object_response():
+    """Test _from_veo_operation handles object responses (SDK models)."""
+    class MockVideo:
+        def __init__(self, uri):
+            self.uri = uri
+
+    class MockSample:
+        def __init__(self, uri):
+            self.video = MockVideo(uri)
+
+    class MockVideoResponse:
+        def __init__(self, uris):
+            self.generated_samples = [MockSample(uri) for uri in uris]
+
+    class MockResponse:
+        def __init__(self, uris):
+            self.generate_video_response = MockVideoResponse(uris)
+
+    api_op = {
+        'name': 'test-op',
+        'done': True,
+        'response': MockResponse(['https://example.com/video.mp4'])
+    }
+
+    op = _from_veo_operation(api_op)
+    assert op.done is True
+    assert op.id == 'test-op'
+    assert op.output is not None
+    assert op.output['message']['content'][0]['media']['url'] == 'https://example.com/video.mp4'
+

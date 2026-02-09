@@ -636,7 +636,7 @@ async def embed_docs(
         docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     embeddings = await ai.embed_many(
-        embedder='googleai/text-embedding-004',
+        embedder='googleai/gemini-embedding-001',
         content=docs,
         options=options,
     )

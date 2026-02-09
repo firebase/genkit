@@ -24,6 +24,8 @@ Provider-specific flow logic stays in each sample's main.py.
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
+import base64
+import httpx
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
 
@@ -59,6 +61,34 @@ async def describe_image_logic(ai: Genkit, image_url: str, model: str | None = N
     Returns:
         A textual description of the image.
     """
+    media_url = image_url
+    content_type = 'image/jpeg'
+
+    # Simple content type detection based on extension
+    lower_url = image_url.lower()
+    if lower_url.endswith('.png'):
+        content_type = 'image/png'
+    elif lower_url.endswith('.gif'):
+        content_type = 'image/gif'
+    elif lower_url.endswith('.webp'):
+        content_type = 'image/webp'
+
+    if image_url.startswith('http'):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(image_url, follow_redirects=True, timeout=10.0)
+                if response.status_code == 200:
+                    data = base64.b64encode(response.content).decode('utf-8')
+                    media_url = f'data:{content_type};base64,{data}'
+                    
+                    # Try to get content type from headers if available
+                    ct = response.headers.get('content-type')
+                    if ct:
+                        content_type = ct
+        except Exception:
+            # Fallback to original URL if fetch fails
+            pass
+
     response = await ai.generate(
         model=model,
         messages=[
@@ -66,7 +96,7 @@ async def describe_image_logic(ai: Genkit, image_url: str, model: str | None = N
                 role=Role.USER,
                 content=[
                     Part(root=TextPart(text='Describe this image in detail')),
-                    Part(root=MediaPart(media=Media(url=image_url, content_type='image/jpeg'))),
+                    Part(root=MediaPart(media=Media(url=media_url, content_type=content_type))),
                 ],
             )
         ],

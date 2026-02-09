@@ -476,13 +476,15 @@ def get_imagen_model() -> str:
     high-quality images with excellent prompt following.
 
     Available models (discovered dynamically):
-    - imagen-3.0-generate-002: Production quality
+    - imagen-3.0-generate-001: Production quality (Google AI)
+    - imagen-3.0-generate-002: Production quality (Vertex AI)
     - imagen-3.0-fast-generate-001: Fast generation
     - imagen-4.0-generate-001: Latest Imagen model
     """
     if HAS_GEMINI_API_KEY:
-        return 'googleai/imagen-3.0-generate-002'
+        return 'googleai/imagen-3.0-generate-001'
     return 'simulated-image'
+
 
 
 def get_lyria_model() -> str:

@@ -166,19 +166,23 @@ class PartConverter:
                 )
 
             if url.startswith('http'):
-                try:
-                    data, mime_type = await cls._download_image(url)
-                    # If mime type wasn't in headers, fallback to existing or default
-                    mime_type = mime_type or part.root.media.content_type or 'image/jpeg'
-                    return genai.types.Part(
-                        inline_data=genai.types.Blob(
-                            mime_type=mime_type,
-                            data=data,
-                        )
-                    )
-                except Exception:  # noqa: S110 - intentionally silent, fallback to file_uri
-                    # Fallback to file_uri if download fails
+                if 'youtube.com' in url or 'youtu.be' in url:
+                    # Do not download youtube videos, they are supported by the API
                     pass
+                else:
+                    try:
+                        data, mime_type = await cls._download_image(url)
+                        # If mime type wasn't in headers, fallback to existing or default
+                        mime_type = mime_type or part.root.media.content_type or 'image/jpeg'
+                        return genai.types.Part(
+                            inline_data=genai.types.Blob(
+                                mime_type=mime_type,
+                                data=data,
+                            )
+                        )
+                    except Exception:  # noqa: S110 - intentionally silent, fallback to file_uri
+                        # Fallback to file_uri if download fails
+                        pass
 
             return genai.types.Part(
                 file_data=genai.types.FileData(

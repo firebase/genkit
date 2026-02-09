@@ -229,18 +229,33 @@ def _from_veo_operation(api_op: dict[str, Any]) -> Operation:
         return op
 
     # Handle response with generated videos
-    response = api_op.get('response', {})
-    video_response = response.get('generateVideoResponse', {})
-    samples = video_response.get('generatedSamples', [])
+    response = getattr(api_op, 'response', api_op.get('response', {})) if not isinstance(api_op, dict) else api_op.get('response', {})
+    
+    # If response is a dict, use .get(), if it has attributes, use getattr
+    if isinstance(response, dict):
+        video_response = response.get('generateVideoResponse', {})
+    else:
+        video_response = getattr(response, 'generate_video_response', {})
+    
+    if isinstance(video_response, dict):
+        samples = video_response.get('generatedSamples', [])
+    else:
+        samples = getattr(video_response, 'generated_samples', [])
 
     if samples:
         # Build content from generated videos
         content = []
         for sample in samples:
-            video = sample.get('video', {})
-            uri = video.get('uri')
+            if isinstance(sample, dict):
+                video = sample.get('video', {})
+                uri = video.get('uri')
+            else:
+                video = getattr(sample, 'video', None)
+                uri = getattr(video, 'uri', None) if video else None
+            
             if uri:
                 content.append({'media': {'url': uri}})
+
 
         if content:
             op.output = {

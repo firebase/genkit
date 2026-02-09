@@ -173,6 +173,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     # We'll add the summary after testing all flows
     class LiveLogger(list):
         def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
+            print(item, flush=True)
             super().append(item)
 
     detail_lines = LiveLogger()
@@ -348,6 +349,9 @@ def generate_input(flow_action: Any) -> Any:  # noqa: ANN401 - intentional use o
     schema = flow_action.input_schema
     if not schema:
         return None
+
+    if flow_action.name == 'describe_image_with_gemini':
+        return ""
 
     # Generate dict from schema
     input_dict = generate_from_json_schema(schema)
