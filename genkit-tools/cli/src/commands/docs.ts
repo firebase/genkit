@@ -80,9 +80,9 @@ export const docsSearch = new Command('docs:search')
         }
         logger.info('');
       });
-    } catch (e: any) {
-      logger.error(`Failed to load documentation: ${e.message}`);
-    }
+} catch (e: unknown) {
+  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
+}
   });
 
 export const docsRead = new Command('docs:read')
