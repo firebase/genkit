@@ -46,9 +46,9 @@ export const docsList = new Command('docs:list')
         logger.info('');
       });
       logger.info(`Use 'genkit docs:read <path>' to read a document.`);
-    } catch (e: any) {
-      logger.error(`Failed to load documentation: ${e.message}`);
-    }
+} catch (e: unknown) {
+  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
+}
   });
 
 export const docsSearch = new Command('docs:search')
