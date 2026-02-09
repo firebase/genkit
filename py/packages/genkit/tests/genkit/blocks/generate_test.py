@@ -355,6 +355,158 @@ async def test_generate_middleware_can_modify_stream(
     ]
 
 
+@pytest.mark.asyncio
+async def test_model_level_middleware_applied() -> None:
+    """Model-level middleware set via define_model(use=[...]) is applied."""
+    ai = Genkit()
+
+    call_log: list[str] = []
+
+    async def model_mw(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        call_log.append('model_mw')
+        txt = ''.join(text_from_message(m) for m in req.messages)
+        return await next(
+            GenerateRequest(
+                messages=[
+                    Message(role=Role.USER, content=[Part(root=TextPart(text=f'MW({txt}))'))]),
+                ],
+            ),
+            ctx,
+        )
+
+    def echo_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        call_log.append('runner')
+        merged = ''.join(text_from_message(m) for m in request.messages)
+        return GenerateResponse(
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text=f'[ECHO]{merged}'))],
+            )
+        )
+
+    ai.define_model(name='mwEchoModel', fn=echo_fn, use=[model_mw])
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='mwEchoModel',
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='hello'))]),
+            ],
+        ),
+    )
+
+    assert call_log == ['model_mw', 'runner']
+    assert 'MW(' in response.text
+    assert 'hello' in response.text
+
+
+@pytest.mark.asyncio
+async def test_call_time_middleware_runs_before_model_level() -> None:
+    """Call-time middleware runs before model-level middleware in dispatch chain.
+
+    This matches the JS SDK execution order:
+    call-time[0..N] → model-level[0..M] → runner
+    """
+    ai = Genkit()
+
+    call_order: list[str] = []
+
+    async def call_time_mw(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        call_order.append('call_time')
+        return await next(req, ctx)
+
+    async def model_mw(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        call_order.append('model_level')
+        return await next(req, ctx)
+
+    def echo_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        call_order.append('runner')
+        merged = ''.join(text_from_message(m) for m in request.messages)
+        return GenerateResponse(
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text=f'[ECHO]{merged}'))],
+            )
+        )
+
+    ai.define_model(name='mwOrderModel', fn=echo_fn, use=[model_mw])
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='mwOrderModel',
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='test'))]),
+            ],
+        ),
+        middleware=[call_time_mw],
+    )
+
+    # Verify execution order: call-time → model-level → runner
+    assert call_order == ['call_time', 'model_level', 'runner']
+    assert response.text is not None
+
+
+@pytest.mark.asyncio
+async def test_multiple_model_level_middleware_chain() -> None:
+    """Multiple model-level middleware chain in order."""
+    ai = Genkit()
+
+    call_order: list[str] = []
+
+    async def model_mw_a(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        call_order.append('model_a')
+        return await next(req, ctx)
+
+    async def model_mw_b(
+        req: GenerateRequest,
+        ctx: ActionRunContext,
+        next: ModelMiddlewareNext,
+    ) -> GenerateResponse:
+        call_order.append('model_b')
+        return await next(req, ctx)
+
+    def echo_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        call_order.append('runner')
+        return GenerateResponse(
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text='done'))],
+            )
+        )
+
+    ai.define_model(name='multiMwModel', fn=echo_fn, use=[model_mw_a, model_mw_b])
+
+    await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='multiMwModel',
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
+            ],
+        ),
+    )
+
+    assert call_order == ['model_a', 'model_b', 'runner']
+
+
 ##########################################################################
 # run tests from /tests/specs/generate.yaml
 ##########################################################################

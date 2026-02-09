@@ -225,6 +225,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
+        middleware: list[Any] | None = None,
     ) -> None:
         """Initialize an Action.
 
@@ -237,12 +238,15 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
+            middleware: Optional list of middleware functions to be applied
+                when executing this action.
         """
         self._kind: ActionKind = kind
         self._name: str = name
         self._metadata: dict[str, object] = metadata if metadata else {}
         self._description: str | None = description
         self._is_async: bool = inspect.iscoroutinefunction(fn)
+        self._middleware: list[Any] = middleware if middleware else []
         # Optional matcher function for resource actions
         self.matches: Callable[[object], bool] | None = None
 
@@ -301,6 +305,15 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     @property
     def is_async(self) -> bool:
         return self._is_async
+
+    @property
+    def middleware(self) -> list[Any]:  # noqa: ANN401
+        """Middleware functions applied at action execution time.
+
+        These are model-level middleware set via ``define_model(use=[...])``.
+        They run after call-time middleware in the dispatch chain.
+        """
+        return self._middleware
 
     def run(
         self,

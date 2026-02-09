@@ -481,7 +481,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 
 | Gap ID | SDK | Work Item | Reference | Status |
 |--------|-----|-----------|-----------|:------:|
-| G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ⬜ |
+| G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ✅ Done |
 | G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ⏳ Deferred |
 | G6 → G5 | Python | Pass `span_id` in `on_trace_start`, send `X-Genkit-Span-Id` | §8c.3, §8c.4 | ⬜ |
 | G3 | Python | Implement `simulate_constrained_generation` middleware | §8b.3, §8f | ⬜ |
@@ -1023,8 +1023,8 @@ export interface GenkitOptions {
 
 | Gap ID | SDK | Gap | Priority | Primary Files to Touch | Fast Validation |
 |--------|-----|-----|:--------:|------------------------|-----------------|
-| G1 | Python | `define_model(use=[...])` missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | unit: model registration accepts and stores `use` |
-| G2 | Python | Action-level middleware storage missing | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | unit: middleware chain wraps action execution |
+| G1 | Python | `define_model(use=[...])` ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | unit: model registration accepts and stores `use` |
+| G2 | Python | Action-level middleware storage ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | unit: middleware chain wraps action execution |
 | G3 | Python | `simulate_constrained_generation` missing | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | unit: constrained request on unsupported model rewrites prompt |
 | G4 | Python | `augment_with_context` lifecycle mismatch | P2 | `py/packages/genkit/src/genkit/blocks/generate.py`, `.../blocks/model.py` | parity test: same middleware ordering as JS |
 | G5 | Python | `X-Genkit-Span-Id` header missing | P1 | `py/packages/genkit/src/genkit/core/reflection.py` | integration: reflection response exposes span header |
@@ -1196,7 +1196,7 @@ Reverse topological sort of the gap DAG yields the following dependency levels. 
 
 | ID | Gap | Work Item | Files to Touch | Effort | Unblocks |
 |----|-----|-----------|----------------|:------:|----------|
-| **P1.1** | **G2** | Add `middleware` storage to `Action` class; implement `action_with_middleware()` wrapper that chains model-level middleware around `action.run()` | `core/action/_action.py` | L | G1, G12, G13, G15, G19 |
+| **P1.1** | **G2** | ~~Add `middleware` storage to `Action` class; implement `action_with_middleware()` wrapper that chains model-level middleware around `action.run()`~~ **Done** — `Action.__init__(middleware=...)`, `Action.middleware` property, `register_action(middleware=...)`, `define_model(use=[...])`, `dispatch()` chains model middleware after call-time middleware | `core/action/_action.py`, `core/registry.py`, `ai/_registry.py`, `blocks/generate.py` | L | ~~G1, G12, G13, G15, G19~~ |
 | **P1.2** | **G6** | Update `on_trace_start` callback signature to `(trace_id: str, span_id: str)` throughout action system | `core/action/_action.py`, `core/reflection.py`, `core/trace/` | S | G5 |
 | **P1.3** | **G18** | Add multipart tool support: `define_tool(multipart=True)`, `MultipartToolAction` type `tool.v2`, dual registration for non-multipart tools | `blocks/tools.py`, `blocks/generate.py` | M | — |
 | **P1.4** | **G20** | Add `context` parameter to `Genkit()` that sets `registry.context` for default action context | `ai/_aio.py` | XS | — |
@@ -1437,7 +1437,7 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 
 | PR | Scope | Gaps | Contents | Depends On |
 |----|:-----:|------|----------|:----------:|
-| **PR-1a** | Core | G2 | Add `middleware` list to `Action.__init__()`, implement `action_with_middleware()` dispatch wrapper, unit tests for middleware chaining | — |
+| **PR-1a** | Core | G2 | ~~Add `middleware` list to `Action.__init__()`, implement `action_with_middleware()` dispatch wrapper, unit tests for middleware chaining~~ **Done** — `Action(middleware=...)`, `Action.middleware`, `register_action(middleware=...)`, `define_model(use=[...])`, `dispatch()` chains model-level mw after call-time mw, 3 tests | — |
 | **PR-1b** | Core | G6 | Update `on_trace_start` callback signature to `(trace_id, span_id)` across action system + tracing, update all call sites | — |
 | **PR-1c** | Core | G18 | Multipart tool support: `define_tool(multipart=True)`, `tool.v2` action type, dual registration for non-multipart tools, unit tests | — |
 | **PR-1d** | Core | G20, G21 | `Genkit(context=..., client_header=...)` constructor params — small additive changes, can combine in one PR | — |
@@ -1448,7 +1448,7 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 
 | PR | Scope | Gaps | Contents | Depends On |
 |----|:-----:|------|----------|:----------:|
-| **PR-2a** | Core | G1 | Add `use` param to `define_model()`, wire to `action_with_middleware()`, build `get_model_middleware()` helper, tests | PR-1a |
+| **PR-2a** | Core | G1 | ~~Add `use` param to `define_model()`, wire to `action_with_middleware()`, build `get_model_middleware()` helper, tests~~ **Done** — merged with PR-1a (G2) | ~~PR-1a~~ |
 | **PR-2b** | Core | G5 | Emit `X-Genkit-Span-Id` response header in reflection server (small, ~20 lines) | PR-1b |
 | **PR-2c** | Core | G12 | `retry()` middleware — exponential backoff, jitter, configurable statuses, `on_error` callback, dedicated test suite | PR-1a |
 | **PR-2d** | Core | G13 | `fallback()` middleware — ordered model list, error status config, `on_error` callback, dedicated test suite | PR-1a |

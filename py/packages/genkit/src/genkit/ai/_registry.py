@@ -1008,6 +1008,7 @@ class GenkitRegistry:
         metadata: dict[str, object] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
+        use: list[ModelMiddleware] | None = None,
     ) -> Action:
         """Define a custom model action.
 
@@ -1018,6 +1019,10 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             info: Optional ModelInfo for the model.
             description: Optional description for the model.
+            use: Optional list of model-level middleware to apply when
+                this model is invoked. These run after call-time middleware
+                (passed via ``generate(use=[...])``) in the dispatch chain,
+                matching JS SDK's ``defineModel({use: [mw]})``.
         """
         # Build model options dict
         model_options: dict[str, object] = {}
@@ -1058,6 +1063,7 @@ class GenkitRegistry:
             fn=fn,
             metadata=model_meta,
             description=model_description,
+            middleware=use,
         )
 
     def define_background_model(

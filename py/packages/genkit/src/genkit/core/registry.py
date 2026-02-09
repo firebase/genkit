@@ -30,7 +30,7 @@ Example:
 import asyncio
 import threading
 from collections.abc import Awaitable, Callable
-from typing import cast
+from typing import Any, cast
 
 from dotpromptz.dotprompt import Dotprompt
 from pydantic import BaseModel
@@ -140,6 +140,7 @@ class Registry:
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
+        middleware: list[Any] | None = None,
     ) -> Action[InputT, OutputT, ChunkT]:
         """Register a new action with the registry.
 
@@ -155,6 +156,8 @@ class Registry:
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
+            middleware: Optional list of middleware functions to apply when
+                executing this action (e.g., model-level middleware).
 
         Returns:
             The newly created and registered Action instance.
@@ -167,6 +170,7 @@ class Registry:
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,
+            middleware=middleware,
         )
         action_typed = cast(Action[InputT, OutputT, ChunkT], action)
         with self._lock:
