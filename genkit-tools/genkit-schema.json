@@ -289,6 +289,10 @@
               "type": "null"
             }
           ]
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
         }
       },
       "required": [
