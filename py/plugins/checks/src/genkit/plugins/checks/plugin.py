@@ -152,7 +152,7 @@ class Checks(Plugin):
 
     Args:
         project_id: GCP project ID. Falls back to ``GCLOUD_PROJECT`` env var.
-        evaluation: Optional evaluation configuration with metrics.
+        credentials: Optional pre-configured Google credentials.
     """
 
     name = CHECKS_PLUGIN_NAME
