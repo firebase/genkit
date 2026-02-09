@@ -105,15 +105,14 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 	baseName, variant, _ := strings.Cut(name, ".")
 
 	promptMetadata := map[string]any{
-		"name":         baseName,
-		"description":  p.Description,
-		"model":        modelName,
-		"config":       p.Config,
-		"input":        map[string]any{"schema": p.InputSchema},
-		"output":       map[string]any{"schema": p.OutputSchema},
-		"defaultInput": p.DefaultInput,
-		"tools":        tools,
-		"maxTurns":     p.MaxTurns,
+		"name":        baseName,
+		"description": p.Description,
+		"model":       modelName,
+		"config":      p.Config,
+		"input":       map[string]any{"schema": p.InputSchema, "default": p.DefaultInput},
+		"output":      map[string]any{"schema": p.OutputSchema},
+		"tools":       tools,
+		"maxTurns":    p.MaxTurns,
 	}
 	if variant != "" {
 		promptMetadata["variant"] = variant
@@ -304,7 +303,9 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	// TODO: This is hacky; we should have a helper that fetches the metadata.
 	if input == nil {
-		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
+		if inputMeta, ok := p.Desc().Metadata["prompt"].(map[string]any)["input"].(map[string]any); ok {
+			input = inputMeta["default"]
+		}
 	}
 
 	return p.Run(ctx, input, nil)
