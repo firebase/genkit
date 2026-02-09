@@ -107,13 +107,19 @@ func (e *GenkitError) Unwrap() error {
 
 // ToReflectionError returns a JSON-serializable representation for reflection API responses.
 func (e *GenkitError) ToReflectionError() ReflectionError {
-	errDetails := &ReflectionErrorDetails{}
+	var errDetails *ReflectionErrorDetails
 	if e.Details != nil {
-		if stackVal, ok := e.Details["stack"].(string); ok {
-			errDetails.Stack = &stackVal
-		}
-		if traceVal, ok := e.Details["traceId"].(string); ok {
-			errDetails.TraceID = &traceVal
+		stackVal, stackOk := e.Details["stack"].(string)
+		traceVal, traceOk := e.Details["traceId"].(string)
+
+		if stackOk || traceOk {
+			errDetails = &ReflectionErrorDetails{}
+			if stackOk {
+				errDetails.Stack = &stackVal
+			}
+			if traceOk {
+				errDetails.TraceID = &traceVal
+			}
 		}
 	}
 	return ReflectionError{

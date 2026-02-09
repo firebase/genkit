@@ -157,8 +157,8 @@ func TestGenkitErrorToReflectionError(t *testing.T) {
 		if re.Message != "success" {
 			t.Errorf("Message = %q, want %q", re.Message, "success")
 		}
-		if re.Details.Stack != nil {
-			t.Error("expected nil stack")
+		if re.Details != nil {
+			t.Error("expected nil details")
 		}
 	})
 }
