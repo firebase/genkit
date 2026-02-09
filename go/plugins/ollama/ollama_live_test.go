@@ -102,7 +102,7 @@ func TestLiveDynamicDiscovery(t *testing.T) {
 
 	// Use a model that is NOT in the hardcoded lists via LookupModel,
 	// which triggers ResolveAction under the hood.
-	m := ollamaPlugin.Model(g, *dynamicModelName+":latest")
+	m := ollamaPlugin.Model(g, *dynamicModelName)
 	if m == nil {
 		t.Fatalf("Model(%q) returned nil — ResolveAction did not work", *dynamicModelName)
 	}
