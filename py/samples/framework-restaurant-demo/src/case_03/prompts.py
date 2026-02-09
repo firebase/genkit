@@ -16,8 +16,8 @@
 
 """Prompts for case 03."""
 
-from menu_ai import ai
-from menu_schemas import DataMenuQuestionInputSchema
+from src.menu_ai import ai
+from src.menu_schemas import DataMenuQuestionInputSchema
 
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 

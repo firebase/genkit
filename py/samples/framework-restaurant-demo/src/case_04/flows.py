@@ -21,8 +21,8 @@ import json
 import os
 import pathlib
 
-from menu_ai import ai
-from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
+from src.menu_ai import ai
+from src.menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from pydantic import BaseModel, Field
 
 from genkit.blocks.document import Document

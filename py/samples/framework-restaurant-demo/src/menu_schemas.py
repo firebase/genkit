@@ -17,7 +17,7 @@
 
 """Schemas for the menu AI sample."""
 
-from constants import DEFAULT_MENU_QUESTION, DEFAULT_MENU_TEXT
+from src.constants import DEFAULT_MENU_QUESTION, DEFAULT_MENU_TEXT
 from pydantic import BaseModel, Field
 
 

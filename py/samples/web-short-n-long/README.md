@@ -1,109 +1,144 @@
-# Short-n-long
+# Short-Lived vs Long-Running Deployment
 
-An example demonstrating running flows as both a short-lived application and a
-server.
+The same `@ai.flow()` functions can be deployed in two fundamentally different ways.
 
-### Monitoring and Running
+## What This Demonstrates
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+**Core Concept**: Two execution modes for Genkit flows
 
+1. **Short-lived** (CLI/batch): Run once and exit
+2. **Long-running** (HTTP server): Start a server that handles requests forever
+
+## Use Cases
+
+### Short-Lived Mode
+- **CLI tools**: `python script.py --user Alice`
+- **Cron jobs**: Run every night at midnight
+- **Batch processing**: Process a file and exit
+- **Serverless functions**: AWS Lambda, Cloud Functions (one invocation per container start)
+
+### Long-Running Mode
+- **REST APIs**: Public-facing HTTP service
+- **Cloud Run / App Engine**: Container stays up
+- **Kubernetes pods**: Long-running replicas
+- **Development**: Keep server running, test with `curl`
+
+## Running the Sample
+
+### Short-lived mode (run once and exit)
 ```bash
-./run.sh
+cd py/samples/web-short-n-long
+export GEMINI_API_KEY=your-key-here
+uv run python src/main.py
 ```
 
-This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
-
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
-
-## Setup environment
-
-### How to Get Your Gemini API Key
-
-To use the Google GenAI plugin, you need a Gemini API key.
-
-1.  **Visit AI Studio**: Go to [Google AI Studio](https://aistudio.google.com/).
-2.  **Create API Key**: Click on "Get API key" and create a key in a new or existing Google Cloud project.
-
-For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
-
-Export the API key as env variable `GEMINI_API_KEY` in your shell configuration.
-
-```bash
-export GEMINI_API_KEY='<Your api key>'
+Output:
+```
+Running in short-lived mode...
+Result: Hello, World! 🌍 ...
+Exiting.
 ```
 
-## Run the sample
-
-To start the short-lived application normally.
-
+### Long-running mode (HTTP server)
 ```bash
-uv run src/main.py
+uv run python src/main.py --server --port 3400
 ```
 
-To start the short-lived application in dev mode:
-
+Then test with:
 ```bash
-genkit start -- uv run src/main.py
+curl -X POST 'http://localhost:3400//flow/greet' \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"name": "Alice"}}'
 ```
 
-To start as a server normally:
-
-```bash
-uv run src/main.py --server
+Response:
+```json
+{"result": "Hello, Alice! I hope you're having a wonderful day!"}
 ```
 
-To start as a server in dev mode:
+## Key Code
 
-```bash
-genkit start -- uv run src/main.py --server
+The same flow works in both modes:
+
+```python
+@ai.flow()
+async def greet(input: GreetingInput) -> str:
+    """Generate a friendly greeting."""
+    resp = await ai.generate(prompt=f"Say a friendly hello to {input.name}")
+    return resp.text
+
+
+# Short mode: Call directly
+async def run_once():
+    result = await greet(GreetingInput(name="World"))
+    print(result)
+
+
+# Server mode: Expose as HTTP
+async def run_server(port: int):
+    app = create_flows_asgi_app(registry=ai.registry)
+    config = uvicorn.Config(app, host='localhost', port=port)
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+# Select mode based on CLI flag
+if args.server:
+    ai.run_main(run_server(args.port))
+else:
+    ai.run_main(run_once())
 ```
 
-## Running with a specific version of Python
+## Architecture Comparison
 
-```bash
-genkit start -- uv run --python python3.10 src/main.py
+### Short-Lived
+```
+┌─────────────────────┐
+│   CLI invocation    │
+│  python main.py     │
+└──────────┬──────────┘
+           │
+           ▼
+      Run flow once
+           │
+           ▼
+       Print result
+           │
+           ▼
+         Exit (0)
 ```
 
-## Testing This Demo
+### Long-Running
+```
+┌─────────────────────┐
+│   HTTP Request      │
+│ POST //flow/greet   │
+└──────────┬──────────┘
+           │
+           ▼
+    ┌────────────┐
+    │   Server   │  ← Always running
+    │  :3400     │
+    └─────┬──────┘
+          │
+          ▼
+      Run flow
+          │
+          ▼
+    JSON response
+```
 
-1. **Prerequisites**:
-   ```bash
-   export GEMINI_API_KEY=your_api_key
-   ```
+## When to Use Each Mode
 
-2. **Run the server** (two modes):
-   ```bash
-   cd py/samples/web-short-n-long
+| Factor | Short-Lived | Long-Running |
+|--------|-------------|--------------|
+| **Invocation** | One-time task | Continuous requests |
+| **Cost** | Pay per execution | Pay for uptime |
+| **Startup** | Cold start every time | Warm (already running) |
+| **State** | No state between runs | Can maintain state |
+| **Examples** | Lambda, cron | Cloud Run, K8s |
 
-   # Short mode (development with DevUI)
-   ./run.sh
+## Related Samples
 
-   # Long mode (production server)
-   uv run python src/main.py --mode=long
-   ```
-
-3. **Test the API directly**:
-   ```bash
-   # Call a flow via HTTP
-   curl -X POST http://localhost:8000/say_hi \\
-     -H "Content-Type: application/json" \\
-     -d '{"name": "World"}'
-   ```
-
-4. **Open DevUI** (short mode) at http://localhost:4000
-
-5. **Test the flows**:
-   - [ ] `say_hi` - Simple generation
-   - [ ] `say_hi_stream` - Streaming response
-   - [ ] `simple_generate_with_tools_flow` - Tool calling
-   - [ ] `generate_character` - Structured output
-
-6. **Expected behavior**:
-   - Server starts and accepts HTTP requests
-   - Lifecycle hooks run on startup/shutdown
-   - All flows work via HTTP API
-   - Proper graceful shutdown on SIGTERM
+- [`web-multi-server`](../web-multi-server) - Run multiple servers in parallel
+- [`web-flask-hello`](../web-flask-hello) - Flask integration

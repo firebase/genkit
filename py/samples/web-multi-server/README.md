@@ -1,71 +1,101 @@
-# Genkit multi-server sample
+# Multi-Server Pattern
 
-This sample shows how to run multiple servers using the Genkit Web server
-manager.
+Run multiple ASGI applications concurrently on different ports, all managed by `ServerManager`.
 
-### Monitoring and Running
+## What This Demonstrates
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+**Core Concept**: Multiple independent HTTP servers in one process
+- Each server runs on its own port
+- Coordinated startup and shutdown
+- Graceful SIGTERM/SIGINT handling
 
-```bash
-./run.sh
-```
+## Use Cases
 
-This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
+1. **Public + Admin APIs**: Expose different endpoints on different ports
+   - Public API on :3400 → External users
+   - Admin API on :3401 → Internal dashboards
 
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+2. **HTTP + gRPC**: Run both protocols side-by-side
+   - HTTP REST on :8080
+   - gRPC on :50051
 
-## Output
+3. **Microservices in One Container**: Multiple services, one deployment
+   - Users service on :3400
+   - Orders service on :3401
+   - Payments service on :3402
 
-```text
-2025-03-15 18:06:09 [debug    ] ✅ Event loop is using uvloop (recommended️)
-2025-03-15 18:06:09 [info     ] Starting servers...
-2025-03-15 18:06:09 [info     ] Registering server             name=flows ports=range(3400, 3410)
-2025-03-15 18:06:09 [info     ] Registering server             name=hello ports=[3300]
-2025-03-15 18:06:09 [info     ] Registering server             name=reflection ports=[3100]
-2025-03-15 18:06:09 [info     ] Registering server             name=reflection-starlette ports=[3200]
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info) host=localhost port=3400
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info) host=localhost port=3400
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info) host=localhost port=3300
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info) host=localhost port=3300
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info) host=localhost port=3100
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info) host=localhost port=3100
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info) host=localhost port=3200
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info) host=localhost port=3200
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Starting servers completed
-```
-
-## Stopping the sample
-
-Lookup the process ID from [/\_\_serverz](http://localhost:3400/__serverz)
+## Running the Sample
 
 ```bash
-# SIGTERM
-kill -15 ${PROCESS_ID}
+cd py/samples/web-multi-server
+uv run python src/main.py
 ```
 
-## Testing This Demo
+## Testing
 
-1. **Run the demo**:
-   ```bash
-   cd py/samples/web-multi-server
-   ./run.sh
-   ```
+```bash
+# Public API (Port 3400)
+curl http://localhost:3400/api/hello
+curl http://localhost:3400/api/status
 
-2. **Test the servers**:
-   - [ ] Main API server at http://localhost:8000
-   - [ ] Health check endpoint at /health
-   - [ ] Server info endpoint at /info
+# Admin API (Port 3401)
+curl http://localhost:3401/admin/metrics
+curl http://localhost:3401/admin/config
+```
 
-3. **Expected behavior**:
-   - Multiple servers start and run concurrently
-   - Graceful shutdown handles all servers
-   - Middleware and logging work across servers
+## Architecture
+
+```
+┌────────────────────────────────────────────┐
+│           ServerManager                    │
+│  (coordinates lifecycle + shutdown)        │
+└────────────────────────────────────────────┘
+         │              │
+         ▼              ▼
+    ┌─────────┐    ┌─────────┐
+    │ Public  │    │ Admin   │
+    │ :3400   │    │ :3401   │
+    └─────────┘    └─────────┘
+```
+
+All servers:
+- Start together
+- Stop together on Ctrl+C
+- Automatic port fallback (e.g., if 3400 is busy, tries 3401-3409)
+
+## Key Code
+
+The pattern requires:
+
+1. **Lifecycle class** (implements `AbstractBaseServer`)
+2. **ServerConfig** with name, ports, host
+3. **ServerManager** to coordinate everything
+
+```python
+servers = [
+    Server(
+        config=ServerConfig(name='public', port=3400, ports=range(3400, 3410)),
+        lifecycle=PublicServerLifecycle(),
+        adapter=UvicornAdapter(),
+    ),
+    Server(
+        config=ServerConfig(name='admin', port=3401, ports=range(3401, 3411)),
+        lifecycle=AdminServerLifecycle(),
+        adapter=UvicornAdapter(),
+    ),
+]
+
+manager = ServerManager()
+await manager.run_all(servers)  # Blocks until SIGTERM
+```
+
+## When NOT to Use This
+
+- **Simple single API**: Just use `create_flows_asgi_app()` (see `web-short-n-long`)
+- **Need inter-process isolation**: Use separate containers instead
+- **Different scaling needs**: Use Kubernetes services instead
+
+## Related Samples
+
+- [`web-short-n-long`](../web-short-n-long) - Single server deployment patterns
+- [`web-flask-hello`](../web-flask-hello) - Flask integration

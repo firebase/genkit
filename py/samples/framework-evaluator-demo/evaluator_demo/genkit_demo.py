@@ -54,7 +54,7 @@ ai = Genkit(plugins=[GoogleAI()])
 define_dev_local_vector_store(
     ai,
     name='pdf_qa',
-    embedder='googleai/text-embedding-004',
+    embedder='googleai/gemini-embedding-001',
 )
 
 define_genkit_evaluators(
