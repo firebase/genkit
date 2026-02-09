@@ -505,7 +505,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G30 | Python | Add Cloud SQL PG vector store parity | §5g | ⬜ |
 | G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | ⏳ Deferred |
 | G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⏳ Deferred |
-| G17 | Python | Add built-in `api_key()` context provider | §8g | ⬜ |
+| G17 | Python | Add built-in `api_key()` context provider | §8g | 🔄 PR #4521 |
 | G33 | Python | Consider LangChain integration parity | §1c/§9 | ⬜ |
 | G34 | Python | Track BloomLabs vector stores (Convex, HNSW, Milvus) | §6b/§9 | ⬜ |
 | G35 | Python | Add Groq provider (or document compat-oai usage) | §1d/§6b | ⬜ |
@@ -1017,8 +1017,8 @@ export function simulateSystemPrompt(options?: {
 | Feature | JS | Python | Gap |
 |---------|:--:|:------:|:---:|
 | `ContextProvider` type | ✅ `core/context.ts` | ✅ `core/context.py` | ✅ Parity |
-| `RequestData` type | ✅ `{method, headers, input}` | ⚠️ `{request, metadata}` | **Shape differs** (see below) |
-| `apiKey()` helper | ✅ Built-in context provider | ❌ Not implemented | **G17** |
+| `RequestData` type | ✅ `{method, headers, input}` | ✅ `{request, method, headers, input, metadata}` | ✅ Parity (PR #4521) |
+| `apiKey()` helper | ✅ Built-in context provider | ✅ `api_key()` in `core/context.py` | ✅ Parity (PR #4521) |
 | `runWithContext()` | ✅ | ✅ (via action context propagation) | ✅ |
 | `getContext()` | ✅ | ✅ `current_context()` | ✅ |
 
@@ -1043,20 +1043,24 @@ class RequestData(Generic[T]):
 
 The Python `RequestData` is simpler — it wraps the raw request object and optional metadata (currently just `trace_id`). The JS version carries parsed HTTP method and headers, enabling more sophisticated context providers like `apiKey()`. This is a deliberate design difference (Python relies on the web framework's own request object), but it means `apiKey()` can't be ported directly without adjusting the `RequestData` shape or accepting the framework's request type.
 
-#### G17: `apiKey()` Context Provider
+#### G17: `apiKey()` Context Provider — ✅ Implemented (PR #4521)
 
-**JS** (`core/context.ts:89-118`):
-```ts
-export function apiKey(
-  valueOrPolicy?: ((context: ApiKeyContext) => void | Promise<void>) | string
-): ContextProvider<ApiKeyContext> {
-  // Extracts API key from Authorization header
-  // Validates against expected value or custom policy
-  // Returns UserFacingError for auth failures
-}
+**Python** (`core/context.py`):
+```python
+from genkit import api_key, ApiKeyContext
+
+# Three modes matching JS parity:
+ai = Genkit(context=[api_key()])                 # Pass-through
+ai = Genkit(context=[api_key('secret')])         # Exact match
+ai = Genkit(context=[api_key(my_validator)])      # Custom policy
 ```
 
-**Impact**: Low. Python web frameworks (Flask, FastAPI, Starlette) have their own mature authentication middleware. This is more of a convenience gap than a functional one.
+> **Note**: `api_key()` protects *incoming* HTTP requests to deployed flows
+> (reads the `Authorization` header). This is unrelated to the per-request
+> `config.apiKey` in `GenerationCommonConfig`, which overrides the *outbound*
+> provider API key for model calls.
+
+**Status**: Complete. 17 tests. `RequestData` updated with `method`, `headers`, `input` fields (backward-compatible with Flask plugin subclass).
 
 ### 8h. Multipart Tool Support
 
@@ -1195,7 +1199,7 @@ export interface GenkitOptions {
 | G14 | Python | `validate_support` middleware ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
 | G15 | Python | `download_request_media` middleware ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
 | G16 | Python | `simulate_system_prompt` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
-| G17 | Python | `api_key()` context provider missing | P3 | `py/packages/genkit/src/genkit/core/context.py` | ⬜ |
+| G17 | Python | `api_key()` context provider ~~missing~~ **done** | P3 | `py/packages/genkit/src/genkit/core/context.py` | 🔄 PR #4521 |
 | G18 | Python | multipart tool (`tool.v2`) ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/tools.py`, `.../blocks/generate.py` | 🔄 PR #4513 |
 | G19 | Python | Model API V2 runner interface missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py`, `.../blocks/model.py` | ⬜ |
 | G20 | Python | `Genkit(context=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py` | 🔄 PR #4512 |
@@ -1585,7 +1589,7 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 | **PR-0a** → **#4507 + #4508** | Compliance | G11 | Add `CHANGELOG.md` to all 20 plugins + core package (21 files) | ✅ Merged |
 | **PR-0b** | Sample | — | Run all `py/samples/*/run.sh`, fix any broken samples | ✅ Done (via #4488, #4503) |
 | **PR-0c** → included in **#4512** | Core | G22 | `Genkit(name=...)` constructor param → `ReflectionServer` display name | 🔄 PR open |
-| **PR-0d** | Core | G17 | `api_key()` context provider in `core/context.py` + tests | ⬜ Not started |
+| **PR-0d** → **#4521** | Core | G17 | `api_key()` context provider in `core/context.py` + tests | 🔄 PR open |
 | **PR-0e** | Plugin | G35 | Groq provider — thin `compat-oai` wrapper plugin + tests + docs | ⬜ Not started |
 | **PR-0f** | Plugin | G36 | Cohere provider — thin `compat-oai` wrapper plugin + tests + docs | ⬜ Not started |
 | **PR-0g** → **#4509** | Plugin | — | Test coverage uplift across all 19 plugins | ✅ Merged |
