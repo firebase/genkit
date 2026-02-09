@@ -77,15 +77,18 @@ export async function loadDocs(): Promise<Record<string, Doc>> {
   ) as Record<string, Doc>;
 }
 
+const STOP_WORDS = new Set(['and', 'the', 'for']);
+
+function filterCommonWords(term: string) {
+  return term.length > 2 && !STOP_WORDS.has(term);
+}
+
 export function searchDocs(
   documents: Record<string, Doc>,
   query: string,
   lang: string
 ) {
-  const terms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 2); // Filter out short words to reduce noise
+  const terms = query.toLowerCase().split(/\s+/).filter(filterCommonWords);
 
   const TITLE_SCORE = 10;
   const DESC_SCORE = 5;
