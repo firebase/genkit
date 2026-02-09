@@ -40,7 +40,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "anthropic>=0.40.0"]
-description = "Genkit Anthropic Plugin"
+description = "Genkit Anthropic Plugin (Community)"
 keywords = [
   "genkit",
   "ai",

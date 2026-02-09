@@ -48,7 +48,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.20.0",
   "structlog>=23.0.0",
 ]
-description = "Genkit Cloudflare Workers AI Plugin (models, embedders, and OTLP telemetry)"
+description = "Genkit Cloudflare Workers AI Plugin (Community)"
 keywords = [
   "genkit",
   "ai",

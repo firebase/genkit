@@ -19,10 +19,26 @@ This sample exercises the following Genkit + Cohere capabilities:
 | Multi-turn chat (manual)        | `chat_flow`                   |
 | Embeddings                      | `embed_flow`                  |
 
+## How to Get Your Cohere API Key
+
+A Cohere API key is required to access Cohere's models.
+
+**Steps:**
+1. **Sign Up/Login**: Go to [dashboard.cohere.com](https://dashboard.cohere.com/) and create an account
+2. **Navigate to API Keys**: Click on [API Keys](https://dashboard.cohere.com/api-keys) in the dashboard
+3. **Copy Key**: Copy your default trial key, or create a new production key
+4. **Add Payment (if needed)**: The trial key has rate limits — add a payment method for production use
+
+For more details, see the [Cohere documentation](https://docs.cohere.com/).
+
 ## Prerequisites
 
-1. A Cohere API key — get one from https://dashboard.cohere.com/api-keys
-2. Set the `COHERE_API_KEY` environment variable
+1. A Cohere API key (see above)
+2. Set the `COHERE_API_KEY` environment variable:
+
+```bash
+export COHERE_API_KEY=your-api-key
+```
 
 ## Running
 

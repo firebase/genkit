@@ -1,4 +1,7 @@
-# Genkit Microsoft Foundry Plugin
+# Genkit Microsoft Foundry Plugin (Community)
+
+> **Community Plugin** — This plugin is community-maintained and is not an
+> official Google or Microsoft product. It is provided on an "as-is" basis.
 
 `genkit-plugin-microsoft-foundry` is a plugin for using Microsoft Foundry models with [Genkit](https://github.com/firebase/genkit).
 

@@ -60,7 +60,7 @@ check_env_var() {
         local display_val="${current_val}"
         
         # Simple masking for keys
-        if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* ]]; then
+        if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* || "$var_name" == *"TOKEN"* ]]; then
             if [[ -n "$current_val" ]]; then
                display_val="******"
             fi
