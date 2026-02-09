@@ -7,7 +7,6 @@
 
 from genkit.core.constants import (
     GENKIT_CLIENT_HEADER,
-    _client_header_lock,
     get_client_header,
     set_client_header,
 )
@@ -15,12 +14,7 @@ from genkit.core.constants import (
 
 def test_get_client_header_default() -> None:
     """get_client_header returns the base header when no additional attribution is set."""
-    # Reset state for isolation
-    import genkit.core.constants as _mod
-
-    with _client_header_lock:
-        original = _mod._additional_client_header
-        _mod._additional_client_header = None
+    set_client_header(None)
 
     try:
         got = get_client_header()
@@ -28,16 +22,12 @@ def test_get_client_header_default() -> None:
             msg = f'get_client_header() = {got!r}, want {GENKIT_CLIENT_HEADER!r}'
             raise AssertionError(msg)
     finally:
-        with _client_header_lock:
-            _mod._additional_client_header = original
+        set_client_header(None)
 
 
 def test_set_and_get_client_header() -> None:
     """set_client_header appends attribution; get_client_header returns the combined value."""
-    import genkit.core.constants as _mod
-
-    with _client_header_lock:
-        original = _mod._additional_client_header
+    set_client_header(None)
 
     try:
         set_client_header('my-app/1.0')
@@ -47,16 +37,12 @@ def test_set_and_get_client_header() -> None:
             msg = f'get_client_header() = {got!r}, want {want!r}'
             raise AssertionError(msg)
     finally:
-        with _client_header_lock:
-            _mod._additional_client_header = original
+        set_client_header(None)
 
 
 def test_set_client_header_overwrites() -> None:
     """Calling set_client_header again replaces the previous value."""
-    import genkit.core.constants as _mod
-
-    with _client_header_lock:
-        original = _mod._additional_client_header
+    set_client_header(None)
 
     try:
         set_client_header('first')
@@ -67,5 +53,14 @@ def test_set_client_header_overwrites() -> None:
             msg = f'get_client_header() = {got!r}, want {want!r}'
             raise AssertionError(msg)
     finally:
-        with _client_header_lock:
-            _mod._additional_client_header = original
+        set_client_header(None)
+
+
+def test_set_client_header_reset_with_none() -> None:
+    """Passing None to set_client_header resets to default."""
+    set_client_header('some-value')
+    set_client_header(None)
+    got = get_client_header()
+    if got != GENKIT_CLIENT_HEADER:
+        msg = f'get_client_header() = {got!r}, want {GENKIT_CLIENT_HEADER!r}'
+        raise AssertionError(msg)

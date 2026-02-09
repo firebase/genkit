@@ -243,9 +243,7 @@ async def test_genkit_name_default_is_none() -> None:
 @pytest.mark.asyncio
 async def test_genkit_client_header_parameter() -> None:
     """Genkit(client_header=...) calls set_client_header for API attribution."""
-    # Save and restore global state
-    with _constants._client_header_lock:
-        original = _constants._additional_client_header
+    _constants.set_client_header(None)
 
     try:
         _ = Genkit(client_header='firebase-functions/1.0')
@@ -256,15 +254,13 @@ async def test_genkit_client_header_parameter() -> None:
             msg = f'get_client_header() = {got!r}, want {want!r}'
             raise AssertionError(msg)
     finally:
-        with _constants._client_header_lock:
-            _constants._additional_client_header = original
+        _constants.set_client_header(None)
 
 
 @pytest.mark.asyncio
 async def test_genkit_all_constructor_params() -> None:
     """All three new constructor parameters can be used together."""
-    with _constants._client_header_lock:
-        original = _constants._additional_client_header
+    _constants.set_client_header(None)
 
     try:
         ctx: dict[str, object] = {'env': 'production'}
@@ -287,5 +283,4 @@ async def test_genkit_all_constructor_params() -> None:
             msg = f'get_client_header() = {got!r}, want {want!r}'
             raise AssertionError(msg)
     finally:
-        with _constants._client_header_lock:
-            _constants._additional_client_header = original
+        _constants.set_client_header(None)

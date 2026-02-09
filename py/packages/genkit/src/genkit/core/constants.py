@@ -58,14 +58,15 @@ def get_client_header() -> str:
         return GENKIT_CLIENT_HEADER
 
 
-def set_client_header(header: str) -> None:
-    """Set additional attribution information for the ``x-goog-api-client`` header.
+def set_client_header(header: str | None) -> None:
+    """Set or reset additional attribution for the ``x-goog-api-client`` header.
 
-    This is typically called by the ``Genkit`` constructor when a
-    ``client_header`` is provided, mirroring the JS SDK's ``setClientHeader()``.
+    Passing a string appends it to the base header. Passing ``None`` removes
+    any additional attribution. This is typically called by the ``Genkit``
+    constructor, mirroring the JS SDK's ``setClientHeader()``.
 
     Args:
-        header: Additional attribution string to append to the base header.
+        header: Additional attribution string or ``None`` to reset.
     """
     global _additional_client_header  # noqa: PLW0603
     with _client_header_lock:
