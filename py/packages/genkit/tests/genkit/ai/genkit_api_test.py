@@ -13,6 +13,7 @@ import pytest
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
+import genkit.core.constants as _constants
 from genkit.ai import Genkit
 from genkit.ai._registry import SimpleRetrieverOptions
 from genkit.core.action import Action
@@ -196,3 +197,90 @@ async def test_flush_tracing() -> None:
     with mock.patch.object(trace_api, 'get_tracer_provider', return_value=mock_provider):
         await ai.flush_tracing()
         mock_provider.force_flush.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_genkit_context_parameter() -> None:
+    """Genkit(context=...) sets registry.context, matching JS SDK parity."""
+    ctx: dict[str, object] = {'auth': {'uid': 'user-123'}, 'tenant': 'acme'}
+    ai = Genkit(context=ctx)
+
+    if ai.registry.context != ctx:
+        msg = f'registry.context = {ai.registry.context!r}, want {ctx!r}'
+        raise AssertionError(msg)
+
+
+@pytest.mark.asyncio
+async def test_genkit_context_default_is_none() -> None:
+    """registry.context defaults to None when not provided."""
+    ai = Genkit()
+
+    if ai.registry.context is not None:
+        msg = f'registry.context = {ai.registry.context!r}, want None'
+        raise AssertionError(msg)
+
+
+@pytest.mark.asyncio
+async def test_genkit_name_parameter() -> None:
+    """Genkit(name=...) sets registry.name for developer tooling identification."""
+    ai = Genkit(name='my-awesome-app')
+
+    if ai.registry.name != 'my-awesome-app':
+        msg = f'registry.name = {ai.registry.name!r}, want "my-awesome-app"'
+        raise AssertionError(msg)
+
+
+@pytest.mark.asyncio
+async def test_genkit_name_default_is_none() -> None:
+    """registry.name defaults to None when not provided."""
+    ai = Genkit()
+
+    if ai.registry.name is not None:
+        msg = f'registry.name = {ai.registry.name!r}, want None'
+        raise AssertionError(msg)
+
+
+@pytest.mark.asyncio
+async def test_genkit_client_header_parameter() -> None:
+    """Genkit(client_header=...) calls set_client_header for API attribution."""
+    _constants.set_client_header(None)
+
+    try:
+        _ = Genkit(client_header='firebase-functions/1.0')
+
+        got = _constants.get_client_header()
+        want = f'{_constants.GENKIT_CLIENT_HEADER} firebase-functions/1.0'
+        if got != want:
+            msg = f'get_client_header() = {got!r}, want {want!r}'
+            raise AssertionError(msg)
+    finally:
+        _constants.set_client_header(None)
+
+
+@pytest.mark.asyncio
+async def test_genkit_all_constructor_params() -> None:
+    """All three new constructor parameters can be used together."""
+    _constants.set_client_header(None)
+
+    try:
+        ctx: dict[str, object] = {'env': 'production'}
+        ai = Genkit(
+            context=ctx,
+            name='combined-test',
+            client_header='combined/2.0',
+        )
+
+        if ai.registry.context != ctx:
+            msg = f'registry.context = {ai.registry.context!r}, want {ctx!r}'
+            raise AssertionError(msg)
+        if ai.registry.name != 'combined-test':
+            msg = f'registry.name = {ai.registry.name!r}, want "combined-test"'
+            raise AssertionError(msg)
+
+        got = _constants.get_client_header()
+        want = f'{_constants.GENKIT_CLIENT_HEADER} combined/2.0'
+        if got != want:
+            msg = f'get_client_header() = {got!r}, want {want!r}'
+            raise AssertionError(msg)
+    finally:
+        _constants.set_client_header(None)

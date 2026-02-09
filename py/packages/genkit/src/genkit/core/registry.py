@@ -101,6 +101,11 @@ class Registry:
     Attributes:
         entries: A nested dictionary mapping ActionKind to a dictionary of
             action names and their corresponding Action instances.
+        context: Optional default context data for flows and tools. Set by the
+            ``Genkit`` constructor and made available to actions via
+            ``ActionRunContext``. Mirrors JS's ``registry.context``.
+        name: Optional display name shown in developer tooling (e.g., Genkit
+            Dev UI). Written to the runtime file for identification.
     """
 
     default_model: str | None = None
@@ -112,6 +117,12 @@ class Registry:
         self._schemas_by_name: dict[str, dict[str, object]] = {}
         self._schema_types_by_name: dict[str, type[BaseModel]] = {}
         self._lock: threading.RLock = threading.RLock()
+
+        # Default context for flows and tools (set by Genkit constructor).
+        self.context: dict[str, object] | None = None
+
+        # Display name for developer tooling (set by Genkit constructor).
+        self.name: str | None = None
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
         self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)

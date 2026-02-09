@@ -51,6 +51,8 @@ class GenkitBase(GenkitRegistry):
         plugins: list[Plugin] | None = None,
         model: str | None = None,
         reflection_server_spec: ServerSpec | None = None,
+        context: dict[str, object] | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -59,9 +61,19 @@ class GenkitBase(GenkitRegistry):
             model: Model name to use.
             reflection_server_spec: Server spec for the reflection
                 server. If not provided in dev mode, a default will be used.
+            context: Optional default context data for flows and tools.
+                Made available via ``ActionRunContext``. Mirrors JS's
+                ``GenkitOptions.context``.
+            name: Optional display name shown in developer tooling (e.g.,
+                Genkit Dev UI runtime file). Mirrors JS's
+                ``GenkitOptions.name``.
         """
         super().__init__()
         self._reflection_server_spec: ServerSpec | None = reflection_server_spec
+        if context is not None:
+            self.registry.context = context
+        if name is not None:
+            self.registry.name = name
         self._initialize_registry(model, plugins)
         # Ensure the default generate action is registered for async usage.
         define_generate_action(self.registry)
@@ -163,7 +175,7 @@ class GenkitBase(GenkitRegistry):
 
             try:
                 # Use lazy_write=True to prevent race condition where file exists before server is up
-                async with RuntimeManager(server_spec, lazy_write=True) as runtime_manager:
+                async with RuntimeManager(server_spec, lazy_write=True, name=self.registry.name) as runtime_manager:
                     # We use anyio.TaskGroup because it is compatible with
                     # asyncio's event loop and works with Python 3.10
                     # (asyncio.TaskGroup was added in 3.11, and we can switch to
