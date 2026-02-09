@@ -1622,11 +1622,12 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 
 | PR | Scope | Description | Status |
 |----|:-----:|-------------|:------:|
+| **#4520** | Plugin | Extract converters, add tests, community labeling | ✅ Merged |
 | **#4519** | Core | Fix `arun_raw(None)` input validation error | 🔄 PR open |
-| **#4518** | Plugin | Cohere AI provider plugin (chat + embeddings) | 🔄 PR open |
+| **#4518** | Plugin | Cohere AI provider plugin (chat + embeddings) | ✅ Merged |
 | **#4514** | Core | `Transfer-Encoding: chunked` on standard action responses | ✅ Merged |
 | **#4504** | Plugin | Google Checks AI Safety plugin + sample | 🔄 PR open |
-| **#4495** | Core | Prevent infinite recursion in `create_prompt_from_file()` | 🔄 PR open |
+| **#4495** | Core | Prevent infinite recursion in `create_prompt_from_file()` | ✅ Merged |
 | **#4494** | Core | `dropped_*` property overrides on `RedactedSpan` | ✅ Merged |
 | **#4401** | Core | Reflection API v2 (WebSocket + JSON-RPC 2.0) | 🔄 PR open |
 
@@ -1640,23 +1641,24 @@ MERGED
 #4509 (plugin test coverage) ────────── ✅ Done
 #4514 (Transfer-Encoding fix) ────────── ✅ Done
 #4494 (RedactedSpan fix) ─────────────── ✅ Done
+#4495 (Prompt recursion fix) ─────────── ✅ Done
+#4518 (Cohere plugin) ────────────────── ✅ Done
+#4520 (Converter extraction + tests) ── ✅ Done
 
 INDEPENDENT (merge in any order)
 ════════════════════════════════
-#4518 (Cohere plugin)            ─── new plugin, no conflicts
 #4504 (Checks plugin)            ─── new plugin, no conflicts
 #4510 (MW functions)             ─── blocks/middleware.py only
-#4495 (Prompt recursion fix)     ─── core/registry.py overlap
 
 LAYER 2 (after Layer 1)
 ═══════════════════════
-#4401 (Reflection v2)            ─── rebase onto #4514
+#4401 (Reflection v2)            ─── rebase onto #4514 (merged)
 #4513 (Multipart tools)          ─── independent of #4401
 
 LAYER 3 (last)
 ══════════════
-#4512 (Constructor parity)       ─── rebase onto #4401 + #4495
-#4516 (MW storage + sample)      ─── rebase onto #4513 + #4495 + #4512
+#4512 (Constructor parity)       ─── rebase onto #4401 + #4495 (merged)
+#4516 (MW storage + sample)      ─── rebase onto #4513 + #4512
 ```
 
 #### PR Summary
@@ -1667,8 +1669,8 @@ LAYER 3 (last)
 | 1 | 4 (#4511, #4512, #4513, #4516) | 1 merged, 3 open |
 | 2 | 3 (#4510, +2 not started) | 1 open, 2 not started |
 | 3 | 2 (not started) | ⬜ |
-| Other fixes | 4 (#4401, #4495, #4514, #4519) | 2 open, 2 merged |
-| Plugin | 2 (#4504 Checks, #4518 Cohere) | Open |
+| Other fixes | 4 (#4401, #4495, #4514, #4519) | 1 open, 3 merged |
+| Plugin | 3 (#4504 Checks, #4518 Cohere, #4520 Converters) | 1 open, 2 merged |
 
 #### Immediate PR Manifest — Original Branch Split (Completed)
 
@@ -1688,11 +1690,11 @@ LAYER 3 (last)
 | Metric | Value |
 |--------|-------|
 | Total Python gaps | 31 (G1–G22, G30–G31, G33–G38) |
-| **Done (merged to main)** | **5** — G5, G6, G11 (+ plugin test coverage, #4514, #4494) |
+| **Done (merged to main)** | **5** — G5, G6, G11 (+ plugin test coverage, #4514, #4494, #4495, #4518, #4520) |
 | **In review (PRs open)** | **17** — G1, G2, G3, G12–G16, G18, G20–G22 |
 | **Not started** | **12** — G4, G7–G10, G17, G19, G30–G31, G33–G38 |
 | Deferred | 5 items (G7, G8, G31, G33–G37) |
-| Open PRs | 8 (#4401, #4495, #4504, #4510, #4512, #4513, #4516, #4518, #4519) |
-| Recently merged | #4494 (RedactedSpan fix), #4514 (Transfer-Encoding fix) |
+| Open PRs | 6 (#4401, #4504, #4510, #4512, #4513, #4516, #4519) |
+| Recently merged | #4495, #4518, #4520 (+ earlier: #4494, #4514) |
 | Critical path remaining | G1/G2 (PR #4516) → G38 → G4 |
 | Plugins needing test uplift | ~~13~~ improved via PR #4509 (merged) |
