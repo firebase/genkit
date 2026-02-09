@@ -575,13 +575,17 @@ class GenkitRegistry:
             if multipart:
                 tool_metadata['tool'] = {'multipart': True}
 
+            common_params = {
+                'name': tool_name,
+                'description': tool_description,
+                'metadata_fn': func,
+            }
+
             action = self.registry.register_action(
-                name=tool_name,
                 kind=tool_kind,
-                description=tool_description,
                 fn=tool_fn_wrapper,
-                metadata_fn=func,
                 metadata=tool_metadata,
+                **common_params,
             )
 
             # For non-multipart tools, also register a tool.v2 wrapper that
@@ -596,12 +600,10 @@ class GenkitRegistry:
                     return {'output': result}
 
                 self.registry.register_action(
-                    name=tool_name,
                     kind=cast(ActionKind, ActionKind.TOOL_V2),
-                    description=tool_description,
                     fn=v2_wrapper_fn,
-                    metadata_fn=func,
                     metadata={'type': 'tool.v2'},
+                    **common_params,
                 )
 
             @wraps(func)
