@@ -155,41 +155,22 @@ class ApiKeyContext:
 # The policy callable signature: receives an ApiKeyContext, may raise.
 ApiKeyPolicy = Callable[[ApiKeyContext], None | Awaitable[None]]
 
-# NOTE: There are currently two incompatible calling conventions for
-# context providers in the Python SDK:
-#
-#   1. Flask plugin (handler.py):  provider(request_data: RequestData) → dict
-#      - Matches the JS SDK's ContextProvider<C, T> = (request: RequestData<T>) => C
-#      - Single argument: a RequestData instance with method, headers, input
-#
-#   2. Built-in flow server (flows.py):  provider(context: dict, request_data: dict) → dict
-#      - Two arguments: existing context (always {}) + request data as a plain dict
-#      - The first arg (context) is always empty — it's app.state.context = {}
-#
-# The api_key() function below follows convention #2 (the flow server) because
-# that's where context_providers=[] is used. The Flask plugin uses a separate
-# context_provider= kwarg with convention #1.
-#
-# TODO(#4351): Align both callers on a single ContextProvider protocol that
-# matches the JS SDK: provider(request: RequestData) → dict.  This will
-# require updating the flow server's invocation at flows.py:199 to stop
-# passing the unused app.state.context argument.
 ContextProvider = Callable[[RequestData[T]], dict[str, Any] | Awaitable[dict[str, Any]]]
 """Middleware that reads request data and returns context for the Action.
 
+A context provider receives a ``RequestData``-like dict (with ``method``,
+``headers``, ``input`` keys) and returns context that is merged into the
+Action's invocation context.  This matches the JS SDK's
+``ContextProvider<C, T> = (request: RequestData<T>) => C``.
+
 If the provider raises an error, the request fails and the Action is not
 invoked.  Raise ``UserFacingError`` for errors safe to return to clients.
-
-Note:
-    This type alias documents the *ideal* (JS-parity) signature.  The
-    built-in flow server currently calls providers with two arguments
-    ``(context, request_data_dict)`` — see the NOTE comment above.
 """
 
 
 def api_key(
     value_or_policy: str | ApiKeyPolicy | None = None,
-) -> Callable[[Any, dict[str, Any]], Awaitable[dict[str, Any]]]:
+) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
     """Create a context provider that extracts and validates API keys.
 
     The provider reads the ``Authorization`` header from the incoming HTTP
@@ -253,13 +234,11 @@ def api_key(
     """
 
     async def provider(
-        _context: Any,  # noqa: ANN401
         request_data: dict[str, Any],
     ) -> dict[str, Any]:
         """Extract API key from request and apply validation policy.
 
         Args:
-            _context: The existing app-level context (unused by this provider).
             request_data: Dict with ``method``, ``headers``, ``input`` keys
                 as constructed by the flows server.
 

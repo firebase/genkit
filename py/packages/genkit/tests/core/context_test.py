@@ -47,10 +47,6 @@ def _request(key: str | None = None) -> dict[str, Any]:
     }
 
 
-# The flows server passes (context, request_data) to providers.
-_EMPTY_CTX: dict[str, Any] = {}
-
-
 class TestApiKeyPassthrough:
     """Tests for api_key() in pass-through mode (no argument)."""
 
@@ -58,14 +54,14 @@ class TestApiKeyPassthrough:
     async def test_no_key_returns_none(self) -> None:
         """Pass-through with no Authorization header returns api_key=None."""
         provider = api_key()
-        result = await provider(_EMPTY_CTX, _request())
+        result = await provider(_request())
         assert result == {'auth': {'api_key': None}}
 
     @pytest.mark.asyncio
     async def test_with_key_returns_key(self) -> None:
         """Pass-through with Authorization header returns the key."""
         provider = api_key()
-        result = await provider(_EMPTY_CTX, _request('my-key'))
+        result = await provider(_request('my-key'))
         assert result == {'auth': {'api_key': 'my-key'}}
 
 
@@ -76,7 +72,7 @@ class TestApiKeyExactMatch:
     async def test_correct_key_succeeds(self) -> None:
         """Exact match with correct key returns the key."""
         provider = api_key('secret')
-        result = await provider(_EMPTY_CTX, _request('secret'))
+        result = await provider(_request('secret'))
         assert result == {'auth': {'api_key': 'secret'}}
 
     @pytest.mark.asyncio
@@ -84,7 +80,7 @@ class TestApiKeyExactMatch:
         """Exact match with wrong key raises PERMISSION_DENIED."""
         provider = api_key('secret')
         with pytest.raises(UserFacingError, match='Permission Denied') as exc_info:
-            await provider(_EMPTY_CTX, _request('wrong-key'))
+            await provider(_request('wrong-key'))
         assert exc_info.value.status == 'PERMISSION_DENIED'
 
     @pytest.mark.asyncio
@@ -92,7 +88,7 @@ class TestApiKeyExactMatch:
         """Exact match with no key raises UNAUTHENTICATED."""
         provider = api_key('secret')
         with pytest.raises(UserFacingError, match='Unauthenticated') as exc_info:
-            await provider(_EMPTY_CTX, _request())
+            await provider(_request())
         assert exc_info.value.status == 'UNAUTHENTICATED'
 
     @pytest.mark.asyncio
@@ -100,7 +96,7 @@ class TestApiKeyExactMatch:
         """Exact match with empty string key raises UNAUTHENTICATED."""
         provider = api_key('secret')
         with pytest.raises(UserFacingError, match='Unauthenticated') as exc_info:
-            await provider(_EMPTY_CTX, _request(''))
+            await provider(_request(''))
         assert exc_info.value.status == 'UNAUTHENTICATED'
 
 
@@ -116,7 +112,7 @@ class TestApiKeyCustomPolicy:
             captured.append(ctx)
 
         provider = api_key(capture_policy)
-        result = await provider(_EMPTY_CTX, _request('test-key'))
+        result = await provider(_request('test-key'))
 
         assert len(captured) == 1
         assert captured[0].auth == {'api_key': 'test-key'}
@@ -131,7 +127,7 @@ class TestApiKeyCustomPolicy:
             captured.append(ctx)
 
         provider = api_key(capture_policy)
-        await provider(_EMPTY_CTX, _request())
+        await provider(_request())
 
         assert len(captured) == 1
         assert captured[0].auth == {'api_key': None}
@@ -145,7 +141,7 @@ class TestApiKeyCustomPolicy:
 
         provider = api_key(deny_all)
         with pytest.raises(UserFacingError, match='Denied'):
-            await provider(_EMPTY_CTX, _request('any-key'))
+            await provider(_request('any-key'))
 
     @pytest.mark.asyncio
     async def test_async_policy_receives_context(self) -> None:
@@ -156,7 +152,7 @@ class TestApiKeyCustomPolicy:
             captured.append(ctx)
 
         provider = api_key(capture_policy)
-        result = await provider(_EMPTY_CTX, _request('async-key'))
+        result = await provider(_request('async-key'))
 
         assert len(captured) == 1
         assert captured[0].auth == {'api_key': 'async-key'}
@@ -171,7 +167,7 @@ class TestApiKeyCustomPolicy:
 
         provider = api_key(deny_all)
         with pytest.raises(UserFacingError, match='Must authenticate'):
-            await provider(_EMPTY_CTX, _request('any-key'))
+            await provider(_request('any-key'))
 
 
 class TestApiKeyContext:

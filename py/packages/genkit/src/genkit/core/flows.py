@@ -77,7 +77,7 @@ from starlette.routing import Route
 from genkit.codec import dump_dict
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
-from genkit.core.error import get_callable_json
+from genkit.core.error import UserFacingError, get_callable_json, get_http_status
 from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.requests import (
@@ -184,7 +184,10 @@ def create_flows_asgi_app(
                     status_code=400,
                 )
 
-            # Set up context.
+            # Set up context by running each context provider.
+            # Providers follow the JS SDK ContextProvider convention:
+            #   provider(request_data: dict) → dict
+            # See genkit.core.context for the ContextProvider type.
             ctx = {}
             if context_providers:
                 headers = {k.lower(): v for k, v in request.headers.items()}
@@ -196,16 +199,22 @@ def create_flows_asgi_app(
 
                 for provider in context_providers:
                     try:
-                        provider_ctx = await provider(request.app.state.context, request_data)
+                        provider_ctx = await provider(request_data)
                         ctx.update(provider_ctx)
                     except Exception as e:
                         await logger.aerror(
                             'context provider error',
                             error=str(e),
                         )
+                        status_code = get_http_status(e)
+                        body: dict[str, Any] = (
+                            {'error': get_callable_json(e).model_dump(by_alias=True)}
+                            if isinstance(e, UserFacingError)
+                            else {'error': 'Internal server error'}
+                        )
                         return JSONResponse(
-                            content={'error': f'Unauthorized: {e!s}'},
-                            status_code=401,
+                            content=body,
+                            status_code=status_code,
                         )
 
             # Run the flow.
@@ -364,7 +373,5 @@ def create_flows_asgi_app(
         on_startup=[on_app_startup] if on_app_startup else [],
         on_shutdown=[on_app_shutdown] if on_app_shutdown else [],
     )
-
-    app.state.context = {}
 
     return app  # pyright: ignore[reportReturnType]
