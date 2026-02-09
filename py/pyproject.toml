@@ -160,6 +160,7 @@ framework-dynamic-tools-demo               = { workspace = true }
 framework-evaluator-demo                   = { workspace = true }
 framework-format-demo                      = { workspace = true }
 framework-middleware-demo                  = { workspace = true }
+framework-multipart-tools                  = { workspace = true }
 framework-prompt-demo                      = { workspace = true }
 framework-realtime-tracing-demo            = { workspace = true }
 framework-restaurant-demo                  = { workspace = true }
