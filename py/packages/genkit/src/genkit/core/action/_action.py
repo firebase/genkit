@@ -409,9 +409,21 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             An awaitable ActionResponse object containing the final result and trace ID.
 
         Raises:
-            GenkitError: If an error occurs during action execution.
+            GenkitError: If an error occurs during action execution, or if
+                the action requires input but none was provided.
         """
-        input_action = self._input_type.validate_python(raw_input) if self._input_type is not None else None
+        input_action: InputT | None = None
+        if self._input_type is not None:
+            if raw_input is None:
+                raise GenkitError(
+                    message=(
+                        f"Action '{self.name}' requires input but none was provided. "
+                        'Please supply a valid input payload.'
+                    ),
+                    status='INVALID_ARGUMENT',
+                )
+            input_action = self._input_type.validate_python(raw_input)
+
         return await self.arun(
             input=input_action,
             on_chunk=on_chunk,
