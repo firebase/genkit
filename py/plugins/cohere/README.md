@@ -1,4 +1,7 @@
-# Genkit Cohere AI Plugin
+# Genkit Cohere AI Plugin (Community)
+
+> **Community Plugin** — This plugin is community-maintained and is not an
+> official Google or Cohere product. It is provided on an "as-is" basis.
 
 The Cohere AI plugin for [Genkit](https://github.com/firebase/genkit)
 provides integration with [Cohere's](https://cohere.com/) AI models,
@@ -118,6 +121,21 @@ embeddings = await ai.embed(
     content=doc,
 )
 ```
+
+## Disclaimer
+
+This is a **community-maintained** plugin and is not officially supported by
+Google or Cohere. Use of Cohere's API is subject to
+[Cohere's Terms of Use](https://cohere.com/terms-of-use) and
+[Privacy Policy](https://cohere.com/privacy). You are responsible for
+complying with all applicable terms when using this plugin.
+
+- **API Key Security** — Never commit your Cohere API key to version control.
+  Use environment variables or a secrets manager.
+- **Usage Limits** — Be aware of your Cohere plan's rate limits and token
+  quotas. See [Cohere Pricing](https://cohere.com/pricing).
+- **Data Handling** — Review Cohere's data processing practices before
+  sending sensitive or personally identifiable information.
 
 ## License
 

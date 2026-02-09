@@ -14,7 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit Cohere AI plugin.
+"""Genkit Cohere AI plugin (Community).
+
+Community-maintained plugin — not an official Google or Cohere product.
+Use of Cohere's API is subject to `Cohere's Terms of Use
+<https://cohere.com/terms-of-use>`_ and `Privacy Policy
+<https://cohere.com/privacy>`_.
 
 Provides integration with Cohere's AI models for the Genkit framework,
 including:

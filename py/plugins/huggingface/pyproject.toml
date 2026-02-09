@@ -40,7 +40,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "huggingface_hub>=0.25.0"]
-description = "Genkit Hugging Face Plugin"
+description = "Genkit Hugging Face Plugin (Community)"
 keywords = [
   "genkit",
   "ai",

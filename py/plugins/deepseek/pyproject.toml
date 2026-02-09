@@ -40,7 +40,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "genkit-plugin-compat-oai", "openai>=1.0.0"]
-description = "Genkit DeepSeek Plugin"
+description = "Genkit DeepSeek Plugin (Community)"
 keywords = [
   "genkit",
   "ai",

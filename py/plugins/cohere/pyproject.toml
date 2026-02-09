@@ -38,7 +38,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "cohere>=5.0.0"]
-description = "Genkit Cohere AI Plugin"
+description = "Genkit Cohere AI Plugin (Community)"
 keywords = [
   "genkit",
   "ai",
@@ -50,6 +50,7 @@ keywords = [
   "command-r",
   "embeddings",
   "rerank",
+  "community",
 ]
 license = "Apache-2.0"
 name = "genkit-plugin-cohere"

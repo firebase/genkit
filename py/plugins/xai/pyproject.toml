@@ -40,7 +40,7 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = ["genkit", "xai-sdk>=0.0.1"]
-description = "Genkit xAI Plugin"
+description = "Genkit xAI Plugin (Community)"
 keywords = [
   "genkit",
   "ai",
