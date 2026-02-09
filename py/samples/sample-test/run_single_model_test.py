@@ -17,7 +17,7 @@
 
 """Helper script to run a single model test in isolation.
 
-This script is called by test_model_performance.py to execute each model+config
+This script is called by model_performance_test.py to execute each model+config
 test in a separate subprocess, avoiding state pollution and enabling timeout handling.
 
 Usage:

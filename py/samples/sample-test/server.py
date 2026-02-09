@@ -13,10 +13,10 @@ from fastapi import FastAPI, HTTPException  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from fastapi.responses import HTMLResponse  # type: ignore
 from fastapi.staticfiles import StaticFiles  # type: ignore
-from pydantic import BaseModel
 
 # Import tool logic
-from test_model_performance import run_model_test  # type: ignore
+from model_performance_test import run_model_test  # type: ignore
+from pydantic import BaseModel
 
 app = FastAPI(title='Model Performance Tool')
 
@@ -146,7 +146,7 @@ async def get_models(sample: str | None = None) -> list[dict[str, Any]]:
     """
     try:
         # Import the discovery function
-        from test_model_performance import (  # type: ignore
+        from model_performance_test import (  # type: ignore
             discover_models_for_sample,
             parse_config_schema,
         )
@@ -156,7 +156,7 @@ async def get_models(sample: str | None = None) -> list[dict[str, Any]]:
             models = await discover_models_for_sample(sample)
         else:
             logging.info('Discovering all models')
-            from test_model_performance import discover_models  # type: ignore
+            from model_performance_test import discover_models  # type: ignore
 
             models = await discover_models()
 
@@ -252,7 +252,7 @@ async def run_comprehensive_test(
     2. Then vary one parameter at a time
     """
     try:
-        from test_model_performance import (  # type: ignore
+        from model_performance_test import (  # type: ignore
             discover_models_for_sample,
             generate_config_variations,
             parse_config_schema,
