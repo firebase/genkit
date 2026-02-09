@@ -555,6 +555,7 @@ def create_reflection_asgi_app(
 
         headers = {
             'x-genkit-version': version,
+            'Transfer-Encoding': 'chunked',
         }
         if run_trace_id:
             headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
