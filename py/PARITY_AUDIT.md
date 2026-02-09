@@ -1622,6 +1622,7 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 
 | PR | Scope | Description | Status |
 |----|:-----:|-------------|:------:|
+| **#4519** | Core | Fix `arun_raw(None)` input validation error | 🔄 PR open |
 | **#4518** | Plugin | Cohere AI provider plugin (chat + embeddings) | 🔄 PR open |
 | **#4514** | Core | `Transfer-Encoding: chunked` on standard action responses | ✅ Merged |
 | **#4504** | Plugin | Google Checks AI Safety plugin + sample | 🔄 PR open |
@@ -1666,7 +1667,7 @@ LAYER 3 (last)
 | 1 | 4 (#4511, #4512, #4513, #4516) | 1 merged, 3 open |
 | 2 | 3 (#4510, +2 not started) | 1 open, 2 not started |
 | 3 | 2 (not started) | ⬜ |
-| Other fixes | 3 (#4401, #4494, #4495) | 1 open, 2 merged |
+| Other fixes | 4 (#4401, #4495, #4514, #4519) | 2 open, 2 merged |
 | Plugin | 2 (#4504 Checks, #4518 Cohere) | Open |
 
 #### Immediate PR Manifest — Original Branch Split (Completed)
@@ -1688,10 +1689,10 @@ LAYER 3 (last)
 |--------|-------|
 | Total Python gaps | 31 (G1–G22, G30–G31, G33–G38) |
 | **Done (merged to main)** | **5** — G5, G6, G11 (+ plugin test coverage, #4514, #4494) |
-| **In review (PRs open)** | **16** — G1, G2, G3, G12–G16, G18, G20–G22 |
+| **In review (PRs open)** | **17** — G1, G2, G3, G12–G16, G18, G20–G22 |
 | **Not started** | **12** — G4, G7–G10, G17, G19, G30–G31, G33–G38 |
 | Deferred | 5 items (G7, G8, G31, G33–G37) |
-| Open PRs | 7 (#4401, #4495, #4504, #4510, #4512, #4513, #4516, #4518) |
+| Open PRs | 8 (#4401, #4495, #4504, #4510, #4512, #4513, #4516, #4518, #4519) |
 | Recently merged | #4494 (RedactedSpan fix), #4514 (Transfer-Encoding fix) |
 | Critical path remaining | G1/G2 (PR #4516) → G38 → G4 |
 | Plugins needing test uplift | ~~13~~ improved via PR #4509 (merged) |
