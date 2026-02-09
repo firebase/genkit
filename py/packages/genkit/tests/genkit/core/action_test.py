@@ -322,7 +322,7 @@ async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
 
     action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
 
-    with pytest.raises(GenkitError, match=r".*requires input but none was provided.*"):
+    with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
         await action.arun_raw(raw_input=None)
 
 
