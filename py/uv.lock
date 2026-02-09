@@ -4415,7 +4415,7 @@ wheels = [
 
 [[package]]
 name = "litestar"
-version = "2.19.0"
+version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -4433,9 +4433,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/1c/2cf555f8c4236a1db2a4f1492143ab1132c4b5e7f2e7c1e41ee931f57d2b/litestar-2.19.0.tar.gz", hash = "sha256:c2663a7f48a7ed273615260c23fc76dbef2ca0d539ece25318772b737470c531", size = 373938, upload-time = "2025-12-14T13:53:28.425Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/6b/e13ecd78bec61e644b5e3442e86767ca413bf74a8f68e4a816451c34e74c/litestar-2.20.0.tar.gz", hash = "sha256:0f07f22b9a554b4b1af7bc5822e91daebfbc41ed28267a8e479d2731206d2d7f", size = 375299, upload-time = "2026-02-08T13:37:35.983Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/9a/fdba1ee34c24811592faba859b377d13457e48c37fbe07d88bd74a36d1f0/litestar-2.19.0-py3-none-any.whl", hash = "sha256:849971d097a6118f81235531fc0f342d797bd29d9aef9c23230559f124d16247", size = 565733, upload-time = "2025-12-14T13:53:26.706Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/bf/1f893ca004ad5ffdcb46505cb534158f7c138a5df81a2a80c4c9655df7e9/litestar-2.20.0-py3-none-any.whl", hash = "sha256:2ff3dd17e42ab1c500ede8220bf5280f57e64530a74c57d4216ca140e689e9ca", size = 567488, upload-time = "2026-02-08T13:37:33.572Z" },
 ]
 
 [[package]]
