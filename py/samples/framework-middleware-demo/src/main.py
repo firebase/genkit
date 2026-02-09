@@ -251,9 +251,170 @@ async def chained_middleware_demo(input: ChainedInput) -> str:
     return response.text
 
 
+# ============================================================================
+# PART 2: Model-Level Middleware via define_model(use=[...])
+# ============================================================================
+# Model-level middleware is baked into a model at registration time.
+# Every caller of this model gets the middleware automatically, without
+# needing to pass use=[...] in generate().
+#
+# This is how plugin authors add cross-cutting concerns like safety
+# checks, rate limiting, or request augmentation to their models.
+# ============================================================================
+
+
+class ModelLevelInput(BaseModel):
+    """Input for model-level middleware demo."""
+
+    prompt: str = Field(
+        default='Tell me something interesting about Python',
+        description='Prompt to send to the model with baked-in middleware',
+    )
+
+
+class CombinedInput(BaseModel):
+    """Input for combined call-time + model-level middleware demo."""
+
+    prompt: str = Field(
+        default='Write a limerick about coding',
+        description='Prompt to send through both call-time and model-level middleware',
+    )
+
+
+async def safety_prefix_middleware(
+    req: GenerateRequest,
+    ctx: ActionRunContext,
+    next_handler: ModelMiddlewareNext,
+) -> GenerateResponse:
+    """Model-level middleware that prepends a safety instruction.
+
+    This middleware is baked into the model via define_model(use=[...]).
+    Every generate() call using this model will automatically get
+    the safety instruction injected, even without passing use=[...].
+
+    Args:
+        req: The generation request about to be sent.
+        ctx: The action execution context.
+        next_handler: Calls the next middleware or the model.
+
+    Returns:
+        The generation response.
+    """
+    safety_text = (
+        'You are a helpful, harmless, and honest assistant. '
+        'Never produce harmful content.'
+    )
+    safety_message = Message(
+        role=Role.SYSTEM,
+        content=[Part(root=TextPart(text=safety_text))],
+    )
+    modified_messages = [safety_message, *req.messages]
+    modified_req = req.model_copy(update={'messages': modified_messages})
+    await logger.ainfo('safety_prefix_middleware (model-level): injected safety system message')
+    return await next_handler(modified_req, ctx)
+
+
+# Register a custom model that wraps Gemini and adds safety middleware.
+# The actual model function delegates to the real Gemini model, but
+# the safety middleware runs before every request.
+def custom_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    """Custom model runner that delegates to the real Gemini model.
+
+    This function demonstrates how define_model() works: you implement
+    the model runner function, and Genkit handles all the middleware
+    chaining, tracing, and registry management.
+
+    Args:
+        request: The generation request (possibly modified by middleware).
+        ctx: The action execution context.
+
+    Returns:
+        The generation response from the underlying model.
+    """
+    # Build a response echoing the request for demonstration purposes.
+    # In a real plugin, you'd call an API here.
+    merged = ' '.join(
+        p.root.text for m in request.messages for p in m.content if p.root.text
+    )
+    echo_text = (
+        f'[custom-model] Processed request with '
+        f'{len(request.messages)} messages. '
+        f'Content: {merged[:100]}...'
+    )
+    return GenerateResponse(
+        message=Message(
+            role=Role.MODEL,
+            content=[Part(root=TextPart(text=echo_text))],
+        ),
+    )
+
+
+# Register the custom model WITH model-level middleware.
+# Every call to generate(model='custom/safe-model') will run
+# safety_prefix_middleware automatically.
+ai.define_model(
+    name='custom/safe-model',
+    fn=custom_model_fn,
+    use=[safety_prefix_middleware],
+)
+
+
+@ai.flow()
+async def model_level_middleware_demo(input: ModelLevelInput) -> str:
+    """Demonstrate model-level middleware set via define_model(use=[...]).
+
+    No call-time middleware is passed -- the safety middleware is baked
+    into the 'custom/safe-model' model definition. Every caller gets
+    the middleware automatically.
+
+    Args:
+        input: Input with prompt text.
+
+    Returns:
+        The model's response text (with safety middleware applied).
+    """
+    response = await ai.generate(
+        model='custom/safe-model',
+        prompt=input.prompt,
+    )
+    return response.text
+
+
+@ai.flow()
+async def combined_middleware_demo(input: CombinedInput) -> str:
+    """Demonstrate call-time + model-level middleware running together.
+
+    The execution order is:
+      1. logging_middleware      (call-time, from generate(use=[...]))
+      2. safety_prefix_middleware (model-level, from define_model(use=[...]))
+      3. custom_model_fn         (the actual model runner)
+
+    This matches the JS SDK execution order:
+      call-time[0..N] -> model-level[0..M] -> runner
+
+    Args:
+        input: Input with prompt text.
+
+    Returns:
+        The model's response text.
+    """
+    response = await ai.generate(
+        model='custom/safe-model',
+        prompt=input.prompt,
+        use=[logging_middleware],
+    )
+    return response.text
+
+
 async def main() -> None:
     """Main function -- keep alive for Dev UI."""
     await logger.ainfo('Middleware demo started. Open http://localhost:4000 to test flows.')
+    await logger.ainfo('Flows available:')
+    await logger.ainfo('  - logging_demo: call-time logging middleware')
+    await logger.ainfo('  - request_modifier_demo: call-time request modification')
+    await logger.ainfo('  - chained_middleware_demo: multiple call-time middleware')
+    await logger.ainfo('  - model_level_middleware_demo: model-level middleware via define_model(use=[...])')
+    await logger.ainfo('  - combined_middleware_demo: call-time + model-level middleware together')
     while True:
         await asyncio.sleep(3600)
 

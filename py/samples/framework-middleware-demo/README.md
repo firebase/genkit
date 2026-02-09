@@ -1,8 +1,9 @@
 # Middleware Demo
 
-Demonstrates Genkit's middleware system using the `use=` parameter on
-`ai.generate()`. Middleware intercepts the request/response pipeline,
-enabling logging, retries, request modification, and more.
+Demonstrates Genkit's middleware system at two levels:
+
+1. **Call-time middleware** — attached per `generate()` call via `use=[...]`
+2. **Model-level middleware** — baked into a model via `define_model(use=[...])`
 
 ## Quick Start
 
@@ -17,29 +18,61 @@ Then open the Dev UI at http://localhost:4000.
 
 | Flow | What It Demonstrates |
 |------|---------------------|
-| `logging_demo` | Middleware that logs request metadata and response info |
-| `request_modifier_demo` | Middleware that modifies the request before it reaches the model |
-| `chained_middleware_demo` | Multiple middleware functions composed in a pipeline |
+| `logging_demo` | Call-time middleware that logs request and response metadata |
+| `request_modifier_demo` | Call-time middleware that modifies the request before the model sees it |
+| `chained_middleware_demo` | Multiple call-time middleware composed in a pipeline |
+| `model_level_middleware_demo` | Model-level middleware set via `define_model(use=[...])` |
+| `combined_middleware_demo` | Both call-time and model-level middleware running together |
 
 ## How Middleware Works
 
+### Call-Time Middleware
+
+Passed directly to `generate()`. Runs first in the chain.
+
+```python
+response = await ai.generate(
+    prompt='Hello',
+    use=[logging_middleware, system_instruction_middleware],
+)
 ```
-ai.generate(prompt=..., use=[middleware_a, middleware_b])
+
+### Model-Level Middleware
+
+Baked into a model at registration time. Every caller gets it automatically.
+
+```python
+ai.define_model(
+    name='custom/safe-model',
+    fn=my_model_fn,
+    use=[safety_middleware],
+)
+
+# safety_middleware runs automatically — no need for use=[...]
+response = await ai.generate(model='custom/safe-model', prompt='Hello')
+```
+
+### Execution Order
+
+When both are used, call-time middleware runs first, then model-level:
+
+```
+ai.generate(model='custom/safe-model', prompt=..., use=[call_mw])
        |
        v
-   middleware_a(req, ctx, next)
+   call_mw(req, ctx, next)        ← call-time middleware
        |
        v
-   middleware_b(req, ctx, next)
+   safety_mw(req, ctx, next)      ← model-level middleware
        |
        v
-   Model (actual API call)
+   my_model_fn(req, ctx)          ← model runner
        |
        v
-   middleware_b returns response
+   safety_mw returns response
        |
        v
-   middleware_a returns response
+   call_mw returns response
        |
        v
    Final response to caller
