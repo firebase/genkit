@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -42,7 +47,6 @@ dependencies = [
   "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Genkit Local Vector Store Plugin"
-license = "Apache-2.0"
 keywords = [
   "genkit",
   "ai",
@@ -54,20 +58,22 @@ keywords = [
   "embeddings",
   "local",
 ]
+license = "Apache-2.0"
 name = "genkit-plugin-dev-local-vectorstore"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.4.0"
+version = "0.5.0"
 
 [project.urls]
-"Bug Tracker" = "https://github.com/firebase/genkit/issues"
+"Bug Tracker"   = "https://github.com/firebase/genkit/issues"
 "Documentation" = "https://firebase.google.com/docs/genkit"
-"Homepage" = "https://github.com/firebase/genkit"
-"Repository" = "https://github.com/firebase/genkit/tree/main/py"
+"Homepage"      = "https://github.com/firebase/genkit"
+"Repository"    = "https://github.com/firebase/genkit/tree/main/py"
 
 [build-system]
 build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/genkit", "src/genkit/plugins"]
+only-include = ["src/genkit/plugins/dev_local_vectorstore"]
+sources      = ["src"]

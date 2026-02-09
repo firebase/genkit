@@ -377,7 +377,7 @@ dev = [
 ## Sample Application
 
 ```python
-# py/samples/observability-hello/src/main.py
+# py/samples/provider-observability-hello/src/main.py
 """Observability hello sample - Third-party telemetry with Genkit.
 
 Key Concepts (ELI5)::
@@ -405,7 +405,7 @@ from genkit.plugins.google_genai import GoogleAI
 configure_telemetry(
     backend="honeycomb",  # or "sentry", "datadog", etc.
     honeycomb_api_key=os.environ["HONEYCOMB_API_KEY"],
-    service_name="observability-hello",
+    service_name="provider-observability-hello",
 )
 
 ai = Genkit(

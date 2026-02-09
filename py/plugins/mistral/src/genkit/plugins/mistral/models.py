@@ -18,6 +18,13 @@
 
 This module provides the model implementation for Mistral AI,
 converting between Genkit and Mistral SDK formats.
+
+Supports multimodal content including text, images (via ImageURLChunk),
+and audio input (via AudioChunk) for Voxtral models.
+
+See:
+    - https://docs.mistral.ai/capabilities/vision/
+    - https://docs.mistral.ai/capabilities/audio_transcription
 """
 
 import json
@@ -27,13 +34,17 @@ from typing import Any
 from mistralai import Mistral as MistralClient
 from mistralai.models import (
     AssistantMessage,
+    AudioChunk,
     ChatCompletionChoice,
     ChatCompletionResponse,
     CompletionChunk,
+    CompletionEvent,
     Function,
     FunctionCall,
+    ImageURLChunk,
     SystemMessage,
     TextChunk,
+    ThinkChunk,
     Tool,
     ToolCall,
     ToolMessage,
@@ -48,6 +59,7 @@ from genkit.core.typing import (
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
+    MediaPart,
     Message,
     OutputConfig,
     Part,
@@ -78,24 +90,72 @@ def mistral_name(name: str) -> str:
     return f'{MISTRAL_PLUGIN_NAME}/{name}'
 
 
+def _extract_text(content: object) -> str:
+    """Extract text from a Mistral delta content value.
+
+    Handles plain strings, TextChunk, ThinkChunk (Magistral reasoning),
+    and lists of mixed ContentChunk items.
+
+    Args:
+        content: The delta content — may be str, TextChunk, ThinkChunk,
+            or a list of ContentChunk items.
+
+    Returns:
+        Concatenated text extracted from the content.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, TextChunk):
+        return content.text
+    if isinstance(content, ThinkChunk):
+        return ''.join(tp.text for tp in content.thinking if isinstance(tp, TextChunk))
+    if isinstance(content, list):
+        return ''.join(_extract_text(item) for item in content)
+    return ''
+
+
 class MistralConfig(BaseModel):
-    """Configuration options for Mistral AI models.
+    """Configuration options for Mistral AI chat completions.
+
+    See: https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
 
     Attributes:
-        temperature: Controls randomness (0.0-1.0). Lower = more deterministic.
-        max_tokens: Maximum number of tokens to generate.
-        top_p: Nucleus sampling parameter (0.0-1.0).
-        random_seed: Seed for reproducible outputs.
-        safe_prompt: Whether to inject safety prompt (deprecated, use safe_mode).
-        safe_mode: Whether to enable safe mode for content filtering.
+        temperature: Sampling temperature (0.0–1.5). Lower = more deterministic.
+            Defaults vary by model; call /models to check.
+        max_tokens: Maximum tokens to generate. Prompt + max_tokens must not
+            exceed the model's context length.
+        top_p: Nucleus sampling (0.0–1.0). Generally alter this or temperature,
+            not both.
+        random_seed: Seed for deterministic sampling.
+        stop: Stop generation when this token (or one of these tokens) appears.
+        presence_penalty: Penalises repetition of words/phrases to encourage
+            diversity (default 0).
+        frequency_penalty: Penalises word repetition based on frequency in the
+            generated text (default 0).
+        safe_prompt: Inject a safety prompt before all conversations.
     """
 
-    temperature: float | None = Field(default=None, ge=0.0, le=1.0)
+    temperature: float | None = Field(default=None, ge=0.0)
     max_tokens: int | None = Field(default=None, ge=1)
     top_p: float | None = Field(default=None, ge=0.0, le=1.0)
     random_seed: int | None = None
+    stop: str | list[str] | None = None
+    presence_penalty: float | None = None
+    frequency_penalty: float | None = None
     safe_prompt: bool | None = None
-    safe_mode: bool | None = None
+
+
+# Config keys forwarded to the Mistral chat completion API.
+_CONFIG_KEYS = (
+    'temperature',
+    'max_tokens',
+    'top_p',
+    'random_seed',
+    'stop',
+    'presence_penalty',
+    'frequency_penalty',
+    'safe_prompt',
+)
 
 
 class MistralModel:
@@ -148,16 +208,31 @@ class MistralModel:
         mistral_messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage] = []
 
         for msg in messages:
-            content_parts: list[str] = []
+            text_parts: list[str] = []
+            media_chunks: list[TextChunk | ImageURLChunk | AudioChunk] = []
+            has_media = False
             tool_calls: list[ToolCall] = []
             tool_responses: list[tuple[str, str, str]] = []  # (ref, name, output)
 
             for part in msg.content:
                 part_root = part.root
                 if isinstance(part_root, TextPart):
-                    content_parts.append(part_root.text)
+                    text_parts.append(part_root.text)
+                    media_chunks.append(TextChunk(text=part_root.text))
+                elif isinstance(part_root, MediaPart):
+                    has_media = True
+                    media = part_root.media
+                    content_type = media.content_type or ''
+                    url = media.url
+                    if content_type.startswith('audio/'):
+                        # Audio input for Voxtral models — expects base64 data.
+                        # Strip the data URI prefix if present.
+                        audio_data = url.split(',', 1)[-1] if url.startswith('data:') else url
+                        media_chunks.append(AudioChunk(input_audio=audio_data))
+                    else:
+                        # Image input for vision models.
+                        media_chunks.append(ImageURLChunk(image_url=url))
                 elif isinstance(part_root, ToolRequestPart):
-                    # Convert Genkit ToolRequest to Mistral ToolCall
                     tool_req = part_root.tool_request
                     tool_calls.append(
                         ToolCall(
@@ -170,7 +245,6 @@ class MistralModel:
                         )
                     )
                 elif isinstance(part_root, ToolResponsePart):
-                    # Collect tool responses to add as ToolMessage
                     tool_resp = part_root.tool_response
                     output = tool_resp.output
                     if isinstance(output, dict):
@@ -179,22 +253,24 @@ class MistralModel:
                         output_str = str(output) if output is not None else ''
                     tool_responses.append((tool_resp.ref or '', tool_resp.name or '', output_str))
 
-            content = '\n'.join(content_parts) if content_parts else ''
+            content_str = '\n'.join(text_parts) if text_parts else ''
 
             if msg.role == Role.SYSTEM:
-                mistral_messages.append(SystemMessage(content=content))
+                mistral_messages.append(SystemMessage(content=content_str))
             elif msg.role == Role.USER:
-                mistral_messages.append(UserMessage(content=content))
+                if has_media:
+                    # Multimodal: use content list with typed chunks.
+                    mistral_messages.append(UserMessage(content=media_chunks))  # type: ignore[arg-type]
+                else:
+                    mistral_messages.append(UserMessage(content=content_str))
             elif msg.role == Role.MODEL:
-                # Assistant message may have text and/or tool calls
                 if tool_calls:
                     mistral_messages.append(
-                        AssistantMessage(content=content if content else None, tool_calls=tool_calls)
+                        AssistantMessage(content=content_str if content_str else None, tool_calls=tool_calls)
                     )
                 else:
-                    mistral_messages.append(AssistantMessage(content=content))
+                    mistral_messages.append(AssistantMessage(content=content_str))
             elif msg.role == Role.TOOL:
-                # Tool responses become ToolMessage
                 for ref, name, output_str in tool_responses:
                     mistral_messages.append(ToolMessage(tool_call_id=ref, name=name, content=output_str))
 
@@ -213,15 +289,19 @@ class MistralModel:
         content: list[Part] = []
 
         if choice.message.content:
-            # Handle string or list content
+            # Handle string or list content (may include ThinkChunk from
+            # Magistral reasoning models alongside regular TextChunks).
             msg_content = choice.message.content
             if isinstance(msg_content, str):
                 content.append(Part(root=TextPart(text=msg_content)))
             elif isinstance(msg_content, list):
-                # Extract text from content chunks
                 for chunk in msg_content:
                     if isinstance(chunk, TextChunk):
                         content.append(Part(root=TextPart(text=chunk.text)))
+                    elif isinstance(chunk, ThinkChunk):
+                        for thinking_part in chunk.thinking:
+                            if isinstance(thinking_part, TextChunk):
+                                content.append(Part(root=TextPart(text=thinking_part.text)))
 
         # Handle tool calls in the response
         if choice.message.tool_calls:
@@ -369,18 +449,13 @@ class MistralModel:
             if response_format:
                 params['response_format'] = response_format
 
-        # Apply config if provided
+        # Apply config if provided — forward all recognised parameters.
         if request.config:
             config = request.config
             if isinstance(config, dict):
-                if config.get('temperature') is not None:
-                    params['temperature'] = config['temperature']
-                if config.get('max_tokens') is not None:
-                    params['max_tokens'] = config['max_tokens']
-                if config.get('top_p') is not None:
-                    params['top_p'] = config['top_p']
-                if config.get('random_seed') is not None:
-                    params['random_seed'] = config['random_seed']
+                for key in _CONFIG_KEYS:
+                    if config.get(key) is not None:
+                        params[key] = config[key]
 
         # Handle streaming
         if ctx and ctx.send_chunk:
@@ -416,26 +491,26 @@ class MistralModel:
         # Track tool calls being streamed (by index)
         tool_calls: dict[int, dict[str, Any]] = {}
 
-        stream: AsyncIterator[CompletionChunk] = await self.client.chat.stream_async(**params)
+        stream: AsyncIterator[CompletionEvent] = await self.client.chat.stream_async(**params)
 
-        async for chunk in stream:
+        async for event in stream:
+            chunk: CompletionChunk = event.data
             if chunk.choices:
                 choice = chunk.choices[0]
 
-                # Handle text content
+                # Handle text content (may be str, TextChunk, ThinkChunk,
+                # or a list of ContentChunks from Magistral reasoning models).
                 if choice.delta and choice.delta.content:
-                    content = choice.delta.content
-                    # Handle TextChunk or string
-                    text = content.text if isinstance(content, TextChunk) else str(content)
-                    full_text += text
-
-                    # Send chunk to client
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            content=[Part(root=TextPart(text=text))],
+                    delta_content = choice.delta.content
+                    text = _extract_text(delta_content)
+                    if text:
+                        full_text += text
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                content=[Part(root=TextPart(text=text))],
+                            )
                         )
-                    )
 
                 # Handle tool calls in streaming
                 if choice.delta and choice.delta.tool_calls:

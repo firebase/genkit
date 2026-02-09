@@ -62,6 +62,7 @@ from genkit.blocks.dap import (
     DynamicActionProvider,
     define_dynamic_action_provider as define_dap_block,
 )
+from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
@@ -82,7 +83,11 @@ from genkit.blocks.reranker import (
     define_reranker as define_reranker_block,
     rerank as rerank_block,
 )
-from genkit.blocks.resource import FlexibleResourceFn, ResourceOptions
+from genkit.blocks.resource import (
+    FlexibleResourceFn,
+    ResourceOptions,
+    define_resource as define_resource_block,
+)
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
 from genkit.blocks.tools import ToolRunContext
 from genkit.codec import dump_dict
@@ -166,8 +171,6 @@ class SimpleRetrieverOptions(BaseModel, Generic[R]):
 
 def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentData:
     """Internal helper to convert a raw item to a Genkit DocumentData."""
-    from genkit.blocks.document import Document
-
     if isinstance(item, (Document, DocumentData)):
         return item
 
@@ -234,7 +237,9 @@ class GenkitRegistry:
 
     @overload
     # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
-    def flow(
+    # Overloads appear to overlap because T could be Awaitable[T], but at runtime we
+    # distinguish async vs sync functions correctly.
+    def flow(  # pyright: ignore[reportOverlappingOverload]
         self, name: str | None = None, description: str | None = None
     ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T]']: ...
 
@@ -337,7 +342,7 @@ class GenkitRegistry:
         """
         define_partial(self.registry, name, source)
 
-    def define_schema(self, name: str, schema: type) -> type:
+    def define_schema(self, name: str, schema: type[BaseModel]) -> type[BaseModel]:
         """Register a Pydantic schema for use in prompts.
 
         Schemas registered with this method can be referenced by name in
@@ -662,8 +667,6 @@ class GenkitRegistry:
         if isinstance(options, str):
             options = SimpleRetrieverOptions(name=options)
 
-        from genkit.blocks.document import Document
-
         async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
 
             items = await ensure_async(handler)(query, options_obj)
@@ -900,10 +903,10 @@ class GenkitRegistry:
                                 span.set_output(test_case_output)
                                 eval_responses.append(test_case_output)
                             except Exception as e:
-                                logger.debug(f'eval_stepper_fn error: {str(e)}')
+                                logger.debug(f'eval_stepper_fn error: {e!s}')
                                 logger.debug(traceback.format_exc())
                                 evaluation = Score(
-                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                    error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
                                     status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                                 )
                                 eval_responses.append(
@@ -924,10 +927,10 @@ class GenkitRegistry:
                             test_case_output = await fn(datapoint, req.options)
                             eval_responses.append(test_case_output)
                         except Exception as e:
-                            logger.debug(f'eval_stepper_fn error: {str(e)}')
+                            logger.debug(f'eval_stepper_fn error: {e!s}')
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
-                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{e!s}',
                                 status=cast(EvalStatusEnum, EvalStatusEnum.FAIL),
                             )
                             eval_responses.append(
@@ -936,7 +939,7 @@ class GenkitRegistry:
                                     evaluation=evaluation,
                                 )
                             )
-                except Exception:
+                except Exception:  # noqa: S112 - intentionally continue processing other datapoints
                     # Continue to process other points
                     continue
             return EvalResponse(eval_responses)
@@ -1488,11 +1491,58 @@ class GenkitRegistry:
             output=None,
         )
 
+    # Overload 1: Neither typed -> ExecutablePrompt[Any, Any]
+    @overload
     def prompt(
         self,
         name: str,
         variant: str | None = None,
-    ) -> 'ExecutablePrompt[Any, Any]':
+        *,
+        input: None = None,
+        output: None = None,
+    ) -> ExecutablePrompt[Any, Any]: ...
+
+    # Overload 2: Only input typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT],
+        output: None = None,
+    ) -> ExecutablePrompt[InputT, Any]: ...
+
+    # Overload 3: Only output typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: None = None,
+        output: Output[OutputT],
+    ) -> ExecutablePrompt[Any, OutputT]: ...
+
+    # Overload 4: Both input and output typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT],
+        output: Output[OutputT],
+    ) -> ExecutablePrompt[InputT, OutputT]: ...
+
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input: Input[InputT] | None = None,
+        output: Output[OutputT] | None = None,
+    ) -> ExecutablePrompt[InputT, OutputT] | ExecutablePrompt[Any, Any]:
         """Look up a prompt by name and optional variant.
 
         This matches the JavaScript prompt() function behavior.
@@ -1504,16 +1554,35 @@ class GenkitRegistry:
         Args:
             name: The name of the prompt.
             variant: Optional variant name.
+            input: Optional typed input configuration. When provided, the
+                prompt's input parameter will be type-checked.
+            output: Optional typed output configuration. When provided,
+                response.output will be statically typed.
 
         Returns:
             An ExecutablePrompt instance.
+
+        Example:
+            ```python
+            # Without type hints (output is Any)
+            prompt = ai.prompt('greet')
+
+            # With typed output (response.output is MySchema)
+            prompt = ai.prompt('greet', output=Output(schema=MySchema))
+            response = await prompt(input={'name': 'World'})
+            response.output  # Statically typed as MySchema
+            ```
         """
-        from genkit.blocks.prompt import ExecutablePrompt
+        # Extract schema types if provided
+        input_schema = input.schema if input else None
+        output_schema = output.schema if output else None
 
         return ExecutablePrompt(
             registry=self.registry,
             _name=name,
             variant=variant,
+            input_schema=input_schema,
+            output_schema=output_schema,
         )
 
     def define_resource(
@@ -1541,10 +1610,6 @@ class GenkitRegistry:
         Returns:
             The registered Action for the resource.
         """
-        from genkit.blocks.resource import (
-            define_resource as define_resource_block,
-        )
-
         if fn is None:
             raise ValueError('A function `fn` must be provided to define a resource.')
         if opts is None:
@@ -1564,7 +1629,7 @@ class GenkitRegistry:
 
 
 class FlowWrapper(Generic[P, CallT, T, ChunkT]):
-    """A wapper for flow functions to add `stream` method.
+    """A wrapper for flow functions to add `stream` method.
 
     This class wraps a flow function and provides a `stream` method for
     asynchronous execution.

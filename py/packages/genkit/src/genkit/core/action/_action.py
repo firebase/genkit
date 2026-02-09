@@ -143,7 +143,7 @@ class ActionRunContext:
         self,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str], None] | None = None,
+        on_trace_start: Callable[[str, str], None] | None = None,
     ) -> None:
         """Initializes an ActionRunContext instance.
 
@@ -156,12 +156,12 @@ class ActionRunContext:
             context: An optional dictionary containing context data to be made
                      available within the action execution. Defaults to an empty
                      dictionary.
-            on_trace_start: A callable to be invoked with the trace ID when
-                            the trace is started.
+            on_trace_start: A callable to be invoked with the trace ID and span
+                            ID when the trace is started.
         """
         self._on_chunk: StreamingCallback = on_chunk if on_chunk is not None else noop_streaming_callback
         self._context: dict[str, object] = context if context is not None else {}
-        self._on_trace_start: Callable[[str], None] = on_trace_start if on_trace_start else lambda _: None
+        self._on_trace_start: Callable[[str, str], None] = on_trace_start if on_trace_start else lambda _t, _s: None
 
     @property
     def context(self) -> dict[str, object]:
@@ -282,9 +282,21 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def input_schema(self) -> dict[str, object]:
         return self._input_schema
 
+    @input_schema.setter
+    def input_schema(self, value: dict[str, object]) -> None:
+        """Update input schema (used by lazy-loaded prompts to set schema after registration)."""
+        self._input_schema = value
+        self._metadata[ActionMetadataKey.INPUT_KEY] = value
+
     @property
     def output_schema(self) -> dict[str, object]:
         return self._output_schema
+
+    @output_schema.setter
+    def output_schema(self, value: dict[str, object]) -> None:
+        """Update output schema (used by lazy-loaded prompts to set schema after registration)."""
+        self._output_schema = value
+        self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
 
     @property
     def is_async(self) -> bool:
@@ -333,7 +345,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str], None] | None = None,
+        on_trace_start: Callable[[str, str], None] | None = None,
         _telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
         """Executes the action asynchronously with the given input.
@@ -349,7 +361,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             on_chunk: An optional callback function to receive streaming output chunks.
             context: An optional dictionary containing context data for the execution.
             on_trace_start: An optional callback to be invoked with the trace ID
-                            when the trace is started.
+                            and span ID when the trace is started.
             telemetry_labels: Optional labels for telemetry.
 
         Returns:
@@ -373,7 +385,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         raw_input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str], None] | None = None,
+        on_trace_start: Callable[[str, str], None] | None = None,
         telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
         """Executes the action asynchronously with raw, unvalidated input.
@@ -390,7 +402,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             on_chunk: An optional callback function to receive streaming output chunks.
             context: An optional dictionary containing context data for the execution.
             on_trace_start: An optional callback to be invoked with the trace ID
-                            when the trace is started.
+                            and span ID when the trace is started.
             telemetry_labels: Optional labels for telemetry.
 
         Returns:
@@ -565,9 +577,10 @@ def _make_tracing_wrappers(
         afn = ensure_async(fn)
         start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
-            # Format trace_id as 32-char hex string (OpenTelemetry standard format)
+            # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
             trace_id = format(span.get_span_context().trace_id, '032x')
-            ctx._on_trace_start(trace_id)  # pyright: ignore[reportPrivateUsage]
+            span_id = format(span.get_span_context().span_id, '016x')
+            ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
             record_input_metadata(
                 span=span,
                 kind=kind,
@@ -595,7 +608,7 @@ def _make_tracing_wrappers(
 
             output = _record_latency(output, start_time)
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id)
+            return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
 
     def sync_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse[Any]:
         """Wrap the function in a sync tracing wrapper.
@@ -609,9 +622,10 @@ def _make_tracing_wrappers(
         """
         start_time = time.perf_counter()
         with tracer.start_as_current_span(name) as span:
-            # Format trace_id as 32-char hex string (OpenTelemetry standard format)
+            # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
             trace_id = format(span.get_span_context().trace_id, '032x')
-            ctx._on_trace_start(trace_id)  # pyright: ignore[reportPrivateUsage]
+            span_id = format(span.get_span_context().span_id, '016x')
+            ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
             record_input_metadata(
                 span=span,
                 kind=kind,
@@ -639,6 +653,6 @@ def _make_tracing_wrappers(
 
             output = _record_latency(output, start_time)
             record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id)
+            return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
 
     return sync_tracing_wrapper, async_tracing_wrapper

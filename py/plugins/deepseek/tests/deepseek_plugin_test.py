@@ -16,6 +16,7 @@
 
 """Tests for DeepSeek plugin."""
 
+import logging
 import os
 from unittest.mock import MagicMock, patch
 
@@ -24,8 +25,9 @@ from openai import OpenAI
 
 from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
-from genkit.plugins.deepseek import DeepSeek, deepseek_name
+from genkit.plugins.deepseek import DeepSeek, deepseek_name, is_reasoning_model
 from genkit.plugins.deepseek.client import DEFAULT_DEEPSEEK_API_URL, DeepSeekClient
+from genkit.plugins.deepseek.models import _warn_reasoning_params
 
 
 def test_deepseek_name() -> None:
@@ -178,3 +180,94 @@ def test_deepseek_client_default_base_url() -> None:
             api_key='test-key',
             base_url=DEFAULT_DEEPSEEK_API_URL,
         )
+
+
+# --- Reasoning model tests ---
+
+
+class TestIsReasoningModel:
+    """Tests for is_reasoning_model helper."""
+
+    def test_reasoning_models(self) -> None:
+        """Reasoning models should be identified correctly."""
+        assert is_reasoning_model('deepseek-reasoner') is True
+        assert is_reasoning_model('deepseek-r1') is True
+
+    def test_chat_models(self) -> None:
+        """Chat models should not be identified as reasoning."""
+        assert is_reasoning_model('deepseek-chat') is False
+        assert is_reasoning_model('deepseek-v3') is False
+
+    def test_with_plugin_prefix(self) -> None:
+        """Should work with the plugin prefix."""
+        assert is_reasoning_model('deepseek/deepseek-r1') is True
+        assert is_reasoning_model('deepseek/deepseek-chat') is False
+
+
+class TestWarnReasoningParams:
+    """Tests for _warn_reasoning_params."""
+
+    def test_warns_on_temperature_for_reasoning_model(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Warn when temperature is set for a reasoning model."""
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-r1', {'temperature': 0.7})
+        assert 'temperature' in caplog.text
+        assert 'deepseek-r1' in caplog.text
+
+    def test_warns_on_top_p_for_reasoning_model(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Warn when top_p is set for a reasoning model."""
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-reasoner', {'top_p': 0.9})
+        assert 'top_p' in caplog.text
+
+    def test_no_warning_for_chat_model(self, caplog: pytest.LogCaptureFixture) -> None:
+        """No warnings for chat models even with temperature set."""
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-chat', {'temperature': 0.7})
+        assert caplog.text == ''
+
+    def test_no_warning_when_params_are_none(self, caplog: pytest.LogCaptureFixture) -> None:
+        """No warnings when params are None."""
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-r1', {'temperature': None})
+        assert caplog.text == ''
+
+    def test_no_warning_for_none_config(self, caplog: pytest.LogCaptureFixture) -> None:
+        """No warnings when config is None."""
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-r1', None)
+        assert caplog.text == ''
+
+    def test_warns_on_pydantic_config(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Warn when Pydantic config has temperature set."""
+
+        class FakeConfig:
+            temperature = 0.5
+            top_p = None
+
+        with caplog.at_level(logging.WARNING):
+            _warn_reasoning_params('deepseek-r1', FakeConfig())
+        assert 'temperature' in caplog.text
+        assert 'top_p' not in caplog.text
+
+
+@patch('genkit.plugins.deepseek.models.DeepSeekClient')
+@pytest.mark.asyncio
+async def test_reasoning_model_wraps_with_validation(mock_client: MagicMock) -> None:
+    """Test that resolving a reasoning model wraps generate with validation."""
+    plugin = DeepSeek(api_key='test-key')
+    action = await plugin.resolve(ActionKind.MODEL, 'deepseek/deepseek-r1')
+
+    assert action is not None
+    assert action.kind == ActionKind.MODEL
+
+
+@patch('genkit.plugins.deepseek.models.DeepSeekClient')
+@pytest.mark.asyncio
+async def test_chat_model_does_not_wrap(mock_client: MagicMock) -> None:
+    """Test that resolving a chat model does not add validation wrapper."""
+    plugin = DeepSeek(api_key='test-key')
+    action = await plugin.resolve(ActionKind.MODEL, 'deepseek/deepseek-chat')
+
+    assert action is not None
+    assert action.kind == ActionKind.MODEL

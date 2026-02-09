@@ -34,8 +34,10 @@ print_banner() {
     local content="${emoji} ${title} ${emoji}"
     local content_len=${#content}
     local padding=$(( (65 - content_len) / 2 ))
-    local left_pad=$(printf '%*s' "$padding" '')
-    local right_pad=$(printf '%*s' "$((65 - content_len - padding))" '')
+    local left_pad
+    left_pad=$(printf '%*s' "$padding" '')
+    local right_pad
+    right_pad=$(printf '%*s' "$((65 - content_len - padding))" '')
     
     echo -e "${BLUE}"
     echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -58,7 +60,7 @@ check_env_var() {
         local display_val="${current_val}"
         
         # Simple masking for keys
-        if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* ]]; then
+        if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* || "$var_name" == *"TOKEN"* ]]; then
             if [[ -n "$current_val" ]]; then
                display_val="******"
             fi
@@ -214,4 +216,455 @@ print_help_footer() {
     echo "  1. Set required environment variables"
     echo "  2. Run: ./run.sh"  
     echo "  3. Browser opens automatically to http://localhost:${port}"
+}
+
+# ============================================================================
+# Google Cloud (gcloud) Helper Functions
+# ============================================================================
+# These functions provide interactive API enablement for samples that require
+# Google Cloud APIs.
+
+# Check if gcloud CLI is installed; offer to install if missing.
+# Usage: check_gcloud_installed || exit 1
+check_gcloud_installed() {
+    if command -v gcloud &> /dev/null; then
+        echo -e "${GREEN}✓ gcloud CLI found${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}gcloud CLI is not installed.${NC}"
+    echo ""
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Install the Google Cloud SDK now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            case "$(uname -s)" in
+                Darwin)
+                    if command -v brew &> /dev/null; then
+                        echo -e "${BLUE}Installing via Homebrew...${NC}"
+                        brew install --cask google-cloud-sdk
+                    else
+                        echo -e "${BLUE}Installing via curl...${NC}"
+                        curl -fsSL https://sdk.cloud.google.com | bash -s -- --disable-prompts
+                        # shellcheck disable=SC1091
+                        source "$HOME/google-cloud-sdk/path.bash.inc" 2>/dev/null || true
+                    fi
+                    ;;
+                Linux)
+                    echo -e "${BLUE}Installing via curl...${NC}"
+                    curl -fsSL https://sdk.cloud.google.com | bash -s -- --disable-prompts
+                    # shellcheck disable=SC1091
+                    source "$HOME/google-cloud-sdk/path.bash.inc" 2>/dev/null || true
+                    ;;
+                *)
+                    echo "Visit: https://cloud.google.com/sdk/docs/install"
+                    return 1
+                    ;;
+            esac
+            if command -v gcloud &> /dev/null; then
+                echo -e "${GREEN}✓ gcloud CLI installed successfully${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    echo -e "${RED}Error: gcloud CLI is required${NC}"
+    echo "Install from: https://cloud.google.com/sdk/docs/install"
+    return 1
+}
+
+# Check if AWS CLI is installed; offer to install if missing.
+# Usage: check_aws_installed || exit 1
+check_aws_installed() {
+    if command -v aws &> /dev/null; then
+        echo -e "${GREEN}✓ AWS CLI found${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}AWS CLI is not installed.${NC}"
+    echo ""
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Install the AWS CLI now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            case "$(uname -s)" in
+                Darwin)
+                    if command -v brew &> /dev/null; then
+                        echo -e "${BLUE}Installing via Homebrew...${NC}"
+                        brew install awscli
+                    else
+                        echo -e "${BLUE}Installing via pkg...${NC}"
+                        curl -fsSL "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o /tmp/AWSCLIV2.pkg
+                        sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
+                        rm -f /tmp/AWSCLIV2.pkg
+                    fi
+                    ;;
+                Linux)
+                    echo -e "${BLUE}Installing AWS CLI v2...${NC}"
+                    # The AWS CLI zip installer requires unzip.
+                    if ! command -v unzip &> /dev/null; then
+                        echo -e "${YELLOW}unzip is required but not installed. Attempting to install...${NC}"
+                        if command -v apt-get &> /dev/null; then
+                            sudo apt-get update -qq && sudo apt-get install -yqq unzip
+                        elif command -v dnf &> /dev/null; then
+                            sudo dnf install -yq unzip
+                        elif command -v yum &> /dev/null; then
+                            sudo yum install -yq unzip
+                        else
+                            echo -e "${RED}Error: unzip is required. Install it manually and retry.${NC}"
+                            return 1
+                        fi
+                    fi
+                    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+                    unzip -qo /tmp/awscliv2.zip -d /tmp
+                    sudo /tmp/aws/install || /tmp/aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$HOME/.local/bin"
+                    rm -rf /tmp/awscliv2.zip /tmp/aws
+                    ;;
+                *)
+                    echo "Visit: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+                    return 1
+                    ;;
+            esac
+            if command -v aws &> /dev/null; then
+                echo -e "${GREEN}✓ AWS CLI installed successfully${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    echo -e "${RED}Error: AWS CLI is required${NC}"
+    echo "Install from: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+    return 1
+}
+
+# Check if Azure CLI is installed; offer to install if missing.
+# Usage: check_az_installed || exit 1
+check_az_installed() {
+    if command -v az &> /dev/null; then
+        echo -e "${GREEN}✓ Azure CLI found${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}Azure CLI is not installed.${NC}"
+    echo ""
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Install the Azure CLI now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            case "$(uname -s)" in
+                Darwin)
+                    if command -v brew &> /dev/null; then
+                        echo -e "${BLUE}Installing via Homebrew...${NC}"
+                        brew install azure-cli
+                    else
+                        echo -e "${BLUE}Installing via script...${NC}"
+                        curl -fsSL https://aka.ms/InstallAzureCLIDeb | bash
+                    fi
+                    ;;
+                Linux)
+                    # Detect distro and use the appropriate Azure CLI install.
+                    # https://learn.microsoft.com/cli/azure/install-azure-cli-linux
+                    if [ -f /etc/os-release ]; then
+                        # shellcheck disable=SC1091
+                        . /etc/os-release
+                    fi
+                    case "${ID:-}" in
+                        debian|ubuntu|linuxmint|pop)
+                            echo -e "${BLUE}Installing via InstallAzureCLIDeb...${NC}"
+                            curl -fsSL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                            ;;
+                        fedora|rhel|centos|rocky|alma)
+                            echo -e "${BLUE}Installing via dnf/yum...${NC}"
+                            sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+                            sudo dnf install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm \
+                                || sudo yum install -y https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+                            sudo dnf install -y azure-cli || sudo yum install -y azure-cli
+                            ;;
+                        *)
+                            echo -e "${BLUE}Installing via pip (distro '${ID:-unknown}' not directly supported)...${NC}"
+                            pip install azure-cli
+                            ;;
+                    esac
+                    ;;
+                *)
+                    echo "Visit: https://learn.microsoft.com/cli/azure/install-azure-cli"
+                    return 1
+                    ;;
+            esac
+            if command -v az &> /dev/null; then
+                echo -e "${GREEN}✓ Azure CLI installed successfully${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    echo -e "${RED}Error: Azure CLI is required${NC}"
+    echo "Install from: https://learn.microsoft.com/cli/azure/install-azure-cli"
+    return 1
+}
+
+# Check if flyctl CLI is installed; offer to install if missing.
+# Usage: check_flyctl_installed || exit 1
+check_flyctl_installed() {
+    if command -v flyctl &> /dev/null; then
+        echo -e "${GREEN}✓ flyctl CLI found${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}flyctl CLI is not installed.${NC}"
+    echo ""
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Install flyctl now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            echo -e "${BLUE}Installing flyctl...${NC}"
+            curl -fsSL https://fly.io/install.sh | sh
+            export PATH="$HOME/.fly/bin:$PATH"
+            if command -v flyctl &> /dev/null; then
+                echo -e "${GREEN}✓ flyctl installed successfully${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    echo -e "${RED}Error: flyctl is required${NC}"
+    echo "Install from: https://fly.io/docs/flyctl/install/"
+    return 1
+}
+
+# Check if gcloud is authenticated with Application Default Credentials.
+# Prompts the user to login if not authenticated (interactive).
+# Usage: check_gcloud_auth || true
+check_gcloud_auth() {
+    echo -e "${BLUE}Checking gcloud authentication...${NC}"
+    
+    # Check application default credentials
+    if ! gcloud auth application-default print-access-token &> /dev/null; then
+        echo -e "${YELLOW}Application default credentials not found.${NC}"
+        echo ""
+        
+        if [[ -t 0 ]] && [ -c /dev/tty ]; then
+            echo -en "Run ${GREEN}gcloud auth application-default login${NC} now? [Y/n]: "
+            local response
+            read -r response < /dev/tty
+            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+                echo ""
+                gcloud auth application-default login
+                echo ""
+            else
+                echo -e "${YELLOW}Skipping authentication. You may encounter auth errors.${NC}"
+                return 1
+            fi
+        else
+            echo "Run: gcloud auth application-default login"
+            return 1
+        fi
+    else
+        echo -e "${GREEN}✓ Application default credentials found${NC}"
+    fi
+    
+    echo ""
+    return 0
+}
+
+# Check if AWS CLI is authenticated.
+# Prompts the user to run `aws configure` if no credentials found.
+# Usage: check_aws_auth || true
+check_aws_auth() {
+    echo -e "${BLUE}Checking AWS authentication...${NC}"
+    
+    if aws sts get-caller-identity &> /dev/null; then
+        echo -e "${GREEN}✓ AWS credentials found${NC}"
+        echo ""
+        return 0
+    fi
+    
+    echo -e "${YELLOW}AWS credentials not found.${NC}"
+    echo ""
+    
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Run ${GREEN}aws configure${NC} now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            aws configure
+            echo ""
+        else
+            echo -e "${YELLOW}Skipping authentication. You may encounter auth errors.${NC}"
+            return 1
+        fi
+    else
+        echo "Run: aws configure"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Check if Azure CLI is authenticated.
+# Prompts the user to run `az login` if no credentials found.
+# Usage: check_az_auth || true
+check_az_auth() {
+    echo -e "${BLUE}Checking Azure authentication...${NC}"
+    
+    if az account show &> /dev/null; then
+        echo -e "${GREEN}✓ Azure credentials found${NC}"
+        echo ""
+        return 0
+    fi
+    
+    echo -e "${YELLOW}Azure credentials not found.${NC}"
+    echo ""
+    
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "Run ${GREEN}az login${NC} now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            az login
+            echo ""
+        else
+            echo -e "${YELLOW}Skipping authentication. You may encounter auth errors.${NC}"
+            return 1
+        fi
+    else
+        echo "Run: az login"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Check if a specific Google Cloud API is enabled
+# Usage: is_api_enabled "aiplatform.googleapis.com" "$GOOGLE_CLOUD_PROJECT"
+is_api_enabled() {
+    local api="$1"
+    local project="$2"
+    
+    gcloud services list --project="$project" --enabled --filter="name:$api" --format="value(name)" 2>/dev/null | grep -q "$api"
+}
+
+# Enable required Google Cloud APIs interactively
+# Usage: 
+#   REQUIRED_APIS=("aiplatform.googleapis.com" "discoveryengine.googleapis.com")
+#   enable_required_apis "${REQUIRED_APIS[@]}"
+#
+# The function will:
+#   1. Check which APIs are already enabled
+#   2. Prompt the user to enable missing APIs
+#   3. Enable APIs on user confirmation
+enable_required_apis() {
+    local project="${GOOGLE_CLOUD_PROJECT:-}"
+    local apis=("$@")
+    
+    if [[ -z "$project" ]]; then
+        echo -e "${YELLOW}GOOGLE_CLOUD_PROJECT not set, skipping API enablement${NC}"
+        return 1
+    fi
+    
+    if [[ ${#apis[@]} -eq 0 ]]; then
+        echo -e "${YELLOW}No APIs specified${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}Checking required APIs for project: ${project}${NC}"
+    
+    local apis_to_enable=()
+    
+    for api in "${apis[@]}"; do
+        if is_api_enabled "$api" "$project"; then
+            echo -e "  ${GREEN}✓${NC} $api"
+        else
+            echo -e "  ${YELLOW}✗${NC} $api (not enabled)"
+            apis_to_enable+=("$api")
+        fi
+    done
+    
+    echo ""
+    
+    if [[ ${#apis_to_enable[@]} -eq 0 ]]; then
+        echo -e "${GREEN}All required APIs are already enabled!${NC}"
+        echo ""
+        return 0
+    fi
+    
+    # Prompt to enable APIs
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -e "${YELLOW}The following APIs need to be enabled:${NC}"
+        for api in "${apis_to_enable[@]}"; do
+            echo "  - $api"
+        done
+        echo ""
+        echo -en "Enable these APIs now? [Y/n]: "
+        local response
+        read -r response < /dev/tty
+        
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            echo ""
+            for api in "${apis_to_enable[@]}"; do
+                echo -e "${BLUE}Enabling $api...${NC}"
+                if gcloud services enable "$api" --project="$project"; then
+                    echo -e "${GREEN}✓ Enabled $api${NC}"
+                else
+                    echo -e "${RED}✗ Failed to enable $api${NC}"
+                    return 1
+                fi
+            done
+            echo ""
+            echo -e "${GREEN}All APIs enabled successfully!${NC}"
+        else
+            echo -e "${YELLOW}Skipping API enablement. You may encounter errors.${NC}"
+            return 1
+        fi
+    else
+        echo "Enable APIs with:"
+        for api in "${apis_to_enable[@]}"; do
+            echo "  gcloud services enable $api --project=$project"
+        done
+        return 1
+    fi
+    
+    echo ""
+    return 0
+}
+
+# Run common GCP setup: check gcloud, auth, and enable APIs
+# Usage:
+#   REQUIRED_APIS=("aiplatform.googleapis.com")
+#   run_gcp_setup "${REQUIRED_APIS[@]}"
+run_gcp_setup() {
+    local apis=("$@")
+    
+    # Check gcloud is installed
+    check_gcloud_installed || return 1
+    
+    # Check/prompt for project
+    check_env_var "GOOGLE_CLOUD_PROJECT" "" || {
+        echo -e "${RED}Error: GOOGLE_CLOUD_PROJECT is required${NC}"
+        echo ""
+        echo "Set it with:"
+        echo "  export GOOGLE_CLOUD_PROJECT=your-project-id"
+        echo ""
+        return 1
+    }
+    
+    # Check authentication
+    check_gcloud_auth || true
+    
+    # Enable APIs if any were specified
+    if [[ ${#apis[@]} -gt 0 ]]; then
+        enable_required_apis "${apis[@]}" || true
+    fi
+    
+    return 0
 }

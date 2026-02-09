@@ -30,6 +30,7 @@ from genkit.plugins.mistral import (
     Mistral,
     mistral_name,
 )
+from genkit.plugins.mistral.embeddings import SUPPORTED_EMBEDDING_MODELS
 from genkit.plugins.mistral.model_info import get_default_model_info
 
 
@@ -110,14 +111,17 @@ async def test_plugin_resolve_non_model_returns_none(mock_client: MagicMock) -> 
 
 @pytest.mark.asyncio
 async def test_plugin_list_actions() -> None:
-    """Test plugin lists supported models."""
+    """Test plugin lists supported models and embedders."""
     plugin = Mistral(api_key='test-key')
     actions = await plugin.list_actions()
 
-    assert len(actions) == len(SUPPORTED_MISTRAL_MODELS)
+    # Total = (chat models - embedding models) + embedding models.
+    expected_count = len(SUPPORTED_MISTRAL_MODELS) - len(SUPPORTED_EMBEDDING_MODELS) + len(SUPPORTED_EMBEDDING_MODELS)
+    assert len(actions) == expected_count
     action_names = [action.name for action in actions]
     assert 'mistral/mistral-large-latest' in action_names
     assert 'mistral/mistral-small-latest' in action_names
+    assert 'mistral/mistral-embed' in action_names
 
 
 def test_supported_models_have_required_fields() -> None:

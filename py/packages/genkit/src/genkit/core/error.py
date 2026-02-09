@@ -135,7 +135,7 @@ class HttpErrorWireFormat(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True)
 
-    details: Any  # noqa: ANN401
+    details: Any
     message: str
     status: str = StatusCodes.INTERNAL.name
 

@@ -211,20 +211,29 @@ Cross-Language Parity:
 import logging
 import os
 import uuid
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
+from typing import Any, cast
 
 import structlog
 from google.api_core import exceptions as core_exceptions, retry as retries
 from google.cloud.trace_v2 import BatchWriteSpansRequest
-from opentelemetry import metrics
+from opentelemetry import metrics, trace
 from opentelemetry.exporter.cloud_monitoring import CloudMonitoringMetricsExporter
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.resourcedetector.gcp_resource_detector import (
     GoogleCloudResourceDetector,
 )
-from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics import (
+    Counter,
+    Histogram,
+    MeterProvider,
+    ObservableCounter,
+    ObservableGauge,
+    ObservableUpDownCounter,
+    UpDownCounter,
+)
 from opentelemetry.sdk.metrics.export import (
+    AggregationTemporality,
     MetricExporter,
     MetricExportResult,
     MetricsData,
@@ -236,7 +245,7 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.sampling import Sampler
 
 from genkit.core.environment import is_dev_environment
-from genkit.core.trace import AdjustingTraceExporter
+from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 from genkit.core.tracing import add_custom_exporter
 
 from .action import action_telemetry
@@ -249,7 +258,7 @@ logger = structlog.get_logger(__name__)
 
 # Constants matching JS/Go implementations
 MIN_METRIC_EXPORT_INTERVAL_MS = 5000
-DEFAULT_METRIC_EXPORT_INTERVAL_MS = 60000
+DEFAULT_METRIC_EXPORT_INTERVAL_MS = 300000
 DEV_METRIC_EXPORT_INTERVAL_MS = 5000
 PROD_METRIC_EXPORT_INTERVAL_MS = 300000
 
@@ -288,6 +297,197 @@ def _resolve_project_id(
         return credentials['project_id']
 
     return None
+
+
+class GcpTelemetry:
+    """Central manager for GCP Telemetry configuration.
+
+    Encapsulates configuration and manages the lifecycle of Tracing, Metrics,
+    and Logging setup, ensuring consistent state (like project_id) across all
+    telemetry components.
+    """
+
+    def __init__(
+        self,
+        project_id: str | None = None,
+        credentials: dict[str, Any] | None = None,
+        sampler: Sampler | None = None,
+        log_input_and_output: bool = False,
+        force_dev_export: bool = True,
+        disable_metrics: bool = False,
+        disable_traces: bool = False,
+        metric_export_interval_ms: int | None = None,
+        metric_export_timeout_ms: int | None = None,
+    ) -> None:
+        """Initialize the GCP Telemetry manager.
+
+        Args:
+            project_id: GCP project ID.
+            credentials: Optional credentials dict.
+            sampler: Trace sampler.
+            log_input_and_output: If False, hides sensitive data.
+            force_dev_export: Check to force export in dev environment.
+            disable_metrics: If True, metrics are not exported.
+            disable_traces: If True, traces are not exported.
+            metric_export_interval_ms: Export interval in ms.
+            metric_export_timeout_ms: Export timeout in ms.
+        """
+        self.credentials = credentials
+        self.sampler = sampler
+        self.log_input_and_output = log_input_and_output
+        self.force_dev_export = force_dev_export
+        self.disable_metrics = disable_metrics
+        self.disable_traces = disable_traces
+
+        # Resolve project ID immediately
+        self.project_id = _resolve_project_id(project_id, credentials)
+
+        # Determine metric export settings
+        is_dev = is_dev_environment()
+
+        default_interval = DEV_METRIC_EXPORT_INTERVAL_MS if is_dev else DEFAULT_METRIC_EXPORT_INTERVAL_MS
+        self.metric_export_interval_ms = metric_export_interval_ms or default_interval
+
+        if self.metric_export_interval_ms < MIN_METRIC_EXPORT_INTERVAL_MS:
+            logger.warning(
+                f'metric_export_interval_ms ({self.metric_export_interval_ms}) is below minimum '
+                f'({MIN_METRIC_EXPORT_INTERVAL_MS}), using minimum'
+            )
+            self.metric_export_interval_ms = MIN_METRIC_EXPORT_INTERVAL_MS
+
+        self.metric_export_timeout_ms = metric_export_timeout_ms or self.metric_export_interval_ms
+
+    def initialize(self) -> None:
+        """Actuates the telemetry configuration."""
+        is_dev = is_dev_environment()
+        should_export = self.force_dev_export or not is_dev
+
+        if not should_export:
+            logger.debug('Telemetry export disabled in dev environment')
+            return
+
+        self._configure_logging()
+        self._configure_tracing()
+        self._configure_metrics()
+
+    def _configure_logging(self) -> None:
+        """Configures structlog with trace correlation."""
+        try:
+            current_config = structlog.get_config()
+            processors = current_config.get('processors', [])
+
+            # Check if our bound method is already registered (by name or other heuristic if needed)
+            # Since methods are bound, simple equality check might fail if new instance.
+            # However, for simplicity and common usage, we'll append.
+            # A better check would be to see if any processor matches our signature/name.
+
+            # Simple deduplication: Check for function name in processors
+            if not any(getattr(p, '__name__', '') == 'inject_trace_context' for p in processors):
+
+                def inject_trace_context(
+                    logger: Any,  # noqa: ANN401
+                    method_name: str,
+                    event_dict: MutableMapping[str, Any],
+                ) -> Mapping[str, Any]:
+                    return self._inject_trace_context(
+                        cast(logging.Logger, logger), method_name, cast(dict[str, Any], event_dict)
+                    )
+
+                new_processors = list(processors)
+                new_processors.insert(max(0, len(new_processors) - 1), inject_trace_context)
+                structlog.configure(processors=new_processors)
+                logger.debug('Configured structlog for GCP trace correlation')
+
+        except Exception as e:
+            logger.warning('Failed to configure structlog for trace correlation', error=str(e))
+
+    def _configure_tracing(self) -> None:
+        if self.disable_traces:
+            return
+
+        exporter_kwargs: dict[str, Any] = {}
+        if self.project_id:
+            exporter_kwargs['project_id'] = self.project_id
+        if self.credentials:
+            exporter_kwargs['credentials'] = self.credentials
+
+        base_exporter = GenkitGCPExporter(**exporter_kwargs) if exporter_kwargs else GenkitGCPExporter()
+
+        trace_exporter = GcpAdjustingTraceExporter(
+            exporter=base_exporter,
+            log_input_and_output=self.log_input_and_output,
+            project_id=self.project_id,
+            error_handler=lambda e: _handle_tracing_error(e),
+        )
+
+        add_custom_exporter(trace_exporter, 'gcp_telemetry_server')
+
+    def _configure_metrics(self) -> None:
+        if self.disable_metrics:
+            return
+
+        try:
+            resource = Resource.create({
+                SERVICE_NAME: 'genkit',
+                SERVICE_INSTANCE_ID: str(uuid.uuid4()),
+            })
+
+            # Suppress detector warnings during GCP resource detection
+            detector_logger = logging.getLogger('opentelemetry.resourcedetector.gcp_resource_detector')
+            original_level = detector_logger.level
+            detector_logger.setLevel(logging.ERROR)
+
+            try:
+                gcp_resource = GoogleCloudResourceDetector(raise_on_error=True).detect()
+                resource = resource.merge(gcp_resource)
+            except Exception as e:
+                # For detection failure log the exception and use the default resource
+                detector_logger.warning(f'Google Cloud resource detection failed: {e}')
+            finally:
+                detector_logger.setLevel(original_level)
+
+            exporter_kwargs: dict[str, Any] = {}
+            if self.project_id:
+                exporter_kwargs['project_id'] = self.project_id
+            if self.credentials:
+                exporter_kwargs['credentials'] = self.credentials
+
+            metrics_exporter = GenkitMetricExporter(
+                exporter=CloudMonitoringMetricsExporter(**exporter_kwargs),
+                error_handler=lambda e: _handle_metric_error(e),
+            )
+
+            reader = PeriodicExportingMetricReader(
+                metrics_exporter,
+                export_interval_millis=self.metric_export_interval_ms,
+                export_timeout_millis=self.metric_export_timeout_ms,
+            )
+
+            provider = MeterProvider(metric_readers=[reader], resource=resource)
+            metrics.set_meter_provider(provider)
+
+        except Exception as e:
+            _handle_metric_error(e)
+
+    def _inject_trace_context(
+        self, logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Structlog processor to inject GCP-compatible trace context."""
+        span = trace.get_current_span()
+        if span == trace.INVALID_SPAN:
+            return event_dict
+
+        ctx = span.get_span_context()
+        if not ctx.is_valid:
+            return event_dict
+
+        if self.project_id:
+            event_dict['logging.googleapis.com/trace'] = f'projects/{self.project_id}/traces/{ctx.trace_id:032x}'
+
+        event_dict['logging.googleapis.com/spanId'] = f'{ctx.span_id:016x}'
+        event_dict['logging.googleapis.com/trace_sampled'] = '1' if ctx.trace_flags.sampled else '0'
+
+        return event_dict
 
 
 class GenkitGCPExporter(CloudTraceSpanExporter):
@@ -370,6 +570,19 @@ class GenkitMetricExporter(MetricExporter):
         self._exporter = exporter
         self._error_handler = error_handler
 
+        # Force DELTA temporality for all instrument types to match JS implementation.
+        delta = AggregationTemporality.DELTA
+        self._preferred_temporality = {
+            Counter: delta,
+            UpDownCounter: delta,
+            Histogram: delta,
+            ObservableCounter: delta,
+            ObservableUpDownCounter: delta,
+            ObservableGauge: delta,
+        }
+
+        self._preferred_aggregation = getattr(exporter, '_preferred_aggregation', None)
+
     def export(
         self,
         metrics_data: MetricsData,
@@ -384,11 +597,12 @@ class GenkitMetricExporter(MetricExporter):
         Args:
             metrics_data: The metrics data to export.
             timeout_millis: Export timeout in milliseconds.
-            **kwargs: Additional arguments (for base class compatibility).
+            **kwargs: Additional arguments for base class compatibility.
 
         Returns:
-            The export result.
+            The export result from the wrapped exporter.
         """
+        # Modify start times before export
         self._modify_start_times(metrics_data)
 
         try:
@@ -402,7 +616,7 @@ class GenkitMetricExporter(MetricExporter):
         """Add 1ms to start times to prevent overlap.
 
         Args:
-            metrics_data: The metrics data to modify.
+            metrics_data: The metrics data to modify in-place.
         """
         for resource_metrics in metrics_data.resource_metrics:
             for scope_metrics in resource_metrics.scope_metrics:
@@ -410,7 +624,7 @@ class GenkitMetricExporter(MetricExporter):
                     for data_point in metric.data.data_points:
                         # Add 1 millisecond (1_000_000 nanoseconds) to start time
                         if hasattr(data_point, 'start_time_unix_nano'):
-                            # pyrefly: ignore[read-only] - modifying frozen dataclass via workaround
+                            # Modifying frozen dataclass via workaround
                             object.__setattr__(
                                 data_point,
                                 'start_time_unix_nano',
@@ -418,7 +632,7 @@ class GenkitMetricExporter(MetricExporter):
                             )
 
     def force_flush(self, timeout_millis: float = 10_000) -> bool:
-        """Force flush the underlying exporter.
+        """Delegate force flush to wrapped exporter.
 
         Args:
             timeout_millis: Timeout in milliseconds.
@@ -431,13 +645,35 @@ class GenkitMetricExporter(MetricExporter):
         return True
 
     def shutdown(self, timeout_millis: float = 30_000, **kwargs: object) -> None:
-        """Shut down the underlying exporter.
+        """Delegate shutdown to wrapped exporter.
 
         Args:
             timeout_millis: Timeout in milliseconds.
-            **kwargs: Additional arguments (for base class compatibility).
+            **kwargs: Additional arguments for base class compatibility.
         """
         self._exporter.shutdown(timeout_millis, **kwargs)
+
+
+class TimeAdjustedSpan(RedactedSpan):
+    """Wraps a span to ensure non-zero duration for GCP.
+
+    GCP Trace requires end_time > start_time.
+    """
+
+    @property
+    def end_time(self) -> int | None:
+        """Return the span end time, adjusted to be > start_time."""
+        start = self._span.start_time
+        end = self._span.end_time
+
+        # GCP requires end_time > start_time.
+        # If the span is unfinished (end_time is None) or has zero duration,
+        # we provide a minimum 1 microsecond duration.
+        if start is not None:
+            if end is None or end <= start:
+                return start + 1000
+
+        return end
 
 
 class GcpAdjustingTraceExporter(AdjustingTraceExporter):
@@ -486,6 +722,8 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
             project_id=project_id,
             error_handler=error_handler,
         )
+        self._log_input_and_output = log_input_and_output
+        self._project_id = project_id
 
     def _adjust(self, span: ReadableSpan) -> ReadableSpan:
         """Apply all adjustments to a span including telemetry.
@@ -503,7 +741,10 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
         span = self._tick_telemetry(span)
 
         # Apply standard adjustments from base class
-        return super()._adjust(span)
+        span = super()._adjust(span)
+
+        # Fix start/end times for GCP (must be end > start)
+        return TimeAdjustedSpan(span, dict(span.attributes) if span.attributes else {})
 
     def _tick_telemetry(self, span: ReadableSpan) -> ReadableSpan:
         """Record telemetry for a span and apply root state marking.
@@ -537,9 +778,6 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
                 # (matches JS: span.attributes['genkit:rootState'] = span.attributes['genkit:state'])
                 state = attrs.get('genkit:state')
                 if state:
-                    # Import here to avoid circular imports
-                    from genkit.core.trace.adjusting_exporter import RedactedSpan
-
                     new_attrs = dict(attrs)
                     new_attrs['genkit:rootState'] = state
                     span = RedactedSpan(span, new_attrs)
@@ -661,92 +899,19 @@ def add_gcp_telemetry(
         logger.warning('force_export is deprecated, use force_dev_export instead')
         force_dev_export = force_export
 
-    # Resolve project ID from various sources
-    resolved_project_id = _resolve_project_id(project_id, credentials)
+    manager = GcpTelemetry(
+        project_id=project_id,
+        credentials=credentials,
+        sampler=sampler,
+        log_input_and_output=log_input_and_output,
+        force_dev_export=force_dev_export,
+        disable_metrics=disable_metrics,
+        disable_traces=disable_traces,
+        metric_export_interval_ms=metric_export_interval_ms,
+        metric_export_timeout_ms=metric_export_timeout_ms,
+    )
 
-    # Determine if we should export based on environment
-    is_dev = is_dev_environment()
-    should_export = force_dev_export or not is_dev
-
-    if not should_export:
-        logger.debug('Telemetry export disabled in dev environment')
-        return
-
-    # Determine metric export interval
-    if metric_export_interval_ms is None:
-        metric_export_interval_ms = DEV_METRIC_EXPORT_INTERVAL_MS if is_dev else DEFAULT_METRIC_EXPORT_INTERVAL_MS
-
-    # Ensure minimum interval for GCP
-    if metric_export_interval_ms < MIN_METRIC_EXPORT_INTERVAL_MS:
-        logger.warning(
-            f'metric_export_interval_ms ({metric_export_interval_ms}) is below minimum '
-            f'({MIN_METRIC_EXPORT_INTERVAL_MS}), using minimum'
-        )
-        metric_export_interval_ms = MIN_METRIC_EXPORT_INTERVAL_MS
-
-    # Default timeout to interval if not specified
-    if metric_export_timeout_ms is None:
-        metric_export_timeout_ms = metric_export_interval_ms
-
-    # Configure trace export
-    if not disable_traces:
-        # Create the base GCP exporter with optional credentials
-        exporter_kwargs: dict[str, Any] = {}
-        if resolved_project_id:
-            exporter_kwargs['project_id'] = resolved_project_id
-        if credentials:
-            exporter_kwargs['credentials'] = credentials
-
-        base_exporter = GenkitGCPExporter(**exporter_kwargs) if exporter_kwargs else GenkitGCPExporter()
-
-        # Wrap with GcpAdjustingTraceExporter for PII redaction and telemetry
-        # This matches the JS implementation in gcpOpenTelemetry.ts
-        trace_exporter = GcpAdjustingTraceExporter(
-            exporter=base_exporter,
-            log_input_and_output=log_input_and_output,
-            project_id=resolved_project_id,
-            error_handler=lambda e: _handle_tracing_error(e),
-        )
-
-        add_custom_exporter(trace_exporter, 'gcp_telemetry_server')
-
-    # Configure metrics export
-    if not disable_metrics:
-        try:
-            resource = Resource.create({
-                SERVICE_NAME: 'genkit',
-                SERVICE_INSTANCE_ID: str(uuid.uuid4()),
-            })
-
-            # Suppress detector warnings during GCP resource detection
-            detector_logger = logging.getLogger('opentelemetry.resourcedetector.gcp_resource_detector')
-            original_level = detector_logger.level
-            detector_logger.setLevel(logging.ERROR)
-
-            try:
-                resource = resource.merge(GoogleCloudResourceDetector().detect())
-            finally:
-                detector_logger.setLevel(original_level)
-
-            # Create the base metric exporter
-            base_metric_exporter = CloudMonitoringMetricsExporter(
-                project_id=resolved_project_id,
-            )
-
-            # Wrap with our exporter that adjusts start times
-            metric_exporter = GenkitMetricExporter(
-                exporter=base_metric_exporter,
-                error_handler=lambda e: _handle_metrics_error(e),
-            )
-
-            metric_reader = PeriodicExportingMetricReader(
-                exporter=metric_exporter,
-                export_interval_millis=metric_export_interval_ms,
-                export_timeout_millis=metric_export_timeout_ms,
-            )
-            metrics.set_meter_provider(MeterProvider(metric_readers=[metric_reader], resource=resource))
-        except Exception as e:
-            logger.error('Failed to configure metrics exporter', error=str(e))
+    manager.initialize()
 
 
 # Error handling helpers (matches JS getErrorHandler pattern)
@@ -778,7 +943,7 @@ def _handle_tracing_error(error: Exception) -> None:
         logger.error('Error exporting traces to GCP', error=str(error))
 
 
-def _handle_metrics_error(error: Exception) -> None:
+def _handle_metric_error(error: Exception) -> None:
     """Handle metrics export errors with helpful messages.
 
     Only logs detailed instructions once to avoid spam.

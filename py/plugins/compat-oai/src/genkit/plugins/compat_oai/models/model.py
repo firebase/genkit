@@ -34,6 +34,7 @@ from genkit.types import (
     Message,
     OutputConfig,
     Part,
+    ReasoningPart,
     Role,
     ToolDefinition,
 )
@@ -179,7 +180,7 @@ class OpenAIModel:
 
         return GenerateResponse(
             request=request,
-            message=MessageConverter.to_genkit(response.choices[0].message),
+            message=MessageConverter.to_genkit(MessageAdapter(response.choices[0].message)),
         )
 
     async def _generate_stream(
@@ -212,6 +213,19 @@ class OpenAIModel:
                     GenerateResponseChunk(
                         role=Role.MODEL,
                         content=message.content,
+                    )
+                )
+
+            # Reasoning content chunk (DeepSeek R1 / reasoner models).
+            # Note: Pydantic models raise AttributeError for unknown fields,
+            # so getattr() with a default doesn't work. Use try-except.
+            elif reasoning_text := MessageAdapter(delta).reasoning_content:
+                reasoning_part = Part(root=ReasoningPart(reasoning=reasoning_text))
+                accumulated_content.append(reasoning_part)
+                callback(
+                    GenerateResponseChunk(
+                        role=Role.MODEL,
+                        content=[reasoning_part],
                     )
                 )
 

@@ -20,7 +20,8 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
-  "genkit-plugin-cf-ai",
+  "genkit-plugin-checks",
+  "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
@@ -33,11 +34,10 @@ dependencies = [
   "genkit-plugin-vertex-ai",
   "genkit-plugin-xai",
   "genkit-plugin-mcp",
-  "genkit-plugin-msfoundry",
-  "genkit-plugin-aws-bedrock",
-  "genkit-plugin-aws",
-  "genkit-plugin-azure",
-  "genkit-plugin-cf",
+  "genkit-plugin-microsoft-foundry",
+  "genkit-plugin-amazon-bedrock",
+
+  "genkit-plugin-cohere",
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
@@ -77,8 +77,11 @@ dev = [
 lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
+  "granian>=1.0.0",           # For web-endpoints-hello type resolution
+  "litestar>=2.0.0",          # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
+  "pydantic-settings>=2.0.0", # For web-endpoints-hello type resolution
   "pypdf>=6.6.2",
   "pyrefly>=0.15.0",
   "pyright>=1.1.392",
@@ -88,6 +91,23 @@ lint = [
   "streamlit>=1.41.0",
   "ty>=0.0.1",
   "typos>=1.42.0",
+  # ── web-endpoints-hello type resolution ──
+  # These are needed so workspace-level type checkers can resolve all
+  # imports in the sample. The sample is checked in both the workspace
+  # pipeline AND its own `just lint` pipeline with identical settings.
+  "fastapi>=0.115.0",
+  "grpcio>=1.68.0",
+  "grpcio-reflection>=1.68.0",
+  "gunicorn>=22.0.0",
+  "hypercorn>=0.17.0",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+  "opentelemetry-instrumentation-asgi>=0.41b0",
+  "opentelemetry-instrumentation-fastapi>=0.41b0",
+  "opentelemetry-instrumentation-grpc>=0.41b0",
+  "quart>=0.19.0",
+  "secure>=1.0.0",
+  "sentry-sdk>=2.0.0",
+  "structlog>=24.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -105,8 +125,13 @@ addopts = [
   #"--cov-report=", # Disable terminal report generation by pytest-cov
   "-ra",
   "-vv",
+  "--ignore=testapps",
+  # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
+  # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
+  "--ignore=samples/web-endpoints-hello/tests",
 ]
 asyncio_default_fixture_loop_scope = "session"
+norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 testpaths = ["packages", "plugins", "samples", "tests"]
 #asyncio_mode = "auto"
@@ -131,51 +156,52 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-anthropic-hello                     = { workspace = true }
-aws-bedrock-hello                   = { workspace = true }
-aws-hello                           = { workspace = true }
-azure-hello                         = { workspace = true }
-cf-ai-hello                         = { workspace = true }
-cf-hello                            = { workspace = true }
-compat-oai-hello                    = { workspace = true }
-deepseek-hello                      = { workspace = true }
-dev-local-vectorstore-hello         = { workspace = true }
-evaluator-demo                      = { workspace = true }
-firestore-retreiver                 = { workspace = true }
-flask-hello                         = { workspace = true }
-format-demo                         = { workspace = true }
-google-genai-code-execution         = { workspace = true }
-google-genai-context-caching        = { workspace = true }
-google-genai-hello                  = { workspace = true }
-google-genai-image                  = { workspace = true }
-google-genai-vertexai-hello         = { workspace = true }
-google-genai-vertexai-image         = { workspace = true }
-huggingface-hello                   = { workspace = true }
-media-models-demo                   = { workspace = true }
-menu                                = { workspace = true }
-mistral-hello                       = { workspace = true }
-model-garden                        = { workspace = true }
-msfoundry-hello                     = { workspace = true }
-multi-server                        = { workspace = true }
-observability-hello                 = { workspace = true }
-ollama-hello                        = { workspace = true }
-ollama-simple-embed                 = { workspace = true }
-prompt-demo                         = { workspace = true }
-realtime-tracing-demo               = { workspace = true }
-short-n-long                        = { workspace = true }
-tool-interrupts                     = { workspace = true }
-vertex-ai-vector-search-bigquery    = { workspace = true }
-vertex-ai-vector-search-firestore   = { workspace = true }
-xai-hello                           = { workspace = true }
+dev-local-vectorstore-hello                = { workspace = true }
+framework-context-demo                     = { workspace = true }
+framework-dynamic-tools-demo               = { workspace = true }
+framework-evaluator-demo                   = { workspace = true }
+framework-format-demo                      = { workspace = true }
+framework-middleware-demo                  = { workspace = true }
+framework-prompt-demo                      = { workspace = true }
+framework-realtime-tracing-demo            = { workspace = true }
+framework-restaurant-demo                  = { workspace = true }
+framework-tool-interrupts                  = { workspace = true }
+provider-amazon-bedrock-hello              = { workspace = true }
+provider-anthropic-hello                   = { workspace = true }
+provider-checks-hello                      = { workspace = true }
+provider-cloudflare-workers-ai-hello       = { workspace = true }
+provider-cohere-hello                      = { workspace = true }
+provider-compat-oai-hello                  = { workspace = true }
+provider-deepseek-hello                    = { workspace = true }
+provider-firestore-retriever               = { workspace = true }
+provider-google-genai-code-execution       = { workspace = true }
+provider-google-genai-context-caching      = { workspace = true }
+provider-google-genai-hello                = { workspace = true }
+provider-google-genai-media-models-demo    = { workspace = true }
+provider-google-genai-vertexai-hello       = { workspace = true }
+provider-google-genai-vertexai-image       = { workspace = true }
+provider-huggingface-hello                 = { workspace = true }
+provider-microsoft-foundry-hello           = { workspace = true }
+provider-mistral-hello                     = { workspace = true }
+provider-observability-hello               = { workspace = true }
+provider-ollama-hello                      = { workspace = true }
+provider-vertex-ai-model-garden            = { workspace = true }
+provider-vertex-ai-rerank-eval             = { workspace = true }
+provider-vertex-ai-vector-search-bigquery  = { workspace = true }
+provider-vertex-ai-vector-search-firestore = { workspace = true }
+provider-xai-hello                         = { workspace = true }
+web-endpoints-hello                        = { workspace = true }
+web-flask-hello                            = { workspace = true }
+web-multi-server                           = { workspace = true }
+web-short-n-long                           = { workspace = true }
 # Core packages
-genkit                              = { workspace = true }
+genkit = { workspace = true }
 # Plugins (alphabetical)
+genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
-genkit-plugin-aws                   = { workspace = true }
-genkit-plugin-aws-bedrock           = { workspace = true }
-genkit-plugin-azure                 = { workspace = true }
-genkit-plugin-cf                    = { workspace = true }
-genkit-plugin-cf-ai                 = { workspace = true }
+genkit-plugin-checks                = { workspace = true }
+genkit-plugin-cloudflare-workers-ai = { workspace = true }
+genkit-plugin-cohere                = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -186,15 +212,15 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-huggingface           = { workspace = true }
 genkit-plugin-mcp                   = { workspace = true }
+genkit-plugin-microsoft-foundry     = { workspace = true }
 genkit-plugin-mistral               = { workspace = true }
-genkit-plugin-msfoundry             = { workspace = true }
 genkit-plugin-observability         = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared"]
+exclude = ["*/shared", "samples/sample-test", "testapps/*"]
 members = ["packages/*", "plugins/*", "samples/*"]
 
 
@@ -238,31 +264,31 @@ unsafe-fixes = true
 
 [tool.ruff.lint]
 fixable = ["ALL"]
+ignore = [
+  "S101", # assert used - we use assert for type narrowing and tests
+  "S105", # hardcoded password string - false positives in tests
+  "S106", # hardcoded password func arg - false positives in tests
+  "S311", # random not for security - we don't use random for crypto
+]
 select = [
-  "E",    # pycodestyle (errors)
-  "W",    # pycodestyle (warnings)
-  "F",    # pyflakes
-  "I",    # isort (import sorting)
-  "UP",   # pyupgrade (Python version upgrades)
-  "B",    # flake8-bugbear (common bugs)
-  "N",    # pep8-naming (naming conventions)
-  "D",    # pydocstyle
-  "ANN",  # flake8-annotations (type hints)
-  "F401", # unused imports
-  "F403", # wildcard imports
-  "F841", # unused variables
-  "S",    # flake8-bandit (security)
-  "ASYNC",# flake8-async (async best practices)
-  "T20",  # flake8-print (no print statements)
+  "E",     # pycodestyle (errors)
+  "W",     # pycodestyle (warnings)
+  "F",     # pyflakes
+  "I",     # isort (import sorting)
+  "UP",    # pyupgrade (Python version upgrades)
+  "B",     # flake8-bugbear (common bugs)
+  "N",     # pep8-naming (naming conventions)
+  "D",     # pydocstyle
+  "ANN",   # flake8-annotations (type hints)
+  "F401",  # unused imports
+  "F403",  # wildcard imports
+  "F841",  # unused variables
+  "S",     # flake8-bandit (security)
+  "ASYNC", # flake8-async (async best practices)
+  "T20",   # flake8-print (no print statements)
   # TODO(https://github.com/firebase/genkit/issues/4398): Enable PLC0415 after
   # completing cleanup of remaining in-function imports in core framework.
   # "PLC0415",
-]
-ignore = [
-  "S101",   # assert used - we use assert for type narrowing and tests
-  "S105",   # hardcoded password string - false positives in tests
-  "S106",   # hardcoded password func arg - false positives in tests
-  "S311",   # random not for security - we don't use random for crypto
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -273,9 +299,6 @@ ignore = [
 "samples/*/*.py"     = ["E402", "ASYNC"]
 "samples/*/**/*.py"  = ["E402", "ASYNC"]
 "samples/*/src/*.py" = ["E402", "ASYNC"]
-# Core framework: temporarily ignore security/async rules until core team approves fixes
-# These will be addressed in a separate PR with core framework changes
-"packages/genkit/**/*.py" = ["S110", "S112", "S310", "T201"]
 
 
 [tool.ruff.lint.isort]
@@ -375,17 +398,21 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 
 # Ty (Astral/Ruff) type checking configuration.
 # See: https://docs.astral.sh/ty/modules/#first-party-modules
+[tool.ty.src]
+# Auto-generated protobuf stubs use grpc.experimental implicit submodule
+# access that ty warns about. We can't modify generated code.
+exclude = ["**/generated"]
+
 [tool.ty.environment]
 root = [
   # Core package
   "packages/genkit/src",
   # Plugins
   "plugins/anthropic/src",
-  "plugins/aws/src",
-  "plugins/aws-bedrock/src",
-  "plugins/azure/src",
-  "plugins/cf/src",
-  "plugins/cf-ai/src",
+  "plugins/amazon-bedrock/src",
+  "plugins/checks/src",
+  "plugins/cloudflare-workers-ai/src",
+  "plugins/cohere/src",
   "plugins/compat-oai/src",
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",
@@ -396,17 +423,18 @@ root = [
   "plugins/google-genai/src",
   "plugins/huggingface/src",
   "plugins/mcp/src",
+  "plugins/microsoft-foundry/src",
   "plugins/mistral/src",
-  "plugins/msfoundry/src",
   "plugins/observability/src",
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "plugins/xai/src",
   # Samples
-  ".",                      # For samples.shared imports
-  "samples/evaluator-demo", # For evaluator_demo package imports
-  "samples/menu/src",       # For menu sample imports
-  "plugins/mcp/tests",      # For fakes module imports in tests
+  ".",                                     # For samples.shared imports
+  "samples/framework-evaluator-demo",      # For evaluator_demo package imports
+  "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
+  "samples/web-endpoints-hello",           # For src imports in tests
+  "plugins/mcp/tests",                     # For fakes module imports in tests
 ]
 
 # Pyright type checking configuration.
@@ -422,6 +450,7 @@ exclude = [
   "build",
   "dist",
 ]
+
 # Use the venv where packages are installed as editable installs
 pythonVersion          = "3.10"
 reportMissingImports   = true
@@ -453,6 +482,8 @@ project_excludes = [
   ".venv",
   "build",
   "dist",
+  "testapps",
+  "samples/sample-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)
@@ -463,19 +494,21 @@ project_includes = [
   "plugins/*/tests/**/*.py",
   # Samples
   "samples/*/src/**/*.py",
-  "samples/evaluator-demo/evaluator_demo/**/*.py",
+  "samples/*/tests/**/*.py",
+  "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
 # The project root "." covers all packages. Additional paths are needed for:
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
-# - samples/evaluator-demo: has `evaluator_demo` package with internal imports
-# - samples/menu/src: has internal imports (menu_ai, menu_schemas)
+# - samples/framework-evaluator-demo: has `evaluator_demo` package with internal imports
+# - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
 search-path = [
   ".",
   "plugins/mcp/tests",
-  "samples/evaluator-demo",
-  "samples/menu/src",
+  "samples/framework-evaluator-demo",
+  "samples/framework-restaurant-demo/src",
+  "samples/web-endpoints-hello",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime

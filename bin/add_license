@@ -33,7 +33,7 @@ fi
 
 # NOTE: If you edit the ignore patterns, make sure to update the ignore patterns
 # in the corresponding check_license script.
-$HOME/go/bin/addlicense \
+"$HOME"/go/bin/addlicense \
   -c "Google LLC" \
   -y "$(date +%Y)" \
   -s \
@@ -59,4 +59,7 @@ $HOME/go/bin/addlicense \
   -ignore '**/pnpm-lock.yaml' \
   -ignore '.nx/**/*' \
   -ignore '.trunk/**/*' \
+  -ignore '**/site/**/*' \
+  -ignore '**/generated/*_pb2.py' \
+  -ignore '**/generated/*_pb2_grpc.py' \
   "$TOP_DIR"

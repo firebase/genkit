@@ -72,6 +72,8 @@ async def test__generate(sample_request: GenerateRequest) -> None:
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
     mock_message.role = 'model'
+    mock_message.tool_calls = None
+    mock_message.reasoning_content = None
 
     mock_response = MagicMock()
     mock_response.choices = [MagicMock(message=mock_message)]
@@ -113,6 +115,7 @@ async def test__generate_stream(sample_request: GenerateRequest) -> None:
             delta_mock.content = content
             delta_mock.role = None
             delta_mock.tool_calls = None
+            delta_mock.reasoning_content = None
 
             choice_mock = MagicMock()
             choice_mock.delta = delta_mock

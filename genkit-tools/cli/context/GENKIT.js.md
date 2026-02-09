@@ -48,6 +48,8 @@ If the Genkit CLI is not already installed:
 
 ```bash
 curl -sL cli.genkit.dev | bash
+# or,
+npm install -g genkit-cli
 ```
 
 ### Configuration

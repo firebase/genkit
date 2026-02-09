@@ -53,32 +53,31 @@ jobs:
         run: uv lock --check --directory py
 
       - name: Format check
-        run: uv run --directory py ruff format --check .
+        run: uv run --directory py ruff format --check --preview .
 
       - name: Lint with ruff
-        run: uv run --directory py ruff check .
+        run: uv run --directory py ruff check --preview .
 
-      - name: Check test file naming convention
-        run: |
-          if find py -name "test_*.py" -not -path "*/.*" | grep -q .; then
-              echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
-              find py -name "test_*.py" -not -path "*/.*"
-              exit 1
-          fi
+      - name: Run consistency checks
+        run: ./py/bin/check_consistency
 
   # =============================================================================
-  # Type checking (runs in parallel with lint)
+  # Type checking (runs in parallel - each checker is a separate job)
   # =============================================================================
   type-check:
-    name: Type Check
+    name: Type Check (${{ matrix.checker }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        checker: [ty, pyrefly, pyright]
     steps:
       - uses: actions/checkout@v5
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev cmake libjpeg-dev zlib1g-dev
+          sudo apt-get install -y --no-install-recommends build-essential libffi-dev cmake libjpeg-dev zlib1g-dev
 
       - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
@@ -95,12 +94,15 @@ jobs:
         run: ./py/bin/generate_schema_typing --ci
 
       - name: Type check with Ty
+        if: matrix.checker == 'ty'
         run: uv run --directory py ty check .
 
       - name: Type check with Pyrefly
+        if: matrix.checker == 'pyrefly'
         run: uv run --directory py pyrefly check .
 
       - name: Type check with Pyright
+        if: matrix.checker == 'pyright'
         run: uv run --directory py pyright packages/
 
   # =============================================================================
@@ -164,35 +166,17 @@ jobs:
           echo "No hardcoded secrets detected"
 
   # =============================================================================
-  # Consistency checks (package metadata, workspace, naming)
+  # Consistency checks (merged into lint-and-format job above for efficiency)
   # =============================================================================
-  consistency-check:
-    name: Consistency Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          cd py
-          uv sync --group lint
-
-      - name: Run consistency checks
-        run: ./py/bin/check_consistency
+  # NOTE: consistency-check was merged into lint-and-format to reduce setup overhead
 
   # =============================================================================
-  # Unit tests across multiple Python versions
+  # Unit tests across multiple Python versions (runs in parallel with other jobs)
   # =============================================================================
   tests:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    needs: [lint-and-format]  # Don't waste CI time if lint fails
+    # No 'needs' - runs in parallel. If lint fails, concurrency will cancel this.
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -223,47 +207,36 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --active --isolated --directory py \
             pytest -xvs --log-level=DEBUG .
-
   # =============================================================================
-  # Verify tox/nox work for local development (smoke test)
+  # Sample integration tests (isolated per-sample, runs in parallel)
   # =============================================================================
-  test-runners:
-    name: Test Runners (tox/nox)
+  sample-tests:
+    name: Sample Tests (${{ matrix.sample }}, Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    needs: [lint-and-format]  # Don't waste CI time if lint fails
+    strategy:
+      fail-fast: false
+      matrix:
+        # Add new samples with tests here as they are created.
+        sample: [web-endpoints-hello]
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v5
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libffi-dev cmake libjpeg-dev zlib1g-dev
 
       - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install sample dependencies
         run: |
           cd py
-          uv sync
+          uv sync --package ${{ matrix.sample }} --extra test --extra dev
 
-      - name: Generate schema typing
-        run: ./py/bin/generate_schema_typing --ci
-
-      # Smoke test tox - run with single Python version to verify it works
-      - name: Verify tox works (smoke test)
+      - name: Run sample tests
         run: |
-          cd py
-          uv run tox -e py312 -- -x --tb=no -q packages/genkit/tests/genkit/core/
-
-      # Smoke test nox - run with single Python version to verify it works
-      - name: Verify nox works (smoke test)
-        run: |
-          cd py
-          uv run nox -s "tests-3.12" -- -x --tb=no -q packages/genkit/tests/genkit/core/
+          cd py/samples/${{ matrix.sample }}
+          uv run pytest tests/ -xvs
 
   # =============================================================================
   # Build verification (runs after tests pass)
@@ -271,7 +244,7 @@ jobs:
   build:
     name: Build Distributions
     runs-on: ubuntu-latest
-    needs: [lint-and-format, type-check, security-and-compliance, consistency-check, tests, test-runners]
+    needs: [lint-and-format, type-check, security-and-compliance, tests, sample-tests]
     steps:
       - uses: actions/checkout@v5
 
