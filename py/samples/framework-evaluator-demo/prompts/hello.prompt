@@ -1,8 +1,11 @@
 ---
+model: googleai/gemini-3-flash-preview
 config:
   temperature: 0.75
   topK: 10
 input:
+  default:
+    query: "fibonacci function"
   schema:
     query: string
 ---

@@ -116,6 +116,7 @@ export interface PromptConfig<
   input?: {
     schema?: I;
     jsonSchema?: JSONSchema7;
+    default?: Record<string, any>;
   };
   system?: string | Part | Part[] | PartsResolver<z.infer<I>>;
   prompt?: string | Part | Part[] | PartsResolver<z.infer<I>>;

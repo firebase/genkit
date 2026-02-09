@@ -1,6 +1,8 @@
 ---
 model: googleai/gemini-3-flash-preview
 input:
+  default:
+    food: "banana bread"
   schema:
     food: string
     ingredients?(array): string

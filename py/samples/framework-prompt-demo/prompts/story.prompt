@@ -1,6 +1,9 @@
 ---
 model: googleai/gemini-3-flash-preview
 input:
+  default:
+    subject: "a brave little toaster"
+    personality: "courageous"
   schema:
     subject: string
     personality?: string
