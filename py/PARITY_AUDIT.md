@@ -481,28 +481,31 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 
 | Gap ID | SDK | Work Item | Reference | Status |
 |--------|-----|-----------|-----------|:------:|
-| G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ⬜ |
-| G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ⏳ Deferred |
-| G6 → G5 | Python | Pass `span_id` in `on_trace_start`, send `X-Genkit-Span-Id` | §8c.3, §8c.4 | ⬜ |
-| G3 | Python | Implement `simulate_constrained_generation` middleware | §8b.3, §8f | ⬜ |
-| G12 | Python | Implement `retry` middleware | §8f | ⬜ |
-| G13 | Python | Implement `fallback` middleware | §8f | ⬜ |
-| G14 | Python | Implement `validate_support` middleware | §8f | ⬜ |
-| G15 | Python | Implement `download_request_media` middleware | §8f | ⬜ |
-| G16 | Python | Implement `simulate_system_prompt` middleware | §8f | ⬜ |
-| G18 | Python | Add multipart tool support (`defineTool({multipart: true})`) | §8h | ⬜ |
-| G19 | Python | Add Model API V2 (`defineModel({apiVersion: 'v2'})`) | §8i | ⬜ |
-| G20 | Python | Add `context` parameter to `Genkit()` constructor | §8j | ⬜ |
-| G21 | Python | Add `clientHeader` parameter to `Genkit()` constructor | §8j | ⬜ |
-| G22 | Python | Add `name` parameter to `Genkit()` constructor | §8j | ⬜ |
+| G1 | Python | `define_model(use=[...])` — model-level middleware | §8b.1 | ✅ Done (PR #4516) |
+| G2 | Python | Action-level middleware storage | §8b.1 | ✅ Done (PR #4516) |
+| G5 | Python | `X-Genkit-Span-Id` response header | §8c.4 | ✅ Done (PR #4511, merged) |
+| G6 | Python | `on_trace_start` pass `span_id` | §8c.3 | ✅ Done (PR #4511, merged) |
+| G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ✅ Done (PR #4507 + #4508, merged) |
+| G3 | Python | `simulate_constrained_generation` middleware | §8b.3, §8f | 🔄 PR #4510 open |
+| G12 | Python | `retry` middleware | §8f | 🔄 PR #4510 open |
+| G13 | Python | `fallback` middleware | §8f | 🔄 PR #4510 open |
+| G14 | Python | `validate_support` middleware | §8f | 🔄 PR #4510 open |
+| G15 | Python | `download_request_media` middleware | §8f | 🔄 PR #4510 open |
+| G16 | Python | `simulate_system_prompt` middleware | §8f | 🔄 PR #4510 open |
+| G18 | Python | Multipart tool support (`tool.v2`) | §8h | 🔄 PR #4513 open |
+| G20 | Python | `Genkit(context=...)` constructor | §8j | 🔄 PR #4512 open |
+| G21 | Python | `Genkit(clientHeader=...)` constructor | §8j | 🔄 PR #4512 open |
+| G22 | Python | `Genkit(name=...)` constructor | §8j | 🔄 PR #4512 open |
+| G38 | Python | `get_model_middleware()` auto-wiring | §8f.1 | ⬜ |
+| G19 | Python | Model API V2 (`defineModel({apiVersion: 'v2'})`) | §8i | ⬜ |
 | G4 | Python | Move `augment_with_context` to define-model time | §8b.2 | ⬜ |
+| G7 | Python | Wire DAP action discovery into `/api/actions` | §8a, §8c.5 | ⏳ Deferred |
 | G9 | Python | Add Pinecone vector store plugin | §5g | ⬜ |
 | G10 | Python | Add ChromaDB vector store plugin | §5g | ⬜ |
 | G30 | Python | Add Cloud SQL PG vector store parity | §5g | ⬜ |
 | G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | ⏳ Deferred |
 | G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⏳ Deferred |
 | G17 | Python | Add built-in `api_key()` context provider | §8g | ⬜ |
-| G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ✅ Done |
 | G33 | Python | Consider LangChain integration parity | §1c/§9 | ⬜ |
 | G34 | Python | Track BloomLabs vector stores (Convex, HNSW, Milvus) | §6b/§9 | ⬜ |
 | G35 | Python | Add Groq provider (or document compat-oai usage) | §1d/§6b | ⬜ |
@@ -533,6 +536,159 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 ## 8. Deep Dive Feature Comparison (JS vs Go vs Python)
 
 > Updated: 2026-02-08. Line-level tracing against JS canonical implementation.
+
+### Middleware Taxonomy — What Kinds Exist and When to Use Each
+
+Genkit has **four distinct middleware layers**, each operating at a different level
+of the request lifecycle. They are not interchangeable.
+
+```
+                        ┌──────────────────────────────┐
+                        │        User Request          │
+                        └──────────┬───────────────────┘
+                                   │
+                        ┌──────────▼───────────────────┐
+   Layer 1              │   ASGI / HTTP Middleware      │  Security, CORS, rate limiting
+   (Framework)          │   (Starlette, FastAPI, etc.)  │  Runs on EVERY HTTP request
+                        └──────────┬───────────────────┘
+                                   │
+                        ┌──────────▼───────────────────┐
+   Layer 2              │   Context Providers           │  Auth, API key extraction
+   (Action)             │   (ContextProvider functions) │  Runs before EVERY action
+                        └──────────┬───────────────────┘
+                                   │
+                        ┌──────────▼───────────────────┐
+   Layer 3              │   Action Middleware           │  Generic action wrapping
+   (Core)               │   (Action.use in JS core)    │  Runs around any action type
+                        └──────────┬───────────────────┘
+                                   │
+                        ┌──────────▼───────────────────┐
+   Layer 4              │   Model Middleware            │  Model-specific transforms
+   (AI)                 │   (ModelMiddleware functions) │  Runs only on model calls
+                        └──────────┬───────────────────┘
+                                   │
+                        ┌──────────▼───────────────────┐
+                        │     Model Runner (LLM API)   │
+                        └──────────────────────────────┘
+```
+
+#### Layer 1: ASGI / HTTP Middleware (Framework-Level)
+
+**What**: Standard web middleware applied to the HTTP server.
+**When**: Security headers, CORS, rate limiting, request logging, body size limits, compression.
+**Scope**: Runs on **every HTTP request** — not Genkit-specific.
+**Where**: Applied via Starlette/FastAPI/Litestar middleware stacks.
+
+```python
+# Example: Starlette CORS middleware
+from starlette.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
+```
+
+**Not for**: Model request/response transforms, auth context injection.
+
+#### Layer 2: Context Providers (Action-Level Auth)
+
+**What**: Functions that extract auth/context data from the incoming HTTP request
+and make it available to all actions via `current_context()`.
+**When**: API key validation, JWT parsing, user session extraction.
+**Scope**: Runs **before every action** execution, receiving the raw HTTP request.
+**Where**: Registered via `Genkit(context=...)` or the `api_key()` helper.
+
+```python
+# Example: API key context provider
+ai = Genkit(context=api_key(policy=lambda ctx, req: validate_key(ctx.key)))
+```
+
+**Key difference from middleware**: Context providers **parse and validate**
+but don't wrap the action execution. They run once, before the action, and
+their output is available via `current_context()` throughout the action's
+lifecycle.
+
+**Not for**: Modifying model requests/responses.
+
+#### Layer 3: Action Middleware (Core-Level, JS Only)
+
+**What**: Generic middleware that wraps any action (model, flow, tool, etc.) at
+the `core/action.ts` level.
+**When**: Tracing, logging, metrics collection, generic retry logic.
+**Scope**: Runs around **any action type**, not specific to models.
+**Where**: Applied via `defineAction({ use: [...] })` in JS.
+
+```typescript
+// JS only — not yet exposed as a user-facing API in Python
+const action = defineAction({
+  use: [tracingMiddleware, metricsMiddleware],
+  fn: async (input) => { ... }
+});
+```
+
+**Status**: JS has this as `SimpleMiddleware` / `MiddlewareWithOptions` in
+`core/action.ts`. Python has the underlying `Action(middleware=...)` storage
+(PR #4516) but this layer is primarily used internally by the framework
+to wire model middleware — it's not a user-facing API.
+
+**Not for**: Model-specific request transforms (use Model Middleware instead).
+
+#### Layer 4: Model Middleware (AI-Level) ← Primary User-Facing Middleware
+
+**What**: Functions that intercept and transform model `GenerateRequest`s and
+`GenerateResponse`s in a chain around the model runner.
+**When**: Safety guardrails, retry, fallback, constrained generation, system
+prompt simulation, media downloading, request validation, caching.
+**Scope**: Runs **only on model calls** (via `generate()` or `prompt.generate()`).
+
+Model middleware can be applied at **two levels**:
+
+| Level | API | When Applied | Typical Use |
+|-------|-----|:------------:|-------------|
+| **Call-time** | `generate(use=[mw])` | Per `generate()` call | Safety checks, per-request retry |
+| **Model-level** | `define_model(use=[mw])` | Every call to this model | Always-on guardrails, validation |
+| **Auto-wired** | `getModelMiddleware()` (JS) | At model definition time | Context augmentation, constrained generation simulation |
+
+**Execution order**: call-time → model-level → auto-wired → model runner
+
+```python
+# Call-time middleware (per-request)
+response = await ai.generate(
+    model='googleai/gemini-2.0-flash',
+    prompt='Hello',
+    use=[checks_middleware(...), retry()],  # ← per this call only
+)
+
+# Model-level middleware (baked into the model)
+ai.define_model(
+    name='custom/safe-model',
+    fn=my_model_fn,
+    use=[validate_support(), simulate_system_prompt()],  # ← every call
+)
+```
+
+#### Built-in Model Middleware Functions
+
+| Middleware | Category | Purpose | When to Use | Status |
+|-----------|:--------:|---------|-------------|:------:|
+| `augment_with_context()` | **Transform** | Inject retrieved documents into user message | Models without native context support | ✅ Python |
+| `simulate_constrained_generation()` | **Transform** | Inject JSON schema instructions for structured output | Models without native constrained output | 🔄 PR #4510 |
+| `simulate_system_prompt()` | **Transform** | Convert system messages to user/model turns | Models without native system prompt | 🔄 PR #4510 |
+| `download_request_media()` | **Transform** | Download URL media → base64 data URIs | Models requiring inline media | 🔄 PR #4510 |
+| `validate_support()` | **Guard** | Check request vs model capabilities | All models — catches unsupported features early | 🔄 PR #4510 |
+| `retry()` | **Resilience** | Exponential backoff with jitter | Production deployments with transient errors | 🔄 PR #4510 |
+| `fallback()` | **Resilience** | Try alternative models on failure | Multi-model production setups | 🔄 PR #4510 |
+| `checks_middleware()` | **Safety** | AI safety guardrails via Google Checks API | Content moderation | 🔄 PR #4504 (plugin) |
+
+#### Decision Guide: Which Middleware Layer?
+
+| Need | Use |
+|------|-----|
+| CORS, rate limiting, security headers | **Layer 1** (ASGI) |
+| API key validation, user auth | **Layer 2** (Context Provider) |
+| Transform model requests/responses | **Layer 4** (Model Middleware) |
+| Block unsafe content | **Layer 4** (Model Middleware — `checks_middleware`) |
+| Retry on transient errors | **Layer 4** (Model Middleware — `retry()`) |
+| Fall back to alternative model | **Layer 4** (Model Middleware — `fallback()`) |
+| Always-on model guardrails | **Layer 4** (Model Middleware — `define_model(use=[...])`) |
+| Per-request safety check | **Layer 4** (Model Middleware — `generate(use=[...])`) |
 
 ### 8a. Dynamic Action Providers (DAP)
 
@@ -1023,28 +1179,29 @@ export interface GenkitOptions {
 
 | Gap ID | SDK | Gap | Priority | Primary Files to Touch | Fast Validation |
 |--------|-----|-----|:--------:|------------------------|-----------------|
-| G1 | Python | `define_model(use=[...])` missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | unit: model registration accepts and stores `use` |
-| G2 | Python | Action-level middleware storage missing | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | unit: middleware chain wraps action execution |
-| G3 | Python | `simulate_constrained_generation` missing | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | unit: constrained request on unsupported model rewrites prompt |
-| G4 | Python | `augment_with_context` lifecycle mismatch | P2 | `py/packages/genkit/src/genkit/blocks/generate.py`, `.../blocks/model.py` | parity test: same middleware ordering as JS |
-| G5 | Python | `X-Genkit-Span-Id` header missing | P1 | `py/packages/genkit/src/genkit/core/reflection.py` | integration: reflection response exposes span header |
-| G6 | Python | `on_trace_start` lacks `span_id` | P1 | `py/packages/genkit/src/genkit/core/action/_action.py`, `.../core/reflection.py` | unit: callback receives trace+span |
-| G7 | Python | DAP discovery missing from `/api/actions` | P1 | `py/packages/genkit/src/genkit/core/reflection.py`, `.../core/registry.py` | integration: DAP tools visible in action listing |
-| G8 | Go + Python (separate impls) | no `runFlow`/`streamFlow` client helpers | P2 | Go: new `go/genkit/client` package; Python: new `py/packages/genkit/src/genkit/client` | e2e: invoke deployed flow HTTP+stream helper |
-| G9 | Python | Pinecone plugin parity | P2 | new plugin under `py/plugins/pinecone` | plugin sample + retrieval roundtrip |
-| G10 | Python | Chroma plugin parity | P2 | new plugin under `py/plugins/chroma` | plugin sample + retrieval roundtrip |
-| G11 | Python | missing plugin/core `CHANGELOG.md` | P3 | all `py/plugins/*`, `py/packages/genkit` | consistency check passes |
-| G12 | Python | `retry` middleware missing | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | flaky-model retry test with backoff |
-| G13 | Python | `fallback` middleware missing | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | fallback model invoked on configured status |
-| G14 | Python | `validate_support` middleware missing | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | unsupported media/tools throws deterministic error |
-| G15 | Python | `download_request_media` middleware missing | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | URL media transformed to data URI |
-| G16 | Python | `simulate_system_prompt` missing | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | system message rewritten for unsupported model |
-| G17 | Python | `api_key()` context provider missing | P3 | `py/packages/genkit/src/genkit/core/context.py` | auth header extraction + policy callback tests |
-| G18 | Python | multipart tool (`tool.v2`) missing | P1 | `py/packages/genkit/src/genkit/blocks/tools.py`, `.../blocks/generate.py` | tool call returns `output` + `content` parity |
-| G19 | Python | Model API V2 runner interface missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py`, `.../blocks/model.py` | v2 model receives unified options struct |
-| G20 | Python | `Genkit(context=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py` | context propagates to action executions |
-| G21 | Python | `Genkit(clientHeader=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/http_client.py` | outbound header includes custom token |
-| G22 | Python | `Genkit(name=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/reflection.py` | Dev UI/reflection shows custom name |
+| G1 | Python | `define_model(use=[...])` ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | ✅ PR #4516 |
+| G2 | Python | Action-level middleware storage ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/core/action/_action.py` | ✅ PR #4516 |
+| G3 | Python | `simulate_constrained_generation` ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G4 | Python | `augment_with_context` lifecycle mismatch | P2 | `py/packages/genkit/src/genkit/blocks/generate.py`, `.../blocks/model.py` | ⬜ depends on G38 |
+| G5 | Python | `X-Genkit-Span-Id` header ~~missing~~ **done** | P1 | `py/packages/genkit/src/genkit/core/reflection.py` | ✅ PR #4511 (merged) |
+| G6 | Python | `on_trace_start` ~~lacks~~ **now passes** `span_id` | P1 | `py/packages/genkit/src/genkit/core/action/_action.py`, `.../core/reflection.py` | ✅ PR #4511 (merged) |
+| G7 | Python | DAP discovery missing from `/api/actions` | P1 | `py/packages/genkit/src/genkit/core/reflection.py`, `.../core/registry.py` | ⏳ Deferred |
+| G8 | Go + Python (separate impls) | no `runFlow`/`streamFlow` client helpers | P2 | Go: new `go/genkit/client` package; Python: new `py/packages/genkit/src/genkit/client` | ⏳ Deferred |
+| G9 | Python | Pinecone plugin parity | P2 | new plugin under `py/plugins/pinecone` | ⬜ |
+| G10 | Python | Chroma plugin parity | P2 | new plugin under `py/plugins/chroma` | ⬜ |
+| G11 | Python | ~~missing~~ plugin/core `CHANGELOG.md` **done** | P3 | all `py/plugins/*`, `py/packages/genkit` | ✅ PR #4507 + #4508 (merged) |
+| G12 | Python | `retry` middleware ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G13 | Python | `fallback` middleware ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G14 | Python | `validate_support` middleware ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G15 | Python | `download_request_media` middleware ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G16 | Python | `simulate_system_prompt` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | 🔄 PR #4510 |
+| G17 | Python | `api_key()` context provider missing | P3 | `py/packages/genkit/src/genkit/core/context.py` | ⬜ |
+| G18 | Python | multipart tool (`tool.v2`) ~~missing~~ **in PR** | P1 | `py/packages/genkit/src/genkit/blocks/tools.py`, `.../blocks/generate.py` | 🔄 PR #4513 |
+| G19 | Python | Model API V2 runner interface missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py`, `.../blocks/model.py` | ⬜ |
+| G20 | Python | `Genkit(context=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py` | 🔄 PR #4512 |
+| G21 | Python | `Genkit(clientHeader=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/http_client.py` | 🔄 PR #4512 |
+| G22 | Python | `Genkit(name=...)` ~~missing~~ **in PR** | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/reflection.py` | 🔄 PR #4512 |
+| G38 | Python | `get_model_middleware()` auto-wiring (new) | P1 | `py/packages/genkit/src/genkit/ai/_registry.py` | ⬜ depends on G1 ✅ |
 | G23 | Go | `defineDynamicActionProvider` parity missing | P2 | `go/genkit/genkit.go`, `go/core/registry.go` | DAP action discovery + resolve test |
 | G24 | Go | `defineIndexer` parity missing | P2 | `go/genkit/genkit.go`, `go/ai` indexing action | indexer registration + invoke test |
 | G25 | Go | `defineReranker` + `rerank` runtime missing | P1 | `go/genkit/genkit.go`, `go/ai` reranker block | reranker registration + scoring call |
@@ -1063,11 +1220,13 @@ export interface GenkitOptions {
 
 ### 9b. Dependency Matrix
 
-| Depends On | Unblocks | Why |
-|------------|----------|-----|
-| G2 | G1, G3, G4, G12, G13, G14, G16 | Python model middleware architecture must exist before feature middleware parity |
-| G6 | G5 | Need span ID in callback before header emission |
-| G7, G23 | G31 | MCP parity sample quality depends on DAP discoverability in tooling |
+| Depends On | Unblocks | Why | Status |
+|------------|----------|-----|:------:|
+| G2 | G1, G3, G4, G12, G13, G14, G16 | Python model middleware architecture must exist before feature middleware parity | ✅ G2 done |
+| G1 | G38 | Auto-wiring needs define_model(use=) to exist | ✅ G1 done |
+| G38 | G3, G4, G14, G15, G16 | Auto-wired middleware needs the wiring helper | ⬜ |
+| G6 | G5 | Need span ID in callback before header emission | ✅ Both done |
+| G7, G23 | G31 | MCP parity sample quality depends on DAP discoverability in tooling | ⏳ |
 | G25 | G27, G28 | Go reranker/model API work shares core generation extension points |
 | G29 | G8 | constructor/client header parity helps consistent remote invocation behavior |
 
@@ -1421,116 +1580,115 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 
 #### Phase 0 — Quick Win PRs
 
-| PR | Scope | Gaps | Contents | Depends On |
-|----|:-----:|------|----------|:----------:|
-| **PR-0a** | Compliance | G11 | Add `CHANGELOG.md` to all 20 plugins + core package (21 files) | — |
-| **PR-0b** | Sample | — | Run all `py/samples/*/run.sh`, fix any broken samples | — |
-| **PR-0c** | Core | G22 | `Genkit(name=...)` constructor param → `ReflectionServer` display name | — |
-| **PR-0d** | Core | G17 | `api_key()` context provider in `core/context.py` + tests | — |
-| **PR-0e** | Plugin | G35 | Groq provider — thin `compat-oai` wrapper plugin + tests + docs | — |
-| **PR-0f** | Plugin | G36 | Cohere provider — thin `compat-oai` wrapper plugin + tests + docs | — |
-| **PR-0g.1–0g.13** | Plugin | — | Test coverage uplift — **one PR per plugin** (see §10f for per-plugin targets): dev-local-vectorstore, firebase, evaluators, flask, observability, google-cloud, microsoft-foundry, checks, cloudflare-workers-ai, amazon-bedrock, deepseek, huggingface, xai | — |
+| PR | Scope | Gaps | Contents | Status |
+|----|:-----:|------|----------|:------:|
+| **PR-0a** → **#4507 + #4508** | Compliance | G11 | Add `CHANGELOG.md` to all 20 plugins + core package (21 files) | ✅ Merged |
+| **PR-0b** | Sample | — | Run all `py/samples/*/run.sh`, fix any broken samples | ✅ Done (via #4488, #4503) |
+| **PR-0c** → included in **#4512** | Core | G22 | `Genkit(name=...)` constructor param → `ReflectionServer` display name | 🔄 PR open |
+| **PR-0d** | Core | G17 | `api_key()` context provider in `core/context.py` + tests | ⬜ Not started |
+| **PR-0e** | Plugin | G35 | Groq provider — thin `compat-oai` wrapper plugin + tests + docs | ⬜ Not started |
+| **PR-0f** | Plugin | G36 | Cohere provider — thin `compat-oai` wrapper plugin + tests + docs | ⬜ Not started |
+| **PR-0g** → **#4509** | Plugin | — | Test coverage uplift across all 19 plugins | ✅ Merged |
 
-*All Phase 0 PRs are independent and can be sent in parallel.*
+*Phase 0 mostly complete — only G17, G35, G36 remain.*
 
 #### Phase 1 — Core Infrastructure PRs
 
-| PR | Scope | Gaps | Contents | Depends On |
-|----|:-----:|------|----------|:----------:|
-| **PR-1a** | Core | G2 | Add `middleware` list to `Action.__init__()`, implement `action_with_middleware()` dispatch wrapper, unit tests for middleware chaining | — |
-| **PR-1b** | Core | G6 | Update `on_trace_start` callback signature to `(trace_id, span_id)` across action system + tracing, update all call sites | — |
-| **PR-1c** | Core | G18 | Multipart tool support: `define_tool(multipart=True)`, `tool.v2` action type, dual registration for non-multipart tools, unit tests | — |
-| **PR-1d** | Core | G20, G21 | `Genkit(context=..., client_header=...)` constructor params — small additive changes, can combine in one PR | — |
+| PR | Scope | Gaps | Contents | Status |
+|----|:-----:|------|----------|:------:|
+| **PR-1a** → **#4516** | Core | G2, G1 | `Action(middleware=...)`, `register_action(middleware=...)`, `define_model(use=[...])`, `dispatch()` chains model-level MW after call-time MW, 3 tests + sample | 🔄 PR open |
+| **PR-1b** → **#4511** | Core | G6, G5 | `on_trace_start(trace_id, span_id)` + `X-Genkit-Span-Id` response header | ✅ Merged |
+| **PR-1c** → **#4513** | Core | G18 | Multipart tool support: `@ai.tool(multipart=True)`, `tool.v2` action kind, dual registration, 6 tests + sample | 🔄 PR open |
+| **PR-1d** → **#4512** | Core | G20, G21, G22 | `Genkit(context=..., name=..., client_header=...)`, runtime file name field, 12 tests | 🔄 PR open |
 
-*PR-1a is the critical-path item. Land it first to unblock Phase 2.*
+*PR-1b is merged. PR-1a, PR-1c, PR-1d are in review.*
 
-#### Phase 2 — Middleware Architecture PRs
+#### Phase 2 — Middleware Functions PR
 
-| PR | Scope | Gaps | Contents | Depends On |
-|----|:-----:|------|----------|:----------:|
-| **PR-2a** | Core | G1 | Add `use` param to `define_model()`, wire to `action_with_middleware()`, build `get_model_middleware()` helper, tests | PR-1a |
-| **PR-2b** | Core | G5 | Emit `X-Genkit-Span-Id` response header in reflection server (small, ~20 lines) | PR-1b |
-| **PR-2c** | Core | G12 | `retry()` middleware — exponential backoff, jitter, configurable statuses, `on_error` callback, dedicated test suite | PR-1a |
-| **PR-2d** | Core | G13 | `fallback()` middleware — ordered model list, error status config, `on_error` callback, dedicated test suite | PR-1a |
-| **PR-2e** | Core | G15 | `download_request_media()` middleware — URL→data URI conversion, `max_bytes`, `filter`, tests | PR-1a |
-| **PR-2f** | Core | G19 | Model API V2 runner interface — `define_model(api_version='v2')`, `ActionFnArg` options object, backward compat, tests | PR-1a |
+| PR | Scope | Gaps | Contents | Status |
+|----|:-----:|------|----------|:------:|
+| **PR-2a** → **#4510** | Core | G3, G12, G13, G14, G15, G16 | All 6 middleware functions (`retry`, `fallback`, `validate_support`, `download_request_media`, `simulate_system_prompt`, `simulate_constrained_generation`) + extracted utilities + 38 tests | 🔄 PR open |
+| **PR-2b** | Core | G38 | `get_model_middleware()` auto-wiring — inject middleware at define-model time based on `ModelInfo.supports`, matching JS `getModelMiddleware()` | ⬜ Not started |
+| **PR-2c** | Core | G19 | Model API V2 runner interface — `define_model(api_version='v2')`, `ActionFnArg` options object, backward compat, tests | ⬜ Not started |
 
-*PR-2c, PR-2d, PR-2e can be sent in parallel once PR-1a lands. PR-2a must also land before Phase 3.*
-
-#### Phase 3 — Feature Middleware PRs
+#### Phase 3 — Remaining Core Parity
 
 | PR | Scope | Gaps | Contents | Depends On |
 |----|:-----:|------|----------|:----------:|
-| **PR-3a** | Core | G3 | `simulate_constrained_generation()` — schema instruction injection, output config clearing, tests | PR-2a |
-| **PR-3b** | Core | G4 | `augment_with_context()` lifecycle fix — move from call-time to define-model time, update `generate.py`, tests | PR-2a |
-| **PR-3c** | Core | G14 | `validate_support()` — request vs model capability validation, descriptive errors, tests | PR-2a |
-| **PR-3d** | Core | G16 | `simulate_system_prompt()` — system→user/model turn conversion, configurable preface/ack, tests | PR-2a |
+| **PR-3a** | Core | G4 | Move `augment_with_context()` from generate-time to define-model time via G38 auto-wiring | PR-2b (G38) |
+| **PR-3b** | Core | G8 | New `genkit.client` module — `run_flow()`, `stream_flow()` helpers, `httpx`-based, tests | PR-1d |
 
-*All four PRs are independent of each other and can be sent in parallel once PR-2a lands.*
+#### Other Open PRs (Bug Fixes & New Features)
 
-#### Phase 4 — Integration PR
+| PR | Scope | Description | Status |
+|----|:-----:|-------------|:------:|
+| **#4514** | Core | `Transfer-Encoding: chunked` on standard action responses | 🔄 PR open |
+| **#4504** | Plugin | Google Checks AI Safety plugin + sample | 🔄 PR open |
+| **#4495** | Core | Prevent infinite recursion in `create_prompt_from_file()` | 🔄 PR open |
+| **#4494** | Core | `dropped_*` property overrides on `RedactedSpan` | 🔄 PR open |
+| **#4401** | Core | Reflection API v2 (WebSocket + JSON-RPC 2.0) | 🔄 PR open |
 
-| PR | Scope | Gaps | Contents | Depends On |
-|----|:-----:|------|----------|:----------:|
-| **PR-4a** | Core | G8 | New `genkit.client` module — `run_flow()`, `stream_flow()` helpers, `httpx`-based, tests | PR-1d |
-
-#### PR Dependency Chain (Critical Path)
+#### PR Dependency Chain (Actual PRs)
 
 ```
-PR-0* ──────────────────────────────────────────── (all parallel, no deps)
+MERGED
+══════
+#4511 (G5+G6: span_id + header) ────── ✅ Done
+#4507 + #4508 (G11: CHANGELOG.md) ───── ✅ Done
+#4509 (plugin test coverage) ────────── ✅ Done
 
-PR-1a (G2: Action middleware) ─────► PR-2a (G1: define_model use=) ─────► PR-3a (G3)
-                               ├───► PR-2c (G12: retry)                ├─► PR-3b (G4)
-                               ├───► PR-2d (G13: fallback)             ├─► PR-3c (G14)
-                               ├───► PR-2e (G15: download media)       └─► PR-3d (G16)
-                               └───► PR-2f (G19: Model API V2)
+INDEPENDENT (merge in any order)
+════════════════════════════════
+#4494 (RedactedSpan fix)         ─── no file conflicts
+#4504 (Checks plugin)            ─── new plugin, no conflicts
+#4510 (MW functions)             ─── blocks/middleware.py only
+#4495 (Prompt recursion fix)     ─── core/registry.py overlap
+#4514 (Transfer-Encoding fix)    ─── core/reflection.py overlap
 
-PR-1b (G6: span_id callback) ─────► PR-2b (G5: span header)
+LAYER 2 (after Layer 1)
+═══════════════════════
+#4401 (Reflection v2)            ─── rebase onto #4514
+#4513 (Multipart tools)          ─── independent of #4401
 
-PR-1c (G18: multipart tools) ────── (no downstream deps)
-
-PR-1d (G20+G21: constructor) ─────► PR-4a (G8: client module)
+LAYER 3 (last)
+══════════════
+#4512 (Constructor parity)       ─── rebase onto #4401 + #4495
+#4516 (MW storage + sample)      ─── rebase onto #4513 + #4495 + #4512
 ```
 
 #### PR Summary
 
-| Phase | PRs | Core | Plugin | Sample/Compliance |
-|:-----:|:---:|:----:|:------:|:-----------------:|
-| 0 | ~16 | 2 | 2 + 13 test uplift | 2 |
-| 1 | 4 | 4 | — | — |
-| 2 | 6 | 6 | — | — |
-| 3 | 4 | 4 | — | — |
-| 4 | 1 | 1 | — | — |
-| **Total** | **~31** | **17** | **~15** | **2** |
+| Phase | PRs | Status |
+|:-----:|:---:|:------:|
+| 0 | 7 planned | 4 merged, 3 not started |
+| 1 | 4 (#4511, #4512, #4513, #4516) | 1 merged, 3 open |
+| 2 | 3 (#4510, +2 not started) | 1 open, 2 not started |
+| 3 | 2 (not started) | ⬜ |
+| Other fixes | 3 (#4401, #4494, #4495) | All open |
+| Plugin | 1 (#4504 Checks) | Open |
 
-#### Immediate PR Manifest — Current Branch Split
+#### Immediate PR Manifest — Original Branch Split (Completed)
 
-The current `yesudeep/feat/checks-plugin` branch bundles 32 changed files spanning 6 concerns. Per the scope rules above, it must be split into the following 5 PRs before merging:
+> The original `yesudeep/feat/checks-plugin` branch was split into 5 PRs as planned.
+> All have been sent — A, B, C merged; D (#4504) open; E (sample bundled with D).
 
-| PR | Branch | Scope | Files | Commit Message | Depends On |
-|----|--------|:-----:|:-----:|----------------|:----------:|
-| **A** | `yesudeep/chore/py-typed-compliance` | Compliance | 9 `py.typed` files (cloudflare-workers-ai, deepseek, dev-local-vectorstore, huggingface, mcp, microsoft-foundry, mistral, observability, xai) | `chore(py/plugins): add missing py.typed PEP 561 markers to 9 plugins` | — |
-| **B** | `yesudeep/chore/check-consistency-updates` | Tooling | `py/bin/check_consistency` (adds checks 19, 20, 21) | `feat(py/bin): add sample LICENSE, Google OSS files, and CHANGELOG checks to check_consistency` | — |
-| **C** | `yesudeep/docs/parity-audit` | Docs | `py/PARITY_AUDIT.md`, `py/GEMINI.md` | `docs(py): add feature parity audit with implementation roadmap` | — |
-| **D** | `yesudeep/feat/checks-plugin` | Plugin | `py/plugins/checks/` (13 files), `py/pyproject.toml` (plugin registration + pyright tweak), `py/uv.lock` | `feat(py/checks): add Google Checks AI Safety plugin` | — |
-| **E** | `yesudeep/feat/checks-sample` | Sample | `py/samples/provider-checks-hello/` (5 files), `py/pyproject.toml` (sample registration) | `feat(py/samples): add provider-checks-hello sample` | **D** |
-
-**Dependency**: A, B, C, D are independent and can merge in any order. E depends on D (sample imports the plugin).
-
-**`py/pyproject.toml` handling**: This file is touched by both D and E. PR-D gets the plugin workspace registration lines + pyright format tweak. PR-E gets only the sample workspace registration line. Each PR applies its own partial edit.
+| PR | Branch | Status |
+|----|--------|:------:|
+| **A** | `yesudeep/chore/py-typed-compliance` | ✅ Merged (part of #4488) |
+| **B** | `yesudeep/chore/check-consistency-updates` | ✅ Merged (part of #4488) |
+| **C** | `yesudeep/docs/parity-audit` | ✅ Merged (#4505) |
+| **D** | `yesudeep/feat/checks-plugin` | 🔄 PR #4504 open |
+| **E** | (bundled with D) | 🔄 Included in #4504 |
 
 ### 10i. Summary Metrics
 
 | Metric | Value |
 |--------|-------|
-| Total Python gaps | 30 (G1–G22, G30–G31, G33–G37) |
-| **Active focus (Phases 0–4)** | **22 items** — core framework 1:1 parity + existing plugin quality |
-| Phase 0 quick wins | 7 items (parallelizable, no core changes) |
-| Phases 1–3 (core parity) | 15 items on critical path |
-| Phase 4 (integration) | 1 item |
-| Phase 5 (deferred) | 8 items (vector stores, DAP, ecosystem) |
-| Critical path length | 3 dependency levels (G2 → G1 → G3) |
-| Estimated calendar time to full P1 closure | ~7 weeks |
-| Estimated calendar time to active P2 closure | ~9 weeks |
-| Plugins needing test uplift | 13 of 20 |
-| New test files needed (est.) | ~40–50 across all plugins |
+| Total Python gaps | 31 (G1–G22, G30–G31, G33–G38) |
+| **Done (merged to main)** | **5** — G5, G6, G11 (+ plugin test coverage) |
+| **In review (PRs open)** | **14** — G1, G2, G3, G12–G16, G18, G20–G22 |
+| **Not started** | **12** — G4, G7–G10, G17, G19, G30–G31, G33–G38 |
+| Deferred | 5 items (G7, G8, G31, G33–G37) |
+| Open PRs | 9 (#4401, #4494, #4495, #4504, #4510, #4512, #4513, #4514, #4516) |
+| Critical path remaining | G38 → G4 (auto-wiring → context lifecycle) |
+| Plugins needing test uplift | ~~13~~ improved via PR #4509 (merged) |
