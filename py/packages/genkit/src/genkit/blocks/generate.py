@@ -651,9 +651,7 @@ async def resolve_parameters(
     tools: list[Action[Any, Any, Any]] = []
     if request.tools:
         for tool_name in request.tools:
-            tool_action = await registry.resolve_action(cast(ActionKind, ActionKind.TOOL), tool_name)
-            if tool_action is None:
-                raise Exception(f'Unable to resolve tool {tool_name}')
+            tool_action = await resolve_tool(registry, tool_name)
             tools.append(tool_action)
 
     format_def: FormatDef | None = None
@@ -867,6 +865,9 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
 async def resolve_tool(registry: Registry, tool_name: str) -> Action:
     """Resolve a tool by name from the registry.
 
+    Looks up the tool under both ``tool`` and ``tool.v2`` action kinds,
+    matching the JS SDK's ``lookupToolByName`` behavior.
+
     Args:
         registry: The registry to resolve the tool from.
         tool_name: The name of the tool to resolve.
@@ -878,6 +879,8 @@ async def resolve_tool(registry: Registry, tool_name: str) -> Action:
         ValueError: If the tool could not be resolved.
     """
     tool = await registry.resolve_action(kind=cast(ActionKind, ActionKind.TOOL), name=tool_name)
+    if tool is None:
+        tool = await registry.resolve_action(kind=cast(ActionKind, ActionKind.TOOL_V2), name=tool_name)
     if tool is None:
         raise ValueError(f'Unable to resolve tool {tool_name}')
     return tool

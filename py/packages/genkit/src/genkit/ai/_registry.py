@@ -522,15 +522,21 @@ class GenkitRegistry:
         return define_dap_block(self.registry, config, fn)
 
     def tool(
-        self, name: str | None = None, description: str | None = None
+        self, name: str | None = None, description: str | None = None, *, multipart: bool = False
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """Decorator to register a function as a tool.
 
         Args:
-            name: Optional name for the flow. If not provided, uses the function
+            name: Optional name for the tool. If not provided, uses the function
                 name.
             description: Description for the tool to be passed to the model;
                 if not provided, uses the function docstring.
+            multipart: If True, the tool is registered as a multipart tool
+                (``tool.v2``). The function should return a dict with optional
+                ``output`` and ``content`` keys. If False (default), both a
+                ``tool`` and a ``tool.v2`` wrapper action are registered so that
+                the tool is discoverable under both kinds. Mirrors JS SDK's
+                ``defineTool({ multipart: true })``.
 
         Returns:
             A decorator function that registers the tool.
@@ -564,13 +570,39 @@ class GenkitRegistry:
                     case _:
                         raise ValueError('tool must have 0-2 args...')
 
+            tool_kind = cast(ActionKind, ActionKind.TOOL_V2 if multipart else ActionKind.TOOL)
+            tool_metadata: dict[str, object] = {'type': 'tool.v2' if multipart else 'tool'}
+            if multipart:
+                tool_metadata['tool'] = {'multipart': True}
+
             action = self.registry.register_action(
                 name=tool_name,
-                kind=cast(ActionKind, ActionKind.TOOL),
+                kind=tool_kind,
                 description=tool_description,
                 fn=tool_fn_wrapper,
                 metadata_fn=func,
+                metadata=tool_metadata,
             )
+
+            # For non-multipart tools, also register a tool.v2 wrapper that
+            # wraps the output in {output: result} so all tools are
+            # discoverable under tool.v2, matching JS SDK behavior.
+            if not multipart:
+
+                async def v2_wrapper_fn(*args: Any) -> dict[str, object]:  # noqa: ANN401
+                    result = tool_fn_wrapper(*args)
+                    if asyncio.iscoroutine(result):
+                        result = await result
+                    return {'output': result}
+
+                self.registry.register_action(
+                    name=tool_name,
+                    kind=cast(ActionKind, ActionKind.TOOL_V2),
+                    description=tool_description,
+                    fn=v2_wrapper_fn,
+                    metadata_fn=func,
+                    metadata={'type': 'tool.v2'},
+                )
 
             @wraps(func)
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401

@@ -56,6 +56,7 @@ class ActionKind(StrEnum):
     RESOURCE = 'resource'
     RETRIEVER = 'retriever'
     TOOL = 'tool'
+    TOOL_V2 = 'tool.v2'
     UTIL = 'util'
 
 
