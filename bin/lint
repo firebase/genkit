@@ -63,7 +63,13 @@ echo "--- 🔍 Running Consistency Checks ---"
 echo "--- 🐚 Running Shell Script Lint (shellcheck) ---"
 if command -v shellcheck &> /dev/null; then
   shell_errors=0
-  # Check both top-level bin/ and py/bin/
+
+  # Collect all shell scripts to check:
+  #   1. bin/* and py/bin/* (scripts without extensions)
+  #   2. All *.sh files in py/samples/ (run.sh, deploy_*.sh, test_*.sh, etc.)
+  shell_scripts=()
+
+  # bin/ scripts (detect by file type since they have no extension).
   for script in "${TOP_DIR}"/bin/* "${PY_DIR}"/bin/*; do
     if [ -f "$script" ] && file "$script" | grep -qE "shell|bash|sh script" 2>/dev/null; then
       script_name=$(basename "$script")
@@ -71,16 +77,28 @@ if command -v shellcheck &> /dev/null; then
       if [[ "$script_name" == *.py ]]; then
         continue
       fi
-      if ! shellcheck "$script" 2>&1; then
-        shell_errors=$((shell_errors + 1))
-      fi
+      shell_scripts+=("$script")
     fi
   done
+
+  # py/samples/ shell scripts (find all .sh files recursively).
+  while IFS= read -r -d '' script; do
+    shell_scripts+=("$script")
+  done < <(find "${PY_DIR}/samples" -name '*.sh' -type f -print0 2>/dev/null)
+
+  for script in "${shell_scripts[@]}"; do
+    # -x follows sourced files; -e SC1091 skips "not following" warnings
+    # for files like _common.sh that live in parent directories.
+    if ! shellcheck -x -e SC1091 "$script" 2>&1; then
+      shell_errors=$((shell_errors + 1))
+    fi
+  done
+
   if [ $shell_errors -gt 0 ]; then
     echo "⚠️  $shell_errors shell script(s) have shellcheck warnings"
     exit 1
   else
-    echo "✅ All shell scripts pass shellcheck"
+    echo "✅ All ${#shell_scripts[@]} shell scripts pass shellcheck"
   fi
 else
   echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"

@@ -70,7 +70,7 @@ Key Concepts:
 Supported Model Types:
     - **Gemini/Gemma**: Text generation with generateContent action
     - **Embedders**: Text embeddings with embedContent action
-    - **Imagen**: Image generation with predict action (Vertex AI)
+    - **Imagen**: Image generation with predict action
     - **Veo**: Video generation with generateVideos action
 
 Example:
@@ -282,6 +282,7 @@ class GoogleAI(Plugin):
         | Type             | Action Kind       | Example                        |
         +------------------+-------------------+--------------------------------+
         | Gemini/Gemma     | MODEL             | googleai/gemini-2.0-flash-001  |
+        | Imagen           | MODEL             | googleai/imagen-3.0-generate   |
         | Embedders        | EMBEDDER          | googleai/text-embedding-004    |
         | Veo (video)      | BACKGROUND_MODEL  | googleai/veo-2.0-generate-001  |
         +------------------+-------------------+--------------------------------+
@@ -374,6 +375,10 @@ class GoogleAI(Plugin):
         for name in genai_models.gemini:
             actions.append(self._resolve_model(googleai_name(name)))
 
+        # Imagen Models
+        for name in genai_models.imagen:
+            actions.append(self._resolve_model(googleai_name(name)))
+
         # Veo Models (background models)
         for name in genai_models.veo:
             bg_action = self._resolve_veo_model(googleai_name(name))
@@ -398,6 +403,8 @@ class GoogleAI(Plugin):
         genai_models = _list_genai_models(self._client, is_vertex=False)
         actions = []
         for name in genai_models.gemini:
+            actions.append(self._resolve_model(googleai_name(name)))
+        for name in genai_models.imagen:
             actions.append(self._resolve_model(googleai_name(name)))
         return actions
 
@@ -511,22 +518,26 @@ class GoogleAI(Plugin):
         """
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        model_ref = google_model_info(clean_name)
 
-        SUPPORTED_MODELS[clean_name] = model_ref
-
-        gemini_model = GeminiModel(clean_name, self._client)
-
-        # Determine appropriate config schema based on model type
-        config_schema = get_model_config_schema(clean_name)
+        # Determine model type and create appropriate model instance
+        if clean_name.lower().startswith('image'):
+            model_ref = vertexai_image_model_info(clean_name)
+            model = ImagenModel(clean_name, self._client)
+            IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = ImagenConfigSchema
+        else:
+            model_ref = google_model_info(clean_name)
+            model = GeminiModel(clean_name, self._client)
+            SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = get_model_config_schema(clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=gemini_model.generate,
+            fn=model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=gemini_model.metadata['model'],
+                info=model.metadata['model'],
                 config_schema=config_schema,
             ).metadata,
         )
@@ -579,6 +590,15 @@ class GoogleAI(Plugin):
                     name=googleai_name(name),
                     info=google_model_info(name).model_dump(by_alias=True),
                     config_schema=get_model_config_schema(name),
+                )
+            )
+
+        for name in genai_models.imagen:
+            actions_list.append(
+                model_action_metadata(
+                    name=googleai_name(name),
+                    info=vertexai_image_model_info(name).model_dump(by_alias=True),
+                    config_schema=ImagenConfigSchema,
                 )
             )
 

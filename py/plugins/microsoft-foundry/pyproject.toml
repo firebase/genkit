@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -40,7 +45,7 @@ dependencies = [
   "azure-identity>=1.15.0",
   "azure-monitor-opentelemetry-exporter>=1.0.0b21",
 ]
-description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability"
+description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability (Community)"
 keywords = [
   "genkit",
   "ai",

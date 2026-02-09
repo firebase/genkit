@@ -15,7 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -43,7 +48,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.20.0",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
-description = "Genkit Amazon Bedrock Plugin - Models and AWS Observability (X-Ray)"
+description = "Genkit Amazon Bedrock Plugin - Models and AWS Observability (Community)"
 keywords = [
   "genkit",
   "ai",

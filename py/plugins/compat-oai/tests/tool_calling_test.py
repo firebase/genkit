@@ -39,6 +39,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     first_message.role = 'assistant'
     first_message.tool_calls = [mock_tool_call]
     first_message.content = None
+    first_message.reasoning_content = None
 
     first_response = MagicMock()
     first_response.choices = [MagicMock(finish_reason='tool_calls', message=first_message)]
@@ -48,6 +49,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     second_message.role = 'model'
     second_message.tool_calls = None
     second_message.content = 'final response'
+    second_message.reasoning_content = None
 
     second_response = MagicMock()
     second_response.choices = [MagicMock(finish_reason='stop', message=second_message)]
@@ -111,6 +113,7 @@ async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) 
             delta_mock.content = None
             delta_mock.role = None
             delta_mock.tool_calls = [MockToolCall(id, index, name, args_chunk)]
+            delta_mock.reasoning_content = None
 
             choice_mock = MagicMock()
             choice_mock.delta = delta_mock

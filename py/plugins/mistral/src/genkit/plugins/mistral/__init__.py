@@ -18,7 +18,7 @@
 
 This plugin provides integration with Mistral AI's models for the
 Genkit framework. Mistral AI offers powerful, efficient language models
-including Mistral Large, Mistral Small, and specialized coding models.
+spanning text, vision, audio, code, and reasoning capabilities.
 
 Key Concepts (ELI5)::
 
@@ -28,17 +28,24 @@ Key Concepts (ELI5)::
     │ Mistral AI          │ French AI company known for efficient, powerful    │
     │                     │ open-weight models. Great balance of speed/quality.│
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Mistral Large       │ Most capable model. Best for complex reasoning,    │
-    │                     │ coding, and nuanced tasks.                         │
+    │ Mistral Large 3     │ Most capable model. Multimodal (text + vision).   │
+    │                     │ Best for complex reasoning and coding tasks.      │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Mistral Small       │ Fast and efficient. Great for everyday tasks       │
-    │                     │ like chat, summarization, and simple coding.       │
+    │ Mistral Medium 3.1  │ Frontier-class multimodal model. Premium tier.    │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Codestral           │ Specialized coding model. Optimized for code       │
-    │                     │ generation, completion, and explanation.           │
+    │ Mistral Small 3.2   │ Fast and efficient with vision support.           │
+    │                     │ Great for everyday tasks.                         │
     ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Pixtral             │ Vision-language model. Can understand images       │
-    │                     │ and answer questions about them.                   │
+    │ Magistral           │ Reasoning models. Think step-by-step before       │
+    │                     │ answering. Best for math and logic problems.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Codestral/Devstral  │ Specialized coding models. Optimized for code     │
+    │                     │ generation, completion, and SWE agent tasks.      │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Voxtral             │ Audio models. Can understand spoken language       │
+    │                     │ and transcribe audio files.                       │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Pixtral             │ Legacy vision models. Superseded by Large 3+.     │
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Function Calling    │ Model can call your tools/functions. Like giving   │
     │                     │ the AI a toolbox to help answer questions.         │
@@ -87,26 +94,55 @@ Architecture Overview::
     │  └── DEFAULT_MISTRAL_API_URL - API endpoint constant                    │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  plugin.py - Plugin Implementation                                      │
-    │  ├── Mistral class (registers models)                                   │
+    │  ├── Mistral class (registers models + embedders)                       │
     │  └── Configuration and API key handling                                 │
     ├─────────────────────────────────────────────────────────────────────────┤
     │  models.py - Model Implementation                                       │
     │  ├── MistralModel (generation logic)                                    │
     │  ├── Message conversion (Genkit <-> Mistral)                            │
+    │  ├── Multimodal support (images, audio)                                 │
     │  └── Streaming support                                                  │
     ├─────────────────────────────────────────────────────────────────────────┤
+    │  embeddings.py - Embedder Implementation                                │
+    │  ├── MistralEmbedder (embedding logic)                                  │
+    │  └── Supports mistral-embed and codestral-embed                         │
+    ├─────────────────────────────────────────────────────────────────────────┤
     │  model_info.py - Model Registry                                         │
-    │  ├── SUPPORTED_MODELS (mistral-large, mistral-small, etc.)              │
+    │  ├── SUPPORTED_MODELS (30+ models across 8 categories)                  │
     │  └── Model capabilities and metadata                                    │
     └─────────────────────────────────────────────────────────────────────────┘
 
 Supported Models:
-    - mistral-large-latest: Most capable model for complex tasks
-    - mistral-small-latest: Fast and efficient for everyday use
-    - codestral-latest: Specialized for code generation
-    - pixtral-large-latest: Vision-language model
-    - ministral-8b-latest: Compact model for edge deployment
-    - ministral-3b-latest: Smallest model for resource-constrained environments
+    Generalist (with vision):
+        - mistral-large-latest: Mistral Large 3 — most capable multimodal
+        - mistral-medium-latest: Mistral Medium 3.1 — frontier-class
+        - mistral-small-latest: Mistral Small 3.2 — fast and efficient
+
+    Compact (Ministral 3, with vision):
+        - ministral-14b-latest: 14B params, best-in-class compact
+        - ministral-8b-latest: 8B params, efficient
+        - ministral-3b-latest: 3B params, edge deployment
+
+    Reasoning (Magistral):
+        - magistral-medium-latest: Frontier reasoning
+        - magistral-small-latest: Efficient reasoning
+
+    Code (Codestral/Devstral):
+        - codestral-latest: Code completion
+        - devstral-large-latest: Devstral 2 (code agent)
+        - devstral-small-latest: Devstral Small 2
+
+    Audio (Voxtral):
+        - voxtral-small-latest: Audio chat
+        - voxtral-mini-latest: Mini audio chat
+
+    Vision (Legacy Pixtral):
+        - pixtral-large-latest: Pixtral Large
+        - pixtral-12b-latest: Pixtral 12B
+
+Supported Embedders:
+    - mistral-embed: 1024-dimensional text embeddings for RAG and search
+    - codestral-embed-2505: Code-specific embeddings
 
 Example:
     ```python
@@ -123,14 +159,16 @@ Example:
 Caveats:
     - Requires MISTRAL_API_KEY environment variable or api_key parameter
     - Model names are prefixed with 'mistral/' (e.g., 'mistral/mistral-large-latest')
-    - Uses official Mistral Python SDK
+    - Uses official Mistral Python SDK (mistralai)
 
 See Also:
     - Mistral AI documentation: https://docs.mistral.ai/
+    - Mistral models: https://docs.mistral.ai/getting-started/models/
     - Mistral API Reference: https://docs.mistral.ai/api/
     - Genkit documentation: https://genkit.dev/
 """
 
+from .embeddings import SUPPORTED_EMBEDDING_MODELS, MistralEmbedConfig
 from .model_info import SUPPORTED_MISTRAL_MODELS
 from .models import MISTRAL_PLUGIN_NAME, mistral_name
 from .plugin import Mistral
@@ -141,7 +179,9 @@ DEFAULT_MISTRAL_API_URL = 'https://api.mistral.ai'
 __all__ = [
     'DEFAULT_MISTRAL_API_URL',
     'MISTRAL_PLUGIN_NAME',
-    'SUPPORTED_MISTRAL_MODELS',
     'Mistral',
+    'MistralEmbedConfig',
+    'SUPPORTED_EMBEDDING_MODELS',
+    'SUPPORTED_MISTRAL_MODELS',
     'mistral_name',
 ]

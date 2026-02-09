@@ -345,7 +345,7 @@ def create_reflection_asgi_app(
         # Wrap execution to track the task for cancellation support
         task = asyncio.current_task()
 
-        def on_trace_start(trace_id: str) -> None:
+        def on_trace_start(trace_id: str, span_id: str) -> None:
             if task:
                 active_actions[trace_id] = task
 
@@ -365,7 +365,7 @@ def create_reflection_asgi_app(
         _action_input: object,
         context: dict[str, Any],
         version: str,
-        on_trace_start: Callable[[str], None],
+        on_trace_start: Callable[[str, str], None],
     ) -> StreamingResponse:
         """Handle streaming action execution with early header flushing.
 
@@ -391,11 +391,13 @@ def create_reflection_asgi_app(
         # Event to signal when trace ID is available
         trace_id_event: asyncio.Event = asyncio.Event()
         run_trace_id: str | None = None
+        run_span_id: str | None = None
 
-        def wrapped_on_trace_start(tid: str) -> None:
-            nonlocal run_trace_id
+        def wrapped_on_trace_start(tid: str, sid: str) -> None:
+            nonlocal run_trace_id, run_span_id
             run_trace_id = tid
-            on_trace_start(tid)
+            run_span_id = sid
+            on_trace_start(tid, sid)
             trace_id_event.set()  # Signal that trace ID is ready
 
         async def run_action_task() -> None:
@@ -415,7 +417,7 @@ def create_reflection_asgi_app(
                 )
                 final_response = {
                     'result': dump_dict(output.response),
-                    'telemetry': {'traceId': output.trace_id},
+                    'telemetry': {'traceId': output.trace_id, 'spanId': output.span_id},
                 }
                 chunk_queue.put_nowait(json.dumps(final_response))
 
@@ -449,6 +451,8 @@ def create_reflection_asgi_app(
         }
         if run_trace_id:
             headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
+        if run_span_id:
+            headers['X-Genkit-Span-Id'] = run_span_id  # pyright: ignore[reportUnreachable]
 
         async def stream_generator() -> AsyncGenerator[str, None]:
             """Yield chunks from the queue as they arrive."""
@@ -476,7 +480,7 @@ def create_reflection_asgi_app(
         _action_input: object,
         context: dict[str, Any],
         version: str,
-        on_trace_start: Callable[[str], None],
+        on_trace_start: Callable[[str, str], None],
     ) -> StreamingResponse:
         """Handle standard (non-streaming) action execution with early header flushing.
 
@@ -498,13 +502,15 @@ def create_reflection_asgi_app(
         # Event to signal when trace ID is available
         trace_id_event: asyncio.Event = asyncio.Event()
         run_trace_id: str | None = None
+        run_span_id: str | None = None
         action_result: dict[str, Any] | None = None
         action_error: Exception | None = None
 
-        def wrapped_on_trace_start(tid: str) -> None:
-            nonlocal run_trace_id
+        def wrapped_on_trace_start(tid: str, sid: str) -> None:
+            nonlocal run_trace_id, run_span_id
             run_trace_id = tid
-            on_trace_start(tid)
+            run_span_id = sid
+            on_trace_start(tid, sid)
             trace_id_event.set()  # Signal that trace ID is ready
 
         async def run_action_and_get_result() -> None:
@@ -517,7 +523,7 @@ def create_reflection_asgi_app(
                 )
                 action_result = {
                     'result': dump_dict(output.response),
-                    'telemetry': {'traceId': output.trace_id},
+                    'telemetry': {'traceId': output.trace_id, 'spanId': output.span_id},
                 }
             except Exception as e:
                 action_error = e
@@ -549,9 +555,12 @@ def create_reflection_asgi_app(
 
         headers = {
             'x-genkit-version': version,
+            'Transfer-Encoding': 'chunked',
         }
         if run_trace_id:
             headers['X-Genkit-Trace-Id'] = run_trace_id  # pyright: ignore[reportUnreachable]
+        if run_span_id:
+            headers['X-Genkit-Span-Id'] = run_span_id  # pyright: ignore[reportUnreachable]
 
         return StreamingResponse(
             body_generator(),

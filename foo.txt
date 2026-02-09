@@ -1,0 +1,1 @@
+model conformance specs and JS parity — I'll tackle those as a separate pass after the current PR is green. That'll involve reading the conformance KI artifacts and comparing JS plugin implementations against our Python ones to identify gaps.

@@ -362,7 +362,7 @@ Visual diagram of:
 ## Sample Application
 
 ```python
-# py/samples/microsoft-foundry-hello/src/main.py
+# py/samples/provider-microsoft-foundry-hello/src/main.py
 """Azure telemetry hello sample - Monitor Genkit with Application Insights.
 
 Key Concepts (ELI5)::

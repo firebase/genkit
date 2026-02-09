@@ -1,35 +1,23 @@
-# Sample Test Utilities
+# Model Performance Testing Tool
 
-Internal testing utilities for Genkit samples. These scripts help developers
-verify that sample flows are working correctly.
+A tool to test model performance across different models and configuration variations.
 
-## Scripts
+## Setup
 
-### `review_sample_flows.py`
+1.  Ensure you have `uv` installed.
+2.  Set your API keys (e.g., `GOOGLE_GENAI_API_KEY`).
 
-Reviews and tests all flows in a sample's `main.py`.
+## Usage
 
-```bash
-# Test all flows in a sample
-cd py
-uv run samples/sample-test/review_sample_flows.py samples/google-genai-hello
-
-# Specify custom output file
-uv run samples/sample-test/review_sample_flows.py samples/google-genai-hello --output results.txt
-```
-
-### `run_single_flow.py`
-
-Runs a single flow from a sample. Used internally by `review_sample_flows.py`.
+Run the tool:
 
 ```bash
-cd py
-uv run samples/sample-test/run_single_flow.py samples/google-genai-hello flow_name --input '{"key": "value"}'
+uv run test_model_performance.py --models googleai/gemini-2.0-flash
 ```
 
-## Output
+## Features
 
-The review script generates a report file with:
-- Summary of successful/failed flows
-- Detailed input/output for each flow
-- Error messages and tracebacks for failures
+-   **Model Discovery**: Automatically finds registered models.
+-   **Config Discovery**: Inspects model schema to find parameters.
+-   **Variations**: Tests min, max, midpoint, and default values.
+-   **Report**: Generates a Markdown report with pass/fail stats and detailed results.

@@ -40,6 +40,11 @@ from genkit.plugins.microsoft_foundry import (
     gpt4o,
     microsoft_foundry_model,
 )
+from genkit.plugins.microsoft_foundry.models.converters import (
+    extract_text,
+    normalize_config,
+    to_openai_role,
+)
 from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
 from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
 from genkit.types import (
@@ -178,51 +183,36 @@ class TestMicrosoftFoundryModel:
 
     def test_normalize_config_with_none(self) -> None:
         """Test config normalization with None input."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
-        config = model._normalize_config(None)
+        config = normalize_config(None)
         assert isinstance(config, MicrosoftFoundryConfig)
 
     def test_normalize_config_with_microsoft_foundry_config(self) -> None:
         """Test config normalization with MicrosoftFoundryConfig input."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         input_config = MicrosoftFoundryConfig(temperature=0.5, max_tokens=100)
-        config = model._normalize_config(input_config)
+        config = normalize_config(input_config)
         assert config.temperature == 0.5
         assert config.max_tokens == 100
 
     def test_normalize_config_with_dict(self) -> None:
         """Test config normalization with dict input (camelCase keys)."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         input_config = {'temperature': 0.8, 'maxTokens': 200, 'topP': 0.9}
-        config = model._normalize_config(input_config)
+        config = normalize_config(input_config)
         assert config.temperature == 0.8
         assert config.max_tokens == 200
         assert config.top_p == 0.9
 
     def test_to_openai_role_conversion(self) -> None:
         """Test role conversion from Genkit to OpenAI format."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
-        assert model._to_openai_role(Role.USER) == 'user'
-        assert model._to_openai_role(Role.MODEL) == 'assistant'
-        assert model._to_openai_role(Role.SYSTEM) == 'system'
-        assert model._to_openai_role(Role.TOOL) == 'tool'
+        assert to_openai_role(Role.USER) == 'user'
+        assert to_openai_role(Role.MODEL) == 'assistant'
+        assert to_openai_role(Role.SYSTEM) == 'system'
+        assert to_openai_role(Role.TOOL) == 'tool'
         # Test string roles
-        assert model._to_openai_role('user') == 'user'
-        assert model._to_openai_role('model') == 'assistant'
+        assert to_openai_role('user') == 'user'
+        assert to_openai_role('model') == 'assistant'
 
     def test_extract_text_from_message(self) -> None:
         """Test text extraction from a message."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         msg = Message(
             role=Role.USER,
             content=[
@@ -230,7 +220,7 @@ class TestMicrosoftFoundryModel:
                 Part(root=TextPart(text='world!')),
             ],
         )
-        text = model._extract_text(msg)
+        text = extract_text(msg)
         assert text == 'Hello world!'
 
     @pytest.mark.asyncio

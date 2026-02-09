@@ -130,7 +130,8 @@ See Also:
 """
 
 from .client import DEFAULT_DEEPSEEK_API_URL
+from .model_info import is_reasoning_model
 from .models import deepseek_name
 from .plugin import DeepSeek
 
-__all__ = ['DEFAULT_DEEPSEEK_API_URL', 'DeepSeek', 'deepseek_name']
+__all__ = ['DEFAULT_DEEPSEEK_API_URL', 'DeepSeek', 'deepseek_name', 'is_reasoning_model']
