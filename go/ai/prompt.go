@@ -303,8 +303,10 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	// TODO: This is hacky; we should have a helper that fetches the metadata.
 	if input == nil {
-		if inputMeta, ok := p.Desc().Metadata["prompt"].(map[string]any)["input"].(map[string]any); ok {
-			input = inputMeta["default"]
+		if promptMeta, ok := p.Desc().Metadata["prompt"].(map[string]any); ok {
+			if inputMeta, ok := promptMeta["input"].(map[string]any); ok {
+				input = inputMeta["default"]
+			}
 		}
 	}
 
