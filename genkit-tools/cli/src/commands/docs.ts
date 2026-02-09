@@ -101,7 +101,7 @@ export const docsRead = new Command('docs:read')
       logger.info('='.repeat(doc.title.length));
       logger.info('');
       logger.info(doc.text);
-    } catch (e: any) {
-      logger.error(`Failed to load documentation: ${e.message}`);
-    }
+} catch (e: unknown) {
+  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
+}
   });
