@@ -300,10 +300,7 @@ async def safety_prefix_middleware(
     Returns:
         The generation response.
     """
-    safety_text = (
-        'You are a helpful, harmless, and honest assistant. '
-        'Never produce harmful content.'
-    )
+    safety_text = 'You are a helpful, harmless, and honest assistant. Never produce harmful content.'
     safety_message = Message(
         role=Role.SYSTEM,
         content=[Part(root=TextPart(text=safety_text))],
@@ -333,14 +330,8 @@ def custom_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> Generate
     """
     # Build a response echoing the request for demonstration purposes.
     # In a real plugin, you'd call an API here.
-    merged = ' '.join(
-        p.root.text for m in request.messages for p in m.content if p.root.text
-    )
-    echo_text = (
-        f'[custom-model] Processed request with '
-        f'{len(request.messages)} messages. '
-        f'Content: {merged[:100]}...'
-    )
+    merged = ' '.join(str(p.root.text) for m in request.messages for p in m.content if p.root.text)
+    echo_text = f'[custom-model] Processed request with {len(request.messages)} messages. Content: {merged[:100]}...'
     return GenerateResponse(
         message=Message(
             role=Role.MODEL,
