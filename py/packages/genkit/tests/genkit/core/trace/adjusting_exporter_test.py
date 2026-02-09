@@ -80,11 +80,6 @@ def get_attrs(span: ReadableSpan) -> dict[str, Any]:
     return dict(cast(Mapping[str, Any], attrs))
 
 
-# =============================================================================
-# PII Redaction Tests
-# =============================================================================
-
-
 def test_redacts_input_and_output_by_default() -> None:
     """Test that genkit:input and genkit:output are redacted by default."""
     exporter = MockSpanExporter()
@@ -143,11 +138,6 @@ def test_handles_missing_input_output() -> None:
     assert attrs['other'] == 'value'
 
 
-# =============================================================================
-# Error Span Marking Tests
-# =============================================================================
-
-
 def test_marks_error_span_with_http_status() -> None:
     """Test that error spans get /http/status_code: 599 for GCP display."""
     exporter = MockSpanExporter()
@@ -178,11 +168,6 @@ def test_does_not_mark_ok_span_with_http_status() -> None:
 
     attrs = get_attrs(exporter.exported_spans[0])
     assert '/http/status_code' not in attrs
-
-
-# =============================================================================
-# Failed Span Marking Tests
-# =============================================================================
 
 
 def test_marks_failed_span_with_failure_info() -> None:
@@ -225,11 +210,6 @@ def test_does_not_mark_non_failure_span() -> None:
     assert 'genkit/failedPath' not in attrs
 
 
-# =============================================================================
-# Feature Marking Tests
-# =============================================================================
-
-
 def test_marks_root_span_with_feature() -> None:
     """Test that root spans get genkit:feature attribute."""
     exporter = MockSpanExporter()
@@ -260,11 +240,6 @@ def test_does_not_mark_non_root_span_with_feature() -> None:
 
     attrs = get_attrs(exporter.exported_spans[0])
     assert 'genkit/feature' not in attrs
-
-
-# =============================================================================
-# Model Marking Tests
-# =============================================================================
 
 
 def test_marks_model_span_with_model_name() -> None:
@@ -304,11 +279,6 @@ def test_does_not_mark_non_model_span_with_model() -> None:
     assert 'genkit/model' not in attrs
 
 
-# =============================================================================
-# Label Normalization Tests
-# =============================================================================
-
-
 def test_normalizes_labels_colon_to_slash() -> None:
     """Test that colons in attribute keys are replaced with slashes."""
     exporter = MockSpanExporter()
@@ -334,11 +304,6 @@ def test_normalizes_labels_colon_to_slash() -> None:
     # Original colon keys should not exist
     assert 'genkit:name' not in attrs
     assert 'genkit:type' not in attrs
-
-
-# =============================================================================
-# Integration Tests
-# =============================================================================
 
 
 def test_applies_all_transformations_in_order() -> None:
