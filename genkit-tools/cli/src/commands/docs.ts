@@ -46,9 +46,11 @@ export const docsList = new Command('docs:list')
         logger.info('');
       });
       logger.info(`Use 'genkit docs:read <path>' to read a document.`);
-} catch (e: unknown) {
-  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
-}
+    } catch (e: unknown) {
+      logger.error(
+        `Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
   });
 
 export const docsSearch = new Command('docs:search')
@@ -80,9 +82,11 @@ export const docsSearch = new Command('docs:search')
         }
         logger.info('');
       });
-} catch (e: unknown) {
-  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
-}
+    } catch (e: unknown) {
+      logger.error(
+        `Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
   });
 
 export const docsRead = new Command('docs:read')
@@ -101,7 +105,9 @@ export const docsRead = new Command('docs:read')
       logger.info('='.repeat(doc.title.length));
       logger.info('');
       logger.info(doc.text);
-} catch (e: unknown) {
-  logger.error(`Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`);
-}
+    } catch (e: unknown) {
+      logger.error(
+        `Failed to load documentation: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
   });

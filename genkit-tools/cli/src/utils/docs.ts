@@ -87,6 +87,11 @@ export function searchDocs(
     .split(/\s+/)
     .filter((t) => t.length > 2); // Filter out short words to reduce noise
 
+  const TITLE_SCORE = 10;
+  const DESC_SCORE = 5;
+  const HEADERS_SCORE = 3;
+  const FILE_PATH_SCORE = 5;
+
   const results = Object.keys(documents)
     .filter((file) => file.startsWith(lang))
     .map((file) => {
@@ -97,10 +102,10 @@ export function searchDocs(
       const headers = (doc.headers || '').toLowerCase();
 
       terms.forEach((term) => {
-        if (title.includes(term)) score += 10;
-        if (desc.includes(term)) score += 5;
-        if (headers.includes(term)) score += 3;
-        if (file.includes(term)) score += 5;
+        if (title.includes(term)) score += TITLE_SCORE;
+        if (desc.includes(term)) score += DESC_SCORE;
+        if (headers.includes(term)) score += HEADERS_SCORE;
+        if (file.includes(term)) score += FILE_PATH_SCORE;
       });
 
       return { file, doc, score };
