@@ -21,9 +21,9 @@ import base64
 import os
 import pathlib
 
-from constants import DEFAULT_MENU_QUESTION
-from menu_ai import ai
-from menu_schemas import (
+from src.constants import DEFAULT_MENU_QUESTION
+from src.menu_ai import ai
+from src.menu_schemas import (
     AnswerOutputSchema,
     MenuQuestionInputSchema,
     TextMenuQuestionInputSchema,

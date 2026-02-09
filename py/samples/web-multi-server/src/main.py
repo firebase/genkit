@@ -1,4 +1,5 @@
-# pyright: reportUnnecessaryTypeIgnoreComment=false
+#!/usr/bin/env python3
+# pyright: reportUnknownMemberType=false
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,365 +16,181 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Multi-server sample - Running multiple ASGI servers with Genkit.
+"""Multi-Server Pattern - Run multiple ASGI apps in parallel.
 
-This sample demonstrates how to run multiple ASGI servers (Litestar, Starlette)
-alongside Genkit's reflection server for complex deployment scenarios.
+This sample demonstrates how to run multiple HTTP servers concurrently,
+each serving different parts of your application:
 
-See README.md for testing instructions.
+┌────────────────────────────────────────────┐
+│           ServerManager                    │
+│  (coordinates lifecycle + shutdown)        │
+└────────────────────────────────────────────┘
+         │              │
+         ▼              ▼
+    ┌─────────┐    ┌─────────┐
+    │ Public  │    │ Admin   │
+    │ :3400   │    │ :3401   │
+    └─────────┘    └─────────┘
+         │              │
+         ▼              ▼
+    User APIs      Internal APIs
 
-Key Concepts (ELI5)::
+Use cases:
+- Public API (:3400) + Admin API (:3401) on different ports
+- HTTP API + gRPC API running side-by-side
+- Multiple microservices in one deployment
+- Development server + metrics server
 
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ ASGI                │ A standard for Python web servers. Like USB       │
-    │                     │ but for connecting web frameworks.                 │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Litestar            │ A modern Python web framework. Fast and           │
-    │                     │ type-safe for building APIs.                       │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Starlette           │ A lightweight ASGI toolkit. The building           │
-    │                     │ block for frameworks like FastAPI.                 │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ ServerManager       │ Runs multiple servers in parallel. Each gets       │
-    │                     │ its own port and can be started/stopped.          │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Reflection Server   │ Genkit's internal server. Provides DevUI           │
-    │                     │ and flow execution endpoints.                      │
-    └─────────────────────┴────────────────────────────────────────────────────┘
-
-Data Flow (Multi-Server Architecture)::
-
-    ┌─────────────────────────────────────────────────────────────────────────┐
-    │                    MULTI-SERVER DEPLOYMENT PATTERN                      │
-    │                                                                         │
-    │    ┌─────────────────────────────────────────────────────────────┐      │
-    │    │                     ServerManager                           │      │
-    │    │  (coordinates all servers, handles shutdown signals)        │      │
-    │    └─────────────────────────────────────────────────────────────┘      │
-    │         │              │                    │                           │
-    │         │              │                    │                           │
-    │         ▼              ▼                    ▼                           │
-    │    ┌──────────┐  ┌──────────┐       ┌──────────────┐                    │
-    │    │ Litestar │  │ Starlette│       │  Reflection  │                    │
-    │    │ :8080    │  │ :8081    │       │  (DevUI)     │                    │
-    │    │          │  │          │       │  :4000       │                    │
-    │    └──────────┘  └──────────┘       └──────────────┘                    │
-    │         │              │                    │                           │
-    │         ▼              ▼                    ▼                           │
-    │    Your API      Health Checks        Genkit Flows                      │
-    │    Endpoints     & Monitoring         & Debugging                       │
-    └─────────────────────────────────────────────────────────────────────────┘
+All servers start together, stop together, and handle SIGTERM gracefully.
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
-from typing import Any, cast
+from typing import override
 
-from litestar import Controller, Litestar, get, post
+from litestar import Controller, Litestar, get
 from litestar.datastructures import State
-from litestar.logging.config import LoggingConfig
-from litestar.middleware.base import AbstractMiddleware
-from litestar.plugins.structlog import StructlogPlugin
-from litestar.types import Message, Receive, Scope, Send
-from starlette.applications import Starlette
 
 from genkit import Genkit
-from genkit.ai._runtime import RuntimeManager
-from genkit.ai._server import ServerSpec
-from genkit.aio.loop import run_loop
-from genkit.core.environment import is_dev_environment
 from genkit.core.logging import get_logger
-from genkit.core.reflection import create_reflection_asgi_app
-from genkit.core.registry import Registry
 from genkit.web.manager import (
     AbstractBaseServer,
     Server,
     ServerConfig,
     ServerManager,
     UvicornAdapter,
-    get_health_info,
-    get_server_info,
 )
-from genkit.web.manager.signals import terminate_all_servers
-from genkit.web.typing import Application
-from samples.shared.logging import setup_sample
-
-setup_sample()
-
-# TODO(#4368): Logging middleware > log ALL access requests and fix dups
-# TODO(#4368): Logging middleware > access requests different color for each server.
-# TODO(#4368): Logging middleware > show the METHOD and path first and then the structure.
-# TODO(#4368): Logging middleware > if the response is an error code, highlight in red
-# when logging to the console.
-# TODO(#4369): Logger > default configuration and console output and json output
-# TODO(#4370): Add opentelemetry integration
-# TODO(#4371): replace 'requests' with 'aiohttp' or 'httpx' in genkit
-
-logging_config = LoggingConfig(
-    loggers={
-        'genkit_example': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-        },
-    }
-)
-
 
 logger = get_logger(__name__)
 
 
-class LitestarLoggingMiddleware(AbstractMiddleware):
-    """Logging middleware for Litestar that logs requests and responses."""
+# === PUBLIC API SERVER (Port 3400) ===
 
-    async def __call__(
-        self,
-        scope: Scope,
-        receive: Receive,
-        send: Send,
-    ) -> None:
-        """Process the ASGI request/response cycle with logging."""
-        if str(scope['type']) != 'http':
-            # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-            await self.app(scope, receive, send)
-            return
-
-        start_time = time.time()
-        path = scope.get('path', '')
-        method = scope.get('method', '')
-
-        # Log the request
-        request_id = str(id(scope))
-        try:
-            # Extract request headers
-            raw_headers = scope.get('headers', [])
-            headers = dict(cast(list[tuple[bytes, bytes]], raw_headers))
-            formatted_headers = {k.decode('utf-8'): v.decode('utf-8') for k, v in headers.items()}
-            await logger.ainfo(
-                f'HTTP Request {method} {path}',
-                request_id=request_id,
-                method=method,
-                path=path,
-                headers=formatted_headers,
-            )
-        except Exception as e:
-            await logger.aerror(
-                'Error logging request',
-                error=str(e),
-            )
-
-        # Capture the response
-        async def wrapped_send(message: Message) -> None:
-            if message['type'] == 'http.response.start':
-                status_code = message.get('status', 0)
-                response_time = time.time() - start_time
-                try:
-                    # Get response headers
-                    resp_headers = message.get('headers', [])
-                    formatted_resp_headers = (
-                        {k.decode('utf-8'): v.decode('utf-8') for k, v in resp_headers} if resp_headers else {}
-                    )
-                    await logger.ainfo(
-                        f'HTTP Response {method} {path}',
-                        request_id=request_id,
-                        method=method,
-                        path=path,
-                        status_code=status_code,
-                        response_time_ms=round(response_time * 1000, 2),
-                        headers=formatted_resp_headers,
-                    )
-                except Exception as e:
-                    await logger.aerror(
-                        'Error logging response',
-                        error=str(e),
-                    )
-            await send(message)
-
-        # Call the next middleware or handler
-        # pyrefly: ignore[missing-attribute] - app is from AbstractMiddleware
-        await self.app(scope, receive, wrapped_send)
+class PublicAPIController(Controller):
+    """Public-facing API endpoints."""
+    
+    path: str = '/api'
+    
+    @get('/hello')
+    async def hello(self) -> dict[str, str | int]:
+        return {"message": "Hello from Public API", "port": 3400}
+    
+    @get('/status')
+    async def status(self) -> dict[str, str]:
+        return {"status": "healthy", "server": "public"}
 
 
-class BaseControllerMixin:
-    """Base controller mixin for all litestar controllers."""
-
-    @post('/__quitquitquitz')
-    async def quit(self) -> dict[str, Any]:
-        """Handle the quit endpoint."""
-        await logger.ainfo('Shutting down all servers...')
-        terminate_all_servers()
-        return {'status': 'OK'}
-
-    @get('/__healthz')
-    async def health(self, state: State) -> dict[str, Any]:
-        """Handle the health check endpoint."""
-        config = state.config
-        info = get_health_info(config)
-        return info
-
-    @get('/__serverz')
-    async def server_info(self, state: State) -> dict[str, Any]:
-        """Handle the system information check endpoint."""
-        config = state.config
-        info = get_server_info(config)
-        return info if isinstance(info, dict) else {'info': info}
-
-
-class FlowsEndpoints(Controller, BaseControllerMixin):
-    """Controller for the Flows API endpoints."""
-
-    path = '/flow'
-
-    @get('/run')
-    async def root(self) -> dict[str, str]:
-        """Handle the root endpoint."""
-        msg = 'Running flow endpoint!'
-        return {'flow': msg}
-
-
-class GreetingEndpoints(Controller, BaseControllerMixin):
-    """Controller for the Greetings API endpoints.
-
-    An example demonstrating multiple controllers bound to the same application
-    server.
-    """
-
-    path = '/'
-
-    @get('/greet')
-    async def root(self) -> dict[str, str]:
-        """Handle the root endpoint."""
-        msg = 'Hello from greeting endpoints app!'
-        return {'greeting': msg}
-
-
-class FlowsServerLifecycle(AbstractBaseServer):
-    """Flows server implementing the ServerLifecycleProtocol."""
-
-    def __init__(self, route_handlers: list[type[Controller]]) -> None:
-        """Initialize the flows server.
-
-        Args:
-            route_handlers: The controller classes to use for routes.
-        """
-        self.route_handlers = route_handlers
-
-    def create(self, config: ServerConfig) -> Application:
-        """Create a Litestar application instance."""
-
-        async def on_app_startup() -> None:
-            """Handle application startup."""
-            await logger.ainfo('[LIFESPAN] Starting API server...')
-            # Any initialization could go here
-
-        async def on_app_shutdown() -> None:
-            """Handle application shutdown."""
-            await logger.ainfo('[LIFESPAN] Shutting down API server...')
-
-        # Create and return the Litestar application
+class PublicServerLifecycle(AbstractBaseServer):
+    """Lifecycle manager for the public API server."""
+    
+    @override
+    def create(self, config: ServerConfig) -> Litestar:  # type: ignore[override]
+        """Create the public API application."""
+        
+        async def on_startup() -> None:
+            await logger.ainfo(f"✅ Public API started on port {config.port}")
+        
+        async def on_shutdown() -> None:
+            await logger.ainfo("🛑 Public API stopped")
+        
         return Litestar(
-            route_handlers=self.route_handlers,
-            on_startup=[on_app_startup],
-            on_shutdown=[on_app_shutdown],
-            logging_config=logging_config,
-            middleware=[LitestarLoggingMiddleware],
-            plugins=[StructlogPlugin()],
-            state=State({'config': config}),  # Set the config in the application state
+            route_handlers=[PublicAPIController],
+            on_startup=[on_startup],
+            on_shutdown=[on_shutdown],
+            state=State({'config': config}),
         )
 
 
-class ReflectionServerStarletteLifecycle(AbstractBaseServer):
-    """Reflection server implemented using Starlette."""
+# === ADMIN API SERVER (Port 3401) ===
 
-    def __init__(self, registry: Registry) -> None:
-        """Initialize the Starlette reflection server."""
-        self.registry = registry
+class AdminAPIController(Controller):
+    """Admin/internal API endpoints."""
+    
+    path: str = '/admin'
+    
+    @get('/metrics')
+    async def metrics(self) -> dict[str, str | int]:
+        return {
+            "users": 1000,
+            "requests_today": 45000,
+            "server": "admin",
+        }
+    
+    @get('/config')
+    async def config(self) -> dict[str, str]:
+        return {
+            "environment": "development",
+            "version": "1.0.0",
+        }
 
-    def create(self, config: ServerConfig) -> Starlette:
-        """Create a Starlette application instance."""
-        runtime_manager: RuntimeManager | None = None
 
-        async def on_app_startup() -> None:
-            """Handle application startup."""
-            await logger.ainfo('[LIFESPAN] Starting Starlette Reflection API server...')
-            nonlocal runtime_manager
-            if config.port:
-                runtime_manager = RuntimeManager(ServerSpec(port=config.port, host=config.host))
-                await runtime_manager.__aenter__()
-
-        async def on_app_shutdown() -> None:
-            """Handle application shutdown."""
-            await logger.ainfo('[LIFESPAN] Shutting down Starlette Reflection API server...')
-            if runtime_manager:
-                await runtime_manager.__aexit__(None, None, None)
-
-        return cast(
-            Starlette,
-            create_reflection_asgi_app(
-                registry=self.registry,
-                on_app_startup=on_app_startup,
-                on_app_shutdown=on_app_shutdown,
-            ),
+class AdminServerLifecycle(AbstractBaseServer):
+    """Lifecycle manager for the admin API server."""
+    
+    @override
+    def create(self, config: ServerConfig) -> Litestar:  # type: ignore[override]
+        """Create the admin API application."""
+        
+        async def on_startup() -> None:
+            await logger.ainfo(f"✅ Admin API started on port {config.port}")
+        
+        async def on_shutdown() -> None:
+            await logger.ainfo("🛑 Admin API stopped")
+        
+        return Litestar(
+            route_handlers=[AdminAPIController],
+            on_startup=[on_startup],
+            on_shutdown=[on_shutdown],
+            state=State({'config': config}),
         )
 
 
-async def add_server_after(mgr: ServerManager, server: Server, delay: float) -> None:
-    """Add a server to the servers manager after a delay.
-
-    Args:
-        mgr: The servers manager.
-        server: The server to add.
-        delay: The delay in seconds before adding the server.
-
-    Returns:
-        None
-    """
-    await asyncio.sleep(delay)
-    await mgr.queue_server(server)
-
+# === MAIN ENTRY POINT ===
 
 async def main() -> None:
-    """Entry point function."""
+    """Run both servers in parallel."""
+    
+    # Optional: Initialize Genkit if you need flows
     g = Genkit(plugins=[])
-
+    
     @g.flow()
-    async def multi_server_flow(name: str) -> str:
-        """A sample flow for multi-server demo."""
-        return f'Hello from multi-server, {name}!'
-
+    async def example_flow(name: str) -> str:
+        """Example Genkit flow (not exposed in this sample)."""
+        return f"Hello {name} from multi-server!"
+    
+    # Use the flow to avoid "unused" warning
+    _ = example_flow
+    
+    # Define the servers to run
     servers = [
         Server(
             config=ServerConfig(
-                name='flows',
+                name='public-api',
                 host='localhost',
                 port=3400,
-                ports=list(range(3400, 3410)),
+                ports=list(range(3400, 3410)),  # Fallback ports if 3400 is busy
             ),
-            lifecycle=FlowsServerLifecycle([FlowsEndpoints, GreetingEndpoints]),
+            lifecycle=PublicServerLifecycle(),
+            adapter=UvicornAdapter(),
+        ),
+        Server(
+            config=ServerConfig(
+                name='admin-api',
+                host='localhost',
+                port=3401,
+                ports=list(range(3401, 3411)),  # Fallback ports if 3401 is busy
+            ),
+            lifecycle=AdminServerLifecycle(),
             adapter=UvicornAdapter(),
         ),
     ]
-
-    mgr = ServerManager()
-    if is_dev_environment():
-        reflection_server = Server(
-            config=ServerConfig(
-                name='reflection-starlette',
-                host='localhost',
-                port=3100,
-                ports=list(range(3100, 3110)),
-            ),
-            lifecycle=ReflectionServerStarletteLifecycle(registry=g.registry),
-            adapter=UvicornAdapter(),
-        )
-        asyncio.create_task(add_server_after(mgr, reflection_server, 2.0))
-
-    await logger.ainfo('Starting servers...')
-    await mgr.run_all(servers)
+    
+    # Start all servers (blocks until SIGTERM/SIGINT)
+    manager = ServerManager()
+    await logger.ainfo("🚀 Starting multi-server deployment...")
+    await manager.run_all(servers)
 
 
 if __name__ == '__main__':
-    run_loop(main())
+    asyncio.run(main())

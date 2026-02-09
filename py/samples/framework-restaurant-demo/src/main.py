@@ -57,25 +57,25 @@ from samples.shared.logging import setup_sample
 setup_sample()
 
 # Import case modules to register flows and prompts with the ai instance
-from case_01 import prompts as case_01_prompts  # noqa: F401
-from case_02 import (
+from src.case_01 import prompts as case_01_prompts  # noqa: F401
+from src.case_02 import (
     flows as case_02_flows,  # noqa: F401
     prompts as case_02_prompts,  # noqa: F401
     tools as case_02_tools,  # noqa: F401
 )
-from case_03 import (
+from src.case_03 import (
     flows as case_03_flows,  # noqa: F401
     prompts as case_03_prompts,  # noqa: F401
 )
-from case_04 import (
+from src.case_04 import (
     flows as case_04_flows,  # noqa: F401
     prompts as case_04_prompts,  # noqa: F401
 )
-from case_05 import (
+from src.case_05 import (
     flows as case_05_flows,  # noqa: F401
     prompts as case_05_prompts,  # noqa: F401
 )
-from menu_ai import ai
+from src.menu_ai import ai
 
 
 async def main() -> None:

@@ -21,8 +21,8 @@ import json
 import os
 import pathlib
 
-from menu_ai import ai
-from menu_schemas import MenuToolOutputSchema
+from src.menu_ai import ai
+from src.menu_schemas import MenuToolOutputSchema
 
 menu_json_path = os.path.join(pathlib.Path(__file__).parent, '..', '..', 'data', 'menu.json')
 with pathlib.Path(menu_json_path).open() as f:

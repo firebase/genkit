@@ -15,8 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Prompts for case 02."""
 
-from menu_ai import ai
-from menu_schemas import MenuQuestionInputSchema
+from src.menu_ai import ai
+from src.menu_schemas import MenuQuestionInputSchema
 
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
 
