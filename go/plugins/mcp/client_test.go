@@ -17,9 +17,19 @@
 package mcp
 
 import (
+	"context"
 	"net/http"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// mockTransport implements mcp.Transport for testing
+type mockTransport struct{}
+
+func (m *mockTransport) Connect(ctx context.Context) (mcp.Connection, error) {
+	return nil, nil
+}
 
 func TestWrapHTTPClient(t *testing.T) {
 	t.Run("nil headers returns client as is", func(t *testing.T) {
@@ -54,5 +64,24 @@ func TestMCPClientDefaults(t *testing.T) {
 	c := &GenkitMCPClient{options: opts}
 	if got := c.Name(); got != "my-mcp" {
 		t.Errorf("c.Name() got = %q, want %q", got, "my-mcp")
+	}
+}
+
+func TestCreateTransport_Custom(t *testing.T) {
+	customTransport := &mockTransport{}
+	opts := MCPClientOptions{
+		Transport: customTransport,
+		// These should be ignored
+		Stdio: &StdioConfig{Command: "echo"},
+	}
+
+	c := &GenkitMCPClient{options: opts}
+	got, err := c.createTransport()
+	if err != nil {
+		t.Fatalf("createTransport failed: %v", err)
+	}
+
+	if got != customTransport {
+		t.Error("createTransport did not return custom transport")
 	}
 }

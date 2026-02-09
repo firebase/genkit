@@ -226,3 +226,28 @@ SSE: &mcp.SSEConfig{
     Headers: map[string]string{"Authorization": "Bearer token"},
 }
 ```
+
+### Custom Transport (e.g., WebSockets)
+
+You can provide your own implementation of `mcp.Transport` for custom protocols:
+
+```go
+// Your custom transport implementation
+type WebSocketTransport struct {
+    URL string
+}
+
+func (t *WebSocketTransport) Connect(ctx context.Context) (mcp.Connection, error) {
+    // Implement connection logic...
+    return conn, nil
+}
+
+func main() {
+    client, err := mcp.NewClient(ctx, mcp.MCPClientOptions{
+        Name: "iot-device",
+        Transport: &WebSocketTransport{
+            URL: "ws://192.168.1.100:8080/mcp",
+        },
+    })
+}
+```

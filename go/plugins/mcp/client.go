@@ -64,6 +64,11 @@ type MCPClientOptions struct {
 
 	// Transport options -- only one should be provided
 
+	// Transport allows providing a custom implementation of [mcp.Transport]
+	// If set, Stdio, SSE and StreamableHTTP options are ignored.
+	// Useful for custom protocols like WebSockets.
+	Transport mcp.Transport
+
 	// Stdio contains config for starting a local server process using stdio transport
 	Stdio *StdioConfig
 
@@ -199,6 +204,10 @@ func wrapHTTPClient(client *http.Client, headers map[string]string) *http.Client
 
 // createTransport creates the appropriate transport based on client options
 func (c *GenkitMCPClient) createTransport() (mcp.Transport, error) {
+	if c.options.Transport != nil {
+		return c.options.Transport, nil
+	}
+
 	if c.options.Stdio != nil {
 		cmd := exec.Command(c.options.Stdio.Command, c.options.Stdio.Args...)
 		cmd.Env = c.options.Stdio.Env
