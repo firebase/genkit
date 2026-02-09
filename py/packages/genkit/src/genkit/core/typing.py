@@ -127,6 +127,7 @@ class MiddlewareDesc(BaseModel):
     name: str
     description: str | None = None
     config_schema: dict[str, Any] | None = Field(default=None)
+    metadata: dict[str, Any] | None = None
 
 
 class MiddlewareRef(BaseModel):
