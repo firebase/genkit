@@ -563,11 +563,13 @@ project_includes = [
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
 # - samples/framework-evaluator-demo: has `evaluator_demo` package with internal imports
 # - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
+# - samples/sample-test: has `model_performance_test` module for imports
 search-path = [
   ".",
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
   "samples/framework-restaurant-demo/src",
+  "samples/sample-test",
   "samples/web-endpoints-hello",
   # Tools
   "tools/releasekit/src",

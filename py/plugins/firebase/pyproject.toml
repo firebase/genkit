@@ -44,6 +44,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
+  "genkit-plugin-google-cloud",
   "google-cloud-firestore",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
