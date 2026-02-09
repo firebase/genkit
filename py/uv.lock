@@ -24,6 +24,7 @@ members = [
     "genkit",
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
+    "genkit-plugin-checks",
     "genkit-plugin-cloudflare-workers-ai",
     "genkit-plugin-cohere",
     "genkit-plugin-compat-oai",
@@ -45,6 +46,7 @@ members = [
     "genkit-workspace",
     "provider-amazon-bedrock-hello",
     "provider-anthropic-hello",
+    "provider-checks-hello",
     "provider-cloudflare-workers-ai-hello",
     "provider-cohere-hello",
     "provider-compat-oai-hello",
@@ -2228,6 +2230,27 @@ requires-dist = [
 ]
 
 [[package]]
+name = "genkit-plugin-checks"
+version = "0.5.0"
+source = { editable = "plugins/checks" }
+dependencies = [
+    { name = "genkit" },
+    { name = "google-auth" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "google-auth", specifier = ">=2.27.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+]
+
+[[package]]
 name = "genkit-plugin-cloudflare-workers-ai"
 version = "0.5.0"
 source = { editable = "plugins/cloudflare-workers-ai" }
@@ -2584,6 +2607,7 @@ dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
+    { name = "genkit-plugin-checks" },
     { name = "genkit-plugin-cloudflare-workers-ai" },
     { name = "genkit-plugin-cohere" },
     { name = "genkit-plugin-compat-oai" },
@@ -2666,6 +2690,7 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
+    { name = "genkit-plugin-checks", editable = "plugins/checks" },
     { name = "genkit-plugin-cloudflare-workers-ai", editable = "plugins/cloudflare-workers-ai" },
     { name = "genkit-plugin-cohere", editable = "plugins/cohere" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
@@ -6369,6 +6394,27 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "provider-checks-hello"
+version = "0.1.0"
+source = { editable = "samples/provider-checks-hello" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-checks" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-checks", editable = "plugins/checks" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
+]
 
 [[package]]
 name = "provider-cloudflare-workers-ai-hello"

@@ -20,6 +20,7 @@ dependencies = [
   "dotpromptz==0.1.5",
   "genkit",
   "genkit-plugin-anthropic",
+  "genkit-plugin-checks",
   "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-compat-oai",
   "genkit-plugin-deepseek",
@@ -167,6 +168,7 @@ framework-restaurant-demo                  = { workspace = true }
 framework-tool-interrupts                  = { workspace = true }
 provider-amazon-bedrock-hello              = { workspace = true }
 provider-anthropic-hello                   = { workspace = true }
+provider-checks-hello                      = { workspace = true }
 provider-cloudflare-workers-ai-hello       = { workspace = true }
 provider-cohere-hello                      = { workspace = true }
 provider-compat-oai-hello                  = { workspace = true }
@@ -197,6 +199,7 @@ genkit = { workspace = true }
 # Plugins (alphabetical)
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
+genkit-plugin-checks                = { workspace = true }
 genkit-plugin-cloudflare-workers-ai = { workspace = true }
 genkit-plugin-cohere                = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
@@ -407,6 +410,7 @@ root = [
   # Plugins
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
+  "plugins/checks/src",
   "plugins/cloudflare-workers-ai/src",
   "plugins/cohere/src",
   "plugins/compat-oai/src",
