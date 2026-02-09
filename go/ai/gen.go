@@ -214,6 +214,8 @@ type MiddlewareDesc struct {
 	ConfigSchema map[string]any `json:"configSchema,omitempty"`
 	// Description explains what the middleware does.
 	Description string `json:"description,omitempty"`
+	// Metadata contains additional context for the middleware.
+	Metadata map[string]any `json:"metadata,omitempty"`
 	// Name is the middleware's unique identifier.
 	Name           string `json:"name,omitempty"`
 	configFromJSON middlewareConfigFunc
