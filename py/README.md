@@ -11,10 +11,10 @@ Genkit is a framework for building AI-powered applications with type-safe flows,
 │   from genkit import Genkit                                                 │
 │   ai = Genkit(plugins=[GoogleGenAI()], model=gemini_2_0_flash)             │
 │                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌──────────┐      │
-│   │  Flows  │  │  Tools  │  │ Prompts │  │ Embedders│  │Retrievers│      │
-│   │@ai.flow │  │@ai.tool │  │.prompt  │  │ai.embed()│  │ai.retr() │      │
-│   └────┬────┘  └────┬────┘  └────┬────┘  └────┬─────┘  └────┬─────┘      │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌───────────┐     │
+│   │  Flows  │  │  Tools  │  │ Prompts │  │ Embedders│  │ Retrievers│     │
+│   │@ai.flow │  │@ai.tool │  │.prompt  │  │ai.embed()│  │ai.retrieve│     │
+│   └────┬────┘  └────┬────┘  └────┬────┘  └────┬─────┘  └─────┬─────┘     │
 │        │            │            │             │             │              │
 │        └────────────┴────────────┴─────────────┴─────────────┘              │
 │                                  │                                          │
@@ -30,6 +30,186 @@ Genkit is a framework for building AI-powered applications with type-safe flows,
 │      │ (providers) │     │ (OpenTelemetry│     │  API (DevUI) │             │
 │      └────────────┘     └──────────────┘     └──────────────┘             │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Plugin Architecture
+
+Plugins are the primary extension mechanism in Genkit. They add model
+providers, telemetry backends, vector stores, and other capabilities.
+Every plugin implements the same abstract interface (`Plugin` base class)
+and is loaded lazily by the `Registry`.
+
+### Plugin Class Hierarchy
+
+All plugins inherit from `genkit.core.plugin.Plugin` and implement three
+abstract methods:
+
+```
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                  Plugin (Abstract Base Class)                       │
+  │                  genkit.core.plugin.Plugin                          │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │                                                                     │
+  │  name: str                                                          │
+  │  ─────────────────────────────────────                              │
+  │  Plugin namespace (e.g., 'googleai', 'anthropic', 'ollama')        │
+  │                                                                     │
+  │  async init() → list[Action]            ← called once per plugin   │
+  │  ─────────────────────────────────────                              │
+  │  One-time initialization; returns actions to pre-register.          │
+  │  Called lazily on first action resolution, NOT at registration.     │
+  │                                                                     │
+  │  async resolve(kind, name) → Action?    ← called per lookup        │
+  │  ─────────────────────────────────────                              │
+  │  Resolve a single action by kind and name. Returns None if         │
+  │  this plugin doesn't handle the requested action.                   │
+  │                                                                     │
+  │  async list_actions() → list[ActionMetadata]  ← for Dev UI         │
+  │  ─────────────────────────────────────                              │
+  │  Advertise available actions without heavy initialization.          │
+  │  Called by the Reflection API for DevUI action discovery.           │
+  │                                                                     │
+  │  model(name) → ModelReference           ← helper method            │
+  │  embedder(name) → EmbedderRef           ← helper method            │
+  │                                                                     │
+  └─────────────────────────────────────────────────────────────────────┘
+                                  │
+                  ┌───────────────┼───────────────┐
+                  │               │               │
+                  ▼               ▼               ▼
+        ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+        │   GoogleAI   │ │  Anthropic   │ │    Ollama    │   ... etc.
+        │  name =      │ │  name =      │ │  name =      │
+        │  'googleai'  │ │  'anthropic' │ │  'ollama'    │
+        └──────────────┘ └──────────────┘ └──────────────┘
+```
+
+### Plugin Lifecycle
+
+Plugins go through four phases: registration, lazy initialization,
+action resolution, and action discovery.
+
+```
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                      Plugin Lifecycle                               │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │                                                                     │
+  │  Phase 1: REGISTRATION (at Genkit startup)                         │
+  │  ─────────                                                         │
+  │  ai = Genkit(plugins=[GoogleAI(), Anthropic()])                    │
+  │       │                                                            │
+  │       ├─► registry.register_plugin(GoogleAI())                     │
+  │       └─► registry.register_plugin(Anthropic())                    │
+  │           │                                                        │
+  │           ▼                                                        │
+  │       ┌────────────────────────────────────────┐                   │
+  │       │  Registry._plugins                      │                   │
+  │       │  ┌────────────────┬───────────────────┐ │                   │
+  │       │  │ "googleai"     │ GoogleAI instance │ │                   │
+  │       │  │ "anthropic"    │ Anthropic instance│ │                   │
+  │       │  └────────────────┴───────────────────┘ │                   │
+  │       └────────────────────────────────────────┘                   │
+  │                                                                     │
+  │  Phase 2: LAZY INIT (on first action resolution)                   │
+  │  ──────────                                                        │
+  │  await ai.generate(model='googleai/gemini-2.0-flash', ...)        │
+  │       │                                                            │
+  │       ▼                                                            │
+  │  registry._ensure_plugin_initialized('googleai')                   │
+  │       │                                                            │
+  │       ▼                                                            │
+  │  actions = await plugin.init()    ← called exactly once            │
+  │       │                            (subsequent calls are no-ops)   │
+  │       ▼                                                            │
+  │  for action in actions:                                            │
+  │      registry.register_action_instance(action)                     │
+  │                                                                     │
+  │  Phase 3: ACTION RESOLUTION (on each usage)                        │
+  │  ─────────────────────                                             │
+  │  await plugin.resolve(ActionKind.MODEL, 'googleai/gemini-2.0-flash')│
+  │       │                                                            │
+  │       ▼                                                            │
+  │  Action instance returned and cached in registry                   │
+  │                                                                     │
+  │  Phase 4: ACTION DISCOVERY (for Dev UI)                            │
+  │  ──────────────────                                                │
+  │  await plugin.list_actions()                                       │
+  │       │                                                            │
+  │       ▼                                                            │
+  │  ActionMetadata[] returned to Reflection API                       │
+  │  (does NOT trigger init — must be fast and safe)                   │
+  │                                                                     │
+  └─────────────────────────────────────────────────────────────────────┘
+```
+
+### How the Registry Resolves Actions
+
+When you call `ai.generate(model='googleai/gemini-2.0-flash')`, the
+registry uses a multi-step resolution algorithm:
+
+```
+  ai.generate(model="googleai/gemini-2.0-flash")
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  Step 1: CACHE HIT?                                              │
+  │  Is "googleai/gemini-2.0-flash" already in registry._entries?    │
+  │     ├── YES → return cached Action (fast path)                   │
+  │     └── NO  → continue to Step 2                                 │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Step 2: NAMESPACED or UNPREFIXED?                               │
+  │  Does the name contain "/"?                                      │
+  │     │                                                            │
+  │     ├── YES ("googleai/gemini-2.0-flash")                        │
+  │     │    ├── Find plugin "googleai"                               │
+  │     │    ├── await _ensure_plugin_initialized("googleai")         │
+  │     │    ├── Check cache again (init may have registered it)     │
+  │     │    └── await plugin.resolve(MODEL, "googleai/gemini-2.0")  │
+  │     │                                                            │
+  │     └── NO ("gemini-2.0-flash")                                  │
+  │          ├── Try ALL plugins                                      │
+  │          ├── If 1 match  → use it                                 │
+  │          ├── If 2+ match → ValueError (ambiguous)                │
+  │          └── If 0 match  → continue to Step 3                    │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Step 3: DYNAMIC ACTION PROVIDERS (fallback)                     │
+  │  Try registered Dynamic Action Providers (e.g., MCP servers)     │
+  │     ├── Found → register and return                              │
+  │     └── Not found → return None                                  │
+  └──────────────────────────────────────────────────────────────────┘
+```
+
+### Writing a Custom Plugin
+
+```python
+from genkit.core.plugin import Plugin
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
+
+
+class MyPlugin(Plugin):
+    name = 'myplugin'
+
+    def __init__(self, api_key: str) -> None:
+        self.api_key = api_key
+
+    async def init(self) -> list[Action]:
+        # Return actions to pre-register (optional)
+        return []
+
+    async def resolve(self, kind: ActionKind, name: str) -> Action | None:
+        if kind == ActionKind.MODEL:
+            return self._create_model(name)
+        return None
+
+    async def list_actions(self) -> list[ActionMetadata]:
+        return [
+            ActionMetadata(kind=ActionKind.MODEL, name='myplugin/my-model'),
+        ]
+
+# Usage:
+ai = Genkit(plugins=[MyPlugin(api_key='...')])
+response = await ai.generate(model='myplugin/my-model', prompt='Hello!')
 ```
 
 ## How a Flow Executes
@@ -212,7 +392,7 @@ print(response.text)
 ## Plugin Categories
 
 | Category | Plugins | Purpose |
-|----------|---------|---------| 
+|----------|---------|---------|
 | **Model Providers** | google-genai, anthropic, amazon-bedrock, ollama, compat-oai, deepseek, xai, mistral, huggingface, microsoft-foundry, cloudflare-workers-ai, cohere | AI model access |
 | **Telemetry** | google-cloud, amazon-bedrock, azure, firebase, cloudflare-workers-ai, observability | Distributed tracing & logging |
 | **Vector Stores** | firebase, vertex-ai, dev-local-vectorstore | Embeddings storage & retrieval |
