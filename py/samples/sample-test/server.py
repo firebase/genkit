@@ -7,12 +7,12 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from fastapi import FastAPI, HTTPException  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore
-from fastapi.responses import HTMLResponse  # type: ignore
-from fastapi.staticfiles import StaticFiles  # type: ignore
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 # Import tool logic
 from model_performance_test import run_model_test  # type: ignore
@@ -22,7 +22,7 @@ app = FastAPI(title='Model Performance Tool')
 
 # CORS for local dev
 app.add_middleware(
-    CORSMiddleware,
+    cast(Any, CORSMiddleware),
     allow_origins=['*'],
     allow_credentials=True,
     allow_methods=['*'],
@@ -77,20 +77,25 @@ async def discover_scenarios() -> list[Scenario]:
         if item.is_dir() and not item.name.startswith(('.', '_')):
             # Try to read metadata from pyproject.toml
             pyproject_path = item / 'pyproject.toml'
+
+            # Skip samples without pyproject.toml - they are likely legacy or broken
+            if not pyproject_path.exists():
+                logging.debug(f'Skipping {item.name}: no pyproject.toml found')
+                continue
+
             name = item.name
             description = 'Genkit sample project'
 
-            if pyproject_path.exists():
-                try:
-                    import tomllib  # type: ignore
+            try:
+                import tomllib  # type: ignore
 
-                    with open(pyproject_path, 'rb') as f:
-                        data = tomllib.load(f)
-                        project = data.get('project', {})
-                        name = project.get('name', name)
-                        description = project.get('description', description)
-                except Exception:  # noqa: S110
-                    pass
+                with open(pyproject_path, 'rb') as f:
+                    data = tomllib.load(f)
+                    project = data.get('project', {})
+                    name = project.get('name', name)
+                    description = project.get('description', description)
+            except Exception:  # noqa: S110
+                pass
 
             scenarios.append(
                 Scenario(
@@ -199,16 +204,14 @@ async def run_test(request: TestRequest) -> TestResult:
         script_path = Path(__file__).parent / 'run_single_model_test.py'
 
         # Run test in thread pool to not block async loop (subprocess call inside)
+        # Run test in thread pool to not block async loop (subprocess call inside)
         result = await asyncio.to_thread(
-            lambda: asyncio.run(
-                run_wrapper(
-                    request.model,
-                    request.config,
-                    request.user_prompt,
-                    request.system_prompt,
-                    script_path,
-                )
-            )
+            run_wrapper,
+            request.model,
+            request.config,
+            request.user_prompt,
+            request.system_prompt,
+            script_path,
         )
 
         return TestResult(
@@ -292,6 +295,38 @@ async def run_comprehensive_test(
         passed = sum(1 for r in all_results if r['success'])
         failed = len(all_results) - passed
 
+        # Save summary result to file
+        try:
+            results_dir = Path(__file__).parent / 'results'
+            results_dir.mkdir(exist_ok=True)
+
+            import datetime
+            import json
+
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            model_slug = request.model.replace('/', '_')
+            summary_file = results_dir / f'summary_{model_slug}_{timestamp}.json'
+
+            summary_data = {
+                'sample': request.sample,
+                'model': request.model,
+                'user_prompt': request.user_prompt,
+                'system_prompt': request.system_prompt,
+                'timestamp': timestamp,
+                'total_tests': len(all_results),
+                'passed': passed,
+                'failed': failed,
+                'results': all_results,
+            }
+
+            with open(summary_file, 'w') as f:
+                json.dump(summary_data, f, indent=2)
+
+            logging.info(f'Saved comprehensive test summary to {summary_file}')
+        except Exception as e:
+            logging.error(f'Failed to save test summary: {e}')
+            # Continue even if saving fails
+
         return ComprehensiveTestResult(total_tests=len(all_results), passed=passed, failed=failed, results=all_results)
 
     except HTTPException:
@@ -304,8 +339,8 @@ async def run_comprehensive_test(
         raise HTTPException(status_code=500, detail=f'Internal Server Error: {str(e)}') from e
 
 
-# Wrapper to run async run_model_test inside the thread
-async def run_wrapper(
+# Wrapper to run run_model_test inside the thread
+def run_wrapper(
     model: str,
     config: dict[str, Any],
     user_prompt: str,

@@ -78,7 +78,15 @@ async def discover_models() -> dict[str, Any]:
     # Get all model actions via list_actions (which queries plugins)
     from genkit.core.action import ActionKind
 
-    actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+    try:
+        actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+    except Exception as e:
+        # Silently skip discovery errors (like Ollama connection failures)
+        # to avoid noisy logs for users who don't have all local services running
+        import logging
+
+        logging.getLogger(__name__).debug(f'Error listing models during discovery: {e}')
+        actions = []
 
     model_info = {}
     for meta in actions:
@@ -133,6 +141,36 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
         return await discover_models()
 
     try:
+        # Add necessary paths to sys.path for importing samples and shared utilities
+        root_dir = samples_dir.parent
+        src_dir = sample_dir / 'src'
+
+        # Save original path for restoration
+        original_sys_path = sys.path[:]
+
+        logger.debug(f'Original sys.path: {original_sys_path}')
+        logger.debug(f'Adding root_dir: {root_dir}')
+        logger.debug(f'Adding sample_dir: {sample_dir}')
+        logger.debug(f'Adding src_dir: {src_dir}')
+
+        if str(root_dir) not in sys.path:
+            sys.path.insert(0, str(root_dir))
+            logger.debug(f'Added {root_dir} to sys.path')
+
+        # Also add samples directory itself just in case
+        if str(samples_dir) not in sys.path:
+            sys.path.insert(0, str(samples_dir))
+            logger.debug(f'Added {samples_dir} to sys.path')
+
+        if str(sample_dir) not in sys.path:
+            sys.path.insert(0, str(sample_dir))
+            logger.debug(f'Added {sample_dir} to sys.path')
+        if src_dir.exists() and str(src_dir) not in sys.path:
+            sys.path.insert(0, str(src_dir))
+            logger.debug(f'Added {src_dir} to sys.path')
+
+        logger.debug(f'Updated sys.path: {sys.path}')
+
         # Mock input() to prevent blocking on API key prompts
         import builtins
         import os
@@ -149,11 +187,12 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
         }
         original_env_vars: dict[str, str | None] = {}
         for key, value in env_vars_to_mock.items():
-            if key not in os.environ:
-                original_env_vars[key] = None
+            current_val = os.environ.get(key)
+            if not current_val:  # Also mock if empty string
+                original_env_vars[key] = current_val
                 os.environ[key] = value
             else:
-                original_env_vars[key] = os.environ[key]
+                original_env_vars[key] = current_val
 
         try:
             # Dynamically import the sample module
@@ -182,19 +221,34 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
                     # Get all model actions
                     from genkit.core.action import ActionKind
 
-                    actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+                    try:
+                        actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
+                    except Exception as e:
+                        logger.warning(f'Error listing models for sample {sample_name}: {e}')
+                        actions = []
 
                     model_info = {}
                     for meta in actions:
-                        info = meta.metadata.get('model', {})
+                        # Ensure metadata and model info exist
+                        meta_data = meta.metadata or {}
+                        info = meta_data.get('model', {})
                         model_info[meta.name] = info
+
+                    if not model_info:
+                        logger.warning(
+                            f'Discovered 0 models for sample {sample_name}. '
+                            'This often happens if API keys (e.g. GEMINI_API_KEY) are missing or invalid.'
+                        )
+                        # Fall back to global discovery
+                        return await discover_models()
 
                     logger.info(
                         f'Discovered {len(model_info)} models for sample {sample_name}: {list(model_info.keys())}'
                     )
                     return model_info
                 else:
-                    logger.warning(f"Sample {sample_name} has no 'ai' attribute")
+                    logger.warning(f"Sample {sample_name} has no 'ai' attribute, falling back to global discovery")
+                    return await discover_models()
 
             finally:
                 # Restore old module if it existed
@@ -213,6 +267,9 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = original_value
+
+            # Restore original sys.path
+            sys.path[:] = original_sys_path
 
     except ModuleNotFoundError as e:
         error_msg = str(e)
@@ -241,8 +298,6 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
             return await discover_models()
 
         return {}  # Return empty for other failures
-
-    return {}
 
 
 def parse_config_schema(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:

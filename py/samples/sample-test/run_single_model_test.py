@@ -150,8 +150,9 @@ async def run_model_test(
         result['response'] = response_text
         result['timing'] = round(elapsed, 3)
 
-    except Exception:  # noqa: S110
-        pass
+    except Exception as e:
+        result['success'] = False
+        result['error'] = str(e)
 
     return result
 
@@ -193,10 +194,10 @@ def main() -> None:
             )
         )
 
-    except Exception:  # noqa: S110
-        pass
+        # Output JSON result with markers
 
-    # Output JSON result with markers
+    except Exception:  # noqa: S110 - intentionally silent, error handled by returning result dict
+        pass
 
 
 if __name__ == '__main__':
