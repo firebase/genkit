@@ -2139,6 +2139,7 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
                 'format': output.get('format') if output and isinstance(output, dict) else None,
             },
             'input': {
+                'default': input_schema.get('default') if input_schema and isinstance(input_schema, dict) else None,
                 'jsonSchema': input_schema.get('schema') if input_schema and isinstance(input_schema, dict) else None,
             },
             'metadata': metadata,
