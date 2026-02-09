@@ -45,16 +45,28 @@ Built-in Providers:
       ``Authorization`` header.
 
 Example:
-    Protect a deployed flow with an API key::
+    Protect deployed flows with an API key via the flows ASGI server::
 
-        from genkit import Genkit
         from genkit.core.context import api_key
+        from genkit.core.flows import create_flows_asgi_app
 
-        ai = Genkit(context=[api_key('my-secret-key')])
+        app = create_flows_asgi_app(
+            registry=ai.registry,
+            context_providers=[api_key('my-secret-key')],
+        )
 
     Or use a custom validation policy::
 
-        ai = Genkit(context=[api_key(lambda ctx: validate_key(ctx))])
+        app = create_flows_asgi_app(
+            registry=ai.registry,
+            context_providers=[api_key(lambda ctx: validate_key(ctx))],
+        )
+
+Note:
+    ``api_key()`` protects *incoming* HTTP requests to deployed flows
+    (reads the ``Authorization`` header).  It is unrelated to the
+    per-request ``config.apiKey`` in ``GenerationCommonConfig``, which
+    overrides the *outbound* provider API key for model calls.
 
 See Also:
     - JS SDK parity: ``js/core/src/context.ts``
@@ -188,11 +200,17 @@ def api_key(
     Example:
         Pass-through (no validation)::
 
-            ai = Genkit(context=[api_key()])
+            app = create_flows_asgi_app(
+                registry=ai.registry,
+                context_providers=[api_key()],
+            )
 
         Exact match::
 
-            ai = Genkit(context=[api_key('my-secret-key')])
+            app = create_flows_asgi_app(
+                registry=ai.registry,
+                context_providers=[api_key('my-secret-key')],
+            )
 
         Custom policy::
 
@@ -201,7 +219,10 @@ def api_key(
                     raise UserFacingError('PERMISSION_DENIED', 'Premium required')
 
 
-            ai = Genkit(context=[api_key(require_premium)])
+            app = create_flows_asgi_app(
+                registry=ai.registry,
+                context_providers=[api_key(require_premium)],
+            )
 
     See Also:
         - JS SDK: ``apiKey()`` in ``js/core/src/context.ts``
