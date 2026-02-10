@@ -500,6 +500,14 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		return nil, err
 	}
 
+	// Collect tools provided by middleware.
+	for _, mw := range genOpts.Use {
+		for _, t := range mw.Tools() {
+			dynamicTools = append(dynamicTools, t)
+			toolNames = append(toolNames, t.Name())
+		}
+	}
+
 	if len(dynamicTools) > 0 {
 		if !r.IsChild() {
 			r = r.NewChild()
