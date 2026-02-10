@@ -159,7 +159,6 @@ default-groups = ["dev", "lint"]
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
 dev-local-vectorstore-hello                = { workspace = true }
-fastapi-hello                              = { workspace = true }
 framework-context-demo                     = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
 framework-evaluator-demo                   = { workspace = true }
@@ -194,6 +193,7 @@ provider-vertex-ai-vector-search-bigquery  = { workspace = true }
 provider-vertex-ai-vector-search-firestore = { workspace = true }
 provider-xai-hello                         = { workspace = true }
 web-endpoints-hello                        = { workspace = true }
+web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
 web-short-n-long                           = { workspace = true }

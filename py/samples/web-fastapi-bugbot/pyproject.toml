@@ -1,5 +1,5 @@
 [project]
-name = "fastapi-hello"
+name = "web-fastapi-bugbot"
 version = "0.1.0"
 description = "BugBot: AI Code Reviewer with Genkit + FastAPI"
 requires-python = ">=3.10"
