@@ -405,7 +405,7 @@ async function generateActionTurn(
   const sendChunk =
     streamingCallback &&
     ((chunk: GenerateResponseChunkData) =>
-      streamingCallback && streamingCallback(makeChunk('model', chunk)));
+      streamingCallback(makeChunk('model', chunk)));
   const dispatchModel = async (
     index: number,
     req: z.infer<typeof GenerateRequestSchema>,
