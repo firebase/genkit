@@ -18,12 +18,12 @@ import {
   GenkitError,
   ModelReferenceSchema,
   generateMiddleware,
-  modelRef,
   z,
   type GenerateMiddleware,
-  type ModelReference,
   type StatusName,
 } from 'genkit';
+import { ModelAction } from 'genkit/model';
+import { Registry } from 'genkit/registry';
 
 const DEFAULT_FALLBACK_STATUSES: StatusName[] = [
   'UNAVAILABLE',
@@ -78,7 +78,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       name: 'fallback',
       configSchema: FallbackOptionsSchema,
     },
-    (options?: FallbackOptions) => {
+    (options: FallbackOptions | undefined, ai) => {
       const {
         models = [],
         statuses = DEFAULT_FALLBACK_STATUSES,
@@ -86,7 +86,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       } = options || {};
 
       return {
-        generate: async (req, ctx, next) => {
+        model: async (req, ctx, next) => {
           try {
             return await next(req, ctx);
           } catch (e) {
@@ -97,12 +97,11 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
               onError?.(e);
               let lastError: any = e;
               for (const model of models) {
-                const normalizedModel = normalizeModel(model);
+                const normalizedModel = await resolveModel(ai.registry, model);
                 try {
-                  return await next(
+                  return await normalizedModel.model(
                     {
                       ...req,
-                      model: normalizedModel.name,
                       config: normalizedModel.config ?? req.config,
                     },
                     ctx
@@ -128,11 +127,15 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
     }
   );
 
-function normalizeModel(
+async function resolveModel(
+  registry: Registry,
   model: string | z.infer<typeof ModelReferenceSchema>
-): ModelReference<any> {
+): Promise<{ model: ModelAction; config?: any }> {
   if (typeof model === 'string') {
-    return modelRef({ name: model });
+    return { model: await registry.lookupAction(`/model/${model}`) };
   }
-  return modelRef({ name: model.name, config: model.config });
+  return {
+    model: await registry.lookupAction(`/model/${model.name}`),
+    config: model.config,
+  };
 }
