@@ -37,6 +37,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
+  "packaging>=24.0",       # PEP 508 dependency specifier parsing
   "tomlkit>=0.13.0",       # Style-preserving TOML manipulation
   "structlog>=25.1.0",     # Structured logging
   "rich>=13.0.0",          # Rich terminal UI + progress

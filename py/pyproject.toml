@@ -109,6 +109,13 @@ lint = [
   "secure>=1.0.0",
   "sentry-sdk>=2.0.0",
   "structlog>=24.0.0",
+  # ── releasekit type resolution ──
+  # These are needed so workspace-level type checkers can resolve all
+  # imports in tools/releasekit/. The tool has its own venv but the
+  # type checkers run at workspace scope.
+  "diagnostic>=3.0.0",
+  "packaging>=24.0",
+  "tomlkit>=0.13.0",
 ]
 
 [tool.hatch.build.targets.wheel]
