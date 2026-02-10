@@ -91,9 +91,14 @@ def genkit_fastapi_handler(
 
             body = await request.json()
             if 'data' not in body:
+                err = GenkitError(
+                    status='INVALID_ARGUMENT',
+                    message='Flow request must be wrapped in {"data": ...} object',
+                )
                 return Response(
                     status_code=400,
-                    content='Flow request must be wrapped in {"data": ...} object',
+                    content=dump_json(get_callable_json(err)),
+                    media_type='application/json',
                 )
 
             request_data = _FastAPIRequestData(request, body)
