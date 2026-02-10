@@ -65,7 +65,7 @@ var (
 	defaultImagenOpts = ai.ModelOptions{
 		Supports:     &Media,
 		Stage:        ai.ModelStageUnstable,
-		ConfigSchema: configToMap(genai.ImageConfig{}),
+		ConfigSchema: configToMap(genai.GenerateImagesConfig{}),
 	}
 
 	defaultVeoOpts = ai.ModelOptions{
@@ -316,25 +316,22 @@ var (
 
 	supportedVideoModels = map[string]ai.ModelOptions{
 		veo20Generate001: {
-			Label:        "Veo 2.0 Generate 001",
-			Versions:     []string{},
-			Supports:     &VeoSupports,
-			Stage:        ai.ModelStageStable,
-			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
+			Label:    "Veo 2.0 Generate 001",
+			Versions: []string{},
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 		veo30Generate001: {
-			Label:        "Veo 3.0 Generate 001",
-			Versions:     []string{},
-			Supports:     &VeoSupports,
-			Stage:        ai.ModelStageStable,
-			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
+			Label:    "Veo 3.0 Generate 001",
+			Versions: []string{},
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 		veo30FastGenerate001: {
-			Label:        "Veo 3.0 Fast Generate 001",
-			Versions:     []string{},
-			Supports:     &VeoSupports,
-			Stage:        ai.ModelStageStable,
-			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
+			Label:    "Veo 3.0 Fast Generate 001",
+			Versions: []string{},
+			Supports: &VeoSupports,
+			Stage:    ai.ModelStageStable,
 		},
 	}
 
@@ -426,6 +423,12 @@ func GetModelOptions(name, provider string) ai.ModelOptions {
 		}
 	default:
 		opts = defaultGeminiOpts
+	}
+
+	if opts.ConfigSchema == nil {
+		if cfg := mt.DefaultConfig(); cfg != nil {
+			opts.ConfigSchema = configToMap(cfg)
+		}
 	}
 
 	// Set label with provider prefix

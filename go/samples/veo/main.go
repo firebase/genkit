@@ -118,7 +118,7 @@ func main() {
 		operation, err := genkit.GenerateOperation(ctx, g,
 			ai.WithModelName("googleai/veo-3.1-generate-preview"),
 			ai.WithMessages(ai.NewUserMessage(
-				ai.NewTextPart("Edit the original video backround to be a rainforest, also change the video style to be a cartoon from 1950! You must keep the characters from the original video"),
+				ai.NewTextPart("Edit the original video backround to be a rainforest, also change the video style to be a cartoon from 1950, make the transition smooth. You must keep the characters from the original video"),
 				ai.NewMediaPart("video/mp4", inputURI),
 			)),
 			ai.WithConfig(&genai.GenerateVideosConfig{

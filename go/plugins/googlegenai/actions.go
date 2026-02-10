@@ -96,7 +96,6 @@ func resolveAction(client *genai.Client, provider string, atype api.ActionType, 
 			return nil
 		}
 		opts := GetModelOptions(name, provider)
-		opts.ConfigSchema = configToMap(mt.DefaultConfig())
 		return newModel(client, name, opts).(api.Action)
 
 	case api.ActionTypeBackgroundModel:
@@ -145,7 +144,7 @@ func createVeoCheckAction(client *genai.Client, name, provider string) api.Actio
 			if err != nil {
 				return nil, err
 			}
-			updatedOp.Action = api.KeyFromName(api.ActionTypeCheckOperation, actionName)
+			updatedOp.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
 			return updatedOp, nil
 		})
 }

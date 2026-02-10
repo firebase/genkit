@@ -25,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -50,7 +51,10 @@ func newVeoModel(
 
 		video := extractVeoVideoFromRequest(req)
 		image := extractVeoImageFromRequest(req)
-		videoConfig := toVeoParameters(req)
+		videoConfig, err := toVeoParameters(req)
+		if err != nil {
+			return nil, err
+		}
 		sourceConfig := &genai.GenerateVideosSource{
 			Prompt: prompt,
 			Image:  image,
@@ -189,14 +193,27 @@ func extractVeoVideoFromRequest(request *ai.ModelRequest) *genai.Video {
 }
 
 // toVeoParameters converts model request configuration to Veo video generation parameters.
-func toVeoParameters(request *ai.ModelRequest) *genai.GenerateVideosConfig {
-	params := &genai.GenerateVideosConfig{}
-	if request.Config != nil {
-		if config, ok := request.Config.(*genai.GenerateVideosConfig); ok {
-			return config
-		}
+func toVeoParameters(request *ai.ModelRequest) (*genai.GenerateVideosConfig, error) {
+	if request.Config == nil {
+		return &genai.GenerateVideosConfig{}, nil
 	}
-	return params
+
+	switch config := request.Config.(type) {
+	case *genai.GenerateVideosConfig:
+		return config, nil
+	case genai.GenerateVideosConfig:
+		return &config, nil
+	case map[string]any:
+		var result genai.GenerateVideosConfig
+		var err error
+		result, err = base.MapToStruct[genai.GenerateVideosConfig](config)
+		if err != nil {
+			return nil, core.NewPublicError(core.INVALID_ARGUMENT, fmt.Sprintf("The video configuration settings are not in the correct format. Check that the names and values match what the model expects: %v", err), nil)
+		}
+		return &result, nil
+	default:
+		return nil, core.NewPublicError(core.INVALID_ARGUMENT, fmt.Sprintf("The configuration type %T is not supported. Use the correct configuration for this model (like VideoModelRef) or a configuration struct.", request.Config), nil)
+	}
 }
 
 // fromVeoOperation converts a Veo API operation to a Genkit core operation.
