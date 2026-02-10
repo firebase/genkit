@@ -171,7 +171,7 @@ export class ReflectionServer {
           response
             .status(400)
             .send(
-              `'type' ${type} is not supported. Only 'defaultModel' is supported`
+              `'type' ${type} is not supported. Only 'defaultModel' and 'middleware' are supported`
             );
           return;
         }
