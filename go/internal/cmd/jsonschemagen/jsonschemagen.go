@@ -49,6 +49,11 @@ var (
 		"ModelResponseChunk": {
 			"index": {}, // fields should be as defined in core/schemas.config
 		},
+		"Operation": {
+			"action": struct{}{},
+			"done":   struct{}{},
+			"id":     struct{}{},
+		},
 	}
 )
 
