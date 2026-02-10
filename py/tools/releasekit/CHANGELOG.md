@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 2: Version + Pin**
+  - `versioning.py`: Conventional Commits parser with per-package semver bump
+    computation, monorepo-aware scoping via `vcs.diff_files()`, configurable
+    `tag_format`, prerelease support, and skip-unchanged logic.
+  - `bump.py`: Version string rewriting in `pyproject.toml` (via tomlkit) and
+    arbitrary files (via regex). Configurable `BumpTarget(path, pattern)`.
+  - `pin.py`: Ephemeral dependency pinning context manager with triple-layer
+    crash safety (atexit + signal + `.bak` backup) and SHA-256 restore
+    verification.
+  - `versions.py`: `ReleaseManifest` and `PackageVersion` dataclasses for
+    JSON version manifest — CI handoff and audit trail.
+  - 57 new tests (204 total across phases 0, 1, and 2).
+
 - **Phase 1: Workspace Discovery + Dependency Graph**
   - `config.py`: Reads `[tool.releasekit]` from `pyproject.toml` with typed
     validation, fuzzy "did you mean?" suggestions for typos, and a frozen
@@ -30,3 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `backends/`: Pluggable backend interfaces for VCS, package manager, registry,
     forge, and subprocess execution.
   - 82 tests.
+
+### Changed
+
+- All test files renamed to `rk_*_test.py` to avoid basename collisions across
+  the monorepo workspace.
+

@@ -16,7 +16,7 @@ crash-safe file restoration.
 |-------|--------|-------|
 | 0: Foundation + Backends | ✅ Complete | 1,812 lines src, 864 lines tests, 82 tests pass |
 | 1: Discovery | ✅ Complete | 3 modules, 65 tests pass, named error codes |
-| 2: Version + Pin | ⬜ Not started | |
+| 2: Version + Pin | ✅ Complete | 4 modules, 64 tests (incl. 6 integration), 211 total tests pass |
 | 3: Publish MVP | ⬜ Not started | Critical milestone |
 | 4: Harden | ⬜ Not started | |
 | 5: Post-Pipeline + CI | ⬜ Not started | |
@@ -423,14 +423,17 @@ implementations. `run_command()` logs and supports dry-run.
 - Caught a real bug: `genkit-plugin-flask` lists itself as a dependency.
 - Level 0: `genkit`, Level 1: 19 plugins, Level 2: 34 samples/plugins, Level 3: 5 packages.
 
-### Phase 2: Version + Pin
+### Phase 2: Version + Pin  ✅ Complete
 
-| Module | Description | Est. Lines |
-|--------|-------------|-----------|
-| `versioning.py` | Parse Conventional Commits via `vcs.log()`, compute per-package semver bumps. Monorepo-aware scoping via `vcs.diff_files()`. Configurable `tag_format`. PEP 440 compliance. Skip unchanged packages (D-5). No transitive bump propagation (D-11). `--bump`, `--no-auto-version`, `--prerelease`, `--force-unchanged`. After version writes: `pm.lock()` (D-2) + `vcs.commit()` (D-1) + `vcs.tag()`. | ~220 |
-| `pin.py` | Ephemeral `tomlkit`-based pinning. Context manager with triple-layer crash safety (atexit + signal + `.bak` backup). Byte-identical restore verified by SHA-256. | ~120 |
-| `bump.py` | Version string rewriting in arbitrary files (`__init__.py`, constants). Regex-based with `BumpTarget(path, pattern)` config. | ~80 |
-| `versions.py` | JSON version manifest. `ReleaseManifest` dataclass with export/import for CI handoff. | ~80 |
+| Module | Description | Est. Lines | Actual | Status |
+|--------|-------------|-----------|--------|--------|
+| `versioning.py` | Parse Conventional Commits via `vcs.log(paths=[pkg.path])`, compute per-package semver bumps. Monorepo-aware scoping. Configurable `tag_format`. PEP 440 compliance. Skip unchanged packages (D-5). No transitive bump propagation (D-11). `--prerelease`, `--force-unchanged`. | ~220 | 361 | ✅ |
+| `pin.py` | Ephemeral `tomlkit`-based pinning. Context manager with triple-layer crash safety (atexit + SIG_DFL/os.kill + `.bak` backup). `shutil.move` atomic restore. SHA-256 verification. `packaging.Requirement` for PEP 508 dep parsing. | ~120 | 279 | ✅ |
+| `bump.py` | Version string rewriting in `pyproject.toml` (tomlkit, comment-preserving) and arbitrary files (`__init__.py`, constants). Regex-based with `BumpTarget(path, pattern)` config. | ~80 | 195 | ✅ |
+| `versions.py` | JSON version manifest. `ReleaseManifest` + `PackageVersion` dataclasses. Fail-fast on missing required fields. `bumped`/`skipped` filter properties. | ~80 | 188 | ✅ |
+| **Tests** | 64 tests across 4 test files: rk_versioning_test.py (33 incl. 6 integration with FakeVCS), rk_bump_test.py (12), rk_pin_test.py (9), rk_versions_test.py (10). | — | ~550 | ✅ |
+
+**Totals**: 1,023 lines source (estimated ~500), ~550 lines tests.
 
 **Done when**: `releasekit version` shows computed bumps (skipping unchanged),
 `releasekit pin --apply` modifies and restores pyproject.toml correctly,
@@ -438,6 +441,14 @@ version commit includes updated `uv.lock`.
 
 **Milestone**: Version computation, ephemeral pinning, and version commit work
 end-to-end.
+
+**Key review learnings (PR #4555)**:
+- Per-package commit scoping via `vcs.log(paths=...)` (not global fetch + diff_files mapping)
+- Signal handlers use `SIG_DFL + os.kill`, not `default_int_handler`
+- `shutil.move` for atomic restore (not `copy2 + unlink`)
+- `packaging.Requirement` for robust dep parsing (not chained `.split()`)
+- Fail-fast `KeyError → ValueError` on required manifest fields
+- Integration tests with `FakeVCS` catch scoping bugs unit tests miss
 
 ### Phase 3: Publish MVP (Critical Path)
 
@@ -553,7 +564,7 @@ shell completion) is enhancement.
 |-------|---------|-----------|-------------|--------|
 | 0: Foundation + Backends | 8 (+scaffolding) | ~750 | 1,812 src + 864 tests | ✅ Complete |
 | 1: Discovery | 3 (+tests) | ~420 | 783 src + 435 tests | ✅ Complete |
-| 2: Version + Pin | 4 | ~500 | — | ⬜ Not started |
+| 2: Version + Pin | 4 (+tests) | ~500 | 1,023 src + ~550 tests | ✅ Complete |
 | 3: Publish MVP | 6 | ~960 | — | ⬜ Not started |
 | 4: Harden | 3 (extended) | ~450 | — | ⬜ Not started |
 | 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |

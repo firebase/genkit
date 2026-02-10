@@ -2437,6 +2437,127 @@ Batch find-and-replace (sed, regex scripts) can introduce subtle bugs:
 
 **Reference:** PR #4550.
 
+### Session Learnings (2026-02-10): Code Review Patterns from releasekit PR #4555
+
+#### 13. Signal Handlers Must Use SIG_DFL + os.kill, Not default_int_handler
+
+`signal.default_int_handler` is only valid for SIGINT (raises
+`KeyboardInterrupt`) and doesn't accept the expected arguments. For
+general signal cleanup (SIGTERM/SIGINT):
+
+```python
+# BAD — only works for SIGINT, wrong argument types
+signal.default_int_handler(signum, frame)
+
+# GOOD — works for any signal
+signal.signal(signum, signal.SIG_DFL)
+os.kill(os.getpid(), signum)
+```
+
+#### 14. Extract Shared Parsing Logic into Helper Functions (DRY)
+
+When the same parsing logic appears for both regular and optional
+dependencies (or any parallel structures), extract it into a helper:
+
+```python
+# BAD — duplicated dep name extraction in two loops
+for i, dep in enumerate(deps):
+    bare_name = dep.split('[')[0].split('>')[0]...  # fragile, duplicated
+
+# GOOD — helper + packaging.Requirement
+def _extract_dep_name(dep_spec: str) -> str:
+    try:
+        return Requirement(dep_spec).name
+    except InvalidRequirement:
+        return re.split(r'[<>=!~,;\[]', dep_spec, maxsplit=1)[0].strip()
+
+def _pin_dep_list(deps, version_map) -> int:
+    ...  # single implementation, called for both dep lists
+```
+
+#### 15. Fail Fast on Required Fields in Serialized Data
+
+When loading JSON/TOML for CI handoff, required fields must fail fast
+with a clear error, not silently default to empty strings:
+
+```python
+# BAD — silent default hides missing data in downstream CI
+git_sha = data.get('git_sha', '')
+
+# GOOD — fail fast with documented ValueError
+try:
+    git_sha = data['git_sha']
+except KeyError as exc:
+    raise ValueError(f'Missing required field: git_sha') from exc
+```
+
+#### 16. Remove Dead Code Before Submitting
+
+Unused variables and unreachable code paths should be caught during
+self-review. Tools like `ruff` catch unused imports, but unused local
+variables assigned in loops require manual inspection.
+
+#### 17. Narrow Exception Types in Catch Blocks
+
+Catching `Exception` masks `KeyboardInterrupt`, `SystemExit`, and
+unexpected programming errors. Always catch the most specific type:
+
+```python
+# BAD — catches KeyboardInterrupt, SystemExit, etc.
+except Exception:
+    logger.warning('operation failed')
+
+# GOOD — catches only expected failure modes
+except OSError:
+    logger.warning('operation failed')
+```
+
+**Reference:** PR #4555.
+
+#### 18. Scope Commits Per-Package via `vcs.log(paths=...)`
+
+When computing version bumps in a monorepo, each package must only see
+commits that touched *its own files*. Fetching all commits globally and
+then trying to map them via `diff_files` is error-prone. Instead, use
+the VCS backend's `paths` filter:
+
+```python
+# BAD — associates ALL commits with any package that has changes
+all_commits = vcs.log(format='%H %s')
+for pkg in packages:
+    changed = vcs.diff_files(since_tag=tag)
+    # Tries to match commits to files — misses per-commit scoping
+
+# GOOD — per-package log query with path filtering
+for pkg in packages:
+    log_lines = vcs.log(since_tag=tag, paths=[str(pkg.path)])
+    # Only commits that touched files in pkg.path are returned
+```
+
+#### 19. Use `shutil.move` for Atomic File Restore
+
+When restoring from a backup file, `shutil.copy2()` + `unlink()` is
+two operations that can leave orphaned backups. `shutil.move()` is
+atomic on POSIX same-filesystem (uses `rename(2)`):
+
+```python
+# BAD — non-atomic: if unlink fails, backup is orphaned
+shutil.copy2(backup_path, target_path)
+backup_path.unlink()
+
+# GOOD — atomic on same filesystem
+shutil.move(backup_path, target_path)
+```
+
+#### 20. Test Orchestration Functions with Fake Backends
+
+Functions like `compute_bumps` that orchestrate multiple subsystems (VCS,
+package discovery, commit parsing) need integration tests with fake
+backends. A `FakeVCS` that maps paths to log output catches scoping bugs
+that unit tests on individual helpers miss.
+
+**Reference:** PR #4555.
+
 ## Release Process
 
 ### Automated Release Scripts
