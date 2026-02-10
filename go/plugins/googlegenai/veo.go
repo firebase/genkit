@@ -55,6 +55,13 @@ func newVeoModel(
 		if err != nil {
 			return nil, err
 		}
+
+		// prevent SDK to pick a default number of video generation (usually 2)
+		// if users do not provide this setting
+		if videoConfig.NumberOfVideos == 0 {
+			videoConfig.NumberOfVideos = 1
+		}
+
 		sourceConfig := &genai.GenerateVideosSource{
 			Prompt: prompt,
 			Image:  image,
