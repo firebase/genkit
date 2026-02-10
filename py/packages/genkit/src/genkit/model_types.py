@@ -55,12 +55,13 @@ def get_request_api_key(config: GenerationCommonConfig | Mapping[str, object] | 
         api_key = config_mapping.get('api_key') or config_mapping.get('apiKey')
         if isinstance(api_key, str) and api_key:
             return api_key
-
-    # Defensive fallback for plugin-specific config classes that inherit from
-    # GenerationCommonConfig or expose an api_key attribute.
-    if not isinstance(config, Mapping):
+    else:
+        # Defensive fallback for plugin-specific config classes that inherit from
+        # GenerationCommonConfig or expose an api_key attribute.
         api_key_attr = getattr(config, 'api_key', None)
-        return api_key_attr if isinstance(api_key_attr, str) and api_key_attr else None
+        if isinstance(api_key_attr, str) and api_key_attr:
+            return api_key_attr
+
     return None
 
 
