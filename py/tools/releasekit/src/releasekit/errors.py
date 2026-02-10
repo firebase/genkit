@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 
 """Structured error system for releasekit.
 
-Every error has a unique ``RK-XXXX`` code, a human-readable message, and an
-optional hint with a suggested fix.
+Every error has a unique ``RK-NAMED-KEY`` code, a human-readable message,
+and an optional hint with a suggested fix.
 
 Key Concepts (ELI5)::
 
     ┌─────────────────────┬────────────────────────────────────────────────┐
     │ Concept             │ ELI5 Explanation                               │
     ├─────────────────────┼────────────────────────────────────────────────┤
-    │ ErrorCode           │ A unique ID like "RK-0001" for each error.    │
-    │                     │ Like a barcode on a product.                  │
+    │ ErrorCode           │ A unique named ID like "RK-CONFIG-NOT-FOUND"  │
+    │                     │ for each error. Readable at a glance.         │
     ├─────────────────────┼────────────────────────────────────────────────┤
     │ ErrorInfo           │ A bundle of code + message + hint. Like an    │
     │                     │ error card with a fix suggestion stapled on.  │
@@ -40,16 +40,17 @@ Key Concepts (ELI5)::
     │                     │ Like typing a code into a help desk kiosk.    │
     └─────────────────────┴────────────────────────────────────────────────┘
 
-Code ranges::
+Code categories::
 
-    RK-0xxx  Configuration errors
-    RK-1xxx  Workspace discovery errors
-    RK-2xxx  Dependency graph errors
-    RK-3xxx  Versioning errors
-    RK-4xxx  Preflight check errors
-    RK-5xxx  Build / publish errors
-    RK-6xxx  Post-pipeline errors (tags, changelog, release notes)
-    RK-7xxx  State / resume errors
+    RK-CONFIG-*       Configuration errors
+    RK-WORKSPACE-*    Workspace discovery errors
+    RK-GRAPH-*        Dependency graph errors
+    RK-VERSION-*      Versioning errors
+    RK-PREFLIGHT-*    Preflight check errors
+    RK-BUILD-*        Build errors
+    RK-PUBLISH-*      Publish errors
+    RK-TAG-*          Tag / release creation errors
+    RK-STATE-*        State / resume errors
 
 Usage::
 
@@ -71,57 +72,57 @@ from enum import Enum
 class ErrorCode(str, Enum):
     """Enumeration of all releasekit diagnostic codes.
 
-    Each code maps to a unique ``RK-XXXX`` identifier. Use these constants
-    instead of raw strings when raising :class:`ReleaseKitError`.
+    Each code maps to a unique ``RK-NAMED-KEY`` identifier. Use these
+    constants instead of raw strings when raising :class:`ReleaseKitError`.
     """
 
-    # RK-0xxx: Configuration
-    CONFIG_NOT_FOUND = 'RK-0001'
-    CONFIG_INVALID_KEY = 'RK-0002'
-    CONFIG_INVALID_VALUE = 'RK-0003'
-    CONFIG_MISSING_REQUIRED = 'RK-0004'
+    # Configuration
+    CONFIG_NOT_FOUND = 'RK-CONFIG-NOT-FOUND'
+    CONFIG_INVALID_KEY = 'RK-CONFIG-INVALID-KEY'
+    CONFIG_INVALID_VALUE = 'RK-CONFIG-INVALID-VALUE'
+    CONFIG_MISSING_REQUIRED = 'RK-CONFIG-MISSING-REQUIRED'
 
-    # RK-1xxx: Workspace discovery
-    WORKSPACE_NOT_FOUND = 'RK-1001'
-    WORKSPACE_NO_MEMBERS = 'RK-1002'
-    WORKSPACE_PARSE_ERROR = 'RK-1003'
-    WORKSPACE_DUPLICATE_PACKAGE = 'RK-1004'
+    # Workspace discovery
+    WORKSPACE_NOT_FOUND = 'RK-WORKSPACE-NOT-FOUND'
+    WORKSPACE_NO_MEMBERS = 'RK-WORKSPACE-NO-MEMBERS'
+    WORKSPACE_PARSE_ERROR = 'RK-WORKSPACE-PARSE-ERROR'
+    WORKSPACE_DUPLICATE_PACKAGE = 'RK-WORKSPACE-DUPLICATE-PACKAGE'
 
-    # RK-2xxx: Dependency graph
-    GRAPH_CYCLE_DETECTED = 'RK-2001'
-    GRAPH_MISSING_DEPENDENCY = 'RK-2002'
+    # Dependency graph
+    GRAPH_CYCLE_DETECTED = 'RK-GRAPH-CYCLE-DETECTED'
+    GRAPH_MISSING_DEPENDENCY = 'RK-GRAPH-MISSING-DEPENDENCY'
 
-    # RK-3xxx: Versioning
-    VERSION_INVALID = 'RK-3001'
-    VERSION_NOT_BUMPED = 'RK-3002'
-    VERSION_TAG_EXISTS = 'RK-3003'
+    # Versioning
+    VERSION_INVALID = 'RK-VERSION-INVALID'
+    VERSION_NOT_BUMPED = 'RK-VERSION-NOT-BUMPED'
+    VERSION_TAG_EXISTS = 'RK-VERSION-TAG-EXISTS'
 
-    # RK-4xxx: Preflight
-    PREFLIGHT_DIRTY_WORKTREE = 'RK-4001'
-    PREFLIGHT_LOCK_STALE = 'RK-4002'
-    PREFLIGHT_SHALLOW_CLONE = 'RK-4003'
-    PREFLIGHT_CONCURRENT_RELEASE = 'RK-4004'
-    PREFLIGHT_GH_UNAVAILABLE = 'RK-4005'
-    PREFLIGHT_VERSION_EXISTS = 'RK-4006'
+    # Preflight
+    PREFLIGHT_DIRTY_WORKTREE = 'RK-PREFLIGHT-DIRTY-WORKTREE'
+    PREFLIGHT_LOCK_STALE = 'RK-PREFLIGHT-LOCK-STALE'
+    PREFLIGHT_SHALLOW_CLONE = 'RK-PREFLIGHT-SHALLOW-CLONE'
+    PREFLIGHT_CONCURRENT_RELEASE = 'RK-PREFLIGHT-CONCURRENT-RELEASE'
+    PREFLIGHT_GH_UNAVAILABLE = 'RK-PREFLIGHT-GH-UNAVAILABLE'
+    PREFLIGHT_VERSION_EXISTS = 'RK-PREFLIGHT-VERSION-EXISTS'
 
-    # RK-5xxx: Build / publish
-    BUILD_FAILED = 'RK-5001'
-    PUBLISH_FAILED = 'RK-5002'
-    PUBLISH_TIMEOUT = 'RK-5003'
-    PUBLISH_CHECKSUM_MISMATCH = 'RK-5004'
-    PUBLISH_ALREADY_EXISTS = 'RK-5005'
-    SMOKE_TEST_FAILED = 'RK-5006'
-    PIN_RESTORE_FAILED = 'RK-5007'
+    # Build / publish
+    BUILD_FAILED = 'RK-BUILD-FAILED'
+    PUBLISH_FAILED = 'RK-PUBLISH-FAILED'
+    PUBLISH_TIMEOUT = 'RK-PUBLISH-TIMEOUT'
+    PUBLISH_CHECKSUM_MISMATCH = 'RK-PUBLISH-CHECKSUM-MISMATCH'
+    PUBLISH_ALREADY_EXISTS = 'RK-PUBLISH-ALREADY-EXISTS'
+    SMOKE_TEST_FAILED = 'RK-SMOKE-TEST-FAILED'
+    PIN_RESTORE_FAILED = 'RK-PIN-RESTORE-FAILED'
 
-    # RK-6xxx: Post-pipeline
-    TAG_CREATION_FAILED = 'RK-6001'
-    RELEASE_CREATION_FAILED = 'RK-6002'
-    CHANGELOG_GENERATION_FAILED = 'RK-6003'
+    # Post-pipeline
+    TAG_CREATION_FAILED = 'RK-TAG-CREATION-FAILED'
+    RELEASE_CREATION_FAILED = 'RK-RELEASE-CREATION-FAILED'
+    CHANGELOG_GENERATION_FAILED = 'RK-CHANGELOG-GENERATION-FAILED'
 
-    # RK-7xxx: State / resume
-    STATE_CORRUPTED = 'RK-7001'
-    STATE_SHA_MISMATCH = 'RK-7002'
-    LOCK_ACQUISITION_FAILED = 'RK-7003'
+    # State / resume
+    STATE_CORRUPTED = 'RK-STATE-CORRUPTED'
+    STATE_SHA_MISMATCH = 'RK-STATE-SHA-MISMATCH'
+    LOCK_ACQUISITION_FAILED = 'RK-LOCK-ACQUISITION-FAILED'
 
 
 # Convenience alias for shorter imports.
@@ -133,7 +134,7 @@ class ErrorInfo:
     """Metadata for a single error code.
 
     Attributes:
-        code: The ``RK-XXXX`` error code.
+        code: The ``RK-NAMED-KEY`` error code.
         message: Human-readable description of what went wrong.
         hint: Optional suggestion for how to fix the error.
     """
@@ -150,7 +151,7 @@ class ReleaseKitError(Exception):
     can be rendered as a rich terminal message or structured JSON.
 
     Args:
-        code: The ``RK-XXXX`` error code from :class:`ErrorCode`.
+        code: The error code from :class:`ErrorCode`.
         message: Human-readable description of what went wrong.
         hint: Optional suggestion for how to fix the error.
     """
@@ -162,7 +163,7 @@ class ReleaseKitError(Exception):
 
     @property
     def code(self) -> ErrorCode:
-        """The ``RK-XXXX`` error code."""
+        """The error code."""
         return self.info.code
 
     @property
@@ -178,7 +179,7 @@ class ReleaseKitWarning(UserWarning):
     :func:`warnings.warn` instead of being raised.
 
     Args:
-        code: The ``RK-XXXX`` error code from :class:`ErrorCode`.
+        code: The error code from :class:`ErrorCode`.
         message: Human-readable description of the warning.
         hint: Optional suggestion for how to address the warning.
     """
@@ -190,7 +191,7 @@ class ReleaseKitWarning(UserWarning):
 
     @property
     def code(self) -> ErrorCode:
-        """The ``RK-XXXX`` error code."""
+        """The error code."""
         return self.info.code
 
     @property
@@ -229,10 +230,10 @@ ERRORS: dict[ErrorCode, ErrorInfo] = {
 
 
 def explain(code: str) -> str | None:
-    """Return a detailed explanation for an ``RK-XXXX`` error code.
+    """Return a detailed explanation for an error code.
 
     Args:
-        code: The error code string, e.g. ``"RK-0001"``.
+        code: The error code string, e.g. ``"RK-CONFIG-NOT-FOUND"``.
 
     Returns:
         A formatted explanation string, or ``None`` if the code is unknown.

@@ -15,7 +15,7 @@ crash-safe file restoration.
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0: Foundation + Backends | ✅ Complete | 1,812 lines src, 864 lines tests, 82 tests pass |
-| 1: Discovery | ⬜ Not started | |
+| 1: Discovery | ✅ Complete | 3 modules, 65 tests pass, named error codes |
 | 2: Version + Pin | ⬜ Not started | |
 | 3: Publish MVP | ⬜ Not started | Critical milestone |
 | 4: Harden | ⬜ Not started | |
@@ -115,7 +115,7 @@ All external tool calls go through the backend shim layer (see Phase 0).
 Phase 0: Foundation  ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
 │  scaffold (pyproject.toml, __init__.py, py.typed)       │
-│  errors.py (diagnostic lib, RK-XXXX codes)             │
+│  errors.py (diagnostic lib, RK-NAMED-KEY codes)             │
 │  logging.py (structlog + Rich)                          │
 │                                                         │
 │  backends/ (Protocol-based shim layer):                 │
@@ -385,7 +385,7 @@ flowchart TD
 | `__init__.py` | `__version__` only | ~3 | 32 | ✅ |
 | `py.typed` | PEP 561 marker | 0 | 0 | ✅ |
 | `README.md` | Quick-start usage and project description | ~30 | 34 | ✅ |
-| `errors.py` | Structured error system with `RK-XXXX` codes, `StrEnum`, `ErrorInfo`, error catalog, `explain()`. | ~150 | 261 | ✅ |
+| `errors.py` | Structured error system with `RK-NAMED-KEY` codes, `StrEnum`, `ErrorInfo`, error catalog, `explain()`. | ~150 | 261 | ✅ |
 | `logging.py` | `structlog` configuration. Rich console when TTY, JSON for machines. `--verbose` / `--quiet`. | ~60 | 128 | ✅ |
 | `backends/_run.py` | Central `run_command()` subprocess abstraction. Dry-run, structured logging, timeout. | ~60 | 192 | ✅ |
 | `backends/pm.py` | `PackageManager` Protocol + `UvBackend`. `build()`, `publish()`, `lock()`, `version_bump()`, `resolve_check()`, `smoke_test()`. | ~120 | 281 | ✅ |
@@ -403,19 +403,25 @@ implementations. `run_command()` logs and supports dry-run.
 
 **Milestone**: Project skeleton passes `uv build`. Backends are injectable and mockable.
 
-### Phase 1: Discovery
+### Phase 1: Discovery  ✅ Complete
 
-| Module | Description | Est. Lines |
-|--------|-------------|-----------|
-| `config.py` | Read `[tool.releasekit]` from root `pyproject.toml`. `ReleaseConfig` dataclass. Config validation with fuzzy suggestions for typos (`difflib.get_close_matches`). Value type checking. Group integrity validation. | ~120 |
-| `workspace.py` | Discover packages from `[tool.uv.workspace].members` globs. Parse each member's `pyproject.toml`. Classify internal vs external deps. Return `list[Package]`. | ~100 |
-| `graph.py` | `Package` dataclass, `build_graph()`, `detect_cycles()` (DFS), `topo_sort()` (Kahn's returning levels), `reverse_deps()` (BFS), `forward_deps()` (transitive closure), `filter_graph()` (dependency-aware: auto-include deps, check PyPI, group/package/exclude filters). | ~200 |
+| Module | Description | Est. Lines | Actual | Status |
+|--------|-------------|-----------|--------|--------|
+| `config.py` | Read `[tool.releasekit]` from root `pyproject.toml`. `ReleaseConfig` dataclass. Config validation with fuzzy suggestions for typos (`difflib.get_close_matches`). Value type checking. Group integrity validation. | ~120 | 225 | ✅ |
+| `workspace.py` | Discover packages from `[tool.uv.workspace].members` globs. Parse each member's `pyproject.toml`. Classify internal vs external deps. Return `list[Package]`. | ~100 | 248 | ✅ |
+| `graph.py` | `DependencyGraph` dataclass, `build_graph()`, `detect_cycles()` (DFS), `topo_sort()` (Kahn's returning levels), `reverse_deps()` (BFS), `forward_deps()` (transitive closure), `filter_graph()` (dependency-aware: auto-include deps, group/package/exclude filters). | ~200 | 310 | ✅ |
+| **Tests** | 65 tests across 3 test files: config_test.py (16), workspace_test.py (15), graph_test.py (34). Named error codes (RK-NAMED-KEY format). | — | 435 | ✅ |
 
 **Done when**: `releasekit discover` prints JSON package list,
 `releasekit graph` prints topological levels,
 `releasekit check-cycles` exits 0 on acyclic graph.
 
 **Milestone**: Can discover and visualize the genkit workspace.
+
+**Smoke test results** (against real genkit workspace):
+- Discovered 60 packages, 4 topological levels.
+- Caught a real bug: `genkit-plugin-flask` lists itself as a dependency.
+- Level 0: `genkit`, Level 1: 19 plugins, Level 2: 34 samples/plugins, Level 3: 5 packages.
 
 ### Phase 2: Version + Pin
 
@@ -489,7 +495,7 @@ Structured changelog and rich release notes appear in GitHub Release body.
 |--------|-------------|-----------|
 | `init.py` | Workspace-aware config scaffolding. Auto-detect groups from directory structure. Generate/update `[tool.releasekit]` in root + per-package `pyproject.toml`. Update `.gitignore`. Show diff, prompt on TTY. Idempotent. | ~120 |
 | `formatters/` | 6 graph output formats: `dot.py` (Graphviz), `json_fmt.py`, `levels.py`, `ascii_art.py`, `mermaid.py`, `d2.py`. All are pure functions: `graph -> str`. | ~300 |
-| `cli.py` (full) | Add: `rollback` subcommand, `init` subcommand, `completion` subcommand, `--explain RK-XXXX`, granular flags (`--no-tag`, `--no-push`, `--no-release`, `--version-only`), `--rdeps`/`--deps` on graph, `rich-argparse` formatter, `argcomplete` shell completion. | +150 |
+| `cli.py` (full) | Add: `rollback` subcommand, `init` subcommand, `completion` subcommand, `--explain RK-NAMED-KEY`, granular flags (`--no-tag`, `--no-push`, `--no-release`, `--version-only`), `--rdeps`/`--deps` on graph, `rich-argparse` formatter, `argcomplete` shell completion. | +150 |
 
 **Done when**: `releasekit init` scaffolds config for the genkit workspace.
 All 6 graph formats produce correct output. Rollback automates tag/release
@@ -546,7 +552,7 @@ shell completion) is enhancement.
 | Phase | Modules | Est. Lines | Actual Lines | Status |
 |-------|---------|-----------|-------------|--------|
 | 0: Foundation + Backends | 8 (+scaffolding) | ~750 | 1,812 src + 864 tests | ✅ Complete |
-| 1: Discovery | 3 | ~420 | — | ⬜ Not started |
+| 1: Discovery | 3 (+tests) | ~420 | 783 src + 435 tests | ✅ Complete |
 | 2: Version + Pin | 4 | ~500 | — | ⬜ Not started |
 | 3: Publish MVP | 6 | ~960 | — | ⬜ Not started |
 | 4: Harden | 3 (extended) | ~450 | — | ⬜ Not started |
@@ -634,7 +640,7 @@ The Protocol-based backend shim layer makes releasekit v1 a foundation for v2:
 | `Forge` protocol + `GitHubBackend` | Add `GitLabBackend`, `BitbucketBackend` |
 | `Registry` protocol + `PyPIBackend` | Add `NpmRegistryBackend`, `CratesBackend` |
 | Graph algorithms | Unchanged (language-agnostic) |
-| Error system (RK-XXXX) | Expand code ranges |
+| Error system (RK-NAMED-KEY) | Expand code categories |
 | Rich UI, structured logging | Unchanged |
 | CLI structure | Add language auto-detection |
 
@@ -656,7 +662,7 @@ py/tools/releasekit/
     releasekit/
       __init__.py
       py.typed
-      errors.py                       ← diagnostic lib, RK-XXXX codes
+      errors.py                       ← diagnostic lib, RK-NAMED-KEY codes
       logging.py                      ← structlog + Rich
       backends/                       ← Protocol-based shim layer
         __init__.py                   ← re-exports all protocols + defaults

@@ -1,4 +1,4 @@
-# Copyright 2025 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ from releasekit.errors import (
 class TestErrorCode:
     """Tests for ErrorCode enum."""
 
-    def test_config_codes_start_with_rk0(self) -> None:
-        """Configuration error codes should start with RK-0."""
-        config_codes = [c for c in ErrorCode if c.value.startswith('RK-0')]
+    def test_config_codes_start_with_rk_config(self) -> None:
+        """Configuration error codes should start with RK-CONFIG."""
+        config_codes = [c for c in ErrorCode if c.value.startswith('RK-CONFIG')]
         assert len(config_codes) >= 4
 
     def test_all_codes_have_rk_prefix(self) -> None:
@@ -86,7 +86,7 @@ class TestReleaseKitError:
     def test_message_includes_code(self) -> None:
         """Exception message should include the RK-XXXX code."""
         err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='test message')
-        assert 'RK-0001' in str(err)
+        assert 'RK-CONFIG-NOT-FOUND' in str(err)
         assert 'test message' in str(err)
 
     def test_code_property(self) -> None:
@@ -154,14 +154,14 @@ class TestExplain:
 
     def test_known_code(self) -> None:
         """Explain should return a message for known codes."""
-        result = explain('RK-0001')
+        result = explain('RK-CONFIG-NOT-FOUND')
         assert result is not None
-        assert 'RK-0001' in result
+        assert 'RK-CONFIG-NOT-FOUND' in result
         assert 'pyproject.toml' in result
 
     def test_unknown_code(self) -> None:
         """Explain should return None for invalid code strings."""
-        result = explain('RK-9999')
+        result = explain('RK-DOES-NOT-EXIST')
         assert result is None
 
     def test_invalid_format(self) -> None:
@@ -171,6 +171,6 @@ class TestExplain:
 
     def test_code_without_catalog_entry(self) -> None:
         """Explain should return a fallback for valid codes not in catalog."""
-        result = explain('RK-3001')
+        result = explain('RK-VERSION-INVALID')
         assert result is not None
         assert 'No detailed explanation' in result

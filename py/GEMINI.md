@@ -2263,6 +2263,180 @@ single test function to reduce duplication (per code review feedback).
 
 **Reference:** PR #4494, Issue #4493.
 
+### Session Learnings (2026-02-10): Code Review Patterns from releasekit PR #4550
+
+Code review feedback from PR #4550 surfaced several reusable patterns:
+
+#### 1. Never Duplicate Defaults
+
+When a dataclass defines field defaults, the factory function that constructs
+it should **not** re-specify them. Use `**kwargs` unpacking to let the
+dataclass own its defaults:
+
+```python
+# BAD — defaults duplicated between dataclass and factory
+@dataclass(frozen=True)
+class Config:
+    tag_format: str = '{name}-v{version}'
+
+def load_config(raw: dict) -> Config:
+    return Config(tag_format=raw.get('tag_format', '{name}-v{version}'))  # duplicated!
+
+# GOOD — dataclass is the single source of truth
+def load_config(raw: dict) -> Config:
+    return Config(**raw)  # dataclass handles missing keys with its own defaults
+```
+
+#### 2. Extract Allowed Values as Module-Level Constants
+
+Enum-like validation values should be `frozenset` constants at module level,
+not inline literals inside validation functions:
+
+```python
+# BAD — allowed values hidden inside function
+def _validate_publish_from(value: str) -> None:
+    allowed = {'local', 'ci'}  # not discoverable
+    if value not in allowed: ...
+
+# GOOD — discoverable, reusable, testable
+ALLOWED_PUBLISH_FROM: frozenset[str] = frozenset({'local', 'ci'})
+
+def _validate_publish_from(value: str) -> None:
+    if value not in ALLOWED_PUBLISH_FROM: ...
+```
+
+#### 3. Wrap All File I/O in try/except
+
+Every `read_text()`, `write_text()`, or `open()` call should be wrapped
+with `try/except OSError` to produce a structured error instead of an
+unhandled traceback:
+
+```python
+# BAD — unprotected I/O
+text = path.read_text(encoding='utf-8')
+
+# GOOD — consistent error handling
+try:
+    text = path.read_text(encoding='utf-8')
+except OSError as exc:
+    raise ValueError(f'Failed to read {path}: {exc}') from exc
+    # In releasekit: raise ReleaseKitError(code=E.PARSE_ERROR, ...) from exc
+```
+
+#### 4. Validate Collection Item Types
+
+When validating a config value is a `list`, also validate that the items
+inside the list are the expected type:
+
+```python
+# BAD — only checks container type
+if not isinstance(value, list): raise ...
+# A list of ints would pass silently
+
+# GOOD — also checks item types  
+if not isinstance(value, list): raise ...
+for item in value:
+    if not isinstance(item, str):
+        raise TypeError(f"items must be strings, got {type(item).__name__}")
+```
+
+#### 5. Separate Path Globs from Name Globs
+
+Workspace excludes (path globs like `samples/*`) and config excludes (name
+globs like `sample-*`) operate in different namespaces and must never be mixed
+into a single list. Apply them in independent filter stages.
+
+#### 6. Test File Basename Uniqueness
+
+The `check_consistency` script (check 19/20) enforces unique test file
+basenames across the entire workspace. When adding tests to tools or samples,
+prefix with a unique identifier:
+
+```
+# BAD — collides with samples/web-endpoints-hello/tests/config_test.py
+tools/releasekit/tests/config_test.py
+
+# GOOD — unique basename
+tools/releasekit/tests/rk_config_test.py
+```
+
+#### 7. Use Named Error Codes
+
+Prefer human-readable error codes (`RK-CONFIG-NOT-FOUND`) over numeric
+ones (`RK-0001`). Named codes are self-documenting in logs and error
+messages without requiring a lookup table.
+
+#### 8. Use `packaging` for PEP 508 Parsing
+
+Never manually parse dependency specifiers by splitting on operators.
+Use `packaging.requirements.Requirement` which handles all valid PEP 508
+strings correctly (extras, markers, version constraints). For a fallback,
+use `re.split(r'[<>=!~,;\[]', spec, maxsplit=1)` — always pass `maxsplit`
+as a keyword argument (Ruff B034 requires this to avoid positional
+argument confusion).
+
+#### 9. Use `assert` Over `if/pytest.fail` in Tests
+
+Tests should use idiomatic `assert` statements, not `if/pytest.fail()`:
+
+```python
+# BAD — verbose and non-standard
+if len(graph) != 0:
+    pytest.fail(f'Expected empty graph, got {len(graph)}')
+
+# GOOD — idiomatic pytest
+assert len(graph) == 0, f'Expected empty graph, got {len(graph)}'
+```
+
+**Caution**: When batch-converting `pytest.fail` to `assert` via sed/regex,
+the closing `)` from `pytest.fail(...)` can corrupt f-string expressions.
+Always re-run lint and tests after automated refactors.
+
+#### 10. Check Dict Key Existence, Not Value Truthiness
+
+When validating whether a config key exists, check `key not in dict`
+rather than `not dict.get(key)`. An empty value (e.g., `[]`) is valid
+config and should not be treated as missing:
+
+```python
+# BAD — empty list raises "unknown group" error
+patterns = groups.get(name, [])
+if not patterns:
+    raise Error("Unknown group")
+
+# GOOD — distinguishes missing from empty
+if name not in groups:
+    raise Error("Unknown group")
+patterns = groups[name]  # may be [], which is valid
+```
+
+#### 11. Keyword Arguments for Ambiguous Positional Parameters
+
+Ruff B034 flags `re.split`, `re.sub`, etc. when positional arguments
+could be confused (e.g., `maxsplit` vs `flags`). Always use keyword
+arguments for clarity:
+
+```python
+# BAD — Ruff B034 error
+re.split(r'[<>=]', spec, 1)
+
+# GOOD
+re.split(r'[<>=]', spec, maxsplit=1)
+```
+
+#### 12. Automated Refactors Need Manual Verification
+
+Batch find-and-replace (sed, regex scripts) can introduce subtle bugs:
+
+- **Broken f-strings**: `pytest.fail(f'got {len(x)}')` → the closing `)`
+  can end up inside the f-string expression as `{len(x}')`.
+- **Missing variable assignments**: removing a multi-line `if/pytest.fail`
+  block can accidentally delete the variable assignment above it.
+- **Always re-run** `ruff check`, `ruff format`, and `pytest` after any
+  automated refactor. Never trust the script output alone.
+
+**Reference:** PR #4550.
+
 ## Release Process
 
 ### Automated Release Scripts
