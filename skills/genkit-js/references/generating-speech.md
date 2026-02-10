@@ -1,9 +1,6 @@
----
-title: Generating Speech with Gemini
-description: read this to understand how to generate realistic speech audio from a text script
----
+# Speech Generation with Gemini TTS
 
-The Google Genai plugin provides access to text-to-speech capabilities through Gemini TTS models. These models can convert text into natural-sounding speech for various applications.
+The Google GenAI plugin provides access to text-to-speech capabilities through Gemini TTS models. These models can convert text into natural-sounding speech for various applications.
 
 #### Basic Usage
 
@@ -184,9 +181,3 @@ speechConfig: {
 - `volumeGainDb`: Controls the volume (higher values = louder)
 
 For more detailed information about the Gemini TTS models and their configuration options, see the [Google AI Speech Generation documentation](https://ai.google.dev/gemini-api/docs/speech-generation).
-
-## Next Steps
-
-- Learn about [generating content](/docs/models) to understand how to use these models effectively
-- Explore [creating flows](/docs/flows) to build structured AI workflows
-- To use the Gemini API at enterprise scale or leverage Vertex vector search and Model Garden, see the [Vertex AI plugin](/docs/integrations/vertex-ai)
