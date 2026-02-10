@@ -61,7 +61,7 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         {
           name: 'list_files',
           description:
-            'Lists files and directories in a given path. Returns a list of strings.',
+            'Lists files and directories in a given path. Returns a list of objects with path and type.',
           inputSchema: z.object({
             dirPath: z
               .string()
@@ -72,7 +72,9 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
               .describe('Whether to list files recursively.')
               .default(false),
           }),
-          outputSchema: z.array(z.string()),
+          outputSchema: z.array(
+            z.object({ path: z.string(), isDirectory: z.boolean() })
+          ),
         },
         async (input) => {
           const targetDir = resolvePath(input.dirPath);
@@ -82,11 +84,14 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
             recursive: boolean,
             base: string = ''
           ) {
-            const results: string[] = [];
+            const results: { path: string; isDirectory: boolean }[] = [];
             const entries = await fs.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
               const relativePath = path.join(base, entry.name);
-              results.push(relativePath);
+              results.push({
+                path: relativePath,
+                isDirectory: entry.isDirectory(),
+              });
               if (entry.isDirectory() && recursive) {
                 const subResults = await list(
                   path.join(dir, entry.name),

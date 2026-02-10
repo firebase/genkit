@@ -67,9 +67,19 @@ describe('filesystem middleware', () => {
         { dirPath: '', recursive: false },
         {} as any
       );
-      assert.ok(result.includes('file1.txt'));
-      assert.ok(result.includes('sub'));
-      assert.ok(!result.includes(path.join('sub', 'file2.txt')));
+      assert.ok(
+        (result as any[]).find(
+          (r) => r.path === 'file1.txt' && r.isDirectory === false
+        )
+      );
+      assert.ok(
+        (result as any[]).find((r) => r.path === 'sub' && r.isDirectory === true)
+      );
+      assert.ok(
+        !(result as any[]).find(
+          (r) => r.path === path.join('sub', 'file2.txt')
+        )
+      );
     });
 
     it('lists files recursively', async () => {
@@ -82,9 +92,20 @@ describe('filesystem middleware', () => {
         { dirPath: '', recursive: true },
         {} as any
       );
-      assert.ok(result.includes('file1.txt'));
-      assert.ok(result.includes('sub'));
-      assert.ok(result.includes(path.join('sub', 'file2.txt')));
+      assert.ok(
+        (result as any[]).find(
+          (r) => r.path === 'file1.txt' && r.isDirectory === false
+        )
+      );
+      assert.ok(
+        (result as any[]).find((r) => r.path === 'sub' && r.isDirectory === true)
+      );
+      assert.ok(
+        (result as any[]).find(
+          (r) =>
+            r.path === path.join('sub', 'file2.txt') && r.isDirectory === false
+        )
+      );
     });
 
     it('rejects listing outside root directory', async () => {
