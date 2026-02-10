@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-import { BaseGenkitPluginV2 } from '@genkit-ai/core';
-import { GenerateMiddleware } from './generate/middleware.js';
-import { ModelAction } from './model.js';
+import { type BaseGenkitPluginV2 } from '@genkit-ai/core';
+import { type GenerateMiddleware } from './generate/middleware.js';
+import { type ModelAction } from './model.js';
+
+export { type BaseGenkitPluginV2 };
 
 export interface GenkitPluginV2 extends BaseGenkitPluginV2 {
   // Returns a list of generate middleware to be used in `generate({use: [...])`.

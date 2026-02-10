@@ -38,6 +38,7 @@ export {
   type EvaluatorParams,
   type EvaluatorReference,
 } from './evaluator.js';
+export { GenerateAPI } from './generate-api.js';
 export {
   GenerateResponse,
   GenerateResponseChunk,
@@ -57,18 +58,18 @@ export {
 } from './generate.js';
 export {
   MiddlewareDescSchema,
-  MiddlewareRefSchema,
   generateMiddleware,
   type GenerateMiddleware,
   type GenerateMiddlewareDef,
   type MiddlewareDesc,
-  type MiddlewareRef,
 } from './generate/middleware.js';
 export { Message } from './message.js';
 export {
   GenerateResponseChunkSchema,
   GenerationCommonConfigSchema,
   MessageSchema,
+  MiddlewareRefSchema,
+  ModelReferenceSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
@@ -82,6 +83,7 @@ export {
   type GenerationUsage,
   type MediaPart,
   type MessageData,
+  type MiddlewareRef,
   type ModelArgument,
   type ModelReference,
   type ModelRequest,
@@ -92,7 +94,7 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export { type ToolRequest, type ToolResponse } from './parts.js';
-export { type GenkitPluginV2 } from './plugin.js';
+export { type BaseGenkitPluginV2, type GenkitPluginV2 } from './plugin.js';
 export {
   defineHelper,
   definePartial,

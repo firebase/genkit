@@ -15,7 +15,7 @@
  */
 
 import type { GenerateMiddleware } from '@genkit-ai/ai';
-import { type GenkitPluginV2 } from '@genkit-ai/ai';
+import { type BaseGenkitPluginV2, type GenkitPluginV2 } from '@genkit-ai/ai';
 import { type ModelAction } from '@genkit-ai/ai/model';
 import {
   GenkitError,
@@ -34,7 +34,12 @@ export {
 } from '@genkit-ai/ai/model';
 export { reranker } from '@genkit-ai/ai/reranker';
 export { indexer, retriever } from '@genkit-ai/ai/retriever';
-export { type GenkitPluginV2, type ResolvableAction };
+export {
+  type BaseGenkitPluginV2,
+  type GenerateMiddleware,
+  type GenkitPluginV2,
+  type ResolvableAction,
+};
 
 export interface PluginProvider {
   name: string;

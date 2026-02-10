@@ -44,7 +44,6 @@ import {
   GenerateMiddleware,
   generateMiddleware,
   GenerateMiddlewareDef,
-  MiddlewareRef,
   resolveMiddleware,
 } from './generate/middleware.js';
 import { GenerateResponse } from './generate/response.js';
@@ -58,6 +57,7 @@ import {
   type GenerateRequest,
   type GenerationCommonConfigSchema,
   type MessageData,
+  type MiddlewareRef,
   type ModelArgument,
   type ModelMiddlewareArgument,
   type Part,

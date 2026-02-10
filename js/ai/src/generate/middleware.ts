@@ -17,14 +17,16 @@
 import { ActionRunOptions, GenkitError, z } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import { GenerateAPI } from '../generate-api.js';
 import type { GenerateActionOptions } from '../model-types.js';
+import { type MiddlewareRef } from '../model-types.js';
 import {
   GenerateRequest,
   GenerateResponseData,
   ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
-import { GenkitPluginV2 } from '../plugin.js';
+import { type GenkitPluginV2 } from '../plugin.js';
 import { ToolAction } from '../tool.js';
 
 /** Descriptor for a registered middleware, returned by reflection API. */
@@ -39,15 +41,6 @@ export const MiddlewareDescSchema = z.object({
   metadata: z.record(z.any()).nullish(),
 });
 export type MiddlewareDesc = z.infer<typeof MiddlewareDescSchema>;
-
-/** Reference to a registered middleware with optional configuration. */
-export const MiddlewareRefSchema = z.object({
-  /** Name of the registered middleware. */
-  name: z.string(),
-  /** Configuration for the middleware (schema defined by the middleware). */
-  config: z.any().optional(),
-});
-export type MiddlewareRef = z.infer<typeof MiddlewareRefSchema>;
 
 /**
  * Defines a Genkit Generate Middleware instance, which can be configured and registered.
@@ -70,7 +63,10 @@ export interface GenerateMiddleware<C extends z.ZodTypeAny = z.ZodTypeAny>
    * Factory function that receives the validated configuration and creates
    * a `GenerateMiddlewareDef` holding the active hooks.
    */
-  instantiate: (config?: z.infer<C>) => GenerateMiddlewareDef;
+  instantiate: (
+    config: z.infer<C> | undefined,
+    ai: GenerateAPI
+  ) => GenerateMiddlewareDef;
   /**
    * Optional plugin wrapper exposing this middleware for framework-level registration.
    */
@@ -175,8 +171,8 @@ export function generateMiddleware<
       wrappedDef.configSchema = options.configSchema;
       wrappedDef.description = options.description;
       wrappedDef.metadata = options.metadata;
-      wrappedDef.instantiate = (reqConfig) =>
-        def.instantiate(reqConfig ?? pluginConfig);
+      wrappedDef.instantiate = (reqConfig, ai) =>
+        def.instantiate(reqConfig ?? pluginConfig, ai);
       wrappedDef.plugin = def.plugin;
 
       return [wrappedDef];
@@ -215,7 +211,7 @@ export async function resolveMiddleware(
         message: `Middleware ${ref.name} not found in registry.`,
       });
     }
-    result.push(def.instantiate(ref.config));
+    result.push(def.instantiate(ref.config, new GenerateAPI(registry)));
   }
   return result;
 }

@@ -16,7 +16,6 @@
 
 import { OperationSchema, z } from '@genkit-ai/core';
 import { DocumentDataSchema } from './document.js';
-import { MiddlewareRefSchema } from './generate/middleware.js';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -27,6 +26,12 @@ import {
   ToolRequestPartSchema,
   ToolResponsePartSchema,
 } from './parts.js';
+
+export const MiddlewareRefSchema: z.ZodTypeAny = z.object({
+  name: z.string(),
+  config: z.any().optional(),
+});
+export type MiddlewareRef = z.infer<typeof MiddlewareRefSchema>;
 
 //
 // IMPORTANT: Please keep type definitions in sync with

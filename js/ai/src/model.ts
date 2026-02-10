@@ -357,7 +357,16 @@ function getModelMiddleware(options: {
   return middleware;
 }
 
-export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
+export const ModelReferenceSchema = z.object({
+  name: z.string(),
+  configSchema: z.any().optional(),
+  info: z.any().optional(),
+  version: z.string().optional(),
+  config: z.any().optional(),
+});
+
+export interface ModelReference<CustomOptions extends z.ZodTypeAny>
+  extends z.infer<typeof ModelReferenceSchema> {
   name: string;
   configSchema?: CustomOptions;
   info?: ModelInfo;

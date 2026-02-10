@@ -30,6 +30,7 @@ export {
   MessageSchema,
   MiddlewareDescSchema,
   MiddlewareRefSchema,
+  ModelReferenceSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
