@@ -214,10 +214,16 @@ def main() -> None:
         return
 
     # Run flow in async context
+    # We do NOT redirect stdout so that logs/prints from the flow are visible
+    try:
+        result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    except Exception as e:
+        # pyrefly: ignore[unbound-name] - traceback is imported at top of file
+        traceback.print_exc()
+        return
 
-    # Redirect stdout to avoid polluting the JSON output with logs/prints from the flow
-    with contextlib.redirect_stdout(io.StringIO()):
-        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    # Print result with markers so the caller can extract it from stdout
+    print(f'\n---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---', flush=True)
 
 
 if __name__ == '__main__':
