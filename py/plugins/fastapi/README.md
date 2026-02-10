@@ -10,13 +10,12 @@ pip install genkit-plugin-fastapi
 
 ## Usage
 
-```python
 from fastapi import FastAPI
 from genkit import Genkit
-from genkit.plugins.fastapi import genkit_fastapi_handler
+from genkit.plugins.fastapi import genkit_fastapi_handler, genkit_lifespan
 from genkit.plugins.google_genai import GoogleAI
 
-app = FastAPI()
+app = FastAPI(lifespan=genkit_lifespan(ai))
 ai = Genkit(plugins=[GoogleAI()])
 
 
@@ -30,7 +29,6 @@ async def chat_flow(prompt: str) -> str:
 @genkit_fastapi_handler(ai)
 async def chat():
     return chat_flow
-```
 
 ## Running
 
