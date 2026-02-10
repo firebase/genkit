@@ -40,6 +40,9 @@ type Middleware interface {
 	Model(ctx context.Context, state *ModelState, next ModelNext) (*ModelResponse, error)
 	// Tool wraps each tool execution.
 	Tool(ctx context.Context, state *ToolState, next ToolNext) (*ToolResponse, error)
+	// Tools returns additional tools to make available during generation.
+	// These tools are dynamically registered when the middleware is used via [WithUse].
+	Tools() []Tool
 }
 
 // GenerateState holds state for the Generate hook.
@@ -92,6 +95,8 @@ func (b *BaseMiddleware) Model(ctx context.Context, state *ModelState, next Mode
 func (b *BaseMiddleware) Tool(ctx context.Context, state *ToolState, next ToolNext) (*ToolResponse, error) {
 	return next(ctx, state)
 }
+
+func (b *BaseMiddleware) Tools() []Tool { return nil }
 
 // Register registers the descriptor with the registry.
 func (d *MiddlewareDesc) Register(r api.Registry) {
