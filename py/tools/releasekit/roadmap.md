@@ -473,11 +473,62 @@ outputs machine-readable JSON.
 
 ### Phase 4: Harden
 
-| Module | Description | Est. Lines |
-|--------|-------------|-----------|
-| `ui.py` | Rich Live progress table. Status icons per package (waiting -> building -> publishing -> done/fail). Duration tracking. Summary footer. | ~100 |
-| `preflight.py` (full) | Add: OSS file checks (LICENSE, README), `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), backup file detection, dist clean, trusted publisher check. | +150 |
-| `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8). | +200 |
+| Module | Description | Est. Lines | Status |
+|--------|-------------|-----------|--------|
+| `ui.py` | **Rich Live progress table** with observer pattern. `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests). 9 pipeline stages with emoji/color/progress bars. ETA estimation. Error panel. Auto-detects TTY via `create_progress_ui()`. Integrated into `publisher.py` via `PublishObserver` callbacks. | ~560 | ✅ Done (PR #4558) |
+| `preflight.py` (full) | Add: OSS file checks (LICENSE, README), `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), backup file detection, dist clean, trusted publisher check. | +150 | |
+| `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8). | +200 | |
+
+**`ui.py` — Rich Live Progress Table (Detailed Spec)**:
+
+Visual mockup (TTY mode):
+
+```
+ ╭──────────────────────────────────────────────────────────────────────────╮
+ │ releasekit publish ─ 12 packages across 4 levels (concurrency: 5)       │
+ ╰──────────────────────────────────────────────────────────────────────────╯
+
+ Level  Package                       Stage           Progress     Duration
+ ─────  ────────────────────────────  ──────────────  ───────────  ────────
+ 0      genkit                        ✅ published    ██████████    12.3s
+ 0      genkit-plugin-checks          ✅ published    ██████████     8.7s
+ 0      genkit-plugin-ollama          📤 publishing   ██████░░░░     6.1s
+ 0      genkit-plugin-compat-oai      🔨 building     ████░░░░░░     4.2s
+ 0      genkit-plugin-pinecone        🔧 pinning      ██░░░░░░░░     1.8s
+ 1      genkit-plugin-google-genai    ⏳ waiting       ░░░░░░░░░░       —
+ 1      genkit-plugin-vertex-ai       ⏳ waiting       ░░░░░░░░░░       —
+ 2      genkit-plugin-firebase        ⏳ waiting       ░░░░░░░░░░       —
+ 3      web-endpoints-hello           ⏭️  skipped       ──────────       —
+
+ ── Summary ────────────────────────────────────────────────────────────────
+ Published: 2/12  │  Building: 2  │  Publishing: 1  │  Waiting: 4  │  Skipped: 1
+ Elapsed: 14.2s   │  ETA: ~45s
+```
+
+Stage indicators (pipeline order):
+
+| Stage       | Icon | Description                          |
+|-------------|------|--------------------------------------|
+| waiting     | ⏳   | Blocked by previous level            |
+| pinning     | 🔧   | Pinning internal deps to exact versions |
+| building    | 🔨   | Running `uv build --no-sources`      |
+| publishing  | 📤   | Running `uv publish`                 |
+| polling     | 🔍   | Waiting for PyPI indexing            |
+| verifying   | 🧪   | Running smoke test                   |
+| published   | ✅   | Successfully published               |
+| failed      | ❌   | Failed (error shown below table)     |
+| skipped     | ⏭️    | No changes / excluded                |
+
+Implementation notes:
+
+- Uses `rich.live.Live` with a `rich.table.Table` that refreshes on every state transition
+- Progress bars use block characters (`█` filled, `░` empty)
+- Duration tracked via `time.monotonic()` per package
+- ETA estimated from average per-package duration × remaining
+- Non-TTY (CI) mode: falls back to one structured log line per state transition
+- Observer protocol: `PublishObserver` with `on_stage`, `on_error`, `on_complete`, `on_level_start`
+- Three implementations: `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests)
+- Error details for failed packages shown below table in a `rich.panel.Panel`
 
 **Done when**: Rich progress UI shows real-time status during publish. Staging
 workflow completes both phases. Pre-flight catches common mistakes.
