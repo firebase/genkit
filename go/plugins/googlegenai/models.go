@@ -81,32 +81,22 @@ var (
 )
 
 const (
-	gemini15Flash   = "gemini-1.5-flash"
-	gemini15Pro     = "gemini-1.5-pro"
-	gemini15Flash8b = "gemini-1.5-flash-8b"
+	gemini20Flash     = "gemini-2.0-flash"
+	gemini20FlashExp  = "gemini-2.0-flash-exp"
+	gemini20FlashLite = "gemini-2.0-flash-lite"
 
-	gemini20Flash                = "gemini-2.0-flash"
-	gemini20FlashExp             = "gemini-2.0-flash-exp"
-	gemini20FlashLite            = "gemini-2.0-flash-lite"
-	gemini20FlashLitePrev        = "gemini-2.0-flash-lite-preview"
-	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
-	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
-	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
+	gemini25Flash     = "gemini-2.5-flash"
+	gemini25FlashLite = "gemini-2.5-flash-lite"
 
-	gemini25Flash             = "gemini-2.5-flash"
-	gemini25FlashLite         = "gemini-2.5-flash-lite"
-	gemini25FlashLitePrev0617 = "gemini-2.5-flash-lite-preview-06-17"
-
-	gemini25Pro            = "gemini-2.5-pro"
-	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
-	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
-	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
+	gemini25Pro = "gemini-2.5-pro"
 
 	imagen3Generate001     = "imagen-3.0-generate-001"
-	imagen3Generate002     = "imagen-3.0-generate-002"
 	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
 
-	textembedding004                  = "text-embedding-004"
+	veo20Generate001     = "veo-2.0-generate-001"
+	veo30Generate001     = "veo-3.0-generate-001"
+	veo30FastGenerate001 = "veo-3.0-fast-generate-001"
+
 	embedding001                      = "embedding-001"
 	textembeddinggecko003             = "textembedding-gecko@003"
 	textembeddinggecko002             = "textembedding-gecko@002"
@@ -114,33 +104,19 @@ const (
 	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
 	textmultilingualembedding002      = "text-multilingual-embedding-002"
 	multimodalembedding               = "multimodalembedding"
-	veo20Generate001                  = "veo-2.0-generate-001"
-	veo30Generate001                  = "veo-3.0-generate-001"
-	veo30FastGenerate001              = "veo-3.0-fast-generate-001"
 )
 
 var (
 	// eventually, Vertex AI and Google AI models will match, in the meantime,
 	// keep them sepparated
 	vertexAIModels = []string{
-		gemini15Flash,
-		gemini15Pro,
 		gemini20Flash,
 		gemini20FlashLite,
-		gemini20FlashLitePrev,
-		gemini20ProExp0205,
-		gemini20FlashThinkingExp0121,
-		gemini20FlashPrevImageGen,
 		gemini25Flash,
 		gemini25FlashLite,
 		gemini25Pro,
-		gemini25FlashLitePrev0617,
-		gemini25ProExp0325,
-		gemini25ProPreview0325,
-		gemini25ProPreview0506,
 
 		imagen3Generate001,
-		imagen3Generate002,
 		imagen3FastGenerate001,
 
 		veo20Generate001,
@@ -149,24 +125,11 @@ var (
 	}
 
 	googleAIModels = []string{
-		gemini15Flash,
-		gemini15Pro,
-		gemini15Flash8b,
 		gemini20Flash,
 		gemini20FlashExp,
-		gemini20FlashLitePrev,
-		gemini20ProExp0205,
-		gemini20FlashThinkingExp0121,
-		gemini20FlashPrevImageGen,
 		gemini25Flash,
 		gemini25FlashLite,
 		gemini25Pro,
-		gemini25FlashLitePrev0617,
-		gemini25ProExp0325,
-		gemini25ProPreview0325,
-		gemini25ProPreview0506,
-
-		imagen3Generate002,
 
 		veo20Generate001,
 		veo30Generate001,
@@ -174,35 +137,6 @@ var (
 	}
 
 	supportedGeminiModels = map[string]ai.ModelOptions{
-		gemini15Flash: {
-			Label: "Gemini 1.5 Flash",
-			Versions: []string{
-				"gemini-1.5-flash-latest",
-				"gemini-1.5-flash-001",
-				"gemini-1.5-flash-002",
-			},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageStable,
-		},
-		gemini15Pro: {
-			Label: "Gemini 1.5 Pro",
-			Versions: []string{
-				"gemini-1.5-pro-latest",
-				"gemini-1.5-pro-001",
-				"gemini-1.5-pro-002",
-			},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageStable,
-		},
-		gemini15Flash8b: {
-			Label: "Gemini 1.5 Flash 8B",
-			Versions: []string{
-				"gemini-1.5-flash-8b-latest",
-				"gemini-1.5-flash-8b-001",
-			},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageStable,
-		},
 		gemini20Flash: {
 			Label: "Gemini 2.0 Flash",
 			Versions: []string{
@@ -210,12 +144,6 @@ var (
 			},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
-		},
-		gemini20FlashExp: {
-			Label:    "Gemini 2.0 Flash Exp",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
 		},
 		gemini20FlashLite: {
 			Label: "Gemini 2.0 Flash Lite",
@@ -225,32 +153,14 @@ var (
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
-		gemini20FlashLitePrev: {
-			Label:    "Gemini 2.0 Flash Lite Preview 02-05",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini20ProExp0205: {
-			Label:    "Gemini 2.0 Pro Exp 02-05",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini20FlashThinkingExp0121: {
-			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini20FlashPrevImageGen: {
-			Label:    "Gemini 2.0 Flash Preview Image Generation",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
 		gemini25Flash: {
 			Label:    "Gemini 2.5 Flash",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
+		},
+		gemini25FlashLite: {
+			Label:    "Gemini 2.5 Flash Lite",
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
@@ -261,47 +171,11 @@ var (
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
-		gemini25ProExp0325: {
-			Label:    "Gemini 2.5 Pro Exp 03-25",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini25ProPreview0325: {
-			Label:    "Gemini 2.5 Pro Preview 03-25",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini25ProPreview0506: {
-			Label:    "Gemini 2.5 Pro Preview 05-06",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
-		gemini25FlashLite: {
-			Label:    "Gemini 2.5 Flash Lite",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageStable,
-		},
-		gemini25FlashLitePrev0617: {
-			Label:    "Gemini 2.5 Flash Lite Preview 06-17",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
 	}
 
 	supportedImagenModels = map[string]ai.ModelOptions{
 		imagen3Generate001: {
 			Label:    "Imagen 3 Generate 001",
-			Versions: []string{},
-			Supports: &Media,
-			Stage:    ai.ModelStageStable,
-		},
-		imagen3Generate002: {
-			Label:    "Imagen 3 Generate 002",
 			Versions: []string{},
 			Supports: &Media,
 			Stage:    ai.ModelStageStable,
@@ -336,13 +210,6 @@ var (
 	}
 
 	embedderConfig = map[string]ai.EmbedderOptions{
-		textembedding004: {
-			Dimensions: 768,
-			Label:      "Google Gen AI - Text Embedding 001",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
-		},
 		embedding001: {
 			Dimensions: 768,
 			Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
