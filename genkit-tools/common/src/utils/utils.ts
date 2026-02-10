@@ -37,6 +37,8 @@ export async function findProjectRoot(): Promise<string> {
     const goModPath = path.join(currentDir, 'go.mod');
     const pyprojectPath = path.join(currentDir, 'pyproject.toml');
     const pyproject2Path = path.join(currentDir, 'requirements.txt');
+    const mavenProjectPath = path.join(currentDir, 'pom.xml');
+    const gradleProjectPath = path.join(currentDir, 'build.gradle');
 
     try {
       const [
@@ -44,6 +46,8 @@ export async function findProjectRoot(): Promise<string> {
         goModExists,
         pyprojectExists,
         pyproject2Exists,
+        mavenProjectExists,
+        gradleProjectExists,
       ] = await Promise.all([
         fs
           .access(packageJsonPath)
@@ -61,12 +65,22 @@ export async function findProjectRoot(): Promise<string> {
           .access(pyproject2Path)
           .then(() => true)
           .catch(() => false),
+        fs
+          .access(mavenProjectPath)
+          .then(() => true)
+          .catch(() => false),
+        fs
+          .access(gradleProjectPath)
+          .then(() => true)
+          .catch(() => false),
       ]);
       if (
         packageJsonExists ||
         goModExists ||
         pyprojectExists ||
-        pyproject2Exists
+        pyproject2Exists ||
+        mavenProjectExists ||
+        gradleProjectExists
       ) {
         return currentDir;
       }
