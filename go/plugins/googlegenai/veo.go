@@ -24,6 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -35,6 +36,11 @@ func newVeoModel(
 	name string,
 	info ai.ModelOptions,
 ) ai.BackgroundModel {
+	provider := googleAIProvider
+	if client.ClientConfig().Backend == genai.BackendVertexAI {
+		provider = vertexAIProvider
+	}
+
 	startFunc := func(ctx context.Context, req *ai.ModelRequest) (*ai.ModelOperation, error) {
 		// Extract text prompt from the request
 		prompt := extractTextFromRequest(req)
@@ -110,7 +116,7 @@ func newVeoModel(
 		return updatedOp, nil
 	}
 
-	return ai.NewBackgroundModel(name, &ai.BackgroundModelOptions{ModelOptions: info}, startFunc, checkFunc)
+	return ai.NewBackgroundModel(api.NewName(provider, name), &ai.BackgroundModelOptions{ModelOptions: info}, startFunc, checkFunc)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.
@@ -175,7 +181,6 @@ func extractVeoVideoFromRequest(request *ai.ModelRequest) *genai.Video {
 			}
 			return &genai.Video{
 				URI: part.Text,
-				// MIMEType: part.ContentType,
 			}
 		}
 	}

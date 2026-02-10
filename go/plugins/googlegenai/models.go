@@ -57,18 +57,21 @@ var (
 // Default options for unknown models of each type.
 var (
 	defaultGeminiOpts = ai.ModelOptions{
-		Supports: &Multimodal,
-		Stage:    ai.ModelStageUnstable,
+		Supports:     &Multimodal,
+		Stage:        ai.ModelStageUnstable,
+		ConfigSchema: configToMap(genai.GenerateContentConfig{}),
 	}
 
 	defaultImagenOpts = ai.ModelOptions{
-		Supports: &Media,
-		Stage:    ai.ModelStageUnstable,
+		Supports:     &Media,
+		Stage:        ai.ModelStageUnstable,
+		ConfigSchema: configToMap(genai.ImageConfig{}),
 	}
 
 	defaultVeoOpts = ai.ModelOptions{
-		Supports: &VeoSupports,
-		Stage:    ai.ModelStageUnstable,
+		Supports:     &VeoSupports,
+		Stage:        ai.ModelStageUnstable,
+		ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
 	}
 
 	defaultEmbedOpts = ai.EmbedderOptions{
@@ -313,22 +316,25 @@ var (
 
 	supportedVideoModels = map[string]ai.ModelOptions{
 		veo20Generate001: {
-			Label:    "Veo 2.0 Generate 001",
-			Versions: []string{},
-			Supports: &VeoSupports,
-			Stage:    ai.ModelStageStable,
+			Label:        "Veo 2.0 Generate 001",
+			Versions:     []string{},
+			Supports:     &VeoSupports,
+			Stage:        ai.ModelStageStable,
+			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
 		},
 		veo30Generate001: {
-			Label:    "Veo 3.0 Generate 001",
-			Versions: []string{},
-			Supports: &VeoSupports,
-			Stage:    ai.ModelStageStable,
+			Label:        "Veo 3.0 Generate 001",
+			Versions:     []string{},
+			Supports:     &VeoSupports,
+			Stage:        ai.ModelStageStable,
+			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
 		},
 		veo30FastGenerate001: {
-			Label:    "Veo 3.0 Fast Generate 001",
-			Versions: []string{},
-			Supports: &VeoSupports,
-			Stage:    ai.ModelStageStable,
+			Label:        "Veo 3.0 Fast Generate 001",
+			Versions:     []string{},
+			Supports:     &VeoSupports,
+			Stage:        ai.ModelStageStable,
+			ConfigSchema: configToMap(genai.GenerateVideosConfig{}),
 		},
 	}
 
@@ -538,7 +544,7 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			}
 		case ModelTypeVeo:
 			// Veo uses predict for long-running operations
-			if slices.Contains(item.SupportedActions, "predict") {
+			if slices.Contains(item.SupportedActions, "predictLongRunning") {
 				models.veo = append(models.veo, name)
 			}
 		case ModelTypeGemini:

@@ -93,6 +93,7 @@ func resolveAction(client *genai.Client, provider string, atype api.ActionType, 
 	case api.ActionTypeModel:
 		// Veo models should not be resolved as regular models
 		if mt == ModelTypeVeo {
+			fmt.Printf("veo model here?")
 			return nil
 		}
 		opts := GetModelOptions(name, provider)
@@ -103,6 +104,7 @@ func resolveAction(client *genai.Client, provider string, atype api.ActionType, 
 		if mt != ModelTypeVeo {
 			return nil
 		}
+		fmt.Printf("creating Veo background action\n")
 		return createVeoBackgroundAction(client, name, provider)
 
 	case api.ActionTypeCheckOperation:
@@ -119,7 +121,7 @@ func resolveAction(client *genai.Client, provider string, atype api.ActionType, 
 func createVeoBackgroundAction(client *genai.Client, name, provider string) api.Action {
 	opts := GetModelOptions(name, provider)
 	veoModel := newVeoModel(client, name, opts)
-	actionName := fmt.Sprintf("%s/%s", provider, name)
+	actionName := api.NewName(provider, name)
 
 	return core.NewAction(actionName, api.ActionTypeBackgroundModel, nil, nil,
 		func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
