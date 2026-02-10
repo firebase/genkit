@@ -475,7 +475,59 @@ outputs machine-readable JSON.
 
 | Module | Description | Est. Lines |
 |--------|-------------|-----------|
-| `ui.py` | Rich Live progress table. Status icons per package (waiting -> building -> publishing -> done/fail). Duration tracking. Summary footer. | ~100 |
+| `ui.py` | **Rich Live progress table** (see below). Real-time per-package status during publish. Stage indicators, elapsed time, level grouping. Graceful TTY degradation to structured logs in CI. | ~200 |
+
+**`ui.py` — Rich Live Progress Table (Detailed Spec)**:
+
+Visual mockup (TTY mode):
+
+```
+ ╭──────────────────────────────────────────────────────────────────────────╮
+ │ releasekit publish ─ 12 packages across 4 levels (concurrency: 5)       │
+ ╰──────────────────────────────────────────────────────────────────────────╯
+
+ Level  Package                       Stage           Progress     Duration
+ ─────  ────────────────────────────  ──────────────  ───────────  ────────
+ 0      genkit                        ✅ published    ██████████    12.3s
+ 0      genkit-plugin-checks          ✅ published    ██████████     8.7s
+ 0      genkit-plugin-ollama          📤 publishing   ██████░░░░     6.1s
+ 0      genkit-plugin-compat-oai      🔨 building     ████░░░░░░     4.2s
+ 0      genkit-plugin-pinecone        🔧 pinning      ██░░░░░░░░     1.8s
+ 1      genkit-plugin-google-genai    ⏳ waiting       ░░░░░░░░░░       —
+ 1      genkit-plugin-vertex-ai       ⏳ waiting       ░░░░░░░░░░       —
+ 2      genkit-plugin-firebase        ⏳ waiting       ░░░░░░░░░░       —
+ 3      web-endpoints-hello           ⏭️  skipped       ──────────       —
+
+ ── Summary ────────────────────────────────────────────────────────────────
+ Published: 2/12  │  Building: 2  │  Publishing: 1  │  Waiting: 4  │  Skipped: 1
+ Elapsed: 14.2s   │  ETA: ~45s
+```
+
+Stage indicators (pipeline order):
+
+| Stage       | Icon | Description                          |
+|-------------|------|--------------------------------------|
+| waiting     | ⏳   | Blocked by previous level            |
+| pinning     | 🔧   | Pinning internal deps to exact versions |
+| building    | 🔨   | Running `uv build --no-sources`      |
+| publishing  | 📤   | Running `uv publish`                 |
+| polling     | 🔍   | Waiting for PyPI indexing            |
+| verifying   | 🧪   | Running smoke test                   |
+| published   | ✅   | Successfully published               |
+| failed      | ❌   | Failed (error shown below table)     |
+| skipped     | ⏭️    | No changes / excluded                |
+
+Implementation notes:
+
+- Use `rich.live.Live` with a `rich.table.Table` that refreshes on every state transition
+- Progress bars use `rich.progress.ProgressBar` or simple block characters
+- Duration tracked via `time.monotonic()` per package (start time stored in state)
+- ETA estimated from average per-package duration × remaining
+- Non-TTY (CI) mode: fall back to one structured log line per state transition (current behavior)
+- The `publisher.py` orchestrator calls `ui.on_status_change(pkg, stage)` callbacks
+- Callback protocol: `PublishObserver` with `on_start`, `on_stage`, `on_complete`, `on_error`
+- Two implementations: `RichProgressObserver` (TTY) and `LogObserver` (CI/non-TTY)
+- Error details for failed packages shown below the table in a `rich.panel.Panel`
 | `preflight.py` (full) | Add: OSS file checks (LICENSE, README), `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), backup file detection, dist clean, trusted publisher check. | +150 |
 | `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8). | +200 |
 
