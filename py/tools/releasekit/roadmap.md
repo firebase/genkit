@@ -4,9 +4,24 @@ Release orchestration for uv workspaces -- publish Python packages in
 topological order with ephemeral version pinning, level gating, and
 crash-safe file restoration.
 
-**Target location**: `py/tools/release/` in `firebase/genkit`
+**Target location**: `py/tools/releasekit/` in `firebase/genkit`
 **Published as**: `releasekit` on PyPI
 **Invocation**: `uvx releasekit publish`
+
+---
+
+## Progress
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0: Foundation + Backends | ✅ Complete | 1,812 lines src, 864 lines tests, 82 tests pass |
+| 1: Discovery | ⬜ Not started | |
+| 2: Version + Pin | ⬜ Not started | |
+| 3: Publish MVP | ⬜ Not started | Critical milestone |
+| 4: Harden | ⬜ Not started | |
+| 5: Post-Pipeline + CI | ⬜ Not started | |
+| 6: UX Polish | ⬜ Not started | |
+| 7: Quality + Ship | ⬜ Not started | |
 
 ---
 
@@ -97,7 +112,7 @@ All external tool calls go through the backend shim layer (see Phase 0).
 ### ASCII (viewable in any editor / terminal / git diff)
 
 ```
-Phase 0: Foundation
+Phase 0: Foundation  ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
 │  scaffold (pyproject.toml, __init__.py, py.typed)       │
 │  errors.py (diagnostic lib, RK-XXXX codes)             │
@@ -362,21 +377,25 @@ flowchart TD
 
 ## Phase Details
 
-### Phase 0: Foundation + Backends
+### Phase 0: Foundation + Backends  ✅ Complete
 
-| Module | Description | Est. Lines |
-|--------|-------------|-----------|
-| `pyproject.toml` | Package scaffold with `[project.scripts]`, hatchling build, 8 deps | ~40 |
-| `__init__.py` | `__version__` only | ~3 |
-| `py.typed` | PEP 561 marker | 0 |
-| `errors.py` | Error system using `diagnostic` library (v3.0.0). Subclass `DiagnosticError` and `DiagnosticWarning` with `RK-XXXX` codes. Code ranges: 0xxx config, 1xxx workspace, 2xxx graph, 3xxx version, 4xxx preflight, 5xxx build/publish, 6xxx post-pipeline, 7xxx state/resume. Error catalog as constants. `--explain RK-XXXX` flag. | ~150 |
-| `logging.py` | `structlog` configuration. Rich console when TTY, plain text otherwise. `--json-log` for machine-readable output. `--verbose` / `--quiet` levels. | ~60 |
-| `backends/_run.py` | Central `run_command()` subprocess abstraction. Dry-run support, structured logging, configurable timeout. All external tool calls go through this one function. | ~60 |
-| `backends/pm.py` | `PackageManager` Protocol + `UvBackend`. Methods: `build()`, `publish()`, `lock()`, `version_bump()`, `resolve_check()`, `smoke_test()`. All via `run_command()`. | ~120 |
-| `backends/vcs.py` | `VCS` Protocol + `GitBackend`. Methods: `is_clean()`, `is_shallow()`, `log()`, `commit()`, `tag()`, `push()`, `tag_exists()`, `delete_tag()`, `current_sha()`, `diff_files()`. Sync (git is fast locally). | ~100 |
-| `backends/forge.py` | `Forge` Protocol (async) + `GitHubBackend`. Methods: `is_available()`, `create_release()`, `delete_release()`, `promote_release()`, `list_releases()`, `create_pr()`, `pr_data()`. Graceful degradation if `gh` unavailable. | ~120 |
-| `backends/registry.py` | `Registry` Protocol (async) + `PyPIBackend`. Methods: `check_published()`, `poll_available()`, `project_exists()`, `latest_version()`. Async HTTP via `httpx`. Connection pooling. | ~80 |
-| `net.py` | HTTP utilities for `PyPIBackend`. Shared `httpx.AsyncClient` session with connection pooling, retry with backoff, rate limiting. | ~60 |
+| Module | Description | Est. Lines | Actual | Status |
+|--------|-------------|-----------|--------|--------|
+| `pyproject.toml` | Package scaffold with `[project.scripts]`, hatchling build, 8 deps | ~40 | 68 | ✅ |
+| `__init__.py` | `__version__` only | ~3 | 32 | ✅ |
+| `py.typed` | PEP 561 marker | 0 | 0 | ✅ |
+| `README.md` | Quick-start usage and project description | ~30 | 34 | ✅ |
+| `errors.py` | Structured error system with `RK-XXXX` codes, `StrEnum`, `ErrorInfo`, error catalog, `explain()`. | ~150 | 261 | ✅ |
+| `logging.py` | `structlog` configuration. Rich console when TTY, JSON for machines. `--verbose` / `--quiet`. | ~60 | 128 | ✅ |
+| `backends/_run.py` | Central `run_command()` subprocess abstraction. Dry-run, structured logging, timeout. | ~60 | 192 | ✅ |
+| `backends/pm.py` | `PackageManager` Protocol + `UvBackend`. `build()`, `publish()`, `lock()`, `version_bump()`, `resolve_check()`, `smoke_test()`. | ~120 | 281 | ✅ |
+| `backends/vcs.py` | `VCS` Protocol + `GitBackend`. `is_clean()`, `is_shallow()`, `log()`, `commit()`, `tag()`, `push()`, etc. | ~100 | 278 | ✅ |
+| `backends/forge.py` | `Forge` Protocol + `GitHubBackend`. `is_available()`, `create_release()`, `list_releases()`, `create_pr()`, etc. Graceful degradation. | ~120 | 307 | ✅ |
+| `backends/registry.py` | `Registry` Protocol + `PyPIBackend`. `check_published()`, `poll_available()`, `project_exists()`, `latest_version()`. Async HTTP. | ~80 | 192 | ✅ |
+| `net.py` | HTTP utilities: connection pooling, retry with exponential backoff, structured logging. | ~60 | 173 | ✅ |
+| **Tests** | 82 tests across 8 test files. Protocol conformance, dry-run, integration (git, PyPI). | — | 864 | ✅ |
+
+**Totals**: 1,812 lines source (estimated ~750), 864 lines tests.
 
 **Done when**: `import releasekit` works, errors render with Rich formatting,
 structlog outputs to stderr. All 4 backend protocols defined with default
@@ -524,16 +543,16 @@ shell completion) is enhancement.
 
 ## Estimated Effort
 
-| Phase | Modules | New Lines | Cumulative |
-|-------|---------|-----------|------------|
-| 0: Foundation + Backends | 8 (+scaffolding) | ~750 | ~750 |
-| 1: Discovery | 3 | ~420 | ~1170 |
-| 2: Version + Pin | 4 | ~500 | ~1670 |
-| 3: Publish MVP | 6 | ~960 | ~2630 |
-| 4: Harden | 3 (extended) | ~450 | ~3080 |
-| 5: Post-Pipeline | 4 (+CI workflow) | ~700 | ~3780 |
-| 6: UX Polish | 3 (+ 6 formatters) | ~570 | ~4350 |
-| 7: Quality + Ship | tests + docs | ~2800 | ~7150 |
+| Phase | Modules | Est. Lines | Actual Lines | Status |
+|-------|---------|-----------|-------------|--------|
+| 0: Foundation + Backends | 8 (+scaffolding) | ~750 | 1,812 src + 864 tests | ✅ Complete |
+| 1: Discovery | 3 | ~420 | — | ⬜ Not started |
+| 2: Version + Pin | 4 | ~500 | — | ⬜ Not started |
+| 3: Publish MVP | 6 | ~960 | — | ⬜ Not started |
+| 4: Harden | 3 (extended) | ~450 | — | ⬜ Not started |
+| 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |
+| 6: UX Polish | 3 (+ 6 formatters) | ~570 | — | ⬜ Not started |
+| 7: Quality + Ship | tests + docs | ~2800 | — | ⬜ Not started |
 
 Total: ~37 modules (including 6 formatters), ~4350 lines of production code,
 ~2800 lines of tests + docs.
@@ -629,7 +648,7 @@ working.
 ## File Tree
 
 ```
-py/tools/release/
+py/tools/releasekit/
   pyproject.toml
   README.md
   roadmap.md                          ← this file
