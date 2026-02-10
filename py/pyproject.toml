@@ -130,6 +130,9 @@ addopts = [
   # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
   # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
   "--ignore=samples/web-endpoints-hello/tests",
+  # releasekit is a standalone tool with its own venv. Run its tests from
+  # tools/releasekit/ (e.g. 'cd tools/releasekit && uv run pytest tests/').
+  "--ignore=tools/releasekit/tests",
 ]
 asyncio_default_fixture_loop_scope = "session"
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
@@ -436,6 +439,9 @@ root = [
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
   "samples/web-endpoints-hello",           # For src imports in tests
   "plugins/mcp/tests",                     # For fakes module imports in tests
+  # Tools
+  "tools/releasekit/src",                   # For releasekit package imports
+  "tools/releasekit",                       # For test imports (pythonpath = ["."])
 ]
 
 # Pyright type checking configuration.
@@ -479,6 +485,8 @@ extraPaths = [
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "plugins/xai/src",
+  # Tools
+  "tools/releasekit/src",
 ]
 pythonVersion          = "3.10"
 reportMissingImports   = true
@@ -524,6 +532,9 @@ project_includes = [
   "samples/*/src/**/*.py",
   "samples/*/tests/**/*.py",
   "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
+  # Tools
+  "tools/releasekit/src/**/*.py",
+  "tools/releasekit/tests/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
@@ -537,6 +548,9 @@ search-path = [
   "samples/framework-evaluator-demo",
   "samples/framework-restaurant-demo/src",
   "samples/web-endpoints-hello",
+  # Tools
+  "tools/releasekit/src",
+  "tools/releasekit",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime.
