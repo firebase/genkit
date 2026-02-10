@@ -85,6 +85,7 @@ from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
 from releasekit.pin import ephemeral_pin
 from releasekit.state import PackageStatus, RunState
+from releasekit.ui import NullProgressUI, PublishObserver, PublishStage
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 
@@ -188,11 +189,13 @@ async def _publish_one(
     state: RunState,
     state_path: Path,
     semaphore: asyncio.Semaphore,
+    observer: PublishObserver,
 ) -> None:
     """Publish a single package through the full pipeline.
 
     Acquires the semaphore for concurrency control. Updates state
-    at each step for resume support.
+    at each step for resume support. Notifies the observer at each
+    pipeline stage for live UI feedback.
 
     Args:
         pkg: Package to publish.
@@ -204,16 +207,19 @@ async def _publish_one(
         state: Run state (mutated in place).
         state_path: Path to persist state.
         semaphore: Concurrency limiter.
+        observer: UI observer for progress callbacks.
     """
     name = pkg.name
     async with semaphore:
         try:
             # Step 1: Pin dependencies.
+            observer.on_stage(name, PublishStage.PINNING)
             state.set_status(name, PackageStatus.BUILDING)
             state.save(state_path)
 
             with ephemeral_pin(pkg.pyproject_path, version_map):
                 # Step 2: Build.
+                observer.on_stage(name, PublishStage.BUILDING)
                 with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
                     dist_dir = Path(tmp)
                     pm.build(
@@ -233,6 +239,7 @@ async def _publish_one(
                         )
 
                     # Step 4: Publish.
+                    observer.on_stage(name, PublishStage.PUBLISHING)
                     state.set_status(name, PackageStatus.PUBLISHING)
                     state.save(state_path)
 
@@ -244,6 +251,7 @@ async def _publish_one(
                     )
 
             # Step 5: Poll for availability.
+            observer.on_stage(name, PublishStage.POLLING)
             state.set_status(name, PackageStatus.VERIFYING)
             state.save(state_path)
 
@@ -263,9 +271,11 @@ async def _publish_one(
 
             # Step 6: Smoke test.
             if config.smoke_test and not config.dry_run:
+                observer.on_stage(name, PublishStage.VERIFYING)
                 pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
 
             # Success.
+            observer.on_stage(name, PublishStage.PUBLISHED)
             state.set_status(name, PackageStatus.PUBLISHED)
             state.save(state_path)
 
@@ -277,11 +287,13 @@ async def _publish_one(
             )
 
         except ReleaseKitError:
+            observer.on_error(name, f'ReleaseKitError in {name}')
             state.set_status(name, PackageStatus.FAILED, error=str(name))
             state.save(state_path)
             raise
 
         except Exception as exc:
+            observer.on_error(name, str(exc))
             state.set_status(name, PackageStatus.FAILED, error=str(exc))
             state.save(state_path)
             raise ReleaseKitError(
@@ -301,6 +313,7 @@ async def publish_workspace(
     versions: list[PackageVersion],
     config: PublishConfig,
     state: RunState | None = None,
+    observer: PublishObserver | None = None,
 ) -> PublishResult:
     """Publish all workspace packages in topological order.
 
@@ -319,10 +332,15 @@ async def publish_workspace(
             :func:`~releasekit.versioning.compute_bumps`.
         config: Publish configuration.
         state: Existing run state for resume (``None`` to start fresh).
+        observer: UI observer for progress callbacks (``None`` for no UI).
 
     Returns:
         A :class:`PublishResult` summarizing the outcome.
     """
+    # Default to no-op observer if none provided.
+    if observer is None:
+        observer = NullProgressUI()
+
     # Build lookup maps.
     ver_map: dict[str, PackageVersion] = {v.name: v for v in versions}
     version_map = _build_version_map(versions)
@@ -353,6 +371,20 @@ async def publish_workspace(
         state.validate_sha(git_sha)
 
     state.save(state_path)
+
+    # Initialize observer with all packages.
+    observer_packages: list[tuple[str, int, str]] = []
+    for level_idx, level in enumerate(levels):
+        for pkg in level:
+            v = ver_map.get(pkg.name)
+            version_str = v.new_version if v else ''
+            observer_packages.append((pkg.name, level_idx, version_str))
+    observer.init_packages(observer_packages)
+
+    # Mark skipped packages in the observer.
+    for name, pkg_state in state.packages.items():
+        if pkg_state.status == PackageStatus.SKIPPED:
+            observer.on_stage(name, PublishStage.SKIPPED)
 
     result = PublishResult(state=state)
     semaphore = asyncio.Semaphore(config.concurrency)
@@ -393,6 +425,7 @@ async def publish_workspace(
             packages=[t[0].name for t in level_tasks],
             concurrency=config.concurrency,
         )
+        observer.on_level_start(level_idx, [t[0].name for t in level_tasks])
 
         # Launch all packages in this level with semaphore concurrency.
         tasks = [
@@ -407,6 +440,7 @@ async def publish_workspace(
                     state=state,
                     state_path=state_path,
                     semaphore=semaphore,
+                    observer=observer,
                 ),
                 name=f'publish-{pkg.name}',
             )
@@ -446,6 +480,7 @@ async def publish_workspace(
 
     # Save final state.
     state.save(state_path)
+    observer.on_complete()
 
     logger.info(
         'publish_complete',

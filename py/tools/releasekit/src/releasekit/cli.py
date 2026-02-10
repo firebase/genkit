@@ -65,6 +65,7 @@ from releasekit.logging import get_logger
 from releasekit.plan import build_plan
 from releasekit.preflight import run_preflight
 from releasekit.publisher import PublishConfig, publish_workspace
+from releasekit.ui import create_progress_ui
 from releasekit.versioning import compute_bumps
 from releasekit.versions import ReleaseManifest
 from releasekit.workspace import discover_packages
@@ -188,16 +189,25 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             workspace_root=workspace_root,
         )
 
-        result = await publish_workspace(
-            vcs=vcs,
-            pm=pm,
-            forge=forge,
-            registry=registry,
-            packages=packages,
-            levels=levels,
-            versions=versions,
-            config=pub_config,
+        # Create progress UI (Rich table for TTY, log lines for CI).
+        progress_ui = create_progress_ui(
+            total_packages=len(packages),
+            total_levels=len(levels),
+            concurrency=args.concurrency,
         )
+
+        with progress_ui:
+            result = await publish_workspace(
+                vcs=vcs,
+                pm=pm,
+                forge=forge,
+                registry=registry,
+                packages=packages,
+                levels=levels,
+                versions=versions,
+                config=pub_config,
+                observer=progress_ui,
+            )
 
     logger.info('publish_result', summary=result.summary())
 
