@@ -141,7 +141,10 @@ export function generateMiddleware<
     description?: string;
     metadata?: Record<string, any>;
   },
-  middlewareFn: (config?: z.infer<ConfigSchema>) => GenerateMiddlewareDef
+  middlewareFn: (
+    config: z.infer<ConfigSchema> | undefined,
+    ai: GenerateAPI
+  ) => GenerateMiddlewareDef
 ): GenerateMiddleware<ConfigSchema> {
   const def = function (config?: z.infer<ConfigSchema>) {
     return {
