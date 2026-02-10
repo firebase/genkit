@@ -619,7 +619,7 @@ class Genkit(GenkitBase):
         {version, ...config, ...options} (options take precedence).
 
         Args:
-            embedder: Embedder name (e.g., 'googleai/gemini-embedding-001') or
+            embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
                 an EmbedderRef with configuration.
             content: A single string, Document, or DocumentData to embed.
             metadata: Optional metadata to apply to the document. Only used
@@ -634,25 +634,25 @@ class Genkit(GenkitBase):
             ValueError: If content is not specified.
 
         Example - Basic string embedding:
-            >>> embeddings = await ai.embed(embedder='googleai/gemini-embedding-001', content='Hello, world!')
+            >>> embeddings = await ai.embed(embedder='googleai/text-embedding-004', content='Hello, world!')
             >>> print(len(embeddings[0].embedding))  # Vector dimensions
 
         Example - With metadata:
             >>> embeddings = await ai.embed(
-            ...     embedder='googleai/gemini-embedding-001',
+            ...     embedder='googleai/text-embedding-004',
             ...     content='Product description',
             ...     metadata={'category': 'electronics'},
             ... )
 
         Example - With embedder options:
             >>> embeddings = await ai.embed(
-            ...     embedder='googleai/gemini-embedding-001',
+            ...     embedder='googleai/text-embedding-004',
             ...     content='Search query',
             ...     options={'task_type': 'RETRIEVAL_QUERY'},
             ... )
 
         Example - Using EmbedderRef:
-            >>> ref = create_embedder_ref('googleai/gemini-embedding-001', config={'task_type': 'CLUSTERING'})
+            >>> ref = create_embedder_ref('googleai/text-embedding-004', config={'task_type': 'CLUSTERING'})
             >>> embeddings = await ai.embed(embedder=ref, content='Text')
         """
         embedder_name = self._resolve_embedder_name(embedder)
@@ -706,7 +706,7 @@ class Genkit(GenkitBase):
         and passes options directly. This matches the JS canonical behavior.
 
         Args:
-            embedder: Embedder name (e.g., 'googleai/gemini-embedding-001') or
+            embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
                 an EmbedderRef.
             content: List of strings, Documents, or DocumentData to embed.
             metadata: Optional metadata to apply to all items. Only used when
@@ -722,7 +722,7 @@ class Genkit(GenkitBase):
 
         Example - Basic batch embedding:
             >>> embeddings = await ai.embed_many(
-            ...     embedder='googleai/gemini-embedding-001',
+            ...     embedder='googleai/text-embedding-004',
             ...     content=['Doc 1', 'Doc 2', 'Doc 3'],
             ... )
             >>> for i, emb in enumerate(embeddings):
@@ -730,14 +730,14 @@ class Genkit(GenkitBase):
 
         Example - With shared metadata:
             >>> embeddings = await ai.embed_many(
-            ...     embedder='googleai/gemini-embedding-001',
+            ...     embedder='googleai/text-embedding-004',
             ...     content=['text1', 'text2'],
             ...     metadata={'batch_id': 'batch-001'},
             ... )
 
         Example - With options (EmbedderRef config is NOT extracted):
             >>> embeddings = await ai.embed_many(
-            ...     embedder='googleai/gemini-embedding-001',
+            ...     embedder='googleai/text-embedding-004',
             ...     content=documents,
             ...     options={'task_type': 'RETRIEVAL_DOCUMENT'},
             ... )

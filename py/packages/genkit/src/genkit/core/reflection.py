@@ -122,7 +122,6 @@ def _build_actions_payload(
             'inputSchema': getattr(meta, 'input_json_schema', None),
             'outputSchema': getattr(meta, 'output_json_schema', None),
             'metadata': getattr(meta, 'metadata', None),
-            'sampleInput': getattr(meta, 'sample_input', None),
         }
 
         if key not in actions:

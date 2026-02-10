@@ -31,7 +31,7 @@ Terminology:
     |                   | vectors. Contains 'embedding' field and metadata.    |
     +-------------------+------------------------------------------------------+
     | Embedder          | A model/service that converts text to embeddings.    |
-    |                   | Examples: 'googleai/gemini-embedding-001'. Registered  |
+    |                   | Examples: 'googleai/text-embedding-004'. Registered  |
     |                   | as actions, invoked via embed() and embed_many().    |
     +-------------------+------------------------------------------------------+
     | EmbedderRef       | Reference bundling embedder name with optional       |
@@ -68,14 +68,14 @@ Usage with Genkit:
     - ai.embed_many(): Embed multiple pieces of content in batch
 
 Example - Single embedding:
-    >>> embeddings = await ai.embed(embedder='googleai/gemini-embedding-001', content='Hello, world!')
+    >>> embeddings = await ai.embed(embedder='googleai/text-embedding-004', content='Hello, world!')
     >>> vector = embeddings[0].embedding
 
 Example - Batch embedding:
-    >>> embeddings = await ai.embed_many(embedder='googleai/gemini-embedding-001', content=['Doc 1', 'Doc 2', 'Doc 3'])
+    >>> embeddings = await ai.embed_many(embedder='googleai/text-embedding-004', content=['Doc 1', 'Doc 2', 'Doc 3'])
 
 Example - Using EmbedderRef with configuration:
-    >>> ref = create_embedder_ref('googleai/gemini-embedding-001', config={'task_type': 'CLUSTERING'}, version='v1')
+    >>> ref = create_embedder_ref('googleai/text-embedding-004', config={'task_type': 'CLUSTERING'}, version='v1')
     >>> embeddings = await ai.embed(embedder=ref, content='My text')
 
 Note on embed() vs embed_many():
@@ -195,16 +195,12 @@ def embedder_action_metadata(
 
     embedder_info['customOptions'] = options.config_schema if options.config_schema else None
 
-    # Default sample input for easier testing in Dev UI
-    sample_input: dict[str, object] = {'input': [{'content': [{'text': 'Hello, world!'}]}]}
-
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.EMBEDDER),
         name=name,
         input_json_schema=to_json_schema(EmbedRequest),
         output_json_schema=to_json_schema(EmbedResponse),
         metadata=embedder_metadata_dict,
-        sample_input=sample_input,
     )
 
 
