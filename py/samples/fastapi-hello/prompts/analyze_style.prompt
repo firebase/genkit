@@ -1,24 +1,24 @@
 ---
 model: googleai/gemini-2.0-flash
+input:
+  schema:
+    code: string
+    language?: string
 output:
-  format: json
+  schema: Analysis
 ---
-Analyze this {{language}} code for STYLE and best practice issues ONLY.
 
+You are a code style expert. Analyze the following {{language}} code for style issues and best practices.
+
+Code:
 ```{{language}}
 {{code}}
 ```
 
-Look for:
-- Missing type hints
-- Poor naming conventions
-- Code duplication
-- Complex functions that should be split
-- Missing documentation
-- Inconsistent formatting
+Focus on:
+- Naming conventions
+- Code organization
+- Documentation
+- Idiomatic patterns for {{language}}
 
-IMPORTANT:
-- Only report STYLE issues. Do not report security or bug issues.
-- Include the exact line number where the issue occurs.
-- All issues must have category: "style"
-- If code follows best practices, return an empty issues list.
+Return ONLY important style issues.

@@ -1,42 +1,56 @@
-# FastAPI Hello - BugBot Code Reviewer
+# BugBot: AI Code Reviewer
 
-A FastAPI application demonstrating Genkit's typed prompts and Dev UI integration.
+AI-powered code review using Genkit and FastAPI.
 
 ## Features
 
-- **Typed Prompts**: Python Pydantic types as the single source of truth for schemas
-- **Dev UI Integration**: Full Genkit Developer UI support for debugging
-- **Parallel Analysis**: Security, bugs, and style analysis run concurrently
+- **Security Analysis**: Detects SQL injection, XSS, and other vulnerabilities
+- **Bug Detection**: Finds potential bugs and logic errors
+- **Style Review**: Checks code style and best practices
+- **Streaming Support**: Real-time analysis via Server-Sent Events
+- **Dev UI Integration**: Test flows directly in Genkit Developer UI
 
 ## Quick Start
 
 ```bash
-# Set your API key
-export GEMINI_API_KEY=your-key-here
-
-# Run with Genkit Dev UI
-genkit start -- uv run src/main.py
+export GEMINI_API_KEY="your-api-key"
+./run.sh
 ```
 
-Then open:
-- **API**: http://localhost:8080
-- **Dev UI**: http://localhost:4000
+The API will start on http://localhost:8080 with:
+- Swagger UI at http://localhost:8080/docs
+- Genkit Dev UI at http://localhost:4000
 
 ## API Endpoints
 
+### Native FastAPI Endpoints
+
 ```bash
-# Full code review (security + bugs + style)
-curl -X POST "http://localhost:8080/review?code=your_code_here"
+# Review code
+curl -X POST http://localhost:8080/review \
+  -H "Content-Type: application/json" \
+  -d '{"code": "query = f\"SELECT * FROM users WHERE id={user_input}\"", "language": "python"}'
 
 # Security analysis only
-curl -X POST "http://localhost:8080/review/security?code=your_code_here"
-
-# Diff review
-curl -X POST "http://localhost:8080/review/diff?diff=your_diff_here"
+curl -X POST http://localhost:8080/review/security \
+  -H "Content-Type: application/json" \
+  -d '{"code": "eval(user_input)", "language": "python"}'
 ```
 
-## Key Concepts
+### Genkit Flow Endpoints (with streaming)
 
-1. **Python-First Schemas**: Define types in Python, schemas auto-generated
-2. **Dotprompt Files**: Templates separate from code, just `output.format: json`
-3. **Typed Outputs**: `response.output` returns Pydantic instances, not dicts
+```bash
+# Review with streaming (SSE)
+curl -X POST http://localhost:8080/flow/review?stream=true \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"code": "x = eval(input())", "language": "python"}}'
+```
+
+## Architecture
+
+This sample demonstrates the Genkit FastAPI plugin:
+
+- **`genkit_lifespan(ai)`**: Connects FastAPI to Genkit Dev UI
+- **`@genkit_fastapi_handler(ai)`**: Exposes flows as HTTP endpoints with streaming
+- **Parallel Flow Execution**: Runs multiple analyzers concurrently
+- **Typed Prompts**: Strongly-typed inputs and outputs using Pydantic

@@ -139,21 +139,21 @@ app = FastAPI(title='BugBot', description='AI-powered code review API', lifespan
 
 
 @app.post('/review')
-async def review(payload: CodeInput) -> Analysis:
+async def review(code: str, language: str = 'python') -> Analysis:
     """Review code for security, bugs, and style issues."""
-    return await review_code(payload)
+    return await review_code(CodeInput(code=code, language=language))
 
 
 @app.post('/review/security')
-async def review_security_endpoint(payload: CodeInput) -> Analysis:
+async def review_security_endpoint(code: str, language: str = 'python') -> Analysis:
     """Review code for security issues only."""
-    return await analyze_security(payload)
+    return await analyze_security(CodeInput(code=code, language=language))
 
 
 @app.post('/review/diff')
-async def review_diff_endpoint(payload: DiffInput) -> Analysis:
+async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
     """Review a code diff."""
-    return await review_diff(payload)
+    return await review_diff(DiffInput(diff=diff, context=context))
 
 
 # =============================================================================

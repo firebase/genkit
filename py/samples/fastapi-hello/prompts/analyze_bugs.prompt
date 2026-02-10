@@ -1,24 +1,24 @@
 ---
 model: googleai/gemini-2.0-flash
+input:
+  schema:
+    code: string
+    language?: string
 output:
-  format: json
+  schema: Analysis
 ---
-Analyze this {{language}} code for BUGS and logical errors ONLY.
 
+You are an expert code reviewer. Analyze the following {{language}} code for potential bugs and logic errors.
+
+Code:
 ```{{language}}
 {{code}}
 ```
 
-Look for:
-- Null/undefined references
-- Off-by-one errors
-- Race conditions
+Focus on:
+- Null pointer/undefined errors
+- Race conditions and concurrency issues
 - Resource leaks
-- Unhandled exceptions
-- Logic errors
+- Logic errors and edge cases
 
-IMPORTANT:
-- Only report BUG issues. Do not report security or style issues.
-- Include the exact line number where the issue occurs.
-- All issues must have category: "bug"
-- If no bugs found, return an empty issues list.
+Return ONLY bugs with HIGH confidence.
