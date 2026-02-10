@@ -1,0 +1,24 @@
+---
+model: googleai/gemini-2.0-flash
+output:
+  format: json
+---
+Analyze this {{language}} code for SECURITY vulnerabilities ONLY.
+
+```{{language}}
+{{code}}
+```
+
+Look for:
+- SQL injection
+- XSS vulnerabilities
+- Command injection
+- Hardcoded secrets/credentials
+- Path traversal
+- Insecure deserialization
+
+IMPORTANT:
+- Only report SECURITY issues. Do not report bugs, style, or documentation issues.
+- Include the exact line number where the issue occurs.
+- All issues must have category: "security"
+- If the code is secure, return an empty issues list.
