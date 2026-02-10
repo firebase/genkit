@@ -141,7 +141,7 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 # Define a flow to index documents into the "vector store"
 # genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
 @ai.flow(name='index_pdf')
-async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf') -> None:
+async def index_pdf(file_path: str = 'samples/framework-evaluator-demo/docs/cat-wiki.pdf') -> None:
     """Index a PDF file.
 
     Args:
@@ -151,7 +151,7 @@ async def index_pdf(file_path: str = 'samples/evaluator-demo/docs/cat-wiki.pdf')
         >>> await index_pdf('doc.pdf')
     """
     if not file_path:
-        file_path = 'samples/evaluator-demo/docs/cat-wiki.pdf'
+        file_path = 'samples/framework-evaluator-demo/docs/cat-wiki.pdf'
     resolved_path = pathlib.Path(file_path).resolve()
 
     # Extract text from PDF

@@ -32,7 +32,7 @@ from genkit.types import Document, TextPart
 # Environment Variables
 LOCATION = os.environ['LOCATION']
 PROJECT_ID = os.environ['PROJECT_ID']
-EMBEDDING_MODEL = 'text-embedding-004'
+EMBEDDING_MODEL = 'gemini-embedding-001'
 
 BIGQUERY_DATASET_NAME = os.environ['BIGQUERY_DATASET_NAME']
 BIGQUERY_TABLE_NAME = os.environ['BIGQUERY_TABLE_NAME']

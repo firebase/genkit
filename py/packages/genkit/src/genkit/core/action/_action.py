@@ -92,7 +92,8 @@ from contextvars import ContextVar
 from functools import cached_property
 from typing import Any, Generic, Protocol, cast, get_type_hints
 
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
+from pydantic.alias_generators import to_camel
 from typing_extensions import Never, TypeVar
 
 from genkit.aio import Channel, ensure_async
@@ -524,6 +525,8 @@ class Action(Generic[InputT, OutputT, ChunkT]):
 class ActionMetadata(BaseModel):
     """Metadata for actions."""
 
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     kind: ActionKind
     name: str
     description: str | None = None
@@ -533,6 +536,7 @@ class ActionMetadata(BaseModel):
     output_json_schema: dict[str, object] | None = None
     stream_schema: object | None = None
     metadata: dict[str, object] | None = None
+    sample_input: dict[str, object] | None = None
 
 
 _SyncTracingWrapper = Callable[[object | None, ActionRunContext], ActionResponse[Any]]

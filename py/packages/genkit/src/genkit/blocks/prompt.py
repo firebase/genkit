@@ -851,9 +851,11 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         middleware = effective_opts.get('use') or self._use
         context = effective_opts.get('context')
 
+        rendered_options = await self.render(input=input, opts=effective_opts)
+
         result = await generate_action(
             self._registry,
-            await self.render(input=input, opts=effective_opts),
+            rendered_options,
             on_chunk=on_chunk,
             middleware=middleware,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]

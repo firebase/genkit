@@ -283,7 +283,7 @@ class GoogleAI(Plugin):
         +------------------+-------------------+--------------------------------+
         | Gemini/Gemma     | MODEL             | googleai/gemini-2.0-flash-001  |
         | Imagen           | MODEL             | googleai/imagen-3.0-generate   |
-        | Embedders        | EMBEDDER          | googleai/text-embedding-004    |
+        | Embedders        | EMBEDDER          | googleai/gemini-embedding-001  |
         | Veo (video)      | BACKGROUND_MODEL  | googleai/veo-2.0-generate-001  |
         +------------------+-------------------+--------------------------------+
 
