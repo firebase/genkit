@@ -82,6 +82,7 @@ from genkit.blocks.document import Document
 from genkit.blocks.tools import ToolInterruptError
 from genkit.core.action._action import ActionRunContext
 from genkit.core.error import GenkitError
+from genkit.model_types import GenerationCommonConfig, get_effective_api_key, get_request_api_key
 from genkit.core.typing import (
     # Eval types
     BaseEvalDataPoint,
@@ -104,7 +105,6 @@ from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    GenerationCommonConfig,
     GenerationUsage,
     Media,
     MediaPart,
@@ -162,6 +162,8 @@ __all__ = [
     'GenerateResponse',
     'GenerateResponseChunk',
     'GenerationCommonConfig',
+    'get_request_api_key',
+    'get_effective_api_key',
     'GenerationUsage',
     'OutputConfig',
     'ToolChoice',
