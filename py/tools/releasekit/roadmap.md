@@ -98,7 +98,8 @@ All external tool calls go through the backend shim layer (see Phase 0).
  5. for each topo level:
       pin ──► pm.build(no_sources=True) (D-3) ──► verify ──► checksum
           ──► pm.publish(check_url=...) (D-7) ──► pm.resolve_check() (D-9)
-          ──► registry.poll_available() ──► pm.smoke_test() ──► restore
+          ──► registry.poll_available() ──► registry.verify_checksum()
+          ──► pm.smoke_test() ──► restore
  6. push              vcs.push() commit + tags
  7. GitHub Release    forge.create_release() (graceful skip, D-10)
  8. changelog         vcs.log() + prerelease rollup mode (D-4)
@@ -496,9 +497,9 @@ publish → poll → verify) with zero failures.
 | Module | Description | Est. Lines | Status |
 |--------|-------------|-----------|--------|
 | `ui.py` | **Rich Live progress table** with observer pattern. `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests). 9 pipeline stages with emoji/color/progress bars. ETA estimation. Error panel. Auto-detects TTY via `create_progress_ui()`. Integrated into `publisher.py` via `PublishObserver` callbacks. | ~560 | ✅ Done (PR #4558) |
-| `checks.py` | **Standalone workspace health checks** (`releasekit check`). 10 checks: cycles, self_deps, orphan_deps, missing_license, missing_readme, missing_py_typed, version_consistency, naming_convention, metadata_completeness, stale_artifacts. Replaces `check-cycles`. Found flask self-dep bug (#4562). | ~413 | ✅ Done (PR #4563) |
+| `checks.py` | **Standalone workspace health checks** (`releasekit check`). 10 checks: cycles, self_deps, orphan_deps, missing_license, missing_readme, missing_py_typed, version_consistency, naming_convention, metadata_completeness, stale_artifacts. Replaces `check-cycles`. Found flask self-dep bug (#4562). Checks are categorized as universal (cycles, self_deps, orphan_deps, missing_license, missing_readme, stale_artifacts) or Python-specific (missing_py_typed, version_consistency, naming_convention, metadata_completeness). | ~413 | ✅ Done (PR #4563) |
 | `preflight.py` (full) | Add: `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), trusted publisher check. OSS file checks moved to `checks.py`. | +100 | |
-| `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8). | +200 | |
+| `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8), **SHA-256 post-publish checksum verification** (download from PyPI JSON API, compare against locally-computed checksums from `_compute_dist_checksum`, fail-fast on mismatch). | +220 | |
 
 **`ui.py` — Rich Live Progress Table (Detailed Spec)**:
 
