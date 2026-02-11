@@ -141,7 +141,7 @@ export function defineGoogleAIEmbedder(
     if (!apiKey)
       throw new Error(
         'Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-        'For more details see https://genkit.dev/docs/plugins/google-genai'
+          'For more details see https://genkit.dev/docs/plugins/google-genai'
       );
   }
   const embedder: EmbedderReference =
