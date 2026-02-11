@@ -112,11 +112,14 @@ export async function resolveToolRequest(
     index: number,
     req: ToolRequestPart,
     ctx: ActionRunOptions<any>
-  ): Promise<{
-    response?: ToolResponsePart;
-    interrupt?: ToolRequestPart;
-    preamble?: GenerateActionOptions;
-  }> => {
+  ): Promise<
+    | {
+        response?: ToolResponsePart;
+        interrupt?: ToolRequestPart;
+        preamble?: GenerateActionOptions;
+      }
+    | void
+  > => {
     if (index === middleware.length) {
       return executeTool(req, ctx);
     }
@@ -207,7 +210,7 @@ export async function resolveToolRequest(
   };
 
   const initialCtx = runOptions ?? toRunOptions(part);
-  return dispatch(0, part, initialCtx);
+  return (await dispatch(0, part, initialCtx)) || {};
 }
 
 /**
@@ -277,6 +280,10 @@ export async function resolveToolRequests(
 
   if (hasInterrupts) {
     return { revisedModelMessage };
+  }
+
+  if (responseParts.length === 0 && !transferPreamble) {
+    return {};
   }
 
   return {

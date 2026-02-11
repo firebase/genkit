@@ -495,16 +495,23 @@ async function generateActionTurn(
   }
 
   // if the loop will continue, stream out the tool response message...
-  streamingCallback?.(
-    makeChunk('tool', {
-      content: toolMessage!.content,
-    })
-  );
+  if (toolMessage) {
+    streamingCallback?.(
+      makeChunk('tool', {
+        content: toolMessage.content,
+      })
+    );
+  }
+
+  const messages = [...rawRequest.messages, generatedMessage.toJSON()];
+  if (toolMessage) {
+    messages.push(toolMessage);
+  }
 
   let nextRequest = {
     ...rawRequest,
 
-    messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
+    messages,
   };
 
   nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
