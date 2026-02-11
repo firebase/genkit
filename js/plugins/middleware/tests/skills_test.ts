@@ -30,8 +30,8 @@ describe('skills middleware', () => {
     // Create skill 1
     await fs.mkdir(path.join(tempDir, 'writer'));
     await fs.writeFile(
-        path.join(tempDir, 'writer', 'SKILL.md'),
-        `---
+      path.join(tempDir, 'writer', 'SKILL.md'),
+      `---
 name: Writer
 description: A creative writer skill.
 ---
@@ -40,8 +40,8 @@ You are a creative writer.`
     // Create skill 2 (no description)
     await fs.mkdir(path.join(tempDir, 'coder'));
     await fs.writeFile(
-        path.join(tempDir, 'coder', 'SKILL.md'),
-        `---
+      path.join(tempDir, 'coder', 'SKILL.md'),
+      `---
 name: Coder
 ---
 You are a coder.`
@@ -88,33 +88,45 @@ You are a coder.`
   }
 
   it('injects system prompt with skills', async () => {
-      const ai = genkit({});
-      const pm = createEchoModel(ai);
-      const result = (await ai.generate({
-        model: pm,
-        prompt: 'test',
-        use: [skills({ skillsDirectory: tempDir })],
-      })) as any;
+    const ai = genkit({});
+    const pm = createEchoModel(ai);
+    const result = (await ai.generate({
+      model: pm,
+      prompt: 'test',
+      use: [skills({ skillsDirectory: tempDir })],
+    })) as any;
 
-      const systemMsg = result.messages.find((m: any) => m.role === 'system');
-      assert.ok(systemMsg, 'System message should be injected');
-      assert.ok(systemMsg.content[0].text.includes('<skills>'), 'Should contain <skills> tag');
-      assert.ok(systemMsg.content[0].text.includes('Writer - A creative writer skill'), 'Should list Writer');
-      assert.ok(systemMsg.content[0].text.includes('Coder'), 'Should list Coder');
-      assert.ok(!systemMsg.content[0].text.includes('empty'), 'Should not list empty skill');
+    const systemMsg = result.messages.find((m: any) => m.role === 'system');
+    assert.ok(systemMsg, 'System message should be injected');
+    assert.ok(
+      systemMsg.content[0].text.includes('<skills>'),
+      'Should contain <skills> tag'
+    );
+    assert.ok(
+      systemMsg.content[0].text.includes('Writer - A creative writer skill'),
+      'Should list Writer'
+    );
+    assert.ok(systemMsg.content[0].text.includes('Coder'), 'Should list Coder');
+    assert.ok(
+      !systemMsg.content[0].text.includes('empty'),
+      'Should not list empty skill'
+    );
   });
 
   it('use_skill tool retrieves content', async () => {
-      const ai = genkit({});
-      const pm = createToolModel(ai, 'use_skill', { skillName: 'writer' });
-      const result = (await ai.generate({
-        model: pm,
-        prompt: 'test',
-        use: [skills({ skillsDirectory: tempDir })],
-      })) as any;
+    const ai = genkit({});
+    const pm = createToolModel(ai, 'use_skill', { skillName: 'writer' });
+    const result = (await ai.generate({
+      model: pm,
+      prompt: 'test',
+      use: [skills({ skillsDirectory: tempDir })],
+    })) as any;
 
-      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
-      assert.ok(toolMsg, 'Tool execution should succeed');
-      assert.match(toolMsg.content[0].toolResponse.output, /You are a creative writer/);
+    const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+    assert.ok(toolMsg, 'Tool execution should succeed');
+    assert.match(
+      toolMsg.content[0].toolResponse.output,
+      /You are a creative writer/
+    );
   });
 });
