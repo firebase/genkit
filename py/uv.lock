@@ -31,6 +31,7 @@ members = [
     "genkit-plugin-deepseek",
     "genkit-plugin-dev-local-vectorstore",
     "genkit-plugin-evaluators",
+    "genkit-plugin-fastapi",
     "genkit-plugin-firebase",
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
@@ -69,6 +70,7 @@ members = [
     "provider-vertex-ai-vector-search-firestore",
     "provider-xai-hello",
     "web-endpoints-hello",
+    "web-fastapi-bugbot",
     "web-flask-hello",
     "web-multi-server",
     "web-short-n-long",
@@ -2202,7 +2204,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-logging", specifier = ">=0.60b1" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
-    { name = "pillow" },
+    { name = "pillow", specifier = ">=12.1.1" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "python-multipart", specifier = ">=0.0.22" },
@@ -2392,6 +2394,23 @@ requires-dist = [
     { name = "jsonata-python", specifier = ">=0.5.3" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+]
+
+[[package]]
+name = "genkit-plugin-fastapi"
+version = "0.5.0"
+source = { editable = "plugins/fastapi" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "genkit" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.100.0" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -2650,6 +2669,7 @@ dependencies = [
     { name = "genkit-plugin-deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-evaluators" },
+    { name = "genkit-plugin-fastapi" },
     { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
@@ -2738,6 +2758,7 @@ requires-dist = [
     { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
+    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
@@ -9291,6 +9312,34 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
 provides-extras = ["aws", "azure", "dev", "docs", "gcp", "observability", "sentry", "test"]
+
+[[package]]
+name = "web-fastapi-bugbot"
+version = "0.1.0"
+source = { editable = "samples/web-fastapi-bugbot" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-fastapi" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "python-dotenv" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
+    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "web-flask-hello"
