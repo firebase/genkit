@@ -24,8 +24,7 @@ export function defineSearchAndReplaceTool(
   return tool(
     {
       name: 'search_and_replace',
-      description:
-        'Replaces text in a file using search and replace blocks. ',
+      description: 'Replaces text in a file using search and replace blocks. ',
       inputSchema: z.object({
         filePath: z.string().describe('File path relative to root.'),
         edits: z.array(
@@ -82,9 +81,7 @@ export function defineSearchAndReplaceTool(
 
         for (const splitIndex of separatorIndices) {
           const search = innerContent.substring(0, splitIndex);
-          const replace = innerContent.substring(
-            splitIndex + separator.length
-          );
+          const replace = innerContent.substring(splitIndex + separator.length);
 
           if (content.includes(search)) {
             // If we already have a match, only replace it if this one is longer (more specific)

@@ -15,7 +15,7 @@
  */
 
 import * as fs from 'fs/promises';
-import { ToolAction, z,  } from 'genkit';
+import { ToolAction, z } from 'genkit';
 import { tool } from 'genkit/beta';
 import path from 'path';
 

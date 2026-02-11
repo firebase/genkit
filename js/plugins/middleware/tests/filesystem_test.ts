@@ -277,8 +277,7 @@ hello universe
       const toolMsg = result.messages.find((m: any) => m.role === 'tool');
       if (!toolMsg) {
         const errorMsg = result.messages.find(
-          (m: any) =>
-            m.role === 'user' && m.content[0].text.includes('failed')
+          (m: any) => m.role === 'user' && m.content[0].text.includes('failed')
         );
         if (errorMsg) {
           throw new Error(
