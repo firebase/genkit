@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.tags import TagResult, create_tags, delete_tags, format_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
@@ -55,11 +56,11 @@ class FakeVCS:
         self.deleted_tags: list[tuple[str, bool]] = []  # (tag_name, remote)
         self.push_calls: list[dict[str, object]] = []
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """Check if a tag exists."""
         return tag_name in self.existing_tags
 
-    def tag(
+    async def tag(
         self,
         tag_name: str,
         *,
@@ -73,7 +74,7 @@ class FakeVCS:
         self.existing_tags.add(tag_name)
         return _OK
 
-    def delete_tag(
+    async def delete_tag(
         self,
         tag_name: str,
         *,
@@ -85,7 +86,7 @@ class FakeVCS:
         self.existing_tags.discard(tag_name)
         return _OK
 
-    def push(
+    async def push(
         self,
         *,
         tags: bool = False,
@@ -98,19 +99,19 @@ class FakeVCS:
         self.push_calls.append({'tags': tags, 'remote': remote})
         return _OK
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Stub — always clean."""
         return True
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Stub — not shallow."""
         return False
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Stub SHA."""
         return 'abc123'
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -120,11 +121,11 @@ class FakeVCS:
         """Stub log."""
         return []
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Stub diff."""
         return []
 
-    def commit(
+    async def commit(
         self,
         message: str,
         *,
@@ -134,7 +135,7 @@ class FakeVCS:
         """Stub commit."""
         return _OK
 
-    def checkout_branch(
+    async def checkout_branch(
         self,
         branch: str,
         *,
@@ -171,11 +172,11 @@ class FakeForge:
         self.releases_created: list[dict[str, object]] = []
         self.releases_deleted: list[str] = []
 
-    def is_available(self) -> bool:
+    async def is_available(self) -> bool:
         """Check if the forge CLI is available."""
         return self._available
 
-    def create_release(
+    async def create_release(
         self,
         tag: str,
         *,
@@ -199,7 +200,7 @@ class FakeForge:
         })
         return _OK
 
-    def delete_release(
+    async def delete_release(
         self,
         tag: str,
         *,
@@ -211,7 +212,7 @@ class FakeForge:
         self.releases_deleted.append(tag)
         return _OK
 
-    def promote_release(
+    async def promote_release(
         self,
         tag: str,
         *,
@@ -220,11 +221,11 @@ class FakeForge:
         """Stub promote_release."""
         return _OK
 
-    def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
+    async def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
         """Stub list_releases."""
         return []
 
-    def create_pr(
+    async def create_pr(
         self,
         *,
         title: str,
@@ -236,7 +237,7 @@ class FakeForge:
         """Stub create_pr."""
         return _OK
 
-    def pr_data(self, pr_number: int) -> dict[str, Any]:
+    async def pr_data(self, pr_number: int) -> dict[str, Any]:
         """Stub pr_data."""
         return {}
 
@@ -306,12 +307,13 @@ class TestTagResult:
 class TestCreateTags:
     """Tests for create_tags function."""
 
-    def test_creates_per_package_and_umbrella_tags(self) -> None:
+    @pytest.mark.asyncio
+    async def test_creates_per_package_and_umbrella_tags(self) -> None:
         """Creates one tag per bumped package plus umbrella."""
         manifest = _make_manifest('genkit', 'genkit-plugin-foo')
         vcs = FakeVCS()
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if not result.ok:
             raise AssertionError(f'Expected ok, got failures: {result.failed}')
@@ -321,12 +323,13 @@ class TestCreateTags:
         if not result.pushed:
             raise AssertionError('Expected tags to be pushed')
 
-    def test_skips_existing_tags(self) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_existing_tags(self) -> None:
         """Existing tags are skipped, not overwritten."""
         manifest = _make_manifest('genkit', 'genkit-plugin-foo')
         vcs = FakeVCS(existing_tags={'genkit-v0.5.0'})
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if not result.ok:
             raise AssertionError(f'Failures: {result.failed}')
@@ -335,29 +338,32 @@ class TestCreateTags:
         if 'genkit-plugin-foo-v0.5.0' not in result.created:
             raise AssertionError(f'Expected genkit-plugin-foo-v0.5.0 created: {result.created}')
 
-    def test_skips_existing_umbrella_tag(self) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_existing_umbrella_tag(self) -> None:
         """Existing umbrella tag is skipped."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags={'v0.5.0'})
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if 'v0.5.0' not in result.skipped:
             raise AssertionError(f'Expected v0.5.0 in skipped: {result.skipped}')
         if 'genkit-v0.5.0' not in result.created:
             raise AssertionError(f'Expected genkit-v0.5.0 created: {result.created}')
 
-    def test_empty_manifest_no_tags(self) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_manifest_no_tags(self) -> None:
         """Empty manifest (no bumped packages) creates no tags."""
         manifest = ReleaseManifest(git_sha='abc123', packages=[])
         vcs = FakeVCS()
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if result.created:
             raise AssertionError(f'Expected no tags, got {result.created}')
 
-    def test_skipped_packages_not_tagged(self) -> None:
+    @pytest.mark.asyncio
+    async def test_skipped_packages_not_tagged(self) -> None:
         """Skipped packages (unchanged) are not tagged."""
         packages = [
             PackageVersion(
@@ -378,7 +384,7 @@ class TestCreateTags:
         manifest = ReleaseManifest(git_sha='abc123', packages=packages)
         vcs = FakeVCS()
 
-        create_tags(manifest=manifest, vcs=vcs)
+        await create_tags(manifest=manifest, vcs=vcs)
 
         tag_names = [t[0] for t in vcs.created_tags]
         if 'genkit-v0.5.0' in tag_names:
@@ -386,46 +392,50 @@ class TestCreateTags:
         if 'genkit-plugin-foo-v0.5.0' not in tag_names:
             raise AssertionError('Bumped package should be tagged')
 
-    def test_tag_error_recorded(self) -> None:
+    @pytest.mark.asyncio
+    async def test_tag_error_recorded(self) -> None:
         """Tag creation failure is recorded but doesn't crash."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(tag_error='Permission denied')
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if result.ok:
             raise AssertionError('Expected failure')
         if 'genkit-v0.5.0' not in result.failed:
             raise AssertionError(f'Expected genkit-v0.5.0 in failed: {result.failed}')
 
-    def test_push_error_non_fatal(self) -> None:
+    @pytest.mark.asyncio
+    async def test_push_error_non_fatal(self) -> None:
         """Push failure is non-fatal — tags exist locally."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(push_error='Network error')
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        result = await create_tags(manifest=manifest, vcs=vcs)
 
         if 'genkit-v0.5.0' not in result.created:
             raise AssertionError(f'Expected genkit-v0.5.0 created: {result.created}')
         if result.pushed:
             raise AssertionError('Expected pushed=False after push error')
 
-    def test_no_push_when_failures_exist(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_push_when_failures_exist(self) -> None:
         """Tags are not pushed when there are creation failures."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(tag_error='Failed')
 
-        create_tags(manifest=manifest, vcs=vcs)
+        await create_tags(manifest=manifest, vcs=vcs)
 
         if vcs.push_calls:
             raise AssertionError('Should not push when tag creation failed')
 
-    def test_custom_tag_format(self) -> None:
+    @pytest.mark.asyncio
+    async def test_custom_tag_format(self) -> None:
         """Custom tag format is respected."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
 
-        result = create_tags(
+        result = await create_tags(
             manifest=manifest,
             vcs=vcs,
             tag_format='py/{name}@{version}',
@@ -441,13 +451,14 @@ class TestCreateTags:
 class TestCreateTagsWithForge:
     """Tests for create_tags with GitHub Release integration."""
 
-    def test_creates_published_release_local_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_creates_published_release_local_mode(self) -> None:
         """Local mode creates a published (not draft) release."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
         forge = FakeForge()
 
-        result = create_tags(
+        result = await create_tags(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -465,13 +476,14 @@ class TestCreateTagsWithForge:
         if result.release_url == '':
             raise AssertionError('Expected release_url to be set')
 
-    def test_creates_draft_release_ci_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_creates_draft_release_ci_mode(self) -> None:
         """CI mode creates a draft release."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
         forge = FakeForge()
 
-        create_tags(
+        await create_tags(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -484,7 +496,8 @@ class TestCreateTagsWithForge:
         if not release['draft']:
             raise AssertionError('CI mode should create draft release')
 
-    def test_ci_mode_attaches_manifest_asset(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_ci_mode_attaches_manifest_asset(self, tmp_path: Path) -> None:
         """CI mode attaches the manifest JSON as a release asset."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
@@ -492,7 +505,7 @@ class TestCreateTagsWithForge:
         manifest_file = tmp_path / 'manifest.json'
         manifest_file.write_text('{}', encoding='utf-8')
 
-        create_tags(
+        await create_tags(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -507,49 +520,53 @@ class TestCreateTagsWithForge:
         if assets[0] != manifest_file:
             raise AssertionError(f'Expected {manifest_file}, got {assets[0]}')
 
-    def test_forge_unavailable_skips_release(self) -> None:
+    @pytest.mark.asyncio
+    async def test_forge_unavailable_skips_release(self) -> None:
         """Unavailable forge silently skips release creation."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
         forge = FakeForge(available=False)
 
-        result = create_tags(manifest=manifest, vcs=vcs, forge=forge)
+        result = await create_tags(manifest=manifest, vcs=vcs, forge=forge)
 
         if forge.releases_created:
             raise AssertionError('Should not create release when forge unavailable')
         if not result.ok:
             raise AssertionError('Tags should succeed even without forge')
 
-    def test_no_forge_skips_release(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_forge_skips_release(self) -> None:
         """No forge backend silently skips release creation."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
 
-        result = create_tags(manifest=manifest, vcs=vcs, forge=None)
+        result = await create_tags(manifest=manifest, vcs=vcs, forge=None)
 
         if not result.ok:
             raise AssertionError('Tags should succeed without forge')
 
-    def test_release_error_non_fatal(self) -> None:
+    @pytest.mark.asyncio
+    async def test_release_error_non_fatal(self) -> None:
         """Release creation failure is non-fatal."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
         forge = FakeForge(create_error='API rate limit')
 
-        result = create_tags(manifest=manifest, vcs=vcs, forge=forge)
+        result = await create_tags(manifest=manifest, vcs=vcs, forge=forge)
 
         if not result.ok:
             raise AssertionError('Tag operations should be ok despite release failure')
         if not result.pushed:
             raise AssertionError('Tags should still be pushed')
 
-    def test_prerelease_flag(self) -> None:
+    @pytest.mark.asyncio
+    async def test_prerelease_flag(self) -> None:
         """Prerelease flag is passed through to the forge."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS()
         forge = FakeForge()
 
-        create_tags(
+        await create_tags(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -564,7 +581,8 @@ class TestCreateTagsWithForge:
 class TestDeleteTags:
     """Tests for delete_tags (rollback) function."""
 
-    def test_deletes_existing_tags(self) -> None:
+    @pytest.mark.asyncio
+    async def test_deletes_existing_tags(self) -> None:
         """Deletes per-package and umbrella tags that exist."""
         manifest = _make_manifest('genkit', 'genkit-plugin-foo')
         vcs = FakeVCS(
@@ -575,7 +593,7 @@ class TestDeleteTags:
             }
         )
 
-        result = delete_tags(manifest=manifest, vcs=vcs)
+        result = await delete_tags(manifest=manifest, vcs=vcs)
 
         if not result.ok:
             raise AssertionError(f'Failures: {result.failed}')
@@ -583,57 +601,62 @@ class TestDeleteTags:
         if result.created != expected:
             raise AssertionError(f'Expected {expected} deleted, got {result.created}')
 
-    def test_skips_nonexistent_tags(self) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_nonexistent_tags(self) -> None:
         """Tags that don't exist are skipped silently."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags=set())
 
-        result = delete_tags(manifest=manifest, vcs=vcs)
+        result = await delete_tags(manifest=manifest, vcs=vcs)
 
         if result.created:
             raise AssertionError(f'Should not delete non-existent tags: {result.created}')
         if 'genkit-v0.5.0' not in result.skipped:
             raise AssertionError(f'Expected genkit-v0.5.0 in skipped: {result.skipped}')
 
-    def test_deletes_github_release(self) -> None:
+    @pytest.mark.asyncio
+    async def test_deletes_github_release(self) -> None:
         """Deletes the GitHub Release when forge is available."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
         forge = FakeForge()
 
-        delete_tags(manifest=manifest, vcs=vcs, forge=forge)
+        await delete_tags(manifest=manifest, vcs=vcs, forge=forge)
 
         if 'v0.5.0' not in forge.releases_deleted:
             raise AssertionError(f'Expected v0.5.0 deleted: {forge.releases_deleted}')
 
-    def test_delete_release_error_non_fatal(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_release_error_non_fatal(self) -> None:
         """Release deletion failure is non-fatal."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
         forge = FakeForge(delete_error='Not found')
 
-        result = delete_tags(manifest=manifest, vcs=vcs, forge=forge)
+        result = await delete_tags(manifest=manifest, vcs=vcs, forge=forge)
 
         if not result.ok:
             raise AssertionError('Tag deletion should succeed despite release error')
 
-    def test_remote_delete(self) -> None:
+    @pytest.mark.asyncio
+    async def test_remote_delete(self) -> None:
         """Tags are deleted from remote when remote=True."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
 
-        delete_tags(manifest=manifest, vcs=vcs, remote=True)
+        await delete_tags(manifest=manifest, vcs=vcs, remote=True)
 
         for tag_name, remote in vcs.deleted_tags:
             if not remote:
                 raise AssertionError(f'Expected remote=True for {tag_name}')
 
-    def test_local_only_delete(self) -> None:
+    @pytest.mark.asyncio
+    async def test_local_only_delete(self) -> None:
         """Tags are deleted locally only when remote=False."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
 
-        delete_tags(manifest=manifest, vcs=vcs, remote=False)
+        await delete_tags(manifest=manifest, vcs=vcs, remote=False)
 
         for tag_name, remote in vcs.deleted_tags:
             if remote:

@@ -268,7 +268,7 @@ def render_changelog(changelog: Changelog) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def generate_changelog(
+async def generate_changelog(
     *,
     vcs: VCS,
     version: str,
@@ -300,7 +300,7 @@ def generate_changelog(
     if exclude_types is None:
         exclude_types = _DEFAULT_EXCLUDE_TYPES
 
-    log_lines = vcs.log(since_tag=since_tag, paths=paths, format=log_format)
+    log_lines = await vcs.log(since_tag=since_tag, paths=paths, format=log_format)
     logger.info(
         'changelog_commits_found',
         count=len(log_lines),
@@ -339,7 +339,7 @@ def generate_changelog(
     return Changelog(version=version, sections=sections, date=date)
 
 
-def generate_umbrella_changelog(
+async def generate_umbrella_changelog(
     *,
     vcs: VCS,
     version: str,
@@ -362,7 +362,7 @@ def generate_umbrella_changelog(
     Returns:
         A :class:`Changelog` covering the whole workspace.
     """
-    return generate_changelog(
+    return await generate_changelog(
         vcs=vcs,
         version=version,
         since_tag=since_tag,

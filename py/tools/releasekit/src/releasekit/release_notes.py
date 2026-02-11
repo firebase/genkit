@@ -183,7 +183,7 @@ def render_release_notes(
     return result.strip() + '\n'
 
 
-def generate_release_notes(
+async def generate_release_notes(
     *,
     manifest: ReleaseManifest,
     vcs: VCS,
@@ -221,7 +221,7 @@ def generate_release_notes(
         since_tag = _format_tag(tag_format, pkg.name, pkg.old_version)
 
         effective_since: str | None = since_tag
-        if not vcs.tag_exists(since_tag):
+        if not await vcs.tag_exists(since_tag):
             logger.info(
                 'release_notes_no_previous_tag',
                 package=pkg.name,
@@ -230,7 +230,7 @@ def generate_release_notes(
             effective_since = None
 
         pkg_path = paths_map.get(pkg.name)
-        changelog = generate_changelog(
+        changelog = await generate_changelog(
             vcs=vcs,
             version=pkg.new_version,
             since_tag=effective_since,

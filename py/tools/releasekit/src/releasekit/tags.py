@@ -95,6 +95,7 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -150,7 +151,7 @@ def format_tag(
     return tag_format.format(name=name, version=version)
 
 
-def create_tags(
+async def create_tags(
     *,
     manifest: ReleaseManifest,
     vcs: VCS,
@@ -215,7 +216,7 @@ def create_tags(
         tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
         tag_message = f'Release {pkg.name} v{pkg.new_version}'
 
-        if vcs.tag_exists(tag_name):
+        if await vcs.tag_exists(tag_name):
             result.skipped.append(tag_name)
             logger.warning(
                 'tag_exists_skip',
@@ -225,7 +226,7 @@ def create_tags(
             continue
 
         try:
-            vcs.tag(tag_name, message=tag_message, dry_run=dry_run)
+            await vcs.tag(tag_name, message=tag_message, dry_run=dry_run)
             result.created.append(tag_name)
             logger.info(
                 'tag_created',
@@ -244,12 +245,12 @@ def create_tags(
 
     umbrella_message = f'Release v{umbrella_version} ({len(bumped)} packages)'
 
-    if vcs.tag_exists(umbrella_tag):
+    if await vcs.tag_exists(umbrella_tag):
         result.skipped.append(umbrella_tag)
         logger.warning('umbrella_tag_exists_skip', tag=umbrella_tag)
     else:
         try:
-            vcs.tag(umbrella_tag, message=umbrella_message, dry_run=dry_run)
+            await vcs.tag(umbrella_tag, message=umbrella_message, dry_run=dry_run)
             result.created.append(umbrella_tag)
             logger.info(
                 'umbrella_tag_created',
@@ -267,7 +268,7 @@ def create_tags(
 
     if result.created and not result.failed:
         try:
-            vcs.push(tags=True, dry_run=dry_run)
+            await vcs.push(tags=True, dry_run=dry_run)
             # Mutate the frozen dataclass via object.__setattr__ for
             # the pushed flag — TagResult is frozen for safety but we
             # need to set this after the push succeeds.
@@ -286,7 +287,7 @@ def create_tags(
                 hint='Tags were created locally. Push manually with: git push --tags',
             )
 
-    _create_release_if_available(
+    await _create_release_if_available(
         forge=forge,
         umbrella_tag=umbrella_tag,
         umbrella_version=umbrella_version,
@@ -312,7 +313,7 @@ def create_tags(
     return result
 
 
-def _create_release_if_available(
+async def _create_release_if_available(
     *,
     forge: Forge | None,
     umbrella_tag: str,
@@ -350,7 +351,7 @@ def _create_release_if_available(
         logger.info('release_skip_no_forge', reason='No forge backend provided')
         return
 
-    if not forge.is_available():
+    if not await forge.is_available():
         logger.info(
             'release_skip_forge_unavailable',
             reason='Forge CLI not installed or not authenticated. Skipping release creation.',
@@ -363,11 +364,11 @@ def _create_release_if_available(
 
     # In CI mode, attach the manifest as a release asset.
     assets: list[Path] = []
-    if is_ci and manifest_path is not None and manifest_path.exists():
+    if is_ci and manifest_path is not None and await asyncio.to_thread(manifest_path.exists):
         assets.append(manifest_path)
 
     try:
-        forge.create_release(
+        await forge.create_release(
             tag=umbrella_tag,
             title=title,
             body=release_body,
@@ -397,7 +398,7 @@ def _create_release_if_available(
         )
 
 
-def delete_tags(
+async def delete_tags(
     *,
     manifest: ReleaseManifest,
     vcs: VCS,
@@ -436,27 +437,25 @@ def delete_tags(
     umbrella_version = bumped[0].new_version
     umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
 
-    # Delete per-package tags.
     for pkg in bumped:
         tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
 
-        if not vcs.tag_exists(tag_name):
+        if not await vcs.tag_exists(tag_name):
             result.skipped.append(tag_name)
             logger.debug('delete_tag_not_found', tag=tag_name)
             continue
 
         try:
-            vcs.delete_tag(tag_name, remote=remote, dry_run=dry_run)
-            result.created.append(tag_name)  # "created" = "successfully deleted" here
+            await vcs.delete_tag(tag_name, remote=remote, dry_run=dry_run)
+            result.created.append(tag_name)
             logger.info('tag_deleted', tag=tag_name, remote=remote)
         except Exception as exc:
             result.failed[tag_name] = str(exc)
             logger.error('tag_delete_failed', tag=tag_name, error=str(exc))
 
-    # Delete umbrella tag.
-    if vcs.tag_exists(umbrella_tag):
+    if await vcs.tag_exists(umbrella_tag):
         try:
-            vcs.delete_tag(umbrella_tag, remote=remote, dry_run=dry_run)
+            await vcs.delete_tag(umbrella_tag, remote=remote, dry_run=dry_run)
             result.created.append(umbrella_tag)
             logger.info('umbrella_tag_deleted', tag=umbrella_tag, remote=remote)
         except Exception as exc:
@@ -465,13 +464,11 @@ def delete_tags(
     else:
         result.skipped.append(umbrella_tag)
 
-    # Delete GitHub Release.
-    if forge is not None and forge.is_available():
+    if forge is not None and await forge.is_available():
         try:
-            forge.delete_release(umbrella_tag, dry_run=dry_run)
+            await forge.delete_release(umbrella_tag, dry_run=dry_run)
             logger.info('release_deleted', tag=umbrella_tag)
         except Exception as exc:
-            # Non-fatal — release may not exist.
             logger.warning(
                 'release_delete_failed',
                 tag=umbrella_tag,

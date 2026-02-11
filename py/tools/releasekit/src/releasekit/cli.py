@@ -139,7 +139,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
     levels = topo_sort(graph)
-    versions = compute_bumps(
+    versions = await compute_bumps(
         packages,
         vcs,
         tag_format=config.tag_format,
@@ -154,7 +154,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         return 0
 
     # Build execution plan for preview.
-    plan = build_plan(versions, levels, exclude_names=config.exclude, git_sha=vcs.current_sha())
+    plan = build_plan(versions, levels, exclude_names=config.exclude, git_sha=await vcs.current_sha())
 
     if not args.force and not args.dry_run:
         print(plan.format_table())  # noqa: T201 - CLI output
@@ -228,7 +228,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
 
     # Save manifest.
     manifest = ReleaseManifest(
-        git_sha=vcs.current_sha(),
+        git_sha=await vcs.current_sha(),
         packages=versions,
     )
     manifest_path = workspace_root / 'release-manifest.json'
@@ -242,12 +242,12 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
     """Handle the ``plan`` subcommand."""
     workspace_root = _find_workspace_root()
     config = load_config(workspace_root / 'pyproject.toml')
-    vcs, pm, forge, registry = _create_backends(workspace_root, config)
+    vcs, _pm, _forge, registry = _create_backends(workspace_root, config)
 
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
     levels = topo_sort(graph)
-    versions = compute_bumps(
+    versions = await compute_bumps(
         packages,
         vcs,
         tag_format=config.tag_format,
@@ -265,7 +265,7 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
         levels,
         exclude_names=config.exclude,
         already_published=already_published,
-        git_sha=vcs.current_sha(),
+        git_sha=await vcs.current_sha(),
     )
 
     fmt = getattr(args, 'format', 'table')
@@ -350,14 +350,14 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0 if result.ok else 1
 
 
-def _cmd_version(args: argparse.Namespace) -> int:
+async def _cmd_version(args: argparse.Namespace) -> int:
     """Handle the ``version`` subcommand."""
     workspace_root = _find_workspace_root()
     config = load_config(workspace_root / 'pyproject.toml')
-    vcs, pm, forge, registry = _create_backends(workspace_root, config)
+    vcs, _pm, _forge, _registry = _create_backends(workspace_root, config)
 
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
-    versions = compute_bumps(
+    versions = await compute_bumps(
         packages,
         vcs,
         tag_format=config.tag_format,
@@ -421,7 +421,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_rollback(args: argparse.Namespace) -> int:
+async def _cmd_rollback(args: argparse.Namespace) -> int:
     """Handle the ``rollback`` subcommand."""
     workspace_root = _find_workspace_root()
     config = load_config(workspace_root / 'pyproject.toml')
@@ -432,18 +432,18 @@ def _cmd_rollback(args: argparse.Namespace) -> int:
     deleted: list[str] = []
 
     # Delete the git tag (local + remote).
-    if vcs.tag_exists(tag):
+    if await vcs.tag_exists(tag):
         logger.info('Deleting tag %s', tag)
-        vcs.delete_tag(tag, remote=True, dry_run=dry_run)
+        await vcs.delete_tag(tag, remote=True, dry_run=dry_run)
         deleted.append(tag)
     else:
         logger.info('Tag %s does not exist locally', tag)
 
     # Delete the GitHub release if forge is available.
-    if forge.is_available():
+    if forge is not None and await forge.is_available():
         logger.info('Deleting GitHub release for %s', tag)
         try:
-            forge.delete_release(tag, dry_run=dry_run)
+            await forge.delete_release(tag, dry_run=dry_run)
         except Exception as exc:
             logger.warning('Release deletion failed: %s', exc)
     else:
@@ -860,13 +860,13 @@ def main() -> int:
         if command == 'check':
             return _cmd_check(args)
         if command == 'version':
-            return _cmd_version(args)
+            return asyncio.run(_cmd_version(args))
         if command == 'explain':
             return _cmd_explain(args)
         if command == 'init':
             return _cmd_init(args)
         if command == 'rollback':
-            return _cmd_rollback(args)
+            return asyncio.run(_cmd_rollback(args))
         if command == 'completion':
             return _cmd_completion(args)
 

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.changelog import Changelog, ChangelogEntry, ChangelogSection
 from releasekit.release_notes import (
@@ -39,7 +40,7 @@ class FakeVCS:
         self._log_lines = log_lines or []
         self._tags = tags or set()
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -49,43 +50,43 @@ class FakeVCS:
         """Return canned log lines."""
         return self._log_lines
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """Check if tag is in the fake tag set."""
         return tag_name in self._tags
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Always clean."""
         return True
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Never shallow."""
         return False
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return a fake SHA."""
         return 'abc123'
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return empty diff."""
         return []
 
-    def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
+    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
         """No-op commit."""
         return _OK
 
-    def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+    async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
         """No-op tag."""
         return _OK
 
-    def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+    async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
         """No-op delete_tag."""
         return _OK
 
-    def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+    async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
         """No-op push."""
         return _OK
 
-    def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
+    async def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
         """No-op checkout_branch."""
         return _OK
 
@@ -176,7 +177,8 @@ class TestRenderReleaseNotes:
 class TestGenerateReleaseNotes:
     """Tests for generate_release_notes function."""
 
-    def test_generates_per_package(self) -> None:
+    @pytest.mark.asyncio
+    async def test_generates_per_package(self) -> None:
         """Generate one summary per bumped package."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -194,7 +196,7 @@ class TestGenerateReleaseNotes:
             log_lines=['aaa1111 feat: add streaming'],
             tags={'genkit-v0.4.0'},
         )
-        notes = generate_release_notes(
+        notes = await generate_release_notes(
             manifest=manifest,
             vcs=vcs,
             tag_format='{name}-v{version}',
@@ -204,7 +206,8 @@ class TestGenerateReleaseNotes:
         if notes.summaries[0].name != 'genkit':
             raise AssertionError(f'Expected genkit, got {notes.summaries[0].name}')
 
-    def test_skips_unchanged_packages(self) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_unchanged_packages(self) -> None:
         """Skipped packages are excluded from release notes."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -220,11 +223,12 @@ class TestGenerateReleaseNotes:
             ],
         )
         vcs = FakeVCS()
-        notes = generate_release_notes(manifest=manifest, vcs=vcs)
+        notes = await generate_release_notes(manifest=manifest, vcs=vcs)
         if len(notes.summaries) != 0:
             raise AssertionError(f'Expected 0 summaries for skipped package, got {len(notes.summaries)}')
 
-    def test_no_previous_tag(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_previous_tag(self) -> None:
         """When previous tag doesn't exist, includes all history."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -242,11 +246,12 @@ class TestGenerateReleaseNotes:
             log_lines=['aaa1111 feat: initial release'],
             tags=set(),
         )
-        notes = generate_release_notes(manifest=manifest, vcs=vcs)
+        notes = await generate_release_notes(manifest=manifest, vcs=vcs)
         if len(notes.summaries) != 1:
             raise AssertionError(f'Expected 1 summary, got {len(notes.summaries)}')
 
-    def test_round_trip(self) -> None:
+    @pytest.mark.asyncio
+    async def test_round_trip(self) -> None:
         """Generate + render produces valid markdown."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -259,7 +264,7 @@ class TestGenerateReleaseNotes:
             log_lines=['aaa1111 feat: add streaming (#42)'],
             tags={'genkit-v0.4.0'},
         )
-        notes = generate_release_notes(manifest=manifest, vcs=vcs, date='2026-02-10')
+        notes = await generate_release_notes(manifest=manifest, vcs=vcs, date='2026-02-10')
         md = render_release_notes(notes)
         if '### genkit (0.4.0 → 0.5.0)' not in md:
             raise AssertionError(f'Missing package heading:\n{md}')
