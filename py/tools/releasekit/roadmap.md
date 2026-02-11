@@ -153,7 +153,7 @@ Phase 2: Version + Pin     ▼
 │  ✓ Version commit includes uv.lock                      │
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 3: Publish MVP ★     ▼    ← CRITICAL MILESTONE
+Phase 3: Publish MVP ★     ▼    ← CRITICAL MILESTONE ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
 │  lock.py ──► logging.py                                 │
 │  state.py ──► logging.py                                │
@@ -174,19 +174,35 @@ Phase 3: Publish MVP ★     ▼    ← CRITICAL MILESTONE
 │  ★ Corrected: preflight → version → uv lock → commit   │
 │    → tag → [pin → build → publish → poll → smoke →     │
 │    restore] per level → push                            │
+│  ✓ Dry run validated: 60 packages, 4 levels, 0 errors  │
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 4: Harden            ▼
+Phase 4: Harden            ▼    🔶 IN PROGRESS
 ┌─────────────────────────────────────────────────────────┐
 │  ui.py ──► logging.py                                   │
-│  preflight.py (full) ──► + OSS checks, pip-audit,       │
+│  checks.py ──► graph.py, preflight.py, workspace.py     │
+│    + 10 standalone health checks (replaces check-cycles)│
+│  preflight.py (full) ──► + pip-audit,                   │
 │                            metadata validation          │
 │  publisher.py (full) ──► + staging, manifest, Test PyPI,│
 │                            resume-from-registry,        │
 │                            attestation passthrough (D-8)│
 │                                                         │
-│  ✓ Rich progress table                                  │
+│  ✓ Rich progress table (PR #4558)                       │
+│  ✓ releasekit check (PR #4563)                          │
 │  ✓ --stage, --index=testpypi, --resume-from-registry    │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+Phase 4b: Streaming Core   ▼    ⬜ PLANNED
+┌─────────────────────────────────────────────────────────┐
+│  scheduler.py ──► graph.py, workspace.py                │
+│    + asyncio.Queue-based dependency-triggered dispatch  │
+│    + Per-package dep counters, not level-based lockstep  │
+│  publisher.py refactor ──► scheduler.py                 │
+│    + Workers consume from queue, not level iteration    │
+│    + _publish_one unchanged, only dispatch loop changes │
+│                                                         │
+│  ★ Streaming-ready for CI pipelines + dynamic feeds     │
 └──────────────────────────┬──────────────────────────────┘
                            │
 Phase 5: Post-Pipeline     ▼
@@ -450,19 +466,19 @@ end-to-end.
 - Fail-fast `KeyError → ValueError` on required manifest fields
 - Integration tests with `FakeVCS` catch scoping bugs unit tests miss
 
-### Phase 3: Publish MVP (Critical Path)
+### Phase 3: Publish MVP (Critical Path) ✅ COMPLETE
 
 This is the most important milestone. Everything before it is a prerequisite;
 everything after it is enhancement.
 
-| Module | Description | Est. Lines |
-|--------|-------------|-----------|
-| `lock.py` | Advisory lock file (`.releasekit.lock`). PID/hostname/timestamp. Stale detection. `atexit` cleanup. | ~60 |
-| `state.py` | `RunState` dataclass. Per-package status tracking. Atomic save via `tempfile` + `os.replace`. Resume support with git SHA validation. | ~100 |
-| `plan.py` | `ExecutionPlan` dataclass. Per-package rows: order, level, name, current version, next version, status, reason. Output as Rich table (with emoji status), JSON, or CSV. Shared between `plan` and `publish` subcommands. Status values: `included`, `skipped`, `excluded`, `already_published`, `dependency_only`. | ~80 |
-| `preflight.py` (basic) | Receives `vcs: VCS`, `pm: PackageManager`, `forge: Forge`, `registry: Registry` via DI. Lock acquisition, `vcs.is_clean()`, `pm.lock()` check, cycle detection, `registry.latest_version()` validation, `vcs.is_shallow()` detection, `forge.is_available()` check (D-10), concurrent release detection via `forge.list_releases()` (D-6). | ~150 |
-| `publisher.py` (basic) | Receives all 4 backends via DI. Async level-by-level orchestration. Atomic step: `pin -> pm.build(no_sources=True) (D-3) -> verify -> checksum -> pm.publish(check_url=...) (D-7) -> pm.resolve_check() (D-9) -> registry.poll_available() -> pm.smoke_test() -> restore`. Semaphore concurrency, retry, fail-fast. | ~350 |
-| `cli.py` (basic) | Constructs backends, injects into modules. argparse with `publish`, `plan` (ExecutionPlan table/JSON/CSV output), `discover`, `graph`, `check-cycles`. `--dry-run`, `--force/-y`, `--force-unchanged`, `--publish-from=local`. TTY-aware confirmation. | ~220 |
+| Module | Description | Est. Lines | Status |
+|--------|-------------|-----------|--------|
+| `lock.py` | Advisory lock file (`.releasekit.lock`). PID/hostname/timestamp. Stale detection. `atexit` cleanup. | ~60 | ✅ |
+| `state.py` | `RunState` dataclass. Per-package status tracking. Atomic save via `tempfile` + `os.replace`. Resume support with git SHA validation. | ~100 | ✅ |
+| `plan.py` | `ExecutionPlan` dataclass. Per-package rows: order, level, name, current version, next version, status, reason. Output as Rich table (with emoji status), JSON, or CSV. Shared between `plan` and `publish` subcommands. Status values: `included`, `skipped`, `excluded`, `already_published`, `dependency_only`. | ~80 | ✅ |
+| `preflight.py` (basic) | Receives `vcs: VCS`, `pm: PackageManager`, `forge: Forge`, `registry: Registry` via DI. Lock acquisition, `vcs.is_clean()`, `pm.lock()` check, cycle detection, `registry.latest_version()` validation, `vcs.is_shallow()` detection, `forge.is_available()` check (D-10), concurrent release detection via `forge.list_releases()` (D-6). | ~150 | ✅ |
+| `publisher.py` (basic) | Receives all 4 backends via DI. Async level-by-level orchestration. Atomic step: `pin -> pm.build(no_sources=True) (D-3) -> verify -> checksum -> pm.publish(check_url=...) (D-7) -> pm.resolve_check() (D-9) -> registry.poll_available() -> pm.smoke_test() -> restore`. Semaphore concurrency, retry, fail-fast. | ~350 | ✅ |
+| `cli.py` (basic) | Constructs backends, injects into modules. argparse with `publish`, `plan` (ExecutionPlan table/JSON/CSV output), `discover`, `graph`, `check`. `--dry-run`, `--force/-y`, `--force-unchanged`, `--publish-from=local`. TTY-aware confirmation. | ~220 | ✅ |
 
 **Done when**: `releasekit publish --publish-from=local` executes the full
 corrected pipeline via backend shims. `releasekit plan` outputs an
@@ -471,12 +487,17 @@ outputs machine-readable JSON.
 
 **Milestone**: Can release the genkit Python SDK to PyPI with a single command.
 
+**Dry run validated**: `releasekit publish --dry-run --force` successfully
+processed all 60 packages across 4 topological levels (pin → build →
+publish → poll → verify) with zero failures.
+
 ### Phase 4: Harden
 
 | Module | Description | Est. Lines | Status |
 |--------|-------------|-----------|--------|
 | `ui.py` | **Rich Live progress table** with observer pattern. `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests). 9 pipeline stages with emoji/color/progress bars. ETA estimation. Error panel. Auto-detects TTY via `create_progress_ui()`. Integrated into `publisher.py` via `PublishObserver` callbacks. | ~560 | ✅ Done (PR #4558) |
-| `preflight.py` (full) | Add: OSS file checks (LICENSE, README), `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), backup file detection, dist clean, trusted publisher check. | +150 | |
+| `checks.py` | **Standalone workspace health checks** (`releasekit check`). 10 checks: cycles, self_deps, orphan_deps, missing_license, missing_readme, missing_py_typed, version_consistency, naming_convention, metadata_completeness, stale_artifacts. Replaces `check-cycles`. Found flask self-dep bug (#4562). | ~413 | ✅ Done (PR #4563) |
+| `preflight.py` (full) | Add: `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), trusted publisher check. OSS file checks moved to `checks.py`. | +100 | |
 | `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8). | +200 | |
 
 **`ui.py` — Rich Live Progress Table (Detailed Spec)**:
@@ -532,8 +553,110 @@ Implementation notes:
 
 **Done when**: Rich progress UI shows real-time status during publish. Staging
 workflow completes both phases. Pre-flight catches common mistakes.
+`releasekit check` validates workspace health standalone.
 
 **Milestone**: Production-hardened publish with rich UI and safety checks.
+
+### Phase 4b: Streaming Publisher Core
+
+Refactor the publisher from level-based lockstep dispatch to a
+dependency-triggered streaming queue. This is a foundational change
+that makes the core efficient for future expansion (CI pipelines,
+distributed builds, dynamic package feeds).
+
+**Why**: The level-based approach has a fundamental inefficiency —
+if one package in level N is slow, all level N+1 packages wait even
+if their specific dependencies are already done. With 60 packages
+across 4 levels, this can waste significant time.
+
+**Architecture**:
+
+```
+Current (level-based lockstep):
+
+  Level 0: [A, B, C]  ─── all must finish ───▶  Level 1: [D, E, F]
+                                                  ↑
+                                        D waits for C even though
+                                        D only depends on A
+
+Proposed (dependency-triggered queue):
+
+  A completes ──▶ D starts immediately (A is D's only dep)
+  B completes ──▶ E starts immediately (B is E's only dep)
+  C completes ──▶ F starts immediately (A + C are F's deps)
+```
+
+| Component | Description | Est. Lines |
+|-----------|-------------|-----------|
+| `scheduler.py` | **Dependency-aware task scheduler**. Maintains per-package dependency counters. When a package publishes, decrements counters of its dependents. When a counter hits zero, the package is enqueued. Semaphore controls max concurrency. | ~150 |
+| `publisher.py` refactor | Replace level iteration with `asyncio.Queue` consumption. `_publish_one` pulls from queue, publishes, then notifies scheduler to resolve dependents. | ~±100 |
+
+**Key design**:
+
+```python
+@dataclass
+class PackageNode:
+    """A node in the dependency-aware scheduler."""
+    name: str
+    remaining_deps: int          # Starts at len(internal_deps)
+    dependents: list[str]        # Packages that depend on this one
+
+class Scheduler:
+    """Dependency-triggered task scheduler.
+
+    Enqueues packages as their dependencies complete, rather than
+    waiting for an entire topological level to finish.
+    """
+    _queue: asyncio.Queue[PackageNode]
+    _nodes: dict[str, PackageNode]
+    _semaphore: asyncio.Semaphore
+
+    def mark_done(self, name: str) -> None:
+        """Mark a package as published and enqueue ready dependents."""
+        for dep_name in self._nodes[name].dependents:
+            node = self._nodes[dep_name]
+            node.remaining_deps -= 1
+            if node.remaining_deps == 0:
+                self._queue.put_nowait(node)
+
+    async def run(self, publish_fn) -> PublishResult:
+        """Consume from queue until all packages are published."""
+        # Seed: enqueue all packages with zero deps.
+        for node in self._nodes.values():
+            if node.remaining_deps == 0:
+                self._queue.put_nowait(node)
+
+        # Worker pool consumes from queue.
+        async def worker():
+            while True:
+                node = await self._queue.get()
+                async with self._semaphore:
+                    await publish_fn(node.name)
+                    self.mark_done(node.name)
+                self._queue.task_done()
+
+        workers = [asyncio.create_task(worker())
+                   for _ in range(concurrency)]
+        await self._queue.join()
+        # Cancel workers, collect results...
+```
+
+**Benefits**:
+
+- **Faster**: Packages start as soon as their deps complete, not when the level completes
+- **Streaming-ready**: The `Queue` naturally accepts dynamically-fed packages
+- **Composable**: Same scheduler works for CI pipelines, distributed builds, dynamic DAGs
+- **Observer-compatible**: Each `mark_done` / dequeue can notify the existing `PublishObserver`
+- **Resume-compatible**: `RunState` still tracks per-package status; resume re-seeds the queue
+
+**Backward compatibility**: `publish_workspace` signature stays the same.
+The `levels` parameter can be dropped (computed internally from graph).
+`_publish_one` stays unchanged — only the dispatch loop changes.
+
+**Done when**: `releasekit publish --dry-run` produces identical results but
+packages start as soon as deps complete (visible in timestamp ordering).
+
+**Milestone**: Core scheduler is streaming-ready for future expansion.
 
 ### Phase 5: Post-Pipeline + CI
 
@@ -616,13 +739,14 @@ shell completion) is enhancement.
 | 0: Foundation + Backends | 8 (+scaffolding) | ~750 | 1,812 src + 864 tests | ✅ Complete |
 | 1: Discovery | 3 (+tests) | ~420 | 783 src + 435 tests | ✅ Complete |
 | 2: Version + Pin | 4 (+tests) | ~500 | 1,023 src + ~550 tests | ✅ Complete |
-| 3: Publish MVP | 6 | ~960 | — | ⬜ Not started |
-| 4: Harden | 3 (extended) | ~450 | — | ⬜ Not started |
+| 3: Publish MVP | 6 | ~960 | ~1,660 src | ✅ Complete |
+| 4: Harden | 4 (extended) | ~450 | ~973 src (ui.py + checks.py done) | 🔶 In progress |
+| 4b: Streaming Publisher | 2 | ~250 | — | ⬜ Planned |
 | 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |
 | 6: UX Polish | 3 (+ 6 formatters) | ~570 | — | ⬜ Not started |
 | 7: Quality + Ship | tests + docs | ~2800 | — | ⬜ Not started |
 
-Total: ~37 modules (including 6 formatters), ~4350 lines of production code,
+Total: ~38 modules (including 6 formatters), ~4600 lines of production code,
 ~2800 lines of tests + docs.
 
 ---
