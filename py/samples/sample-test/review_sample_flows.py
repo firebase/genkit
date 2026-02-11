@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
+from genkit.types import Media
 
 
 def open_file(path: str) -> None:
@@ -304,8 +305,6 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
     Returns:
         Formatted string representation
     """
-    from genkit.types import Media
-
     # Handle None
     if output is None:
         return 'None'
