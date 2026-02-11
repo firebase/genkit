@@ -42,6 +42,7 @@ View modes::
 
     📋 ALL      show every package
     🪟 WINDOW   sliding window (active + recently completed + failed)
+    📝 LOG      structured log lines (per-stage transitions)
 
 Display filters::
 
@@ -94,6 +95,7 @@ class ViewMode(str, Enum):
 
     ALL = 'all'
     WINDOW = 'window'
+    LOG = 'log'
 
 
 class DisplayFilter(str, Enum):
