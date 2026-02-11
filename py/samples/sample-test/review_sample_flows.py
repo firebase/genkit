@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
+from genkit.types import Media
 
 
 def open_file(path: str) -> None:
@@ -203,60 +204,67 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 ]
 
                 # Run subprocess
+                process = subprocess.Popen(  # noqa: S603 - cmd is constructed internally from trusted script paths
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    cwd=sample_path.parent.parent,  # Run from py/ directory
+                )
+
+                # Stream output
+                stdout_lines = []
+                if process.stdout:
+                    for line in process.stdout:
+                        stdout_lines.append(line)
+
+                process.wait(timeout=120)
+
+                # Reconstruct stdout for parsing
+                stdout = ''.join(stdout_lines)
+
                 try:
-                    result_proc = subprocess.run(  # noqa: S603 - cmd is constructed internally from trusted script paths
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=120,  # 2 minute timeout
-                        cwd=sample_path.parent.parent,  # Run from py/ directory
-                    )
-
-                    # Parse JSON output using markers
-                    stdout = result_proc.stdout
-                    try:
-                        if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
-                            json_str = (
-                                stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
-                            )
-                            result_data = json.loads(json_str)
-                        else:
-                            result_data = json.loads(stdout)
-                    except (json.JSONDecodeError, IndexError):
-                        detail_lines.append('Status: FAILED')
-                        detail_lines.append('Error: Failed to parse subprocess output')
-                        detail_lines.append(f'Stdout (partial): {stdout[:500]}')
-                        detail_lines.append(f'Stderr (partial): {result_proc.stderr[:500]}')
-                        failed_flows.append(flow_name)
-                        continue
-
-                    if result_data.get('success'):
-                        detail_lines.append('Status: SUCCESS')
-
-                        # Format the result
-                        flow_result = result_data.get('result')
-                        formatted_output = format_output(flow_result, max_length=500)
-                        detail_lines.append(f'Output: {formatted_output}')
-
-                        successful_flows.append(flow_name)
+                    if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
+                        json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
+                        result_data = json.loads(json_str)
                     else:
-                        detail_lines.append('Status: FAILED')
-                        error_msg = result_data.get('error', 'Unknown error')
-                        detail_lines.append(f'Error: {error_msg}')
-                        failed_flows.append(flow_name)
+                        # Fallback try to parse the whole thing if markers missing (unlikely for success case)
+                        result_data = json.loads(stdout)
+                except (json.JSONDecodeError, IndexError):
+                    detail_lines.append('Status: FAILED')
+                    detail_lines.append('Error: Failed to parse subprocess output')
 
-                except subprocess.TimeoutExpired:
-                    detail_lines.append('Status: FAILED')
-                    detail_lines.append('Error: Flow execution timed out (120s)')
+                    # Print raw output for debugging since parsing failed
+                    detail_lines.append('Raw Output:')
+                    detail_lines.append(stdout)
+
                     failed_flows.append(flow_name)
-                except Exception as e:
+                    continue
+
+                if result_data.get('success'):
+                    detail_lines.append('Status: SUCCESS')
+
+                    # Format the result
+                    flow_result = result_data.get('result')
+                    formatted_output = format_output(flow_result, max_length=500)
+                    detail_lines.append(f'Output: {formatted_output}')
+
+                    successful_flows.append(flow_name)
+                else:
                     detail_lines.append('Status: FAILED')
-                    detail_lines.append(f'Error: Subprocess failed: {e}')
+                    error_msg = result_data.get('error', 'Unknown error')
+                    detail_lines.append(f'Error: {error_msg}')
                     failed_flows.append(flow_name)
+
+            except subprocess.TimeoutExpired:
+                detail_lines.append('Status: FAILED')
+                detail_lines.append('Error: Flow execution timed out (120s)')
+                failed_flows.append(flow_name)
             except Exception as e:
                 detail_lines.append('Status: FAILED')
-                error_msg = str(e)
-                detail_lines.append(f'Error: {error_msg}')
+                detail_lines.append(f'Error: Subprocess failed: {e}')
+                failed_flows.append(flow_name)
 
                 # Add traceback for debugging
                 tb_lines = traceback.format_exc().split('\n')
@@ -266,7 +274,12 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
                 failed_flows.append(flow_name)
 
-            detail_lines.append('')
+        detail_lines.append('')
+
+        # Add a small delay between tests to avoid rate limiting
+        import time
+
+        time.sleep(10)
 
     except KeyboardInterrupt:
         pass
@@ -292,8 +305,6 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
     Returns:
         Formatted string representation
     """
-    from genkit.types import Media
-
     # Handle None
     if output is None:
         return 'None'
