@@ -215,6 +215,21 @@ async def test_vertexai_resolve_model(mock_list_models: MagicMock, mock_client: 
     assert action.name == 'vertexai/gemini-2.0-flash'
 
 
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google._list_genai_models')
+@pytest.mark.asyncio
+async def test_vertexai_resolve_embedder(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Test VertexAI plugin resolves embedder actions."""
+    mock_list_models.return_value = GenaiModels()
+
+    plugin = VertexAI(project='test-project')
+    action = await plugin.resolve(ActionKind.EMBEDDER, 'vertexai/gemini-embedding-001')
+
+    assert action is not None
+    assert action.kind == ActionKind.EMBEDDER
+    assert action.name == 'vertexai/gemini-embedding-001'
+
+
 def test_embedding_task_types() -> None:
     """Test EmbeddingTaskType enum values."""
     assert EmbeddingTaskType.RETRIEVAL_QUERY is not None
