@@ -116,22 +116,8 @@ export interface GenerateMiddlewareDef {
     next: (
       req: ToolRequestPart,
       ctx: ActionRunOptions<any>
-    ) => Promise<
-      | {
-          response?: ToolResponsePart;
-          interrupt?: ToolRequestPart;
-          preamble?: GenerateActionOptions;
-        }
-      | void
-    >
-  ) => Promise<
-    | {
-        response?: ToolResponsePart;
-        interrupt?: ToolRequestPart;
-        preamble?: GenerateActionOptions;
-      }
-    | void
-  >;
+    ) => Promise<ToolResponsePart | void>
+  ) => Promise<ToolResponsePart | void>;
   /**
    * Tools to statically inject into the generation request whenever this middleware is active.
    */

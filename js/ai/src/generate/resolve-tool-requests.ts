@@ -108,18 +108,29 @@ export async function resolveToolRequest(
     });
   }
 
+  // if it's a prompt action, go ahead and render the preamble
+  if (isPromptAction(tool)) {
+    const metadata = tool.__action.metadata as Record<string, any>;
+    const preamble = {
+      ...(await tool(part.toolRequest.input)),
+      model: metadata.prompt?.model,
+    };
+    const response = {
+      toolResponse: {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output: `transferred to ${part.toolRequest.name}`,
+      },
+    };
+
+    return { preamble, response };
+  }
+
   const dispatch = async (
     index: number,
     req: ToolRequestPart,
     ctx: ActionRunOptions<any>
-  ): Promise<
-    | {
-        response?: ToolResponsePart;
-        interrupt?: ToolRequestPart;
-        preamble?: GenerateActionOptions;
-      }
-    | void
-  > => {
+  ): Promise<ToolResponsePart | void> => {
     if (index === middleware.length) {
       return executeTool(req, ctx);
     }
@@ -136,81 +147,35 @@ export async function resolveToolRequest(
   const executeTool = async (
     req: ToolRequestPart,
     ctx: ActionRunOptions<any>
-  ): Promise<{
-    response?: ToolResponsePart;
-    interrupt?: ToolRequestPart;
-    preamble?: GenerateActionOptions;
-  }> => {
-    // if it's a prompt action, go ahead and render the preamble
-    if (isPromptAction(tool)) {
-      const metadata = tool.__action.metadata as Record<string, any>;
-      const preamble = {
-        ...(await tool(req.toolRequest.input)),
-        model: metadata.prompt?.model,
-      };
-      const response = {
+  ): Promise<ToolResponsePart> => {
+    // execute the tool and catch interrupts
+    const output = await tool(req.toolRequest.input, ctx as ToolRunOptions);
+    if (tool.__action.actionType === 'tool.v2') {
+      const multipartResponse = output as z.infer<
+        typeof MultipartToolResponseSchema
+      >;
+      return stripUndefinedProps({
         toolResponse: {
           name: req.toolRequest.name,
           ref: req.toolRequest.ref,
-          output: `transferred to ${req.toolRequest.name}`,
+          output: multipartResponse.output,
+          content: multipartResponse.content,
+        } as ToolResponse,
+      });
+    } else {
+      return stripUndefinedProps({
+        toolResponse: {
+          name: req.toolRequest.name,
+          ref: req.toolRequest.ref,
+          output,
         },
-      };
-
-      return { preamble, response };
-    }
-
-    // otherwise, execute the tool and catch interrupts
-    try {
-      const output = await tool(req.toolRequest.input, ctx as ToolRunOptions);
-      if (tool.__action.actionType === 'tool.v2') {
-        const multipartResponse = output as z.infer<
-          typeof MultipartToolResponseSchema
-        >;
-        const response = stripUndefinedProps({
-          toolResponse: {
-            name: req.toolRequest.name,
-            ref: req.toolRequest.ref,
-            output: multipartResponse.output,
-            content: multipartResponse.content,
-          } as ToolResponse,
-        });
-
-        return { response };
-      } else {
-        const response = stripUndefinedProps({
-          toolResponse: {
-            name: req.toolRequest.name,
-            ref: req.toolRequest.ref,
-            output,
-          },
-        });
-
-        return { response };
-      }
-    } catch (e) {
-      if (
-        e instanceof ToolInterruptError ||
-        // There's an inexplicable case when the above type check fails, only in tests.
-        (e as Error).name === 'ToolInterruptError'
-      ) {
-        const ie = e as ToolInterruptError;
-        logger.debug(
-          `tool '${toolMap[req.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
-        );
-        const interrupt = {
-          toolRequest: req.toolRequest,
-          metadata: { ...req.metadata, interrupt: ie.metadata || true },
-        };
-
-        return { interrupt };
-      }
-
-      throw e;
+      });
     }
   };
 
   const initialCtx = runOptions ?? toRunOptions(part);
-  return (await dispatch(0, part, initialCtx)) || {};
+  const dispatchResult = await dispatch(0, part, initialCtx);
+  return dispatchResult ? { response: dispatchResult } : {};
 }
 
 /**
@@ -243,37 +208,58 @@ export async function resolveToolRequests(
     revisedModelMessage.content.map(async (part, i) => {
       if (!part.toolRequest) return; // skip non-tool-request parts
 
-      const { preamble, response, interrupt } = await resolveToolRequest(
-        rawRequest,
-        part as ToolRequestPart,
-        toolMap,
-        middleware
-      );
+      try {
+        const { preamble, response, interrupt } = await resolveToolRequest(
+          rawRequest,
+          part as ToolRequestPart,
+          toolMap,
+          middleware
+        );
 
-      if (preamble) {
-        if (transferPreamble) {
-          throw new GenkitError({
-            status: 'INVALID_ARGUMENT',
-            message: `Model attempted to transfer to multiple prompt tools.`,
-          });
+        if (preamble) {
+          if (transferPreamble) {
+            throw new GenkitError({
+              status: 'INVALID_ARGUMENT',
+              message: `Model attempted to transfer to multiple prompt tools.`,
+            });
+          }
+
+          transferPreamble = preamble;
         }
 
-        transferPreamble = preamble;
-      }
+        // this happens for preamble or normal tools
+        if (response) {
+          responseParts.push(response!);
+          revisedModelMessage.content.splice(
+            i,
+            1,
+            toPendingOutput(part, response)
+          );
+        }
 
-      // this happens for preamble or normal tools
-      if (response) {
-        responseParts.push(response!);
-        revisedModelMessage.content.splice(
-          i,
-          1,
-          toPendingOutput(part, response)
-        );
-      }
-
-      if (interrupt) {
-        revisedModelMessage.content.splice(i, 1, interrupt);
-        hasInterrupts = true;
+        if (interrupt) {
+          revisedModelMessage.content.splice(i, 1, interrupt);
+          hasInterrupts = true;
+        }
+      } catch (e) {
+        if (
+          e instanceof ToolInterruptError ||
+          // There's an inexplicable case when the above type check fails, only in tests.
+          (e as Error).name === 'ToolInterruptError'
+        ) {
+          const ie = e as ToolInterruptError;
+          logger.debug(
+            `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
+          );
+          const interrupt = {
+            toolRequest: part.toolRequest,
+            metadata: { ...part.metadata, interrupt: ie.metadata || true },
+          };
+          revisedModelMessage.content.splice(i, 1, interrupt);
+          hasInterrupts = true;
+        } else {
+          throw e;
+        }
       }
     })
   );

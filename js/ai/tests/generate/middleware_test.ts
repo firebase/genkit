@@ -22,7 +22,7 @@ import { beforeEach, describe, it } from 'node:test';
 import { generate, generateStream } from '../../src/generate.js';
 import { generateMiddleware } from '../../src/generate/middleware.js';
 import { defineModel } from '../../src/model.js';
-import { defineTool, tool } from '../../src/tool.js';
+import { ToolInterruptError, defineTool, tool } from '../../src/tool.js';
 
 initNodeFeatures();
 
@@ -580,5 +580,66 @@ describe('generateMiddleware', () => {
 
     assert.strictEqual(result.text, 'final response');
     assert.strictEqual(toolExecutionCount, 1);
+  });
+
+  it('handles ToolInterruptError from middleware', async () => {
+    const mockTool = defineTool(
+      registry,
+      {
+        name: 'interruptTool',
+        description: 'interrupts',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => {
+        return 'foo';
+      }
+    );
+
+    const interruptMiddleware = generateMiddleware(
+      { name: 'interruptMw' },
+      () => ({
+        tool: async (req, ctx, next) => {
+          throw new ToolInterruptError({ some: 'metadata' });
+        },
+      })
+    );
+
+    const mockModel = defineModel(
+      registry,
+      { name: 'mockModelWithTool' },
+      async (req) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                toolRequest: {
+                  name: mockTool.__action.name,
+                  ref: '123',
+                  input: {},
+                },
+              },
+            ],
+          },
+        };
+      }
+    );
+
+    const result = await generate(registry, {
+      model: mockModel,
+      prompt: 'hi',
+      tools: ['interruptTool'],
+      use: [interruptMiddleware()],
+    });
+
+    assert.strictEqual(result.finishReason, 'interrupted');
+    const interruptPart = result.message?.content.find(
+      (p) => p.metadata?.interrupt
+    );
+    assert.ok(interruptPart);
+    assert.deepStrictEqual(interruptPart.metadata?.interrupt, {
+      some: 'metadata',
+    });
   });
 });
