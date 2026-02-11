@@ -132,7 +132,7 @@ jobs:
 | `forge-backend` | `"api"` | `cli` (needs `gh`) or `api` (REST, needs `GITHUB_TOKEN`) |
 | `check-url` | `""` | URL for `uv publish --check-url` |
 | `index-url` | `""` | Custom registry URL (e.g., Test PyPI) |
-| `concurrency` | `"5"` | Max parallel publishes per level |
+| `concurrency` | `"5"` | Max packages publishing simultaneously |
 | `max-retries` | `"2"` | Retry count with exponential backoff |
 | `python-version` | `"3.12"` | Python version to install |
 | `uv-version` | `"latest"` | uv version to install |
