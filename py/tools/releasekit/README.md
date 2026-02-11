@@ -222,9 +222,23 @@ The state file tracks:
 - Git SHA at start (refuses to resume if HEAD changed)
 - Checksums of published artifacts
 
+### Keyboard Shortcuts
+
+During a live publish (TTY only), single-key shortcuts are active:
+
+| Key | Action |
+|-----|--------|
+| `p` | Pause — finish current packages, stop starting new ones |
+| `r` | Resume — continue processing the queue |
+| `q` | Cancel — graceful shutdown |
+| `a` | Show all packages (no sliding window) |
+| `w` | Sliding window (active + recently completed) |
+| `f` | Cycle display filter: all → active → failed → all |
+| `l` | Toggle log view — show per-stage event log instead of table |
+
 ### SIGUSR1/SIGUSR2 Controls
 
-During a live publish, you can pause and resume the scheduler:
+From another terminal, you can pause and resume the scheduler:
 
 ```bash
 kill -USR1 <pid>   # Pause: finish current packages, stop starting new ones
@@ -339,7 +353,7 @@ releasekit
     ├── RichProgressUI   live progress table (TTY) + sliding window
     ├── LogProgressUI    structured logs (CI)
     ├── NullProgressUI   no-op (tests)
-    └── Controls         p=pause r=resume q=cancel a=all w=window f=filter
+    └── Controls         p=pause r=resume q=cancel a=all w=window f=filter l=log
 ```
 
 ### Scheduler Architecture

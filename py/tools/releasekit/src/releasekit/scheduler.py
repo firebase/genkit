@@ -298,6 +298,7 @@ class Scheduler:
         self._cancelled: set[str] = set()
         # Current view mode / filter (keyboard toggles).
         self._view_mode = ViewMode.WINDOW
+        self._previous_view_mode = ViewMode.WINDOW
         self._display_filter = DisplayFilter.ALL
 
     @classmethod
@@ -812,7 +813,7 @@ class Scheduler:
     # -- Keyboard shortcuts ------------------------------------------------
 
     async def _key_listener(self, done_event: asyncio.Event) -> None:
-        """Listen for keyboard shortcuts (p=pause, r=resume, q=cancel).
+        """Listen for keyboard shortcuts (p=pause, r=resume, q=cancel, l=log).
 
         Puts stdin into cbreak mode for single-keystroke reads without
         requiring Enter. Only active when stdin is a TTY on Unix.
@@ -872,6 +873,14 @@ class Scheduler:
                     filters = list(DisplayFilter)
                     idx = filters.index(self._display_filter)
                     self._display_filter = filters[(idx + 1) % len(filters)]
+                    self._notify_view_mode()
+                elif char == 'l':
+                    # Toggle between LOG and the previous table mode.
+                    if self._view_mode == ViewMode.LOG:
+                        self._view_mode = self._previous_view_mode
+                    else:
+                        self._previous_view_mode = self._view_mode
+                        self._view_mode = ViewMode.LOG
                     self._notify_view_mode()
         except asyncio.CancelledError:
             raise
