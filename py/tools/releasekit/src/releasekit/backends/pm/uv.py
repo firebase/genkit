@@ -14,153 +14,29 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""PackageManager protocol and uv backend for releasekit.
+"""uv package manager backend for releasekit.
 
-The :class:`PackageManager` protocol defines the interface for build,
-publish, lock, and verification operations. The default implementation,
-:class:`UvBackend`, delegates to ``uv`` via :func:`run_command`.
+The :class:`UvBackend` implements the
+:class:`~releasekit.backends.pm.PackageManager` protocol via the
+``uv`` CLI (``uv build``, ``uv publish``, ``uv lock``, etc.).
 
-Key design decisions (from roadmap D-2, D-3, D-7, D-9):
-
-- ``build()`` uses ``--no-sources`` (D-3) to verify packages build
-  without workspace source overrides.
-- ``publish()`` uses ``--check-url`` (D-7) for native retry handling.
-- ``lock()`` supports ``--upgrade-package`` (D-2) for lock file freshness.
-- ``resolve_check()`` uses ``uv pip install --dry-run`` (D-9) for
-  consistency with the uv toolchain.
+All methods are async — blocking subprocess calls are dispatched to
+``asyncio.to_thread()`` to avoid blocking the event loop.
 """
 
 from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
 from releasekit.backends._run import CommandResult, run_command
 from releasekit.logging import get_logger
 
-log = get_logger('releasekit.backends.pm')
-
-
-@runtime_checkable
-class PackageManager(Protocol):
-    """Protocol for package build and publish operations.
-
-    All methods are async to avoid blocking the event loop when
-    shelling out to ``uv`` or other package managers.
-    """
-
-    async def build(
-        self,
-        package_dir: Path,
-        *,
-        output_dir: Path | None = None,
-        no_sources: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Build a distribution (sdist + wheel) for a package.
-
-        Args:
-            package_dir: Path to the package directory containing pyproject.toml.
-            output_dir: Directory to place built distributions.
-            no_sources: Use ``--no-sources`` to verify builds without workspace
-                source overrides (D-3).
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def publish(
-        self,
-        dist_dir: Path,
-        *,
-        check_url: str | None = None,
-        index_url: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Publish distributions to a package index.
-
-        Args:
-            dist_dir: Directory containing .tar.gz and .whl files.
-            check_url: URL to check for existing versions (D-7).
-            index_url: Custom index URL (e.g., Test PyPI).
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def lock(
-        self,
-        *,
-        check_only: bool = False,
-        upgrade_package: str | None = None,
-        cwd: Path | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Update or verify the lock file.
-
-        Args:
-            check_only: Only verify the lock file is up-to-date (exit 1 if not).
-            upgrade_package: Upgrade a specific package in the lock file (D-2).
-            cwd: Working directory (defaults to workspace root).
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def version_bump(
-        self,
-        package_dir: Path,
-        new_version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Bump the version of a package via ``uv version``.
-
-        Args:
-            package_dir: Path to the package directory.
-            new_version: New version string (PEP 440).
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def resolve_check(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        index_url: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Verify a published package can be resolved by pip (D-9).
-
-        Args:
-            package_name: Name of the package on PyPI.
-            version: Expected version.
-            index_url: Custom index URL.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def smoke_test(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Smoke-test a published package by importing it.
-
-        Args:
-            package_name: Package name to test.
-            version: Version to install.
-            dry_run: Log the command without executing.
-        """
-        ...
+log = get_logger('releasekit.backends.pm.uv')
 
 
 class UvBackend:
-    """Default :class:`PackageManager` implementation using ``uv``.
-
-    All methods are async and delegate blocking subprocess calls to
-    ``asyncio.to_thread()`` to avoid blocking the event loop.
+    """Default :class:`~releasekit.backends.pm.PackageManager` implementation using ``uv``.
 
     Args:
         workspace_root: Path to the workspace root (contains ``pyproject.toml``
@@ -198,12 +74,23 @@ class UvBackend:
         index_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
-        """Publish distributions using ``uv publish``."""
+        """Publish distributions using ``uv publish``.
+
+        Args:
+            dist_dir: Directory containing built distributions.
+            check_url: Index URL to check for existing files (skips duplicates).
+            index_url: Upload endpoint URL. Mapped to ``uv publish --publish-url``
+                (``uv publish`` has no ``--index-url`` flag). Defaults to PyPI
+                if not specified.
+            dry_run: Perform a dry run without uploading.
+        """
         cmd = ['uv', 'publish']
         if check_url:
             cmd.extend(['--check-url', check_url])
         if index_url:
-            cmd.extend(['--index-url', index_url])
+            # uv publish uses --publish-url (not --index-url) for the
+            # upload endpoint.
+            cmd.extend(['--publish-url', index_url])
         cmd.append(str(dist_dir))
 
         log.info('publish', dist_dir=str(dist_dir))
@@ -252,7 +139,8 @@ class UvBackend:
         """Verify a published package resolves using ``uv pip install --dry-run``."""
         cmd = ['uv', 'pip', 'install', '--dry-run', f'{package_name}=={version}']
         if index_url:
-            cmd.extend(['--index-url', index_url])
+            # --index-url is deprecated; use --default-index.
+            cmd.extend(['--default-index', index_url])
 
         log.info('resolve_check', package=package_name, version=version)
         return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)
@@ -282,6 +170,5 @@ class UvBackend:
 
 
 __all__ = [
-    'PackageManager',
     'UvBackend',
 ]

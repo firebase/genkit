@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import tomlkit
+from releasekit.config import CONFIG_FILENAME
 from releasekit.init import (
     detect_groups,
     generate_config_toml,
@@ -122,17 +123,14 @@ class TestGenerateConfigToml:
     """Tests for generate_config_toml()."""
 
     def test_produces_valid_toml(self) -> None:
-        """Generated output is valid TOML."""
+        """Generated output is valid TOML with top-level keys."""
         groups = {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}
         output = generate_config_toml(groups)
 
         doc = tomlkit.parse(output)
-        tool = doc.get('tool')
-        if not isinstance(tool, dict):
-            raise AssertionError('Missing [tool] section')
-        rk = tool.get('releasekit')
-        if not isinstance(rk, dict):
-            raise AssertionError('Missing [tool.releasekit] section')
+        # Flat top-level keys (no [tool.releasekit] nesting).
+        if 'tag_format' not in doc:
+            raise AssertionError('Missing tag_format at top level')
 
     def test_contains_tag_format(self) -> None:
         """Generated TOML includes tag_format."""
@@ -153,74 +151,82 @@ class TestGenerateConfigToml:
         if 'sample-*' not in output:
             raise AssertionError('Missing exclude pattern')
 
+    def test_no_tool_nesting(self) -> None:
+        """Generated TOML does NOT have [tool.releasekit] nesting."""
+        output = generate_config_toml({})
+        if '[tool]' in output:
+            raise AssertionError('Should not have [tool] section — flat TOML only')
+
+
+def _create_minimal_workspace(ws: Path) -> None:
+    """Create a minimal uv workspace for testing scaffold_config."""
+    ws.mkdir(exist_ok=True)
+    pyproject = ws / 'pyproject.toml'
+    pyproject.write_text(
+        '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+        encoding='utf-8',
+    )
+    pkg_dir = ws / 'packages' / 'mylib'
+    pkg_dir.mkdir(parents=True)
+    (pkg_dir / 'pyproject.toml').write_text(
+        '[project]\nname = "mylib"\nversion = "1.0.0"\n',
+        encoding='utf-8',
+    )
+
 
 class TestScaffoldConfig:
     """Tests for scaffold_config()."""
 
     def test_dry_run_no_write(self, tmp_path: Path) -> None:
         """Dry run returns TOML but does not write files."""
-        # Create minimal workspace.
         ws = tmp_path / 'ws'
-        ws.mkdir()
-        pyproject = ws / 'pyproject.toml'
-        pyproject.write_text(
-            '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
-            encoding='utf-8',
-        )
-        pkg_dir = ws / 'packages' / 'mylib'
-        pkg_dir.mkdir(parents=True)
-        (pkg_dir / 'pyproject.toml').write_text(
-            '[project]\nname = "mylib"\nversion = "1.0.0"\n',
-            encoding='utf-8',
-        )
+        _create_minimal_workspace(ws)
 
         result = scaffold_config(ws, dry_run=True)
 
         if not result:
-            raise AssertionError('Expected TOML fragment for dry run')
+            raise AssertionError('Expected TOML content for dry run')
 
-        # File should NOT have been modified.
-        content = pyproject.read_text(encoding='utf-8')
-        if 'releasekit' in content:
-            raise AssertionError('Dry run should not write to file')
+        # releasekit.toml should NOT have been created.
+        config_file = ws / CONFIG_FILENAME
+        if config_file.exists():
+            raise AssertionError('Dry run should not write releasekit.toml')
 
-    def test_writes_config(self, tmp_path: Path) -> None:
-        """Non-dry-run writes [tool.releasekit] to pyproject.toml."""
+    def test_writes_releasekit_toml(self, tmp_path: Path) -> None:
+        """Non-dry-run creates releasekit.toml."""
         ws = tmp_path / 'ws'
-        ws.mkdir()
-        pyproject = ws / 'pyproject.toml'
-        pyproject.write_text(
-            '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
-            encoding='utf-8',
-        )
-        pkg_dir = ws / 'packages' / 'mylib'
-        pkg_dir.mkdir(parents=True)
-        (pkg_dir / 'pyproject.toml').write_text(
-            '[project]\nname = "mylib"\nversion = "1.0.0"\n',
-            encoding='utf-8',
-        )
+        _create_minimal_workspace(ws)
 
         scaffold_config(ws)
 
-        content = pyproject.read_text(encoding='utf-8')
-        if 'releasekit' not in content:
-            raise AssertionError('Expected [tool.releasekit] in file')
+        config_file = ws / CONFIG_FILENAME
+        if not config_file.exists():
+            raise AssertionError('Expected releasekit.toml to be created')
+        content = config_file.read_text(encoding='utf-8')
+        if 'tag_format' not in content:
+            raise AssertionError('Expected tag_format in releasekit.toml')
+
+    def test_does_not_modify_pyproject(self, tmp_path: Path) -> None:
+        """scaffold_config does NOT modify pyproject.toml."""
+        ws = tmp_path / 'ws'
+        _create_minimal_workspace(ws)
+        pyproject = ws / 'pyproject.toml'
+        original_content = pyproject.read_text(encoding='utf-8')
+
+        scaffold_config(ws)
+
+        after_content = pyproject.read_text(encoding='utf-8')
+        if original_content != after_content:
+            raise AssertionError('pyproject.toml should not be modified')
 
     def test_idempotent_no_force(self, tmp_path: Path) -> None:
         """Running twice without --force skips the second time."""
         ws = tmp_path / 'ws'
-        ws.mkdir()
-        pyproject = ws / 'pyproject.toml'
-        pyproject.write_text(
-            '[tool.uv.workspace]\nmembers = ["packages/*"]\n[tool.releasekit]\ntag_format = "existing"\n',
-            encoding='utf-8',
-        )
-        pkg_dir = ws / 'packages' / 'mylib'
-        pkg_dir.mkdir(parents=True)
-        (pkg_dir / 'pyproject.toml').write_text(
-            '[project]\nname = "mylib"\nversion = "1.0.0"\n',
-            encoding='utf-8',
-        )
+        _create_minimal_workspace(ws)
+
+        # Pre-create releasekit.toml to simulate existing config.
+        config_file = ws / CONFIG_FILENAME
+        config_file.write_text('tag_format = "existing"\n', encoding='utf-8')
 
         result = scaffold_config(ws)
         if result:
@@ -229,18 +235,7 @@ class TestScaffoldConfig:
     def test_gitignore_updated(self, tmp_path: Path) -> None:
         """.gitignore gets releasekit patterns."""
         ws = tmp_path / 'ws'
-        ws.mkdir()
-        pyproject = ws / 'pyproject.toml'
-        pyproject.write_text(
-            '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
-            encoding='utf-8',
-        )
-        pkg_dir = ws / 'packages' / 'mylib'
-        pkg_dir.mkdir(parents=True)
-        (pkg_dir / 'pyproject.toml').write_text(
-            '[project]\nname = "mylib"\nversion = "1.0.0"\n',
-            encoding='utf-8',
-        )
+        _create_minimal_workspace(ws)
 
         scaffold_config(ws)
 

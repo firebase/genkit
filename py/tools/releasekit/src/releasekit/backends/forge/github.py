@@ -14,14 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Forge protocol and GitHub backend for releasekit.
+"""GitHub forge backend for releasekit.
 
-The :class:`Forge` protocol defines the async interface for code forge
-operations (GitHub Releases, PRs). The default implementation,
-:class:`GitHubBackend`, delegates to the ``gh`` CLI.
+The :class:`GitHubCLIBackend` implements the :class:`Forge` protocol
+by delegating to the ``gh`` CLI tool.
 
-Key design decision (D-10): if ``gh`` is not installed, the backend
-degrades gracefully -- core publish works without it.
+All methods are async — blocking subprocess calls are dispatched to
+``asyncio.to_thread()`` to avoid blocking the event loop.
 """
 
 from __future__ import annotations
@@ -30,127 +29,16 @@ import asyncio
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 from releasekit.backends._run import CommandResult, run_command
 from releasekit.logging import get_logger
 
-log = get_logger('releasekit.backends.forge')
+log = get_logger('releasekit.backends.github')
 
 
-@runtime_checkable
-class Forge(Protocol):
-    """Protocol for code forge operations (GitHub, GitLab, etc.).
-
-    All methods are async to avoid blocking the event loop when
-    shelling out to ``gh`` or other forge CLI tools.
-    """
-
-    async def is_available(self) -> bool:
-        """Return ``True`` if the forge CLI tool is installed and authenticated."""
-        ...
-
-    async def create_release(
-        self,
-        tag: str,
-        *,
-        title: str | None = None,
-        body: str = '',
-        draft: bool = False,
-        prerelease: bool = False,
-        assets: list[Path] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create a release on the forge.
-
-        Args:
-            tag: Git tag for the release.
-            title: Release title. Defaults to the tag name.
-            body: Release body (markdown).
-            draft: Create as a draft release.
-            prerelease: Mark as a prerelease.
-            assets: File paths to attach as release assets.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def delete_release(
-        self,
-        tag: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Delete a release by its tag.
-
-        Args:
-            tag: Tag of the release to delete.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def promote_release(
-        self,
-        tag: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Promote a draft release to published.
-
-        Args:
-            tag: Tag of the draft release to promote.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def list_releases(
-        self,
-        *,
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """List recent releases.
-
-        Args:
-            limit: Maximum number of releases to return.
-
-        Returns:
-            List of release dicts with keys: tag, title, draft, prerelease.
-        """
-        ...
-
-    async def create_pr(
-        self,
-        *,
-        title: str,
-        body: str = '',
-        head: str,
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create a pull request.
-
-        Args:
-            title: PR title.
-            body: PR body (markdown).
-            head: Source branch.
-            base: Target branch.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def pr_data(self, pr_number: int) -> dict[str, Any]:
-        """Fetch data about a pull request.
-
-        Args:
-            pr_number: PR number.
-
-        Returns:
-            Dict with PR metadata (title, body, author, labels, etc.).
-        """
-        ...
-
-
-class GitHubBackend:
-    """Default :class:`Forge` implementation using the ``gh`` CLI.
+class GitHubCLIBackend:
+    """Default :class:`~releasekit.backends.forge.Forge` implementation using the ``gh`` CLI.
 
     All methods are async and delegate blocking subprocess calls to
     ``asyncio.to_thread()`` to avoid blocking the event loop.
@@ -307,7 +195,7 @@ class GitHubBackend:
             'view',
             str(pr_number),
             '--json',
-            'title,body,author,labels,state,mergedAt',
+            'title,body,author,labels,state,mergedAt,headRefName,mergeCommit',
         )
         if not result.ok:
             return {}
@@ -318,8 +206,109 @@ class GitHubBackend:
             log.warning('pr_data_parse_error', pr=pr_number)
             return {}
 
+    async def list_prs(
+        self,
+        *,
+        label: str = '',
+        state: str = 'open',
+        head: str = '',
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """List PRs matching the given filters."""
+        cmd_parts = [
+            'pr',
+            'list',
+            '--state',
+            state,
+            '--limit',
+            str(limit),
+            '--json',
+            'number,title,state,labels,headRefName,mergeCommit',
+        ]
+        if label:
+            cmd_parts.extend(['--label', label])
+        if head:
+            cmd_parts.extend(['--head', head])
+
+        result = await asyncio.to_thread(self._gh, *cmd_parts)
+        if not result.ok:
+            return []
+
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            log.warning('pr_list_parse_error', stdout=result.stdout[:200])
+            return []
+
+    async def add_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Add labels to a PR."""
+        cmd_parts = ['pr', 'edit', str(pr_number)]
+        for label in labels:
+            cmd_parts.extend(['--add-label', label])
+
+        log.info('add_labels', pr=pr_number, labels=labels)
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+
+    async def remove_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Remove labels from a PR."""
+        cmd_parts = ['pr', 'edit', str(pr_number)]
+        for label in labels:
+            cmd_parts.extend(['--remove-label', label])
+
+        log.info('remove_labels', pr=pr_number, labels=labels)
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+
+    async def update_pr(
+        self,
+        pr_number: int,
+        *,
+        title: str = '',
+        body: str = '',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Update a PR's title and/or body."""
+        cmd_parts = ['pr', 'edit', str(pr_number)]
+        if title:
+            cmd_parts.extend(['--title', title])
+        if body:
+            cmd_parts.extend(['--body', body])
+
+        log.info('update_pr', pr=pr_number, has_title=bool(title), has_body=bool(body))
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+
+    async def merge_pr(
+        self,
+        pr_number: int,
+        *,
+        method: str = 'squash',
+        commit_message: str = '',
+        delete_branch: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Merge a PR via ``gh pr merge``."""
+        method_flag = f'--{method}'  # --squash, --merge, or --rebase
+        cmd_parts = ['pr', 'merge', str(pr_number), method_flag, '--auto']
+        if delete_branch:
+            cmd_parts.append('--delete-branch')
+        if commit_message:
+            cmd_parts.extend(['--subject', commit_message])
+
+        log.info('merge_pr', pr=pr_number, method=method)
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+
 
 __all__ = [
-    'Forge',
-    'GitHubBackend',
+    'GitHubCLIBackend',
 ]

@@ -148,6 +148,60 @@ class FakeForge:
         """Return empty PR data."""
         return {}
 
+    async def list_prs(
+        self,
+        *,
+        label: str = '',
+        state: str = 'open',
+        head: str = '',
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Stub list_prs."""
+        return []
+
+    async def add_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub add_labels."""
+        return _OK
+
+    async def remove_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub remove_labels."""
+        return _OK
+
+    async def update_pr(
+        self,
+        pr_number: int,
+        *,
+        title: str = '',
+        body: str = '',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub update_pr."""
+        return _OK
+
+    async def merge_pr(
+        self,
+        pr_number: int,
+        *,
+        method: str = 'squash',
+        commit_message: str = '',
+        delete_branch: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub merge_pr."""
+        return _OK
+
 
 class TestNextDevVersion:
     """Tests for _next_dev_version helper."""

@@ -22,34 +22,34 @@ from pathlib import Path
 
 import pytest
 from releasekit.backends._run import run_command
-from releasekit.backends.vcs import VCS, GitBackend
+from releasekit.backends.vcs import VCS, GitCLIBackend
 from releasekit.logging import configure_logging
 
 configure_logging(quiet=True)
 
 
-def _init_repo(path: Path) -> GitBackend:
-    """Create a git repo with one commit and return a GitBackend."""
+def _init_repo(path: Path) -> GitCLIBackend:
+    """Create a git repo with one commit and return a GitCLIBackend."""
     run_command(['git', 'init'], cwd=path, check=True)
     run_command(['git', 'config', 'user.email', 'test@example.com'], cwd=path, check=True)
     run_command(['git', 'config', 'user.name', 'Test User'], cwd=path, check=True)
     (path / 'README.md').write_text('# Test\n')
     run_command(['git', 'add', '.'], cwd=path, check=True)
     run_command(['git', 'commit', '-m', 'Initial commit'], cwd=path, check=True)
-    return GitBackend(repo_root=path)
+    return GitCLIBackend(repo_root=path)
 
 
-class TestGitBackendProtocol:
-    """Verify GitBackend implements the VCS protocol."""
+class TestGitCLIBackendProtocol:
+    """Verify GitCLIBackend implements the VCS protocol."""
 
     def test_implements_vcs(self, tmp_path: Path) -> None:
-        """GitBackend should be a runtime-checkable VCS."""
-        backend = GitBackend(repo_root=tmp_path)
+        """GitCLIBackend should be a runtime-checkable VCS."""
+        backend = GitCLIBackend(repo_root=tmp_path)
         assert isinstance(backend, VCS)
 
 
-class TestGitBackendIsClean:
-    """Tests for GitBackend.is_clean()."""
+class TestGitCLIBackendIsClean:
+    """Tests for GitCLIBackend.is_clean()."""
 
     @pytest.mark.asyncio
     async def test_clean_repo(self, tmp_path: Path) -> None:
@@ -72,8 +72,8 @@ class TestGitBackendIsClean:
         assert await backend.is_clean(dry_run=True)
 
 
-class TestGitBackendIsShallow:
-    """Tests for GitBackend.is_shallow()."""
+class TestGitCLIBackendIsShallow:
+    """Tests for GitCLIBackend.is_shallow()."""
 
     @pytest.mark.asyncio
     async def test_not_shallow(self, tmp_path: Path) -> None:
@@ -82,8 +82,8 @@ class TestGitBackendIsShallow:
         assert not await backend.is_shallow()
 
 
-class TestGitBackendCurrentSha:
-    """Tests for GitBackend.current_sha()."""
+class TestGitCLIBackendCurrentSha:
+    """Tests for GitCLIBackend.current_sha()."""
 
     @pytest.mark.asyncio
     async def test_returns_sha(self, tmp_path: Path) -> None:
@@ -94,8 +94,8 @@ class TestGitBackendCurrentSha:
         assert all(c in '0123456789abcdef' for c in sha)
 
 
-class TestGitBackendLog:
-    """Tests for GitBackend.log()."""
+class TestGitCLIBackendLog:
+    """Tests for GitCLIBackend.log()."""
 
     @pytest.mark.asyncio
     async def test_log_returns_lines(self, tmp_path: Path) -> None:
@@ -106,8 +106,8 @@ class TestGitBackendLog:
         assert 'Initial commit' in lines[0]
 
 
-class TestGitBackendCommit:
-    """Tests for GitBackend.commit()."""
+class TestGitCLIBackendCommit:
+    """Tests for GitCLIBackend.commit()."""
 
     @pytest.mark.asyncio
     async def test_commit_creates_commit(self, tmp_path: Path) -> None:
@@ -126,8 +126,8 @@ class TestGitBackendCommit:
         assert result.dry_run
 
 
-class TestGitBackendTag:
-    """Tests for GitBackend.tag()."""
+class TestGitCLIBackendTag:
+    """Tests for GitCLIBackend.tag()."""
 
     @pytest.mark.asyncio
     async def test_create_tag(self, tmp_path: Path) -> None:

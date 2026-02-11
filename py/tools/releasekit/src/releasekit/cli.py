@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import fnmatch
 import json
 import sys
 from pathlib import Path
@@ -55,25 +56,34 @@ from pathlib import Path
 from rich_argparse import RichHelpFormatter
 
 from releasekit import __version__
-from releasekit.backends.forge import GitHubBackend
+from releasekit.backends.forge import GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.pm import UvBackend
 from releasekit.backends.registry import PyPIBackend
-from releasekit.backends.vcs import GitBackend
+from releasekit.backends.vcs import GitCLIBackend
 from releasekit.checks import run_checks
-from releasekit.config import ReleaseConfig, load_config
+from releasekit.config import ReleaseConfig, load_config, resolve_group_refs
+from releasekit.detection import (
+    DetectedEcosystem,
+    Ecosystem,
+    detect_ecosystems,
+    find_monorepo_root,
+)
 from releasekit.errors import E, ReleaseKitError, explain, render_error
 from releasekit.formatters import FORMATTERS, format_graph
 from releasekit.graph import build_graph, topo_sort
+from releasekit.groups import filter_by_group
 from releasekit.init import print_scaffold_preview, scaffold_config
 from releasekit.lock import release_lock
 from releasekit.logging import get_logger
 from releasekit.plan import build_plan
 from releasekit.preflight import run_preflight
+from releasekit.prepare import prepare_release
 from releasekit.publisher import PublishConfig, publish_workspace
+from releasekit.release import tag_release
 from releasekit.ui import create_progress_ui
 from releasekit.versioning import compute_bumps
 from releasekit.versions import ReleaseManifest
-from releasekit.workspace import discover_packages
+from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
 
@@ -81,7 +91,11 @@ logger = get_logger(__name__)
 def _find_workspace_root() -> Path:
     """Find the workspace root by walking up from CWD.
 
-    Looks for a ``pyproject.toml`` containing ``[tool.uv.workspace]``.
+    Backward-compatible helper for commands that still use the legacy
+    ``discover_packages()`` function (which is uv-only). Walks up
+    from CWD looking for ``pyproject.toml`` with ``[tool.uv.workspace]``.
+
+    For multi-ecosystem discovery, use :func:`_resolve_ecosystems` instead.
 
     Returns:
         Absolute path to the workspace root.
@@ -103,27 +117,93 @@ def _find_workspace_root() -> Path:
     )
 
 
+def _get_ecosystem_filter(args: argparse.Namespace) -> Ecosystem | None:
+    """Extract ``--ecosystem`` filter from parsed args.
+
+    Returns:
+        The ecosystem enum value, or ``None`` if not specified.
+    """
+    eco_str = getattr(args, 'ecosystem', None)
+    if eco_str is None:
+        return None
+    for member in list(Ecosystem):
+        if member.value == eco_str:
+            return member
+    return None
+
+
+def _resolve_ecosystems(
+    args: argparse.Namespace,
+) -> tuple[Path, list[DetectedEcosystem]]:
+    """Detect the monorepo root and all ecosystems.
+
+    Combines :func:`find_monorepo_root` and :func:`detect_ecosystems`
+    with optional ``--ecosystem`` filtering.
+
+    Returns:
+        Tuple of (monorepo_root, detected_ecosystems).
+    """
+    monorepo_root = find_monorepo_root()
+    eco_filter = _get_ecosystem_filter(args)
+    ecosystems = detect_ecosystems(monorepo_root, ecosystem_filter=eco_filter)
+    return monorepo_root, ecosystems
+
+
 def _create_backends(
     workspace_root: Path,
     config: ReleaseConfig,
-) -> tuple[GitBackend, UvBackend, GitHubBackend, PyPIBackend]:
+    *,
+    forge_backend: str = 'cli',
+) -> tuple[GitCLIBackend, UvBackend, GitHubCLIBackend | GitHubAPIBackend, PyPIBackend]:
     """Create real backend instances for production use.
 
     Args:
         workspace_root: Workspace root directory.
         config: Release configuration.
+        forge_backend: Forge implementation to use: ``"cli"`` for
+            ``gh``-based, ``"api"`` for REST API-based.
 
     Returns:
         Tuple of (VCS, PackageManager, Forge, Registry) backends.
     """
-    vcs = GitBackend(workspace_root)
+    vcs = GitCLIBackend(workspace_root)
     pm = UvBackend(workspace_root)
-    forge = GitHubBackend(
-        repo='firebase/genkit',  # NOTE: Could be auto-detected from git remote.
-        cwd=workspace_root,
-    )
+
+    forge: GitHubCLIBackend | GitHubAPIBackend
+    if forge_backend == 'api':
+        forge = GitHubAPIBackend(
+            owner='firebase',
+            repo='genkit',
+        )
+    else:
+        forge = GitHubCLIBackend(
+            repo='firebase/genkit',
+            cwd=workspace_root,
+        )
+
     registry = PyPIBackend(pool_size=config.http_pool_size)
     return vcs, pm, forge, registry
+
+
+def _maybe_filter_group(
+    packages: list[Package],
+    config: ReleaseConfig,
+    group: str | None,
+) -> list[Package]:
+    """Optionally filter packages by release group.
+
+    If ``group`` is None, returns all packages unchanged.
+    Otherwise, filters to only packages matching the named group.
+    """
+    if group is None:
+        return packages
+
+    return filter_by_group(packages, groups=config.groups, group=group)
+
+
+def _match_exclude_patterns(name: str, patterns: list[str]) -> bool:
+    """Return True if *name* matches any of the glob *patterns*."""
+    return any(fnmatch.fnmatch(name, pat) for pat in patterns)
 
 
 # ── Subcommand handlers ──────────────────────────────────────────────
@@ -132,11 +212,18 @@ def _create_backends(
 async def _cmd_publish(args: argparse.Namespace) -> int:
     """Handle the ``publish`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
-    vcs, pm, forge, registry = _create_backends(workspace_root, config)
+    config = load_config(workspace_root)
+    forge_backend = getattr(args, 'forge_backend', 'cli')
+    vcs, pm, forge, registry = _create_backends(
+        workspace_root,
+        config,
+        forge_backend=forge_backend,
+    )
 
-    # Discover and analyze.
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    # Discover and analyze — all packages participate in checks + version bumps.
+    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    group = getattr(args, 'group', None)
+    packages = _maybe_filter_group(all_packages, config, group)
     graph = build_graph(packages)
     levels = topo_sort(graph)
     versions = await compute_bumps(
@@ -146,6 +233,28 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         prerelease='',
         force_unchanged=args.force_unchanged,
     )
+
+    # Filter out exclude_bump packages — they are discovered + checked but not bumped.
+    resolved_exclude_bump = resolve_group_refs(config.exclude_bump, config.groups)
+    if resolved_exclude_bump:
+        bump_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_bump)}
+        if bump_excluded:
+            logger.info('exclude_bump', count=len(bump_excluded), names=sorted(bump_excluded))
+        packages = [p for p in packages if p.name not in bump_excluded]
+        versions = [v for v in versions if v.name not in bump_excluded]
+        graph = build_graph(packages)
+        levels = topo_sort(graph)
+
+    # Filter out exclude_publish packages — they get version bumps but not published.
+    resolved_exclude_publish = resolve_group_refs(config.exclude_publish, config.groups)
+    if resolved_exclude_publish:
+        pub_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_publish)}
+        if pub_excluded:
+            logger.info('exclude_publish', count=len(pub_excluded), names=sorted(pub_excluded))
+        packages = [p for p in packages if p.name not in pub_excluded]
+        versions = [v for v in versions if v.name not in pub_excluded]
+        graph = build_graph(packages)
+        levels = topo_sort(graph)
 
     # Check for any actual bumps.
     bumped = [v for v in versions if not v.skipped]
@@ -241,10 +350,12 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
 async def _cmd_plan(args: argparse.Namespace) -> int:
     """Handle the ``plan`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
+    config = load_config(workspace_root)
     vcs, _pm, _forge, registry = _create_backends(workspace_root, config)
 
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    group = getattr(args, 'group', None)
+    packages = _maybe_filter_group(all_packages, config, group)
     graph = build_graph(packages)
     levels = topo_sort(graph)
     versions = await compute_bumps(
@@ -280,38 +391,114 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
 
 
 def _cmd_discover(args: argparse.Namespace) -> int:
-    """Handle the ``discover`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    """Handle the ``discover`` subcommand.
 
+    Discovers packages across all detected ecosystems (or a
+    specific one if ``--ecosystem`` is provided).  Falls back
+    to the legacy uv-only path when a specific ecosystem's
+    Workspace backend is not yet implemented.
+    """
+    monorepo_root, ecosystems = _resolve_ecosystems(args)
+    config = load_config(monorepo_root)
+    group = getattr(args, 'group', None)
     fmt = getattr(args, 'format', 'table')
+
+    if not ecosystems:
+        # Fall back to legacy uv-only discovery.
+        workspace_root = _find_workspace_root()
+        all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+        packages = _maybe_filter_group(all_packages, config, group)
+        _print_packages(packages, fmt, ecosystem_label=None)
+        return 0
+
+    all_data: list[dict[str, object]] = []
+    for eco in ecosystems:
+        if eco.workspace is None:
+            logger.warning(
+                'ecosystem_no_backend',
+                ecosystem=eco.ecosystem.value,
+                root=str(eco.root),
+                hint=f'{eco.ecosystem.value} workspace backend not yet implemented.',
+            )
+            continue
+
+        try:
+            eco_packages = asyncio.run(eco.workspace.discover(exclude_patterns=config.exclude))
+        except ReleaseKitError as exc:
+            # Don't let one ecosystem's error block discovery of others.
+            logger.warning(
+                'ecosystem_discover_failed',
+                ecosystem=eco.ecosystem.value,
+                root=str(eco.root),
+                error=str(exc),
+            )
+            continue
+
+        # Convert WsPackage → legacy Package for group filtering compatibility.
+        legacy = [
+            Package(
+                name=p.name,
+                version=p.version,
+                path=p.path,
+                pyproject_path=p.manifest_path,
+                internal_deps=list(p.internal_deps),
+                external_deps=list(p.external_deps),
+                all_deps=list(p.all_deps),
+                is_publishable=p.is_publishable,
+            )
+            for p in eco_packages
+        ]
+        filtered = _maybe_filter_group(legacy, config, group)
+        _print_packages(filtered, fmt, ecosystem_label=eco.ecosystem.value, data_acc=all_data)
+
+    if fmt == 'json' and all_data:
+        print(json.dumps(all_data, indent=2))  # noqa: T201 - CLI output
+
+    return 0
+
+
+def _print_packages(
+    packages: list[Package],
+    fmt: str,
+    *,
+    ecosystem_label: str | None = None,
+    data_acc: list[dict[str, object]] | None = None,
+) -> None:
+    """Print packages in the requested format.
+
+    Args:
+        packages: Packages to display.
+        fmt: Output format (``"table"`` or ``"json"``).
+        ecosystem_label: If set, used to annotate output.
+        data_acc: If fmt is json, append dicts here instead of printing.
+    """
     if fmt == 'json':
-        data = [
-            {
+        for p in packages:
+            entry: dict[str, object] = {
                 'name': p.name,
                 'version': p.version,
                 'path': str(p.path),
                 'internal_deps': p.internal_deps,
                 'publishable': p.is_publishable,
             }
-            for p in packages
-        ]
-        print(json.dumps(data, indent=2))  # noqa: T201 - CLI output
+            if ecosystem_label:
+                entry['ecosystem'] = ecosystem_label
+            if data_acc is not None:
+                data_acc.append(entry)
     else:
+        if ecosystem_label:
+            print(f'\n  ── {ecosystem_label} ({len(packages)} packages) ──')  # noqa: T201 - CLI output
         for pkg in packages:
             deps = ', '.join(pkg.internal_deps) if pkg.internal_deps else '(none)'
             pub = '' if pkg.is_publishable else ' [private]'
             print(f'  {pkg.name} {pkg.version} ({pkg.path}){pub}')  # noqa: T201 - CLI output
             print(f'    deps: {deps}')  # noqa: T201 - CLI output
 
-    return 0
-
 
 def _cmd_graph(args: argparse.Namespace) -> int:
     """Handle the ``graph`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
+    config = load_config(workspace_root)
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
 
@@ -325,11 +512,18 @@ def _cmd_graph(args: argparse.Namespace) -> int:
 def _cmd_check(args: argparse.Namespace) -> int:
     """Handle the ``check`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
+    config = load_config(workspace_root)
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
 
-    result = run_checks(packages, graph)
+    resolved_exclude_publish = resolve_group_refs(config.exclude_publish, config.groups)
+    result = run_checks(
+        packages,
+        graph,
+        exclude_publish=resolved_exclude_publish,
+        groups=config.groups,
+        workspace_root=workspace_root,
+    )
 
     # Print detailed results.
     if result.passed:
@@ -339,10 +533,16 @@ def _cmd_check(args: argparse.Namespace) -> int:
         for name in result.warnings:
             msg = result.warning_messages.get(name, '')
             print(f'  ⚠️  {name}: {msg}')  # noqa: T201 - CLI output
+            hint = result.hints.get(name, '')
+            if hint:
+                print(f'     = hint: {hint}')  # noqa: T201 - CLI output
     if result.failed:
         for name in result.failed:
             msg = result.errors.get(name, '')
             print(f'  ❌ {name}: {msg}')  # noqa: T201 - CLI output
+            hint = result.hints.get(name, '')
+            if hint:
+                print(f'     = hint: {hint}')  # noqa: T201 - CLI output
 
     print()  # noqa: T201 - CLI output
     print(f'  {result.summary()}')  # noqa: T201 - CLI output
@@ -353,10 +553,19 @@ def _cmd_check(args: argparse.Namespace) -> int:
 async def _cmd_version(args: argparse.Namespace) -> int:
     """Handle the ``version`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
+    config = load_config(workspace_root)
     vcs, _pm, _forge, _registry = _create_backends(workspace_root, config)
 
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+
+    # Filter out exclude_bump packages before computing bumps.
+    resolved_exclude_bump = resolve_group_refs(config.exclude_bump, config.groups)
+    if resolved_exclude_bump:
+        bump_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_bump)}
+        if bump_excluded:
+            logger.info('exclude_bump', count=len(bump_excluded), names=sorted(bump_excluded))
+        packages = [p for p in packages if p.name not in bump_excluded]
+
     versions = await compute_bumps(
         packages,
         vcs,
@@ -400,10 +609,25 @@ def _cmd_explain(args: argparse.Namespace) -> int:
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
-    """Handle the ``init`` subcommand."""
-    workspace_root = _find_workspace_root()
+    """Handle the ``init`` subcommand.
+
+    Detects all ecosystems in the monorepo and scaffolds a
+    ``releasekit.toml`` at the monorepo root.  If ``--ecosystem``
+    is specified, only that ecosystem is included in the generated
+    config.
+    """
+    monorepo_root, ecosystems = _resolve_ecosystems(args)
     dry_run = getattr(args, 'dry_run', False)
     force = getattr(args, 'force', False)
+
+    if ecosystems:
+        eco_summary = ', '.join(f'{e.ecosystem.value} ({e.root.relative_to(monorepo_root)})' for e in ecosystems)
+        logger.info('init_detected_ecosystems', ecosystems=eco_summary)
+
+    # Use the first uv workspace root for backward compatibility
+    # with the single-ecosystem scaffold_config.
+    uv_ecosystems = [e for e in ecosystems if e.ecosystem == Ecosystem.PYTHON]
+    workspace_root = uv_ecosystems[0].root if uv_ecosystems else monorepo_root
 
     toml_fragment = scaffold_config(
         workspace_root,
@@ -416,7 +640,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
         if not dry_run:
             print('  ✅ Configuration written')  # noqa: T201 - CLI output
     elif not dry_run:
-        print('  ℹ️  [tool.releasekit] already exists (use --force to overwrite)')  # noqa: T201 - CLI output
+        print('  ℹ️  releasekit.toml already exists (use --force to overwrite)')  # noqa: T201 - CLI output
 
     return 0
 
@@ -424,7 +648,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
 async def _cmd_rollback(args: argparse.Namespace) -> int:
     """Handle the ``rollback`` subcommand."""
     workspace_root = _find_workspace_root()
-    config = load_config(workspace_root / 'pyproject.toml')
+    config = load_config(workspace_root)
     vcs, _pm, forge, _registry = _create_backends(workspace_root, config)
     dry_run = getattr(args, 'dry_run', False)
     tag = args.tag
@@ -612,6 +836,71 @@ complete -c {prog} -n '__fish_seen_subcommand_from publish' -l version-only -d '
     return 0
 
 
+async def _cmd_prepare(args: argparse.Namespace) -> int:
+    """Handle the ``prepare`` subcommand."""
+    workspace_root = _find_workspace_root()
+    config = load_config(workspace_root)
+    vcs, pm, forge, registry = _create_backends(workspace_root, config)
+
+    result = await prepare_release(
+        vcs=vcs,
+        pm=pm,
+        forge=forge,
+        registry=registry,
+        workspace_root=workspace_root,
+        config=config,
+        dry_run=args.dry_run,
+        force=args.force,
+    )
+
+    if not result.ok:
+        for step, error in result.errors.items():
+            logger.error('prepare_error', step=step, error=error)
+        return 1
+
+    if not result.bumped:
+        logger.info('prepare_no_changes', message='No packages have changes to release.')
+        return 0
+
+    logger.info(
+        'prepare_success',
+        bumped=len(result.bumped),
+        pr_url=result.pr_url,
+    )
+    if result.pr_url:
+        print(f'Release PR: {result.pr_url}')  # noqa: T201 - CLI output
+    return 0
+
+
+async def _cmd_release(args: argparse.Namespace) -> int:
+    """Handle the ``release`` subcommand."""
+    workspace_root = _find_workspace_root()
+    config = load_config(workspace_root)
+    vcs, _pm, forge, _registry = _create_backends(workspace_root, config)
+
+    manifest_path = Path(args.manifest) if args.manifest else None
+
+    result = await tag_release(
+        vcs=vcs,
+        forge=forge,
+        config=config,
+        manifest_path=manifest_path,
+        dry_run=args.dry_run,
+    )
+
+    if not result.ok:
+        for step, error in result.errors.items():
+            logger.error('release_error', step=step, error=error)
+        return 1
+
+    logger.info(
+        'release_success',
+        tags=len(result.tags_created),
+        release_url=result.release_url,
+    )
+    return 0
+
+
 # ── Argument parser ──────────────────────────────────────────────────
 
 
@@ -624,7 +913,7 @@ def build_parser() -> argparse.ArgumentParser:
     RichHelpFormatter.styles['argparse.groups'] = 'bold yellow'
     parser = argparse.ArgumentParser(
         prog='releasekit',
-        description='Release orchestration for uv workspaces.',
+        description='Release orchestration for polyglot monorepos (uv, pnpm, Go).',
         formatter_class=RichHelpFormatter,
     )
     parser.add_argument(
@@ -708,6 +997,18 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Compute and apply version bumps, then stop (no build/publish).',
     )
+    publish_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only publish packages in this release group.',
+    )
+    publish_parser.add_argument(
+        '--forge-backend',
+        choices=['cli', 'api'],
+        default='cli',
+        help="Forge backend: 'cli' (gh CLI) or 'api' (REST API via GITHUB_TOKEN).",
+    )
 
     # ── plan ──
     plan_parser = subparsers.add_parser(
@@ -725,17 +1026,36 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Include packages with no changes.',
     )
+    plan_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only show packages in this release group.',
+    )
 
     # ── discover ──
     discover_parser = subparsers.add_parser(
         'discover',
-        help='List all workspace packages.',
+        help='List all workspace packages (across all detected ecosystems).',
     )
     discover_parser.add_argument(
         '--format',
         choices=['table', 'json'],
         default='table',
         help='Output format (default: table).',
+    )
+    discover_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only show packages in this release group.',
+    )
+    discover_parser.add_argument(
+        '--ecosystem',
+        '-e',
+        choices=[e.value for e in list(Ecosystem)],
+        metavar='ECO',
+        help='Only discover packages in this ecosystem (python, js, go).',
     )
 
     # ── graph ──
@@ -782,6 +1102,12 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Include packages with no changes.',
     )
+    version_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only show versions for packages in this release group.',
+    )
 
     # ── explain ──
     explain_parser = subparsers.add_parser(
@@ -796,7 +1122,7 @@ def build_parser() -> argparse.ArgumentParser:
     # ── init ──
     init_parser = subparsers.add_parser(
         'init',
-        help='Scaffold [tool.releasekit] config for the workspace.',
+        help='Scaffold releasekit.toml config for the workspace.',
     )
     init_parser.add_argument(
         '--dry-run',
@@ -806,7 +1132,14 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument(
         '--force',
         action='store_true',
-        help='Overwrite existing [tool.releasekit] section.',
+        help='Overwrite existing releasekit.toml.',
+    )
+    init_parser.add_argument(
+        '--ecosystem',
+        '-e',
+        choices=[e.value for e in list(Ecosystem)],
+        metavar='ECO',
+        help='Only init for this ecosystem (python, js, go).',
     )
 
     # ── rollback ──
@@ -822,6 +1155,50 @@ def build_parser() -> argparse.ArgumentParser:
         '--dry-run',
         action='store_true',
         help='Preview mode: log commands without executing.',
+    )
+
+    # ── prepare ──
+    prepare_parser = subparsers.add_parser(
+        'prepare',
+        help='Prepare a release: bump versions, generate changelogs, open Release PR.',
+    )
+    prepare_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview mode: log commands without executing.',
+    )
+    prepare_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Skip preflight checks.',
+    )
+    prepare_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only prepare packages in this release group.',
+    )
+    prepare_parser.add_argument(
+        '--forge-backend',
+        choices=['cli', 'api'],
+        default='cli',
+        help="Forge backend: 'cli' (gh CLI) or 'api' (REST API via GITHUB_TOKEN).",
+    )
+
+    # ── release ──
+    release_parser = subparsers.add_parser(
+        'release',
+        help='Tag a merged Release PR and create platform Release.',
+    )
+    release_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview mode: log commands without executing.',
+    )
+    release_parser.add_argument(
+        '--manifest',
+        default='',
+        help='Path to a manifest JSON file (skips PR lookup).',
     )
 
     # ── completion ──
@@ -867,6 +1244,10 @@ def main() -> int:
             return _cmd_init(args)
         if command == 'rollback':
             return asyncio.run(_cmd_rollback(args))
+        if command == 'prepare':
+            return asyncio.run(_cmd_prepare(args))
+        if command == 'release':
+            return asyncio.run(_cmd_release(args))
         if command == 'completion':
             return _cmd_completion(args)
 

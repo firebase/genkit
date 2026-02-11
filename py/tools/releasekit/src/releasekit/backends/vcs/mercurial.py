@@ -1,0 +1,290 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Mercurial VCS backend for releasekit.
+
+Implements the :class:`~releasekit.backends.vcs.VCS` protocol using
+the ``hg`` CLI. This backend validates that the VCS protocol is
+generic enough to support version control systems beyond Git.
+
+Terminology mapping:
+
+============================  =========================
+VCS (generic)                 Mercurial
+============================  =========================
+commit SHA                    changeset hash (node)
+tag                           tag (global, stored in .hgtags)
+branch                        bookmark (named branches are different)
+remote                        path (default = origin equivalent)
+shallow clone                 (not applicable, always False)
+============================  =========================
+
+Usage::
+
+    from releasekit.backends.vcs.mercurial import MercurialCLIBackend
+
+    vcs = MercurialCLIBackend(repo_root=Path('.'))
+    sha = await vcs.current_sha()
+    log = await vcs.log(since_tag='v1.0.0', paths=['src/'])
+"""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from releasekit.backends._run import CommandResult, run_command
+from releasekit.logging import get_logger
+
+log = get_logger('releasekit.backends.vcs.mercurial')
+
+
+class MercurialCLIBackend:
+    """VCS implementation using ``hg`` (Mercurial).
+
+    Demonstrates that the :class:`~releasekit.backends.vcs.VCS` protocol
+    works beyond Git. Maps VCS operations to Mercurial equivalents.
+
+    Key differences from Git:
+
+    - Tags are stored in ``.hgtags`` and are themselves changesets.
+    - Shallow clones don't exist; ``is_shallow()`` always returns ``False``.
+    - ``hg log`` uses revsets instead of ``ref..ref`` range syntax.
+    - Branches are typically bookmarks (lightweight) rather than
+      named branches (permanent).
+
+    Args:
+        repo_root: Path to the Mercurial repository root.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        """Initialize with the Mercurial repository root path."""
+        self._root = repo_root
+
+    def _hg(self, *args: str, dry_run: bool = False, check: bool = False) -> CommandResult:
+        """Run an hg command synchronously (called via to_thread)."""
+        return run_command(['hg', *args], cwd=self._root, dry_run=dry_run, check=check)
+
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
+        """Return ``True`` if the working directory has no uncommitted changes."""
+        if dry_run:
+            return True
+        result = await asyncio.to_thread(self._hg, 'status', '--quiet')
+        return result.stdout.strip() == ''
+
+    async def is_shallow(self) -> bool:
+        """Return ``False`` — Mercurial does not support shallow clones."""
+        return False
+
+    async def current_sha(self) -> str:
+        """Return the current working directory's changeset hash."""
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            '.',
+            '--template',
+            '{node}',
+            check=True,
+        )
+        return result.stdout.strip()
+
+    async def log(
+        self,
+        *,
+        since_tag: str | None = None,
+        paths: list[str] | None = None,
+        format: str = '%H %s',
+    ) -> list[str]:
+        """Return hg log lines.
+
+        Maps Git's ``--pretty=format:`` to Mercurial's ``--template``.
+        The ``format`` parameter uses Git-style placeholders which are
+        translated to Mercurial template syntax:
+
+        - ``%H`` → ``{node}`` (full changeset hash)
+        - ``%s`` → ``{desc|firstline}`` (first line of description)
+        """
+        # Translate Git format to Mercurial template.
+        template = format.replace('%H', '{node}').replace('%s', '{desc|firstline}')
+        template += '\\n'
+
+        cmd_parts = ['log', '--template', template]
+
+        if since_tag:
+            # Mercurial revset: all changesets from tag to tip.
+            cmd_parts.extend(['-r', f'tag("{since_tag}")::. and not tag("{since_tag}")'])
+        else:
+            cmd_parts.extend(['-r', '0:.'])
+
+        if paths:
+            cmd_parts.append('--')
+            cmd_parts.extend(paths)
+
+        result = await asyncio.to_thread(self._hg, *cmd_parts)
+        if not result.stdout.strip():
+            return []
+        return [line for line in result.stdout.strip().split('\n') if line]
+
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+        """Return list of files changed since a tag.
+
+        Uses ``hg status --rev`` with two revisions to show cumulative
+        changes across a range. Note that ``--change`` only accepts a
+        single revision (showing changes in that one changeset), so it
+        cannot be used for ranges.
+        """
+        if since_tag:
+            # Show files changed between the tagged revision and the
+            # working directory parent (`.`).
+            result = await asyncio.to_thread(
+                self._hg,
+                'status',
+                '--rev',
+                f'tag("{since_tag}")',
+                '--rev',
+                '.',
+                '--no-status',
+            )
+        else:
+            result = await asyncio.to_thread(
+                self._hg,
+                'status',
+                '--no-status',
+            )
+
+        if not result.stdout.strip():
+            return []
+        return result.stdout.strip().split('\n')
+
+    async def commit(
+        self,
+        message: str,
+        *,
+        paths: list[str] | None = None,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Create a commit, adding specified paths first."""
+        if paths and not dry_run:
+            await asyncio.to_thread(self._hg, 'add', *paths)
+        elif not dry_run:
+            await asyncio.to_thread(self._hg, 'add')
+
+        log.info('commit', message=message[:80])
+        return await asyncio.to_thread(self._hg, 'commit', '-m', message, dry_run=dry_run)
+
+    async def tag(
+        self,
+        tag_name: str,
+        *,
+        message: str | None = None,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Create a tag.
+
+        In Mercurial, tags are stored in ``.hgtags`` and create a new
+        changeset. This is different from Git's lightweight/annotated
+        tags, which are refs.
+        """
+        tag_message = message or tag_name
+        log.info('tag', tag=tag_name)
+        return await asyncio.to_thread(
+            self._hg,
+            'tag',
+            '-m',
+            tag_message,
+            tag_name,
+            dry_run=dry_run,
+        )
+
+    async def tag_exists(self, tag_name: str) -> bool:
+        """Return ``True`` if the tag exists."""
+        result = await asyncio.to_thread(self._hg, 'tags', '--quiet')
+        return tag_name in result.stdout.split()
+
+    async def delete_tag(
+        self,
+        tag_name: str,
+        *,
+        remote: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Delete a tag.
+
+        In Mercurial, removing a tag creates a new changeset that nullifies
+        it. The ``remote`` flag triggers a push after removal.
+        """
+        result = await asyncio.to_thread(
+            self._hg,
+            'tag',
+            '--remove',
+            tag_name,
+            dry_run=dry_run,
+        )
+        if remote and result.ok and not dry_run:
+            await asyncio.to_thread(self._hg, 'push')
+        return result
+
+    async def push(
+        self,
+        *,
+        tags: bool = False,
+        remote: str = 'origin',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Push changesets to a remote path.
+
+        Mercurial pushes all new changesets by default (tags are
+        changesets, so they're included automatically).
+        """
+        # Mercurial uses "default" as the default remote, not "origin".
+        hg_remote = 'default' if remote == 'origin' else remote
+        cmd_parts = ['push', hg_remote]
+
+        log.info('push', remote=hg_remote, tags=tags)
+        return await asyncio.to_thread(self._hg, *cmd_parts, dry_run=dry_run)
+
+    async def checkout_branch(
+        self,
+        branch: str,
+        *,
+        create: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Switch to a bookmark (Mercurial's lightweight branch equivalent).
+
+        Uses ``hg bookmark`` for creation and ``hg update`` for switching.
+        """
+        if create:
+            log.info('bookmark_create', bookmark=branch)
+            return await asyncio.to_thread(
+                self._hg,
+                'bookmark',
+                branch,
+                dry_run=dry_run,
+            )
+        log.info('update_to', bookmark=branch)
+        return await asyncio.to_thread(
+            self._hg,
+            'update',
+            branch,
+            dry_run=dry_run,
+        )
+
+
+__all__ = [
+    'MercurialCLIBackend',
+]

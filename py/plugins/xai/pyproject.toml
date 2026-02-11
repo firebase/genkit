@@ -25,6 +25,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -38,6 +41,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
+  "Private :: Do Not Upload",
 ]
 dependencies = ["genkit", "xai-sdk>=0.0.1"]
 description = "Genkit xAI Plugin (Community)"

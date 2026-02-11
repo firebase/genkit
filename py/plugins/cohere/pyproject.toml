@@ -23,6 +23,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -36,6 +39,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
+  "Private :: Do Not Upload",
 ]
 dependencies = ["genkit", "cohere>=5.0.0"]
 description = "Genkit Cohere AI Plugin (Community)"

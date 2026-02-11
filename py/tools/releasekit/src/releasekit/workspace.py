@@ -30,10 +30,10 @@ Key Concepts (ELI5)::
     │                         │ version, and list of things it needs.     │
     ├─────────────────────────┼────────────────────────────────────────────┤
     │ Internal dep            │ A dependency that's another package in    │
-    │                         │ this same workspace. We control it.       │
-    ├─────────────────────────┼────────────────────────────────────────────┤
-    │ External dep            │ A dependency from PyPI (requests, httpx). │
-    │                         │ We don't control its release.             │
+    │                         │ this workspace AND resolved from the      │
+    │                         │ workspace source (not pinned to PyPI).    │
+    │                         │ Must have ``workspace = true`` in         │
+    │                         │ ``[tool.uv.sources]``.                   │
     ├─────────────────────────┼────────────────────────────────────────────┤
     │ PEP 503 normalization   │ Package names are lowercased and          │
     │                         │ underscores become hyphens: My_Pkg → my- │
@@ -192,12 +192,30 @@ def _expand_member_globs(
     return result
 
 
-def _parse_package(pkg_dir: Path, internal_names: frozenset[str]) -> Package:
+def _parse_package(
+    pkg_dir: Path,
+    internal_names: frozenset[str],
+    workspace_sourced: frozenset[str],
+) -> Package:
     """Parse a single package's pyproject.toml.
+
+    A dependency is classified as "internal" only if it satisfies BOTH:
+
+    1. Its name is a workspace member (in ``internal_names``).
+    2. It is resolved from the workspace source — i.e., listed with
+       ``workspace = true`` in ``[tool.uv.sources]`` of the root
+       ``pyproject.toml`` (in ``workspace_sourced``).
+
+    If a workspace member pins to a PyPI version (e.g.
+    ``genkit==1.0.0``) instead of using the workspace source, it is
+    treated as an external dependency and excluded from the release
+    graph. This lets packages opt out of version propagation.
 
     Args:
         pkg_dir: Path to the package directory.
         internal_names: Set of normalized package names in the workspace.
+        workspace_sourced: Subset of ``internal_names`` that have
+            ``workspace = true`` in ``[tool.uv.sources]``.
 
     Returns:
         A :class:`Package` dataclass.
@@ -239,9 +257,21 @@ def _parse_package(pkg_dir: Path, internal_names: frozenset[str]) -> Package:
     external_deps: list[str] = []
     for spec in dep_specs:
         dep_name = _normalize_name(_parse_dep_name(spec))
-        if dep_name in internal_names:
+        # Internal iff the dep is both a workspace member AND
+        # resolved from workspace source (not pinned to PyPI).
+        if dep_name in internal_names and dep_name in workspace_sourced:
             internal_deps.append(dep_name)
         else:
+            if dep_name in internal_names:
+                # Workspace member but NOT workspace-sourced — pinned
+                # to a specific version on PyPI. Excluded from the
+                # release graph to avoid force-bumping.
+                logger.info(
+                    'dep_pinned_to_pypi',
+                    package=_normalize_name(name),
+                    dep=dep_name,
+                    hint='Not in [tool.uv.sources] with workspace=true',
+                )
             external_deps.append(dep_name)
 
     return Package(
@@ -340,13 +370,42 @@ def discover_packages(
         except (tomlkit.exceptions.TOMLKitError, OSError):
             pass  # Will be caught in full parse.
 
+    # Read [tool.uv.sources] to determine which deps use workspace paths.
+    # Only deps with `workspace = true` are truly internal.
+    uv_sources: dict[str, Any] = dict(uv_section.get('sources', {}))  # noqa: ANN401
+    workspace_sourced: set[str] = set()
+    for src_name, src_config in uv_sources.items():
+        normalized = _normalize_name(src_name)
+        if normalized in all_names:
+            # Check if this source uses workspace resolution.
+            if isinstance(src_config, dict) and src_config.get('workspace'):
+                workspace_sourced.add(normalized)
+
     internal_names = frozenset(all_names)
+    ws_sourced = frozenset(workspace_sourced)
+
+    if workspace_sourced:
+        logger.info(
+            'workspace_sourced_deps',
+            count=len(workspace_sourced),
+            names=sorted(workspace_sourced),
+        )
+
+    pinned_members = all_names - workspace_sourced
+    if pinned_members:
+        logger.info(
+            'pinned_to_pypi',
+            count=len(pinned_members),
+            names=sorted(pinned_members),
+            hint='These workspace members are NOT in [tool.uv.sources] with '
+            'workspace=true; they will be excluded from the release graph.',
+        )
 
     # Second pass: full parse with dependency classification.
     packages: list[Package] = []
     seen_names: set[str] = set()
     for pkg_dir in pkg_dirs:
-        pkg = _parse_package(pkg_dir, internal_names)
+        pkg = _parse_package(pkg_dir, internal_names, ws_sourced)
         if pkg.name in seen_names:
             raise ReleaseKitError(
                 code=E.WORKSPACE_DUPLICATE_PACKAGE,
