@@ -243,11 +243,11 @@ def create_reflection_asgi_app(
         """
         kind = request.query_params.get('type')
         if not kind:
-            return JSONResponse(content='Query parameter "type" is required.', status_code=400)
+            return JSONResponse(content={'error': 'Query parameter "type" is required.'}, status_code=400)
 
         if kind != 'defaultModel':
             return JSONResponse(
-                content=f"'type' {kind} is not supported. Only 'defaultModel' is supported", status_code=400
+                content={'error': f"'type' {kind} is not supported. Only 'defaultModel' is supported"}, status_code=400
             )
 
         values = registry.list_values(kind)

@@ -612,7 +612,7 @@ def _make_tracing_wrappers(
                     case _:
                         raise ValueError('action fn must have 0-2 args...')
             except Exception as e:
-                # Preserve original GenkitError message, don't wrap it
+                # Re-raise existing GenkitError instances to avoid double-wrapping
                 if isinstance(e, GenkitError):
                     raise
                 raise GenkitError(
@@ -660,7 +660,7 @@ def _make_tracing_wrappers(
                     case _:
                         raise ValueError('action fn must have 0-2 args...')
             except Exception as e:
-                # Preserve original GenkitError message, don't wrap it
+                # Re-raise existing GenkitError instances to avoid double-wrapping
                 if isinstance(e, GenkitError):
                     raise
                 raise GenkitError(

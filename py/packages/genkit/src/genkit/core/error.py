@@ -213,7 +213,7 @@ class GenkitError(Exception):
         return GenkitReflectionApiErrorWireFormat(
             details=GenkitReflectionApiDetailsWireFormat(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
-            message=self.original_message,
+            message=f'{self.original_message}: {repr(self.cause)}' if self.cause else self.original_message,
         )
 
 
@@ -329,8 +329,8 @@ def get_error_stack(error: object) -> str | None:
         The stack trace string if available, None otherwise.
     """
     if isinstance(error, Exception):
-        # Returning an empty string instead of the traceback or str(error)
-        # ensures the Dev UI stays clean while satisfying the expectation
-        # that the 'stack' field exists.
+        # Stack traces are valuable for debugging; consider making this configurable
+        # to enable them in development/staging and suppress in production.
+        # For now, return an empty string to keep Dev UI clean as per requirements.
         return ''
     return None
