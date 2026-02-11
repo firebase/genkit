@@ -645,8 +645,6 @@ class TestSchedulerRetry:
             raise AssertionError(f'Expected a and b, got {result.published}')
 
 
-
-
 class TestAddPackage:
     """Tests for Scheduler.add_package (live node insertion)."""
 
