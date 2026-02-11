@@ -125,6 +125,9 @@ _TERMINAL_STAGES = frozenset({
 # a sliding window that only displays active + recently completed rows.
 _MAX_VISIBLE_ROWS = 30
 
+# Maximum number of log lines shown in the LOG view mode.
+_MAX_LOG_LINES = 40
+
 
 @dataclass
 class _PackageRow:
@@ -294,7 +297,6 @@ class RichProgressUI(PublishObserver):
     _start_time: float = field(default_factory=time.monotonic)
     _scheduler_state: SchedulerState = SchedulerState.RUNNING
     _view_mode: ViewMode = ViewMode.WINDOW
-    _previous_view_mode: ViewMode = ViewMode.WINDOW
     _display_filter: DisplayFilter = DisplayFilter.ALL
     _log_lines: list[str] = field(default_factory=list)
 
@@ -373,10 +375,6 @@ class RichProgressUI(PublishObserver):
 
     def on_view_mode(self, mode: ViewMode, display_filter: DisplayFilter) -> None:
         """Update view mode / filter and refresh the display."""
-        if mode == ViewMode.LOG:
-            # Switching to LOG — save previous table mode.
-            if self._view_mode != ViewMode.LOG:
-                self._previous_view_mode = self._view_mode
         self._view_mode = mode
         self._display_filter = display_filter
         self._refresh()
@@ -458,19 +456,7 @@ class RichProgressUI(PublishObserver):
 
     def _render(self) -> Panel:
         """Build the complete display panel."""
-        # Header info.
-        elapsed = time.monotonic() - self._start_time
-        published = sum(1 for r in self._packages.values() if r.stage == PublishStage.PUBLISHED)
-        failed = sum(1 for r in self._packages.values() if r.stage == PublishStage.FAILED)
-        skipped = sum(1 for r in self._packages.values() if r.stage == PublishStage.SKIPPED)
-        blocked = sum(1 for r in self._packages.values() if r.stage == PublishStage.BLOCKED)
-        retrying = sum(1 for r in self._packages.values() if r.stage == PublishStage.RETRYING)
-        active = sum(
-            1
-            for r in self._packages.values()
-            if r.stage not in _TERMINAL_STAGES and r.stage not in {PublishStage.WAITING, PublishStage.RETRYING}
-        )
-        waiting = sum(1 for r in self._packages.values() if r.stage == PublishStage.WAITING)
+        stats = self._get_stats()
 
         # Build table.
         table = Table(
@@ -528,35 +514,19 @@ class RichProgressUI(PublishObserver):
             )
 
         # Summary footer.
-        summary_parts = []
-        if published:
-            summary_parts.append(f'[green]✅ {published} published[/]')
-        if active:
-            summary_parts.append(f'[cyan]⚡ {active} active[/]')
-        if retrying:
-            summary_parts.append(f'[yellow]🔄 {retrying} retrying[/]')
-        if waiting:
-            summary_parts.append(f'[dim]⏳ {waiting} waiting[/]')
-        if skipped:
-            summary_parts.append(f'[dim]⏭️  {skipped} skipped[/]')
-        if blocked:
-            summary_parts.append(f'[red dim]🚫 {blocked} blocked[/]')
-        if failed:
-            summary_parts.append(f'[red]❌ {failed} failed[/]')
-
-        summary = ' │ '.join(summary_parts) if summary_parts else 'Starting...'
+        summary = self._format_summary(stats)
 
         # ETA estimate.
         eta_str = ''
-        if published > 0 and (waiting + active) > 0:
-            avg_time = elapsed / published
-            remaining = (waiting + active) * avg_time
+        if stats['published'] > 0 and (stats['waiting'] + stats['active']) > 0:
+            avg_time = stats['elapsed'] / stats['published']
+            remaining = (stats['waiting'] + stats['active']) * avg_time
             if remaining < 60:
                 eta_str = f'  ETA: ~{remaining:.0f}s'
             else:
                 eta_str = f'  ETA: ~{remaining / 60:.1f}m'
 
-        elapsed_str = f'{elapsed:.1f}s' if elapsed < 60 else f'{elapsed / 60:.1f}m'
+        elapsed_str = self._format_elapsed(stats['elapsed'])
 
         # Control hint for keyboard shortcuts.
         control_hint = ''
@@ -590,20 +560,11 @@ class RichProgressUI(PublishObserver):
             )
             content = Group(table, Text(''), error_panel)
 
-        # Wrap in main panel.
-        title = (
+        base_title = (
             f'releasekit publish — {self.total_packages} packages '
             f'across {self.total_levels} levels (concurrency: {self.concurrency})'
         )
-
-        # Scheduler state banner.
-        border_style = 'blue'
-        if self._scheduler_state == SchedulerState.PAUSED:
-            title += '  [yellow bold]⏸ PAUSED[/]'
-            border_style = 'yellow'
-        elif self._scheduler_state == SchedulerState.CANCELLED:
-            title += '  [red bold]✖ CANCELLED[/]'
-            border_style = 'red'
+        title, border_style = self._format_title_and_border(base_title)
 
         return Panel(
             content,
@@ -615,35 +576,10 @@ class RichProgressUI(PublishObserver):
 
     def _render_log(self) -> Panel:
         """Build a log-style panel showing recent stage transitions."""
-        # Show the last N log lines.
-        max_lines = 40
-        recent = self._log_lines[-max_lines:]
-
-        elapsed = time.monotonic() - self._start_time
-        published = sum(1 for r in self._packages.values() if r.stage == PublishStage.PUBLISHED)
-        failed = sum(1 for r in self._packages.values() if r.stage == PublishStage.FAILED)
-        skipped = sum(1 for r in self._packages.values() if r.stage == PublishStage.SKIPPED)
-        blocked = sum(1 for r in self._packages.values() if r.stage == PublishStage.BLOCKED)
-        active = sum(
-            1
-            for r in self._packages.values()
-            if r.stage not in _TERMINAL_STAGES and r.stage not in {PublishStage.WAITING, PublishStage.RETRYING}
-        )
-
-        summary_parts = []
-        if published:
-            summary_parts.append(f'[green]✅ {published}[/]')
-        if active:
-            summary_parts.append(f'[cyan]⚡ {active}[/]')
-        if failed:
-            summary_parts.append(f'[red]❌ {failed}[/]')
-        if skipped:
-            summary_parts.append(f'[dim]⏭️  {skipped}[/]')
-        if blocked:
-            summary_parts.append(f'[red dim]🚫 {blocked}[/]')
-        summary = ' │ '.join(summary_parts) if summary_parts else 'Starting...'
-
-        elapsed_str = f'{elapsed:.1f}s' if elapsed < 60 else f'{elapsed / 60:.1f}m'
+        recent = self._log_lines[-_MAX_LOG_LINES:]
+        stats = self._get_stats()
+        summary = self._format_summary(stats)
+        elapsed_str = self._format_elapsed(stats['elapsed'])
 
         # Control hints.
         control_hint = ''
@@ -662,15 +598,8 @@ class RichProgressUI(PublishObserver):
         else:
             log_text = Text('Waiting for events...', style='dim')
 
-        title = f'releasekit publish — {self.total_packages} packages (📝 log view)'
-
-        border_style = 'blue'
-        if self._scheduler_state == SchedulerState.PAUSED:
-            title += '  [yellow bold]⏸ PAUSED[/]'
-            border_style = 'yellow'
-        elif self._scheduler_state == SchedulerState.CANCELLED:
-            title += '  [red bold]✖ CANCELLED[/]'
-            border_style = 'red'
+        base_title = f'releasekit publish — {self.total_packages} packages (📝 log view)'
+        title, border_style = self._format_title_and_border(base_title)
 
         return Panel(
             log_text,
@@ -679,6 +608,67 @@ class RichProgressUI(PublishObserver):
             border_style=border_style,
             expand=True,
         )
+
+    # -- Shared helpers ----------------------------------------------------
+
+    def _get_stats(self) -> dict[str, int | float]:
+        """Compute package statistics for rendering.
+
+        Returns:
+            Dict with keys: elapsed, published, failed, skipped, blocked,
+            retrying, active, waiting.
+        """
+        return {
+            'elapsed': time.monotonic() - self._start_time,
+            'published': sum(1 for r in self._packages.values() if r.stage == PublishStage.PUBLISHED),
+            'failed': sum(1 for r in self._packages.values() if r.stage == PublishStage.FAILED),
+            'skipped': sum(1 for r in self._packages.values() if r.stage == PublishStage.SKIPPED),
+            'blocked': sum(1 for r in self._packages.values() if r.stage == PublishStage.BLOCKED),
+            'retrying': sum(1 for r in self._packages.values() if r.stage == PublishStage.RETRYING),
+            'active': sum(
+                1
+                for r in self._packages.values()
+                if r.stage not in _TERMINAL_STAGES and r.stage not in {PublishStage.WAITING, PublishStage.RETRYING}
+            ),
+            'waiting': sum(1 for r in self._packages.values() if r.stage == PublishStage.WAITING),
+        }
+
+    @staticmethod
+    def _format_summary(stats: dict[str, int | float]) -> str:
+        """Build the summary status string from stats."""
+        parts: list[str] = []
+        if stats['published']:
+            parts.append(f'[green]✅ {stats["published"]} published[/]')
+        if stats['active']:
+            parts.append(f'[cyan]⚡ {stats["active"]} active[/]')
+        if stats['retrying']:
+            parts.append(f'[yellow]🔄 {stats["retrying"]} retrying[/]')
+        if stats['waiting']:
+            parts.append(f'[dim]⏳ {stats["waiting"]} waiting[/]')
+        if stats['skipped']:
+            parts.append(f'[dim]⏭️  {stats["skipped"]} skipped[/]')
+        if stats['blocked']:
+            parts.append(f'[red dim]🚫 {stats["blocked"]} blocked[/]')
+        if stats['failed']:
+            parts.append(f'[red]❌ {stats["failed"]} failed[/]')
+        return ' │ '.join(parts) if parts else 'Starting...'
+
+    @staticmethod
+    def _format_elapsed(elapsed: int | float) -> str:
+        """Format elapsed time as a human-readable string."""
+        return f'{elapsed:.1f}s' if elapsed < 60 else f'{elapsed / 60:.1f}m'
+
+    def _format_title_and_border(self, base_title: str) -> tuple[str, str]:
+        """Append scheduler state banner and return (title, border_style)."""
+        title = base_title
+        border_style = 'blue'
+        if self._scheduler_state == SchedulerState.PAUSED:
+            title += '  [yellow bold]⏸ PAUSED[/]'
+            border_style = 'yellow'
+        elif self._scheduler_state == SchedulerState.CANCELLED:
+            title += '  [red bold]✖ CANCELLED[/]'
+            border_style = 'red'
+        return title, border_style
 
 
 def create_progress_ui(
