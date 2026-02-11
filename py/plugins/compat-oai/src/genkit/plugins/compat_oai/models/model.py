@@ -16,6 +16,7 @@
 
 """OpenAI Compatible Models for Genkit."""
 
+import json
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -34,6 +35,7 @@ from genkit.types import (
     Message,
     OutputConfig,
     Part,
+    ReasoningPart,
     Role,
     ToolDefinition,
 )
@@ -78,6 +80,13 @@ class OpenAIModel:
     async def _get_tools_definition(self, tools: list[ToolDefinition]) -> list[dict]:
         """Converts the provided tools into OpenAI-compatible function call format.
 
+        OpenAI's strict mode requires ``additionalProperties: false`` and a
+        ``required`` array listing **every** property key at each level of the
+        schema.  Rather than adding these fields manually, we delegate to
+        ``_ensure_strict_json_schema`` — the same helper already used for
+        structured-output response schemas — which handles all strict-mode
+        constraints recursively.
+
         Args:
             tools: A list of tool definitions.
 
@@ -86,12 +95,10 @@ class OpenAIModel:
         """
         result = []
         for tool_definition in tools:
-            # Get the schema and ensure it has additionalProperties: false for strict mode
             parameters = tool_definition.input_schema or {}
-            if parameters and 'additionalProperties' not in parameters:
-                parameters = {**parameters, 'additionalProperties': False}
+            if parameters:
+                parameters = _ensure_strict_json_schema(parameters, path=(), root=parameters)
 
-            # Construct the OpenAI function tool format using the schema from tool_definition
             function_call = {
                 'type': 'function',
                 'function': {
@@ -103,6 +110,25 @@ class OpenAIModel:
             }
             result.append(function_call)
         return result
+
+    def _needs_schema_in_prompt(self, output: OutputConfig) -> bool:
+        """Check whether the schema must be injected into the prompt.
+
+        Models that only support ``json_object`` mode (e.g. DeepSeek) never
+        receive the schema via ``response_format``.  When a schema is present
+        in the request we must include it in the system message so the model
+        knows what structure to produce.
+
+        Args:
+            output: The output configuration.
+
+        Returns:
+            True when the schema should be injected into the messages.
+        """
+        if output.format != 'json' or not output.schema:
+            return False
+        # DeepSeek models use json_object mode — schema never reaches the API.
+        return self._model.startswith('deepseek')
 
     def _get_response_format(self, output: OutputConfig) -> dict | None:
         """Determines the response format configuration based on the output settings.
@@ -117,7 +143,8 @@ class OpenAIModel:
             - 'type': 'text' as the default fallback.
         """
         if output.format == 'json':
-            # Special handling for DeepSeek models: always use 'json_object' for structured output
+            # DeepSeek models: always use 'json_object' (schema is injected
+            # into the prompt by _get_openai_request_config instead).
             if self._model.startswith('deepseek'):
                 return {'type': 'json_object'}
             if output.schema:
@@ -136,6 +163,31 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
+    @staticmethod
+    def _build_schema_instruction(schema: dict[str, Any]) -> dict[str, str]:
+        """Build a system message instructing the model to follow a JSON schema.
+
+        Used for models that only support ``json_object`` mode (e.g. DeepSeek)
+        where the API does not accept a ``json_schema`` response format.
+
+        Args:
+            schema: The JSON schema dictionary.
+
+        Returns:
+            A dict representing an OpenAI system message.
+        """
+        formatted = json.dumps(schema, indent=2)
+        return {
+            'role': 'system',
+            'content': (
+                'You must respond with a JSON object that conforms '
+                'EXACTLY to the following JSON schema. Do not include '
+                'any additional fields beyond those specified in the '
+                'schema. Use the exact field names shown.\n\n'
+                f'```json\n{formatted}\n```'
+            ),
+        }
+
     async def _get_openai_request_config(self, request: GenerateRequest) -> dict:
         """Get the OpenAI request configuration.
 
@@ -145,8 +197,16 @@ class OpenAIModel:
         Returns:
             A dictionary representing the OpenAI request configuration.
         """
-        openai_config = {
-            'messages': self._get_messages(request.messages),
+        messages = self._get_messages(request.messages)
+
+        # For models that only support json_object mode, inject the schema
+        # into the messages so the model knows the expected output structure.
+        if request.output and self._needs_schema_in_prompt(request.output) and request.output.schema:
+            schema_msg = self._build_schema_instruction(request.output.schema)
+            messages = [schema_msg, *messages]
+
+        openai_config: dict[str, Any] = {
+            'messages': messages,
             'model': self._model,
         }
         if request.tools:
@@ -179,7 +239,7 @@ class OpenAIModel:
 
         return GenerateResponse(
             request=request,
-            message=MessageConverter.to_genkit(response.choices[0].message),
+            message=MessageConverter.to_genkit(MessageAdapter(response.choices[0].message)),
         )
 
     async def _generate_stream(
@@ -212,6 +272,19 @@ class OpenAIModel:
                     GenerateResponseChunk(
                         role=Role.MODEL,
                         content=message.content,
+                    )
+                )
+
+            # Reasoning content chunk (DeepSeek R1 / reasoner models).
+            # Note: Pydantic models raise AttributeError for unknown fields,
+            # so getattr() with a default doesn't work. Use try-except.
+            elif reasoning_text := MessageAdapter(delta).reasoning_content:
+                reasoning_part = Part(root=ReasoningPart(reasoning=reasoning_text))
+                accumulated_content.append(reasoning_part)
+                callback(
+                    GenerateResponseChunk(
+                        role=Role.MODEL,
+                        content=[reasoning_part],
                     )
                 )
 

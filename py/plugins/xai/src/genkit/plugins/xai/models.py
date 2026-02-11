@@ -17,6 +17,7 @@
 """xAI model implementations."""
 
 import asyncio
+import contextlib
 import json
 from typing import Any, cast
 
@@ -27,6 +28,7 @@ from xai_sdk.proto.v6 import chat_pb2, image_pb2
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.schema import to_json_schema
+from genkit.plugins.xai.converters import DEFAULT_MAX_OUTPUT_TOKENS, FINISH_REASON_MAP
 from genkit.plugins.xai.model_info import get_model_info
 from genkit.types import (
     FinishReason,
@@ -61,15 +63,6 @@ TOOL_TYPE_MAP = {
 
 
 __all__ = ['XAIModel']
-
-DEFAULT_MAX_OUTPUT_TOKENS = 4096
-
-FINISH_REASON_MAP = {
-    'STOP': FinishReason.STOP,
-    'LENGTH': FinishReason.LENGTH,
-    'TOOL_CALLS': FinishReason.STOP,
-    'CONTENT_FILTER': FinishReason.OTHER,
-}
 
 ROLE_MAP = {
     Role.SYSTEM: chat_pb2.MessageRole.ROLE_SYSTEM,
@@ -125,7 +118,7 @@ class XAIModel:
             chat = self.client.chat.create(**cast(dict[str, Any], params))
             return chat.sample()
 
-        response: Any = await asyncio.to_thread(_sample)  # noqa: ANN401
+        response: Any = await asyncio.to_thread(_sample)
         content = self._to_genkit_content(response)
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -211,10 +204,8 @@ class XAIModel:
                             if tool_call.function:
                                 tool_input = tool_call.function.arguments
                                 if isinstance(tool_input, str):
-                                    try:
+                                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                                         tool_input = json.loads(tool_input)
-                                    except (json.JSONDecodeError, TypeError):
-                                        pass
 
                                 accumulated_content.append(
                                     Part(
@@ -307,10 +298,8 @@ class XAIModel:
             for tool_call in response.tool_calls:
                 tool_input = tool_call.function.arguments
                 if isinstance(tool_input, str):
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError, TypeError):
                         tool_input = json.loads(tool_input)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
 
                 content.append(
                     Part(

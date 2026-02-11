@@ -84,6 +84,7 @@ Cross-Language Parity:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from typing import Any
@@ -298,17 +299,13 @@ class GenerateTelemetry:
 
         input_json = attrs.get('genkit:input')
         if input_json and isinstance(input_json, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 input_data = json.loads(input_json)
-            except json.JSONDecodeError:
-                pass
 
         output_json = attrs.get('genkit:output')
         if output_json and isinstance(output_json, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 output_data = json.loads(output_json)
-            except json.JSONDecodeError:
-                pass
 
         err_name = extract_error_name(list(span.events))
         feature_name = truncate(

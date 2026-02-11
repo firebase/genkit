@@ -238,8 +238,6 @@ class Session:
             chat = session.chat(agent)
             ```
         """
-        from .chat import Chat
-
         # Resolve arguments (matching JS pattern)
         thread_name = MAIN_THREAD
         chat_options: ChatOptions | None = None

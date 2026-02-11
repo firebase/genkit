@@ -35,6 +35,7 @@ from genkit.plugins.google_genai.google import googleai_name, vertexai_name
 from genkit.plugins.google_genai.google import _inject_attribution_headers
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
+    GeminiModel,
     SUPPORTED_MODELS,
     GeminiConfigSchema,
 )
@@ -50,6 +51,7 @@ from genkit.types import (
     Role,
     TextPart,
 )
+from google import genai
 
 
 @pytest.fixture
@@ -113,12 +115,14 @@ class TestGoogleAIInit(unittest.TestCase):
 
     def test_init_raises_value_error_no_api_key(self) -> None:
         """Test using credentials parameter."""
-        with patch.dict(os.environ, {'GEMINI_API_KEY': ''}, clear=True):
-            with self.assertRaisesRegex(
+        with (
+            patch.dict(os.environ, {'GEMINI_API_KEY': ''}, clear=True),
+            self.assertRaisesRegex(
                 ValueError,
                 'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable',
-            ):
-                GoogleAI()
+            ),
+        ):
+            GoogleAI()
 
 
 @patch('google.genai.client.Client')
@@ -472,7 +476,7 @@ class TestVertexAIInit(unittest.TestCase):
 @patch('google.genai.client.Client')
 def vertexai_plugin_instance(client: MagicMock) -> VertexAI:
     """VertexAI fixture."""
-    return VertexAI()
+    return VertexAI(project='test-project', location='us-central1')
 
 
 @pytest.mark.asyncio
@@ -722,12 +726,9 @@ def test_config_schema_extra_fields() -> None:
     assert config.model_dump()['new_experimental_param'] == 'test'
 
 
-def test_system_prompt_handling() -> None:
+@pytest.mark.asyncio
+async def test_system_prompt_handling() -> None:
     """Test that system prompts are correctly extracted to config."""
-    from google import genai
-
-    from genkit.plugins.google_genai.models.gemini import GeminiModel
-
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
 
@@ -739,7 +740,7 @@ def test_system_prompt_handling() -> None:
         config=None,
     )
 
-    cfg = model._genkit_to_googleai_cfg(request)
+    cfg = await model._genkit_to_googleai_cfg(request)
 
     assert cfg is not None
     assert cfg.system_instruction is not None

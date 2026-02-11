@@ -36,8 +36,9 @@ from genkit.core.environment import EnvVar, GenkitEnvironment
 
 def test_add_gcp_telemetry_wraps_with_gcp_adjusting_exporter() -> None:
     """Test that add_gcp_telemetry wraps the exporter with GcpAdjustingTraceExporter."""
+    # Set production environment and clear project-related env vars to ensure project_id is None
     with (
-        mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}),
+        mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}, clear=False),
         patch('genkit.plugins.google_cloud.telemetry.tracing.GenkitGCPExporter') as mock_gcp_exporter,
         patch('genkit.plugins.google_cloud.telemetry.tracing.GcpAdjustingTraceExporter') as mock_adjusting,
         patch('genkit.plugins.google_cloud.telemetry.tracing.add_custom_exporter') as mock_add_exporter,
@@ -47,6 +48,10 @@ def test_add_gcp_telemetry_wraps_with_gcp_adjusting_exporter() -> None:
         patch('genkit.plugins.google_cloud.telemetry.tracing.PeriodicExportingMetricReader'),
         patch('genkit.plugins.google_cloud.telemetry.tracing.metrics'),
     ):
+        # Remove project env vars to ensure project_id is None in the test
+        for key in ['FIREBASE_PROJECT_ID', 'GOOGLE_CLOUD_PROJECT', 'GCLOUD_PROJECT']:
+            os.environ.pop(key, None)
+
         from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
 
         # Create mock instances

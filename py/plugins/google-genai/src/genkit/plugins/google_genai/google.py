@@ -70,7 +70,7 @@ Key Concepts:
 Supported Model Types:
     - **Gemini/Gemma**: Text generation with generateContent action
     - **Embedders**: Text embeddings with embedContent action
-    - **Imagen**: Image generation with predict action (Vertex AI)
+    - **Imagen**: Image generation with predict action
     - **Veo**: Video generation with generateVideos action
 
 Example:
@@ -93,10 +93,7 @@ See Also:
 """
 
 import os
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from genkit.blocks.background_model import BackgroundAction
+from typing import Any
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -105,10 +102,20 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
+from genkit.blocks.background_model import BackgroundAction
+from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
+from genkit.core.typing import (
+    RankedDocumentData,
+    RankedDocumentMetadata,
+    RerankerRequest,
+    RerankerResponse,
+)
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     default_embedder_info,
@@ -130,6 +137,15 @@ from genkit.plugins.google_genai.models.veo import (
     VeoModel,
     is_veo_model,
     veo_model_info,
+)
+from genkit.plugins.google_genai.rerankers.reranker import (
+    KNOWN_MODELS as RERANKER_MODELS,
+    RerankRequest,
+    VertexRerankerClientOptions,
+    VertexRerankerConfig,
+    _from_rerank_response,
+    _to_reranker_doc,
+    reranker_rank,
 )
 
 
@@ -266,6 +282,7 @@ class GoogleAI(Plugin):
         | Type             | Action Kind       | Example                        |
         +------------------+-------------------+--------------------------------+
         | Gemini/Gemma     | MODEL             | googleai/gemini-2.0-flash-001  |
+        | Imagen           | MODEL             | googleai/imagen-3.0-generate   |
         | Embedders        | EMBEDDER          | googleai/text-embedding-004    |
         | Veo (video)      | BACKGROUND_MODEL  | googleai/veo-2.0-generate-001  |
         +------------------+-------------------+--------------------------------+
@@ -358,6 +375,10 @@ class GoogleAI(Plugin):
         for name in genai_models.gemini:
             actions.append(self._resolve_model(googleai_name(name)))
 
+        # Imagen Models
+        for name in genai_models.imagen:
+            actions.append(self._resolve_model(googleai_name(name)))
+
         # Veo Models (background models)
         for name in genai_models.veo:
             bg_action = self._resolve_veo_model(googleai_name(name))
@@ -382,6 +403,8 @@ class GoogleAI(Plugin):
         genai_models = _list_genai_models(self._client, is_vertex=False)
         actions = []
         for name in genai_models.gemini:
+            actions.append(self._resolve_model(googleai_name(name)))
+        for name in genai_models.imagen:
             actions.append(self._resolve_model(googleai_name(name)))
         return actions
 
@@ -422,8 +445,8 @@ class GoogleAI(Plugin):
         elif action_type == ActionKind.BACKGROUND_MODEL:
             # For Veo models, return the start action
             prefix = GOOGLEAI_PLUGIN_NAME + '/'
-            _clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
-            if is_veo_model(_clean_name):
+            clean_name = name.replace(prefix, '') if name.startswith(prefix) else name
+            if is_veo_model(clean_name):
                 bg_action = self._resolve_veo_model(name)
                 return bg_action.start_action
             return None
@@ -433,8 +456,8 @@ class GoogleAI(Plugin):
             if name.endswith('/check'):
                 model_name = name[:-6]  # Remove '/check' suffix
                 prefix = GOOGLEAI_PLUGIN_NAME + '/'
-                _clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
-                if is_veo_model(_clean_name):
+                clean_name = model_name.replace(prefix, '') if model_name.startswith(prefix) else model_name
+                if is_veo_model(clean_name):
                     bg_action = self._resolve_veo_model(model_name)
                     return bg_action.check_action
             return None
@@ -451,19 +474,22 @@ class GoogleAI(Plugin):
         Returns:
             BackgroundAction for the Veo model.
         """
-        from genkit.blocks.background_model import BackgroundAction
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-
-        veo = VeoModel(_clean_name, self._client)
+        veo = VeoModel(clean_name, self._client)
 
         # Create actions manually since we don't have registry access here
+
+        # Prepare metadata matching model_action_metadata structure
+        info = veo_model_info(clean_name).model_dump(by_alias=True)
+        config_schema = VeoConfigSchema
+
         start_action = Action(
             kind=ActionKind.BACKGROUND_MODEL,
             name=name,
             fn=veo.start,
             metadata={
-                'model': veo_model_info(_clean_name).model_dump(),
+                'model': {**info, 'customOptions': to_json_schema(config_schema)},
                 'type': 'background-model',
             },
         )
@@ -491,23 +517,27 @@ class GoogleAI(Plugin):
             Action object for the model.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        model_ref = google_model_info(_clean_name)
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
-        SUPPORTED_MODELS[_clean_name] = model_ref
-
-        gemini_model = GeminiModel(_clean_name, self._client)
-
-        # Determine appropriate config schema based on model type
-        config_schema = get_model_config_schema(_clean_name)
+        # Determine model type and create appropriate model instance
+        if clean_name.lower().startswith('image'):
+            model_ref = vertexai_image_model_info(clean_name)
+            model = ImagenModel(clean_name, self._client)
+            IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = ImagenConfigSchema
+        else:
+            model_ref = google_model_info(clean_name)
+            model = GeminiModel(clean_name, self._client)
+            SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = get_model_config_schema(clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=gemini_model.generate,
+            fn=model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=gemini_model.metadata['model']['supports'],
+                info=model.metadata['model'],
                 config_schema=config_schema,
             ).metadata,
         )
@@ -522,10 +552,10 @@ class GoogleAI(Plugin):
             Action object for the embedder.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=_clean_name, client=self._client)
+        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=clean_name, client=self._client)
 
-        embedder_info = default_embedder_info(_clean_name)
+        embedder_info = default_embedder_info(clean_name)
 
         return Action(
             kind=ActionKind.EMBEDDER,
@@ -563,11 +593,20 @@ class GoogleAI(Plugin):
                 )
             )
 
+        for name in genai_models.imagen:
+            actions_list.append(
+                model_action_metadata(
+                    name=googleai_name(name),
+                    info=vertexai_image_model_info(name).model_dump(by_alias=True),
+                    config_schema=ImagenConfigSchema,
+                )
+            )
+
         for name in genai_models.veo:
             actions_list.append(
                 model_action_metadata(
                     name=googleai_name(name),
-                    info=veo_model_info(name).model_dump(),
+                    info=veo_model_info(name).model_dump(by_alias=True),
                     config_schema=VeoConfigSchema,
                 )
             )
@@ -671,15 +710,17 @@ class VertexAI(Plugin):
             api_version: The API version to use. Defaults to None.
             base_url: The base URL for the API. Defaults to None.
         """
-        project = project if project else os.getenv(const.GCLOUD_PROJECT)
-        location = location if location else const.DEFAULT_REGION
+        # Store project and location on the plugin for reranker resolution.
+        # This avoids reaching into client internals.
+        self._project = project if project else os.getenv(const.GCLOUD_PROJECT)
+        self._location = location if location else const.DEFAULT_REGION
 
         self._client = genai.client.Client(
             vertexai=self._vertexai,
             api_key=api_key,
             credentials=credentials,
-            project=project,
-            location=location,
+            project=self._project,
+            location=self._location,
             debug_config=debug_config,
             http_options=_inject_attribution_headers(http_options, base_url, api_version),
         )
@@ -704,6 +745,10 @@ class VertexAI(Plugin):
 
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(vertexai_name(name)))
+
+        # Register Vertex AI rerankers
+        for name in RERANKER_MODELS:
+            actions.append(self._resolve_reranker(vertexai_name(name)))
 
         return actions
 
@@ -741,6 +786,8 @@ class VertexAI(Plugin):
             return self._resolve_model(name)
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
+        elif action_type == ActionKind.RERANKER:
+            return self._resolve_reranker(name)
         return None
 
     def _resolve_model(self, name: str) -> Action:
@@ -753,23 +800,23 @@ class VertexAI(Plugin):
             Action object for the model.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
         # Determine model type and create appropriate model instance
-        if _clean_name.lower().startswith('image'):
-            model_ref = vertexai_image_model_info(_clean_name)
-            model = ImagenModel(_clean_name, self._client)
-            IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+        if clean_name.lower().startswith('image'):
+            model_ref = vertexai_image_model_info(clean_name)
+            model = ImagenModel(clean_name, self._client)
+            IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = ImagenConfigSchema
-        elif is_veo_model(_clean_name):
-            model_ref = veo_model_info(_clean_name)
-            model = VeoModel(_clean_name, self._client)
+        elif is_veo_model(clean_name):
+            model_ref = veo_model_info(clean_name)
+            model = VeoModel(clean_name, self._client)
             config_schema = VeoConfigSchema
         else:
-            model_ref = google_model_info(_clean_name)
-            model = GeminiModel(_clean_name, self._client)
-            SUPPORTED_MODELS[_clean_name] = model_ref
-            config_schema = get_model_config_schema(_clean_name)
+            model_ref = google_model_info(clean_name)
+            model = GeminiModel(clean_name, self._client)
+            SUPPORTED_MODELS[clean_name] = model_ref
+            config_schema = get_model_config_schema(clean_name)
 
         return Action(
             kind=ActionKind.MODEL,
@@ -777,7 +824,7 @@ class VertexAI(Plugin):
             fn=model.generate,
             metadata=model_action_metadata(
                 name=name,
-                info=model.metadata['model']['supports'],
+                info=model.metadata['model'],
                 config_schema=config_schema,
             ).metadata,
         )
@@ -792,10 +839,10 @@ class VertexAI(Plugin):
             Action object for the embedder.
         """
         # Extract local name (remove plugin prefix)
-        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=_clean_name, client=self._client)
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=clean_name, client=self._client)
 
-        embedder_info = default_embedder_info(_clean_name)
+        embedder_info = default_embedder_info(clean_name)
 
         return Action(
             kind=ActionKind.EMBEDDER,
@@ -809,6 +856,80 @@ class VertexAI(Plugin):
                     dimensions=embedder_info.get('dimensions'),
                 ),
             ).metadata,
+        )
+
+    def _resolve_reranker(self, name: str) -> Action:
+        """Create an Action object for a Vertex AI reranker.
+
+        Args:
+            name: The namespaced name of the reranker.
+
+        Returns:
+            Action object for the reranker.
+        """
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+
+        # Validate project is configured (required for reranker API)
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use rerankers. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
+
+        # Use project and location stored on the plugin instance during init.
+        # This avoids accessing private attributes of the client library.
+        client_options = VertexRerankerClientOptions(
+            project_id=self._project,
+            location=self._location,
+        )
+
+        async def wrapper(
+            request: RerankerRequest,
+            _ctx: Any,  # noqa: ANN401
+        ) -> RerankerResponse:
+            """Wrapper that takes RerankerRequest and returns RerankerResponse.
+
+            This matches the signature expected by the Action class (max 2 args).
+            """
+            query_doc = Document.from_document_data(request.query)
+            documents = [Document.from_document_data(d) for d in request.documents]
+            options = request.options
+
+            config = VertexRerankerConfig.model_validate(options or {})
+
+            # Use location from config if provided, otherwise use client default
+            effective_options = VertexRerankerClientOptions(
+                project_id=client_options.project_id,
+                location=config.location or client_options.location,
+            )
+
+            rerank_request = RerankRequest(
+                model=clean_name,
+                query=query_doc.text(),
+                records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
+                top_n=config.top_n,
+                ignore_record_details_in_response=config.ignore_record_details_in_response,
+            )
+
+            response = await reranker_rank(clean_name, rerank_request, effective_options)
+            ranked_docs = _from_rerank_response(response, documents)
+
+            # Convert to RerankerResponse format - ranked_docs are RankedDocument instances
+            response_docs: list[RankedDocumentData] = []
+            for doc in ranked_docs:
+                metadata = RankedDocumentMetadata(score=doc.score if doc.score is not None else 0.0)
+                response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
+
+            return RerankerResponse(documents=response_docs)
+
+        metadata = reranker_action_metadata(name)
+
+        return Action(
+            kind=ActionKind.RERANKER,
+            name=name,
+            fn=wrapper,
+            metadata=metadata.metadata,
         )
 
     async def list_actions(self) -> list[ActionMetadata]:
@@ -846,7 +967,7 @@ class VertexAI(Plugin):
             actions_list.append(
                 model_action_metadata(
                     name=vertexai_name(name),
-                    info=veo_model_info(name).model_dump(),
+                    info=veo_model_info(name).model_dump(by_alias=True),
                     config_schema=VeoConfigSchema,
                 )
             )

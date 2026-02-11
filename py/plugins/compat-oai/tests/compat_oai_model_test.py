@@ -30,6 +30,7 @@ from genkit.types import (
     GenerateResponseChunk,
     GenerationCommonConfig,
     Message,
+    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -72,6 +73,8 @@ async def test__generate(sample_request: GenerateRequest) -> None:
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
     mock_message.role = 'model'
+    mock_message.tool_calls = None
+    mock_message.reasoning_content = None
 
     mock_response = MagicMock()
     mock_response.choices = [MagicMock(message=mock_message)]
@@ -113,6 +116,7 @@ async def test__generate_stream(sample_request: GenerateRequest) -> None:
             delta_mock.content = content
             delta_mock.role = None
             delta_mock.tool_calls = None
+            delta_mock.reasoning_content = None
 
             choice_mock = MagicMock()
             choice_mock.delta = delta_mock
@@ -183,3 +187,151 @@ def test_normalize_config(config: object, expected: object) -> None:
     else:
         response = OpenAIModel.normalize_config(config)
         assert response == expected
+
+
+# -- Schema injection for json_object mode (DeepSeek) --
+
+_SAMPLE_SCHEMA: dict[str, object] = {
+    'type': 'object',
+    'title': 'RpgCharacter',
+    'properties': {
+        'name': {'type': 'string'},
+        'level': {'type': 'integer'},
+    },
+    'required': ['name', 'level'],
+}
+
+
+class TestNeedsSchemaInPrompt:
+    """Tests for _needs_schema_in_prompt."""
+
+    def test_true_for_deepseek_with_json_and_schema(self) -> None:
+        """Returns True for DeepSeek model with json format and schema."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        output = OutputConfig(format='json', schema=_SAMPLE_SCHEMA)
+        assert model._needs_schema_in_prompt(output) is True
+
+    def test_false_for_gpt_with_json_and_schema(self) -> None:
+        """Returns False for GPT models even with json format and schema."""
+        model = OpenAIModel(model='gpt-4o', client=MagicMock())
+        output = OutputConfig(format='json', schema=_SAMPLE_SCHEMA)
+        assert model._needs_schema_in_prompt(output) is False
+
+    def test_false_for_deepseek_without_schema(self) -> None:
+        """Returns False for DeepSeek when no schema is provided."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        output = OutputConfig(format='json')
+        assert model._needs_schema_in_prompt(output) is False
+
+    def test_false_for_deepseek_with_text_format(self) -> None:
+        """Returns False for DeepSeek when format is text."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        output = OutputConfig(format='text')
+        assert model._needs_schema_in_prompt(output) is False
+
+    def test_false_for_no_format(self) -> None:
+        """Returns False when output has no format set."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        output = OutputConfig()
+        assert model._needs_schema_in_prompt(output) is False
+
+
+class TestBuildSchemaInstruction:
+    """Tests for _build_schema_instruction."""
+
+    def test_returns_system_message(self) -> None:
+        """Returns a dict with role 'system'."""
+        result = OpenAIModel._build_schema_instruction(_SAMPLE_SCHEMA)
+        assert result['role'] == 'system'
+
+    def test_content_contains_schema(self) -> None:
+        """Content includes the schema's field names and title."""
+        result = OpenAIModel._build_schema_instruction(_SAMPLE_SCHEMA)
+        assert '"RpgCharacter"' in result['content']
+        assert '"name"' in result['content']
+        assert '"level"' in result['content']
+
+    def test_content_contains_instructions(self) -> None:
+        """Content includes directive keywords."""
+        result = OpenAIModel._build_schema_instruction(_SAMPLE_SCHEMA)
+        assert 'EXACTLY' in result['content']
+        assert 'JSON schema' in result['content']
+
+
+class TestSchemaInjectionInConfig:
+    """Tests for schema injection in _get_openai_request_config."""
+
+    @pytest.mark.asyncio
+    async def test_deepseek_injects_schema_message(self) -> None:
+        """DeepSeek request prepends a schema system message."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a character'))]),
+            ],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        config = await model._get_openai_request_config(request)
+
+        messages = config['messages']
+        # Schema instruction is prepended as the first message.
+        assert messages[0]['role'] == 'system'
+        assert 'RpgCharacter' in messages[0]['content']
+        # Original user message follows.
+        assert messages[1]['role'] == 'user'
+        assert messages[1]['content'] == 'Generate a character'
+
+    @pytest.mark.asyncio
+    async def test_gpt_does_not_inject_schema_message(self) -> None:
+        """GPT request does not prepend a schema system message."""
+        model = OpenAIModel(model='gpt-4o', client=MagicMock())
+        request = GenerateRequest(
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a character'))]),
+            ],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        config = await model._get_openai_request_config(request)
+
+        messages = config['messages']
+        # No extra system message — only the original user message.
+        assert len(messages) == 1
+        assert messages[0]['role'] == 'user'
+
+    @pytest.mark.asyncio
+    async def test_deepseek_without_schema_no_injection(self) -> None:
+        """DeepSeek request without a schema does not inject anything."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
+            ],
+            output=OutputConfig(format='json'),
+        )
+        config = await model._get_openai_request_config(request)
+
+        messages = config['messages']
+        assert len(messages) == 1
+        assert messages[0]['role'] == 'user'
+
+    @pytest.mark.asyncio
+    async def test_deepseek_preserves_existing_system_message(self) -> None:
+        """Schema injection does not clobber an existing system message."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[
+                Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful'))]),
+                Message(role=Role.USER, content=[Part(root=TextPart(text='Generate'))]),
+            ],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        config = await model._get_openai_request_config(request)
+
+        messages = config['messages']
+        # Schema instruction prepended, then original system, then user.
+        assert len(messages) == 3
+        assert messages[0]['role'] == 'system'
+        assert 'RpgCharacter' in messages[0]['content']
+        assert messages[1]['role'] == 'system'
+        assert messages[1]['content'] == 'You are helpful'
+        assert messages[2]['role'] == 'user'

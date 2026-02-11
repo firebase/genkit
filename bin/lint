@@ -19,18 +19,18 @@ set -euo pipefail
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
-GO_DIR="${TOP_DIR}/go"
+# shellcheck disable=SC2034
+GO_DIR="${TOP_DIR}/go"  # Reserved for future Go linting
 PY_DIR="${TOP_DIR}/py"
-JS_DIR="${TOP_DIR}/js"
+# shellcheck disable=SC2034
+JS_DIR="${TOP_DIR}/js"  # Reserved for future JS linting
 
 uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
 uv run --directory "${PY_DIR}" ruff format --preview .
-# Ensure Python test files follow the *_test.py naming convention.
-if find "${PY_DIR}" -name "test_*.py" -not -path "*/.*" | grep -q .; then
-  echo "Error: Found Python test files starting with 'test_'. Please use the '*_test.py' format instead:"
-  find "${PY_DIR}" -name "test_*.py" -not -path "*/.*"
-  exit 1
-fi
+
+# Check lockfile is up to date
+echo "--- 🔒 Checking lockfile is up to date ---"
+uv lock --check --directory "${PY_DIR}"
 
 # Fast type checkers first (blocking)
 # Note: ty reads its config (environment.root) from py/pyproject.toml
@@ -46,6 +46,63 @@ echo "--- 🔍 Running Pyright Type Check ---"
 uv run --directory "${PY_DIR}" pyright packages/
 
 "${PY_DIR}/bin/run_python_security_checks"
+
+# License checks
+echo "--- 📜 Running License Check ---"
+"${TOP_DIR}/bin/check_license"
+
+# Dependency license check
+echo "--- 📜 Running Dependency License Check ---"
+uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
+
+# Consistency checks (Python versions, plugin versions, naming, workspace completeness)
+echo "--- 🔍 Running Consistency Checks ---"
+"${PY_DIR}/bin/check_consistency"
+
+# Shell script linting
+echo "--- 🐚 Running Shell Script Lint (shellcheck) ---"
+if command -v shellcheck &> /dev/null; then
+  shell_errors=0
+
+  # Collect all shell scripts to check:
+  #   1. bin/* and py/bin/* (scripts without extensions)
+  #   2. All *.sh files in py/samples/ (run.sh, deploy_*.sh, test_*.sh, etc.)
+  shell_scripts=()
+
+  # bin/ scripts (detect by file type since they have no extension).
+  for script in "${TOP_DIR}"/bin/* "${PY_DIR}"/bin/*; do
+    if [ -f "$script" ] && file "$script" | grep -qE "shell|bash|sh script" 2>/dev/null; then
+      script_name=$(basename "$script")
+      # Skip .py files
+      if [[ "$script_name" == *.py ]]; then
+        continue
+      fi
+      shell_scripts+=("$script")
+    fi
+  done
+
+  # py/samples/ shell scripts (find all .sh files recursively).
+  while IFS= read -r -d '' script; do
+    shell_scripts+=("$script")
+  done < <(find "${PY_DIR}/samples" -name '*.sh' -type f -print0 2>/dev/null)
+
+  for script in "${shell_scripts[@]}"; do
+    # -x follows sourced files; -e SC1091 skips "not following" warnings
+    # for files like _common.sh that live in parent directories.
+    if ! shellcheck -x -e SC1091 "$script" 2>&1; then
+      shell_errors=$((shell_errors + 1))
+    fi
+  done
+
+  if [ $shell_errors -gt 0 ]; then
+    echo "⚠️  $shell_errors shell script(s) have shellcheck warnings"
+    exit 1
+  else
+    echo "✅ All ${#shell_scripts[@]} shell scripts pass shellcheck"
+  fi
+else
+  echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"
+fi
 
 # Disabled because there are many lint errors.
 #pushd "${GO_DIR}" &>/dev/null

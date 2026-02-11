@@ -17,11 +17,11 @@
 """Asynchronous server gateway interface implementation for Genkit."""
 
 import signal
-import urllib.request
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import anyio
+import httpx
 import uvicorn
 
 from genkit.aio.loop import run_loop
@@ -192,20 +192,12 @@ class GenkitBase(GenkitRegistry):
                                 # Actually we should use anyio.to_thread to avoid blocking event loop
                                 # or assume standard lib urllib is fast enough for localhost.
 
-                                # Using sync urllib in async loop blocks the loop!
-                                # We must use anyio.to_thread or a non-blocking check.
-                                # But let's check if reflection_server object has a 'started' flag we can trust.
-                                # uvicorn.Server has 'started' attribute but it might be internal state.
-
-                                # Let's stick to simple polling with to_thread for safety
-                                def check_health() -> bool:
-                                    health_url = f'{server_spec.url}/api/__health'
-                                    with urllib.request.urlopen(health_url, timeout=0.5) as response:
-                                        return response.status == 200
-
-                                is_healthy = await anyio.to_thread.run_sync(check_health)  # type: ignore[attr-defined]
-                                if is_healthy:
-                                    break
+                                # Use httpx async client to avoid blocking the event loop
+                                health_url = f'{server_spec.url}/api/__health'
+                                async with httpx.AsyncClient(timeout=0.5) as client:
+                                    response = await client.get(health_url)
+                                    if response.status_code == 200:
+                                        break
                             except Exception:
                                 await anyio.sleep(0.1)
                         else:
