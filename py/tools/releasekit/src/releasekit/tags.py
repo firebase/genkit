@@ -211,7 +211,6 @@ def create_tags(
     umbrella_version = bumped[0].new_version
     umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
 
-    # -- Per-package tags --------------------------------------------------
 
     for pkg in bumped:
         tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
@@ -244,7 +243,6 @@ def create_tags(
                 error=str(exc),
             )
 
-    # -- Umbrella tag ------------------------------------------------------
 
     umbrella_message = f'Release v{umbrella_version} ({len(bumped)} packages)'
 
@@ -269,7 +267,6 @@ def create_tags(
                 error=str(exc),
             )
 
-    # -- Push tags ---------------------------------------------------------
 
     if result.created and not result.failed:
         try:
@@ -292,7 +289,6 @@ def create_tags(
                 hint='Tags were created locally. Push manually with: git push --tags',
             )
 
-    # -- GitHub Release (optional) -----------------------------------------
 
     _create_release_if_available(
         forge=forge,
@@ -308,7 +304,6 @@ def create_tags(
         result=result,
     )
 
-    # -- Summary -----------------------------------------------------------
 
     logger.info(
         'tags_summary',

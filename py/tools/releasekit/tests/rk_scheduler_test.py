@@ -645,7 +645,6 @@ class TestSchedulerRetry:
             raise AssertionError(f'Expected a and b, got {result.published}')
 
 
-# -- Dynamic scheduler: add_package / remove_package -----------------------
 
 
 class TestAddPackage:

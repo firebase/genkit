@@ -25,7 +25,6 @@ from releasekit.tags import TagResult, create_tags, delete_tags, format_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
 
 
-# -- Test doubles ----------------------------------------------------------
 
 
 class FakeVCS:
@@ -197,7 +196,6 @@ class FakeForge:
         self.releases_deleted.append(tag)
 
 
-# -- Fixtures & helpers ----------------------------------------------------
 
 
 def _make_manifest(
@@ -224,7 +222,6 @@ def _make_manifest(
     )
 
 
-# -- Tests: format_tag ----------------------------------------------------
 
 
 class TestFormatTag:
@@ -249,7 +246,6 @@ class TestFormatTag:
             raise AssertionError(f'Expected py/genkit@1.0.0, got {result}')
 
 
-# -- Tests: TagResult -----------------------------------------------------
 
 
 class TestTagResult:
@@ -268,7 +264,6 @@ class TestTagResult:
             raise AssertionError('Expected ok=False')
 
 
-# -- Tests: create_tags ----------------------------------------------------
 
 
 class TestCreateTags:
@@ -407,7 +402,6 @@ class TestCreateTags:
             raise AssertionError(f'Expected py@0.5.0 created: {result.created}')
 
 
-# -- Tests: create_tags + forge --------------------------------------------
 
 
 class TestCreateTagsWithForge:
@@ -535,7 +529,6 @@ class TestCreateTagsWithForge:
             raise AssertionError('Expected prerelease=True')
 
 
-# -- Tests: delete_tags ----------------------------------------------------
 
 
 class TestDeleteTags:

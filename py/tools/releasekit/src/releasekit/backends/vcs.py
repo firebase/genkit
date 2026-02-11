@@ -144,6 +144,22 @@ class VCS(Protocol):
         """
         ...
 
+    def checkout_branch(
+        self,
+        branch: str,
+        *,
+        create: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Switch to a branch, optionally creating it.
+
+        Args:
+            branch: Branch name.
+            create: If ``True``, create the branch first.
+            dry_run: Log the command without executing.
+        """
+        ...
+
 
 class GitBackend:
     """Default :class:`VCS` implementation using ``git``.
@@ -271,6 +287,20 @@ class GitBackend:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags)
         return self._git(*cmd_parts, dry_run=dry_run)
+
+    def checkout_branch(
+        self,
+        branch: str,
+        *,
+        create: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Switch to a branch, optionally creating it."""
+        if create:
+            log.info('checkout_branch_create', branch=branch)
+            return self._git('checkout', '-b', branch, dry_run=dry_run)
+        log.info('checkout_branch', branch=branch)
+        return self._git('checkout', branch, dry_run=dry_run)
 
 
 __all__ = [
