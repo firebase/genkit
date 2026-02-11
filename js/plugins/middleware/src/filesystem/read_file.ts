@@ -45,7 +45,9 @@ export function defineReadFileTool(
         const buffer = await fs.readFile(targetFile);
         const base64 = buffer.toString('base64');
 
-        parts.push({ text: `\n\nread_file result ${mimeType} ${input.filePath}` });
+        parts.push({
+          text: `\n\nread_file result ${mimeType} ${input.filePath}`,
+        });
         parts.push({
           media: {
             url: `data:${mimeType};base64,${base64}`,
