@@ -34,7 +34,7 @@
     "@genkit-ai/tools-common": "workspace:*",
     "@inquirer/prompts": "^7.8.0",
     "@modelcontextprotocol/sdk": "^1.13.1",
-    "axios": "^1.7.7",
+    "axios": "^1.13.5",
     "colorette": "^2.0.20",
     "commander": "^11.1.0",
     "extract-zip": "^2.0.1",
