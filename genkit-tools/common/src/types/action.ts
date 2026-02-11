@@ -53,10 +53,6 @@ export const ActionSchema = z
       .record(z.string(), CustomAnySchema)
       .describe('Metadata about the action (e.g. supported model features).')
       .nullish(),
-    sampleInput: z
-      .unknown()
-      .describe('Sample input for the action to use as default in Dev UI.')
-      .nullish(),
   })
   .openapi('Action');
 
