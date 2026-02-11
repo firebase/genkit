@@ -62,6 +62,7 @@ Usage::
         pm=uv_backend,
         forge=github_backend,
         registry=pypi_backend,
+        graph=dep_graph,
         packages=packages,
         levels=levels,
         versions=versions,
@@ -71,7 +72,6 @@ Usage::
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import tempfile
 from dataclasses import dataclass, field
@@ -82,10 +82,13 @@ from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import ChecksumResult, Registry
 from releasekit.backends.vcs import VCS
 from releasekit.errors import E, ReleaseKitError
+from releasekit.graph import DependencyGraph, topo_sort
 from releasekit.logging import get_logger
+from releasekit.observer import PublishObserver, PublishStage
 from releasekit.pin import ephemeral_pin
+from releasekit.scheduler import Scheduler
 from releasekit.state import PackageStatus, RunState
-from releasekit.ui import NullProgressUI, PublishObserver, PublishStage
+from releasekit.ui import NullProgressUI
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 
@@ -104,6 +107,9 @@ class PublishConfig:
         smoke_test: Whether to run smoke tests after publishing.
         poll_timeout: Seconds to wait for PyPI indexing.
         poll_interval: Seconds between poll attempts.
+        max_retries: Retry failed publishes with exponential backoff (0=off).
+        retry_base_delay: Base delay in seconds for retry backoff.
+        task_timeout: Timeout per publish attempt in seconds (600=10 min).
         force: Skip confirmation prompts.
         workspace_root: Workspace root directory.
     """
@@ -116,6 +122,9 @@ class PublishConfig:
     verify_checksums: bool = True
     poll_timeout: float = 300.0
     poll_interval: float = 5.0
+    max_retries: int = 0
+    retry_base_delay: float = 1.0
+    task_timeout: float = 600.0
     force: bool = False
     workspace_root: Path = field(default_factory=Path)
 
@@ -189,14 +198,16 @@ async def _publish_one(
     config: PublishConfig,
     state: RunState,
     state_path: Path,
-    semaphore: asyncio.Semaphore,
     observer: PublishObserver,
 ) -> None:
     """Publish a single package through the full pipeline.
 
-    Acquires the semaphore for concurrency control. Updates state
-    at each step for resume support. Notifies the observer at each
-    pipeline stage for live UI feedback.
+    Updates state at each step for resume support. Notifies the
+    observer at each pipeline stage for live UI feedback.
+
+    Concurrency is controlled by the :class:`~releasekit.scheduler.Scheduler`,
+    not by this function. The scheduler calls this via a closure that
+    captures all context.
 
     Args:
         pkg: Package to publish.
@@ -207,125 +218,115 @@ async def _publish_one(
         config: Publish configuration.
         state: Run state (mutated in place).
         state_path: Path to persist state.
-        semaphore: Concurrency limiter.
         observer: UI observer for progress callbacks.
     """
     name = pkg.name
-    async with semaphore:
-        try:
-            # Step 1: Pin dependencies.
-            observer.on_stage(name, PublishStage.PINNING)
-            state.set_status(name, PackageStatus.BUILDING)
-            state.save(state_path)
+    try:
+        observer.on_stage(name, PublishStage.PINNING)
+        state.set_status(name, PackageStatus.BUILDING)
+        state.save(state_path)
 
-            with ephemeral_pin(pkg.pyproject_path, version_map):
-                # Step 2: Build.
-                observer.on_stage(name, PublishStage.BUILDING)
-                with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
-                    dist_dir = Path(tmp)
-                    pm.build(
-                        pkg.path,
-                        output_dir=dist_dir,
-                        no_sources=True,
-                        dry_run=config.dry_run,
-                    )
-
-                    # Step 3: Compute checksums.
-                    checksums = _compute_dist_checksum(dist_dir)
-                    if not config.dry_run and not checksums:
-                        raise ReleaseKitError(
-                            E.BUILD_FAILED,
-                            f'No distribution files produced for {name}.',
-                            hint=f"Check 'uv build' output for {pkg.path}.",
-                        )
-
-                    # Step 4: Publish.
-                    observer.on_stage(name, PublishStage.PUBLISHING)
-                    state.set_status(name, PackageStatus.PUBLISHING)
-                    state.save(state_path)
-
-                    pm.publish(
-                        dist_dir,
-                        check_url=config.check_url,
-                        index_url=config.index_url,
-                        dry_run=config.dry_run,
-                    )
-
-            # Step 5: Poll for availability.
-            observer.on_stage(name, PublishStage.POLLING)
-            state.set_status(name, PackageStatus.VERIFYING)
-            state.save(state_path)
-
-            if not config.dry_run:
-                available = await registry.poll_available(
-                    name,
-                    version.new_version,
-                    timeout=config.poll_timeout,
-                    interval=config.poll_interval,
+        with ephemeral_pin(pkg.pyproject_path, version_map):
+            observer.on_stage(name, PublishStage.BUILDING)
+            with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
+                dist_dir = Path(tmp)
+                pm.build(
+                    pkg.path,
+                    output_dir=dist_dir,
+                    no_sources=True,
+                    dry_run=config.dry_run,
                 )
-                if not available:
+
+                checksums = _compute_dist_checksum(dist_dir)
+                if not config.dry_run and not checksums:
                     raise ReleaseKitError(
-                        E.PUBLISH_TIMEOUT,
-                        f'{name}=={version.new_version} not available on registry after {config.poll_timeout}s.',
-                        hint='The package may still be indexing. Check the registry manually.',
+                        E.BUILD_FAILED,
+                        f'No distribution files produced for {name}.',
+                        hint=f"Check 'uv build' output for {pkg.path}.",
                     )
 
-            # Step 6: Verify checksums.
-            if config.verify_checksums and not config.dry_run and checksums:
-                checksum_result: ChecksumResult = await registry.verify_checksum(
-                    name,
-                    version.new_version,
-                    checksums,
+                observer.on_stage(name, PublishStage.PUBLISHING)
+                state.set_status(name, PackageStatus.PUBLISHING)
+                state.save(state_path)
+
+                pm.publish(
+                    dist_dir,
+                    check_url=config.check_url,
+                    index_url=config.index_url,
+                    dry_run=config.dry_run,
                 )
-                if not checksum_result.ok:
-                    mismatched_files = ', '.join(checksum_result.mismatched.keys())
-                    missing_files = ', '.join(checksum_result.missing)
-                    detail_parts: list[str] = []
-                    if mismatched_files:
-                        detail_parts.append(f'mismatched: {mismatched_files}')
-                    if missing_files:
-                        detail_parts.append(f'missing: {missing_files}')
-                    raise ReleaseKitError(
-                        E.PUBLISH_CHECKSUM_MISMATCH,
-                        f'Checksum verification failed for {name}: {"; ".join(detail_parts)}',
-                        hint=(
-                            'The published artifact does not match the locally-built '
-                            'artifact. This could indicate a supply chain attack or '
-                            'a registry processing error. Investigate immediately.'
-                        ),
-                    )
 
-            # Step 7: Smoke test.
-            if config.smoke_test and not config.dry_run:
-                observer.on_stage(name, PublishStage.VERIFYING)
-                pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
+        observer.on_stage(name, PublishStage.POLLING)
+        state.set_status(name, PackageStatus.VERIFYING)
+        state.save(state_path)
 
-            # Success.
-            observer.on_stage(name, PublishStage.PUBLISHED)
-            state.set_status(name, PackageStatus.PUBLISHED)
-            state.save(state_path)
-
-            logger.info(
-                'package_published',
-                package=name,
-                version=version.new_version,
-                checksums=checksums,
+        if not config.dry_run:
+            available = await registry.poll_available(
+                name,
+                version.new_version,
+                timeout=config.poll_timeout,
+                interval=config.poll_interval,
             )
+            if not available:
+                raise ReleaseKitError(
+                    E.PUBLISH_TIMEOUT,
+                    f'{name}=={version.new_version} not available on registry after {config.poll_timeout}s.',
+                    hint='The package may still be indexing. Check the registry manually.',
+                )
 
-        except ReleaseKitError:
-            observer.on_error(name, f'ReleaseKitError in {name}')
-            state.set_status(name, PackageStatus.FAILED, error=str(name))
-            state.save(state_path)
-            raise
+        if config.verify_checksums and not config.dry_run and checksums:
+            checksum_result: ChecksumResult = await registry.verify_checksum(
+                name,
+                version.new_version,
+                checksums,
+            )
+            if not checksum_result.ok:
+                mismatched_files = ', '.join(checksum_result.mismatched.keys())
+                missing_files = ', '.join(checksum_result.missing)
+                detail_parts: list[str] = []
+                if mismatched_files:
+                    detail_parts.append(f'mismatched: {mismatched_files}')
+                if missing_files:
+                    detail_parts.append(f'missing: {missing_files}')
+                raise ReleaseKitError(
+                    E.PUBLISH_CHECKSUM_MISMATCH,
+                    f'Checksum verification failed for {name}: {"; ".join(detail_parts)}',
+                    hint=(
+                        'The published artifact does not match the locally-built '
+                        'artifact. This could indicate a supply chain attack or '
+                        'a registry processing error. Investigate immediately.'
+                    ),
+                )
 
-        except Exception as exc:
-            observer.on_error(name, str(exc))
-            state.set_status(name, PackageStatus.FAILED, error=str(exc))
-            state.save(state_path)
-            raise ReleaseKitError(
-                E.PUBLISH_FAILED,
-                f'Unexpected error publishing {name}: {exc}',
-            ) from exc
+        if config.smoke_test and not config.dry_run:
+            observer.on_stage(name, PublishStage.VERIFYING)
+            pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
+
+        observer.on_stage(name, PublishStage.PUBLISHED)
+        state.set_status(name, PackageStatus.PUBLISHED)
+        state.save(state_path)
+
+        logger.info(
+            'package_published',
+            package=name,
+            version=version.new_version,
+            checksums=checksums,
+        )
+
+    except ReleaseKitError:
+        observer.on_error(name, f'ReleaseKitError in {name}')
+        state.set_status(name, PackageStatus.FAILED, error=str(name))
+        state.save(state_path)
+        raise
+
+    except Exception as exc:
+        observer.on_error(name, str(exc))
+        state.set_status(name, PackageStatus.FAILED, error=str(exc))
+        state.save(state_path)
+        raise ReleaseKitError(
+            E.PUBLISH_FAILED,
+            f'Unexpected error publishing {name}: {exc}',
+        ) from exc
 
 
 async def publish_workspace(
@@ -334,26 +335,30 @@ async def publish_workspace(
     pm: PackageManager,
     forge: Forge | None,
     registry: Registry,
+    graph: DependencyGraph,
     packages: list[Package],
-    levels: list[list[Package]],
+    levels: list[list[Package]] | None = None,
     versions: list[PackageVersion],
     config: PublishConfig,
     state: RunState | None = None,
     observer: PublishObserver | None = None,
 ) -> PublishResult:
-    """Publish all workspace packages in topological order.
+    """Publish all workspace packages using dependency-triggered scheduling.
 
-    Processes packages level-by-level, with semaphore-controlled
-    concurrency within each level. If any package in a level fails,
-    subsequent levels are skipped (fail-fast).
+    Uses a :class:`~releasekit.scheduler.Scheduler` to dispatch packages
+    as soon as all their dependencies complete, rather than waiting for
+    an entire topological level to finish. This provides faster publishing
+    when packages within a level have different dependency sets.
 
     Args:
         vcs: Version control backend.
         pm: Package manager backend.
         forge: Code forge backend (optional).
         registry: Package registry backend.
+        graph: Workspace dependency graph.
         packages: All workspace packages.
-        levels: Topological levels from :func:`~releasekit.graph.topo_sort`.
+        levels: Topological levels (computed from ``graph`` if not provided).
+            Used only for state initialization and observer display.
         versions: Computed version bumps from
             :func:`~releasekit.versioning.compute_bumps`.
         config: Publish configuration.
@@ -367,9 +372,14 @@ async def publish_workspace(
     if observer is None:
         observer = NullProgressUI()
 
+    # Compute levels from graph if not provided.
+    if levels is None:
+        levels = topo_sort(graph)
+
     # Build lookup maps.
     ver_map: dict[str, PackageVersion] = {v.name: v for v in versions}
     version_map = _build_version_map(versions)
+    pkg_map: dict[str, Package] = {p.name: p for p in packages}
 
     # Initialize or resume state.
     git_sha = vcs.current_sha()
@@ -407,102 +417,65 @@ async def publish_workspace(
             observer_packages.append((pkg.name, level_idx, version_str))
     observer.init_packages(observer_packages)
 
-    # Mark skipped packages in the observer.
+    # Determine which packages are publishable (not skipped/already done).
+    publishable: set[str] = set()
     for name, pkg_state in state.packages.items():
         if pkg_state.status == PackageStatus.SKIPPED:
             observer.on_stage(name, PublishStage.SKIPPED)
+        elif pkg_state.status == PackageStatus.PUBLISHED:
+            pass  # Already done (resume).
+        elif name in ver_map and not ver_map[name].skipped:
+            publishable.add(name)
 
     result = PublishResult(state=state)
-    semaphore = asyncio.Semaphore(config.concurrency)
 
-    for level_idx, level in enumerate(levels):
-        # Filter to packages that need publishing in this level.
-        level_tasks: list[tuple[Package, PackageVersion]] = []
-        for pkg in level:
-            pkg_state = state.packages.get(pkg.name)
-            if pkg_state is None:
-                continue
+    # Pre-populate result with already-completed packages (resume support).
+    for name, pkg_state in state.packages.items():
+        if pkg_state.status == PackageStatus.PUBLISHED:
+            result.published.append(name)
+        elif pkg_state.status == PackageStatus.SKIPPED:
+            result.skipped.append(name)
 
-            # Skip already-completed packages (resume support).
-            if pkg_state.status in {
-                PackageStatus.PUBLISHED,
-                PackageStatus.SKIPPED,
-            }:
-                if pkg_state.status == PackageStatus.SKIPPED:
-                    result.skipped.append(pkg.name)
-                else:
-                    result.published.append(pkg.name)
-                continue
+    if not publishable:
+        logger.info('publish_nothing_to_do', reason='all packages skipped or already done')
+        state.save(state_path)
+        observer.on_complete()
+        return result
 
-            v = ver_map.get(pkg.name)
-            if v is None or v.skipped:
-                result.skipped.append(pkg.name)
-                continue
+    # Build the scheduler from the graph.
+    scheduler = Scheduler.from_graph(
+        graph=graph,
+        publishable=publishable,
+        concurrency=config.concurrency,
+        max_retries=config.max_retries,
+        retry_base_delay=config.retry_base_delay,
+        task_timeout=config.task_timeout,
+        observer=observer,
+    )
 
-            level_tasks.append((pkg, v))
-
-        if not level_tasks:
-            logger.debug('level_empty', level=level_idx)
-            continue
-
-        logger.info(
-            'level_start',
-            level=level_idx,
-            packages=[t[0].name for t in level_tasks],
-            concurrency=config.concurrency,
+    # Create the publish callback — closes over all context.
+    async def _do_publish(name: str) -> None:
+        """Publish a single package (scheduler callback)."""
+        pkg = pkg_map[name]
+        v = ver_map[name]
+        await _publish_one(
+            pkg=pkg,
+            version=v,
+            version_map=version_map,
+            pm=pm,
+            registry=registry,
+            config=config,
+            state=state,
+            state_path=state_path,
+            observer=observer,
         )
-        observer.on_level_start(level_idx, [t[0].name for t in level_tasks])
 
-        # Launch all packages in this level with semaphore concurrency.
-        tasks = [
-            asyncio.create_task(
-                _publish_one(
-                    pkg=pkg,
-                    version=v,
-                    version_map=version_map,
-                    pm=pm,
-                    registry=registry,
-                    config=config,
-                    state=state,
-                    state_path=state_path,
-                    semaphore=semaphore,
-                    observer=observer,
-                ),
-                name=f'publish-{pkg.name}',
-            )
-            for pkg, v in level_tasks
-        ]
+    # Run the scheduler.
+    sched_result = await scheduler.run(_do_publish)
 
-        # Wait for all tasks, collecting results.
-        done = await asyncio.gather(*tasks, return_exceptions=True)
-
-        level_failed = False
-        for (pkg, _v), outcome in zip(level_tasks, done, strict=False):
-            if isinstance(outcome, BaseException):
-                result.failed[pkg.name] = str(outcome)
-                level_failed = True
-                logger.error(
-                    'package_failed',
-                    package=pkg.name,
-                    error=str(outcome),
-                )
-            else:
-                result.published.append(pkg.name)
-
-        # Fail-fast: stop if any package in this level failed.
-        if level_failed:
-            logger.error(
-                'level_failed',
-                level=level_idx,
-                failed=list(result.failed.keys()),
-            )
-            break
-
-        logger.info(
-            'level_complete',
-            level=level_idx,
-            published=[t[0].name for t in level_tasks],
-        )
+    # Merge scheduler results into publish result.
+    result.published.extend(sched_result.published)
+    result.failed.update(sched_result.failed)
 
     # Save final state.
     state.save(state_path)

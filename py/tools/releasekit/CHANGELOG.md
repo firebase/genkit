@@ -22,6 +22,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     JSON version manifest — CI handoff and audit trail.
   - 57 new tests (204 total across phases 0, 1, and 2).
 
+- **Phase 4b: Streaming Publisher Core**
+  - `scheduler.py`: Dependency-triggered task scheduler using `asyncio.Queue`
+    with semaphore-controlled worker pool. Per-package dep counters trigger
+    dependents on completion — no level-based lockstep.
+  - Retry with exponential backoff + full jitter (configurable `max_retries`,
+    `retry_base_delay`). Prevents thundering-herd retries.
+  - Per-task timeout (`--task-timeout`, default `None` in scheduler, 600s via
+    CLI). Prevents hung builds from blocking workers forever.
+  - Suspend/resume via `pause()`/`resume()` methods (`asyncio.Event` gate).
+  - Cancellation safety: `CancelledError` always calls `task_done()` via
+    `try/finally` — `_queue.join()` never hangs.
+  - Duplicate completion guard (idempotent `mark_done()`).
+  - `already_published` parameter for resume-after-crash.
+  - Refactored `publisher.py` to use `Scheduler.run()` instead of level loop.
+  - CLI args: `--max-retries`, `--retry-base-delay`, `--task-timeout` threaded
+    through `PublishConfig` → `Scheduler.from_graph()`.
+  - 27 new tests covering all scheduler features.
+
+- **Phase 4c: UI States & Interactivity**
+  - `observer.py`: Extracted `PublishStage`, `SchedulerState`, `ViewMode`,
+    `DisplayFilter` enums and `PublishObserver` protocol from `ui.py` — clean
+    dependency graph between scheduler and UI modules.
+  - `RETRYING` and `BLOCKED` per-package stage indicators with appropriate
+    emojis and colors in both Rich and Log UIs.
+  - `SchedulerState` enum (`RUNNING`, `PAUSED`, `CANCELLED`) with visual
+    banner in Rich UI panel (yellow border when paused, red when cancelled).
+  - Sliding window for large workspaces (>30 packages): shows active +
+    recently completed + failed rows; collapses waiting/completed into
+    summary count.
+  - Keyboard shortcuts: `p`=pause, `r`=resume, `q`=cancel, `a`=show all,
+    `w`=sliding window, `f`=cycle filter (all→active→failed). Async key
+    listener with `select()`-based polling and terminal restore on exit.
+  - `SIGUSR1`/`SIGUSR2` signal handlers for external pause/resume from
+    another terminal (`kill -USR1 <pid>`).
+  - `_block_dependents`: recursively marks all transitive dependents as
+    `BLOCKED` when a package fails (with observer notifications).
+  - ETA estimate and control hints in Rich UI footer.
+  - 243 tests pass (all modules).
+
 - **Phase 1: Workspace Discovery + Dependency Graph**
   - `config.py`: Reads `[tool.releasekit]` from `pyproject.toml` with typed
     validation, fuzzy "did you mean?" suggestions for typos, and a frozen

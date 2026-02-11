@@ -187,6 +187,9 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             check_url=args.check_url,
             index_url=args.index_url,
             smoke_test=config.smoke_test,
+            max_retries=args.max_retries,
+            retry_base_delay=args.retry_base_delay,
+            task_timeout=args.task_timeout,
             force=args.force,
             workspace_root=workspace_root,
         )
@@ -204,6 +207,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
                 pm=pm,
                 forge=forge,
                 registry=registry,
+                graph=graph,
                 packages=packages,
                 levels=levels,
                 versions=versions,
@@ -456,6 +460,24 @@ def build_parser() -> argparse.ArgumentParser:
     publish_parser.add_argument(
         '--index-url',
         help='Custom index URL (e.g., Test PyPI).',
+    )
+    publish_parser.add_argument(
+        '--max-retries',
+        type=int,
+        default=0,
+        help='Retry failed publishes up to N times with exponential backoff (default: 0).',
+    )
+    publish_parser.add_argument(
+        '--retry-base-delay',
+        type=float,
+        default=1.0,
+        help='Base delay in seconds for retry backoff (default: 1.0).',
+    )
+    publish_parser.add_argument(
+        '--task-timeout',
+        type=float,
+        default=600.0,
+        help='Timeout in seconds per publish attempt (default: 600).',
     )
 
     # ── plan ──

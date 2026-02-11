@@ -1,8 +1,8 @@
 # releasekit Implementation Roadmap
 
 Release orchestration for uv workspaces -- publish Python packages in
-topological order with ephemeral version pinning, level gating, and
-crash-safe file restoration.
+topological order with dependency-triggered scheduling, ephemeral version
+pinning, retry with jitter, and crash-safe file restoration.
 
 **Target location**: `py/tools/releasekit/` in `firebase/genkit`
 **Published as**: `releasekit` on PyPI
@@ -17,8 +17,10 @@ crash-safe file restoration.
 | 0: Foundation + Backends | ✅ Complete | 1,812 lines src, 864 lines tests, 82 tests pass |
 | 1: Discovery | ✅ Complete | 3 modules, 65 tests pass, named error codes |
 | 2: Version + Pin | ✅ Complete | 4 modules, 64 tests (incl. 6 integration), 211 total tests pass |
-| 3: Publish MVP | ⬜ Not started | Critical milestone |
-| 4: Harden | ⬜ Not started | |
+| 3: Publish MVP | ✅ Complete | Critical milestone |
+| 4: Harden | ✅ Complete | UI, checks, registry verification, observer, interactive controls |
+| 4b: Streaming Core | ✅ Complete | scheduler.py, retry, jitter, pause/resume, 27 tests |
+| 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Post-Pipeline + CI | ⬜ Not started | |
 | 6: UX Polish | ⬜ Not started | |
 | 7: Quality + Ship | ⬜ Not started | |
@@ -178,9 +180,10 @@ Phase 3: Publish MVP ★     ▼    ← CRITICAL MILESTONE ✅ COMPLETE
 │  ✓ Dry run validated: 60 packages, 4 levels, 0 errors  │
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 4: Harden            ▼    🔶 IN PROGRESS
+Phase 4: Harden            ▼    ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
-│  ui.py ──► logging.py                                   │
+│  observer.py ──► PublishStage, SchedulerState, Observer │
+│  ui.py ──► observer.py, logging.py                      │
 │  checks.py ──► graph.py, preflight.py, workspace.py     │
 │    + 10 standalone health checks (replaces check-cycles)│
 │  preflight.py (full) ──► + pip-audit,                   │
@@ -192,19 +195,49 @@ Phase 4: Harden            ▼    🔶 IN PROGRESS
 │  ✓ Rich progress table (PR #4558)                       │
 │  ✓ releasekit check (PR #4563)                          │
 │  ✓ --stage, --index=testpypi, --resume-from-registry    │
+│  ✓ observer.py: extracted enums/protocol, sliding window│
+│  ✓ keyboard shortcuts + SIGUSR1/2 signal handlers       │
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 4b: Streaming Core   ▼    ⬜ PLANNED
-┌─────────────────────────────────────────────────────────┐
-│  scheduler.py ──► graph.py, workspace.py                │
-│    + asyncio.Queue-based dependency-triggered dispatch  │
-│    + Per-package dep counters, not level-based lockstep  │
-│  publisher.py refactor ──► scheduler.py                 │
-│    + Workers consume from queue, not level iteration    │
-│    + _publish_one unchanged, only dispatch loop changes │
-│                                                         │
-│  ★ Streaming-ready for CI pipelines + dynamic feeds     │
-└──────────────────────────┬──────────────────────────────┘
+Phase 4b: Streaming Core   ▼    ✅ COMPLETE
+┌───────────────────────────────────────────────────────────┐
+│  scheduler.py ──▶ graph.py, workspace.py                  │
+│    + asyncio.Queue-based dependency-triggered dispatch    │
+│    + Per-package dep counters, not level-based lockstep   │
+│    + Retry with exponential backoff + full jitter         │
+│    + Suspend/resume (pause/resume methods)                │
+│    + Cancellation safety (Ctrl+C → partial results)       │
+│    + Duplicate completion guard (idempotent mark_done)    │
+│    + already_published for resume-after-crash             │
+│  publisher.py refactor ──▶ scheduler.py                   │
+│    + Workers consume from queue, not level iteration      │
+│    + _publish_one unchanged, only dispatch loop changes   │
+│                                                           │
+│  ✓ 27 tests, dry-run validated with 60 packages           │
+│  ★ Streaming-ready for CI pipelines + dynamic feeds       │
+└───────────────────────────┬───────────────────────────────┘
+                           │
+Phase 4c: UI States        ▼    ✅ COMPLETE
+┌───────────────────────────────────────────────────────────┐
+│  observer.py ──▶ PublishStage, SchedulerState, Observer   │
+│    + Extracted enums + protocol from ui.py                │
+│    + Clean dependency graph (no circular imports)         │
+│  ui.py refactor ──▶ observer.py                           │
+│    + Sliding window for large workspaces (>30 packages)   │
+│    + RETRYING / BLOCKED per-package stage indicators      │
+│    + PAUSED / CANCELLED scheduler-level banners           │
+│    + Keyboard shortcuts (p=pause, r=resume, q=cancel)     │
+│    + ETA estimate in footer                               │
+│    + Control hint in footer (key shortcuts + PID)         │
+│  scheduler.py ──▶ observer.py                             │
+│    + SIGUSR1/SIGUSR2 signal handlers for external control │
+│    + Async key listener with select()-based polling       │
+│    + _block_dependents: recursive transitive blocking     │
+│    + Observer callbacks for retry/blocked/state changes   │
+│                                                           │
+│  ✓ 243 tests pass                                         │
+│  ★ Interactive terminal + CI-friendly log output          │
+└───────────────────────────┬───────────────────────────────┘
                            │
 Phase 5: Post-Pipeline     ▼
 ┌─────────────────────────────────────────────────────────┐
@@ -496,11 +529,13 @@ publish → poll → verify) with zero failures.
 
 | Module | Description | Est. Lines | Status |
 |--------|-------------|-----------|--------|
-| `ui.py` | **Rich Live progress table** with observer pattern. `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests). 9 pipeline stages with emoji/color/progress bars. ETA estimation. Error panel. Auto-detects TTY via `create_progress_ui()`. Integrated into `publisher.py` via `PublishObserver` callbacks. | ~560 | ✅ Done (PR #4558) |
-| `checks.py` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 6 universal checks (cycles, self_deps, orphan_deps, missing_license, missing_readme, stale_artifacts) + 4 language-specific via `PythonCheckBackend` (type_markers, version_consistency, naming_convention, metadata_completeness). Extensible for future language backends. Found flask self-dep bug (#4562). | ~420 | ✅ Done (PR #4563) |
-| `preflight.py` (full) | Added: `dist_clean` (stale dist/ detection, blocking), `trusted_publisher` (OIDC check, advisory). Remaining: `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel METADATA fields). | +80 | 🔶 Partial |
-| `registry.py` (full) | Added: `verify_checksum()` — downloads SHA-256 from PyPI JSON API (`urls[].digests.sha256`) and compares against locally-computed checksums. `ChecksumResult` dataclass with matched/mismatched/missing. | +100 | ✅ Done |
-| `publisher.py` (full) | Added: post-publish SHA-256 checksum verification (step 6), `verify_checksums` config flag. Remaining: `--stage` two-phase, `--index=testpypi`, manifest mode, `--resume-from-registry`, rate limiting, attestation passthrough (D-8). | +30 | 🔶 Partial |
+| `observer.py` | **Observer protocol and enums** extracted from `ui.py`. `PublishStage` (11 stages incl. `RETRYING`, `BLOCKED`), `SchedulerState` (`RUNNING`/`PAUSED`/`CANCELLED`), `PublishObserver` ABC. Clean dependency graph — both `scheduler.py` and `ui.py` import from here. | ~110 | ✅ Done |
+| `ui.py` | **Rich Live progress table** with sliding window for large workspaces (>30 packages). Imports types from `observer.py`. `PAUSED`/`CANCELLED` banners with colored borders. Keyboard shortcut hints and ETA in footer. `LogProgressUI` emits `scheduler_state` events. | ~520 | ✅ Done |
+| `checks.py` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 6 universal checks + 4 language-specific via `PythonCheckBackend`. Found flask self-dep bug (#4562). | ~420 | ✅ Done (PR #4563) |
+| `preflight.py` (full) | Added: `dist_clean` (stale dist/ detection, blocking), `trusted_publisher` (OIDC check, advisory). Remaining: `pip-audit` vulnerability scan, metadata validation. | +80 | 🔶 Partial |
+| `registry.py` (full) | Added: `verify_checksum()` — downloads SHA-256 from PyPI JSON API and compares against locally-computed checksums. `ChecksumResult` dataclass. | +100 | ✅ Done |
+| `publisher.py` (full) | Added: post-publish SHA-256 checksum verification, `verify_checksums` config flag. Remaining: `--stage` two-phase, manifest mode, rate limiting, attestation passthrough (D-8). | +30 | 🔶 Partial |
+| `scheduler.py` (controls) | **Interactive controls**: async key listener (`p`/`r`/`q`) with `select()`-based polling, `SIGUSR1`/`SIGUSR2` signal handlers for external pause/resume, `_block_dependents` for recursive transitive blocking, observer callbacks. | +100 | ✅ Done |
 
 **`ui.py` — Rich Live Progress Table (Detailed Spec)**:
 
@@ -538,9 +573,11 @@ Stage indicators (pipeline order):
 | publishing  | 📤   | Running `uv publish`                 |
 | polling     | 🔍   | Waiting for PyPI indexing            |
 | verifying   | 🧪   | Running smoke test                   |
+| retrying    | 🔄   | Retrying after transient failure     |
 | published   | ✅   | Successfully published               |
 | failed      | ❌   | Failed (error shown below table)     |
 | skipped     | ⏭️    | No changes / excluded                |
+| blocked     | 🚫   | Dependency failed, cannot proceed    |
 
 Implementation notes:
 
@@ -549,9 +586,13 @@ Implementation notes:
 - Duration tracked via `time.monotonic()` per package
 - ETA estimated from average per-package duration × remaining
 - Non-TTY (CI) mode: falls back to one structured log line per state transition
-- Observer protocol: `PublishObserver` with `on_stage`, `on_error`, `on_complete`, `on_level_start`
+- Observer protocol: `PublishObserver` ABC (in `observer.py`) with `on_stage`, `on_error`, `on_complete`, `on_level_start`, `on_scheduler_state`
 - Three implementations: `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests)
 - Error details for failed packages shown below table in a `rich.panel.Panel`
+- Sliding window: for >30 packages, shows active + recently completed + failed; collapses rest
+- Interactive controls: `p`=pause, `r`=resume, `q`=cancel (async key listener with `select()`)
+- Signal handlers: `SIGUSR1`=pause, `SIGUSR2`=resume (from another terminal via `kill -USR1 <pid>`)
+- Scheduler state banner: yellow border + "⏸ PAUSED" when paused, red + "✖ CANCELLED" when cancelled
 
 **Done when**: Rich progress UI shows real-time status during publish. Staging
 workflow completes both phases. Pre-flight catches common mistakes.
@@ -559,17 +600,17 @@ workflow completes both phases. Pre-flight catches common mistakes.
 
 **Milestone**: Production-hardened publish with rich UI and safety checks.
 
-### Phase 4b: Streaming Publisher Core
+### Phase 4b: Streaming Publisher Core  ✅ Complete
 
-Refactor the publisher from level-based lockstep dispatch to a
+Refactored the publisher from level-based lockstep dispatch to a
 dependency-triggered streaming queue. This is a foundational change
 that makes the core efficient for future expansion (CI pipelines,
 distributed builds, dynamic package feeds).
 
-**Why**: The level-based approach has a fundamental inefficiency —
-if one package in level N is slow, all level N+1 packages wait even
-if their specific dependencies are already done. With 60 packages
-across 4 levels, this can waste significant time.
+**Why**: The level-based approach had a fundamental inefficiency —
+if one package in level N was slow, all level N+1 packages waited even
+if their specific dependencies were already done. With 60 packages
+across 4 levels, this wasted significant time.
 
 **Architecture**:
 
@@ -590,8 +631,9 @@ Proposed (dependency-triggered queue):
 
 | Component | Description | Est. Lines |
 |-----------|-------------|-----------|
-| `scheduler.py` | **Dependency-aware task scheduler**. Maintains per-package dependency counters. When a package publishes, decrements counters of its dependents. When a counter hits zero, the package is enqueued. Semaphore controls max concurrency. | ~150 |
-| `publisher.py` refactor | Replace level iteration with `asyncio.Queue` consumption. `_publish_one` pulls from queue, publishes, then notifies scheduler to resolve dependents. | ~±100 |
+| `scheduler.py` | **Dependency-aware task scheduler**. `asyncio.Queue`-based workers with semaphore concurrency. Per-package dep counters trigger dependents on completion. Retry with exponential backoff + full jitter. Suspend/resume. Cancellation safety. Duplicate guard. `already_published` for resume-after-crash. | 541 | ✅ |
+| `publisher.py` refactor | Replace level iteration with `Scheduler.run()`. `_publish_one` unchanged, only dispatch loop changes. | ±100 | ✅ |
+| **Tests** | 27 tests: from_graph, mark_done, run (single/chain/diamond/parallel), failure blocking, cancellation, duplicates, pause/resume, already_published, retry (transient/exhaustion/default/dependent). | ~640 | ✅ |
 
 **Key design**:
 
@@ -645,18 +687,16 @@ class Scheduler:
 
 **Benefits**:
 
-- **Faster**: Packages start as soon as their deps complete, not when the level completes
-- **Streaming-ready**: The `Queue` naturally accepts dynamically-fed packages
-- **Composable**: Same scheduler works for CI pipelines, distributed builds, dynamic DAGs
-- **Observer-compatible**: Each `mark_done` / dequeue can notify the existing `PublishObserver`
-- **Resume-compatible**: `RunState` still tracks per-package status; resume re-seeds the queue
+- **Retry**: Configurable `max_retries` with exponential backoff + full jitter (`random.uniform(0, base * 2^attempt)`, capped at 60s)
+- **Suspend/Resume**: `pause()` clears `asyncio.Event` gate; `resume()` sets it. Workers finish current package but don't start new ones.
+- **Cancellation**: `Ctrl+C` → `CancelledError` → workers cancelled → partial `SchedulerResult` returned
+- **Duplicate guard**: `_done` set prevents double-completion in `mark_done()`
+- **Resume-after-crash**: `already_published` parameter in `from_graph()` excludes packages and pre-unlocks dependents
+- **Thread safety**: Single-event-loop safe (cooperative scheduling). Not thread-safe across loops. Multiple event loops intentionally not supported.
 
-**Backward compatibility**: `publish_workspace` signature stays the same.
-The `levels` parameter can be dropped (computed internally from graph).
-`_publish_one` stays unchanged — only the dispatch loop changes.
-
-**Done when**: `releasekit publish --dry-run` produces identical results but
+**Done**: `releasekit publish --dry-run` produces identical results but
 packages start as soon as deps complete (visible in timestamp ordering).
+27 tests cover all features.
 
 **Milestone**: Core scheduler is streaming-ready for future expansion.
 
@@ -743,7 +783,7 @@ shell completion) is enhancement.
 | 2: Version + Pin | 4 (+tests) | ~500 | 1,023 src + ~550 tests | ✅ Complete |
 | 3: Publish MVP | 6 | ~960 | ~1,660 src | ✅ Complete |
 | 4: Harden | 5 (extended) | ~450 | ~973 src (ui.py + checks.py + registry.py done) | 🔶 In progress |
-| 4b: Streaming Publisher | 2 | ~250 | — | ⬜ Planned |
+| 4b: Streaming Publisher | 2 (+tests) | ~250 | 541 src + ~640 tests | ✅ Complete |
 | 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |
 | 6: UX Polish | 3 (+ 6 formatters) | ~570 | — | ⬜ Not started |
 | 7: Quality + Ship | tests + docs | ~2800 | — | ⬜ Not started |

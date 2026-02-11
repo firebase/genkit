@@ -24,11 +24,9 @@ Architecture::
 
     publisher.py                    ui.py
     ┌──────────────┐    callback    ┌───────────────────┐
-    │ _publish_one │───────────────▶│ PublishObserver    │ (protocol)
-    │              │                │   on_stage()       │
-    └──────────────┘                │   on_error()       │
-                                    │   on_complete()    │
-                                    └─────────┬─────────┘
+    │ _publish_one │───────────────▶│ UI implementations │
+    │              │                │   (Rich / Log)     │
+    └──────────────┘                └─────────┬─────────┘
                                               │
                           ┌───────────────────┼───────────────────┐
                           │                   │                   │
@@ -37,14 +35,19 @@ Architecture::
                   │   UI (TTY)    │   │   UI (CI)     │   │  (tests)    │
                   └───────────────┘   └───────────────┘   └─────────────┘
 
-Stage indicators::
+    Types (PublishStage, SchedulerState, PublishObserver) live in
+    observer.py to keep the dependency graph clean.
 
-    ⏳ waiting  → 🔧 pinning → 🔨 building → 📤 publishing
-    → 🔍 polling → 🧪 verifying → ✅ published / ❌ failed / ⏭️  skipped
+Sliding window::
+
+    When total packages exceed terminal height, RichProgressUI shows
+    only active + recently completed packages (sliding window), with
+    a collapsed summary for waiting/completed packages.
 
 Usage::
 
     from releasekit.ui import create_progress_ui
+    from releasekit.observer import PublishStage
 
     # Auto-detects TTY; returns RichProgressUI or LogProgressUI.
     ui = create_progress_ui(
@@ -65,9 +68,7 @@ from __future__ import annotations
 import sys
 import time
 from collections.abc import Sequence
-from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from enum import Enum
 from types import TracebackType
 
 from rich.console import Console
@@ -77,26 +78,9 @@ from rich.table import Table
 from rich.text import Text
 
 from releasekit.logging import get_logger
+from releasekit.observer import DisplayFilter, PublishObserver, PublishStage, SchedulerState, ViewMode
 
 logger = get_logger(__name__)
-
-
-class PublishStage(str, Enum):
-    """Pipeline stage for a single package.
-
-    Ordered by pipeline progression. Each package moves through
-    these stages during publishing.
-    """
-
-    WAITING = 'waiting'
-    PINNING = 'pinning'
-    BUILDING = 'building'
-    PUBLISHING = 'publishing'
-    POLLING = 'polling'
-    VERIFYING = 'verifying'
-    PUBLISHED = 'published'
-    FAILED = 'failed'
-    SKIPPED = 'skipped'
 
 
 # Emoji and color for each stage.
@@ -107,9 +91,11 @@ _STAGE_DISPLAY: dict[PublishStage, tuple[str, str]] = {
     PublishStage.PUBLISHING: ('📤', 'cyan'),
     PublishStage.POLLING: ('🔍', 'cyan'),
     PublishStage.VERIFYING: ('🧪', 'magenta'),
+    PublishStage.RETRYING: ('🔄', 'yellow bold'),
     PublishStage.PUBLISHED: ('✅', 'green'),
     PublishStage.FAILED: ('❌', 'red bold'),
     PublishStage.SKIPPED: ('⏭️ ', 'dim'),
+    PublishStage.BLOCKED: ('🚫', 'red dim'),
 }
 
 # Progress fraction per stage (for the progress bar).
@@ -120,9 +106,11 @@ _STAGE_PROGRESS: dict[PublishStage, float] = {
     PublishStage.PUBLISHING: 0.50,
     PublishStage.POLLING: 0.70,
     PublishStage.VERIFYING: 0.85,
+    PublishStage.RETRYING: 0.50,
     PublishStage.PUBLISHED: 1.0,
     PublishStage.FAILED: 1.0,
     PublishStage.SKIPPED: 1.0,
+    PublishStage.BLOCKED: 1.0,
 }
 
 # Terminal states that won't change.
@@ -130,7 +118,12 @@ _TERMINAL_STAGES = frozenset({
     PublishStage.PUBLISHED,
     PublishStage.FAILED,
     PublishStage.SKIPPED,
+    PublishStage.BLOCKED,
 })
+
+# Maximum number of rows shown in the Rich table before switching to
+# a sliding window that only displays active + recently completed rows.
+_MAX_VISIBLE_ROWS = 30
 
 
 @dataclass
@@ -164,57 +157,6 @@ class _PackageRow:
         minutes = int(elapsed // 60)
         seconds = elapsed % 60
         return f'{minutes}m{seconds:.0f}s'
-
-
-class PublishObserver(AbstractContextManager['PublishObserver']):
-    """Protocol for receiving publish progress updates.
-
-    Implementations must support the context manager protocol for
-    setup/teardown of UI resources (e.g. Rich Live).
-    """
-
-    def init_packages(self, packages: Sequence[tuple[str, int, str]]) -> None:
-        """Register all packages with their levels and versions.
-
-        Args:
-            packages: Sequence of ``(name, level, version)`` tuples,
-                ordered by level then name.
-        """
-
-    def on_stage(self, name: str, stage: PublishStage) -> None:
-        """Notify that a package has entered a new pipeline stage.
-
-        Args:
-            name: Package name.
-            stage: The new stage.
-        """
-
-    def on_error(self, name: str, error: str) -> None:
-        """Notify that a package has failed.
-
-        Args:
-            name: Package name.
-            error: Error message.
-        """
-
-    def on_complete(self) -> None:
-        """Notify that the entire publish run is complete."""
-
-    def on_level_start(self, level: int, package_names: list[str]) -> None:
-        """Notify that a level is starting.
-
-        Args:
-            level: Level index.
-            package_names: Names of packages in this level.
-        """
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Clean up UI resources."""
 
 
 class NullProgressUI(PublishObserver):
@@ -290,17 +232,23 @@ class LogProgressUI(PublishObserver):
         published = sum(1 for r in self._packages.values() if r.stage == PublishStage.PUBLISHED)
         failed = sum(1 for r in self._packages.values() if r.stage == PublishStage.FAILED)
         skipped = sum(1 for r in self._packages.values() if r.stage == PublishStage.SKIPPED)
+        blocked = sum(1 for r in self._packages.values() if r.stage == PublishStage.BLOCKED)
         logger.info(
             'publish_ui_complete',
             published=published,
             failed=failed,
             skipped=skipped,
+            blocked=blocked,
             total=len(self._packages),
         )
 
     def on_level_start(self, level: int, package_names: list[str]) -> None:
         """Log level start."""
         logger.info('level_start', level=level, packages=package_names)
+
+    def on_scheduler_state(self, state: SchedulerState) -> None:
+        """Log scheduler state change."""
+        logger.info('scheduler_state', state=state.value)
 
 
 def _build_progress_bar(fraction: float, width: int = 10) -> Text:
@@ -329,6 +277,10 @@ class RichProgressUI(PublishObserver):
 
     Renders a live-updating table showing per-package publish progress
     with stage indicators, progress bars, and elapsed time.
+
+    For large workspaces (>30 packages), a sliding window shows only
+    active and recently-completed packages. Waiting and finished
+    packages are collapsed into summary counts.
     """
 
     total_packages: int = 0
@@ -340,6 +292,9 @@ class RichProgressUI(PublishObserver):
     _console: Console = field(default_factory=lambda: Console(stderr=True))
     _live: Live | None = field(default=None, repr=False)
     _start_time: float = field(default_factory=time.monotonic)
+    _scheduler_state: SchedulerState = SchedulerState.RUNNING
+    _view_mode: ViewMode = ViewMode.WINDOW
+    _display_filter: DisplayFilter = DisplayFilter.ALL
 
     def __enter__(self) -> RichProgressUI:
         """Enter context manager and start the Rich Live display."""
@@ -406,10 +361,88 @@ class RichProgressUI(PublishObserver):
     def on_level_start(self, level: int, package_names: list[str]) -> None:
         """No-op for Rich UI (the table already shows level grouping)."""
 
+    def on_scheduler_state(self, state: SchedulerState) -> None:
+        """Update scheduler state and refresh the display."""
+        self._scheduler_state = state
+        self._refresh()
+
+    def on_view_mode(self, mode: ViewMode, display_filter: DisplayFilter) -> None:
+        """Update view mode / filter and refresh the display."""
+        self._view_mode = mode
+        self._display_filter = display_filter
+        self._refresh()
+
     def _refresh(self) -> None:
         """Update the live display."""
         if self._live is not None:
             self._live.update(self._render())
+
+    def _visible_rows(self) -> list[str]:
+        """Select which package rows to display.
+
+        Respects both ViewMode (ALL vs WINDOW) and DisplayFilter
+        (ALL vs ACTIVE vs FAILED).
+
+        Returns:
+            List of package names to display in the table.
+        """
+        # Apply display filter first.
+        if self._display_filter == DisplayFilter.ACTIVE:
+            candidates = [name for name in self._package_order if self._packages[name].stage not in _TERMINAL_STAGES]
+        elif self._display_filter == DisplayFilter.FAILED:
+            candidates = [
+                name
+                for name in self._package_order
+                if self._packages[name].stage in {PublishStage.FAILED, PublishStage.BLOCKED}
+            ]
+        else:
+            candidates = list(self._package_order)
+
+        # ViewMode.ALL: show everything that passed the filter.
+        if self._view_mode == ViewMode.ALL or len(candidates) <= _MAX_VISIBLE_ROWS:
+            return candidates
+
+        # ViewMode.WINDOW: sliding window — active + recently completed + failed.
+        visible: list[str] = []
+        for name in candidates:
+            row = self._packages[name]
+            if row.stage in {
+                PublishStage.PINNING,
+                PublishStage.BUILDING,
+                PublishStage.PUBLISHING,
+                PublishStage.POLLING,
+                PublishStage.VERIFYING,
+                PublishStage.RETRYING,
+                PublishStage.FAILED,
+                PublishStage.BLOCKED,
+            }:
+                visible.append(name)
+
+        # Add recently completed (last 5 finished packages).
+        completed = [
+            name
+            for name in candidates
+            if self._packages[name].stage == PublishStage.PUBLISHED and self._packages[name].end_time is not None
+        ]
+        completed.sort(key=lambda n: self._packages[n].end_time or 0, reverse=True)
+        for name in completed[:5]:
+            if name not in visible:
+                visible.append(name)
+
+        # Add next few waiting packages (up to fill _MAX_VISIBLE_ROWS).
+        remaining_slots = _MAX_VISIBLE_ROWS - len(visible)
+        if remaining_slots > 0:
+            for name in candidates:
+                if self._packages[name].stage == PublishStage.WAITING and name not in visible:
+                    visible.append(name)
+                    remaining_slots -= 1
+                    if remaining_slots <= 0:
+                        break
+
+        # Sort by original order for display stability.
+        order_index = {name: i for i, name in enumerate(self._package_order)}
+        visible.sort(key=lambda n: order_index.get(n, 0))
+        return visible
 
     def _render(self) -> Panel:
         """Build the complete display panel."""
@@ -418,8 +451,12 @@ class RichProgressUI(PublishObserver):
         published = sum(1 for r in self._packages.values() if r.stage == PublishStage.PUBLISHED)
         failed = sum(1 for r in self._packages.values() if r.stage == PublishStage.FAILED)
         skipped = sum(1 for r in self._packages.values() if r.stage == PublishStage.SKIPPED)
+        blocked = sum(1 for r in self._packages.values() if r.stage == PublishStage.BLOCKED)
+        retrying = sum(1 for r in self._packages.values() if r.stage == PublishStage.RETRYING)
         active = sum(
-            1 for r in self._packages.values() if r.stage not in _TERMINAL_STAGES and r.stage != PublishStage.WAITING
+            1
+            for r in self._packages.values()
+            if r.stage not in _TERMINAL_STAGES and r.stage not in {PublishStage.WAITING, PublishStage.RETRYING}
         )
         waiting = sum(1 for r in self._packages.values() if r.stage == PublishStage.WAITING)
 
@@ -438,7 +475,10 @@ class RichProgressUI(PublishObserver):
         table.add_column('Progress', width=12, justify='center')
         table.add_column('Time', width=8, justify='right')
 
-        for name in self._package_order:
+        visible_names = self._visible_rows()
+        hidden_count = len(self._package_order) - len(visible_names)
+
+        for name in visible_names:
             row = self._packages[name]
             emoji, style = _STAGE_DISPLAY.get(row.stage, ('?', ''))
             stage_text = Text(f'{emoji} {row.stage.value}', style=style)
@@ -450,6 +490,8 @@ class RichProgressUI(PublishObserver):
                     bar = Text('██████████', style='green')
                 elif row.stage == PublishStage.FAILED:
                     bar = Text('██████████', style='red')
+                elif row.stage == PublishStage.BLOCKED:
+                    bar = Text('██████████', style='red dim')
                 else:
                     bar = Text('──────────', style='dim')
 
@@ -462,16 +504,31 @@ class RichProgressUI(PublishObserver):
                 row.elapsed_str,
             )
 
+        # Collapsed row indicator for large workspaces.
+        if hidden_count > 0:
+            table.add_row(
+                '',
+                Text(f'  … {hidden_count} more (waiting/completed)', style='dim italic'),
+                '',
+                Text('', style='dim'),
+                Text('', style='dim'),
+                '',
+            )
+
         # Summary footer.
         summary_parts = []
         if published:
             summary_parts.append(f'[green]✅ {published} published[/]')
         if active:
             summary_parts.append(f'[cyan]⚡ {active} active[/]')
+        if retrying:
+            summary_parts.append(f'[yellow]🔄 {retrying} retrying[/]')
         if waiting:
             summary_parts.append(f'[dim]⏳ {waiting} waiting[/]')
         if skipped:
             summary_parts.append(f'[dim]⏭️  {skipped} skipped[/]')
+        if blocked:
+            summary_parts.append(f'[red dim]🚫 {blocked} blocked[/]')
         if failed:
             summary_parts.append(f'[red]❌ {failed} failed[/]')
 
@@ -488,7 +545,22 @@ class RichProgressUI(PublishObserver):
                 eta_str = f'  ETA: ~{remaining / 60:.1f}m'
 
         elapsed_str = f'{elapsed:.1f}s' if elapsed < 60 else f'{elapsed / 60:.1f}m'
-        footer = f'{summary}  │  Elapsed: {elapsed_str}{eta_str}'
+
+        # Control hint for keyboard shortcuts.
+        control_hint = ''
+        view_hint = ''
+        if sys.stdin.isatty():
+            if self._scheduler_state == SchedulerState.RUNNING:
+                control_hint = '  │  [dim]p[/]=pause [dim]q[/]=quit'
+            elif self._scheduler_state == SchedulerState.PAUSED:
+                control_hint = '  │  [yellow]r[/]=resume [dim]q[/]=quit'
+
+            # View mode and filter indicators.
+            mode_label = '📋all' if self._view_mode == ViewMode.ALL else '🪟win'
+            filter_label = self._display_filter.value
+            view_hint = f'  │  [dim]a[/]/[dim]w[/]={mode_label} [dim]f[/]={filter_label}'
+
+        footer = f'{summary}  │  Elapsed: {elapsed_str}{eta_str}{control_hint}{view_hint}'
 
         # Error panel (if any).
         content = table
@@ -511,11 +583,21 @@ class RichProgressUI(PublishObserver):
             f'releasekit publish — {self.total_packages} packages '
             f'across {self.total_levels} levels (concurrency: {self.concurrency})'
         )
+
+        # Scheduler state banner.
+        border_style = 'blue'
+        if self._scheduler_state == SchedulerState.PAUSED:
+            title += '  [yellow bold]⏸ PAUSED[/]'
+            border_style = 'yellow'
+        elif self._scheduler_state == SchedulerState.CANCELLED:
+            title += '  [red bold]✖ CANCELLED[/]'
+            border_style = 'red'
+
         return Panel(
             content,
             title=f'[bold]{title}[/]',
             subtitle=footer,
-            border_style='blue',
+            border_style=border_style,
             expand=True,
         )
 
@@ -559,5 +641,6 @@ __all__ = [
     'PublishObserver',
     'PublishStage',
     'RichProgressUI',
+    'SchedulerState',
     'create_progress_ui',
 ]
