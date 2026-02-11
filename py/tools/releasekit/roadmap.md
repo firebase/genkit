@@ -18,7 +18,7 @@ pinning, retry with jitter, and crash-safe file restoration.
 `synchronize = false` (default)
 
 Packages are versioned independently based on their own changes, but **propagated transitively**:
-1.  **Direct Bumps**: Commits to a package directory trigger semantic version dumps (Major/Minor/Patch).
+1.  **Direct Bumps**: Commits to a package directory trigger semantic version bumps (Major/Minor/Patch).
 2.  **Transitive Propagation**: If a package depends on another package that was bumped, it receives a **PATCH bump**.
     - **Rule**: ANY bump in a dependency (Major, Minor, or Patch) triggers a Patch bump in all dependents.
     - **Why**: Ensures lockfiles and pins are updated to point to the new dependency version.
