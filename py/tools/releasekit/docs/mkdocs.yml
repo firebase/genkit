@@ -114,6 +114,7 @@ extra:
 
 nav:
   - Home: index.md
+  - Announcement: announcement.md
   - Architecture:
       - architecture/index.md
       - Module Map: architecture/module-map.md
