@@ -61,6 +61,14 @@ jobs:
       - name: Run consistency checks
         run: ./py/bin/check_consistency
 
+      - name: Install releasekit
+        run: |
+          cd py/tools/releasekit
+          uv sync
+
+      - name: Run releasekit workspace checks
+        run: uv run --directory py/tools/releasekit releasekit check
+
   # =============================================================================
   # Type checking (runs in parallel - each checker is a separate job)
   # =============================================================================
