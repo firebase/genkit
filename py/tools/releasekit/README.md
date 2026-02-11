@@ -1,8 +1,9 @@
 # releasekit
 
 Release orchestration for uv workspaces — publish Python packages in
-topological order with ephemeral version pinning, level gating,
-crash-safe file restoration, and post-publish checksum verification.
+topological order with dependency-triggered scheduling, ephemeral version
+pinning, retry with jitter, crash-safe file restoration, and post-publish
+checksum verification.
 
 ## Quick Start
 
@@ -50,7 +51,8 @@ releasekit
 │   ├── versions.py      semantic version bumping
 │   ├── pin.py           ephemeral dep pinning with crash-safe restore
 │   ├── preflight.py     pre-publish safety checks
-│   ├── publisher.py     async level-by-level orchestration
+│   ├── scheduler.py     dependency-triggered queue dispatcher
+│   ├── publisher.py     async publish orchestration
 │   └── checks.py        standalone workspace health checks
 │
 ├── Extensibility
@@ -58,19 +60,103 @@ releasekit
 │   ├── PythonCheckBackend  py.typed, version sync, naming, metadata
 │   └── (future: GoCheckBackend, JsCheckBackend, plugins)
 │
+├── Observer
+│   └── observer.py      PublishStage, SchedulerState, PublishObserver
+│
 └── UI
-    ├── RichProgressUI   live progress table (TTY)
+    ├── RichProgressUI   live progress table (TTY) + sliding window
     ├── LogProgressUI    structured logs (CI)
-    └── NullProgressUI   no-op (tests)
+    ├── NullProgressUI   no-op (tests)
+    └── Controls         p=pause r=resume q=cancel a=all w=window f=filter
+```
+
+### Scheduler Architecture
+
+```
+┌───────────────────────────────────────────────────────┐
+│                     Scheduler                         │
+│                                                       │
+│  from_graph() ──▶ seed level-0 ──▶ Queue              │
+│                                      │                │
+│         ┌────────────────────────────┼──────────┐     │
+│         │          Semaphore(N)      │          │     │
+│         │                            ▼          │     │
+│     ┌────────┐ ┌────────┐ ... ┌────────┐       │     │
+│     │Worker 0│ │Worker 1│     │Worker N│       │     │
+│     └───┬────┘ └───┬────┘     └───┬────┘       │     │
+│         │          │              │             │     │
+│         └──────────┴──────┬───────┘             │     │
+│                           │                     │     │
+│                     publish_fn(name)             │     │
+│                           │                     │     │
+│                    ┌──────┴──────┐              │     │
+│                    │  mark_done  │              │     │
+│                    └──────┬──────┘              │     │
+│                           │                     │     │
+│              decrement dependents' counters      │     │
+│              enqueue newly-ready packages        │     │
+│                           │                     │     │
+│                    ┌──────┴──────┐              │     │
+│                    │    Queue    │◀─────────────┘     │
+│                    └─────────────┘                    │
+└───────────────────────────────────────────────────────┘
 ```
 
 ### Publish Pipeline
 
-Each package goes through this pipeline per topological level:
+Packages are dispatched via a dependency-triggered queue — each package
+starts as soon as all its dependencies complete (no level-based lockstep).
+
+#### Why Dependency-Triggered?
+
+**Before (lock-step per level):**
+
+```
+Level 0:  [A] [B] [C]     ← wait for ALL to finish
+              ↓
+Level 1:  [D] [E]          ← wait for ALL to finish
+              ↓
+Level 2:  [F]              ← no parallelism across levels
+```
+
+D and E are blocked until A, B, *and* C all finish — even though D
+only depends on A.  A single slow package in level 0 delays the entire
+pipeline.
+
+**After (dependency-triggered queue):**
+
+```
+Queue: ┌─A─┐ ┌─B─┐ ┌─C─┐
+       └─┬─┘ └───┘ └───┘
+         │ A done → D ready
+       ┌─▼─┐
+       │ D │                 ← starts as soon as A finishes
+       └─┬─┘
+         │ D done + B done → E ready
+       ┌─▼─┐
+       │ E │
+       └─┬─┘
+         │ E done → F ready
+       ┌─▼─┐
+       │ F │
+       └───┘
+```
+
+Each package starts the moment its dependencies are done.  Workers pull
+from the queue as fast as they can — no artificial synchronisation
+barriers between levels.
+
+### Publish Pipeline
+
+Each package goes through:
 
 ```
 pin → build → checksum → publish → poll → verify_checksum → smoke_test → restore
 ```
+
+On failure, the scheduler retries with exponential backoff + full jitter
+(configurable `--max-retries`, `--retry-base-delay`). Failed packages block
+their dependents (fail-fast for the dependency chain).
 
 1. **Pin** — temporarily rewrite internal deps to exact versions
 2. **Build** — `uv build --no-sources` into temp directory
