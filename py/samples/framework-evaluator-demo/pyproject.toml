@@ -33,6 +33,7 @@ dependencies = [
   "uvloop>=0.22.1",
 ]
 description = "Genkit Python Evaluation Demo"
+license = "Apache-2.0"
 name = "framework-evaluator-demo"
 requires-python = ">=3.10"
 version = "0.0.1"
