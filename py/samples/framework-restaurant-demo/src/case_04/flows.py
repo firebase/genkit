@@ -53,6 +53,9 @@ async def s04_index_menu_items_flow(
         IndexMenuItemsOutputSchema(rows=1)
     """
     # If empty list provided (e.g., from Dev UI default), load from example file
+    # Filter out None values that may come from test input like [null]
+    menu_items = [item for item in menu_items if item is not None]
+
     if not menu_items:
         example_file = os.path.join(pathlib.Path(__file__).parent, 'example.indexMenuItems.json')
         with pathlib.Path(example_file).open() as f:

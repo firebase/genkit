@@ -32,9 +32,7 @@ Output:
 
 import argparse
 import asyncio
-import contextlib
 import importlib.util
-import io
 import json
 import logging
 import sys
@@ -117,6 +115,11 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
         # Add the py/ root directory to sys.path so 'samples.shared' imports work
         # sample_path is .../py/samples/sample-name
         sys.path.insert(0, str(sample_path.parent.parent))
+
+        # Add the sample's src/ directory to sys.path for relative imports
+        # (e.g., 'from case_01 import prompts' in framework-restaurant-demo)
+        if main_py.parent.name == 'src':
+            sys.path.insert(0, str(main_py.parent))
 
         # Load the module
 
@@ -216,14 +219,13 @@ def main() -> None:
     # Run flow in async context
     # We do NOT redirect stdout so that logs/prints from the flow are visible
     try:
-        result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
-    except Exception as e:
+        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    except Exception:
         # pyrefly: ignore[unbound-name] - traceback is imported at top of file
         traceback.print_exc()
         return
 
     # Print result with markers so the caller can extract it from stdout
-    print(f'\n---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---', flush=True)
 
 
 if __name__ == '__main__':

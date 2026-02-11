@@ -179,7 +179,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     try:
         for flow_name, flow_action in actions_map.items():
-            print(f'Testing flow: {flow_name}...', flush=True)
             detail_lines.append(f'Flow: {flow_name}')
             detail_lines.append('-' * 30)
 
@@ -204,7 +203,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 ]
 
                 # Run subprocess
-                process = subprocess.Popen(
+                process = subprocess.Popen(  # noqa: S603 - cmd is constructed internally from trusted script paths
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -213,60 +212,47 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                     cwd=sample_path.parent.parent,  # Run from py/ directory
                 )
 
-                print(f'Generated Input: {json.dumps(input_data, default=str)}', flush=True)
-                print('Running...', flush=True)
-
                 # Stream output
                 stdout_lines = []
                 if process.stdout:
                     for line in process.stdout:
                         stdout_lines.append(line)
-                
+
                 process.wait(timeout=120)
-                
+
                 # Reconstruct stdout for parsing
                 stdout = ''.join(stdout_lines)
-                
+
                 try:
                     if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
-                        json_str = (
-                            stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
-                        )
+                        json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
                         result_data = json.loads(json_str)
                     else:
                         # Fallback try to parse the whole thing if markers missing (unlikely for success case)
                         result_data = json.loads(stdout)
                 except (json.JSONDecodeError, IndexError):
-                    print('Status: FAILED', flush=True)
-                    print('Error: Failed to parse subprocess output', flush=True)
                     detail_lines.append('Status: FAILED')
                     detail_lines.append('Error: Failed to parse subprocess output')
-                    
+
                     # Print raw output for debugging since parsing failed
-                    print('Raw Output:', flush=True)
-                    print(stdout, flush=True)
                     detail_lines.append('Raw Output:')
                     detail_lines.append(stdout)
-                    
+
                     failed_flows.append(flow_name)
                     continue
 
                 if result_data.get('success'):
-                    print('Status: SUCCESS', flush=True)
                     detail_lines.append('Status: SUCCESS')
 
                     # Format the result
                     flow_result = result_data.get('result')
                     formatted_output = format_output(flow_result, max_length=500)
-                    print(f'Output: {formatted_output}\n', flush=True)
                     detail_lines.append(f'Output: {formatted_output}')
 
                     successful_flows.append(flow_name)
                 else:
-                    print('Status: FAILED', flush=True)
                     detail_lines.append('Status: FAILED')
                     error_msg = result_data.get('error', 'Unknown error')
-                    print(f'Error: {error_msg}\n', flush=True)
                     detail_lines.append(f'Error: {error_msg}')
                     failed_flows.append(flow_name)
 
@@ -278,10 +264,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 detail_lines.append('Status: FAILED')
                 detail_lines.append(f'Error: Subprocess failed: {e}')
                 failed_flows.append(flow_name)
-            except Exception as e:
-                detail_lines.append('Status: FAILED')
-                error_msg = str(e)
-                detail_lines.append(f'Error: {error_msg}')
 
                 # Add traceback for debugging
                 tb_lines = traceback.format_exc().split('\n')
@@ -295,6 +277,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
         # Add a small delay between tests to avoid rate limiting
         import time
+
         time.sleep(10)
 
     except KeyboardInterrupt:
