@@ -15,7 +15,7 @@
  */
 
 import * as fs from 'fs/promises';
-import { generateMiddleware, z, type GenerateMiddleware } from 'genkit';
+import { generateMiddleware, MessageData, z, type GenerateMiddleware } from 'genkit';
 import { tool } from 'genkit/beta';
 import * as path from 'path';
 
@@ -122,8 +122,41 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         }
       );
 
+      const filesystemTools = [
+        listFiles.__action.name,
+        readFile.__action.name,
+      ];
+      const messageQueue: MessageData[] = [];
+
       return {
         tools: [listFiles, readFile],
+        tool: async (req, ctx, next) => {
+          try {
+            return await next(req, ctx);
+          } catch (e: any) {
+            if (filesystemTools.includes(req.toolRequest.name)) {
+              messageQueue.push({
+                role: 'user',
+                content: [
+                  {
+                    text: `Tool '${req.toolRequest.name}' failed: ${
+                      e.message || String(e)
+                    }`,
+                  },
+                ],
+              });
+              return;
+            }
+            throw e;
+          }
+        },
+        generate: async (req, ctx, next) => {
+          if (messageQueue.length > 0) {
+            req.messages.push(...messageQueue);
+            messageQueue.length = 0;
+          }
+          return await next(req, ctx);
+        },
       };
     }
   );

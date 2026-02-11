@@ -16,6 +16,7 @@
 
 import * as assert from 'assert';
 import * as fs from 'fs/promises';
+import { genkit } from 'genkit';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as os from 'os';
 import * as path from 'path';
@@ -157,6 +158,73 @@ describe('filesystem middleware', () => {
       await assert.rejects(
         readFile!.run({ filePath: '../etc/passwd' }, {} as any),
         /Access denied/
+      );
+    });
+  });
+
+  describe('robustness', () => {
+    it('should handle tool errors gracefully by injecting user message', async () => {
+      const ai = genkit({});
+      let turn = 0;
+      const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
+        turn++;
+        if (turn === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    name: 'read_file',
+                    ref: '123',
+                    input: { filePath: 'nonexistent' },
+                  },
+                },
+              ],
+            },
+          };
+        }
+        return {
+          message: { role: 'model', content: [{ text: 'done' }] },
+        };
+      });
+
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'start',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const messages = result.messages;
+      const lastModelIndex = messages.findLastIndex(
+        (m: any) => m.role === 'model' && m.content[0].toolRequest
+      );
+      const injectedUserIndex = messages.findIndex(
+        (m: any) =>
+          m.role === 'user' &&
+          m.content[0].text.includes("Tool 'read_file' failed")
+      );
+
+      assert.ok(
+        injectedUserIndex > lastModelIndex,
+        'User message should appear after tool request'
+      );
+
+      const userMsg = messages[injectedUserIndex];
+      assert.match(
+        userMsg.content[0].text,
+        /Tool 'read_file' failed: .*ENOENT.*/,
+        'Error message should contain underlying error details'
+      );
+
+      const roles = messages.map((m: any) => m.role);
+      assert.deepStrictEqual(roles, ['user', 'model', 'user', 'model']);
+
+      const toolMsg = messages.find((m: any) => m.role === 'tool');
+      assert.strictEqual(
+        toolMsg,
+        undefined,
+        'Tool message should not be present'
       );
     });
   });
