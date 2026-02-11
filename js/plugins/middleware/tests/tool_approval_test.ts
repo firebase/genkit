@@ -32,34 +32,31 @@ describe('toolApproval middleware', () => {
     async ({ val }) => `Result: ${val}`
   );
 
-  const mockModel = ai.defineModel(
-    { name: 'mockModel' },
-    async (req) => {
-      const lastMsg = req.messages[req.messages.length - 1];
-      if (lastMsg?.role === 'tool') {
-        return {
-          message: {
-            role: 'model',
-            content: [{ text: 'done' }],
-          },
-        };
-      }
-      // simulate model generating a tool request
+  const mockModel = ai.defineModel({ name: 'mockModel' }, async (req) => {
+    const lastMsg = req.messages[req.messages.length - 1];
+    if (lastMsg?.role === 'tool') {
       return {
         message: {
           role: 'model',
-          content: [
-            {
-              toolRequest: {
-                name: 'testTool',
-                input: { val: 'test' },
-              },
-            },
-          ],
+          content: [{ text: 'done' }],
         },
       };
     }
-  );
+    // simulate model generating a tool request
+    return {
+      message: {
+        role: 'model',
+        content: [
+          {
+            toolRequest: {
+              name: 'testTool',
+              input: { val: 'test' },
+            },
+          },
+        ],
+      },
+    };
+  });
 
   it('allows approved tools', async () => {
     const result = await ai.generate({
