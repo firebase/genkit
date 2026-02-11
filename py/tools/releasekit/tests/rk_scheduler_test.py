@@ -643,3 +643,212 @@ class TestSchedulerRetry:
             raise AssertionError(f'Failures: {result.failed}')
         if set(result.published) != {'a', 'b'}:
             raise AssertionError(f'Expected a and b, got {result.published}')
+
+
+class TestAddPackage:
+    """Tests for Scheduler.add_package (live node insertion)."""
+
+    def test_add_no_deps_enqueued_immediately(self) -> None:
+        """Package with no deps is enqueued on add."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        added = sched.add_package('new-pkg')
+        if not added:
+            raise AssertionError('Expected add to succeed')
+        if 'new-pkg' not in sched.nodes:
+            raise AssertionError('New package should be in nodes')
+        if sched._total != 2:
+            raise AssertionError(f'Expected total=2, got {sched._total}')
+        if 'new-pkg' not in sched._enqueued:
+            raise AssertionError('Package with no deps should be enqueued')
+
+    def test_add_with_pending_deps(self) -> None:
+        """Package with unsatisfied deps waits for them."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        added = sched.add_package('new-pkg', deps=['a'], level=1)
+        if not added:
+            raise AssertionError('Expected add to succeed')
+        if 'new-pkg' in sched._enqueued:
+            raise AssertionError('Should wait until dep completes')
+        # a should now list new-pkg as a dependent.
+        if 'new-pkg' not in sched.nodes['a'].dependents:
+            raise AssertionError('a should have new-pkg as dependent')
+
+    def test_add_with_done_deps(self) -> None:
+        """Package whose deps are already done is enqueued immediately."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+        sched.mark_done('a')
+
+        added = sched.add_package('new-pkg', deps=['a'], level=1)
+        if not added:
+            raise AssertionError('Expected add to succeed')
+        if 'new-pkg' not in sched._enqueued:
+            raise AssertionError('All deps done — should be enqueued')
+
+    def test_add_with_unknown_deps_ignored(self) -> None:
+        """Unknown deps are silently ignored (not counted)."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        added = sched.add_package('new-pkg', deps=['nonexistent'], level=0)
+        if not added:
+            raise AssertionError('Expected add to succeed')
+        # Unknown dep → remaining_deps=0 → enqueued.
+        if 'new-pkg' not in sched._enqueued:
+            raise AssertionError('Unknown deps should be ignored')
+
+    def test_add_duplicate_rejected(self) -> None:
+        """Adding the same package twice returns False."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        if not sched.add_package('new-pkg'):
+            raise AssertionError('First add should succeed')
+        if sched.add_package('new-pkg'):
+            raise AssertionError('Duplicate add should return False')
+
+    def test_add_package_enqueued_after_dep_completes(self) -> None:
+        """Dynamically added package is enqueued when its dep completes."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        sched.add_package('new-pkg', deps=['a'], level=1)
+        if 'new-pkg' in sched._enqueued:
+            raise AssertionError('Should not be enqueued yet')
+
+        # Complete a — this should trigger new-pkg enqueue via mark_done.
+        newly_ready = sched.mark_done('a')
+        if 'new-pkg' not in newly_ready:
+            raise AssertionError(f'Expected new-pkg in newly_ready: {newly_ready}')
+        if 'new-pkg' not in sched._enqueued:
+            raise AssertionError('Should be enqueued after dep completes')
+
+    @pytest.mark.asyncio
+    async def test_add_package_runs_in_live_scheduler(self) -> None:
+        """Dynamically added package is published by a running scheduler."""
+        published: list[str] = []
+
+        async def publish_fn(name: str) -> None:
+            published.append(name)
+            # When 'a' completes, dynamically add 'dynamic' with no deps.
+            if name == 'a':
+                sched.add_package('dynamic', level=0)
+
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'}, concurrency=1)
+        result = await sched.run(publish_fn)
+
+        if 'a' not in result.published:
+            raise AssertionError(f'Expected a published: {result.published}')
+        if 'dynamic' not in result.published:
+            raise AssertionError(f'Expected dynamic published: {result.published}')
+
+
+class TestRemovePackage:
+    """Tests for Scheduler.remove_package (dynamic package removal)."""
+
+    def test_remove_unknown_returns_false(self) -> None:
+        """Removing non-existent package returns False."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+
+        if sched.remove_package('nonexistent'):
+            raise AssertionError('Expected False for unknown package')
+
+    def test_remove_done_returns_false(self) -> None:
+        """Removing already-completed package returns False."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(graph, publishable={'a'})
+        sched.mark_done('a')
+
+        if sched.remove_package('a'):
+            raise AssertionError('Expected False for done package')
+
+    def test_remove_marks_cancelled(self) -> None:
+        """Remove adds package to _cancelled set."""
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        graph = _make_graph(a, b)
+        sched = Scheduler.from_graph(graph, publishable={'a', 'b'})
+
+        if not sched.remove_package('b'):
+            raise AssertionError('Expected remove to succeed')
+        if 'b' not in sched._cancelled:
+            raise AssertionError('Should be in _cancelled set')
+
+    def test_remove_unenqueued_marks_done(self) -> None:
+        """Remove of a package that hasn't been enqueued yet marks it done."""
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        graph = _make_graph(a, b)
+        sched = Scheduler.from_graph(graph, publishable={'a', 'b'})
+
+        # b has deps, so it shouldn't be enqueued yet.
+        if 'b' in sched._enqueued:
+            raise AssertionError('b should not be enqueued yet')
+
+        sched.remove_package('b')
+        if 'b' not in sched._done:
+            raise AssertionError('Unenqueued removed package should be marked done')
+
+    @pytest.mark.asyncio
+    async def test_remove_skipped_on_dequeue(self) -> None:
+        """Removed package is skipped when a worker dequeues it."""
+        published: list[str] = []
+
+        async def publish_fn(name: str) -> None:
+            published.append(name)
+
+        a = _make_pkg('a')
+        b = _make_pkg('b')
+        graph = _make_graph(a, b)
+        sched = Scheduler.from_graph(graph, publishable={'a', 'b'}, concurrency=1)
+
+        # Remove b (it's already seeded/enqueued since it has no deps).
+        sched.remove_package('b', block_dependents=False)
+
+        result = await sched.run(publish_fn)
+
+        if 'b' in published:
+            raise AssertionError('Removed package should not be published')
+        if 'b' not in result.skipped:
+            raise AssertionError(f'Expected b in skipped: {result.skipped}')
+        if 'a' not in result.published:
+            raise AssertionError(f'Expected a published: {result.published}')
+
+    @pytest.mark.asyncio
+    async def test_remove_blocks_dependents(self) -> None:
+        """Remove with block_dependents=True blocks transitive dependents."""
+        published: list[str] = []
+
+        async def publish_fn(name: str) -> None:
+            published.append(name)
+
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        c = _make_pkg('c', internal_deps=['b'])
+        graph = _make_graph(a, b, c)
+        sched = Scheduler.from_graph(graph, publishable={'a', 'b', 'c'}, concurrency=1)
+
+        # Remove b — should block c too.
+        sched.remove_package('b', block_dependents=True)
+
+        result = await sched.run(publish_fn)
+
+        if 'a' not in result.published:
+            raise AssertionError(f'Expected a published: {result.published}')
+        if 'b' in result.published or 'c' in result.published:
+            raise AssertionError(f'b and c should not be published: {result.published}')

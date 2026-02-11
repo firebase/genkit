@@ -120,6 +120,16 @@ class FakeVCS:
         """No-op push."""
         return CommandResult(command=[], returncode=0, stdout='', stderr='')
 
+    def checkout_branch(
+        self,
+        branch: str,
+        *,
+        create: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """No-op checkout_branch."""
+        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+
 
 class TestParseConventionalCommit:
     """Tests for parse_conventional_commit."""
