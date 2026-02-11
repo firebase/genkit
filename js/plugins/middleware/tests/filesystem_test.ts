@@ -71,9 +71,11 @@ describe('filesystem middleware', () => {
       fakeGenerateAPI
     );
     assert.ok(mw.tools);
-    assert.strictEqual(mw.tools.length, 2);
+    assert.strictEqual(mw.tools.length, 4);
     assert.strictEqual(mw.tools[0].__action.name, 'list_files');
     assert.strictEqual(mw.tools[1].__action.name, 'read_file');
+    assert.strictEqual(mw.tools[2].__action.name, 'write_file');
+    assert.strictEqual(mw.tools[3].__action.name, 'search_and_replace');
   });
 
   describe('list_files', () => {
@@ -206,6 +208,268 @@ describe('filesystem middleware', () => {
           m.role === 'user' && m.content[0].text.includes('Access denied')
       );
       assert.ok(userMsg);
+    });
+  });
+
+  describe('write_file', () => {
+    it('writes a new file', async () => {
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'write_file', {
+        filePath: 'new.txt',
+        content: 'new content',
+      });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      assert.ok(toolMsg);
+      assert.match(
+        toolMsg.content[0].toolResponse.output,
+        /written successfully/
+      );
+
+      const content = await fs.readFile(path.join(tempDir, 'new.txt'), 'utf8');
+      assert.strictEqual(content, 'new content');
+    });
+
+    it('creates directories if needed', async () => {
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'write_file', {
+        filePath: 'deep/nested/file.txt',
+        content: 'nested content',
+      });
+      await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      });
+
+      const content = await fs.readFile(
+        path.join(tempDir, 'deep/nested/file.txt'),
+        'utf8'
+      );
+      assert.strictEqual(content, 'nested content');
+    });
+  });
+
+  describe('search_and_replace', () => {
+    it('replaces content', async () => {
+      const ai = genkit({});
+      const editBlock = `<<<<<<< SEARCH
+hello world
+=======
+hello universe
+>>>>>>> REPLACE`;
+      const pm = createToolModel(ai, 'search_and_replace', {
+        filePath: 'file1.txt',
+        edits: [editBlock],
+      });
+
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      if (!toolMsg) {
+        const errorMsg = result.messages.find(
+          (m: any) =>
+            m.role === 'user' && m.content[0].text.includes('failed')
+        );
+        if (errorMsg) {
+          throw new Error(
+            `Tool failed unexpectedly: ${errorMsg.content[0].text}`
+          );
+        }
+      }
+      assert.ok(toolMsg);
+      assert.match(
+        toolMsg.content[0].toolResponse.output,
+        /Successfully applied/
+      );
+
+      const content = await fs.readFile(
+        path.join(tempDir, 'file1.txt'),
+        'utf8'
+      );
+      assert.strictEqual(content, 'hello universe');
+    });
+
+    it('fails if search content not found', async () => {
+      const ai = genkit({});
+      const editBlock = `<<<<<<< SEARCH
+nonexistent
+=======
+replace
+>>>>>>> REPLACE`;
+      const pm = createToolModel(ai, 'search_and_replace', {
+        filePath: 'file1.txt',
+        edits: [editBlock],
+      });
+
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' &&
+          m.content[0].text.includes('Search content not found')
+      );
+      if (!userMsg) {
+        console.log(
+          'Messages received:',
+          JSON.stringify(result.messages, null, 2)
+        );
+      }
+      assert.ok(userMsg);
+    });
+
+    it('handles tricky search/replace cases', async () => {
+      const cases = [
+        {
+          name: 'marker in search',
+          initial: 'line1\n=======\nline2',
+          block: `<<<<<<< SEARCH
+line1
+=======
+line2
+=======
+replacement
+>>>>>>> REPLACE`,
+          expected: 'replacement',
+        },
+        {
+          name: 'marker in replace',
+          initial: 'original',
+          block: `<<<<<<< SEARCH
+original
+=======
+new
+=======
+line
+>>>>>>> REPLACE`,
+          expected: 'new\n=======\nline',
+        },
+        {
+          name: 'start marker in search',
+          initial: '<<<<<<< SEARCH\ncontent',
+          block: `<<<<<<< SEARCH
+<<<<<<< SEARCH
+content
+=======
+replaced
+>>>>>>> REPLACE`,
+          expected: 'replaced',
+        },
+        {
+          name: 'start marker in replace',
+          initial: 'content',
+          block: `<<<<<<< SEARCH
+content
+=======
+<<<<<<< SEARCH
+new
+>>>>>>> REPLACE`,
+          expected: '<<<<<<< SEARCH\nnew',
+        },
+        {
+          name: 'end marker in search',
+          initial: 'content\n>>>>>>> REPLACE',
+          block: `<<<<<<< SEARCH
+content
+>>>>>>> REPLACE
+=======
+replaced
+>>>>>>> REPLACE`,
+          expected: 'replaced',
+        },
+        {
+          name: 'end marker in replace',
+          initial: 'content',
+          block: `<<<<<<< SEARCH
+content
+=======
+new
+>>>>>>> REPLACE
+>>>>>>> REPLACE`,
+          expected: 'new\n>>>>>>> REPLACE',
+        },
+        {
+          name: 'multiple markers greedy search',
+          initial: 'part1\n=======\npart2',
+          block: `<<<<<<< SEARCH
+part1
+=======
+part2
+=======
+replacement
+>>>>>>> REPLACE`,
+          expected: 'replacement',
+        },
+        {
+          name: 'ambiguous separators preferring longest match',
+          initial: 'A\n=======\nB',
+          // search: A\n=======\nB -> replace: C\n=======\nD
+          // block structure: A = B = C = D (where = is separator)
+          // splits:
+          // 1. S=A, R=B=C=D. (Match A? Yes)
+          // 2. S=A=B, R=C=D. (Match A=B? Yes)
+          // 3. S=A=B=C, R=D. (Match A=B=C? No)
+          // Winner: 2.
+          block: `<<<<<<< SEARCH
+A
+=======
+B
+=======
+C
+=======
+D
+>>>>>>> REPLACE`,
+          expected: 'C\n=======\nD',
+        },
+      ];
+
+      for (const c of cases) {
+        const ai = genkit({});
+        const filename = `tricky-${c.name.replace(/\s+/g, '-')}.txt`;
+        await fs.writeFile(path.join(tempDir, filename), c.initial);
+
+        const pm = createToolModel(ai, 'search_and_replace', {
+          filePath: filename,
+          edits: [c.block],
+        });
+
+        const result = (await ai.generate({
+          model: pm,
+          prompt: 'test',
+          use: [filesystem({ rootDirectory: tempDir })],
+        })) as any;
+
+        const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+        assert.ok(toolMsg, `Tool execution failed for case: ${c.name}`);
+        assert.match(
+          toolMsg.content[0].toolResponse.output,
+          /Successfully applied/,
+          `Tool output mismatch for case: ${c.name}`
+        );
+
+        const newContent = await fs.readFile(
+          path.join(tempDir, filename),
+          'utf8'
+        );
+        assert.strictEqual(
+          newContent,
+          c.expected,
+          `Content mismatch for case: ${c.name}`
+        );
+      }
     });
   });
 

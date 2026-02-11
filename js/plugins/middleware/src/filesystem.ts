@@ -23,6 +23,8 @@ import {
 import * as path from 'path';
 import { defineListFileTool } from './filesystem/list_files';
 import { defineReadFileTool } from './filesystem/read_file';
+import { defineSearchAndReplaceTool } from './filesystem/search_and_replace';
+import { defineWriteFileTool } from './filesystem/write_file';
 
 export const FilesystemOptionsSchema = z.object({
   rootDirectory: z
@@ -35,8 +37,8 @@ export const FilesystemOptionsSchema = z.object({
 export type FilesystemOptions = z.infer<typeof FilesystemOptionsSchema>;
 
 /**
- * Creates a middleware that grants the LLM basic readonly access to the filesystem.
- * Injects `list_files` and `read_file` tools restricted to the provided `rootDirectory`.
+ * Creates a middleware that grants the LLM access to the filesystem.
+ * Injects `list_files`, `read_file`, `write_file`, and `search_and_replace` tools restricted to the provided `rootDirectory`.
  */
 export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
   generateMiddleware(
@@ -66,8 +68,15 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
 
       const listFilesTool = defineListFileTool(resolvePath);
       const readFileTool = defineReadFileTool(messageQueue, resolvePath);
+      const writeFileTool = defineWriteFileTool(resolvePath);
+      const searchAndReplaceTool = defineSearchAndReplaceTool(resolvePath);
 
-      const filesystemTools = [listFilesTool, readFileTool];
+      const filesystemTools = [
+        listFilesTool,
+        readFileTool,
+        writeFileTool,
+        searchAndReplaceTool,
+      ];
       const filesystemToolNames = filesystemTools.map((t) => t.__action.name);
 
       return {
