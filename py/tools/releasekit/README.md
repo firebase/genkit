@@ -361,7 +361,7 @@ releasekit
 │   ├── workspace.py     discover packages from pyproject.toml
 │   ├── graph.py         build & topo-sort dependency graph
 │   ├── versioning.py    conventional commits parsing + semver bumps
-│   ├── versions.py      semantic version utilities
+│   ├── versions.py      version data structures (ReleaseManifest, PackageVersion)
 │   ├── bump.py          rewrite version in pyproject.toml
 │   ├── pin.py           ephemeral dep pinning with crash-safe restore
 │   ├── changelog.py     changelog generation from commits
