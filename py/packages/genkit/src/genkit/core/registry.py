@@ -119,11 +119,7 @@ class Registry:
         self._loading_actions: set[str] = set()
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
-        # Use async function to avoid thread pool deadlock in resolve_json_schema
-        async def async_schema_resolver(name: str) -> dict[str, object] | str:
-            return self.lookup_schema(name) or name
-
-        self.dotprompt: Dotprompt = Dotprompt(schema_resolver=async_schema_resolver)
+        self.dotprompt: Dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
         # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 

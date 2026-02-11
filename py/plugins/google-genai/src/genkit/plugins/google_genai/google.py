@@ -270,6 +270,44 @@ def vertexai_name(name: str) -> str:
     return f'{VERTEXAI_PLUGIN_NAME}/{name}'
 
 
+def _create_embedder_action(name: str, client: genai.Client, plugin_name: str) -> Action:
+    """Create an Action object for an embedder.
+
+    Args:
+        name: The namespaced name of the embedder.
+        client: The Google GenAI client instance.
+        plugin_name: The name of the plugin (googleai or vertexai).
+
+    Returns:
+        Action object for the embedder.
+    """
+    clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
+    embedder = Embedder(version=clean_name, client=client)
+    embedder_info = default_embedder_info(clean_name)
+
+    action_metadata = embedder_action_metadata(
+        name=name,
+        options=EmbedderOptions(
+            label=embedder_info.get('label'),
+            supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
+            dimensions=embedder_info.get('dimensions'),
+        ),
+    )
+
+    action = Action(
+        kind=ActionKind.EMBEDDER,
+        name=name,
+        fn=embedder.generate,
+        metadata=action_metadata.metadata,
+    )
+
+    # Explicitly set schemas (no 'if' needed as they are always present in metadata)
+    action.input_schema = action_metadata.input_json_schema  # type: ignore[invalid-assignment]
+    action.output_schema = action_metadata.output_json_schema  # type: ignore[invalid-assignment]
+
+    return action
+
+
 class GoogleAI(Plugin):
     """GoogleAI plugin for Genkit with dynamic model discovery.
 
@@ -551,36 +589,7 @@ class GoogleAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=clean_name, client=self._client)
-
-        embedder_info = default_embedder_info(clean_name)
-
-        # Create ActionMetadata with proper input/output schemas
-        action_metadata = embedder_action_metadata(
-            name=name,
-            options=EmbedderOptions(
-                label=embedder_info.get('label'),
-                supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-                dimensions=embedder_info.get('dimensions'),
-            ),
-        )
-
-        action = Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embedder.generate,
-            metadata=action_metadata.metadata,
-        )
-
-        # Explicitly set schemas from ActionMetadata to ensure they're available for Dev UI
-        if action_metadata.input_json_schema:
-            action.input_schema = action_metadata.input_json_schema
-        if action_metadata.output_json_schema:
-            action.output_schema = action_metadata.output_json_schema
-
-        return action
+        return _create_embedder_action(name, self._client, GOOGLEAI_PLUGIN_NAME)
 
     async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
@@ -849,36 +858,7 @@ class VertexAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=clean_name, client=self._client)
-
-        embedder_info = default_embedder_info(clean_name)
-
-        # Create ActionMetadata with proper input/output schemas
-        action_metadata = embedder_action_metadata(
-            name=name,
-            options=EmbedderOptions(
-                label=embedder_info.get('label'),
-                supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-                dimensions=embedder_info.get('dimensions'),
-            ),
-        )
-
-        action = Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embedder.generate,
-            metadata=action_metadata.metadata,
-        )
-
-        # Explicitly set schemas from ActionMetadata to ensure they're available for Dev UI
-        if action_metadata.input_json_schema:
-            action.input_schema = action_metadata.input_json_schema
-        if action_metadata.output_json_schema:
-            action.output_schema = action_metadata.output_json_schema
-
-        return action
+        return _create_embedder_action(name, self._client, VERTEXAI_PLUGIN_NAME)
 
     def _resolve_reranker(self, name: str) -> Action:
         """Create an Action object for a Vertex AI reranker.
