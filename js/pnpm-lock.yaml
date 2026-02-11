@@ -858,6 +858,9 @@ importers:
       genkit:
         specifier: workspace:^
         version: link:../../genkit
+      mime:
+        specifier: ^4.1.0
+        version: 4.1.0
     devDependencies:
       '@genkit-ai/google-genai':
         specifier: workspace:^
@@ -7203,6 +7206,11 @@ packages:
   mime@3.0.0:
     resolution: {integrity: sha512-jSCU7/VB1loIWBZe14aEYHU/+1UMEHoaO7qxCOVJOw9GgH72VAWppxNcjU+x9a2k3GSIBXNKxXQFqRvvZ7vr3A==}
     engines: {node: '>=10.0.0'}
+    hasBin: true
+
+  mime@4.1.0:
+    resolution: {integrity: sha512-X5ju04+cAzsojXKes0B/S4tcYtFAJ6tTMuSPBEn9CPGlrWr8Fiw7qYeLT0XyH80HSoAoqWCaz+MWKh22P7G1cw==}
+    engines: {node: '>=16'}
     hasBin: true
 
   mimic-fn@2.1.0:
@@ -15250,6 +15258,8 @@ snapshots:
 
   mime@3.0.0:
     optional: true
+
+  mime@4.1.0: {}
 
   mimic-fn@2.1.0: {}
 

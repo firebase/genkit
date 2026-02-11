@@ -39,6 +39,25 @@ describe('filesystem middleware', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
+  function createToolModel(ai: any, toolName: string, input: any) {
+    let turn = 0;
+    return ai.defineModel(
+      { name: `pm-${toolName}-${Math.random()}` },
+      async () => {
+        turn++;
+        if (turn === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [{ toolRequest: { name: toolName, input } }],
+            },
+          };
+        }
+        return { message: { role: 'model', content: [{ text: 'done' }] } };
+      }
+    );
+  }
+
   it('fails if rootDirectory is not provided', () => {
     assert.throws(
       () => filesystem.instantiate({} as any, fakeGenerateAPI),
@@ -59,135 +78,141 @@ describe('filesystem middleware', () => {
 
   describe('list_files', () => {
     it('lists files in root directory', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
-      );
-      const listFiles = mw.tools!.find((t) => t.__action.name === 'list_files');
-      const { result } = await listFiles!.run(
-        { dirPath: '', recursive: false },
-        {} as any
-      );
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'list_files', { dirPath: '' });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      assert.ok(toolMsg);
+      const output = toolMsg.content[0].toolResponse.output;
       assert.ok(
-        (result as any[]).find(
-          (r) => r.path === 'file1.txt' && r.isDirectory === false
-        )
+        output.find((r: any) => r.path === 'file1.txt' && !r.isDirectory)
       );
+      assert.ok(output.find((r: any) => r.path === 'sub' && r.isDirectory));
       assert.ok(
-        (result as any[]).find((r) => r.path === 'sub' && r.isDirectory === true)
-      );
-      assert.ok(
-        !(result as any[]).find(
-          (r) => r.path === path.join('sub', 'file2.txt')
-        )
+        !output.find((r: any) => r.path === path.join('sub', 'file2.txt'))
       );
     });
 
     it('lists files recursively', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
-      );
-      const listFiles = mw.tools!.find((t) => t.__action.name === 'list_files');
-      const { result } = await listFiles!.run(
-        { dirPath: '', recursive: true },
-        {} as any
-      );
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'list_files', {
+        dirPath: '',
+        recursive: true,
+      });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      assert.ok(toolMsg);
+      const output = toolMsg.content[0].toolResponse.output;
       assert.ok(
-        (result as any[]).find(
-          (r) => r.path === 'file1.txt' && r.isDirectory === false
-        )
+        output.find((r: any) => r.path === 'file1.txt' && !r.isDirectory)
       );
+      assert.ok(output.find((r: any) => r.path === 'sub' && r.isDirectory));
       assert.ok(
-        (result as any[]).find((r) => r.path === 'sub' && r.isDirectory === true)
-      );
-      assert.ok(
-        (result as any[]).find(
-          (r) =>
-            r.path === path.join('sub', 'file2.txt') && r.isDirectory === false
+        output.find(
+          (r: any) => r.path === path.join('sub', 'file2.txt') && !r.isDirectory
         )
       );
     });
 
     it('rejects listing outside root directory', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'list_files', { dirPath: '../' });
+
+      // The middleware catches errors and injects user message.
+      // So verify that user message contains access denied error.
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' && m.content[0].text.includes('Access denied')
       );
-      const listFiles = mw.tools!.find((t) => t.__action.name === 'list_files');
-      await assert.rejects(
-        listFiles!.run({ dirPath: '../', recursive: false }, {} as any),
-        /Access denied/
-      );
+      assert.ok(userMsg);
     });
   });
 
   describe('read_file', () => {
     it('reads a file in root directory', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'read_file', { filePath: 'file1.txt' });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      assert.ok(toolMsg);
+      assert.match(toolMsg.content[0].toolResponse.output, /read successfully/);
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' && m.content[0].text.includes('<read_file')
       );
-      const readFile = mw.tools!.find((t) => t.__action.name === 'read_file');
-      const { result } = await readFile!.run(
-        { filePath: 'file1.txt' },
-        {} as any
-      );
-      assert.strictEqual(result, 'hello world');
+      assert.ok(userMsg);
+      assert.ok(userMsg.content[0].text.includes('hello world'));
     });
 
     it('reads a file in sub directory', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'read_file', {
+        filePath: 'sub/file2.txt',
+      });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+      assert.ok(toolMsg);
+      assert.match(toolMsg.content[0].toolResponse.output, /read successfully/);
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' && m.content[0].text.includes('<read_file')
       );
-      const readFile = mw.tools!.find((t) => t.__action.name === 'read_file');
-      const { result } = await readFile!.run(
-        { filePath: 'sub/file2.txt' },
-        {} as any
-      );
-      assert.strictEqual(result, 'sub file');
+      assert.ok(userMsg);
+      assert.ok(userMsg.content[0].text.includes('sub file'));
     });
 
     it('rejects reading outside root directory', async () => {
-      const mw = filesystem.instantiate(
-        { rootDirectory: tempDir },
-        fakeGenerateAPI
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'read_file', {
+        filePath: '../etc/passwd',
+      });
+
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: tempDir })],
+      })) as any;
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' && m.content[0].text.includes('Access denied')
       );
-      const readFile = mw.tools!.find((t) => t.__action.name === 'read_file');
-      await assert.rejects(
-        readFile!.run({ filePath: '../etc/passwd' }, {} as any),
-        /Access denied/
-      );
+      assert.ok(userMsg);
     });
   });
 
   describe('robustness', () => {
     it('should handle tool errors gracefully by injecting user message', async () => {
       const ai = genkit({});
-      let turn = 0;
-      const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
-        turn++;
-        if (turn === 1) {
-          return {
-            message: {
-              role: 'model',
-              content: [
-                {
-                  toolRequest: {
-                    name: 'read_file',
-                    ref: '123',
-                    input: { filePath: 'nonexistent' },
-                  },
-                },
-              ],
-            },
-          };
-        }
-        return {
-          message: { role: 'model', content: [{ text: 'done' }] },
-        };
-      });
+      const pm = createToolModel(ai, 'read_file', { filePath: 'nonexistent' });
 
       const result = (await ai.generate({
         model: pm,

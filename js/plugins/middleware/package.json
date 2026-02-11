@@ -47,5 +47,8 @@
       "require": "./lib/index.js",
       "default": "./lib/index.js"
     }
+  },
+  "dependencies": {
+    "mime": "^4.1.0"
   }
 }

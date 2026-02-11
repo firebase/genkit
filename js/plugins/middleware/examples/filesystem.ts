@@ -32,6 +32,7 @@ async function main() {
         rootDirectory: process.env.TEMP_DIR || '/tmp',
       }),
     ],
+    maxTurns: 10,
   });
   console.log(text);
 }

@@ -15,8 +15,15 @@
  */
 
 import * as fs from 'fs/promises';
-import { generateMiddleware, MessageData, z, type GenerateMiddleware } from 'genkit';
+import {
+  generateMiddleware,
+  MessageData,
+  Part,
+  z,
+  type GenerateMiddleware,
+} from 'genkit';
 import { tool } from 'genkit/beta';
+import mime from 'mime';
 import * as path from 'path';
 
 export const FilesystemOptionsSchema = z.object({
@@ -56,6 +63,8 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         }
         return p;
       }
+
+      const messageQueue: MessageData[] = [];
 
       const listFiles = tool(
         {
@@ -118,33 +127,69 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         },
         async (input) => {
           const targetFile = resolvePath(input.filePath);
-          return await fs.readFile(targetFile, 'utf8');
+          const ext = path.extname(targetFile).toLowerCase();
+          const mimeType = mime.getType(ext);
+          const isImage = mimeType?.startsWith('image/');
+
+          const parts: Part[] = [];
+
+          if (isImage && mimeType) {
+            const buffer = await fs.readFile(targetFile);
+            const base64 = buffer.toString('base64');
+
+            parts.push({ text: `\n\nread_file media ${input.filePath}` });
+            parts.push({
+              media: {
+                url: `data:${mimeType};base64,${base64}`,
+                contentType: mimeType,
+              },
+            });
+          } else {
+            const content = await fs.readFile(targetFile, 'utf8');
+            parts.push({
+              text: `<read_file path="${input.filePath}">\n${content}\n</read_file>`,
+            });
+          }
+
+          if (
+            messageQueue.length > 0 &&
+            messageQueue[messageQueue.length - 1].role === 'user'
+          ) {
+            messageQueue[messageQueue.length - 1].content.push(...parts);
+          } else {
+            messageQueue.push({ role: 'user', content: parts });
+          }
+
+          return `File ${input.filePath} read successfully, see contents below`;
         }
       );
 
-      const filesystemTools = [
-        listFiles.__action.name,
-        readFile.__action.name,
-      ];
-      const messageQueue: MessageData[] = [];
+      const filesystemTools = [listFiles, readFile];
+      const filesystemToolNames = filesystemTools.map((t) => t.__action.name);
 
       return {
-        tools: [listFiles, readFile],
+        tools: filesystemTools,
         tool: async (req, ctx, next) => {
           try {
             return await next(req, ctx);
           } catch (e: any) {
-            if (filesystemTools.includes(req.toolRequest.name)) {
-              messageQueue.push({
-                role: 'user',
-                content: [
-                  {
-                    text: `Tool '${req.toolRequest.name}' failed: ${
-                      e.message || String(e)
-                    }`,
-                  },
-                ],
-              });
+            if (filesystemToolNames.includes(req.toolRequest.name)) {
+              const errorPart = {
+                text: `Tool '${req.toolRequest.name}' failed: ${
+                  e.message || String(e)
+                }`,
+              };
+              if (
+                messageQueue.length > 0 &&
+                messageQueue[messageQueue.length - 1].role === 'user'
+              ) {
+                messageQueue[messageQueue.length - 1].content.push(errorPart);
+              } else {
+                messageQueue.push({
+                  role: 'user',
+                  content: [errorPart],
+                });
+              }
               return;
             }
             throw e;
