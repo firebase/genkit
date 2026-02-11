@@ -1063,4 +1063,75 @@ The existing release process uses:
 | `py/bin/bump_version` | Bump all to same version | No per-package semver |
 | `.github/workflows/publish_python.yml` | Matrix publish | No level gating |
 
+
 `releasekit` replaces all four with: `uvx releasekit publish`
+
+---
+
+## Architecture & Data Flow
+
+### 1. Dependency Tree Propagation (Independent Mode)
+
+When a core package updates, the change propagates down the dependency tree to ensure all consumers are tested and pinned against the new version.
+
+```text
+       [genkit]  v0.5.0 → v0.6.0  (Minor Bump: "feat: core update")
+          │
+          ▼
+   [genkit-plugin-vertex-ai]
+   Depends on: genkit
+   Action: v0.5.0 → v0.5.1  (Patch Bump)
+   Reason: "dependency genkit bumped"
+          │
+          ▼
+     [sample-app]
+     Depends on: genkit-plugin-vertex-ai
+     Action: v0.1.0 → v0.1.1  (Patch Bump)
+     Reason: "dependency genkit-plugin-vertex-ai bumped"
+```
+
+### 2. Release Lifecycle
+
+The 3-stage process separates planning, tagging, and publishing.
+
+```text
+   Developer
+      │
+      │ pushes to main
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 1: PREPARE (releasekit prepare)                          │
+ │                                                               │
+ │ 1. Scan commits per package                                   │
+ │ 2. Compute bumps + Propagate to dependents                    │
+ │ 3. Update pyproject.toml & uv.lock                            │
+ │ 4. Generate Changelogs                                        │
+ │ 5. Create/Update "Release PR" (autorelease: pending)          │
+ └───────────────────────────────────────────────────────────────┘
+      │
+      │ merges Release PR
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 2: TAG (releasekit tag)                                  │
+ │                                                               │
+ │ 1. Find merged PR with "autorelease: pending"                 │
+ │ 2. Parse Manifest from PR Body                                │
+ │ 3. Tag Merge Commit (pkg-v1.0 + py-v1.0)                      │
+ │ 4. Create GitHub Release                                      │
+ │ 5. Label PR "autorelease: tagged"                             │
+ └───────────────────────────────────────────────────────────────┘
+      │
+      │ triggered by Release creation
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 3: PUBLISH (releasekit publish)                          │
+ │                                                               │
+ │ 1. Checkout Tag                                               │
+ │ 2. Rewrite deps in pyproject.toml (Ephemeral Pinning)         │
+ │ 3. Build Wheels/Sdists                                        │
+ │ 4. Upload to PyPI                                             │
+ │ 5. Label PR "autorelease: published"                          │
+ │ 6. Dispatch "repository_dispatch" to Plugins Repos            │
+ └───────────────────────────────────────────────────────────────┘
+```
+
