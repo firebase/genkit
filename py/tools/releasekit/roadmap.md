@@ -10,6 +10,43 @@ pinning, retry with jitter, and crash-safe file restoration.
 
 ---
 
+## Versioning Strategy
+
+`releasekit` supports two versioning models for monorepos, configurable via `[tool.releasekit.synchronize]`.
+
+### 1. Independent Versioning (Default)
+`synchronize = false` (default)
+
+Packages are versioned independently based on their own changes, but **propagated transitively**:
+1.  **Direct Bumps**: Commits to a package directory trigger semantic version dumps (Major/Minor/Patch).
+2.  **Transitive Propagation**: If a package depends on another package that was bumped, it receives a **PATCH bump**.
+    - **Rule**: ANY bump in a dependency (Major, Minor, or Patch) triggers a Patch bump in all dependents.
+    - **Why**: Ensures lockfiles and pins are updated to point to the new dependency version.
+    - **Mental Model**: Releases ripple through the dependency tree. A change in a leaf node (e.g. `genkit`) forces a republication of all consuming nodes.
+
+### 2. Synchronized Versioning (Lockstep)
+`synchronize = true`
+
+All packages in the workspace share the same version number.
+1.  **Compute Max Bump**: Calculate the highest semantic bump across *all* packages based on commits.
+2.  **Apply globally**: Bump *every* package to that new version.
+    - Example: `genkit` has a breaking change (Major), so `plugin-vertex-ai` also gets a Major bump, even if unchanged.
+    - **Use Case**: Frameworks where components must be installed with matching versions (e.g. `genkit==0.6.0` needs `genkit-plugin-x==0.6.0`).
+
+### 3. Cross-Repository Workflow (Plugins)
+
+To support dependent packages in external repositories (e.g. `genkit-community-plugins`):
+
+1.  **Trigger**: The main repo (`firebase/genkit`) fires a `repository_dispatch` event upon successful publish.
+2.  **Action**: The dependent repo runs `releasekit prepare`.
+3.  **Update**: `prepare` runs `uv lock --upgrade-package genkit` (checking PyPI).
+4.  **Result**: If `uv.lock` changes:
+    - Creates a `chore(deps): update genkit` bump.
+    - Bumps the plugin version (Patch).
+    - Opens/Updates a Release PR with the dependency update included.
+
+---
+
 ## Progress
 
 | Phase | Status | Notes |
@@ -971,7 +1008,6 @@ py/tools/releasekit/
       tags.py                         ← git tags + GitHub Releases
       changelog.py                    ← structured changelog
       release_notes.py                ← umbrella release notes (Jinja2)
-      commitback.py                   ← post-release version bump PR
       ui.py                           ← Rich Live progress table
       templates/
         release_notes.md.j2           ← default release notes template
