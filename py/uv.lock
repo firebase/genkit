@@ -2433,7 +2433,6 @@ dependencies = [
 requires-dist = [
     { name = "flask" },
     { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
 ]
