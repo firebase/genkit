@@ -99,8 +99,7 @@ dependency-triggered scheduler that maximizes parallelism:
 
 | Feature | Description |
 |---------|-------------|
-| **Dependency-ordered publishing** | Topological sort ensures correct publish order across 4 levels |
-| **Parallel within levels** | Packages at the same dependency level publish concurrently |
+| **Dependency-triggered publishing** | Packages publish as soon as their dependencies complete, maximizing parallelism |
 | **Conventional commits → semver** | Automatic version bump computation from git history |
 | **Transitive propagation** | A change in `genkit` triggers patch bumps for all 61 dependents |
 | **Crash-safe resume** | State persistence after each package; resume from failure point |

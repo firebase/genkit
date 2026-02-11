@@ -65,7 +65,7 @@ ReleaseKit discovers all 62 workspace packages and builds a dependency
 graph, which can be visualized in 8 output formats (ASCII art, Mermaid,
 Graphviz DOT, CSV, JSON, Markdown table, D2, and plain text levels):
 
-![releasekit graph --format ascii](docs/docs/images/releasekit_graph_ascii.png)
+![releasekit graph --format ascii](https://raw.githubusercontent.com/firebase/genkit/main/py/tools/releasekit/docs/docs/images/releasekit_graph_ascii.png)
 
 The topological sort guarantees that every package is published only after
 all its dependencies are available on PyPI.
@@ -75,7 +75,7 @@ all its dependencies are available on PyPI.
 19 automated health checks run on every PR via `bin/lint`, catching
 issues before they reach PyPI:
 
-![releasekit check](docs/docs/images/releasekit_check.png)
+![releasekit check](https://raw.githubusercontent.com/firebase/genkit/main/py/tools/releasekit/docs/docs/images/releasekit_check.png)
 
 Checks include: circular dependency detection, missing LICENSE/README
 files, version consistency across all plugins, PEP 561 type markers,
@@ -86,14 +86,13 @@ lockfile staleness, naming conventions, and PyPI metadata completeness.
 The publish pipeline processes each package through 8 stages, with a
 dependency-triggered scheduler that maximizes parallelism:
 
-![releasekit architecture](docs/docs/images/releasekit_overview.png)
+![releasekit architecture](https://raw.githubusercontent.com/firebase/genkit/main/py/tools/releasekit/docs/docs/images/releasekit_overview.png)
 
 ### Full Feature Matrix
 
 | Feature | Description |
 |---------|-------------|
-| **Dependency-ordered publishing** | Topological sort ensures correct publish order across 4 levels |
-| **Parallel within levels** | Packages at the same dependency level publish concurrently |
+| **Dependency-triggered publishing** | Packages publish as soon as their dependencies complete, maximizing parallelism |
 | **Conventional commits → semver** | Automatic version bump computation from git history |
 | **Transitive propagation** | A change in `genkit` triggers patch bumps for all 61 dependents |
 | **Crash-safe resume** | State persistence after each package; resume from failure point |
