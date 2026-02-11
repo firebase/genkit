@@ -15,15 +15,15 @@
  */
 
 import * as fs from 'fs/promises';
-import { MessageData, Part, z } from 'genkit';
+import { MessageData, Part, ToolAction, z } from 'genkit';
 import { tool } from 'genkit/beta';
-import mime from 'mime';
+import * as mime from 'mime-types';
 import * as path from 'path';
 
 export function defineReadFileTool(
   messageQueue: MessageData[],
   resolvePath: (requestedPath: string) => string
-) {
+): ToolAction {
   return tool(
     {
       name: 'read_file',
@@ -36,8 +36,8 @@ export function defineReadFileTool(
     async (input) => {
       const targetFile = resolvePath(input.filePath);
       const ext = path.extname(targetFile).toLowerCase();
-      const mimeType = mime.getType(ext);
-      const isImage = mimeType?.startsWith('image/');
+      const mimeType = mime.lookup(ext);
+      const isImage = mimeType != false && mimeType?.startsWith('image/');
 
       const parts: Part[] = [];
 

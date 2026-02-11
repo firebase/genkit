@@ -15,12 +15,12 @@
  */
 
 import * as fs from 'fs/promises';
-import { z } from 'genkit';
+import { ToolAction, z } from 'genkit';
 import { tool } from 'genkit/beta';
 
 export function defineSearchAndReplaceTool(
   resolvePath: (requestedPath: string) => string
-) {
+): ToolAction {
   return tool(
     {
       name: 'search_and_replace',

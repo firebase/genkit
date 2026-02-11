@@ -15,13 +15,13 @@
  */
 
 import * as fs from 'fs/promises';
-import { z } from 'genkit';
+import { ToolAction, z } from 'genkit';
 import { tool } from 'genkit/beta';
 import * as path from 'path';
 
 export function defineListFileTool(
   resolvePath: (requestedPath: string) => string
-) {
+): ToolAction {
   return tool(
     {
       name: 'list_files',
