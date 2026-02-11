@@ -22,7 +22,7 @@ pinning, retry with jitter, and crash-safe file restoration.
 | 4b: Streaming Core | ✅ Complete | scheduler.py, retry, jitter, pause/resume, 27 tests |
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Post-Pipeline + CI | ⬜ Not started | |
-| 6: UX Polish | ⬜ Not started | |
+| 6: UX Polish | ✅ Complete | init, formatters (8), rollback, completion, diagnostics, granular flags |
 | 7: Quality + Ship | ⬜ Not started | |
 
 ---
@@ -767,6 +767,14 @@ All 6 graph formats produce correct output. Rollback automates tag/release
 deletion. Shell completion works in bash/zsh/fish.
 
 **Milestone**: Developer experience is polished and discoverable.
+
+**Status**: ✅ Complete. Implemented:
+- `init.py` — workspace config scaffolding with auto-detect groups, `.gitignore` update, dry-run
+- `formatters/` — 6 output formats: `ascii`, `d2`, `dot`, `json`, `levels`, `mermaid` + registry
+- `cli.py` — `init` and `rollback` subcommands, `rich-argparse` colored help, `--format` expansion
+- `errors.py` — `render_error()` and `render_warning()` Rust-compiler-style diagnostics with Rich
+- 51 new tests: formatters (30), init (7), render diagnostics (14)
+- `scripts/dump_diagnostics.py` — diagnostic formatting gallery script
 
 ### Phase 7: Quality + Ship
 

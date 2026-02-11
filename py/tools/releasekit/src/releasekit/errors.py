@@ -65,8 +65,18 @@ Usage::
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from enum import Enum
+from typing import TextIO
+
+try:
+    from rich.console import Console
+    from rich.markup import escape as rich_escape
+
+    _HAS_RICH = True
+except ImportError:
+    _HAS_RICH = False
 
 
 class ErrorCode(str, Enum):
@@ -253,6 +263,74 @@ def explain(code: str) -> str | None:
     return '\n'.join(lines)
 
 
+def render_error(exc: ReleaseKitError, *, file: TextIO | None = None) -> None:
+    """Render an error in Rust-compiler style with color.
+
+    Output format::
+
+        error[RK-CONFIG-NOT-FOUND]: No [tool.releasekit] section found.
+          |
+          = hint: Run 'releasekit init' to generate a default configuration.
+
+    Args:
+        exc: The error to render.
+        file: Output stream (defaults to ``sys.stderr``).
+    """
+    out = file or sys.stderr
+
+    if _HAS_RICH and out.isatty():
+        console = Console(file=out, highlight=False)
+        msg = rich_escape(exc.info.message)
+        console.print(
+            f'[bold red]error[/bold red][bold red]\\[{exc.code.value}][/bold red][bold]: {msg}[/bold]',
+        )
+        if exc.hint:
+            hint = rich_escape(exc.hint)
+            console.print('  [dim]|[/dim]')
+            console.print(f'  [dim]=[/dim] [cyan]hint[/cyan]: {hint}')
+        console.print()
+    else:
+        print(f'error[{exc.code.value}]: {exc.info.message}', file=out)  # noqa: T201 - CLI output
+        if exc.hint:
+            print('  |', file=out)  # noqa: T201 - CLI output
+            print(f'  = hint: {exc.hint}', file=out)  # noqa: T201 - CLI output
+        print(file=out)  # noqa: T201 - CLI output
+
+
+def render_warning(exc: ReleaseKitWarning, *, file: TextIO | None = None) -> None:
+    """Render a warning in Rust-compiler style with color.
+
+    Output format::
+
+        warning[RK-PREFLIGHT-SHALLOW-CLONE]: Repo is a shallow clone.
+          |
+          = hint: Run 'git fetch --unshallow' to fetch full history.
+
+    Args:
+        exc: The warning to render.
+        file: Output stream (defaults to ``sys.stderr``).
+    """
+    out = file or sys.stderr
+
+    if _HAS_RICH and out.isatty():
+        console = Console(file=out, highlight=False)
+        msg = rich_escape(exc.info.message)
+        console.print(
+            f'[bold yellow]warning[/bold yellow][bold yellow]\\[{exc.code.value}][/bold yellow][bold]: {msg}[/bold]',
+        )
+        if exc.hint:
+            hint = rich_escape(exc.hint)
+            console.print('  [dim]|[/dim]')
+            console.print(f'  [dim]=[/dim] [cyan]hint[/cyan]: {hint}')
+        console.print()
+    else:
+        print(f'warning[{exc.code.value}]: {exc.info.message}', file=out)  # noqa: T201 - CLI output
+        if exc.hint:
+            print('  |', file=out)  # noqa: T201 - CLI output
+            print(f'  = hint: {exc.hint}', file=out)  # noqa: T201 - CLI output
+        print(file=out)  # noqa: T201 - CLI output
+
+
 __all__ = [
     'E',
     'ERRORS',
@@ -261,4 +339,6 @@ __all__ = [
     'ReleaseKitError',
     'ReleaseKitWarning',
     'explain',
+    'render_error',
+    'render_warning',
 ]
