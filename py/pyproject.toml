@@ -447,8 +447,8 @@ root = [
   "samples/web-endpoints-hello",           # For src imports in tests
   "plugins/mcp/tests",                     # For fakes module imports in tests
   # Tools
-  "tools/releasekit/src",                   # For releasekit package imports
-  "tools/releasekit",                       # For test imports (pythonpath = ["."])
+  "tools/releasekit/src", # For releasekit package imports
+  "tools/releasekit",     # For test imports (pythonpath = ["."])
 ]
 
 # Pyright type checking configuration.
