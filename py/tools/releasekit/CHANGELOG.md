@@ -57,9 +57,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SIGUSR1`/`SIGUSR2` signal handlers for external pause/resume from
     another terminal (`kill -USR1 <pid>`).
   - `_block_dependents`: recursively marks all transitive dependents as
-    `BLOCKED` when a package fails (with observer notifications).
+     `BLOCKED` when a package fails (with observer notifications).
   - ETA estimate and control hints in Rich UI footer.
   - 243 tests pass (all modules).
+
+- **Dynamic Scheduler**
+  - `scheduler.py`: `add_package()` — live node insertion into running scheduler.
+    Wires up dependents, updates `_total`, enqueues immediately if all deps
+    are already completed. Unknown deps silently ignored.
+  - `scheduler.py`: `remove_package()` — marks node for cancellation via
+    `_cancelled` set. Workers skip on dequeue. Optional `block_dependents`
+    parameter for recursive transitive blocking.
+  - 13 new tests (7 add + 6 remove).
+
+- **Phase 5: Post-Pipeline**
+  - `tags.py`: Git tag creation and GitHub Release management. Per-package
+    tags via configurable `tag_format`, umbrella tag via `umbrella_tag_format`.
+    Tag-exists detection (idempotent for resume). Graceful `forge.is_available()`
+    skip. Dual-mode: local (published release) vs CI (draft release with
+    manifest asset). `delete_tags()` for rollback.
+  - 27 new tests for tags (format_tag, create, skip, error, forge, delete).
 
 - **Phase 1: Workspace Discovery + Dependency Graph**
   - `config.py`: Reads `[tool.releasekit]` from `pyproject.toml` with typed

@@ -294,6 +294,8 @@ class Scheduler:
         # Gate for suspend/resume. Set = running, cleared = paused.
         self._resume_event = asyncio.Event()
         self._resume_event.set()
+        # Packages cancelled via remove_package(). Workers skip on dequeue.
+        self._cancelled: set[str] = set()
         # Current view mode / filter (keyboard toggles).
         self._view_mode = ViewMode.WINDOW
         self._display_filter = DisplayFilter.ALL
@@ -461,6 +463,150 @@ class Scheduler:
                 )
         return newly_ready
 
+    def add_package(
+        self,
+        name: str,
+        *,
+        deps: list[str] | None = None,
+        level: int = 0,
+    ) -> bool:
+        """Add a package to a running scheduler.
+
+        Inserts a new node into the live scheduler. If all of the node's
+        dependencies are already completed, the node is enqueued for
+        immediate processing. Otherwise it waits until ``mark_done``
+        decrements its counter to zero.
+
+        This method is safe to call while ``run()`` is active because
+        asyncio's cooperative scheduling guarantees no interleaving
+        between ``await`` points on the same event loop. All mutations
+        (``_nodes``, ``_total``, ``_enqueued``, ``_done``) happen
+        atomically from the caller's perspective.
+
+        Use case: an HTTP server process accepts new packages at runtime
+        and feeds them into the running scheduler via this method.
+
+        Args:
+            name: Package name. Must not already exist in the scheduler.
+            deps: Names of packages this one depends on. Only deps that
+                are *also in the scheduler* are counted. Unknown deps
+                are silently ignored (same behavior as ``from_graph``).
+            level: Topological level hint for display purposes.
+
+        Returns:
+            ``True`` if the package was added, ``False`` if it already
+            exists (duplicate addition is a no-op).
+        """
+        if name in self._nodes:
+            logger.debug('scheduler_add_duplicate', package=name)
+            return False
+
+        deps = deps or []
+
+        # Count only deps that exist in the scheduler and are not yet done.
+        remaining = 0
+        for dep_name in deps:
+            dep_node = self._nodes.get(dep_name)
+            if dep_node is None:
+                # Unknown dep — either external or not in the scheduler.
+                continue
+            if dep_name in self._done:
+                # Already completed — don't count.
+                continue
+            remaining += 1
+
+        node = PackageNode(
+            name=name,
+            remaining_deps=remaining,
+            dependents=[],
+            level=level,
+        )
+        self._nodes[name] = node
+        self._total += 1
+
+        # Wire up: add this node as a dependent of each of its deps.
+        for dep_name in deps:
+            dep_node = self._nodes.get(dep_name)
+            if dep_node is not None and dep_name != name:
+                dep_node.dependents.append(name)
+
+        # If all deps are satisfied, enqueue immediately.
+        if remaining == 0 and name not in self._enqueued:
+            self._queue.put_nowait(node)
+            self._enqueued.add(name)
+            logger.info(
+                'scheduler_add_enqueue',
+                package=name,
+                level=level,
+                reason='all deps satisfied or no deps',
+            )
+        else:
+            logger.info(
+                'scheduler_add_waiting',
+                package=name,
+                level=level,
+                remaining_deps=remaining,
+            )
+
+        return True
+
+    def remove_package(
+        self,
+        name: str,
+        *,
+        block_dependents: bool = True,
+    ) -> bool:
+        """Remove a package from the scheduler.
+
+        If the package is queued but not yet being processed, it will be
+        skipped when a worker dequeues it. If it is currently being
+        processed, it cannot be interrupted — only future dequeues are
+        affected.
+
+        ``asyncio.Queue`` does not support arbitrary removal, so this
+        method adds the name to a ``_cancelled`` set. Workers check
+        this set after dequeue and skip cancelled nodes.
+
+        By default, all dependents of the removed package are also
+        blocked (same behavior as a failed package). Set
+        ``block_dependents=False`` to leave dependents untouched.
+
+        Use case: an HTTP server receives a "skip this package" request
+        (e.g., a known-broken package that should not delay the rest).
+
+        Args:
+            name: Package name to remove.
+            block_dependents: Whether to recursively block dependents.
+
+        Returns:
+            ``True`` if the package was marked for removal, ``False``
+            if it was not found or already completed.
+        """
+        if name not in self._nodes:
+            logger.debug('scheduler_remove_unknown', package=name)
+            return False
+
+        if name in self._done:
+            logger.debug('scheduler_remove_already_done', package=name)
+            return False
+
+        self._cancelled.add(name)
+        logger.info('scheduler_remove', package=name)
+
+        # If the package hasn't been enqueued yet (waiting on deps),
+        # mark it done immediately so dependents get blocked and the
+        # total counter stays accurate.
+        if name not in self._enqueued:
+            self._done.add(name)
+            self._completed += 1
+            self._notify_stage(name, 'blocked')
+
+        if block_dependents:
+            self._block_dependents(name)
+
+        return True
+
+
     def pause(self) -> None:
         """Suspend the scheduler.
 
@@ -537,6 +683,21 @@ class Scheduler:
                 except TimeoutError:
                     if self._completed >= self._total:
                         break
+                    continue
+
+                # Skip removed packages. The node is already in the
+                # queue (asyncio.Queue has no remove), so we check the
+                # _cancelled set on dequeue instead.
+                if node.name in self._cancelled:
+                    self._result.skipped.append(node.name)
+                    self._done.add(node.name)
+                    self._completed += 1
+                    self._queue.task_done()
+                    logger.info(
+                        'scheduler_skip_cancelled',
+                        package=node.name,
+                        worker=worker_id,
+                    )
                     continue
 
                 # Ensure task_done() is always called, even if the

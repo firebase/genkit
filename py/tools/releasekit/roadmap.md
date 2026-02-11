@@ -239,6 +239,22 @@ Phase 4c: UI States        ▼    ✅ COMPLETE
 │  ★ Interactive terminal + CI-friendly log output          │
 └───────────────────────────┬───────────────────────────────┘
                            │
+Future: Dynamic Scheduler  ▼    ✅ COMPLETE
+┌───────────────────────────────────────────────────────────┐
+│  scheduler.py ──▶ add_package() / remove_package() API   │
+│    + Live node insertion with dependency wiring           │
+│    + Immediate enqueue if remaining_deps == 0             │
+│    + _cancelled set for deferred removal on dequeue       │
+│    + block_dependents option on remove                    │
+│    + Update _total counter dynamically                    │
+│                                                           │
+│  Use case: HTTP server process, watch-mode, plugin feeds, │
+│  dynamic package discovery during CI                      │
+│                                                           │
+│  ✓ 13 tests (7 add + 6 remove)                            │
+│  ★ Scheduler is fully dynamic — ready for HTTP server     │
+└───────────────────────────┬───────────────────────────────┘
+                           │
 Phase 5: Post-Pipeline     ▼
 ┌─────────────────────────────────────────────────────────┐
 │  tags.py ──► config, versions, vcs, forge               │
@@ -699,6 +715,28 @@ packages start as soon as deps complete (visible in timestamp ordering).
 27 tests cover all features.
 
 **Milestone**: Core scheduler is streaming-ready for future expansion.
+
+### Future: Dynamic Scheduler (Complete)
+
+The scheduler now supports **live node insertion and removal** during
+a running publish pipeline via `add_package()` and `remove_package()`.
+
+| Method | Description |
+|--------|-------------|
+| `add_package(name, deps, level)` | Inserts a new node. Wires up dependents on existing nodes. Enqueues immediately if all deps are already completed. Unknown deps silently ignored. |
+| `remove_package(name, block_dependents)` | Marks a node for cancellation. Workers skip it on dequeue (`_cancelled` set pattern). Optionally blocks transitive dependents. |
+
+**Thread safety**: All mutations happen on the single asyncio event
+loop, so no locks are needed. `add_package()` is safe to call from
+within `publish_fn` (i.e., a worker can dynamically add new packages).
+
+**Use case**: An HTTP server process accepts new packages at runtime
+and feeds them into the running scheduler. A watch-mode CI pipeline
+discovers new packages and adds them dynamically.
+
+**Tests**: 7 add + 6 remove = 13 tests covering all edge cases
+(no deps, pending deps, done deps, unknown deps, duplicate rejection,
+live scheduler integration, dequeue skip, block dependents, etc.).
 
 ### Phase 5: Post-Pipeline + CI
 
