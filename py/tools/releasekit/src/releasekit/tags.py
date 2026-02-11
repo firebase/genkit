@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Git tag creation and GitHub Release management for publish pipelines.
+r"""Git tag creation and GitHub Release management for publish pipelines.
 
 Creates per-package tags and an umbrella release tag after a successful
 publish run. Supports two modes:
@@ -211,7 +211,6 @@ def create_tags(
     umbrella_version = bumped[0].new_version
     umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
 
-
     for pkg in bumped:
         tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
         tag_message = f'Release {pkg.name} v{pkg.new_version}'
@@ -243,7 +242,6 @@ def create_tags(
                 error=str(exc),
             )
 
-
     umbrella_message = f'Release v{umbrella_version} ({len(bumped)} packages)'
 
     if vcs.tag_exists(umbrella_tag):
@@ -267,7 +265,6 @@ def create_tags(
                 error=str(exc),
             )
 
-
     if result.created and not result.failed:
         try:
             vcs.push(tags=True, dry_run=dry_run)
@@ -289,7 +286,6 @@ def create_tags(
                 hint='Tags were created locally. Push manually with: git push --tags',
             )
 
-
     _create_release_if_available(
         forge=forge,
         umbrella_tag=umbrella_tag,
@@ -303,7 +299,6 @@ def create_tags(
         dry_run=dry_run,
         result=result,
     )
-
 
     logger.info(
         'tags_summary',

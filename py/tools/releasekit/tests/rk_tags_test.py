@@ -19,12 +19,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-import pytest
+from releasekit.backends._run import CommandResult
 from releasekit.tags import TagResult, create_tags, delete_tags, format_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
 
-
+_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
 
 
 class FakeVCS:
@@ -64,13 +65,13 @@ class FakeVCS:
         *,
         message: str | None = None,
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Create a tag (records for assertion)."""
         if self.tag_error:
             raise RuntimeError(self.tag_error)
         self.created_tags.append((tag_name, message or ''))
-        # Track as existing after creation.
         self.existing_tags.add(tag_name)
+        return _OK
 
     def delete_tag(
         self,
@@ -78,10 +79,11 @@ class FakeVCS:
         *,
         remote: bool = False,
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Delete a tag (records for assertion)."""
         self.deleted_tags.append((tag_name, remote))
         self.existing_tags.discard(tag_name)
+        return _OK
 
     def push(
         self,
@@ -89,11 +91,12 @@ class FakeVCS:
         tags: bool = False,
         remote: str = 'origin',
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Push tags (records for assertion)."""
         if self.push_error:
             raise RuntimeError(self.push_error)
         self.push_calls.append({'tags': tags, 'remote': remote})
+        return _OK
 
     def is_clean(self, *, dry_run: bool = False) -> bool:
         """Stub — always clean."""
@@ -127,8 +130,19 @@ class FakeVCS:
         *,
         paths: list[str] | None = None,
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Stub commit."""
+        return _OK
+
+    def checkout_branch(
+        self,
+        branch: str,
+        *,
+        create: bool = False,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub checkout_branch."""
+        return _OK
 
 
 class FakeForge:
@@ -171,7 +185,7 @@ class FakeForge:
         prerelease: bool = False,
         assets: list[Path] | None = None,
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Create a release (records for assertion)."""
         if self._create_error:
             raise RuntimeError(self._create_error)
@@ -183,19 +197,48 @@ class FakeForge:
             'prerelease': prerelease,
             'assets': assets or [],
         })
+        return _OK
 
     def delete_release(
         self,
         tag: str,
         *,
         dry_run: bool = False,
-    ) -> None:
+    ) -> CommandResult:
         """Delete a release (records for assertion)."""
         if self._delete_error:
             raise RuntimeError(self._delete_error)
         self.releases_deleted.append(tag)
+        return _OK
 
+    def promote_release(
+        self,
+        tag: str,
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub promote_release."""
+        return _OK
 
+    def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
+        """Stub list_releases."""
+        return []
+
+    def create_pr(
+        self,
+        *,
+        title: str,
+        body: str = '',
+        head: str,
+        base: str = 'main',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub create_pr."""
+        return _OK
+
+    def pr_data(self, pr_number: int) -> dict[str, Any]:
+        """Stub pr_data."""
+        return {}
 
 
 def _make_manifest(
@@ -222,8 +265,6 @@ def _make_manifest(
     )
 
 
-
-
 class TestFormatTag:
     """Tests for format_tag helper."""
 
@@ -246,8 +287,6 @@ class TestFormatTag:
             raise AssertionError(f'Expected py/genkit@1.0.0, got {result}')
 
 
-
-
 class TestTagResult:
     """Tests for TagResult dataclass."""
 
@@ -262,8 +301,6 @@ class TestTagResult:
         result = TagResult(failed={'v0.5.0': 'error'})
         if result.ok:
             raise AssertionError('Expected ok=False')
-
-
 
 
 class TestCreateTags:
@@ -341,7 +378,7 @@ class TestCreateTags:
         manifest = ReleaseManifest(git_sha='abc123', packages=packages)
         vcs = FakeVCS()
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        create_tags(manifest=manifest, vcs=vcs)
 
         tag_names = [t[0] for t in vcs.created_tags]
         if 'genkit-v0.5.0' in tag_names:
@@ -368,7 +405,6 @@ class TestCreateTags:
 
         result = create_tags(manifest=manifest, vcs=vcs)
 
-        # Tags should still be created successfully.
         if 'genkit-v0.5.0' not in result.created:
             raise AssertionError(f'Expected genkit-v0.5.0 created: {result.created}')
         if result.pushed:
@@ -379,7 +415,7 @@ class TestCreateTags:
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(tag_error='Failed')
 
-        result = create_tags(manifest=manifest, vcs=vcs)
+        create_tags(manifest=manifest, vcs=vcs)
 
         if vcs.push_calls:
             raise AssertionError('Should not push when tag creation failed')
@@ -400,8 +436,6 @@ class TestCreateTags:
             raise AssertionError(f'Expected py/genkit@0.5.0 created: {result.created}')
         if 'py@0.5.0' not in result.created:
             raise AssertionError(f'Expected py@0.5.0 created: {result.created}')
-
-
 
 
 class TestCreateTagsWithForge:
@@ -437,7 +471,7 @@ class TestCreateTagsWithForge:
         vcs = FakeVCS()
         forge = FakeForge()
 
-        result = create_tags(
+        create_tags(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -483,7 +517,6 @@ class TestCreateTagsWithForge:
 
         if forge.releases_created:
             raise AssertionError('Should not create release when forge unavailable')
-        # Tags should still be created.
         if not result.ok:
             raise AssertionError('Tags should succeed even without forge')
 
@@ -505,7 +538,6 @@ class TestCreateTagsWithForge:
 
         result = create_tags(manifest=manifest, vcs=vcs, forge=forge)
 
-        # Tags should still be created and pushed.
         if not result.ok:
             raise AssertionError('Tag operations should be ok despite release failure')
         if not result.pushed:
@@ -529,19 +561,19 @@ class TestCreateTagsWithForge:
             raise AssertionError('Expected prerelease=True')
 
 
-
-
 class TestDeleteTags:
     """Tests for delete_tags (rollback) function."""
 
     def test_deletes_existing_tags(self) -> None:
         """Deletes per-package and umbrella tags that exist."""
         manifest = _make_manifest('genkit', 'genkit-plugin-foo')
-        vcs = FakeVCS(existing_tags={
-            'genkit-v0.5.0',
-            'genkit-plugin-foo-v0.5.0',
-            'v0.5.0',
-        })
+        vcs = FakeVCS(
+            existing_tags={
+                'genkit-v0.5.0',
+                'genkit-plugin-foo-v0.5.0',
+                'v0.5.0',
+            }
+        )
 
         result = delete_tags(manifest=manifest, vcs=vcs)
 
@@ -582,7 +614,6 @@ class TestDeleteTags:
 
         result = delete_tags(manifest=manifest, vcs=vcs, forge=forge)
 
-        # Tag deletion should still succeed.
         if not result.ok:
             raise AssertionError('Tag deletion should succeed despite release error')
 

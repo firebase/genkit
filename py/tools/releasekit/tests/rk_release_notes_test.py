@@ -19,20 +19,23 @@
 from __future__ import annotations
 
 from releasekit.backends._run import CommandResult
+from releasekit.changelog import Changelog, ChangelogEntry, ChangelogSection
 from releasekit.release_notes import (
     PackageSummary,
     ReleaseNotes,
     generate_release_notes,
     render_release_notes,
 )
-from releasekit.changelog import Changelog, ChangelogEntry, ChangelogSection
 from releasekit.versions import PackageVersion, ReleaseManifest
+
+_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
 
 
 class FakeVCS:
     """Minimal VCS double for release notes tests."""
 
     def __init__(self, log_lines: list[str] | None = None, tags: set[str] | None = None) -> None:
+        """Initialize with optional canned log lines and tag set."""
         self._log_lines = log_lines or []
         self._tags = tags or set()
 
@@ -43,43 +46,55 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
     ) -> list[str]:
+        """Return canned log lines."""
         return self._log_lines
 
     def tag_exists(self, tag_name: str) -> bool:
+        """Check if tag is in the fake tag set."""
         return tag_name in self._tags
 
     def is_clean(self, *, dry_run: bool = False) -> bool:
+        """Always clean."""
         return True
 
     def is_shallow(self) -> bool:
+        """Never shallow."""
         return False
 
     def current_sha(self) -> str:
+        """Return a fake SHA."""
         return 'abc123'
 
     def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+        """Return empty diff."""
         return []
 
     def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+        """No-op commit."""
+        return _OK
 
     def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+        """No-op tag."""
+        return _OK
 
     def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+        """No-op delete_tag."""
+        return _OK
 
     def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+        """No-op push."""
+        return _OK
 
     def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+        """No-op checkout_branch."""
+        return _OK
 
 
 class TestRenderReleaseNotes:
     """Tests for render_release_notes function."""
 
     def test_basic_render(self) -> None:
+        """Render a single-package release note with features."""
         notes = ReleaseNotes(
             version='v0.5.0',
             summaries=[
@@ -110,24 +125,28 @@ class TestRenderReleaseNotes:
             raise AssertionError(f'Missing entry:\n{md}')
 
     def test_custom_title(self) -> None:
+        """Custom title overrides the default."""
         notes = ReleaseNotes(version='v0.5.0', title='Custom Title')
         md = render_release_notes(notes)
         if '# Custom Title' not in md:
             raise AssertionError(f'Missing custom title:\n{md}')
 
     def test_custom_preamble(self) -> None:
+        """Custom preamble text appears in the output."""
         notes = ReleaseNotes(version='v0.5.0', preamble='Big release!')
         md = render_release_notes(notes)
         if 'Big release!' not in md:
             raise AssertionError(f'Missing preamble:\n{md}')
 
     def test_empty_summaries(self) -> None:
+        """Empty summaries produce a default preamble."""
         notes = ReleaseNotes(version='v0.5.0')
         md = render_release_notes(notes)
         if '0 package(s) updated.' not in md:
             raise AssertionError(f'Missing default preamble:\n{md}')
 
     def test_multiple_packages(self) -> None:
+        """Multiple packages each get their own heading."""
         notes = ReleaseNotes(
             version='v0.5.0',
             summaries=[
@@ -158,6 +177,7 @@ class TestGenerateReleaseNotes:
     """Tests for generate_release_notes function."""
 
     def test_generates_per_package(self) -> None:
+        """Generate one summary per bumped package."""
         manifest = ReleaseManifest(
             git_sha='abc123',
             umbrella_tag='v0.5.0',

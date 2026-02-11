@@ -82,7 +82,6 @@ from releasekit.versioning import ConventionalCommit, parse_conventional_commit
 logger = get_logger(__name__)
 
 
-
 # Maps commit type to section heading (display order matters).
 _SECTION_ORDER: list[tuple[str, str]] = [
     ('breaking', 'Breaking Changes'),
@@ -113,8 +112,6 @@ _DEFAULT_EXCLUDE_TYPES: frozenset[str] = frozenset({
 
 # Regex to extract PR references like (#1234) from commit messages.
 _PR_REF_PATTERN: re.Pattern[str] = re.compile(r'\(#(\d+)\)')
-
-
 
 
 @dataclass(frozen=True)
@@ -166,8 +163,6 @@ class Changelog:
     date: str = ''
 
 
-
-
 def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
     """Convert a parsed Conventional Commit to a ChangelogEntry."""
     short_sha = cc.sha[:7] if cc.sha else ''
@@ -179,7 +174,7 @@ def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
     # Clean description: remove trailing PR reference for cleaner display.
     description = cc.description
     if pr_match:
-        description = description[:pr_match.start()].rstrip()
+        description = description[: pr_match.start()].rstrip()
 
     return ChangelogEntry(
         type=cc.type,
