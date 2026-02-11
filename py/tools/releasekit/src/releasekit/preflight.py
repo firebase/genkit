@@ -86,7 +86,8 @@ class PreflightResult:
         passed: List of check names that passed.
         warnings: List of check names that produced warnings.
         failed: List of check names that failed.
-        errors: Dict mapping check name to error message.
+        errors: Dict mapping failed check name to error message.
+        warning_messages: Dict mapping warning check name to message.
     """
 
     def __init__(self) -> None:
@@ -95,6 +96,7 @@ class PreflightResult:
         self.warnings: list[str] = []
         self.failed: list[str] = []
         self.errors: dict[str, str] = {}
+        self.warning_messages: dict[str, str] = {}
 
     def add_pass(self, name: str) -> None:
         """Record a passing check."""
@@ -104,6 +106,7 @@ class PreflightResult:
     def add_warning(self, name: str, message: str) -> None:
         """Record a warning (non-blocking)."""
         self.warnings.append(name)
+        self.warning_messages[name] = message
         logger.warning('preflight_warning', check=name, message=message)
 
     def add_failure(self, name: str, message: str) -> None:

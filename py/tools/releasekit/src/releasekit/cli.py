@@ -57,9 +57,10 @@ from releasekit.backends.forge import GitHubBackend
 from releasekit.backends.pm import UvBackend
 from releasekit.backends.registry import PyPIBackend
 from releasekit.backends.vcs import GitBackend
+from releasekit.checks import run_checks
 from releasekit.config import ReleaseConfig, load_config
 from releasekit.errors import E, ReleaseKitError, explain
-from releasekit.graph import build_graph, detect_cycles, topo_sort
+from releasekit.graph import build_graph, topo_sort
 from releasekit.lock import release_lock
 from releasekit.logging import get_logger
 from releasekit.plan import build_plan
@@ -322,21 +323,32 @@ def _cmd_graph(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_check_cycles(args: argparse.Namespace) -> int:
-    """Handle the ``check-cycles`` subcommand."""
+def _cmd_check(args: argparse.Namespace) -> int:
+    """Handle the ``check`` subcommand."""
     workspace_root = _find_workspace_root()
     config = load_config(workspace_root / 'pyproject.toml')
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
-    cycles = detect_cycles(graph)
 
-    if cycles:
-        for cycle in cycles:
-            print(f'  Cycle: {" → ".join(cycle)}')  # noqa: T201 - CLI output
-        return 1
+    result = run_checks(packages, graph)
 
-    print('No cycles detected.')  # noqa: T201 - CLI output
-    return 0
+    # Print detailed results.
+    if result.passed:
+        for name in result.passed:
+            print(f'  ✅ {name}')  # noqa: T201 - CLI output
+    if result.warnings:
+        for name in result.warnings:
+            msg = result.warning_messages.get(name, '')
+            print(f'  ⚠️  {name}: {msg}')  # noqa: T201 - CLI output
+    if result.failed:
+        for name in result.failed:
+            msg = result.errors.get(name, '')
+            print(f'  ❌ {name}: {msg}')  # noqa: T201 - CLI output
+
+    print()  # noqa: T201 - CLI output
+    print(f'  {result.summary()}')  # noqa: T201 - CLI output
+
+    return 0 if result.ok else 1
 
 
 def _cmd_version(args: argparse.Namespace) -> int:
@@ -486,10 +498,10 @@ def build_parser() -> argparse.ArgumentParser:
         help='Output format (default: table).',
     )
 
-    # ── check-cycles ──
+    # ── check ──
     subparsers.add_parser(
-        'check-cycles',
-        help='Check for circular dependencies.',
+        'check',
+        help='Run workspace health checks (cycles, deps, files, metadata).',
     )
 
     # ── version ──
@@ -541,8 +553,8 @@ def main() -> int:
             return _cmd_discover(args)
         if command == 'graph':
             return _cmd_graph(args)
-        if command == 'check-cycles':
-            return _cmd_check_cycles(args)
+        if command == 'check':
+            return _cmd_check(args)
         if command == 'version':
             return _cmd_version(args)
         if command == 'explain':
