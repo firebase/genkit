@@ -64,11 +64,13 @@ Usage::
 from __future__ import annotations
 
 import re
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 
 from releasekit.backends.vcs import VCS
 from releasekit.errors import E, ReleaseKitError
+from releasekit.graph import DependencyGraph
 from releasekit.logging import get_logger
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
@@ -257,6 +259,8 @@ async def compute_bumps(
     tag_format: str = '{name}-v{version}',
     prerelease: str = '',
     force_unchanged: bool = False,
+    graph: DependencyGraph | None = None,
+    synchronize: bool = False,
 ) -> list[PackageVersion]:
     """Compute version bumps for all packages based on Conventional Commits.
 
@@ -268,8 +272,16 @@ async def compute_bumps(
     4. Compute the max bump type.
     5. Apply the bump to produce a new version.
 
-    Packages with no relevant commits are marked as skipped (unless
-    ``force_unchanged=True``).
+    After computing direct bumps, two propagation modes are supported:
+
+    **Independent mode** (default, ``synchronize=False``):
+        If a ``graph`` is provided, any package that was bumped triggers
+        a PATCH bump in all its transitive dependents (via
+        ``graph.reverse_edges``). This ensures lockfiles stay fresh.
+
+    **Synchronized mode** (``synchronize=True``):
+        All packages receive the *maximum* bump computed across the
+        entire workspace. This keeps all versions in lockstep.
 
     Args:
         packages: The workspace packages to version.
@@ -278,11 +290,18 @@ async def compute_bumps(
         prerelease: Prerelease label (e.g. ``"rc"``). If set, all bumps
             produce prerelease versions.
         force_unchanged: If ``True``, bump unchanged packages to patch.
+        graph: Dependency graph for transitive propagation. If ``None``,
+            no propagation is performed.
+        synchronize: If ``True``, use lockstep mode (all packages share
+            the max bump).
 
     Returns:
         A list of :class:`PackageVersion` records, one per package.
     """
-    results: list[PackageVersion] = []
+    # Phase 1: Compute direct bumps per package from commits.
+    pkg_bumps: dict[str, BumpType] = {}
+    pkg_reasons: dict[str, str] = {}
+
     for pkg in packages:
         last_tag = await _last_tag(vcs, tag_format, pkg.name, pkg.version)
 
@@ -322,6 +341,53 @@ async def compute_bumps(
         # Handle prerelease mode.
         if prerelease and max_bump != BumpType.NONE:
             max_bump = BumpType.PRERELEASE
+
+        pkg_bumps[pkg.name] = max_bump
+        pkg_reasons[pkg.name] = reason_commit
+
+    # Phase 2: Propagation.
+    if synchronize:
+        # Lockstep: all packages get the max bump across the workspace.
+        global_max = BumpType.NONE
+        global_reason = ''
+        for name, bump in pkg_bumps.items():
+            if _max_bump(global_max, bump) != global_max:
+                global_max = _max_bump(global_max, bump)
+                global_reason = pkg_reasons[name]
+
+        if global_max != BumpType.NONE:
+            for pkg in packages:
+                pkg_bumps[pkg.name] = global_max
+                if not pkg_reasons[pkg.name]:
+                    pkg_reasons[pkg.name] = f'synchronized: {global_reason}'
+
+            logger.info(
+                'synchronized_bump',
+                bump=global_max.value,
+                reason=global_reason,
+                count=len(packages),
+            )
+    elif graph is not None:
+        # Independent: propagate PATCH to transitive dependents via BFS.
+        queue = deque(name for name, bump in pkg_bumps.items() if bump != BumpType.NONE)
+        while queue:
+            name = queue.popleft()
+            for dependent in graph.reverse_edges.get(name, []):
+                if pkg_bumps.get(dependent) == BumpType.NONE:
+                    pkg_bumps[dependent] = BumpType.PATCH
+                    pkg_reasons[dependent] = f'dependency {name} bumped'
+                    queue.append(dependent)
+                    logger.info(
+                        'transitive_bump',
+                        package=dependent,
+                        trigger=name,
+                    )
+
+    # Phase 3: Build results.
+    results: list[PackageVersion] = []
+    for pkg in packages:
+        max_bump = pkg_bumps[pkg.name]
+        reason_commit = pkg_reasons[pkg.name]
 
         # Skip unchanged packages (unless forced).
         skipped = max_bump == BumpType.NONE

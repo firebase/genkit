@@ -65,10 +65,15 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import os
+import shutil
 import warnings
 from pathlib import Path
 
+import tomlkit
+
+from releasekit.backends._run import CommandResult, run_command
 from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import Registry
@@ -100,22 +105,27 @@ class PreflightResult:
         self.failed: list[str] = []
         self.errors: dict[str, str] = {}
         self.warning_messages: dict[str, str] = {}
+        self.hints: dict[str, str] = {}
 
     def add_pass(self, name: str) -> None:
         """Record a passing check."""
         self.passed.append(name)
         logger.info('preflight_pass', check=name)
 
-    def add_warning(self, name: str, message: str) -> None:
+    def add_warning(self, name: str, message: str, *, hint: str = '') -> None:
         """Record a warning (non-blocking)."""
         self.warnings.append(name)
         self.warning_messages[name] = message
+        if hint:
+            self.hints[name] = hint
         logger.warning('preflight_warning', check=name, message=message)
 
-    def add_failure(self, name: str, message: str) -> None:
+    def add_failure(self, name: str, message: str, *, hint: str = '') -> None:
         """Record a failure (blocking)."""
         self.failed.append(name)
         self.errors[name] = message
+        if hint:
+            self.hints[name] = hint
         logger.error('preflight_fail', check=name, message=message)
 
     @property
@@ -325,6 +335,108 @@ def _check_trusted_publisher(
         result.add_pass(check_name)
 
 
+async def _check_pip_audit(
+    result: PreflightResult,
+    *,
+    workspace_root: Path,
+) -> None:
+    """Run ``pip-audit`` to check for known vulnerabilities.
+
+    This is a Python-specific advisory check. It only runs if ``pip-audit``
+    is installed. Failures produce a warning (not blocking) because
+    vulnerability databases may flag false positives or transitive deps
+    the user can't easily fix.
+
+    This check does NOT apply to JavaScript, Go, Rust, or other ecosystems.
+    Each ecosystem should provide its own equivalent (e.g. ``npm audit``,
+    ``cargo audit``, ``govulncheck``).
+
+    Args:
+        result: Accumulator for check outcomes.
+        workspace_root: Path to the workspace root.
+    """
+    check_name = 'pip_audit'
+
+    if not shutil.which('pip-audit'):
+        result.add_warning(
+            check_name,
+            "'pip-audit' not installed. Skipping vulnerability scan. Install with: pip install pip-audit",
+        )
+        return
+
+    try:
+        cmd_result: CommandResult = await asyncio.to_thread(
+            run_command,
+            ['pip-audit', '--strict', '--progress-spinner=off'],
+            cwd=workspace_root,
+        )
+        if cmd_result.returncode == 0:
+            result.add_pass(check_name)
+        else:
+            result.add_warning(
+                check_name,
+                f'pip-audit found vulnerabilities: {cmd_result.stderr or cmd_result.stdout}',
+            )
+    except Exception as exc:
+        result.add_warning(
+            check_name,
+            f'pip-audit failed to run: {exc}',
+        )
+
+
+def _check_metadata_validation(
+    packages: list[Package],
+    result: PreflightResult,
+) -> None:
+    """Validate that publishable packages have required pyproject.toml metadata.
+
+    Checks for critical fields that PyPI requires for a successful upload:
+    ``description``, ``license``, ``requires-python``, and ``authors``.
+    Missing fields produce warnings (not blocking) so the user can fix them
+    before the actual publish step fails.
+
+    This is a Python-specific check. Other ecosystems (npm, cargo, Go)
+    have different required metadata fields and should implement their own
+    validation.
+
+    Args:
+        packages: All workspace packages.
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'metadata_validation'
+    issues: list[str] = []
+    required_fields = ('description', 'license', 'requires-python')
+
+    for pkg in packages:
+        if not pkg.is_publishable:
+            continue
+        pyproject = pkg.pyproject_path
+        if not pyproject.is_file():
+            continue
+
+        try:
+            content = pyproject.read_text(encoding='utf-8')
+            data = tomlkit.loads(content)
+            project = data.get('project', {})
+
+            missing = [f for f in required_fields if not project.get(f)]
+            if not project.get('authors'):
+                missing.append('authors')
+
+            if missing:
+                issues.append(f'{pkg.name}: missing {", ".join(missing)}')
+        except Exception as exc:
+            issues.append(f'{pkg.name}: failed to parse pyproject.toml: {exc}')
+
+    if issues:
+        result.add_warning(
+            check_name,
+            f'Metadata issues: {"; ".join(issues)}',
+        )
+    else:
+        result.add_pass(check_name)
+
+
 async def run_preflight(
     *,
     vcs: VCS,
@@ -337,11 +449,26 @@ async def run_preflight(
     workspace_root: Path,
     dry_run: bool = False,
     skip_version_check: bool = False,
+    ecosystem: str = 'python',
+    run_audit: bool = False,
 ) -> PreflightResult:
     """Run all preflight checks.
 
     All backends are injected via parameters (dependency injection),
     making this function testable with fake backends.
+
+    Checks are split into **universal** (always run) and
+    **ecosystem-specific** (gated by ``ecosystem`` parameter):
+
+    Universal checks:
+        clean_worktree, lock_file, shallow_clone, cycle_detection,
+        forge_available, dist_clean, trusted_publisher, version_conflicts.
+
+    Python-specific checks (``ecosystem='python'``):
+        metadata_validation — validates pyproject.toml required fields.
+        pip_audit — runs ``pip-audit`` for known vulnerabilities (advisory).
+            Only runs when ``run_audit=True`` since it requires network
+            access and ``pip-audit`` to be installed.
 
     Args:
         vcs: Version control backend.
@@ -355,15 +482,22 @@ async def run_preflight(
         dry_run: Pass through to backends.
         skip_version_check: Skip registry version conflict check
             (useful for ``--force`` mode).
+        ecosystem: The workspace ecosystem type. Currently only
+            ``'python'`` triggers ecosystem-specific checks.
+            Future values: ``'node'``, ``'rust'``, ``'go'``.
+        run_audit: Whether to run vulnerability scanning (e.g.
+            ``pip-audit``). Defaults to ``False`` because it
+            requires network access and an external tool.
 
     Returns:
         A :class:`PreflightResult` with all check outcomes.
 
     Raises:
-        ReleaseKitError: On the first blocking failure if ``fail_fast=True``.
+        ReleaseKitError: On the first blocking failure (dirty worktree).
     """
     result = PreflightResult()
 
+    # ── Universal checks (all ecosystems) ──
     await _check_clean_worktree(vcs, result, dry_run=dry_run)
     if not result.ok:
         raise ReleaseKitError(
@@ -381,6 +515,12 @@ async def run_preflight(
 
     if not skip_version_check:
         await _check_version_conflicts(registry, versions, result)
+
+    # ── Ecosystem-specific checks ──
+    if ecosystem == 'python':
+        _check_metadata_validation(packages, result)
+        if run_audit:
+            await _check_pip_audit(result, workspace_root=workspace_root)
 
     logger.info('preflight_complete', summary=result.summary())
     return result

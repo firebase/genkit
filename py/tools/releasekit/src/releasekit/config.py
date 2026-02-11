@@ -16,8 +16,10 @@
 
 """Configuration reader for releasekit.
 
-Reads ``[tool.releasekit]`` from the workspace root ``pyproject.toml``
-and returns a validated :class:`ReleaseConfig` dataclass.
+Reads ``releasekit.toml`` from the workspace root and returns a validated
+:class:`ReleaseConfig` dataclass. The config file uses flat top-level keys
+(no ``[tool.releasekit]`` nesting) so it works for any ecosystem — Python,
+JS, Go, etc.
 
 Key Concepts (ELI5)::
 
@@ -28,7 +30,7 @@ Key Concepts (ELI5)::
     │                         │ Like the control panel on a washing       │
     │                         │ machine — knobs for how to run.           │
     ├─────────────────────────┼────────────────────────────────────────────┤
-    │ load_config()           │ Read pyproject.toml + validate settings.  │
+    │ load_config()           │ Read releasekit.toml + validate settings. │
     │                         │ Like reading and checking the recipe      │
     │                         │ before you start cooking.                 │
     ├─────────────────────────┼────────────────────────────────────────────┤
@@ -39,9 +41,8 @@ Key Concepts (ELI5)::
 
 Validation Pipeline::
 
-    pyproject.toml
+    releasekit.toml
     ┌──────────────────┐
-    │ [tool.releasekit] │
     │ tag_fromat = ...  │  ← typo!
     └────────┬─────────┘
              │
@@ -68,13 +69,15 @@ Validation Pipeline::
     │ ReleaseConfig()  │  ← frozen dataclass, ready to use
     └──────────────────┘
 
-Supported keys in ``[tool.releasekit]``::
+Supported keys in ``releasekit.toml``::
 
     tag_format         = "{name}-v{version}"     # per-package tag format
     umbrella_tag       = "v{version}"            # umbrella tag format
     publish_from       = "local"                 # "local" or "ci"
     groups             = { core = ["genkit"], plugins = ["genkit-plugin-*"] }
     exclude            = ["sample-*"]            # glob patterns to exclude
+    exclude_publish    = ["genkit-plugin-xai"]     # discovered + bumped but not published
+    exclude_bump       = ["group:samples"]         # discovered + checked but not bumped
     changelog          = true                    # generate CHANGELOG.md
     prerelease_mode    = "rollup"                # "rollup" or "separate"
     http_pool_size     = 10                      # httpx connection pool
@@ -84,7 +87,7 @@ Usage::
 
     from releasekit.config import load_config
 
-    cfg = load_config(Path('pyproject.toml'))
+    cfg = load_config(Path('/path/to/workspace'))
     print(cfg.tag_format)  # "{name}-v{version}"
 """
 
@@ -103,15 +106,21 @@ from releasekit.logging import get_logger
 
 logger = get_logger(__name__)
 
-# All recognized keys in [tool.releasekit].
+# The config file name at the workspace root.
+CONFIG_FILENAME = 'releasekit.toml'
+
+# All recognized top-level keys in releasekit.toml.
 VALID_KEYS: frozenset[str] = frozenset({
     'changelog',
     'exclude',
+    'exclude_bump',
+    'exclude_publish',
     'groups',
     'http_pool_size',
     'prerelease_mode',
     'publish_from',
     'smoke_test',
+    'synchronize',
     'tag_format',
     'umbrella_tag',
 })
@@ -126,7 +135,7 @@ class ReleaseConfig:
     """Validated configuration for a releasekit run.
 
     All fields have sensible defaults so ``ReleaseConfig()`` is usable
-    without any ``[tool.releasekit]`` section present.
+    without any ``releasekit.toml`` file present.
 
     Attributes:
         tag_format: Per-package git tag format string.
@@ -136,14 +145,24 @@ class ReleaseConfig:
         publish_from: Where to publish from: ``"local"`` or ``"ci"``.
         groups: Named groups of package patterns for selective release.
             Keys are group names, values are lists of glob patterns.
-        exclude: Glob patterns for packages to exclude from release.
+        exclude: Glob patterns for packages to exclude from discovery.
+            Excluded packages are not checked, version-bumped, or published.
+        exclude_publish: Glob patterns (or ``group:<name>`` refs) for
+            packages to skip during publish. These packages are still
+            discovered, checked, and version-bumped.
+        exclude_bump: Glob patterns (or ``group:<name>`` refs) for
+            packages to skip during version bumps. These packages are
+            still discovered and checked but not bumped or published.
         changelog: Whether to generate CHANGELOG.md entries.
         prerelease_mode: How to handle prerelease changelogs:
             ``"rollup"`` merges into the final release,
             ``"separate"`` keeps them distinct.
         http_pool_size: Max connections for the httpx connection pool.
         smoke_test: Whether to run ``pip install --dry-run`` after publish.
-        config_path: Path to the pyproject.toml that was loaded.
+        synchronize: If ``True``, all packages share the same version
+            (lockstep mode). If ``False`` (default), packages are versioned
+            independently with transitive PATCH propagation.
+        config_path: Path to the releasekit.toml that was loaded.
     """
 
     tag_format: str = '{name}-v{version}'
@@ -151,10 +170,13 @@ class ReleaseConfig:
     publish_from: str = 'local'
     groups: dict[str, list[str]] = field(default_factory=dict)
     exclude: list[str] = field(default_factory=list)
+    exclude_publish: list[str] = field(default_factory=list)
+    exclude_bump: list[str] = field(default_factory=list)
     changelog: bool = True
     prerelease_mode: str = 'rollup'
     http_pool_size: int = 10
     smoke_test: bool = True
+    synchronize: bool = False
     config_path: Path | None = None
 
 
@@ -172,6 +194,8 @@ def _validate_value_type(key: str, value: Any) -> None:  # noqa: ANN401 — dyna
         'publish_from': str,
         'groups': dict,
         'exclude': list,
+        'exclude_bump': list,
+        'exclude_publish': list,
         'changelog': bool,
         'prerelease_mode': str,
         'http_pool_size': int,
@@ -184,8 +208,8 @@ def _validate_value_type(key: str, value: Any) -> None:  # noqa: ANN401 — dyna
         type_name = expected.__name__ if isinstance(expected, type) else str(expected)
         raise ReleaseKitError(
             code=E.CONFIG_INVALID_VALUE,
-            message=f"[tool.releasekit] key '{key}' must be {type_name}, got {type(value).__name__}",
-            hint=f'Check the value of {key} in your pyproject.toml.',
+            message=f"'{key}' must be {type_name}, got {type(value).__name__}",
+            hint=f'Check the value of {key} in your releasekit.toml.',
         )
 
 
@@ -229,35 +253,34 @@ def _validate_groups(groups: dict[str, Any]) -> dict[str, list[str]]:  # noqa: A
     return result
 
 
-def load_config(pyproject_path: Path) -> ReleaseConfig:
-    """Load and validate ``[tool.releasekit]`` from a pyproject.toml.
+def load_config(workspace_root: Path) -> ReleaseConfig:
+    """Load and validate configuration from ``releasekit.toml``.
 
-    If the file exists but has no ``[tool.releasekit]`` section, returns
-    a :class:`ReleaseConfig` with all defaults. If the file does not
-    exist, raises :class:`ReleaseKitError`.
+    Reads top-level keys directly from ``releasekit.toml`` in the given
+    workspace root (no ``[tool.*]`` nesting). If the file does not exist,
+    returns a :class:`ReleaseConfig` with all defaults.
 
     Args:
-        pyproject_path: Path to the pyproject.toml file.
+        workspace_root: Directory containing ``releasekit.toml``.
 
     Returns:
         A validated :class:`ReleaseConfig`.
 
     Raises:
-        ReleaseKitError: If the file is missing or contains invalid config.
+        ReleaseKitError: If the file contains invalid config.
     """
-    if not pyproject_path.is_file():
-        raise ReleaseKitError(
-            code=E.CONFIG_NOT_FOUND,
-            message=f'pyproject.toml not found at {pyproject_path}',
-            hint="Run 'releasekit init' from your workspace root.",
-        )
+    config_path = workspace_root / CONFIG_FILENAME
+
+    if not config_path.is_file():
+        logger.debug('no_releasekit_config', path=str(config_path))
+        return ReleaseConfig(config_path=None)
 
     try:
-        text = pyproject_path.read_text(encoding='utf-8')
+        text = config_path.read_text(encoding='utf-8')
     except OSError as exc:
         raise ReleaseKitError(
             code=E.CONFIG_NOT_FOUND,
-            message=f'Failed to read {pyproject_path}: {exc}',
+            message=f'Failed to read {config_path}: {exc}',
         ) from exc
 
     try:
@@ -265,15 +288,15 @@ def load_config(pyproject_path: Path) -> ReleaseConfig:
     except tomlkit.exceptions.TOMLKitError as exc:
         raise ReleaseKitError(
             code=E.CONFIG_NOT_FOUND,
-            message=f'Failed to parse {pyproject_path}: {exc}',
+            message=f'Failed to parse {config_path}: {exc}',
         ) from exc
 
-    tool_section = doc.get('tool', {})
-    raw: dict[str, Any] = dict(tool_section.get('releasekit', {}))  # noqa: ANN401
+    # Top-level keys are the config (no [tool.releasekit] nesting).
+    raw: dict[str, Any] = dict(doc)  # noqa: ANN401
 
     if not raw:
-        logger.debug('no_releasekit_config', path=str(pyproject_path))
-        return ReleaseConfig(config_path=pyproject_path)
+        logger.debug('empty_releasekit_config', path=str(config_path))
+        return ReleaseConfig(config_path=config_path)
 
     # Check for unknown keys with fuzzy suggestions.
     for key in raw:
@@ -282,7 +305,7 @@ def load_config(pyproject_path: Path) -> ReleaseConfig:
             hint = f"Did you mean '{suggestion}'?" if suggestion else 'Check the releasekit docs for valid keys.'
             raise ReleaseKitError(
                 code=E.CONFIG_INVALID_KEY,
-                message=f"Unknown key '{key}' in [tool.releasekit]",
+                message=f"Unknown key '{key}' in releasekit.toml",
                 hint=hint,
             )
 
@@ -303,6 +326,22 @@ def load_config(pyproject_path: Path) -> ReleaseConfig:
                     message=f"'exclude' items must be strings, got {type(item).__name__}: {item!r}",
                     hint='Each exclude entry should be a glob pattern string, e.g. "sample-*".',
                 )
+    if 'exclude_publish' in raw:
+        for item in raw['exclude_publish']:
+            if not isinstance(item, str):
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_VALUE,
+                    message=f"'exclude_publish' items must be strings, got {type(item).__name__}: {item!r}",
+                    hint='Each exclude_publish entry should be a glob pattern string.',
+                )
+    if 'exclude_bump' in raw:
+        for item in raw['exclude_bump']:
+            if not isinstance(item, str):
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_VALUE,
+                    message=f"'exclude_bump' items must be strings, got {type(item).__name__}: {item!r}",
+                    hint='Each exclude_bump entry should be a glob pattern string.',
+                )
 
     # Normalize groups before passing to constructor.
     config_kwargs: dict[str, Any] = dict(raw)  # noqa: ANN401 — dynamic config values
@@ -310,13 +349,105 @@ def load_config(pyproject_path: Path) -> ReleaseConfig:
         config_kwargs['groups'] = _validate_groups(config_kwargs['groups'])
 
     # Let the dataclass handle defaults for any missing keys.
-    return ReleaseConfig(**config_kwargs, config_path=pyproject_path)
+    return ReleaseConfig(**config_kwargs, config_path=config_path)
+
+
+# Prefix for group references in exclude lists.
+_GROUP_PREFIX = 'group:'
+
+
+def resolve_group_refs(
+    patterns: list[str],
+    groups: dict[str, list[str]],
+) -> list[str]:
+    """Expand ``group:<name>`` references into flat package-name patterns.
+
+    Entries without the ``group:`` prefix are passed through unchanged.
+    Group references are replaced with the package patterns from the
+    named group. Groups can reference other groups recursively using
+    the same ``group:<name>`` syntax — cycles are detected and raise
+    an error.
+
+    Args:
+        patterns: List of glob patterns or ``group:<name>`` references.
+        groups: The ``[groups]`` mapping from :class:`ReleaseConfig`.
+
+    Returns:
+        A flat list of glob patterns with all group refs expanded.
+
+    Raises:
+        ReleaseKitError: If a ``group:<name>`` reference points to an
+            unknown group, or if a cycle is detected.
+
+    Example::
+
+        resolve_group_refs(
+            ['group:all_plugins'],
+            {
+                'google': ['genkit-plugin-firebase'],
+                'community': ['genkit-plugin-ollama'],
+                'all_plugins': ['group:google', 'group:community'],
+            },
+        )
+        # => ["genkit-plugin-firebase", "genkit-plugin-ollama"]
+    """
+    result: list[str] = []
+    for pat in patterns:
+        if pat.startswith(_GROUP_PREFIX):
+            group_name = pat[len(_GROUP_PREFIX) :]
+            result.extend(_resolve_group(group_name, groups, visiting=set()))
+        else:
+            result.append(pat)
+    return result
+
+
+def _resolve_group(
+    name: str,
+    groups: dict[str, list[str]],
+    visiting: set[str],
+) -> list[str]:
+    """Recursively expand a single group, detecting cycles.
+
+    Args:
+        name: Group name to resolve.
+        groups: All group definitions.
+        visiting: Set of group names currently being resolved (for
+            cycle detection).
+
+    Returns:
+        Flat list of package-name patterns.
+    """
+    if name not in groups:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f"Unknown group '{name}' referenced as 'group:{name}'",
+            hint=f'Available groups: {sorted(groups)}',
+        )
+    if name in visiting:
+        cycle = ' → '.join([*visiting, name])
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'Cycle detected in group references: {cycle}',
+            hint='Remove the circular group reference.',
+        )
+
+    visiting = visiting | {name}
+    result: list[str] = []
+    for pat in groups[name]:
+        if pat.startswith(_GROUP_PREFIX):
+            nested_name = pat[len(_GROUP_PREFIX) :]
+            result.extend(_resolve_group(nested_name, groups, visiting))
+        else:
+            result.append(pat)
+    return result
 
 
 __all__ = [
     'ALLOWED_PRERELEASE_MODES',
     'ALLOWED_PUBLISH_FROM',
+    'CONFIG_FILENAME',
     'VALID_KEYS',
     'ReleaseConfig',
     'load_config',
+    'resolve_group_refs',
 ]

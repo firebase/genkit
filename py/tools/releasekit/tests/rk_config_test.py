@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from releasekit.config import VALID_KEYS, ReleaseConfig, load_config
+from releasekit.config import CONFIG_FILENAME, VALID_KEYS, ReleaseConfig, load_config, resolve_group_refs
 from releasekit.errors import ReleaseKitError
 
 
@@ -70,26 +70,26 @@ class TestReleaseConfigDefaults:
             cfg.tag_format = 'oops'  # type: ignore[misc]
 
 
-class TestLoadConfigMissingFile:
-    """load_config raises when pyproject.toml is missing."""
+class TestLoadConfigNoFile:
+    """load_config returns defaults when releasekit.toml is absent."""
 
-    def test_missing_file(self, tmp_path: Path) -> None:
-        """Missing pyproject.toml raises RK-CONFIG-NOT-FOUND."""
-        with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(tmp_path / 'pyproject.toml')
-        assert 'RK-CONFIG-NOT-FOUND' in str(exc_info.value), f'Expected RK-CONFIG-NOT-FOUND, got {exc_info.value}'
-
-
-class TestLoadConfigNoSection:
-    """load_config returns defaults when [tool.releasekit] is absent."""
-
-    def test_no_releasekit_section(self, tmp_path: Path) -> None:
-        """Absent [tool.releasekit] section returns all defaults."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[project]\nname = "test"\n')
-        cfg = load_config(pyproject)
+    def test_missing_file_returns_defaults(self, tmp_path: Path) -> None:
+        """Missing releasekit.toml returns all defaults (no error)."""
+        cfg = load_config(tmp_path)
         assert cfg.tag_format == '{name}-v{version}', f'Expected default tag_format, got {cfg.tag_format}'
-        assert cfg.config_path == pyproject, f'Expected config_path={pyproject}, got {cfg.config_path}'
+        assert cfg.config_path is None, f'Expected config_path=None, got {cfg.config_path}'
+
+
+class TestLoadConfigEmpty:
+    """load_config returns defaults when releasekit.toml is empty."""
+
+    def test_empty_file_returns_defaults(self, tmp_path: Path) -> None:
+        """Empty releasekit.toml returns all defaults."""
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('')
+        cfg = load_config(tmp_path)
+        assert cfg.tag_format == '{name}-v{version}', f'Expected default tag_format, got {cfg.tag_format}'
+        assert cfg.config_path == config_file, f'Expected config_path={config_file}, got {cfg.config_path}'
 
 
 class TestLoadConfigValid:
@@ -97,40 +97,52 @@ class TestLoadConfigValid:
 
     def test_custom_tag_format(self, tmp_path: Path) -> None:
         """Custom tag_format is read correctly."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\ntag_format = "{name}@{version}"\n')
-        cfg = load_config(pyproject)
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('tag_format = "{name}@{version}"\n')
+        cfg = load_config(tmp_path)
         assert cfg.tag_format == '{name}@{version}', f'Expected custom tag_format, got {cfg.tag_format}'
 
     def test_publish_from_ci(self, tmp_path: Path) -> None:
         """Publish_from=ci is accepted."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\npublish_from = "ci"\n')
-        cfg = load_config(pyproject)
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('publish_from = "ci"\n')
+        cfg = load_config(tmp_path)
         assert cfg.publish_from == 'ci', f'Expected publish_from=ci, got {cfg.publish_from}'
 
     def test_groups(self, tmp_path: Path) -> None:
         """Groups are parsed as dict of string lists."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text(
-            '[tool.releasekit]\n[tool.releasekit.groups]\ncore = ["genkit"]\nplugins = ["genkit-plugin-*"]\n'
-        )
-        cfg = load_config(pyproject)
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('[groups]\ncore = ["genkit"]\nplugins = ["genkit-plugin-*"]\n')
+        cfg = load_config(tmp_path)
         assert cfg.groups == {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}, f'Unexpected groups: {cfg.groups}'
 
     def test_exclude(self, tmp_path: Path) -> None:
         """Exclude patterns are read as a list."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\nexclude = ["sample-*"]\n')
-        cfg = load_config(pyproject)
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('exclude = ["sample-*"]\n')
+        cfg = load_config(tmp_path)
         assert cfg.exclude == ['sample-*'], f'Expected exclude, got {cfg.exclude}'
 
     def test_http_pool_size(self, tmp_path: Path) -> None:
         """Http_pool_size is read as an integer."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\nhttp_pool_size = 20\n')
-        cfg = load_config(pyproject)
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('http_pool_size = 20\n')
+        cfg = load_config(tmp_path)
         assert cfg.http_pool_size == 20, f'Expected 20, got {cfg.http_pool_size}'
+
+    def test_synchronize(self, tmp_path: Path) -> None:
+        """Synchronize flag is read correctly."""
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('synchronize = true\n')
+        cfg = load_config(tmp_path)
+        assert cfg.synchronize is True, f'Expected synchronize=True, got {cfg.synchronize}'
+
+    def test_config_path_set(self, tmp_path: Path) -> None:
+        """Config path points to the loaded file."""
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('tag_format = "v{version}"\n')
+        cfg = load_config(tmp_path)
+        assert cfg.config_path == config_file, f'Expected config_path={config_file}, got {cfg.config_path}'
 
 
 class TestLoadConfigInvalid:
@@ -138,58 +150,58 @@ class TestLoadConfigInvalid:
 
     def test_unknown_key(self, tmp_path: Path) -> None:
         """Unknown key raises RK-CONFIG-INVALID-KEY."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\nunknwon_key = "value"\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('unknwon_key = "value"\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'RK-CONFIG-INVALID-KEY' in str(exc_info.value), f'Expected RK-CONFIG-INVALID-KEY, got {exc_info.value}'
 
     def test_unknown_key_suggests_fix(self, tmp_path: Path) -> None:
         """Typo 'tag_fromat' suggests 'tag_format'."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\ntag_fromat = "oops"\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('tag_fromat = "oops"\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'tag_format' in str(exc_info.value.hint), (
             f'Expected hint to suggest tag_format, got {exc_info.value.hint}'
         )
 
     def test_invalid_publish_from(self, tmp_path: Path) -> None:
         """Invalid publish_from raises RK-CONFIG-INVALID-VALUE."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\npublish_from = "github"\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('publish_from = "github"\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'RK-CONFIG-INVALID-VALUE' in str(exc_info.value), (
             f'Expected RK-CONFIG-INVALID-VALUE, got {exc_info.value}'
         )
 
     def test_invalid_prerelease_mode(self, tmp_path: Path) -> None:
         """Invalid prerelease_mode raises RK-CONFIG-INVALID-VALUE."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\nprerelease_mode = "yolo"\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('prerelease_mode = "yolo"\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'RK-CONFIG-INVALID-VALUE' in str(exc_info.value), (
             f'Expected RK-CONFIG-INVALID-VALUE, got {exc_info.value}'
         )
 
     def test_wrong_type_tag_format(self, tmp_path: Path) -> None:
         """Wrong type for tag_format raises RK-CONFIG-INVALID-VALUE."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\ntag_format = 42\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('tag_format = 42\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'RK-CONFIG-INVALID-VALUE' in str(exc_info.value), (
             f'Expected RK-CONFIG-INVALID-VALUE, got {exc_info.value}'
         )
 
     def test_wrong_type_groups(self, tmp_path: Path) -> None:
         """Group value as string instead of list raises RK-CONFIG-INVALID-VALUE."""
-        pyproject = tmp_path / 'pyproject.toml'
-        pyproject.write_text('[tool.releasekit]\n[tool.releasekit.groups]\ncore = "genkit"\n')
+        config_file = tmp_path / CONFIG_FILENAME
+        config_file.write_text('[groups]\ncore = "genkit"\n')
         with pytest.raises(ReleaseKitError) as exc_info:
-            load_config(pyproject)
+            load_config(tmp_path)
         assert 'RK-CONFIG-INVALID-VALUE' in str(exc_info.value), (
             f'Expected RK-CONFIG-INVALID-VALUE, got {exc_info.value}'
         )
@@ -207,3 +219,81 @@ class TestValidKeys:
         """Valid keys use underscores, not hyphens."""
         for key in VALID_KEYS:
             assert '-' not in key, f'Key {key} uses hyphens instead of underscores'
+
+
+class TestConfigFilename:
+    """CONFIG_FILENAME constant is correct."""
+
+    def test_filename(self) -> None:
+        """Config filename is releasekit.toml."""
+        assert CONFIG_FILENAME == 'releasekit.toml'
+
+
+class TestResolveGroupRefs:
+    """resolve_group_refs expands group: references recursively with cycle detection."""
+
+    def test_basic_expansion(self) -> None:
+        """group:name expands to the patterns in that group."""
+        groups = {'plugins': ['genkit-plugin-*', 'genkit-plugin-firebase']}
+        result = resolve_group_refs(['group:plugins'], groups)
+        assert result == ['genkit-plugin-*', 'genkit-plugin-firebase']
+
+    def test_nested_expansion(self) -> None:
+        """Groups can reference other groups recursively."""
+        groups = {
+            'google': ['genkit-plugin-google-*'],
+            'community': ['genkit-plugin-ollama'],
+            'all_plugins': ['group:google', 'group:community'],
+        }
+        result = resolve_group_refs(['group:all_plugins'], groups)
+        assert result == ['genkit-plugin-google-*', 'genkit-plugin-ollama']
+
+    def test_deeply_nested(self) -> None:
+        """Three levels of nesting resolves correctly."""
+        groups = {
+            'leaf': ['pkg-a'],
+            'mid': ['group:leaf', 'pkg-b'],
+            'top': ['group:mid'],
+        }
+        result = resolve_group_refs(['group:top'], groups)
+        assert result == ['pkg-a', 'pkg-b']
+
+    def test_direct_cycle_raises(self) -> None:
+        """A group referencing itself raises ReleaseKitError."""
+        groups = {'a': ['group:a']}
+        with pytest.raises(ReleaseKitError) as exc_info:
+            resolve_group_refs(['group:a'], groups)
+        assert 'Cycle' in str(exc_info.value)
+
+    def test_indirect_cycle_raises(self) -> None:
+        """A → B → A cycle raises ReleaseKitError."""
+        groups = {
+            'a': ['group:b'],
+            'b': ['group:a'],
+        }
+        with pytest.raises(ReleaseKitError) as exc_info:
+            resolve_group_refs(['group:a'], groups)
+        assert 'Cycle' in str(exc_info.value)
+
+    def test_unknown_group_raises(self) -> None:
+        """Referencing a non-existent group raises ReleaseKitError."""
+        groups = {'plugins': ['genkit-plugin-*']}
+        with pytest.raises(ReleaseKitError) as exc_info:
+            resolve_group_refs(['group:nonexistent'], groups)
+        assert 'nonexistent' in str(exc_info.value)
+
+    def test_mixed_patterns_and_refs(self) -> None:
+        """Plain patterns pass through, group: refs expand."""
+        groups = {'samples': ['sample-*']}
+        result = resolve_group_refs(['genkit', 'group:samples', 'other-pkg'], groups)
+        assert result == ['genkit', 'sample-*', 'other-pkg']
+
+    def test_empty_patterns(self) -> None:
+        """Empty pattern list returns empty."""
+        result = resolve_group_refs([], {'g': ['a']})
+        assert result == []
+
+    def test_no_groups(self) -> None:
+        """Patterns without group: refs pass through even when groups is empty."""
+        result = resolve_group_refs(['genkit', 'genkit-plugin-*'], {})
+        assert result == ['genkit', 'genkit-plugin-*']

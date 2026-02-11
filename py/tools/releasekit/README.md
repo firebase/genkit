@@ -155,7 +155,7 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 
 ### Health Checks
 
-`releasekit check` runs 10 checks split into two categories:
+`releasekit check` runs 17 checks split into two categories:
 
 **Universal checks** (always run):
 - `cycles` — circular dependency chains
@@ -170,13 +170,24 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `version_consistency` — plugin version matches core
 - `naming_convention` — directory matches package name
 - `metadata_completeness` — pyproject.toml required fields
+- `python_version` — consistent `requires-python` across packages
+- `python_classifiers` — Python version classifiers (3.10–3.14)
+- `dependency_resolution` — `uv pip check` passes
+- `namespace_init` — no `__init__.py` in namespace directories
+- `readme_field` — publishable packages declare `readme` in `[project]`
+- `changelog_url` — publishable packages have `Changelog` in `[project.urls]`
+- `publish_classifier_consistency` — `exclude_publish` agrees with `Private :: Do Not Upload`
 
 The `CheckBackend` protocol allows adding language-specific checks
 for other runtimes (Go, JS) without modifying the core check runner.
 
 ### Preflight Checks
 
-`run_preflight` gates the publish pipeline with environment checks:
+`run_preflight` gates the publish pipeline with environment checks.
+Checks are split into **universal** (always run) and **ecosystem-specific**
+(gated by `ecosystem` parameter):
+
+**Universal checks:**
 - Clean git worktree
 - Lock file up to date
 - No shallow clone
@@ -184,6 +195,106 @@ for other runtimes (Go, JS) without modifying the core check runner.
 - No stale dist/ directories
 - Trusted publisher (OIDC) detection
 - Version conflict check against PyPI
+
+**Python-specific checks** (`ecosystem='python'`):
+- `metadata_validation` — pyproject.toml has description, license, authors
+- `pip_audit` — vulnerability scan (advisory, opt-in via `run_audit=True`)
+
+The `ecosystem` parameter enables forward-compatible extensibility: future
+ecosystems (Node/npm, Rust/cargo, Go) can add their own checks (e.g.
+`npm audit`, `cargo audit`, `govulncheck`) without modifying universal logic.
+
+### Resume / State
+
+Every publish run persists state to `.releasekit-state.json` after each
+package completes. On crash or failure:
+
+```bash
+# Resume from where we left off
+releasekit publish --resume
+
+# Force restart from scratch
+releasekit publish --fresh
+```
+
+The state file tracks:
+- Per-package status (`pending`, `building`, `published`, `failed`)
+- Git SHA at start (refuses to resume if HEAD changed)
+- Checksums of published artifacts
+
+### SIGUSR1/SIGUSR2 Controls
+
+During a live publish, you can pause and resume the scheduler:
+
+```bash
+kill -USR1 <pid>   # Pause: finish current packages, stop starting new ones
+kill -USR2 <pid>   # Resume: continue processing the queue
+```
+
+## Configuration
+
+`releasekit init` scaffolds configuration in `pyproject.toml`:
+
+```toml
+[tool.releasekit]
+tag_format = "{name}/v{version}"
+synchronize = false      # Independent versioning (default)
+concurrency = 5
+smoke_test = true
+verify_checksums = true
+exclude = ["samples/*"]
+
+[tool.releasekit.index]
+publish_url = "https://upload.pypi.org/legacy/"
+check_url = "https://pypi.org/simple/"
+```
+
+### Configuration Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `tag_format` | `{name}/v{version}` | Git tag template |
+| `umbrella_tag` | `v{version}` | Umbrella tag for the release |
+| `synchronize` | `false` | Lockstep versioning (all packages same version) |
+| `concurrency` | `5` | Max parallel publish workers |
+| `smoke_test` | `true` | Run `python -c 'import ...'` after publish |
+| `verify_checksums` | `true` | Verify SHA-256 against registry |
+| `exclude` | `[]` | Glob patterns to exclude from discovery entirely |
+| `exclude_publish` | `[]` | Glob patterns to skip during publish (still discovered + bumped) |
+| `exclude_bump` | `[]` | Glob patterns to skip during version bumps (still discovered + checked) |
+| `poll_timeout` | `300.0` | Seconds to wait for package availability |
+| `max_retries` | `0` | Retry count per package on transient failure |
+
+### Exclusion Hierarchy
+
+The three exclude levels control how much of the pipeline a package participates in:
+
+| Level | Discovered | Checked | Version-bumped | Published |
+|-------|:--:|:--:|:--:|:--:|
+| *(normal)* | ✅ | ✅ | ✅ | ✅ |
+| `exclude_publish` | ✅ | ✅ | ✅ | ❌ |
+| `exclude_bump` | ✅ | ✅ | ❌ | ❌ |
+| `exclude` | ❌ | ❌ | ❌ | ❌ |
+
+### Group References
+
+All exclude lists support `group:<name>` references that expand to the
+patterns defined in `[groups]`. Groups can reference other groups
+recursively — cycles are detected and reported as errors.
+
+```toml
+[groups]
+core = ["genkit"]
+google_plugins = ["genkit-plugin-firebase", "genkit-plugin-google-*"]
+community_plugins = ["genkit-plugin-anthropic", "genkit-plugin-ollama"]
+all_plugins = ["group:google_plugins", "group:community_plugins"]
+samples = ["*-hello", "*-demo", "web-*"]
+
+exclude_publish = [
+  "group:samples",              # entire group
+  "genkit-plugin-amazon-bedrock", # specific package
+]
+```
 
 ## Architecture
 
@@ -263,11 +374,102 @@ releasekit
 └───────────────────────────────────────────────────────┘
 ```
 
+### Backend Protocols
+
+All I/O goes through protocol-defined backends. This enables:
+- **Testing** with in-memory fakes (no subprocess calls)
+- **Future ecosystems** by implementing new backends (e.g. `CargoBackend`)
+- **CI/local parity** — same code path, different backends
+
+```python
+# Protocols defined in:
+#   releasekit.backends.vcs.VCS
+#   releasekit.backends.pm.PackageManager
+#   releasekit.backends.registry.Registry
+#   releasekit.backends.forge.Forge
+
+# Concrete implementations:
+#   releasekit.backends.git.GitBackend
+#   releasekit.backends.uv.UvBackend
+#   releasekit.backends.pypi.PyPIRegistry
+#   releasekit.backends.github.GitHubForge
+```
+
+### Ecosystem Abstraction
+
+Some operations are currently Python-specific but follow a pattern that
+enables multi-ecosystem support:
+
+| Module | Current State | Abstraction Path |
+|--------|--------------|------------------|
+| `bump.py` | Rewrites `pyproject.toml` | → `Workspace.rewrite_version()` |
+| `pin.py` | Rewrites deps in `pyproject.toml` | → `Workspace.rewrite_dependency_version()` |
+| `config.py` | Reads `[tool.releasekit]` | → Config discovery chain |
+| `checks.py` | `PythonCheckBackend` | ✅ Already protocol-based |
+| `preflight.py` | `pip-audit`, metadata | ✅ Gated by `ecosystem=` param |
+
+## Testing
+
+```bash
+# Run all tests
+uv run pytest tests/
+
+# With coverage
+uv run pytest tests/ --cov=releasekit --cov-report=term-missing
+
+# Specific module
+uv run pytest tests/rk_publisher_test.py -v
+```
+
+### Testing Strategy
+
+- All backends are injected via **dependency injection** — tests use
+  in-memory fakes that satisfy the protocol contracts.
+- No subprocess calls, no network I/O, no file system side effects
+  (except `tmp_path`).
+- Standard library assertions (`if/else` + `raise AssertionError`)
+  following the want/got pattern.
+- Complex comparisons use `dataclasses.asdict` for readable diffs.
+
+## Security
+
+- **No credentials in code** — PyPI tokens come from environment
+  (`UV_PUBLISH_TOKEN`) or trusted publishing (OIDC).
+- **Checksum verification** — SHA-256 checksums are computed locally
+  and verified against the registry after publish.
+- **Ephemeral pinning** — dependency rewrites use crash-safe
+  backup/restore with `.bak` files.
+- **State file integrity** — resume refuses if HEAD SHA differs.
+
 ## Why This Tool Exists
 
-The genkit Python SDK is a uv workspace with 60+ packages that have
+The Genkit Python SDK is a uv workspace with 60+ packages that have
 inter-dependencies. Publishing them to PyPI requires dependency-ordered
 builds with ephemeral version pinning — and no existing tool does this.
+
+`uv publish` is a **single-package** command. It publishes one wheel or
+sdist to PyPI. It does not understand workspaces, dependency graphs, or
+multi-package release orchestration. releasekit fills that gap:
+
+| Feature | `uv publish` | `releasekit` |
+|---------|:--:|:--:|
+| Publish a single package | ✅ | ✅ (calls `uv publish` internally) |
+| Dependency graph ordering | ❌ | ✅ topological sort |
+| Multi-package workspace publish | ❌ | ✅ all packages in order |
+| Version bump computation | ❌ | ✅ git-based semver |
+| Transitive dependency propagation | ❌ | ✅ patch bump dependents |
+| Concurrency within topo levels | ❌ | ✅ parallel within a level |
+| Pre/post-publish checks | ❌ | ✅ preflight + smoke test |
+| Retry with backoff | ❌ | ✅ configurable |
+| Exclude lists / groups | ❌ | ✅ `exclude`, `exclude_publish`, `exclude_bump` |
+| Git tagging | ❌ | ✅ per-package + umbrella |
+| Changelog generation | ❌ | ✅ from conventional commits |
+| Release manifest | ❌ | ✅ JSON record of what shipped |
+| Crash-safe resume | ❌ | ✅ state file + `--resume` |
+| SIGUSR1/SIGUSR2 pause/resume | ❌ | ✅ live scheduler control |
+
+`uv publish` is the low-level primitive. releasekit is the orchestrator
+that calls it per-package at the right time in the right order.
 
 See [roadmap.md](roadmap.md) for the full design rationale and
 implementation plan.

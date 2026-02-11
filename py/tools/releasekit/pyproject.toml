@@ -31,6 +31,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
+  "aiofiles>=24.1.0",     # Non-blocking file I/O for async Workspace protocol
   "packaging>=24.0",      # PEP 508 dependency specifier parsing
   "tomlkit>=0.13.0",      # Style-preserving TOML manipulation
   "structlog>=25.1.0",    # Structured logging

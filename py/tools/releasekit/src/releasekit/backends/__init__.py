@@ -18,32 +18,39 @@
 
 All external tool calls (uv, git, gh, PyPI API) go through injectable
 Protocol interfaces defined here. This makes the tool testable and
-extensible -- swap in a mock backend for tests, or a different VCS
+extensible — swap in a mock backend for tests, or a different VCS
 backend for a non-git workflow.
 
-Protocols:
+Protocols (defined in subpackage ``__init__.py`` files):
 
-- :class:`PackageManager` -- build, publish, lock (default: :class:`UvBackend`)
-- :class:`VCS` -- commit, tag, push, log (default: :class:`GitBackend`)
-- :class:`Forge` -- GitHub releases, PRs (default: :class:`GitHubBackend`)
-- :class:`Registry` -- PyPI queries (default: :class:`PyPIBackend`)
+- :class:`PackageManager` — build, publish, lock (default: :class:`UvBackend`)
+- :class:`VCS` — commit, tag, push, log (default: :class:`GitCLIBackend`)
+- :class:`Forge` — GitHub releases, PRs (default: :class:`GitHubCLIBackend`)
+- :class:`Registry` — PyPI queries (default: :class:`PyPIBackend`)
+- :class:`Workspace` — discover, classify deps, rewrite versions (default: :class:`UvWorkspace`)
 """
 
 from releasekit.backends._run import CommandResult, run_command
-from releasekit.backends.forge import Forge, GitHubBackend
+from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.pm import PackageManager, UvBackend
-from releasekit.backends.registry import PyPIBackend, Registry
-from releasekit.backends.vcs import VCS, GitBackend
+from releasekit.backends.registry import ChecksumResult, PyPIBackend, Registry
+from releasekit.backends.vcs import VCS, GitCLIBackend
+from releasekit.backends.workspace import Package, UvWorkspace, Workspace
 
 __all__ = [
+    'ChecksumResult',
     'CommandResult',
     'Forge',
-    'GitBackend',
-    'GitHubBackend',
+    'GitCLIBackend',
+    'GitHubAPIBackend',
+    'GitHubCLIBackend',
+    'Package',
     'PackageManager',
     'PyPIBackend',
     'Registry',
     'UvBackend',
+    'UvWorkspace',
     'VCS',
+    'Workspace',
     'run_command',
 ]

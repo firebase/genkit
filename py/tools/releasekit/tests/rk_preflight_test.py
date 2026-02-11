@@ -309,6 +309,60 @@ class FakeForge:
         """Return empty PR data."""
         return {}
 
+    async def list_prs(
+        self,
+        *,
+        label: str = '',
+        state: str = 'open',
+        head: str = '',
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Stub list_prs."""
+        return []
+
+    async def add_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub add_labels."""
+        return _OK
+
+    async def remove_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub remove_labels."""
+        return _OK
+
+    async def update_pr(
+        self,
+        pr_number: int,
+        *,
+        title: str = '',
+        body: str = '',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub update_pr."""
+        return _OK
+
+    async def merge_pr(
+        self,
+        pr_number: int,
+        *,
+        method: str = 'squash',
+        commit_message: str = '',
+        delete_branch: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Stub merge_pr."""
+        return _OK
+
 
 # ── PreflightResult tests ──
 
@@ -509,3 +563,186 @@ class TestRunPreflight:
         # With forge=None, there should be a warning about forge not available.
         if not result.ok:
             raise AssertionError(f'Should pass: {result.errors}')
+
+
+class TestEcosystemSpecificChecks:
+    """Tests for ecosystem-specific preflight checks."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        """Create test packages with pyproject.toml files."""
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.5.0"\n'
+            'description = "Test"\nlicense = "Apache-2.0"\n'
+            'requires-python = ">=3.10"\n'
+            'authors = [{name = "Test"}]\n',
+            encoding='utf-8',
+        )
+        return [
+            Package(
+                name='genkit',
+                version='0.5.0',
+                path=pkg_dir,
+                pyproject_path=pyproject,
+            ),
+        ]
+
+    def test_metadata_validation_passes(self, tmp_path: Path) -> None:
+        """Packages with complete metadata pass validation."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='python',
+            ),
+        )
+
+        if not result.ok:
+            raise AssertionError(f'Should pass: {result.errors}')
+        if 'metadata_validation' not in result.passed:
+            raise AssertionError(f'Missing metadata_validation in passed: {result.passed}')
+
+    def test_metadata_validation_warns_missing_fields(self, tmp_path: Path) -> None:
+        """Packages with missing metadata get warnings."""
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        # Missing description, license, authors.
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.5.0"\n',
+            encoding='utf-8',
+        )
+        packages = [
+            Package(
+                name='genkit',
+                version='0.5.0',
+                path=pkg_dir,
+                pyproject_path=pyproject,
+            ),
+        ]
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='python',
+            ),
+        )
+
+        # Metadata issues are warnings, not failures.
+        if not result.ok:
+            raise AssertionError(f'Should still pass (warnings only): {result.errors}')
+        has_metadata_warning = any('metadata_validation' in w for w in result.warnings)
+        if not has_metadata_warning:
+            raise AssertionError(f'Expected metadata_validation warning: {result.warnings}')
+
+    def test_non_python_ecosystem_skips_checks(self, tmp_path: Path) -> None:
+        """Non-Python ecosystems skip pip-audit and metadata checks."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='node',
+            ),
+        )
+
+        if not result.ok:
+            raise AssertionError(f'Should pass: {result.errors}')
+        if 'metadata_validation' in result.passed:
+            raise AssertionError('Node ecosystem should NOT run metadata_validation')
+
+    def test_pip_audit_skipped_when_not_enabled(self, tmp_path: Path) -> None:
+        """pip-audit is not run when run_audit=False (default)."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='python',
+                run_audit=False,
+            ),
+        )
+
+        if not result.ok:
+            raise AssertionError(f'Should pass: {result.errors}')
+        if 'pip_audit' in result.passed:
+            raise AssertionError('pip_audit should not be in passed when disabled')
+
+    def test_non_publishable_skipped(self, tmp_path: Path) -> None:
+        """Non-publishable packages are skipped in metadata check."""
+        pkg_dir = tmp_path / 'packages' / 'sample'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        # Missing everything — but not publishable.
+        pyproject.write_text('[project]\nname = "sample"\nversion = "0.1.0"\n', encoding='utf-8')
+        packages = [
+            Package(
+                name='sample',
+                version='0.1.0',
+                path=pkg_dir,
+                pyproject_path=pyproject,
+                is_publishable=False,
+            ),
+        ]
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='sample', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='python',
+            ),
+        )
+
+        if not result.ok:
+            raise AssertionError(f'Should pass: {result.errors}')
+        # metadata_validation should pass because no publishable packages had issues.
+        if 'metadata_validation' not in result.passed:
+            raise AssertionError(f'Expected metadata_validation pass: {result.passed}')

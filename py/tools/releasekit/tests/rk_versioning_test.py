@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.errors import ReleaseKitError
+from releasekit.graph import build_graph
 from releasekit.versioning import (
     BumpType,
     _apply_bump,
@@ -431,3 +432,211 @@ class TestComputeBumps:
         # feat (minor) > fix (patch) > chore (none)
         assert results[0].bump == 'minor'
         assert results[0].new_version == '1.1.0'
+
+
+class TestTransitivePropagation:
+    """Tests for transitive PATCH propagation via dependency graph."""
+
+    def _make_pkg(
+        self,
+        name: str,
+        version: str,
+        path: str,
+        internal_deps: list[str] | None = None,
+    ) -> Package:
+        """Helper to create a Package with optional internal deps."""
+        return Package(
+            name=name,
+            version=version,
+            path=Path(path),
+            pyproject_path=Path(path) / 'pyproject.toml',
+            internal_deps=internal_deps or [],
+        )
+
+    @pytest.mark.asyncio
+    async def test_direct_dependent_gets_patch(self) -> None:
+        """A bumped package causes its direct dependent to get a PATCH bump."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+        ]
+        graph = build_graph(packages)
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        results = await compute_bumps(packages, vcs, graph=graph)
+
+        # genkit gets a direct minor bump.
+        assert results[0].name == 'genkit'
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.6.0'
+        # foo gets a transitive PATCH bump.
+        assert results[1].name == 'genkit-plugin-foo'
+        assert results[1].bump == 'patch'
+        assert results[1].new_version == '0.5.1'
+        assert 'dependency genkit bumped' in results[1].reason
+
+    @pytest.mark.asyncio
+    async def test_multi_level_propagation(self) -> None:
+        """Propagation reaches transitive dependents (A → B → C)."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+            self._make_pkg(
+                'sample-app',
+                '0.1.0',
+                '/ws/samples/app',
+                internal_deps=['genkit-plugin-foo'],
+            ),
+        ]
+        graph = build_graph(packages)
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        results = await compute_bumps(packages, vcs, graph=graph)
+
+        assert results[0].bump == 'minor'  # genkit: direct
+        assert results[1].bump == 'patch'  # foo: transitive from genkit
+        assert results[2].bump == 'patch'  # sample: transitive from foo
+
+    @pytest.mark.asyncio
+    async def test_no_graph_skips_propagation(self) -> None:
+        """Without a graph, dependents are not bumped transitively."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+        ]
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        # No graph passed — old behavior.
+        results = await compute_bumps(packages, vcs)
+
+        assert results[0].bump == 'minor'  # genkit: direct
+        assert results[1].skipped is True  # foo: no commits, no propagation
+
+    @pytest.mark.asyncio
+    async def test_already_bumped_not_downgraded(self) -> None:
+        """A package with a direct bump is not downgraded to PATCH."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+        ]
+        graph = build_graph(packages)
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa fix: bugfix'],
+                '/ws/plugins/foo': ['bbb feat: new feature'],
+            },
+        )
+
+        results = await compute_bumps(packages, vcs, graph=graph)
+
+        assert results[0].bump == 'patch'  # genkit: direct fix
+        # foo has a direct minor bump — should NOT be downgraded to patch.
+        assert results[1].bump == 'minor'
+        assert results[1].new_version == '0.6.0'
+
+
+class TestSynchronizedMode:
+    """Tests for synchronized (lockstep) versioning."""
+
+    def _make_pkg(self, name: str, version: str, path: str) -> Package:
+        """Helper to create a Package for testing."""
+        return Package(
+            name=name,
+            version=version,
+            path=Path(path),
+            pyproject_path=Path(path) / 'pyproject.toml',
+        )
+
+    @pytest.mark.asyncio
+    async def test_all_get_max_bump(self) -> None:
+        """In synchronized mode, all packages get the workspace-max bump."""
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: new feature'],
+                '/ws/plugins/foo': ['bbb fix: small fix'],
+            },
+        )
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg('genkit-plugin-foo', '0.5.0', '/ws/plugins/foo'),
+            self._make_pkg('genkit-plugin-bar', '0.5.0', '/ws/plugins/bar'),
+        ]
+
+        results = await compute_bumps(packages, vcs, synchronize=True)
+
+        # All packages get minor (the max across the workspace).
+        for result in results:
+            assert result.bump == 'minor'
+            assert result.new_version == '0.6.0'
+            assert result.skipped is False
+
+    @pytest.mark.asyncio
+    async def test_unchanged_get_reason(self) -> None:
+        """Unchanged packages in synchronized mode get a 'synchronized:' reason."""
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg('genkit-plugin-foo', '0.5.0', '/ws/plugins/foo'),
+        ]
+
+        results = await compute_bumps(packages, vcs, synchronize=True)
+
+        # genkit has a direct reason.
+        assert 'feat: core update' in results[0].reason
+        # foo was unchanged but gets synchronized reason.
+        assert 'synchronized:' in results[1].reason
+
+    @pytest.mark.asyncio
+    async def test_no_commits_anywhere(self) -> None:
+        """If no packages have commits, synchronized mode skips all."""
+        vcs = FakeVCS(log_by_path={})
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg('genkit-plugin-foo', '0.5.0', '/ws/plugins/foo'),
+        ]
+
+        results = await compute_bumps(packages, vcs, synchronize=True)
+
+        for result in results:
+            assert result.skipped is True
+            assert result.bump == 'none'

@@ -21,28 +21,28 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from releasekit.backends.forge import Forge, GitHubBackend
+from releasekit.backends.forge import Forge, GitHubCLIBackend
 from releasekit.logging import configure_logging
 
 configure_logging(quiet=True)
 
 
-class TestGitHubBackendProtocol:
-    """Verify GitHubBackend implements the Forge protocol."""
+class TestGitHubCLIBackendProtocol:
+    """Verify GitHubCLIBackend implements the Forge protocol."""
 
     def test_implements_protocol(self, tmp_path: Path) -> None:
-        """GitHubBackend should be a runtime-checkable Forge."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        """GitHubCLIBackend should be a runtime-checkable Forge."""
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         assert isinstance(backend, Forge)
 
 
-class TestGitHubBackendDryRun:
-    """Tests for GitHubBackend in dry-run mode."""
+class TestGitHubCLIBackendDryRun:
+    """Tests for GitHubCLIBackend in dry-run mode."""
 
     @pytest.mark.asyncio
     async def test_create_release_dry_run(self, tmp_path: Path) -> None:
         """create_release() in dry-run should return synthetic success."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.create_release('v1.0.0', title='Release v1.0.0', dry_run=True)
         assert result.ok
         assert result.dry_run
@@ -50,21 +50,21 @@ class TestGitHubBackendDryRun:
     @pytest.mark.asyncio
     async def test_create_release_draft(self, tmp_path: Path) -> None:
         """create_release(draft=True) should include --draft."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.create_release('v1.0.0', draft=True, dry_run=True)
         assert '--draft' in result.command
 
     @pytest.mark.asyncio
     async def test_create_release_prerelease(self, tmp_path: Path) -> None:
         """create_release(prerelease=True) should include --prerelease."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.create_release('v1.0.0', prerelease=True, dry_run=True)
         assert '--prerelease' in result.command
 
     @pytest.mark.asyncio
     async def test_delete_release_dry_run(self, tmp_path: Path) -> None:
         """delete_release() in dry-run should return synthetic success."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.delete_release('v1.0.0', dry_run=True)
         assert result.ok
         assert result.dry_run
@@ -72,14 +72,14 @@ class TestGitHubBackendDryRun:
     @pytest.mark.asyncio
     async def test_promote_release_dry_run(self, tmp_path: Path) -> None:
         """promote_release() in dry-run should return synthetic success."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.promote_release('v1.0.0', dry_run=True)
         assert result.ok
 
     @pytest.mark.asyncio
     async def test_create_pr_dry_run(self, tmp_path: Path) -> None:
         """create_pr() in dry-run should include branch info."""
-        backend = GitHubBackend(repo='firebase/genkit', cwd=tmp_path)
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
         result = await backend.create_pr(
             title='Test PR',
             head='feat/test',
@@ -88,3 +88,45 @@ class TestGitHubBackendDryRun:
         )
         assert result.ok
         assert 'feat/test' in result.command
+
+    @pytest.mark.asyncio
+    async def test_add_labels_dry_run(self, tmp_path: Path) -> None:
+        """add_labels() in dry-run should include label args."""
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
+        result = await backend.add_labels(
+            42,
+            ['autorelease: pending', 'release'],
+            dry_run=True,
+        )
+        assert result.ok
+        assert result.dry_run
+        assert '--add-label' in result.command
+        assert 'autorelease: pending' in result.command
+
+    @pytest.mark.asyncio
+    async def test_remove_labels_dry_run(self, tmp_path: Path) -> None:
+        """remove_labels() in dry-run should include label args."""
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
+        result = await backend.remove_labels(
+            42,
+            ['autorelease: pending'],
+            dry_run=True,
+        )
+        assert result.ok
+        assert result.dry_run
+        assert '--remove-label' in result.command
+
+    @pytest.mark.asyncio
+    async def test_update_pr_dry_run(self, tmp_path: Path) -> None:
+        """update_pr() in dry-run should include title/body args."""
+        backend = GitHubCLIBackend(repo='firebase/genkit', cwd=tmp_path)
+        result = await backend.update_pr(
+            42,
+            title='chore(release): v0.6.0',
+            body='Release manifest here',
+            dry_run=True,
+        )
+        assert result.ok
+        assert result.dry_run
+        assert '--title' in result.command
+        assert '--body' in result.command

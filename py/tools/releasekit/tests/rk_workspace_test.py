@@ -25,11 +25,19 @@ from releasekit.errors import ReleaseKitError
 from releasekit.workspace import Package, discover_packages
 
 
-def _write_root(root: Path, members: str = '"packages/*"', exclude: str = '') -> None:
+def _write_root(
+    root: Path,
+    members: str = '"packages/*"',
+    exclude: str = '',
+    sources: str = '',
+) -> None:
     """Write a minimal root pyproject.toml with workspace config."""
     exclude_line = f'exclude = [{exclude}]' if exclude else ''
+    sources_section = f'\n[tool.uv.sources]\n{sources}\n' if sources else ''
     (root / 'pyproject.toml').write_text(
-        f'[project]\nname = "workspace"\n\n[tool.uv.workspace]\nmembers = [{members}]\n{exclude_line}\n'
+        f'[project]\nname = "workspace"\n\n'
+        f'[tool.uv.workspace]\nmembers = [{members}]\n{exclude_line}\n'
+        f'{sources_section}'
     )
 
 
@@ -77,8 +85,8 @@ class TestDiscoverPackagesDeps:
     """discover_packages classifies internal vs external dependencies."""
 
     def test_internal_dep(self, tmp_path: Path) -> None:
-        """Deps matching workspace packages are classified as internal."""
-        _write_root(tmp_path)
+        """Deps matching workspace packages with workspace=true source are internal."""
+        _write_root(tmp_path, sources='genkit = { workspace = true }')
         _write_package(tmp_path, 'packages/core', 'genkit', '0.5.0')
         _write_package(
             tmp_path,
@@ -90,6 +98,30 @@ class TestDiscoverPackagesDeps:
         pkgs = discover_packages(tmp_path)
         plugin = next(p for p in pkgs if p.name == 'genkit-plugin-foo')
         assert plugin.internal_deps == ['genkit'], f'Expected internal dep genkit, got {plugin.internal_deps}'
+
+    def test_pinned_dep_is_external(self, tmp_path: Path) -> None:
+        """Workspace member deps without workspace=true in sources are external.
+
+        If a package depends on a workspace member but that member is NOT
+        listed with ``workspace = true`` in ``[tool.uv.sources]``, it's
+        pinned to a PyPI version and excluded from the release graph.
+        """
+        # No sources entry for genkit → it's pinned to PyPI.
+        _write_root(tmp_path)
+        _write_package(tmp_path, 'packages/core', 'genkit', '1.0.0')
+        _write_package(
+            tmp_path,
+            'packages/app-legacy',
+            'app-legacy',
+            '0.1.0',
+            deps='"genkit==1.0.0"',
+        )
+        pkgs = discover_packages(tmp_path)
+        app = next(p for p in pkgs if p.name == 'app-legacy')
+        # genkit is a workspace member, but NOT workspace-sourced.
+        # So it should be classified as external, not internal.
+        assert app.internal_deps == [], f'Expected no internal deps, got {app.internal_deps}'
+        assert 'genkit' in app.external_deps, f'Expected genkit in external deps, got {app.external_deps}'
 
     def test_external_dep(self, tmp_path: Path) -> None:
         """Deps not in the workspace are classified as external."""
@@ -105,7 +137,7 @@ class TestDiscoverPackagesDeps:
 
     def test_mixed_deps(self, tmp_path: Path) -> None:
         """Both internal and external deps are classified correctly."""
-        _write_root(tmp_path)
+        _write_root(tmp_path, sources='core = { workspace = true }')
         _write_package(tmp_path, 'packages/core', 'core')
         _write_package(
             tmp_path,
@@ -183,7 +215,7 @@ class TestDiscoverPackagesNameNormalization:
 
     def test_dep_normalization(self, tmp_path: Path) -> None:
         """Dependency names are normalized for matching."""
-        _write_root(tmp_path)
+        _write_root(tmp_path, sources='my_core = { workspace = true }')
         _write_package(tmp_path, 'packages/core', 'my_core')
         _write_package(
             tmp_path,

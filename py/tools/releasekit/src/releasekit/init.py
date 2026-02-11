@@ -16,8 +16,8 @@
 
 """Workspace configuration scaffolding for releasekit.
 
-Auto-detects workspace structure, generates ``[tool.releasekit]``
-configuration in ``pyproject.toml``, and updates ``.gitignore``.
+Auto-detects workspace structure, generates ``releasekit.toml``
+configuration, and updates ``.gitignore``.
 Idempotent — safe to run multiple times.
 
 Architecture::
@@ -31,10 +31,10 @@ Architecture::
          │
          ▼
     Generate TOML              Show diff
-    [tool.releasekit]          (if TTY)
+    releasekit.toml            (if TTY)
          │                         │
          ▼                         ▼
-    Write pyproject.toml       Prompt: apply? [Y/n]
+    Write releasekit.toml      Prompt: apply? [Y/n]
 """
 
 from __future__ import annotations
@@ -52,6 +52,7 @@ try:
 except ImportError:
     _HAS_RICH = False
 
+from releasekit.config import CONFIG_FILENAME
 from releasekit.logging import get_logger
 from releasekit.workspace import Package, discover_packages
 
@@ -116,7 +117,7 @@ def generate_config_toml(
     tag_format: str = '{name}-v{version}',
     umbrella_tag: str = 'v{version}',
 ) -> str:
-    """Generate a ``[tool.releasekit]`` TOML fragment.
+    """Generate a ``releasekit.toml`` config file.
 
     Args:
         groups: Package groups from :func:`detect_groups`.
@@ -125,44 +126,31 @@ def generate_config_toml(
         umbrella_tag: Umbrella tag format.
 
     Returns:
-        A TOML string suitable for insertion into ``pyproject.toml``.
+        A TOML string for ``releasekit.toml``.
     """
     doc = tomlkit.document()
-    table = tomlkit.table()
 
-    table.add('tag_format', tag_format)
-    table.add('umbrella_tag', umbrella_tag)
+    doc.add('tag_format', tomlkit.item(tag_format))
+    doc.add('umbrella_tag', tomlkit.item(umbrella_tag))
 
     if exclude:
-        table.add('exclude', exclude)
+        doc.add('exclude', tomlkit.item(exclude))
 
     if groups:
         groups_table = tomlkit.table()
         for group_name, patterns in sorted(groups.items()):
-            groups_table.add(group_name, patterns)
-        table.add('groups', groups_table)
+            groups_table.add(group_name, tomlkit.item(patterns))
+        doc.add('groups', groups_table)
 
-    table.add('changelog', True)
-    table.add('smoke_test', True)
-
-    doc.add('tool', tomlkit.table())
-    tool_dict = dict(doc['tool'])  # type: ignore[arg-type]
-    tool_dict['releasekit'] = table
-    doc['tool'] = tool_dict
+    doc.add('changelog', tomlkit.item(True))
+    doc.add('smoke_test', tomlkit.item(True))
 
     return tomlkit.dumps(doc)
 
 
-def _has_releasekit_config(pyproject_path: Path) -> bool:
-    """Return True if pyproject.toml already has [tool.releasekit]."""
-    if not pyproject_path.exists():
-        return False
-    content = pyproject_path.read_text(encoding='utf-8')
-    doc = tomlkit.parse(content)
-    tool = doc.get('tool')
-    if not isinstance(tool, dict):
-        return False
-    return 'releasekit' in tool
+def _has_releasekit_config(workspace_root: Path) -> bool:
+    """Return True if releasekit.toml already exists."""
+    return (workspace_root / CONFIG_FILENAME).exists()
 
 
 def scaffold_config(
@@ -177,24 +165,23 @@ def scaffold_config(
 
     1. Discovers packages in the workspace
     2. Auto-detects release groups
-    3. Generates ``[tool.releasekit]`` TOML
-    4. Updates ``pyproject.toml`` (if not dry-run)
+    3. Generates ``releasekit.toml``
+    4. Writes ``releasekit.toml`` (if not dry-run)
     5. Updates ``.gitignore`` (if not dry-run)
 
     Args:
         workspace_root: Path to the workspace root.
         dry_run: Preview changes without writing files.
-        force: Overwrite existing ``[tool.releasekit]`` section.
+        force: Overwrite existing ``releasekit.toml``.
 
     Returns:
-        The generated TOML fragment (for display/preview).
+        The generated TOML content (for display/preview).
     """
-    pyproject_path = workspace_root / 'pyproject.toml'
-
-    if _has_releasekit_config(pyproject_path) and not force:
+    if _has_releasekit_config(workspace_root) and not force:
         logger.info(
-            '[tool.releasekit] already exists in %s (use --force to overwrite)',
-            pyproject_path,
+            '%s already exists in %s (use --force to overwrite)',
+            CONFIG_FILENAME,
+            workspace_root,
         )
         return ''
 
@@ -214,59 +201,21 @@ def scaffold_config(
         if len(prefixes) == 1 and len(sample_patterns) > 2:
             exclude.append(prefixes.pop())
 
-    toml_fragment = generate_config_toml(groups, exclude=exclude or None)
+    toml_content = generate_config_toml(groups, exclude=exclude or None)
 
     if dry_run:
-        return toml_fragment
+        return toml_content
 
-    # Write to pyproject.toml.
-    _update_pyproject(pyproject_path, groups, exclude)
-    logger.info('Updated %s', pyproject_path)
+    # Write releasekit.toml.
+    config_path = workspace_root / CONFIG_FILENAME
+    config_path.write_text(toml_content, encoding='utf-8')
+    logger.info('Created %s', config_path)
 
     # Update .gitignore.
     _update_gitignore(workspace_root / '.gitignore')
     logger.info('Updated %s', workspace_root / '.gitignore')
 
-    return toml_fragment
-
-
-def _update_pyproject(
-    pyproject_path: Path,
-    groups: dict[str, list[str]],
-    exclude: list[str],
-) -> None:
-    """Add [tool.releasekit] to an existing pyproject.toml."""
-    content = pyproject_path.read_text(encoding='utf-8')
-    doc = tomlkit.parse(content)
-
-    if 'tool' not in doc:
-        doc.add('tool', tomlkit.table())
-
-    tool = doc['tool']
-    if not isinstance(tool, dict):
-        return
-
-    rk_table = tomlkit.table()
-    rk_table.add('tag_format', '{name}-v{version}')
-    rk_table.add('umbrella_tag', 'v{version}')
-
-    if exclude:
-        rk_table.add('exclude', exclude)
-
-    if groups:
-        groups_table = tomlkit.table()
-        for group_name, patterns in sorted(groups.items()):
-            groups_table.add(group_name, patterns)
-        rk_table.add('groups', groups_table)
-
-    rk_table.add('changelog', True)
-    rk_table.add('smoke_test', True)
-
-    tool_dict = dict(tool)
-    tool_dict['releasekit'] = rk_table
-    doc['tool'] = tool_dict
-
-    pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+    return toml_content
 
 
 def _update_gitignore(gitignore_path: Path) -> None:
@@ -302,7 +251,7 @@ def print_scaffold_preview(toml_fragment: str) -> None:
 
     if sys.stdout.isatty() and _HAS_RICH:
         console = Console()
-        console.print('\n[bold]Generated [tool.releasekit] configuration:[/bold]\n')
+        console.print(f'\n[bold]Generated {CONFIG_FILENAME}:[/bold]\n')
         syntax = Syntax(toml_fragment, 'toml', theme='monokai')
         console.print(syntax)
         return

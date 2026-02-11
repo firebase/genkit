@@ -14,13 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Registry protocol and PyPI backend for releasekit.
+"""PyPI registry backend for releasekit.
 
-The :class:`Registry` protocol defines the async interface for querying
-package registries (PyPI, Test PyPI). The default implementation,
-:class:`PyPIBackend`, uses the PyPI JSON API via :mod:`releasekit.net`.
+The :class:`PyPIBackend` implements the :class:`Registry` protocol
+using the PyPI JSON API via :mod:`releasekit.net`.
 
-Operations are async because they involve network I/O with potential
+All methods are async because they involve network I/O with potential
 latency and rate limiting.
 """
 
@@ -28,124 +27,16 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
 
+from releasekit.backends.registry._types import ChecksumResult
 from releasekit.logging import get_logger
 from releasekit.net import DEFAULT_POOL_SIZE, DEFAULT_TIMEOUT, http_client, request_with_retry
 
-log = get_logger('releasekit.backends.registry')
-
-
-@runtime_checkable
-class Registry(Protocol):
-    """Protocol for package registry queries."""
-
-    async def check_published(self, package_name: str, version: str) -> bool:
-        """Return ``True`` if the exact version is already published.
-
-        Args:
-            package_name: Package name on the registry.
-            version: Version string to check.
-        """
-        ...
-
-    async def poll_available(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        timeout: float = 300.0,
-        interval: float = 5.0,
-    ) -> bool:
-        """Poll until a version becomes available on the registry.
-
-        Args:
-            package_name: Package name on the registry.
-            version: Version to wait for.
-            timeout: Maximum seconds to wait.
-            interval: Seconds between polls.
-
-        Returns:
-            ``True`` if the version became available, ``False`` on timeout.
-        """
-        ...
-
-    async def project_exists(self, package_name: str) -> bool:
-        """Return ``True`` if the project exists on the registry.
-
-        Args:
-            package_name: Package name to check.
-        """
-        ...
-
-    async def latest_version(self, package_name: str) -> str | None:
-        """Return the latest published version, or ``None`` if not published.
-
-        Args:
-            package_name: Package name to query.
-        """
-        ...
-
-    async def verify_checksum(
-        self,
-        package_name: str,
-        version: str,
-        local_checksums: dict[str, str],
-    ) -> ChecksumResult:
-        """Verify local checksums against registry-published digests.
-
-        Downloads the SHA-256 digests from the registry API for the
-        given version, then compares each local file's checksum against
-        the registry's value.
-
-        Args:
-            package_name: Package name on the registry.
-            version: Version string to check.
-            local_checksums: Mapping of filename to local SHA-256 hex digest
-                (from ``_compute_dist_checksum``).
-
-        Returns:
-            A :class:`ChecksumResult` with matches, mismatches, and
-            files missing from the registry.
-        """
-        ...
-
-
-@dataclass(frozen=True)
-class ChecksumResult:
-    """Result of checksum verification against a registry.
-
-    Attributes:
-        matched: Files where local and registry checksums agree.
-        mismatched: Files where checksums differ.
-            Maps filename to ``(local_sha, registry_sha)``.
-        missing: Files not found on the registry.
-    """
-
-    matched: list[str] = field(default_factory=list)
-    mismatched: dict[str, tuple[str, str]] = field(default_factory=dict)
-    missing: list[str] = field(default_factory=list)
-
-    @property
-    def ok(self) -> bool:
-        """Return True if all checksums match and none are missing."""
-        return not self.mismatched and not self.missing
-
-    def summary(self) -> str:
-        """Return a human-readable summary."""
-        parts: list[str] = []
-        if self.matched:
-            parts.append(f'{len(self.matched)} matched')
-        if self.mismatched:
-            parts.append(f'{len(self.mismatched)} mismatched')
-        if self.missing:
-            parts.append(f'{len(self.missing)} missing')
-        return ', '.join(parts) if parts else 'no files checked'
+log = get_logger('releasekit.backends.pypi')
 
 
 class PyPIBackend:
-    """Default :class:`Registry` implementation using the PyPI JSON API.
+    """Default :class:`~releasekit.backends.registry.Registry` implementation using the PyPI JSON API.
 
     Args:
         base_url: Base URL for the PyPI JSON API. Defaults to public PyPI.
@@ -181,7 +72,6 @@ class PyPIBackend:
         interval: float = 5.0,
     ) -> bool:
         """Poll PyPI until the version appears or timeout is reached."""
-        # Clamp interval and timeout to reasonable bounds.
         interval = max(1.0, min(interval, 60.0))
         timeout = max(10.0, min(timeout, 3600.0))
 
@@ -272,7 +162,6 @@ class PyPIBackend:
                 log.warning('checksum_parse_failed', package=package_name)
                 return ChecksumResult(missing=list(local_checksums.keys()))
 
-        # Build filename→sha256 map from PyPI response.
         registry_checksums: dict[str, str] = {}
         for file_info in data.get('urls', []):
             filename = file_info.get('filename', '')
@@ -327,7 +216,5 @@ class PyPIBackend:
 
 
 __all__ = [
-    'ChecksumResult',
     'PyPIBackend',
-    'Registry',
 ]

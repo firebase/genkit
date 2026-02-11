@@ -1,8 +1,9 @@
 # releasekit Implementation Roadmap
 
-Release orchestration for uv workspaces -- publish Python packages in
-topological order with dependency-triggered scheduling, ephemeral version
-pinning, retry with jitter, and crash-safe file restoration.
+Release orchestration for polyglot monorepos — publish packages in
+topological order across uv (Python), pnpm (JavaScript/TypeScript),
+and Go ecosystems with dependency-triggered scheduling, ephemeral
+version pinning, retry with jitter, and crash-safe file restoration.
 
 **Target location**: `py/tools/releasekit/` in `firebase/genkit`
 **Published as**: `releasekit` on PyPI
@@ -12,7 +13,7 @@ pinning, retry with jitter, and crash-safe file restoration.
 
 ## Versioning Strategy
 
-`releasekit` supports two versioning models for monorepos, configurable via `[tool.releasekit.synchronize]`.
+`releasekit` supports two versioning models for monorepos, configurable via `synchronize` in `releasekit.toml`.
 
 ### 1. Independent Versioning (Default)
 `synchronize = false` (default)
@@ -33,7 +34,79 @@ All packages in the workspace share the same version number.
     - Example: `genkit` has a breaking change (Major), so `plugin-vertex-ai` also gets a Major bump, even if unchanged.
     - **Use Case**: Frameworks where components must be installed with matching versions (e.g. `genkit==0.6.0` needs `genkit-plugin-x==0.6.0`).
 
-### 3. Cross-Repository Workflow (Plugins)
+### 3. Workspace-Sourced Dependency Model
+
+Not all workspace members participate in the same release tree. The
+release graph is determined by **workspace-sourced dependencies**, not
+merely by co-location in the workspace:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Workspace Members                              │
+│                                                                     │
+│  ┌──────────────────────────────┐  ┌───────────────────────────┐   │
+│  │ Release Tree 1               │  │ Independent Package       │   │
+│  │ (workspace-sourced)          │  │ (pinned to PyPI)          │   │
+│  │                              │  │                           │   │
+│  │  genkit ──► plugin-a         │  │  app-legacy               │   │
+│  │         └─► plugin-b         │  │  deps: genkit==1.0.0      │   │
+│  │                              │  │                           │   │
+│  │  [tool.uv.sources]           │  │  NOT in [tool.uv.sources] │   │
+│  │  genkit = {workspace=true}   │  │  with workspace=true      │   │
+│  │  plugin-a = {workspace=true} │  │                           │   │
+│  │  plugin-b = {workspace=true} │  │  → Released independently │   │
+│  └──────────────────────────────┘  └───────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**How it works:**
+
+1. A dependency is classified as **internal** (part of the release graph)
+   only if it satisfies BOTH conditions:
+   - Its name matches a workspace member.
+   - It has `workspace = true` in `[tool.uv.sources]` of the root
+     `pyproject.toml`.
+
+2. If a workspace member depends on another member but uses a **pinned
+   PyPI version** (e.g. `genkit==1.0.0`), the dependency edge is
+   treated as **external**. The dependent package is excluded from
+   version propagation and can be released independently.
+
+3. **No explicit `exclude` configuration needed.** The graph topology
+   emerges naturally from `[tool.uv.sources]`. Packages opt out of a
+   release tree simply by not having `workspace = true`.
+
+**Why this matters:**
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| App A pins `genkit==1.0.0` | Force-bumped on genkit 2.0 (broken) | Untouched |
+| Plugin uses workspace genkit | Correctly propagated | Same |
+| Sample with `Private :: Do Not Upload` | Excluded from publish | Same |
+
+### 4. Independent Release Trees
+
+A single workspace can contain multiple disconnected release trees.
+Each tree is a connected component in the dependency graph where
+edges are workspace-sourced dependencies.
+
+```
+Tree 1 (genkit ecosystem):     Tree 2 (internal tool):
+  genkit ──► plugin-a            tool-x ──► tool-y
+         └─► plugin-b
+
+Tree 3 (legacy, pinned):       Tree 4 (standalone):
+  app-legacy                     sample-demo
+  (genkit==1.0.0 from PyPI)      (no internal deps)
+```
+
+- `releasekit prepare` processes ALL trees in a single pass.
+- Only packages with actual changes (+ transitive dependents) get bumped.
+- The Release PR contains all bumped packages from all trees.
+- Each tree's version propagation is independent — changes in Tree 1
+  cannot affect Tree 2 or Tree 3.
+
+### 5. Cross-Repository Workflow (Plugins)
 
 To support dependent packages in external repositories (e.g. `genkit-community-plugins`):
 
@@ -44,6 +117,353 @@ To support dependent packages in external repositories (e.g. `genkit-community-p
     - Creates a `chore(deps): update genkit` bump.
     - Bumps the plugin version (Patch).
     - Opens/Updates a Release PR with the dependency update included.
+
+### 6. Cross-Ecosystem Release Groups
+
+Groups can **span ecosystems**. This is the key design that enables
+releasing a pnpm frontend and a uv backend together as a single
+coordinated release unit.
+
+#### Two-tier TOML configuration
+
+All releasekit configuration uses **TOML only**. Ecosystem manifests
+(`pyproject.toml`, `package.json`, `go.mod`) are never modified for
+releasekit config — they are only read/written for version bumps and
+dependency declarations (their actual purpose).
+
+1. **Root config** (`releasekit.toml` at monorepo root) —
+   workspace-level settings: `synchronize`, `tag_format`, ecosystem
+   roots, and global knobs.
+2. **Per-package config** (`releasekit.toml` in each package dir) —
+   package-level labels: `group`, `publishable` overrides, etc.
+
+##### Root config (`releasekit.toml`)
+
+Flat top-level keys, no `[tool.*]` nesting:
+
+```toml
+# releasekit.toml (at the monorepo root)
+
+synchronize = true          # all packages share one version number
+tag_format = "v{version}"
+publish_from = "ci"
+
+# Ecosystems: declare which workspace roots to scan.
+# Each ecosystem maps to a (Workspace, PackageManager, Registry) triple.
+[ecosystems.python]
+workspace_root = "py/"             # contains pyproject.toml with [tool.uv.workspace]
+
+[ecosystems.js]
+workspace_root = "js/"             # contains pnpm-workspace.yaml
+
+[ecosystems.go]
+workspace_root = "go/"             # contains go.work
+```
+
+##### Per-package config (`releasekit.toml`)
+
+Each package directory can have its own `releasekit.toml` with
+package-level settings:
+
+```toml
+# py/packages/genkit/releasekit.toml
+group = "core"
+```
+
+```toml
+# py/plugins/vertex-ai/releasekit.toml
+group = "plugins"
+```
+
+```toml
+# js/packages/core/releasekit.toml
+group = "core"
+```
+
+```toml
+# go/genkit/releasekit.toml
+group = "core"
+```
+
+Packages without a `releasekit.toml` (or without a `group` key)
+are included in all unfiltered runs (`releasekit prepare` without
+`--group`) but excluded when a specific group is requested.
+
+**Why TOML everywhere?**
+
+- **Consistent format**: One syntax for all ecosystems. No need to
+  invent `[tool.releasekit]` (Python), `"releasekit":{}` (JS), or
+  `// releasekit:group=` (Go) conventions.
+- **No manifest pollution**: Ecosystem manifests stay clean — they
+  only contain what their ecosystem tools expect.
+- **Ecosystem-agnostic**: `releasekit.toml` works identically
+  regardless of whether the package is Python, JS, Go, or Rust.
+
+#### How it works
+
+```
+releasekit prepare --group core
+
+  1. Read root releasekit.toml → find ecosystem roots
+  2. For each ecosystem:
+     a. Instantiate (Workspace, PackageManager, Registry)
+     b. Discover all packages (from ecosystem manifests)
+     c. Read per-package releasekit.toml → get group label
+     d. Filter: keep only packages where group == "core"
+  3. Compute version bumps across all filtered packages
+  4. Create single Release PR with bumps from all ecosystems
+
+  ┌──────────── Packages labeled group = "core" ───────────────────┐
+  │                                                                 │
+  │  py/ (uv workspace)                                            │
+  │    genkit/releasekit.toml     → group = "core"   → PyPI        │
+  │                                                                 │
+  │  js/ (pnpm workspace)                                          │
+  │    core/releasekit.toml       → group = "core"   → npm         │
+  │                                                                 │
+  │  go/ (go workspace)                                            │
+  │    genkit/releasekit.toml     → group = "core"   → proxy       │
+  │                                                                 │
+  │  Single Release PR ── single version bump ── single tag         │
+  └─────────────────────────────────────────────────────────────────┘
+```
+
+#### Key design decisions
+
+- **TOML only**: All releasekit config uses `releasekit.toml` files.
+  Ecosystem manifests are never read or written for config —
+  only for version bumps and dependency declarations.
+- **Labels, not globs**: Group membership is declared per-package
+  as a label in its `releasekit.toml`, not via glob patterns at
+  the root. No breakage on rename, no silent mis-matches.
+- **Standalone root config**: `releasekit.toml` is ecosystem-agnostic.
+  No dependency on any ecosystem's manifest for workspace settings.
+- **One PR, multiple ecosystems**: The prepare step creates a single
+  Release PR with version bumps across all manifests.
+- **Ecosystem-specific publishing**: Each ecosystem's packages are
+  published using its own backend (`uv publish` → PyPI,
+  `pnpm publish` → npm, `git tag` → `proxy.golang.org`).
+- **Independent version propagation**: Version rippling stays within
+  each ecosystem's dependency graph. A bump to `genkit` (Python)
+  does NOT auto-bump `@genkit-ai/core` (JS) — separate graphs.
+  But they share the same Release PR and tag.
+- **Shared version number**: When `synchronize = true`, ALL packages
+  in ALL ecosystems get the same version number.
+
+#### Implementation plan
+
+1. ✅ Add root `releasekit.toml` reader (flat TOML, no `[tool.*]`). — **Done** (`config.py`).
+2. ✅ `init.py` scaffolds `releasekit.toml` (root + per-package). — **Done**.
+3. Add per-package `releasekit.toml` reader (same flat TOML format,
+   discovered during `Workspace.discover()`).
+4. Add `group` field to `Package` dataclass.
+5. Wire `_create_backends()` to iterate over declared ecosystems.
+6. The `prepare` step collects packages from all ecosystems,
+   filters by group label, computes bumps, and creates one PR.
+7. The `publish` step iterates over ecosystems and publishes each
+   using the correct backend.
+
+### 7. Decentralized Release Model (Go Modules)
+
+Go uses a fundamentally different release model from workspace-based
+registries. Understanding this is critical for integrating Go into
+releasekit.
+
+**How Go releases work:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Go Module Release Model                       │
+│                                                                  │
+│  1. Developer pushes a git tag: v1.2.3                           │
+│                                                                  │
+│  2. Users run: go get github.com/myorg/mymod@v1.2.3              │
+│                                                                  │
+│  3. proxy.golang.org fetches the tag from GitHub,                │
+│     caches it, and serves it to all `go get` requests.           │
+│                                                                  │
+│  No upload step. No registry API. Just git tags.                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Key differences from workspace-based ecosystems:**
+
+| Aspect | uv/pnpm (centralized) | Go (decentralized) |
+|--------|----------------------|--------------------|
+| Publish | Upload artifact to registry | Push git tag |
+| Registry | PyPI / npm (mutable, authenticated) | proxy.golang.org (immutable, no auth) |
+| Versioning | In manifest file (`pyproject.toml`, `package.json`) | In git tag only |
+| Workspace | `pyproject.toml` / `pnpm-workspace.yaml` | `go.work` (dev only, not published) |
+| Multi-module | Workspace members share lockfile | Each module is independent |
+| Internal deps | `workspace:*` / `workspace = true` | `replace` directives in `go.work` |
+| Build artifact | Wheel / tarball | Source code (via git) |
+| Retract | Delete version (PyPI) / unpublish (npm) | `retract` directive in `go.mod` |
+
+**Go workspace (go.work) structure:**
+
+```
+monorepo/
+├── go.work           # Dev-only workspace (NOT published)
+│   go 1.24
+│   use (
+│       ./genkit
+│       ./plugins/google-genai
+│       ./plugins/vertex-ai
+│   )
+├── genkit/
+│   ├── go.mod        # module github.com/firebase/genkit/go/genkit
+│   └── genkit.go
+├── plugins/
+│   ├── google-genai/
+│   │   ├── go.mod    # module github.com/firebase/genkit/go/plugins/google-genai
+│   │   └── plugin.go
+│   └── vertex-ai/
+│       ├── go.mod    # module github.com/firebase/genkit/go/plugins/vertex-ai
+│       └── plugin.go
+```
+
+**How releasekit handles Go:**
+
+1. **Workspace discovery**: Parse `go.work` for `use` directives.
+   Parse each `go.mod` for `module` path, `require` directives,
+   and `replace` directives.
+2. **Internal dependency detection**: A dependency is "internal" if
+   its module path matches a `use` directive in `go.work` AND
+   it has a `replace` directive pointing to a local path (or is
+   implicitly replaced by the workspace).
+3. **Version bumping**: Write the new `go.mod` version (for the
+   `require` directive in consumers) and create the git tag.
+   Go modules use **path-prefixed tags**:
+   `genkit/v0.6.0`, `plugins/google-genai/v0.6.0`.
+4. **Publishing**: Create annotated git tags and push them.
+   `proxy.golang.org` fetches the tag automatically. There is
+   no upload API.
+5. **Verification**: Poll `pkg.go.dev/module@version` or
+   `proxy.golang.org/module/@v/version.info` to confirm
+   the version is available.
+
+**GoBackend protocol mapping:**
+
+| Protocol Method | Go Implementation |
+|----------------|-------------------|
+| `build()` | No-op (Go distributes source, not artifacts) |
+| `publish()` | `git tag <module/path>/v<version>` + `git push --tags` |
+| `lock()` | `go mod tidy` (update) or `go mod verify` (check) |
+| `version_bump()` | Edit `go.mod` `require` in consumers, create tag |
+| `resolve_check()` | `GOPROXY=proxy.golang.org go list -m <module>@v<version>` |
+| `smoke_test()` | `go build <module>/...` in a temp module |
+
+**GoWorkspace protocol mapping:**
+
+| Protocol Method | Go Implementation |
+|----------------|-------------------|
+| `discover()` | Parse `go.work` `use` directives → `go.mod` per module |
+| `rewrite_version()` | Update `require <mod> v<new>` in consumer `go.mod` files |
+| `rewrite_dependency_version()` | Update `require` + remove `replace` for publishing |
+
+**GolangProxyRegistry protocol mapping:**
+
+| Protocol Method | Go Implementation |
+|----------------|-------------------|
+| `check_published()` | `GET proxy.golang.org/<mod>/@v/<ver>.info` → 200 |
+| `poll_available()` | Poll above endpoint until 200 or timeout |
+| `project_exists()` | `GET proxy.golang.org/<mod>/@v/list` → non-empty |
+| `latest_version()` | `GET proxy.golang.org/<mod>/@latest` → `Version` field |
+| `verify_checksum()` | `GET sum.golang.org/lookup/<mod>@<ver>` |
+
+**Key challenge — `go.work` is dev-only:**
+
+Unlike `pnpm-workspace.yaml` which is committed, `go.work` is
+often `.gitignore`d and used only for local development. The
+Genkit Go SDK DOES commit `go.work`, so releasekit can parse it.
+But for repos that don't commit `go.work`, releasekit would need
+to scan for `go.mod` files recursively to discover modules.
+
+### 6. Multi-Ecosystem Extensibility (Future)
+
+The workspace-sourced dependency model is currently implemented for
+**uv** workspaces (`[tool.uv.sources]`). The same concept applies to
+other ecosystems, each with its own way of declaring workspace deps.
+
+To support multiple ecosystems, the following **7 protocols** are
+needed. Each protocol defines the semantic operations; implementations
+own the transport and format details.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Protocol Abstraction Map                       │
+│                                                                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │
+│  │     VCS      │  │    Forge    │  │  Workspace   │               │
+│  │ git, hg      │  │ gh, glab,  │  │ uv, pnpm,   │               │
+│  │              │  │ bitbucket  │  │ cargo, go    │               │
+│  └──────┬───────┘  └──────┬──────┘  └──────┬───────┘               │
+│         │                 │                │                        │
+│         │    ┌────────────┴────────────┐   │                        │
+│         │    │                         │   │                        │
+│  ┌──────┴───┴──┐  ┌──────────────┐  ┌─┴───┴────────┐              │
+│  │ ManifestParser│  │VersionRewriter│  │PackageManager│              │
+│  │ pyproject,   │  │ pyproject,   │  │ uv, pnpm,   │              │
+│  │ package.json,│  │ package.json,│  │ cargo        │              │
+│  │ Cargo.toml   │  │ Cargo.toml   │  │              │              │
+│  └──────────────┘  └──────────────┘  └──────┬───────┘              │
+│                                              │                      │
+│                                       ┌──────┴───────┐              │
+│                                       │   Registry    │              │
+│                                       │ pypi, npm,   │              │
+│                                       │ crates.io    │              │
+│                                       └──────────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Protocol details
+
+| # | Protocol | Responsibility | Current | Future |
+|---|----------|---------------|---------|--------|
+| 1 | **`VCS`** | Commit, tag, push, log, branch operations | `GitCLIBackend`, `MercurialBackend` | — |
+| 2 | **`Forge`** | PRs, releases, labels, availability check | `GitHubCLIBackend`, `GitLabBackend`, `BitbucketAPIBackend` | — |
+| 3 | **`Workspace`** | Discover members, classify deps, rewrite versions | `UvWorkspace`, `PnpmWorkspace` | `GoWorkspace`, `CargoWorkspace`, `PubWorkspace`, `MavenWorkspace`, `GradleWorkspace` |
+| 4 | **`PackageManager`** | Lock, build, publish | `UvBackend`, `PnpmBackend` | `GoBackend`, `CargoBackend`, `PubBackend`, `MavenBackend`, `GradleBackend` |
+| 5 | **`Registry`** | Check published versions, checksums | `PyPIBackend`, `NpmRegistry` | `GolangProxy`, `CratesIoRegistry`, `PubDevRegistry`, `MavenCentralRegistry` |
+
+> **Design note:** `ManifestParser` and `VersionRewriter` were folded
+> into the `Workspace` protocol as `rewrite_version()` and
+> `rewrite_dependency_version()` methods, because parsing and rewriting
+> are tightly coupled to the manifest format each workspace owns.
+
+#### Ecosystem matrix (all 6 genkit target languages)
+
+| Ecosystem | Workspace Config | Source Mechanism | Manifest File | Registry | Status |
+|-----------|-----------------|-----------------|---------------|----------|--------|
+| **Python (uv)** | `[tool.uv.workspace]` | `[tool.uv.sources]` `workspace = true` | `pyproject.toml` | PyPI | ✅ Implemented |
+| **TypeScript (pnpm)** | `pnpm-workspace.yaml` | `"workspace:*"` protocol in `package.json` | `package.json` | npm | 🔧 Backend done |
+| **Go** | `go.work` | `use ./pkg` directives | `go.mod` | proxy.golang.org | ⬜ Designed (see §7) |
+| **Java (Maven)** | reactor POM `<modules>` | `<version>${project.version}</version>` | `pom.xml` | Maven Central | ⬜ Future |
+| **Java (Gradle)** | `settings.gradle` `include` | `project(':sub')` deps | `build.gradle(.kts)` | Maven Central | ⬜ Future |
+| **Dart (pub/melos)** | `melos.yaml` packages | `dependency_overrides` with `path:` | `pubspec.yaml` | pub.dev | ⬜ Future |
+| **Rust (Cargo)** | `[workspace]` in `Cargo.toml` | `path = "..."` in `[dependencies]` | `Cargo.toml` | crates.io | ⬜ Future |
+
+#### Migration path
+
+The `Workspace` protocol has been extracted into
+`backends/workspace/` with `UvWorkspace` and `PnpmWorkspace`
+implementations.
+Remaining migration steps:
+
+1. ✅ Extract `Workspace` protocol with `discover()`,
+   `rewrite_version()`, `rewrite_dependency_version()` — **done**.
+2. ✅ Implement `UvWorkspace` — **done**.
+3. ✅ Implement `PnpmWorkspace` — **done** (39 tests).
+4. ✅ Implement `PnpmBackend` — **done** (19 tests).
+5. ✅ Implement `NpmRegistry` — **done** (tests included).
+6. ✅ Migrate config from `pyproject.toml` to `releasekit.toml` — **done** (`config.py`, `init.py`).
+7. Wire `Workspace` selection through `_create_backends()` in `cli.py`,
+   auto-detected from project structure.
+8. Update callers (`prepare.py`, `publish.py`, `cli.py`) to use
+   `Workspace` protocol instead of `discover_packages()` and
+   `bump_pyproject()`.
+9. Add cross-ecosystem group support (see §6).
+10. Add Go workspace + proxy.golang.org support (see §7).
 
 ---
 
@@ -58,9 +478,111 @@ To support dependent packages in external repositories (e.g. `genkit-community-p
 | 4: Harden | ✅ Complete | UI, checks, registry verification, observer, interactive controls |
 | 4b: Streaming Core | ✅ Complete | scheduler.py, retry, jitter, pause/resume, 27 tests |
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
-| 5: Post-Pipeline + CI | ⬜ Not started | |
-| 6: UX Polish | ✅ Complete | init, formatters (8), rollback, completion, diagnostics, granular flags |
-| 7: Quality + Ship | ⬜ Not started | |
+| 5: Release-Please | ✅ Complete | Orchestrators, CI workflow, workspace-sourced deps |
+| 6: UX Polish | ✅ Complete | init, formatters (9), rollback, completion, diagnostics, granular flags, TOML config migration |
+| 7: Quality + Ship | 🔶 In progress | 706 tests pass, 16.8K src lines, 12.1K test lines |
+
+### Phase 5 completion status
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Forge protocol extensions | ✅ Done | `list_prs`, `add_labels`, `remove_labels`, `update_pr` |
+| Transitive propagation (BFS) | ✅ Done | Multi-level via `deque`, 4 tests |
+| Synchronized versioning | ✅ Done | `synchronize=True` config, 3 tests |
+| `GitLabBackend` | ✅ Done | Forge via `glab` CLI, protocol conformance |
+| `MercurialBackend` | ✅ Done | VCS via `hg` CLI, protocol conformance |
+| `BitbucketBackend` | ✅ Done | Forge via REST API (`httpx`), auth validation |
+| Protocol conformance tests | ✅ Done | 41 tests (parametrized across all backends) |
+| `prepare.py` | ✅ Done | Prepare step: bump → changelog → Release PR |
+| `release.py` | ✅ Done | Tag step: find PR → tag → Release → labels |
+| `changelog.py` | ✅ Done | Conventional Commits → grouped Markdown |
+| `release_notes.py` | ✅ Done | Umbrella release notes from manifest |
+| Workspace-sourced deps | ✅ Done | `[tool.uv.sources]` determines release graph |
+| CI workflow | ✅ Done | `.github/workflows/releasekit-uv.yml` |
+
+---
+
+## Engineering Design
+
+### Backend Comparison
+
+#### Forge Backends
+
+| Feature | GitHub (`gh` CLI) | GitLab (`glab` CLI) | Bitbucket (REST API) |
+|---------|:-:|:-:|:-:|
+| Transport | CLI subprocess | CLI subprocess | `httpx` async HTTP |
+| Auth | `GH_TOKEN` / `gh auth` | `GITLAB_TOKEN` / `glab auth` | Bearer token / App password |
+| Create PR/MR | ✅ `gh pr create` | ✅ `glab mr create` | ✅ `POST /pullrequests` |
+| Update PR/MR | ✅ `gh pr edit` | ✅ `glab mr update` | ✅ `PUT /pullrequests/{id}` |
+| Labels on PR | ✅ `--label` | ✅ `--label` | ❌ Not supported (no-op + warning) |
+| Draft releases | ✅ `--draft` | ❌ Silently ignored | ❌ No releases (tags only) |
+| Prerelease flag | ✅ `--prerelease` | ❌ Silently ignored | ❌ N/A |
+| Release assets | ✅ Via `gh release upload` | ✅ Via `glab release upload` | ✅ Via Downloads API |
+| Delete release | ✅ `gh release delete` | ✅ `glab release delete` | ✅ `DELETE /downloads` |
+| gRPC reflection | N/A | N/A | N/A |
+
+#### VCS Backends
+
+| Feature | Git (`git` CLI) | Mercurial (`hg` CLI) |
+|---------|:-:|:-:|
+| Transport | CLI subprocess | CLI subprocess |
+| Shallow clone detection | ✅ `--is-shallow-repository` | ✅ `hg log -r 'ancestors(.) and not ancestors(p1(min(all())))'` |
+| Branch operations | ✅ `checkout -b` | ✅ `hg branch` |
+| Tag creation | ✅ `git tag -a` | ✅ `hg tag` |
+| Tag existence check | ✅ `git tag -l` | ✅ `hg tags` |
+| Remote push | ✅ `git push` | ✅ `hg push` |
+| Log since tag | ✅ `git log TAG..HEAD` | ✅ `hg log -r 'TAG::.'` |
+| Current SHA | ✅ `git rev-parse HEAD` | ✅ `hg id -i` |
+
+#### Protocol Design Rationale
+
+- **Transport-agnostic**: Each backend owns its transport (CLI subprocess,
+  HTTP, SDK). The protocol only defines the semantic operations.
+- **Auth as constructor concern**: Credentials are resolved at
+  construction time, never leaked into method signatures.
+- **Graceful degradation**: Unsupported features (e.g. labels on
+  Bitbucket) log a warning and return success, never fail.
+- **Idempotent operations**: Re-running any step is safe — existing
+  tags are skipped, already-published versions are detected.
+
+### Release Pipeline Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                    releasekit prepare (on push to main)             │
+│                                                                      │
+│  1. discover_packages()  ─► workspace members                       │
+│  2. build_graph()        ─► workspace-sourced dep edges only        │
+│  3. compute_bumps()      ─► Conventional Commits → semver bumps     │
+│  4. propagate (BFS)      ─► transitive PATCH bumps within trees     │
+│  5. bump_pyproject()     ─► rewrite versions in pyproject.toml      │
+│  6. pm.lock()            ─► update uv.lock                          │
+│  7. generate_changelog() ─► per-package Markdown changelogs         │
+│  8. vcs.commit + push    ─► release branch                          │
+│  9. forge.create_pr()    ─► Release PR with embedded manifest       │
+└───────────────────────────────────┬──────────────────────────────────┘
+                                    │ merge
+┌───────────────────────────────────▼──────────────────────────────────┐
+│                    releasekit release (on PR merge)                  │
+│                                                                      │
+│  1. forge.list_prs()     ─► find PR with "autorelease: pending"     │
+│  2. extract_manifest()   ─► parse embedded JSON from PR body        │
+│  3. create_tags()        ─► per-package + umbrella tags              │
+│  4. forge.create_release ─► GitHub/GitLab Release with notes        │
+│  5. forge.add_labels()   ─► "autorelease: tagged"                   │
+└───────────────────────────────────┬──────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼──────────────────────────────────┐
+│                    releasekit publish (after tagging)                │
+│                                                                      │
+│  1. topo_sort()          ─► topological publish order                │
+│  2. pin_dependencies()   ─► ephemeral version pinning               │
+│  3. uv build             ─► sdist + wheel per package               │
+│  4. uv publish           ─► upload to PyPI with retry + jitter      │
+│  5. restore_pyproject()  ─► undo ephemeral pins                     │
+│  6. repository_dispatch  ─► notify downstream repos                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -170,7 +692,7 @@ layer (see Phase 0).
 ```
 Phase 0: Foundation  ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
-│  scaffold (pyproject.toml, __init__.py, py.typed)       │
+│  scaffold (releasekit.toml, __init__.py, py.typed)      │
 │  errors.py (diagnostic lib, RK-NAMED-KEY codes)             │
 │  logging.py (structlog + Rich)                          │
 │                                                         │
@@ -317,29 +839,31 @@ Phase 5: Release-Please    ▼
 │  tags.py ──► config, versions, vcs, forge               │
 │  changelog.py ──► config, vcs (prerelease rollup, D-4) │
 │  release_notes.py ──► changelog, vcs, forge             │
-│  .github/workflows/releasekit.yml (3-job pipeline)      │
+│  .github/workflows/releasekit-uv.yml (3-job pipeline)   │
 │                                                         │
 │  ✓ releasekit prepare (Release PR)                     │
 │  ✓ releasekit tag (tag + GitHub Release)               │
 │  ✓ releasekit publish (build + upload to PyPI)         │
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 6: UX Polish         ▼
+Phase 6: UX Polish         ▼    ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
-│  init.py ──► config, workspace                          │
-│  formatters/ (6 formats) ──► graph                      │
+│  init.py ──► config, workspace (scaffolds releasekit.toml)│
+│  formatters/ (9 formats) ──► graph                      │
+│  config.py ──► releasekit.toml reader (flat TOML)       │
 │  cli.py (full) ──► + rollback, completion, --explain,   │
 │                      --no-tag, --no-push, --version-only│
 │                                                         │
-│  ✓ releasekit init                                     │
+│  ✓ releasekit init (generates releasekit.toml)         │
 │  ✓ releasekit graph --format dot|mermaid|ascii|d2|json │
 │  ✓ releasekit rollback                                 │
 │  ✓ releasekit completion bash|zsh|fish                 │
+│  ✓ Migrated config from pyproject.toml to releasekit.toml│
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 7: Quality + Ship    ▼
+Phase 7: Quality + Ship    ▼    🔶 IN PROGRESS
 ┌─────────────────────────────────────────────────────────┐
-│  tests (90%+ coverage, all 30 modules)                  │
+│  tests (706 tests, 12.1K lines)                         │
 │  type checking (ty, pyright, pyrefly -- zero errors)    │
 │  README.md (21 sections, mermaid diagrams)              │
 │  workspace config (releasekit init on genkit repo)     │
@@ -402,8 +926,8 @@ flowchart TD
     end
 
     subgraph phase6 ["Phase 6: UX Polish"]
-        initmod[init.py]
-        formattersmod["formatters/ -- 6 formats"]
+        initmod["init.py -- releasekit.toml scaffold"]
+        formattersmod["formatters/ -- 9 formats"]
         cliFull["cli.py -- full"]
     end
 
@@ -534,7 +1058,7 @@ implementations. `run_command()` logs and supports dry-run.
 
 | Module | Description | Est. Lines | Actual | Status |
 |--------|-------------|-----------|--------|--------|
-| `config.py` | Read `[tool.releasekit]` from root `pyproject.toml`. `ReleaseConfig` dataclass. Config validation with fuzzy suggestions for typos (`difflib.get_close_matches`). Value type checking. Group integrity validation. | ~120 | 225 | ✅ |
+| `config.py` | Read `releasekit.toml` from workspace root (flat TOML, no `[tool.*]` nesting). `ReleaseConfig` dataclass. Config validation with fuzzy suggestions for typos (`difflib.get_close_matches`). Value type checking. Group integrity validation. Returns defaults when file is absent. | ~120 | 319 | ✅ |
 | `workspace.py` | Discover packages from `[tool.uv.workspace].members` globs. Parse each member's `pyproject.toml`. Classify internal vs external deps. Return `list[Package]`. | ~100 | 248 | ✅ |
 | `graph.py` | `DependencyGraph` dataclass, `build_graph()`, `detect_cycles()` (DFS), `topo_sort()` (Kahn's returning levels), `reverse_deps()` (BFS), `forward_deps()` (transitive closure), `filter_graph()` (dependency-aware: auto-include deps, group/package/exclude filters). | ~200 | 310 | ✅ |
 | **Tests** | 65 tests across 3 test files: config_test.py (16), workspace_test.py (15), graph_test.py (34). Named error codes (RK-NAMED-KEY format). | — | 435 | ✅ |
@@ -815,26 +1339,29 @@ Structured changelog and rich release notes appear in GitHub Release body.
 
 **Milestone**: Full CI-driven release pipeline with GitHub Releases.
 
-### Phase 6: UX Polish
+### Phase 6: UX Polish  ✅ Complete
 
 | Module | Description | Est. Lines |
 |--------|-------------|-----------|
-| `init.py` | Workspace-aware config scaffolding. Auto-detect groups from directory structure. Generate/update `[tool.releasekit]` in root + per-package `pyproject.toml`. Update `.gitignore`. Show diff, prompt on TTY. Idempotent. | ~120 |
-| `formatters/` | 6 graph output formats: `dot.py` (Graphviz), `json_fmt.py`, `levels.py`, `ascii_art.py`, `mermaid.py`, `d2.py`. All are pure functions: `graph -> str`. | ~300 |
-| `cli.py` (full) | Add: `rollback` subcommand, `init` subcommand, `completion` subcommand, `--explain RK-NAMED-KEY`, granular flags (`--no-tag`, `--no-push`, `--no-release`, `--version-only`), `--rdeps`/`--deps` on graph, `rich-argparse` formatter, `argcomplete` shell completion. | +150 |
+| `init.py` | Workspace-aware config scaffolding. Auto-detect groups from directory structure. Generate `releasekit.toml` (flat TOML, no `[tool.*]`). Update `.gitignore`. Show diff, prompt on TTY. Idempotent. | ~120 |
+| `config.py` (migration) | Migrated from `[tool.releasekit]` in `pyproject.toml` to standalone `releasekit.toml` at workspace root. Flat top-level keys. Returns defaults when file absent. | ~319 |
+| `formatters/` | 9 graph output formats: `dot.py` (Graphviz), `json_fmt.py`, `levels.py`, `ascii_art.py`, `mermaid.py`, `d2.py`, `csv_fmt.py`, `table.py`, `registry.py`. All are pure functions: `graph -> str`. | ~300 |
+| `cli.py` (full) | Add: `rollback` subcommand, `init` subcommand, `completion` subcommand, `--explain RK-NAMED-KEY`, granular flags (`--no-tag`, `--no-push`, `--no-release`, `--version-only`), `--rdeps`/`--deps` on graph, `rich-argparse` formatter, `argcomplete` shell completion. All `load_config` calls updated to new `releasekit.toml` signature. | +150 |
 
 **Done when**: `releasekit init` scaffolds config for the genkit workspace.
-All 6 graph formats produce correct output. Rollback automates tag/release
+All 9 graph formats produce correct output. Rollback automates tag/release
 deletion. Shell completion works in bash/zsh/fish.
 
 **Milestone**: Developer experience is polished and discoverable.
 
 **Status**: ✅ Complete. Implemented:
-- `init.py` — workspace config scaffolding with auto-detect groups, `.gitignore` update, dry-run
-- `formatters/` — 6 output formats: `ascii`, `d2`, `dot`, `json`, `levels`, `mermaid` + registry
+- `init.py` — scaffolds `releasekit.toml` (not `pyproject.toml`), auto-detect groups, `.gitignore` update, dry-run
+- `config.py` — migrated to `releasekit.toml` reader (flat TOML, no `[tool.*]` nesting)
+- `cli.py` — all `load_config` calls updated from `load_config(workspace_root / 'pyproject.toml')` to `load_config(workspace_root)`
+- `formatters/` — 9 output formats: `ascii`, `d2`, `dot`, `json`, `levels`, `mermaid`, `csv`, `table`, `registry`
 - `cli.py` — `init` and `rollback` subcommands, `rich-argparse` colored help, `--format` expansion
 - `errors.py` — `render_error()` and `render_warning()` Rust-compiler-style diagnostics with Rich
-- 51 new tests: formatters (30), init (7), render diagnostics (14)
+- 51+ new tests: formatters (30), init (15), config (26), render diagnostics (14)
 - `scripts/dump_diagnostics.py` — diagnostic formatting gallery script
 
 ### Phase 7: Quality + Ship
@@ -889,14 +1416,14 @@ shell completion) is enhancement.
 | 1: Discovery | 3 (+tests) | ~420 | 783 src + 435 tests | ✅ Complete |
 | 2: Version + Pin | 4 (+tests) | ~500 | 1,023 src + ~550 tests | ✅ Complete |
 | 3: Publish MVP | 6 | ~960 | ~1,660 src | ✅ Complete |
-| 4: Harden | 5 (extended) | ~450 | ~973 src (ui.py + checks.py + registry.py done) | 🔶 In progress |
+| 4: Harden | 5 (extended) | ~450 | ~973 src | ✅ Complete |
 | 4b: Streaming Publisher | 2 (+tests) | ~250 | 541 src + ~640 tests | ✅ Complete |
-| 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |
-| 6: UX Polish | 3 (+ 6 formatters) | ~570 | — | ⬜ Not started |
-| 7: Quality + Ship | tests + docs | ~2800 | — | ⬜ Not started |
+| 5: Post-Pipeline + CI | 5 (+CI workflow) | ~700 | prepare, release, tags, changelog, release_notes | ✅ Complete |
+| 6: UX Polish | 3 (+ 9 formatters) | ~570 | init + formatters + config migration | ✅ Complete |
+| 7: Quality + Ship | tests + docs | ~2800 | 706 tests pass | 🔶 In progress |
 
-Total: ~38 modules (including 6 formatters), ~4600 lines of production code,
-~2800 lines of tests + docs.
+**Current totals**: 16,783 lines source, 12,105 lines tests, 706 tests pass.
+All three type checkers (ty, pyrefly, pyright) report zero errors.
 
 ---
 
@@ -944,7 +1471,7 @@ hundreds (releasekit v2 vision):
   later.
 
 - **Connection pooling**: `net.py` provides a shared `httpx.AsyncClient` with
-  configurable pool size (`[tool.releasekit] http_pool_size = 10`). Reused
+  configurable pool size (`http_pool_size = 10` in `releasekit.toml`). Reused
   across all PyPI API calls within a run.
 
 - **Batch operations**: `vcs.push()` pushes all tags in a single `git push`
@@ -968,19 +1495,21 @@ hundreds (releasekit v2 vision):
 
 The Protocol-based backend shim layer makes releasekit v1 a foundation for v2:
 
-| What stays (v1 -> v2) | What changes |
+| What stays (v1 → v2) | What changes |
 |------------------------|-------------|
-| `PackageManager` protocol | Add `NpmBackend`, `CargoBackend`, `PnpmBackend` |
-| `VCS` protocol + `GitBackend` | Unchanged (git is universal) |
-| `Forge` protocol + `GitHubBackend` | Add `GitLabBackend`, `BitbucketBackend` |
-| `Registry` protocol + `PyPIBackend` | Add `NpmRegistryBackend`, `CratesBackend` |
+| `PackageManager` protocol + `UvBackend`, `PnpmBackend` | Add `GoBackend`, `CargoBackend` |
+| `VCS` protocol + `GitBackend`, `MercurialBackend` | Unchanged (git + hg cover all cases) |
+| `Forge` protocol + `GitHubBackend`, `GitLabBackend`, `BitbucketBackend` | Already complete |
+| `Registry` protocol + `PyPIBackend`, `NpmRegistry` | Add `GolangProxy`, `CratesBackend` |
+| `Workspace` protocol + `UvWorkspace`, `PnpmWorkspace` | Add `GoWorkspace`, `CargoWorkspace` |
 | Graph algorithms | Unchanged (language-agnostic) |
 | Error system (RK-NAMED-KEY) | Expand code categories |
 | Rich UI, structured logging | Unchanged |
 | CLI structure | Add language auto-detection |
+| `releasekit.toml` config format | Stable — ecosystem-agnostic by design |
 
 **Migration path**: No breaking changes. v2 adds new backends and a
-`language` field to package config. Existing `[tool.releasekit]` configs
+`language` field to package config. Existing `releasekit.toml` configs
 continue to work. The `uvx-releasekit` shim ensures old invocations keep
 working.
 
@@ -1008,7 +1537,7 @@ py/tools/releasekit/
         registry.py                   ← Registry protocol + PyPIBackend (async)
       net.py                          ← httpx connection pool, retry, rate limit
       cli.py                          ← argparse + rich-argparse + argcomplete
-      config.py                       ← [tool.releasekit] reader + validator
+      config.py                       ← releasekit.toml reader + validator
       workspace.py                    ← uv workspace discovery
       graph.py                        ← dep graph, topo sort, filter
       plan.py                         ← ExecutionPlan dataclass + table/JSON/CSV
@@ -1161,4 +1690,31 @@ The 3-stage process separates planning, tagging, and publishing.
  │ 6. Dispatch "repository_dispatch" to Plugins Repos            │
  └───────────────────────────────────────────────────────────────┘
 ```
+
+## Upstream & External Tasks
+
+Tasks that depend on external projects or processes outside this repo.
+
+### Register `Framework :: Genkit` Trove Classifier
+
+**Status:** Not started
+**Upstream:** [pypa/trove-classifiers](https://github.com/pypa/trove-classifiers)
+
+PyPI classifiers are a curated registry maintained by PyPA. To add
+`Framework :: Genkit` (and versioned variants like `Framework :: Genkit :: 1`),
+a PR must be submitted to the `trove-classifiers` repo.
+
+**Prerequisites:**
+- Genkit Python SDK should be publicly released on PyPI
+- There should be a meaningful number of packages using Genkit (the
+  PyPA reviewers look for ecosystem adoption)
+
+**Proposed classifiers:**
+```
+Framework :: Genkit
+Framework :: Genkit :: 1
+```
+
+**Workaround:** Until the classifier is registered, use the `keywords`
+field (`"genkit"`, `"ai"`, `"llm"`) for PyPI discoverability.
 

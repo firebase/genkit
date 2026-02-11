@@ -14,160 +14,28 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""VCS protocol and Git backend for releasekit.
+"""Git VCS backend for releasekit.
 
-The :class:`VCS` protocol defines the interface for version control
-operations (commit, tag, push, log). The default implementation,
-:class:`GitBackend`, delegates to ``git`` via :func:`run_command`.
+The :class:`GitCLIBackend` implements the :class:`VCS` protocol by
+delegating to ``git`` via :func:`run_command`.
 
-All operations are synchronous because git is fast locally.
+All methods are async — blocking subprocess calls are dispatched to
+``asyncio.to_thread()`` to avoid blocking the event loop.
 """
 
 from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
 from releasekit.backends._run import CommandResult, run_command
 from releasekit.logging import get_logger
 
-log = get_logger('releasekit.backends.vcs')
+log = get_logger('releasekit.backends.git')
 
 
-@runtime_checkable
-class VCS(Protocol):
-    """Protocol for version control operations.
-
-    All methods are async to avoid blocking the event loop when
-    shelling out to ``git`` or other VCS tools.
-    """
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Return ``True`` if the working tree has no uncommitted changes."""
-        ...
-
-    async def is_shallow(self) -> bool:
-        """Return ``True`` if the repository is a shallow clone."""
-        ...
-
-    async def current_sha(self) -> str:
-        """Return the current HEAD commit SHA."""
-        ...
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-    ) -> list[str]:
-        """Return git log lines.
-
-        Args:
-            since_tag: Only show commits after this tag.
-            paths: Limit to changes in these paths.
-            format: Git pretty-print format string.
-        """
-        ...
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Return list of files changed since a tag.
-
-        Args:
-            since_tag: Compare against this tag. If ``None``, compare
-                against the last tag.
-        """
-        ...
-
-    async def commit(
-        self,
-        message: str,
-        *,
-        paths: list[str] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create a commit.
-
-        Args:
-            message: Commit message.
-            paths: Specific paths to add before committing. If ``None``,
-                stages all changes.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def tag(
-        self,
-        tag_name: str,
-        *,
-        message: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create an annotated tag.
-
-        Args:
-            tag_name: Tag name (e.g., ``"py-v0.5.0"``).
-            message: Tag annotation message. Defaults to the tag name.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Return ``True`` if the tag exists locally or remotely."""
-        ...
-
-    async def delete_tag(
-        self,
-        tag_name: str,
-        *,
-        remote: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Delete a tag locally (and optionally on the remote).
-
-        Args:
-            tag_name: Tag name to delete.
-            remote: Also delete from the remote.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Push commits and/or tags to the remote.
-
-        Args:
-            tags: Also push tags.
-            remote: Remote name.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Switch to a branch, optionally creating it.
-
-        Args:
-            branch: Branch name.
-            create: If ``True``, create the branch first.
-            dry_run: Log the command without executing.
-        """
-        ...
-
-
-class GitBackend:
-    """Default :class:`VCS` implementation using ``git``.
+class GitCLIBackend:
+    """Default :class:`~releasekit.backends.vcs.VCS` implementation using ``git``.
 
     All methods are async and delegate blocking subprocess calls to
     ``asyncio.to_thread()`` to avoid blocking the event loop.
@@ -325,6 +193,5 @@ class GitBackend:
 
 
 __all__ = [
-    'GitBackend',
-    'VCS',
+    'GitCLIBackend',
 ]

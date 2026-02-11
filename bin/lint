@@ -59,6 +59,16 @@ uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
 echo "--- 🔍 Running Consistency Checks ---"
 "${PY_DIR}/bin/check_consistency"
 
+# Releasekit workspace health checks (PyPI metadata, publish classifiers, changelog URLs, etc.)
+# TODO: Re-enable once releasekit stabilizes.
+# echo "--- 📦 Running Releasekit Checks ---"
+# if uv run --directory "${TOP_DIR}/py/tools/releasekit" releasekit check 2>&1; then
+#   echo "✅ All releasekit checks passed"
+# else
+#   echo "⚠️  releasekit check found issues (see above)"
+#   exit 1
+# fi
+
 # Shell script linting
 echo "--- 🐚 Running Shell Script Lint (shellcheck) ---"
 if command -v shellcheck &> /dev/null; then

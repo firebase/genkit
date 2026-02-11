@@ -342,6 +342,23 @@
   * **Always add a comment**: Explain why the suppression is needed.
   * **Be specific**: Use the exact error code (e.g., `# noqa: S105 - enum value, not a password`
     not just `# noqa`).
+  * **Place `# noqa` on the exact line Ruff flags**: Ruff reports errors on the
+    specific line containing the violation, not the statement's opening line. For
+    multi-line calls, a `# noqa` comment on the wrong line is silently ignored.
+
+    ```python
+    # WRONG — S607 fires on line 2 (the list literal), noqa on line 1 is ignored
+    proc = subprocess.run(  # noqa: S603, S607
+        ['uv', 'lock', '--check'],  # ← Ruff flags THIS line for S607
+        ...
+    )
+
+    # CORRECT — each noqa on the line Ruff actually flags
+    proc = subprocess.run(  # noqa: S603 - intentional subprocess call
+        ['uv', 'lock', '--check'],  # noqa: S607 - uv is a known tool
+        ...
+    )
+    ```
   * **Examples**:
     ```python
     # Type checker suppression
@@ -4372,3 +4389,54 @@ When reviewing a sample or service for production readiness, verify each item:
 | Telemetry configured | Platform telemetry or OTLP endpoint set |
 | Graceful shutdown | `SHUTDOWN_GRACE` appropriate for the platform |
 | Keep-alive tuned | Server keep-alive > load balancer idle timeout |
+
+## GitHub Actions Security
+
+### Avoid `eval` in Shell Steps
+
+Never use `eval "$CMD"` to run dynamically-constructed commands in GitHub
+Actions `run:` steps. Free-form inputs (like `extra-args`) can inject
+arbitrary commands.
+
+**Use bash arrays** to build and execute commands:
+
+```yaml
+# WRONG — eval enables injection from free-form inputs
+CMD="uv run releasekit ${{ inputs.command }}"
+if [[ -n "${{ inputs.extra-args }}" ]]; then
+  CMD="$CMD ${{ inputs.extra-args }}"
+fi
+eval "$CMD"
+
+# CORRECT — array execution prevents injection
+cmd_array=(uv run releasekit ${{ inputs.command }})
+if [[ -n "${{ inputs.extra-args }}" ]]; then
+  read -ra extra <<< "${{ inputs.extra-args }}"
+  cmd_array+=("${extra[@]}")
+fi
+"${cmd_array[@]}"
+```
+
+Key rules:
+
+* **Build commands as arrays**, not strings
+* **Execute with `"${cmd_array[@]}"`**, not `eval`
+* **Quote all `${{ inputs.* }}`** references in array additions
+* **Use `read -ra`** to safely split free-form inputs into array elements
+* **Capture output** with `$("${cmd_array[@]}")`, not `$(eval "$CMD")`
+
+### Pin Dependencies with Version Constraints
+
+Always pin dependencies with `>=` version constraints, especially for
+packages with known CVEs. This ensures CI and production use the patched
+version:
+
+```toml
+# WRONG — allows any version, including vulnerable ones
+dependencies = ["pillow"]
+
+# CORRECT — pins to patched version (GHSA-cfh3-3jmp-rvhc)
+dependencies = ["pillow>=12.1.1"]
+```
+
+After pinning, always run `uv lock` to regenerate the lockfile.
