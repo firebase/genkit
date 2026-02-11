@@ -161,7 +161,7 @@ ai = Genkit(plugins=[VertexAI()])
 define_vertex_vector_search_firestore(
     ai,
     name='my-vector-search',
-    embedder='vertexai/text-embedding-004',
+    embedder='vertexai/gemini-embedding-001',
     embedder_options={
         'task': 'RETRIEVAL_DOCUMENT',
         'output_dimensionality': 128,

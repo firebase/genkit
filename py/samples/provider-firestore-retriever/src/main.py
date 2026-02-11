@@ -104,7 +104,7 @@ if 'GCLOUD_PROJECT' not in os.environ:
     os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT: ')
 
 # Important: use the same embedding model for indexing and retrieval.
-EMBEDDING_MODEL = 'vertexai/text-embedding-004'
+EMBEDDING_MODEL = 'vertexai/gemini-embedding-001'
 
 # Add Firebase telemetry (metrics, logs, traces)
 add_firebase_telemetry()
