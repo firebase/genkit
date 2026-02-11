@@ -252,7 +252,6 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 			Images: images,
 			Stream: stream,
 		}
-
 	} else {
 		var messages []*ollamaMessage
 		// Translate all messages to ollama message format.
@@ -289,6 +288,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("Ollama Request Payload: %s\n", string(payloadBytes))
 
 	// Determine the correct endpoint
 	endpoint := g.serverAddress + "/api/chat"
@@ -322,6 +322,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 
 		var response *ai.ModelResponse
 		if isChatModel {
+			fmt.Printf("translating chat response\n")
 			response, err = translateChatResponse(body)
 		} else {
 			response, err = translateModelResponse(body)
@@ -453,6 +454,21 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 			Role: ai.RoleModel,
 		},
 	}
+
+	// Check for thinking/reasoning first
+	if response.Message.Thinking != "" {
+		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
+		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
+	} else if strings.Contains(response.Message.Content, "<think>") {
+		// If thinking is not explicitly returned, check if it's in the content
+		thinking, content := parseThinking(response.Message.Content)
+		if thinking != "" {
+			aiPart := ai.NewReasoningPart(thinking, nil)
+			modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
+			response.Message.Content = content
+		}
+	}
+
 	if len(response.Message.ToolCalls) > 0 {
 		for _, toolCall := range response.Message.ToolCalls {
 			toolRequest := &ai.ToolRequest{
@@ -462,12 +478,11 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 			toolPart := ai.NewToolRequestPart(toolRequest)
 			modelResponse.Message.Content = append(modelResponse.Message.Content, toolPart)
 		}
-	} else if response.Message.Content != "" {
-		aiPart := ai.NewTextPart(response.Message.Content)
-		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
 	}
-	if response.Message.Thinking != "" {
-		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
+
+	// Add remaining content as text if present
+	if response.Message.Content != "" {
+		aiPart := ai.NewTextPart(response.Message.Content)
 		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
 	}
 
@@ -502,6 +517,10 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	chunk := &ai.ModelResponseChunk{}
+	if response.Message.Content != "" {
+		aiPart := ai.NewTextPart(response.Message.Content)
+		chunk.Content = append(chunk.Content, aiPart)
+	}
 	if len(response.Message.ToolCalls) > 0 {
 		for _, toolCall := range response.Message.ToolCalls {
 			toolRequest := &ai.ToolRequest{
@@ -511,9 +530,6 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 			toolPart := ai.NewToolRequestPart(toolRequest)
 			chunk.Content = append(chunk.Content, toolPart)
 		}
-	} else if response.Message.Content != "" {
-		aiPart := ai.NewTextPart(response.Message.Content)
-		chunk.Content = append(chunk.Content, aiPart)
 	}
 
 	if response.Message.Thinking != "" {
@@ -592,4 +608,16 @@ func concatImages(input *ai.ModelRequest, roleFilter []ai.Role) ([]string, error
 		}
 	}
 	return images, nil
+}
+
+// parseThinking extracts the thinking content from the response string.
+func parseThinking(content string) (string, string) {
+	start := strings.Index(content, "<think>")
+	end := strings.Index(content, "</think>")
+	if start != -1 && end != -1 && end > start {
+		thinking := content[start+len("<think>") : end]
+		rest := content[:start] + content[end+len("</think>"):]
+		return strings.TrimSpace(thinking), strings.TrimSpace(rest)
+	}
+	return "", content
 }
