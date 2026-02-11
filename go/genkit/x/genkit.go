@@ -92,9 +92,8 @@ func DefineStreamingFlow[In, Out, Stream any](g *genkit.Genkit, name string, fn 
 				for range discardCh {
 				}
 			}()
-			output, err := fn(ctx, input, discardCh)
-			close(discardCh)
-			return output, err
+defer close(discardCh)
+return fn(ctx, input, discardCh)
 		}
 
 		// Create a cancellable context for the user function.
