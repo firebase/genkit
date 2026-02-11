@@ -26,6 +26,7 @@ degrades gracefully -- core publish works without it.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 from pathlib import Path
@@ -41,15 +42,15 @@ log = get_logger('releasekit.backends.forge')
 class Forge(Protocol):
     """Protocol for code forge operations (GitHub, GitLab, etc.).
 
-    Operations that touch the network are async-ready by convention,
-    but the ``gh`` CLI implementation runs synchronously under the hood.
+    All methods are async to avoid blocking the event loop when
+    shelling out to ``gh`` or other forge CLI tools.
     """
 
-    def is_available(self) -> bool:
+    async def is_available(self) -> bool:
         """Return ``True`` if the forge CLI tool is installed and authenticated."""
         ...
 
-    def create_release(
+    async def create_release(
         self,
         tag: str,
         *,
@@ -73,7 +74,7 @@ class Forge(Protocol):
         """
         ...
 
-    def delete_release(
+    async def delete_release(
         self,
         tag: str,
         *,
@@ -87,7 +88,7 @@ class Forge(Protocol):
         """
         ...
 
-    def promote_release(
+    async def promote_release(
         self,
         tag: str,
         *,
@@ -101,7 +102,7 @@ class Forge(Protocol):
         """
         ...
 
-    def list_releases(
+    async def list_releases(
         self,
         *,
         limit: int = 10,
@@ -116,7 +117,7 @@ class Forge(Protocol):
         """
         ...
 
-    def create_pr(
+    async def create_pr(
         self,
         *,
         title: str,
@@ -136,7 +137,7 @@ class Forge(Protocol):
         """
         ...
 
-    def pr_data(self, pr_number: int) -> dict[str, Any]:
+    async def pr_data(self, pr_number: int) -> dict[str, Any]:
         """Fetch data about a pull request.
 
         Args:
@@ -151,6 +152,9 @@ class Forge(Protocol):
 class GitHubBackend:
     """Default :class:`Forge` implementation using the ``gh`` CLI.
 
+    All methods are async and delegate blocking subprocess calls to
+    ``asyncio.to_thread()`` to avoid blocking the event loop.
+
     Args:
         repo: Repository in ``owner/name`` format (e.g., ``"firebase/genkit"``).
         cwd: Working directory for ``gh`` commands.
@@ -162,7 +166,7 @@ class GitHubBackend:
         self._cwd = cwd
 
     def _gh(self, *args: str, dry_run: bool = False, check: bool = False) -> CommandResult:
-        """Run a gh command."""
+        """Run a gh command synchronously (called via to_thread)."""
         return run_command(
             ['gh', *args, '--repo', self._repo],
             cwd=self._cwd,
@@ -170,20 +174,24 @@ class GitHubBackend:
             check=check,
         )
 
-    def is_available(self) -> bool:
+    async def is_available(self) -> bool:
         """Check if ``gh`` is installed and authenticated."""
         if shutil.which('gh') is None:
             log.warning('gh_not_found', hint='Install gh: https://cli.github.com/')
             return False
 
-        result = run_command(['gh', 'auth', 'status'], cwd=self._cwd)
+        result = await asyncio.to_thread(
+            run_command,
+            ['gh', 'auth', 'status'],
+            cwd=self._cwd,
+        )
         if not result.ok:
             log.warning('gh_not_authenticated', hint="Run 'gh auth login'")
             return False
 
         return True
 
-    def create_release(
+    async def create_release(
         self,
         tag: str,
         *,
@@ -211,9 +219,9 @@ class GitHubBackend:
                 cmd_parts.append(str(asset))
 
         log.info('create_release', tag=tag, draft=draft)
-        return self._gh(*cmd_parts, dry_run=dry_run)
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
-    def delete_release(
+    async def delete_release(
         self,
         tag: str,
         *,
@@ -221,9 +229,9 @@ class GitHubBackend:
     ) -> CommandResult:
         """Delete a GitHub Release by tag."""
         log.info('delete_release', tag=tag)
-        return self._gh('release', 'delete', tag, '--yes', dry_run=dry_run)
+        return await asyncio.to_thread(self._gh, 'release', 'delete', tag, '--yes', dry_run=dry_run)
 
-    def promote_release(
+    async def promote_release(
         self,
         tag: str,
         *,
@@ -231,15 +239,23 @@ class GitHubBackend:
     ) -> CommandResult:
         """Promote a draft release to published."""
         log.info('promote_release', tag=tag)
-        return self._gh('release', 'edit', tag, '--draft=false', dry_run=dry_run)
+        return await asyncio.to_thread(
+            self._gh,
+            'release',
+            'edit',
+            tag,
+            '--draft=false',
+            dry_run=dry_run,
+        )
 
-    def list_releases(
+    async def list_releases(
         self,
         *,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
         """List recent GitHub Releases."""
-        result = self._gh(
+        result = await asyncio.to_thread(
+            self._gh,
             'release',
             'list',
             '--limit',
@@ -266,7 +282,7 @@ class GitHubBackend:
             for r in releases
         ]
 
-    def create_pr(
+    async def create_pr(
         self,
         *,
         title: str,
@@ -281,11 +297,12 @@ class GitHubBackend:
             cmd_parts.extend(['--body', body])
 
         log.info('create_pr', title=title, head=head, base=base)
-        return self._gh(*cmd_parts, dry_run=dry_run)
+        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
-    def pr_data(self, pr_number: int) -> dict[str, Any]:
+    async def pr_data(self, pr_number: int) -> dict[str, Any]:
         """Fetch PR data as a dict."""
-        result = self._gh(
+        result = await asyncio.to_thread(
+            self._gh,
             'pr',
             'view',
             str(pr_number),

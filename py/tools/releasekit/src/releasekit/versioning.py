@@ -196,10 +196,10 @@ def _format_tag(tag_format: str, name: str, version: str) -> str:
     return tag_format.replace('{name}', name).replace('{version}', version)
 
 
-def _last_tag(vcs: VCS, tag_format: str, name: str, version: str) -> str | None:
+async def _last_tag(vcs: VCS, tag_format: str, name: str, version: str) -> str | None:
     """Find the most recent tag for a package, or None if no tag exists."""
     tag = _format_tag(tag_format, name, version)
-    if vcs.tag_exists(tag):
+    if await vcs.tag_exists(tag):
         return tag
     return None
 
@@ -250,7 +250,7 @@ def _apply_bump(version: str, bump: BumpType, prerelease: str = '') -> str:
     return version
 
 
-def compute_bumps(
+async def compute_bumps(
     packages: list[Package],
     vcs: VCS,
     *,
@@ -284,10 +284,10 @@ def compute_bumps(
     """
     results: list[PackageVersion] = []
     for pkg in packages:
-        last_tag = _last_tag(vcs, tag_format, pkg.name, pkg.version)
+        last_tag = await _last_tag(vcs, tag_format, pkg.name, pkg.version)
 
         # Fetch commits scoped to this package's directory since its tag.
-        log_lines = vcs.log(
+        log_lines = await vcs.log(
             format='%H %s',
             since_tag=last_tag,
             paths=[str(pkg.path)],

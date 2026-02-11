@@ -48,7 +48,7 @@ class FakeVCS:
         self._log_by_path = log_by_path or {}
         self._tags = tags or set()
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -66,31 +66,31 @@ class FakeVCS:
             all_lines.extend(lines)
         return all_lines
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """Return True if tag is in the fake tag set."""
         return tag_name in self._tags
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Always returns True."""
         return True
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Always returns False."""
         return False
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return a fake SHA."""
         return 'fake_sha'
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return empty list (not used in compute_bumps)."""
         return []
 
-    def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
+    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
         """No-op commit."""
         return CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-    def tag(
+    async def tag(
         self,
         tag_name: str,
         *,
@@ -100,7 +100,7 @@ class FakeVCS:
         """No-op tag."""
         return CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-    def delete_tag(
+    async def delete_tag(
         self,
         tag_name: str,
         *,
@@ -110,7 +110,7 @@ class FakeVCS:
         """No-op delete_tag."""
         return CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-    def push(
+    async def push(
         self,
         *,
         tags: bool = False,
@@ -120,7 +120,7 @@ class FakeVCS:
         """No-op push."""
         return CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-    def checkout_branch(
+    async def checkout_branch(
         self,
         branch: str,
         *,
@@ -306,7 +306,8 @@ class TestComputeBumps:
             pyproject_path=Path(path) / 'pyproject.toml',
         )
 
-    def test_scopes_commits_per_package(self) -> None:
+    @pytest.mark.asyncio
+    async def test_scopes_commits_per_package(self) -> None:
         """Only commits touching a package's path bump that package."""
         vcs = FakeVCS(
             log_by_path={
@@ -323,7 +324,7 @@ class TestComputeBumps:
             self._make_pkg('genkit-plugin-google-genai', '0.4.0', '/workspace/plugins/google-genai'),
         ]
 
-        results = compute_bumps(packages, vcs)
+        results = await compute_bumps(packages, vcs)
 
         assert len(results) == 2
         # genkit gets a feat → minor bump
@@ -336,7 +337,8 @@ class TestComputeBumps:
         assert results[1].bump == 'patch'
         assert results[1].new_version == '0.4.1'
 
-    def test_no_commits_skips_package(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_commits_skips_package(self) -> None:
         """Packages with no commits are skipped."""
         vcs = FakeVCS(
             log_by_path={
@@ -350,26 +352,28 @@ class TestComputeBumps:
             self._make_pkg('genkit-plugin-foo', '0.4.0', '/workspace/plugins/foo'),
         ]
 
-        results = compute_bumps(packages, vcs)
+        results = await compute_bumps(packages, vcs)
 
         assert results[0].skipped is False
         assert results[1].skipped is True
         assert results[1].new_version == '0.4.0'
 
-    def test_force_unchanged(self) -> None:
+    @pytest.mark.asyncio
+    async def test_force_unchanged(self) -> None:
         """force_unchanged bumps skipped packages to patch."""
         vcs = FakeVCS(log_by_path={})
         packages = [
             self._make_pkg('genkit', '1.0.0', '/workspace/packages/genkit'),
         ]
 
-        results = compute_bumps(packages, vcs, force_unchanged=True)
+        results = await compute_bumps(packages, vcs, force_unchanged=True)
 
         assert results[0].skipped is False
         assert results[0].bump == 'patch'
         assert results[0].new_version == '1.0.1'
 
-    def test_prerelease_mode(self) -> None:
+    @pytest.mark.asyncio
+    async def test_prerelease_mode(self) -> None:
         """Prerelease mode converts bumps to prerelease versions."""
         vcs = FakeVCS(
             log_by_path={
@@ -382,12 +386,13 @@ class TestComputeBumps:
             self._make_pkg('genkit', '0.4.0', '/workspace/packages/genkit'),
         ]
 
-        results = compute_bumps(packages, vcs, prerelease='rc')
+        results = await compute_bumps(packages, vcs, prerelease='rc')
 
         assert results[0].bump == 'prerelease'
         assert results[0].new_version == '0.4.1rc1'
 
-    def test_breaking_change_major_bump(self) -> None:
+    @pytest.mark.asyncio
+    async def test_breaking_change_major_bump(self) -> None:
         """Breaking changes result in major version bumps."""
         vcs = FakeVCS(
             log_by_path={
@@ -400,12 +405,13 @@ class TestComputeBumps:
             self._make_pkg('genkit', '1.2.3', '/workspace/packages/genkit'),
         ]
 
-        results = compute_bumps(packages, vcs)
+        results = await compute_bumps(packages, vcs)
 
         assert results[0].bump == 'major'
         assert results[0].new_version == '2.0.0'
 
-    def test_strongest_bump_wins(self) -> None:
+    @pytest.mark.asyncio
+    async def test_strongest_bump_wins(self) -> None:
         """When multiple commits affect a package, the strongest bump wins."""
         vcs = FakeVCS(
             log_by_path={
@@ -420,7 +426,7 @@ class TestComputeBumps:
             self._make_pkg('genkit', '1.0.0', '/workspace/packages/genkit'),
         ]
 
-        results = compute_bumps(packages, vcs)
+        results = await compute_bumps(packages, vcs)
 
         # feat (minor) > fix (patch) > chore (none)
         assert results[0].bump == 'minor'

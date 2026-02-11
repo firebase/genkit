@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.changelog import (
     Changelog,
@@ -37,7 +38,7 @@ class FakeVCS:
         """Initialize with optional canned log lines."""
         self._log_lines = log_lines or []
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -47,27 +48,27 @@ class FakeVCS:
         """Return canned log lines."""
         return self._log_lines
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """No tags exist."""
         return False
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Always clean."""
         return True
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Never shallow."""
         return False
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return a fake SHA."""
         return 'abc123'
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return empty diff."""
         return []
 
-    def commit(
+    async def commit(
         self,
         message: str,
         *,
@@ -77,7 +78,7 @@ class FakeVCS:
         """No-op commit."""
         return _OK
 
-    def tag(
+    async def tag(
         self,
         tag_name: str,
         *,
@@ -87,7 +88,7 @@ class FakeVCS:
         """No-op tag."""
         return _OK
 
-    def delete_tag(
+    async def delete_tag(
         self,
         tag_name: str,
         *,
@@ -97,7 +98,7 @@ class FakeVCS:
         """No-op delete_tag."""
         return _OK
 
-    def push(
+    async def push(
         self,
         *,
         tags: bool = False,
@@ -107,7 +108,7 @@ class FakeVCS:
         """No-op push."""
         return _OK
 
-    def checkout_branch(
+    async def checkout_branch(
         self,
         branch: str,
         *,
@@ -209,7 +210,8 @@ class TestRenderChangelog:
 class TestGenerateChangelog:
     """Tests for generate_changelog function."""
 
-    def test_groups_by_type(self) -> None:
+    @pytest.mark.asyncio
+    async def test_groups_by_type(self) -> None:
         """Commits are grouped into sections by type."""
         vcs = FakeVCS(
             log_lines=[
@@ -218,7 +220,7 @@ class TestGenerateChangelog:
                 'ccc3333 feat(auth): add OAuth2',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         headings = [s.heading for s in changelog.sections]
         if 'Features' not in headings:
@@ -226,7 +228,8 @@ class TestGenerateChangelog:
         if 'Bug Fixes' not in headings:
             raise AssertionError(f'Missing Bug Fixes section: {headings}')
 
-    def test_features_before_fixes(self) -> None:
+    @pytest.mark.asyncio
+    async def test_features_before_fixes(self) -> None:
         """Features section appears before Bug Fixes."""
         vcs = FakeVCS(
             log_lines=[
@@ -234,7 +237,7 @@ class TestGenerateChangelog:
                 'aaa1111 feat: a feature',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         headings = [s.heading for s in changelog.sections]
         feat_idx = headings.index('Features')
@@ -242,7 +245,8 @@ class TestGenerateChangelog:
         if feat_idx > fix_idx:
             raise AssertionError(f'Features ({feat_idx}) should come before Bug Fixes ({fix_idx})')
 
-    def test_breaking_changes_first(self) -> None:
+    @pytest.mark.asyncio
+    async def test_breaking_changes_first(self) -> None:
         """Breaking changes get their own section at the top."""
         vcs = FakeVCS(
             log_lines=[
@@ -250,13 +254,14 @@ class TestGenerateChangelog:
                 'bbb2222 feat!: remove deprecated API',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='1.0.0')
+        changelog = await generate_changelog(vcs=vcs, version='1.0.0')
 
         headings = [s.heading for s in changelog.sections]
         if headings[0] != 'Breaking Changes':
             raise AssertionError(f'Expected Breaking Changes first, got {headings}')
 
-    def test_excludes_default_types(self) -> None:
+    @pytest.mark.asyncio
+    async def test_excludes_default_types(self) -> None:
         """chore, ci, build, test, style are excluded by default."""
         vcs = FakeVCS(
             log_lines=[
@@ -266,7 +271,7 @@ class TestGenerateChangelog:
                 'ddd4444 test: add test',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         all_entries = [e for s in changelog.sections for e in s.entries]
         types = {e.type for e in all_entries}
@@ -275,7 +280,8 @@ class TestGenerateChangelog:
         if 'feat' not in types:
             raise AssertionError('feat should be included')
 
-    def test_include_all_types(self) -> None:
+    @pytest.mark.asyncio
+    async def test_include_all_types(self) -> None:
         """Empty exclude set includes everything."""
         vcs = FakeVCS(
             log_lines=[
@@ -283,21 +289,22 @@ class TestGenerateChangelog:
                 'bbb2222 chore: update deps',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0', exclude_types=frozenset())
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0', exclude_types=frozenset())
 
         all_entries = [e for s in changelog.sections for e in s.entries]
         types = {e.type for e in all_entries}
         if 'chore' not in types:
             raise AssertionError('chore should be included with empty exclude set')
 
-    def test_extracts_pr_reference(self) -> None:
+    @pytest.mark.asyncio
+    async def test_extracts_pr_reference(self) -> None:
         """PR references (#1234) are extracted from descriptions."""
         vcs = FakeVCS(
             log_lines=[
                 'aaa1111 feat: add streaming (#42)',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         entry = changelog.sections[0].entries[0]
         if entry.pr_number != '42':
@@ -305,7 +312,8 @@ class TestGenerateChangelog:
         if '#42' in entry.description:
             raise AssertionError(f'PR ref should be removed from description: {entry.description}')
 
-    def test_non_conventional_commits_skipped(self) -> None:
+    @pytest.mark.asyncio
+    async def test_non_conventional_commits_skipped(self) -> None:
         """Non-conventional commit messages are silently skipped."""
         vcs = FakeVCS(
             log_lines=[
@@ -314,60 +322,65 @@ class TestGenerateChangelog:
                 'ccc3333 Merge pull request #123',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         all_entries = [e for s in changelog.sections for e in s.entries]
         if len(all_entries) != 1:
             raise AssertionError(f'Expected 1 entry, got {len(all_entries)}')
 
-    def test_empty_log(self) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_log(self) -> None:
         """Empty git log produces empty changelog."""
         vcs = FakeVCS(log_lines=[])
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         if changelog.sections:
             raise AssertionError(f'Expected no sections, got {len(changelog.sections)}')
 
-    def test_scope_preserved(self) -> None:
+    @pytest.mark.asyncio
+    async def test_scope_preserved(self) -> None:
         """Commit scope is preserved in entries."""
         vcs = FakeVCS(
             log_lines=[
                 'aaa1111 feat(auth): add OAuth2',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         entry = changelog.sections[0].entries[0]
         if entry.scope != 'auth':
             raise AssertionError(f'Expected scope auth, got {entry.scope}')
 
-    def test_breaking_chore_not_excluded(self) -> None:
+    @pytest.mark.asyncio
+    async def test_breaking_chore_not_excluded(self) -> None:
         """Breaking changes are never excluded, even if the type is excluded."""
         vcs = FakeVCS(
             log_lines=[
                 'aaa1111 chore!: drop Python 3.9 support',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='1.0.0')
+        changelog = await generate_changelog(vcs=vcs, version='1.0.0')
 
         all_entries = [e for s in changelog.sections for e in s.entries]
         if len(all_entries) != 1:
             raise AssertionError(f'Breaking chore should be included, got {len(all_entries)}')
 
-    def test_perf_included(self) -> None:
+    @pytest.mark.asyncio
+    async def test_perf_included(self) -> None:
         """perf: type is included by default."""
         vcs = FakeVCS(
             log_lines=[
                 'aaa1111 perf: optimize hot path',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='0.5.0')
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
 
         headings = [s.heading for s in changelog.sections]
         if 'Performance' not in headings:
             raise AssertionError(f'Expected Performance section: {headings}')
 
-    def test_render_round_trip(self) -> None:
+    @pytest.mark.asyncio
+    async def test_render_round_trip(self) -> None:
         """Generate + render produces valid markdown."""
         vcs = FakeVCS(
             log_lines=[
@@ -376,7 +389,7 @@ class TestGenerateChangelog:
                 'ccc3333 feat!: remove deprecated API',
             ]
         )
-        changelog = generate_changelog(vcs=vcs, version='1.0.0', date='2026-02-10')
+        changelog = await generate_changelog(vcs=vcs, version='1.0.0', date='2026-02-10')
         md = render_changelog(changelog)
 
         if '## 1.0.0 (2026-02-10)' not in md:

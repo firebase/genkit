@@ -25,6 +25,7 @@ All operations are synchronous because git is fast locally.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -36,21 +37,25 @@ log = get_logger('releasekit.backends.vcs')
 
 @runtime_checkable
 class VCS(Protocol):
-    """Protocol for version control operations."""
+    """Protocol for version control operations.
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    All methods are async to avoid blocking the event loop when
+    shelling out to ``git`` or other VCS tools.
+    """
+
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Return ``True`` if the working tree has no uncommitted changes."""
         ...
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Return ``True`` if the repository is a shallow clone."""
         ...
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return the current HEAD commit SHA."""
         ...
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -66,7 +71,7 @@ class VCS(Protocol):
         """
         ...
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return list of files changed since a tag.
 
         Args:
@@ -75,7 +80,7 @@ class VCS(Protocol):
         """
         ...
 
-    def commit(
+    async def commit(
         self,
         message: str,
         *,
@@ -92,7 +97,7 @@ class VCS(Protocol):
         """
         ...
 
-    def tag(
+    async def tag(
         self,
         tag_name: str,
         *,
@@ -108,11 +113,11 @@ class VCS(Protocol):
         """
         ...
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """Return ``True`` if the tag exists locally or remotely."""
         ...
 
-    def delete_tag(
+    async def delete_tag(
         self,
         tag_name: str,
         *,
@@ -128,7 +133,7 @@ class VCS(Protocol):
         """
         ...
 
-    def push(
+    async def push(
         self,
         *,
         tags: bool = False,
@@ -144,7 +149,7 @@ class VCS(Protocol):
         """
         ...
 
-    def checkout_branch(
+    async def checkout_branch(
         self,
         branch: str,
         *,
@@ -164,6 +169,9 @@ class VCS(Protocol):
 class GitBackend:
     """Default :class:`VCS` implementation using ``git``.
 
+    All methods are async and delegate blocking subprocess calls to
+    ``asyncio.to_thread()`` to avoid blocking the event loop.
+
     Args:
         repo_root: Path to the git repository root.
     """
@@ -173,27 +181,27 @@ class GitBackend:
         self._root = repo_root
 
     def _git(self, *args: str, dry_run: bool = False, check: bool = False) -> CommandResult:
-        """Run a git command."""
+        """Run a git command synchronously (called via to_thread)."""
         return run_command(['git', *args], cwd=self._root, dry_run=dry_run, check=check)
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Return ``True`` if the working tree is clean."""
         if dry_run:
             return True
-        result = self._git('status', '--porcelain')
+        result = await asyncio.to_thread(self._git, 'status', '--porcelain')
         return result.stdout.strip() == ''
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Return ``True`` if the repository is a shallow clone."""
-        result = self._git('rev-parse', '--is-shallow-repository')
+        result = await asyncio.to_thread(self._git, 'rev-parse', '--is-shallow-repository')
         return result.stdout.strip() == 'true'
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return the current HEAD commit SHA."""
-        result = self._git('rev-parse', 'HEAD', check=True)
+        result = await asyncio.to_thread(self._git, 'rev-parse', 'HEAD', check=True)
         return result.stdout.strip()
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -207,28 +215,27 @@ class GitBackend:
         if paths:
             cmd_parts.append('--')
             cmd_parts.extend(paths)
-        result = self._git(*cmd_parts)
+        result = await asyncio.to_thread(self._git, *cmd_parts)
         if not result.stdout.strip():
             return []
         return result.stdout.strip().split('\n')
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return list of changed files since a tag."""
         if since_tag:
-            result = self._git('diff', '--name-only', f'{since_tag}..HEAD')
+            result = await asyncio.to_thread(self._git, 'diff', '--name-only', f'{since_tag}..HEAD')
         else:
-            # Find the most recent tag and diff against it.
-            tag_result = self._git('describe', '--tags', '--abbrev=0')
+            tag_result = await asyncio.to_thread(self._git, 'describe', '--tags', '--abbrev=0')
             if not tag_result.ok:
                 return []
             last_tag = tag_result.stdout.strip()
-            result = self._git('diff', '--name-only', f'{last_tag}..HEAD')
+            result = await asyncio.to_thread(self._git, 'diff', '--name-only', f'{last_tag}..HEAD')
 
         if not result.stdout.strip():
             return []
         return result.stdout.strip().split('\n')
 
-    def commit(
+    async def commit(
         self,
         message: str,
         *,
@@ -237,14 +244,14 @@ class GitBackend:
     ) -> CommandResult:
         """Create a commit, staging specified paths first."""
         if paths and not dry_run:
-            self._git('add', *paths)
+            await asyncio.to_thread(self._git, 'add', *paths)
         else:
-            self._git('add', '-A', dry_run=dry_run)
+            await asyncio.to_thread(self._git, 'add', '-A', dry_run=dry_run)
 
         log.info('commit', message=message[:80])
-        return self._git('commit', '-m', message, dry_run=dry_run)
+        return await asyncio.to_thread(self._git, 'commit', '-m', message, dry_run=dry_run)
 
-    def tag(
+    async def tag(
         self,
         tag_name: str,
         *,
@@ -254,14 +261,22 @@ class GitBackend:
         """Create an annotated tag."""
         tag_message = message or tag_name
         log.info('tag', tag=tag_name)
-        return self._git('tag', '-a', tag_name, '-m', tag_message, dry_run=dry_run)
+        return await asyncio.to_thread(
+            self._git,
+            'tag',
+            '-a',
+            tag_name,
+            '-m',
+            tag_message,
+            dry_run=dry_run,
+        )
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """Return ``True`` if the tag exists."""
-        result = self._git('tag', '-l', tag_name)
+        result = await asyncio.to_thread(self._git, 'tag', '-l', tag_name)
         return result.stdout.strip() == tag_name
 
-    def delete_tag(
+    async def delete_tag(
         self,
         tag_name: str,
         *,
@@ -269,12 +284,18 @@ class GitBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Delete a tag locally and optionally on the remote."""
-        result = self._git('tag', '-d', tag_name, dry_run=dry_run)
+        result = await asyncio.to_thread(self._git, 'tag', '-d', tag_name, dry_run=dry_run)
         if remote and result.ok:
-            self._git('push', 'origin', f':refs/tags/{tag_name}', dry_run=dry_run)
+            await asyncio.to_thread(
+                self._git,
+                'push',
+                'origin',
+                f':refs/tags/{tag_name}',
+                dry_run=dry_run,
+            )
         return result
 
-    def push(
+    async def push(
         self,
         *,
         tags: bool = False,
@@ -286,9 +307,9 @@ class GitBackend:
         if tags:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags)
-        return self._git(*cmd_parts, dry_run=dry_run)
+        return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
 
-    def checkout_branch(
+    async def checkout_branch(
         self,
         branch: str,
         *,
@@ -298,9 +319,9 @@ class GitBackend:
         """Switch to a branch, optionally creating it."""
         if create:
             log.info('checkout_branch_create', branch=branch)
-            return self._git('checkout', '-b', branch, dry_run=dry_run)
+            return await asyncio.to_thread(self._git, 'checkout', '-b', branch, dry_run=dry_run)
         log.info('checkout_branch', branch=branch)
-        return self._git('checkout', branch, dry_run=dry_run)
+        return await asyncio.to_thread(self._git, 'checkout', branch, dry_run=dry_run)
 
 
 __all__ = [

@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.commitback import CommitbackResult, _next_dev_version, create_commitback_pr
 from releasekit.versions import PackageVersion, ReleaseManifest
@@ -37,35 +38,35 @@ class FakeVCS:
         self.commits: list[str] = []
         self.pushes: int = 0
 
-    def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
+    async def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
         """Record branch creation."""
         if create:
             self.branches_created.append(branch)
         return _OK
 
-    def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
+    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
         """Record commit message."""
         self.commits.append(message)
         return _OK
 
-    def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+    async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
         """Record push call."""
         self.pushes += 1
         return _OK
 
-    def is_clean(self, *, dry_run: bool = False) -> bool:
+    async def is_clean(self, *, dry_run: bool = False) -> bool:
         """Always clean."""
         return True
 
-    def is_shallow(self) -> bool:
+    async def is_shallow(self) -> bool:
         """Never shallow."""
         return False
 
-    def current_sha(self) -> str:
+    async def current_sha(self) -> str:
         """Return a fake SHA."""
         return 'abc123'
 
-    def log(
+    async def log(
         self,
         *,
         since_tag: str | None = None,
@@ -75,19 +76,19 @@ class FakeVCS:
         """Return empty log."""
         return []
 
-    def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
         """Return empty diff."""
         return []
 
-    def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+    async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
         """No-op tag."""
         return _OK
 
-    def tag_exists(self, tag_name: str) -> bool:
+    async def tag_exists(self, tag_name: str) -> bool:
         """No tags exist."""
         return False
 
-    def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+    async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
         """No-op delete_tag."""
         return _OK
 
@@ -100,11 +101,11 @@ class FakeForge:
         self._available = available
         self.prs_created: list[dict[str, str]] = []
 
-    def is_available(self) -> bool:
+    async def is_available(self) -> bool:
         """Check availability."""
         return self._available
 
-    def create_pr(
+    async def create_pr(
         self,
         *,
         title: str,
@@ -117,7 +118,7 @@ class FakeForge:
         self.prs_created.append({'title': title, 'head': head, 'base': base})
         return _OK
 
-    def create_release(
+    async def create_release(
         self,
         tag: str,
         *,
@@ -131,19 +132,19 @@ class FakeForge:
         """No-op create_release."""
         return _OK
 
-    def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+    async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
         """No-op delete_release."""
         return _OK
 
-    def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+    async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
         """No-op promote_release."""
         return _OK
 
-    def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
+    async def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
         """Return empty release list."""
         return []
 
-    def pr_data(self, pr_number: int) -> dict[str, Any]:
+    async def pr_data(self, pr_number: int) -> dict[str, Any]:
         """Return empty PR data."""
         return {}
 
@@ -192,15 +193,17 @@ class TestCommitbackResult:
 class TestCreateCommitbackPr:
     """Tests for create_commitback_pr function."""
 
-    def test_empty_manifest(self) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_manifest(self) -> None:
         """No bumped packages produces no work."""
         manifest = ReleaseManifest(git_sha='abc123', packages=[])
         vcs = FakeVCS()
-        result = create_commitback_pr(manifest=manifest, vcs=vcs)
+        result = await create_commitback_pr(manifest=manifest, vcs=vcs)
         if result.bumped:
             raise AssertionError(f'Expected no bumped packages: {result.bumped}')
 
-    def test_creates_branch(self) -> None:
+    @pytest.mark.asyncio
+    async def test_creates_branch(self) -> None:
         """Creates a post-release branch for the commitback PR."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -210,13 +213,14 @@ class TestCreateCommitbackPr:
             ],
         )
         vcs = FakeVCS()
-        result = create_commitback_pr(manifest=manifest, vcs=vcs)
+        result = await create_commitback_pr(manifest=manifest, vcs=vcs)
         if 'chore/post-release-0.5.0' not in vcs.branches_created:
             raise AssertionError(f'Expected branch creation: {vcs.branches_created}')
         if result.branch != 'chore/post-release-0.5.0':
             raise AssertionError(f'Expected branch name: {result.branch}')
 
-    def test_bumps_packages(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_bumps_packages(self, tmp_path: Path) -> None:
         """Bumps pyproject.toml version for each package."""
         pkg_dir = tmp_path / 'genkit'
         pkg_dir.mkdir()
@@ -231,7 +235,7 @@ class TestCreateCommitbackPr:
             ],
         )
         vcs = FakeVCS()
-        result = create_commitback_pr(
+        result = await create_commitback_pr(
             manifest=manifest,
             vcs=vcs,
             package_paths={'genkit': pkg_dir},
@@ -246,7 +250,8 @@ class TestCreateCommitbackPr:
         if '0.5.1.dev0' not in content:
             raise AssertionError(f'Expected dev version in pyproject.toml:\n{content}')
 
-    def test_commits_and_pushes(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_commits_and_pushes(self, tmp_path: Path) -> None:
         """Commits version bumps and pushes the branch."""
         pkg_dir = tmp_path / 'genkit'
         pkg_dir.mkdir()
@@ -260,14 +265,15 @@ class TestCreateCommitbackPr:
             ],
         )
         vcs = FakeVCS()
-        create_commitback_pr(manifest=manifest, vcs=vcs, package_paths={'genkit': pkg_dir})
+        await create_commitback_pr(manifest=manifest, vcs=vcs, package_paths={'genkit': pkg_dir})
 
         if len(vcs.commits) != 1:
             raise AssertionError(f'Expected 1 commit, got {len(vcs.commits)}')
         if vcs.pushes != 1:
             raise AssertionError(f'Expected 1 push, got {vcs.pushes}')
 
-    def test_creates_pr_with_forge(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_creates_pr_with_forge(self, tmp_path: Path) -> None:
         """Creates a PR when forge is available."""
         pkg_dir = tmp_path / 'genkit'
         pkg_dir.mkdir()
@@ -282,7 +288,7 @@ class TestCreateCommitbackPr:
         )
         vcs = FakeVCS()
         forge = FakeForge()
-        result = create_commitback_pr(
+        result = await create_commitback_pr(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -293,7 +299,8 @@ class TestCreateCommitbackPr:
         if len(forge.prs_created) != 1:
             raise AssertionError(f'Expected 1 PR, got {len(forge.prs_created)}')
 
-    def test_skips_pr_when_forge_unavailable(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_pr_when_forge_unavailable(self, tmp_path: Path) -> None:
         """Skips PR creation when forge is not available."""
         pkg_dir = tmp_path / 'genkit'
         pkg_dir.mkdir()
@@ -308,7 +315,7 @@ class TestCreateCommitbackPr:
         )
         vcs = FakeVCS()
         forge = FakeForge(available=False)
-        result = create_commitback_pr(
+        result = await create_commitback_pr(
             manifest=manifest,
             vcs=vcs,
             forge=forge,
@@ -319,7 +326,8 @@ class TestCreateCommitbackPr:
         if len(forge.prs_created) != 0:
             raise AssertionError(f'Expected 0 PRs, got {len(forge.prs_created)}')
 
-    def test_missing_package_path(self) -> None:
+    @pytest.mark.asyncio
+    async def test_missing_package_path(self) -> None:
         """Package with no path mapping is skipped."""
         manifest = ReleaseManifest(
             git_sha='abc123',
@@ -329,6 +337,6 @@ class TestCreateCommitbackPr:
             ],
         )
         vcs = FakeVCS()
-        result = create_commitback_pr(manifest=manifest, vcs=vcs, package_paths={})
+        result = await create_commitback_pr(manifest=manifest, vcs=vcs, package_paths={})
         if result.bumped:
             raise AssertionError(f'Expected no bumps: {result.bumped}')

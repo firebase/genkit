@@ -230,7 +230,7 @@ async def _publish_one(
             observer.on_stage(name, PublishStage.BUILDING)
             with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
                 dist_dir = Path(tmp)
-                pm.build(
+                await pm.build(
                     pkg.path,
                     output_dir=dist_dir,
                     no_sources=True,
@@ -249,7 +249,7 @@ async def _publish_one(
                 state.set_status(name, PackageStatus.PUBLISHING)
                 state.save(state_path)
 
-                pm.publish(
+                await pm.publish(
                     dist_dir,
                     check_url=config.check_url,
                     index_url=config.index_url,
@@ -300,7 +300,7 @@ async def _publish_one(
 
         if config.smoke_test and not config.dry_run:
             observer.on_stage(name, PublishStage.VERIFYING)
-            pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
+            await pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
 
         observer.on_stage(name, PublishStage.PUBLISHED)
         state.set_status(name, PackageStatus.PUBLISHED)
@@ -382,7 +382,7 @@ async def publish_workspace(
     pkg_map: dict[str, Package] = {p.name: p for p in packages}
 
     # Initialize or resume state.
-    git_sha = vcs.current_sha()
+    git_sha = await vcs.current_sha()
     state_path = config.workspace_root / '.releasekit-state.json'
 
     if state is None:

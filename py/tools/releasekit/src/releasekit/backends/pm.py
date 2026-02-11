@@ -32,6 +32,7 @@ Key design decisions (from roadmap D-2, D-3, D-7, D-9):
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -45,10 +46,11 @@ log = get_logger('releasekit.backends.pm')
 class PackageManager(Protocol):
     """Protocol for package build and publish operations.
 
-    All methods accept ``dry_run`` to support preview mode.
+    All methods are async to avoid blocking the event loop when
+    shelling out to ``uv`` or other package managers.
     """
 
-    def build(
+    async def build(
         self,
         package_dir: Path,
         *,
@@ -67,7 +69,7 @@ class PackageManager(Protocol):
         """
         ...
 
-    def publish(
+    async def publish(
         self,
         dist_dir: Path,
         *,
@@ -85,7 +87,7 @@ class PackageManager(Protocol):
         """
         ...
 
-    def lock(
+    async def lock(
         self,
         *,
         check_only: bool = False,
@@ -103,7 +105,7 @@ class PackageManager(Protocol):
         """
         ...
 
-    def version_bump(
+    async def version_bump(
         self,
         package_dir: Path,
         new_version: str,
@@ -119,7 +121,7 @@ class PackageManager(Protocol):
         """
         ...
 
-    def resolve_check(
+    async def resolve_check(
         self,
         package_name: str,
         version: str,
@@ -137,7 +139,7 @@ class PackageManager(Protocol):
         """
         ...
 
-    def smoke_test(
+    async def smoke_test(
         self,
         package_name: str,
         version: str,
@@ -157,6 +159,9 @@ class PackageManager(Protocol):
 class UvBackend:
     """Default :class:`PackageManager` implementation using ``uv``.
 
+    All methods are async and delegate blocking subprocess calls to
+    ``asyncio.to_thread()`` to avoid blocking the event loop.
+
     Args:
         workspace_root: Path to the workspace root (contains ``pyproject.toml``
             with ``[tool.uv.workspace]``).
@@ -166,7 +171,7 @@ class UvBackend:
         """Initialize with the workspace root path."""
         self._root = workspace_root
 
-    def build(
+    async def build(
         self,
         package_dir: Path,
         *,
@@ -183,9 +188,9 @@ class UvBackend:
         cmd.append(str(package_dir))
 
         log.info('build', package=package_dir.name, no_sources=no_sources)
-        return run_command(cmd, cwd=self._root, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)
 
-    def publish(
+    async def publish(
         self,
         dist_dir: Path,
         *,
@@ -202,9 +207,9 @@ class UvBackend:
         cmd.append(str(dist_dir))
 
         log.info('publish', dist_dir=str(dist_dir))
-        return run_command(cmd, cwd=self._root, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)
 
-    def lock(
+    async def lock(
         self,
         *,
         check_only: bool = False,
@@ -221,9 +226,9 @@ class UvBackend:
 
         effective_cwd = cwd or self._root
         log.info('lock', check_only=check_only, upgrade_package=upgrade_package)
-        return run_command(cmd, cwd=effective_cwd, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=effective_cwd, dry_run=dry_run)
 
-    def version_bump(
+    async def version_bump(
         self,
         package_dir: Path,
         new_version: str,
@@ -234,9 +239,9 @@ class UvBackend:
         cmd = ['uv', 'version', '--frozen', new_version]
 
         log.info('version_bump', package=package_dir.name, version=new_version)
-        return run_command(cmd, cwd=package_dir, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=package_dir, dry_run=dry_run)
 
-    def resolve_check(
+    async def resolve_check(
         self,
         package_name: str,
         version: str,
@@ -250,9 +255,9 @@ class UvBackend:
             cmd.extend(['--index-url', index_url])
 
         log.info('resolve_check', package=package_name, version=version)
-        return run_command(cmd, cwd=self._root, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)
 
-    def smoke_test(
+    async def smoke_test(
         self,
         package_name: str,
         version: str,
@@ -273,7 +278,7 @@ class UvBackend:
         ]
 
         log.info('smoke_test', package=package_name, version=version)
-        return run_command(cmd, cwd=self._root, dry_run=dry_run)
+        return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)
 
 
 __all__ = [

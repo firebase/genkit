@@ -144,7 +144,7 @@ async def _check_clean_worktree(
 ) -> None:
     """Check that the working tree has no uncommitted changes."""
     check_name = 'clean_worktree'
-    if vcs.is_clean(dry_run=dry_run):
+    if await vcs.is_clean(dry_run=dry_run):
         result.add_pass(check_name)
     else:
         result.add_failure(
@@ -163,7 +163,7 @@ async def _check_lock_file(
     """Check that uv.lock is up to date."""
     check_name = 'lock_file'
     try:
-        pm.lock(check_only=True, cwd=workspace_root, dry_run=dry_run)
+        await pm.lock(check_only=True, cwd=workspace_root, dry_run=dry_run)
         result.add_pass(check_name)
     except Exception:
         result.add_failure(
@@ -178,7 +178,7 @@ async def _check_shallow_clone(
 ) -> None:
     """Warn if the repository is a shallow clone."""
     check_name = 'shallow_clone'
-    if vcs.is_shallow():
+    if await vcs.is_shallow():
         result.add_warning(
             check_name,
             'Repository is a shallow clone; git log may be incomplete.',
@@ -222,7 +222,7 @@ async def _check_forge(
         result.add_warning(check_name, 'No forge backend configured.')
         return
 
-    if forge.is_available():
+    if await forge.is_available():
         result.add_pass(check_name)
     else:
         result.add_warning(

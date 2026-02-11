@@ -134,7 +134,7 @@ def _next_dev_version(version: str) -> str:
     return f'{major}.{minor}.{next_patch}.dev0'
 
 
-def create_commitback_pr(
+async def create_commitback_pr(
     *,
     manifest: ReleaseManifest,
     vcs: VCS,
@@ -172,7 +172,7 @@ def create_commitback_pr(
     result.branch = branch_name
 
     try:
-        vcs.checkout_branch(branch_name, create=True, dry_run=dry_run)
+        await vcs.checkout_branch(branch_name, create=True, dry_run=dry_run)
         logger.info('commitback_branch_created', branch=branch_name)
     except Exception as exc:
         result.errors.append(f'Failed to create branch: {exc}')
@@ -214,17 +214,17 @@ def create_commitback_pr(
 
     commit_msg = f'chore: bump to next dev version after {umbrella_version}'
     try:
-        vcs.commit(commit_msg, dry_run=dry_run)
-        vcs.push(remote='origin', dry_run=dry_run)
+        await vcs.commit(commit_msg, dry_run=dry_run)
+        await vcs.push(remote='origin', dry_run=dry_run)
         logger.info('commitback_pushed', branch=branch_name)
     except Exception as exc:
         result.errors.append(f'Push failed: {exc}')
         logger.error('commitback_push_error', error=str(exc))
         return result
 
-    if forge is not None and hasattr(forge, 'is_available') and forge.is_available():
+    if forge is not None and hasattr(forge, 'is_available') and await forge.is_available():
         try:
-            pr_result = forge.create_pr(
+            pr_result = await forge.create_pr(
                 head=branch_name,
                 base=base_branch,
                 title=f'chore: post-release version bump ({umbrella_version})',
