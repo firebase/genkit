@@ -246,7 +246,7 @@ async def _check_version_conflicts(
     versions: list[PackageVersion],
     result: PreflightResult,
 ) -> None:
-    """Check that none of the target versions already exist on PyPI."""
+    """Check that none of the target versions already exist on the registry."""
     check_name = 'version_conflicts'
     conflicts: list[str] = []
 

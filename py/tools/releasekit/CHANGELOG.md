@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 27 new tests for tags (format_tag, create, skip, error, forge, delete).
 
 - **Phase 1: Workspace Discovery + Dependency Graph**
-  - `config.py`: Reads `[tool.releasekit]` from `pyproject.toml` with typed
+  - `config.py`: Reads `releasekit.toml` from the workspace root with typed
     validation, fuzzy "did you mean?" suggestions for typos, and a frozen
     `ReleaseConfig` dataclass with sensible defaults.
   - `workspace.py`: Discovers packages from `[tool.uv.workspace].members`

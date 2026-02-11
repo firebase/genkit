@@ -5,6 +5,39 @@ topological order with dependency-triggered scheduling, ephemeral version
 pinning, retry with jitter, crash-safe file restoration, and post-publish
 checksum verification.
 
+## Why This Tool Exists
+
+The Genkit Python SDK is a uv workspace with 60+ packages that have
+inter-dependencies. Publishing them to PyPI requires dependency-ordered
+builds with ephemeral version pinning — and no existing tool does this.
+
+`uv publish` is a **single-package** command. It publishes one wheel or
+sdist to PyPI. It does not understand workspaces, dependency graphs, or
+multi-package release orchestration. releasekit fills that gap:
+
+| Feature | `uv publish` | `releasekit` |
+|---------|:--:|:--:|
+| Publish a single package | ✅ | ✅ (calls `uv publish` internally) |
+| Dependency graph ordering | ❌ | ✅ topological sort |
+| Multi-package workspace publish | ❌ | ✅ all packages in order |
+| Version bump computation | ❌ | ✅ git-based semver |
+| Transitive dependency propagation | ❌ | ✅ patch bump dependents |
+| Concurrency within topo levels | ❌ | ✅ parallel within a level |
+| Pre/post-publish checks | ❌ | ✅ preflight + smoke test |
+| Retry with backoff | ❌ | ✅ configurable |
+| Exclude lists / groups | ❌ | ✅ `exclude`, `exclude_publish`, `exclude_bump` |
+| Git tagging | ❌ | ✅ per-package + umbrella |
+| Changelog generation | ❌ | ✅ from conventional commits |
+| Release manifest | ❌ | ✅ JSON record of what shipped |
+| Crash-safe resume | ❌ | ✅ state file + `--resume` |
+| SIGUSR1/SIGUSR2 pause/resume | ❌ | ✅ live scheduler control |
+
+`uv publish` is the low-level primitive. releasekit is the orchestrator
+that calls it per-package at the right time in the right order.
+
+See [roadmap.md](roadmap.md) for the full design rationale and
+implementation plan.
+
 ## Getting Started
 
 ```bash
@@ -40,9 +73,11 @@ uvx releasekit check
 | `graph` | Print the dependency graph (8 output formats) |
 | `plan` | Preview version bumps and publish order (dry run) |
 | `publish` | Build and publish packages to PyPI in dependency order |
+| `prepare` | Bump versions, generate changelogs, open a Release PR |
+| `release` | Tag a merged Release PR and create a GitHub Release |
 | `check` | Run standalone workspace health checks |
 | `bump` | Bump version for one or all packages |
-| `init` | Scaffold `[tool.releasekit]` config with auto-detected groups |
+| `init` | Scaffold `releasekit.toml` config with auto-detected groups |
 | `rollback` | Delete a git tag (local + remote) and its GitHub release |
 | `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
 | `version` | Show the releasekit version |
@@ -113,7 +148,7 @@ releasekit init --dry-run    # Preview generated config
 releasekit init --force      # Overwrite existing config
 ```
 
-Scaffolds `[tool.releasekit]` in `pyproject.toml` with auto-detected
+Scaffolds `releasekit.toml` in the workspace root with auto-detected
 package groups (plugins, samples, core). Also adds `.releasekit-state/`
 to `.gitignore`.
 
@@ -155,7 +190,7 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 
 ### Health Checks
 
-`releasekit check` runs 17 checks split into two categories:
+`releasekit check` runs 19 checks split into two categories:
 
 **Universal checks** (always run):
 - `cycles` — circular dependency chains
@@ -177,6 +212,8 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `readme_field` — publishable packages declare `readme` in `[project]`
 - `changelog_url` — publishable packages have `Changelog` in `[project.urls]`
 - `publish_classifier_consistency` — `exclude_publish` agrees with `Private :: Do Not Upload`
+- `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
+- `lockfile_staleness` — `uv.lock` is in sync with `pyproject.toml`
 
 The `CheckBackend` protocol allows adding language-specific checks
 for other runtimes (Go, JS) without modifying the core check runner.
@@ -194,7 +231,7 @@ Checks are split into **universal** (always run) and **ecosystem-specific**
 - No dependency cycles
 - No stale dist/ directories
 - Trusted publisher (OIDC) detection
-- Version conflict check against PyPI
+- Version conflict check against the registry
 
 **Python-specific checks** (`ecosystem='python'`):
 - `metadata_validation` — pyproject.toml has description, license, authors
@@ -233,20 +270,21 @@ kill -USR2 <pid>   # Resume: continue processing the queue
 
 ## Configuration
 
-`releasekit init` scaffolds configuration in `pyproject.toml`:
+releasekit reads configuration from a standalone `releasekit.toml` file
+in the workspace root. Use `releasekit init` to scaffold one:
 
 ```toml
-[tool.releasekit]
-tag_format = "{name}/v{version}"
-synchronize = false      # Independent versioning (default)
-concurrency = 5
-smoke_test = true
-verify_checksums = true
-exclude = ["samples/*"]
+# releasekit.toml
+changelog    = true
+smoke_test   = true
+tag_format   = "{name}-v{version}"
+umbrella_tag = "v{version}"
 
-[tool.releasekit.index]
-publish_url = "https://upload.pypi.org/legacy/"
-check_url = "https://pypi.org/simple/"
+exclude_publish = ["group:samples"]
+
+[groups]
+core = ["genkit"]
+samples = ["*-hello", "*-demo", "web-*"]
 ```
 
 ### Configuration Options
@@ -301,20 +339,47 @@ exclude_publish = [
 ```
 releasekit
 ├── Backends (DI / Protocol-based)
-│   ├── VCS          git operations (tag, commit, push)
-│   ├── PackageManager  uv operations (build, publish, lock)
-│   ├── Registry     PyPI queries (poll, checksum verify)
-│   └── Forge        GitHub operations (release, PR)
+│   ├── VCS              git / hg operations (tag, commit, push)
+│   │   ├── git.py         GitCLIBackend (default)
+│   │   └── mercurial.py   MercurialCLIBackend
+│   ├── PackageManager   build, publish, lock
+│   │   ├── uv.py          UvBackend (default)
+│   │   └── pnpm.py        PnpmBackend
+│   ├── Workspace        package discovery
+│   │   ├── uv.py          UvWorkspaceBackend (default)
+│   │   └── pnpm.py        PnpmWorkspaceBackend
+│   ├── Registry         package registry queries
+│   │   ├── pypi.py        PyPIBackend (default)
+│   │   └── npm.py         NpmRegistry
+│   └── Forge            release / PR management
+│       ├── github.py      GitHubCLIBackend (default)
+│       ├── github_api.py  GitHubAPIBackend (REST, for CI)
+│       ├── gitlab.py      GitLabCLIBackend
+│       └── bitbucket.py   BitbucketAPIBackend
 │
 ├── Core Pipeline
 │   ├── workspace.py     discover packages from pyproject.toml
 │   ├── graph.py         build & topo-sort dependency graph
-│   ├── versions.py      semantic version bumping
+│   ├── versioning.py    conventional commits parsing + semver bumps
+│   ├── versions.py      version data structures (ReleaseManifest, PackageVersion)
+│   ├── bump.py          rewrite version in pyproject.toml
 │   ├── pin.py           ephemeral dep pinning with crash-safe restore
+│   ├── changelog.py     changelog generation from commits
 │   ├── preflight.py     pre-publish safety checks
+│   ├── checks.py        standalone workspace health checks
 │   ├── scheduler.py     dependency-triggered queue dispatcher
 │   ├── publisher.py     async publish orchestration
-│   └── checks.py        standalone workspace health checks
+│   ├── prepare.py       release preparation (bump + changelog + PR)
+│   ├── release.py       release tagging (tag merge commit + create Release)
+│   ├── plan.py          execution plan preview
+│   ├── state.py         crash-safe publish state persistence
+│   ├── lock.py          lockfile management
+│   ├── net.py           async HTTP utilities
+│   ├── tags.py          git tag utilities
+│   ├── release_notes.py release notes generation
+│   ├── commitback.py    commit-back version bumps
+│   ├── detection.py     multi-ecosystem auto-detection
+│   └── groups.py        release group filtering
 │
 ├── Formatters
 │   ├── ascii_art.py     box-drawing terminal art
@@ -329,6 +394,8 @@ releasekit
 │
 ├── UX
 │   ├── errors.py        error catalog + Rust-style render_error/render_warning
+│   ├── logging.py       structured logging setup
+│   ├── config.py        TOML config loading + validation
 │   ├── init.py          workspace config scaffolding
 │   └── cli.py           argparse + rich-argparse + shell completion
 │
@@ -345,33 +412,33 @@ releasekit
 ### Scheduler Architecture
 
 ```
-┌───────────────────────────────────────────────────────┐
-│                     Scheduler                         │
-│                                                       │
-│  from_graph() ──▶ seed level-0 ──▶ Queue              │
-│                                      │                │
-│         ┌────────────────────────────┼──────────┐     │
-│         │          Semaphore(N)      │          │     │
-│         │                            ▼          │     │
-│     ┌────────┐ ┌────────┐ ... ┌────────┐       │     │
-│     │Worker 0│ │Worker 1│     │Worker N│       │     │
-│     └───┬────┘ └───┬────┘     └───┬────┘       │     │
-│         │          │              │             │     │
-│         └──────────┴──────┬───────┘             │     │
-│                           │                     │     │
-│                     publish_fn(name)             │     │
-│                           │                     │     │
-│                    ┌──────┴──────┐              │     │
-│                    │  mark_done  │              │     │
-│                    └──────┬──────┘              │     │
-│                           │                     │     │
-│              decrement dependents' counters      │     │
-│              enqueue newly-ready packages        │     │
-│                           │                     │     │
-│                    ┌──────┴──────┐              │     │
-│                    │    Queue    │◀─────────────┘     │
-│                    └─────────────┘                    │
-└───────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                          Scheduler                                │
+│                                                                   │
+│  from_graph() ──▶ seed level-0 ──▶ Queue                          │
+│                                      │                            │
+│         ┌────────────────────────────┼──────────┐                 │
+│         │          Semaphore(N)      │          │                 │
+│         │                            ▼          │                 │
+│     ┌────────┐ ┌────────┐ ... ┌────────┐       │                 │
+│     │Worker 0│ │Worker 1│     │Worker N│       │                 │
+│     └───┬────┘ └───┬────┘     └───┬────┘       │                 │
+│         │          │              │             │                 │
+│         └──────────┴──────┬───────┘             │                 │
+│                           │                     │                 │
+│                     publish_fn(name)             │                 │
+│                           │                     │                 │
+│                    ┌──────┴──────┐              │                 │
+│                    │  mark_done  │              │                 │
+│                    └──────┬──────┘              │                 │
+│                           │                     │                 │
+│              decrement dependents' counters      │                 │
+│              enqueue newly-ready packages        │                 │
+│                           │                     │                 │
+│                    ┌──────┴──────┐              │                 │
+│                    │    Queue    │◀─────────────┘                 │
+│                    └─────────────┘                                │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Backend Protocols
@@ -383,16 +450,18 @@ All I/O goes through protocol-defined backends. This enables:
 
 ```python
 # Protocols defined in:
-#   releasekit.backends.vcs.VCS
-#   releasekit.backends.pm.PackageManager
-#   releasekit.backends.registry.Registry
-#   releasekit.backends.forge.Forge
+#   releasekit.backends.vcs         VCS
+#   releasekit.backends.pm          PackageManager
+#   releasekit.backends.workspace   Workspace
+#   releasekit.backends.registry    Registry
+#   releasekit.backends.forge       Forge
 
 # Concrete implementations:
-#   releasekit.backends.git.GitBackend
-#   releasekit.backends.uv.UvBackend
-#   releasekit.backends.pypi.PyPIRegistry
-#   releasekit.backends.github.GitHubForge
+#   VCS:            GitCLIBackend, MercurialCLIBackend
+#   PackageManager: UvBackend, PnpmBackend
+#   Workspace:      UvWorkspaceBackend, PnpmWorkspaceBackend
+#   Registry:       PyPIBackend, NpmRegistry
+#   Forge:          GitHubCLIBackend, GitHubAPIBackend, GitLabCLIBackend, BitbucketAPIBackend
 ```
 
 ### Ecosystem Abstraction
@@ -404,7 +473,7 @@ enables multi-ecosystem support:
 |--------|--------------|------------------|
 | `bump.py` | Rewrites `pyproject.toml` | → `Workspace.rewrite_version()` |
 | `pin.py` | Rewrites deps in `pyproject.toml` | → `Workspace.rewrite_dependency_version()` |
-| `config.py` | Reads `[tool.releasekit]` | → Config discovery chain |
+| `config.py` | Reads `releasekit.toml` | ✅ Already standalone (ecosystem-agnostic) |
 | `checks.py` | `PythonCheckBackend` | ✅ Already protocol-based |
 | `preflight.py` | `pip-audit`, metadata | ✅ Gated by `ecosystem=` param |
 
@@ -441,39 +510,7 @@ uv run pytest tests/rk_publisher_test.py -v
   backup/restore with `.bak` files.
 - **State file integrity** — resume refuses if HEAD SHA differs.
 
-## Why This Tool Exists
-
-The Genkit Python SDK is a uv workspace with 60+ packages that have
-inter-dependencies. Publishing them to PyPI requires dependency-ordered
-builds with ephemeral version pinning — and no existing tool does this.
-
-`uv publish` is a **single-package** command. It publishes one wheel or
-sdist to PyPI. It does not understand workspaces, dependency graphs, or
-multi-package release orchestration. releasekit fills that gap:
-
-| Feature | `uv publish` | `releasekit` |
-|---------|:--:|:--:|
-| Publish a single package | ✅ | ✅ (calls `uv publish` internally) |
-| Dependency graph ordering | ❌ | ✅ topological sort |
-| Multi-package workspace publish | ❌ | ✅ all packages in order |
-| Version bump computation | ❌ | ✅ git-based semver |
-| Transitive dependency propagation | ❌ | ✅ patch bump dependents |
-| Concurrency within topo levels | ❌ | ✅ parallel within a level |
-| Pre/post-publish checks | ❌ | ✅ preflight + smoke test |
-| Retry with backoff | ❌ | ✅ configurable |
-| Exclude lists / groups | ❌ | ✅ `exclude`, `exclude_publish`, `exclude_bump` |
-| Git tagging | ❌ | ✅ per-package + umbrella |
-| Changelog generation | ❌ | ✅ from conventional commits |
-| Release manifest | ❌ | ✅ JSON record of what shipped |
-| Crash-safe resume | ❌ | ✅ state file + `--resume` |
-| SIGUSR1/SIGUSR2 pause/resume | ❌ | ✅ live scheduler control |
-
-`uv publish` is the low-level primitive. releasekit is the orchestrator
-that calls it per-package at the right time in the right order.
-
-See [roadmap.md](roadmap.md) for the full design rationale and
-implementation plan.
-
 ## License
 
 Apache 2.0 — see [LICENSE](../../LICENSE) for details.
+
