@@ -606,7 +606,6 @@ class Scheduler:
 
         return True
 
-
     def pause(self) -> None:
         """Suspend the scheduler.
 
