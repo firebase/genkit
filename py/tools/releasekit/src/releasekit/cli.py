@@ -168,6 +168,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             pm=pm,
             forge=forge,
             registry=registry,
+            packages=packages,
             graph=graph,
             versions=versions,
             workspace_root=workspace_root,

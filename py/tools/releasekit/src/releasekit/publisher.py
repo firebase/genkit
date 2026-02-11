@@ -79,7 +79,7 @@ from pathlib import Path
 
 from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
-from releasekit.backends.registry import Registry
+from releasekit.backends.registry import ChecksumResult, Registry
 from releasekit.backends.vcs import VCS
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
@@ -113,6 +113,7 @@ class PublishConfig:
     check_url: str | None = None
     index_url: str | None = None
     smoke_test: bool = True
+    verify_checksums: bool = True
     poll_timeout: float = 300.0
     poll_interval: float = 5.0
     force: bool = False
@@ -269,7 +270,32 @@ async def _publish_one(
                         hint='The package may still be indexing. Check the registry manually.',
                     )
 
-            # Step 6: Smoke test.
+            # Step 6: Verify checksums.
+            if config.verify_checksums and not config.dry_run and checksums:
+                checksum_result: ChecksumResult = await registry.verify_checksum(
+                    name,
+                    version.new_version,
+                    checksums,
+                )
+                if not checksum_result.ok:
+                    mismatched_files = ', '.join(checksum_result.mismatched.keys())
+                    missing_files = ', '.join(checksum_result.missing)
+                    detail_parts: list[str] = []
+                    if mismatched_files:
+                        detail_parts.append(f'mismatched: {mismatched_files}')
+                    if missing_files:
+                        detail_parts.append(f'missing: {missing_files}')
+                    raise ReleaseKitError(
+                        E.PUBLISH_CHECKSUM_MISMATCH,
+                        f'Checksum verification failed for {name}: {"; ".join(detail_parts)}',
+                        hint=(
+                            'The published artifact does not match the locally-built '
+                            'artifact. This could indicate a supply chain attack or '
+                            'a registry processing error. Investigate immediately.'
+                        ),
+                    )
+
+            # Step 7: Smoke test.
             if config.smoke_test and not config.dry_run:
                 observer.on_stage(name, PublishStage.VERIFYING)
                 pm.smoke_test(name, version.new_version, dry_run=config.dry_run)
