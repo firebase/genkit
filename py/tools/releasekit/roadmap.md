@@ -497,9 +497,10 @@ publish → poll → verify) with zero failures.
 | Module | Description | Est. Lines | Status |
 |--------|-------------|-----------|--------|
 | `ui.py` | **Rich Live progress table** with observer pattern. `RichProgressUI` (TTY), `LogProgressUI` (CI), `NullProgressUI` (tests). 9 pipeline stages with emoji/color/progress bars. ETA estimation. Error panel. Auto-detects TTY via `create_progress_ui()`. Integrated into `publisher.py` via `PublishObserver` callbacks. | ~560 | ✅ Done (PR #4558) |
-| `checks.py` | **Standalone workspace health checks** (`releasekit check`). 10 checks: cycles, self_deps, orphan_deps, missing_license, missing_readme, missing_py_typed, version_consistency, naming_convention, metadata_completeness, stale_artifacts. Replaces `check-cycles`. Found flask self-dep bug (#4562). Checks are categorized as universal (cycles, self_deps, orphan_deps, missing_license, missing_readme, stale_artifacts) or Python-specific (missing_py_typed, version_consistency, naming_convention, metadata_completeness). | ~413 | ✅ Done (PR #4563) |
-| `preflight.py` (full) | Add: `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel zip, METADATA fields, long description), trusted publisher check. OSS file checks moved to `checks.py`. | +100 | |
-| `publisher.py` (full) | Add: `--stage` two-phase (Test PyPI then real PyPI), `--index=testpypi`, manifest mode, `--resume-from-registry`, OIDC token handling, rate limiting, attestation passthrough (D-8), **SHA-256 post-publish checksum verification** (download from PyPI JSON API, compare against locally-computed checksums from `_compute_dist_checksum`, fail-fast on mismatch). | +220 | |
+| `checks.py` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 6 universal checks (cycles, self_deps, orphan_deps, missing_license, missing_readme, stale_artifacts) + 4 language-specific via `PythonCheckBackend` (type_markers, version_consistency, naming_convention, metadata_completeness). Extensible for future language backends. Found flask self-dep bug (#4562). | ~420 | ✅ Done (PR #4563) |
+| `preflight.py` (full) | Added: `dist_clean` (stale dist/ detection, blocking), `trusted_publisher` (OIDC check, advisory). Remaining: `pip-audit` vulnerability scan (warn by default, `--strict-audit` to block, `--skip-audit` to skip), metadata validation (wheel METADATA fields). | +80 | 🔶 Partial |
+| `registry.py` (full) | Added: `verify_checksum()` — downloads SHA-256 from PyPI JSON API (`urls[].digests.sha256`) and compares against locally-computed checksums. `ChecksumResult` dataclass with matched/mismatched/missing. | +100 | ✅ Done |
+| `publisher.py` (full) | Added: post-publish SHA-256 checksum verification (step 6), `verify_checksums` config flag. Remaining: `--stage` two-phase, `--index=testpypi`, manifest mode, `--resume-from-registry`, rate limiting, attestation passthrough (D-8). | +30 | 🔶 Partial |
 
 **`ui.py` — Rich Live Progress Table (Detailed Spec)**:
 
@@ -741,7 +742,7 @@ shell completion) is enhancement.
 | 1: Discovery | 3 (+tests) | ~420 | 783 src + 435 tests | ✅ Complete |
 | 2: Version + Pin | 4 (+tests) | ~500 | 1,023 src + ~550 tests | ✅ Complete |
 | 3: Publish MVP | 6 | ~960 | ~1,660 src | ✅ Complete |
-| 4: Harden | 4 (extended) | ~450 | ~973 src (ui.py + checks.py done) | 🔶 In progress |
+| 4: Harden | 5 (extended) | ~450 | ~973 src (ui.py + checks.py + registry.py done) | 🔶 In progress |
 | 4b: Streaming Publisher | 2 | ~250 | — | ⬜ Planned |
 | 5: Post-Pipeline | 4 (+CI workflow) | ~700 | — | ⬜ Not started |
 | 6: UX Polish | 3 (+ 6 formatters) | ~570 | — | ⬜ Not started |

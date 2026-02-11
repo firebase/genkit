@@ -56,6 +56,7 @@ Usage::
         pm=uv_backend,
         forge=github_backend,
         registry=pypi_backend,
+        packages=all_packages,
         graph=dep_graph,
         versions=version_list,
         workspace_root=Path('.'),
@@ -64,6 +65,7 @@ Usage::
 
 from __future__ import annotations
 
+import os
 import warnings
 from pathlib import Path
 
@@ -75,6 +77,7 @@ from releasekit.errors import E, ReleaseKitError, ReleaseKitWarning
 from releasekit.graph import DependencyGraph, detect_cycles
 from releasekit.logging import get_logger
 from releasekit.versions import PackageVersion
+from releasekit.workspace import Package
 
 logger = get_logger(__name__)
 
@@ -252,12 +255,83 @@ async def _check_version_conflicts(
         result.add_pass(check_name)
 
 
+def _check_dist_artifacts(
+    packages: list[Package],
+    result: PreflightResult,
+) -> None:
+    """Check for stale dist/ directories that could interfere with publishing.
+
+    If a package has a non-empty ``dist/`` directory from a previous build,
+    ``uv publish`` might upload old artifacts by mistake. This is a
+    blocking check because the consequences are severe (publishing
+    wrong versions).
+
+    Args:
+        packages: All workspace packages.
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'dist_clean'
+    stale: list[str] = []
+    for pkg in packages:
+        dist_dir = pkg.path / 'dist'
+        if dist_dir.is_dir() and any(dist_dir.iterdir()):
+            stale.append(pkg.name)
+
+    if stale:
+        result.add_failure(
+            check_name,
+            f'Stale dist/ directories: {", ".join(stale)}',
+        )
+        logger.warning(
+            'stale_dist_detected',
+            packages=stale,
+            hint='Run `rm -rf */dist` or use `releasekit clean` before publishing.',
+        )
+    else:
+        result.add_pass(check_name)
+
+
+def _check_trusted_publisher(
+    forge: Forge | None,
+    result: PreflightResult,
+) -> None:
+    """Warn if OIDC trusted publishing is not configured.
+
+    Trusted publishing (PyPI's OIDC integration) is the recommended
+    authentication method for CI. This check warns when publishing
+    locally without it — not blocking, since local publishing with
+    API tokens is still valid.
+
+    See: https://docs.pypi.org/trusted-publishers/
+
+    Args:
+        forge: Code forge backend (None if unavailable).
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'trusted_publisher'
+
+    # OIDC token presence is the signal that trusted publishing is active.
+    # GitHub Actions sets ACTIONS_ID_TOKEN_REQUEST_URL when OIDC is enabled.
+    has_oidc = bool(os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL'))
+    is_ci = bool(os.environ.get('CI'))
+
+    if is_ci and not has_oidc:
+        result.add_warning(
+            check_name,
+            'Publishing from CI without OIDC trusted publisher. '
+            'Consider configuring trusted publishing for better security.',
+        )
+    else:
+        result.add_pass(check_name)
+
+
 async def run_preflight(
     *,
     vcs: VCS,
     pm: PackageManager,
     forge: Forge | None,
     registry: Registry,
+    packages: list[Package],
     graph: DependencyGraph,
     versions: list[PackageVersion],
     workspace_root: Path,
@@ -274,6 +348,7 @@ async def run_preflight(
         pm: Package manager backend.
         forge: Code forge backend (optional; ``None`` to skip).
         registry: Package registry backend.
+        packages: All workspace packages (for dist artifact checks).
         graph: Workspace dependency graph.
         versions: Computed version bumps.
         workspace_root: Path to the workspace root.
@@ -301,6 +376,8 @@ async def run_preflight(
     await _check_shallow_clone(vcs, result)
     await _check_cycles(graph, result)
     await _check_forge(forge, result)
+    _check_dist_artifacts(packages, result)
+    _check_trusted_publisher(forge, result)
 
     if not skip_version_check:
         await _check_version_conflicts(registry, versions, result)
