@@ -291,7 +291,7 @@ describe('VertexAI Plugin', () => {
       const mockModels = [
         { name: 'models/gemini-2.5-pro' },
         { name: 'models/imagen-3.0-generate-001' },
-        { name: 'models/text-embedding-004' },
+        { name: 'models/gemini-embedding-001' },
         { name: 'models/other-model' },
       ];
       fetchMock.mock.mockImplementation(async () =>
@@ -414,7 +414,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use auth token for Embedder embedContent', async () => {
-        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedderRef = vertexAI.embedder('gemini-embedding-001');
         const embedAction = await ai.registry.lookupAction(
           '/embedder/' + embedderRef.name
         );
@@ -503,12 +503,12 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('?key=test-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-            !url.includes('us-central1-')
+          !url.includes('us-central1-')
         );
       });
 
       it('should use API key for Embedder embedContent', async () => {
-        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedderRef = vertexAI.embedder('gemini-embedding-001');
         const embedAction = await ai.registry.lookupAction(
           '/embedder/' + embedderRef.name
         );
@@ -598,12 +598,12 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('test-express-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-            !url.includes('us-central1-')
+          !url.includes('us-central1-')
         );
       });
 
       it('should not support Embedder embedContent', async () => {
-        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedderRef = vertexAI.embedder('gemini-embedding-001');
         const embedAction = await ai.registry.lookupAction(
           '/embedder/' + embedderRef.name
         );
