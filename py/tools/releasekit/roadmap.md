@@ -489,16 +489,18 @@ Remaining migration steps:
 | Forge protocol extensions | ✅ Done | `list_prs`, `add_labels`, `remove_labels`, `update_pr` |
 | Transitive propagation (BFS) | ✅ Done | Multi-level via `deque`, 4 tests |
 | Synchronized versioning | ✅ Done | `synchronize=True` config, 3 tests |
-| `GitLabBackend` | ✅ Done | Forge via `glab` CLI, protocol conformance |
-| `MercurialBackend` | ✅ Done | VCS via `hg` CLI, protocol conformance |
-| `BitbucketBackend` | ✅ Done | Forge via REST API (`httpx`), auth validation |
+| `GitLabCLIBackend` | ✅ Done | Forge via `glab` CLI, protocol conformance |
+| `MercurialCLIBackend` | ✅ Done | VCS via `hg` CLI, protocol conformance |
+| `BitbucketAPIBackend` | ✅ Done | Forge via REST API (`httpx`), lazy client reuse |
 | Protocol conformance tests | ✅ Done | 41 tests (parametrized across all backends) |
 | `prepare.py` | ✅ Done | Prepare step: bump → changelog → Release PR |
 | `release.py` | ✅ Done | Tag step: find PR → tag → Release → labels |
 | `changelog.py` | ✅ Done | Conventional Commits → grouped Markdown |
 | `release_notes.py` | ✅ Done | Umbrella release notes from manifest |
 | Workspace-sourced deps | ✅ Done | `[tool.uv.sources]` determines release graph |
-| CI workflow | ✅ Done | `.github/workflows/releasekit-uv.yml` |
+| CI workflow (`releasekit-uv.yml`) | ✅ Done | Automated prepare → release → publish pipeline |
+| Migrate `publish_python.yml` | 🔶 Planned | Replace manual workflow_dispatch with releasekit |
+| README docs update | ✅ Done | Architecture, backends, config format, new commands |
 
 ---
 
