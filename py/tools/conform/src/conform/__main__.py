@@ -14,23 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[project]
-dependencies = [
-  "genkit",
-  "genkit-plugin-fastapi",
-  "genkit-plugin-google-genai",
-  "python-dotenv>=1.0.0",
-  "uvicorn[standard]>=0.34.0",
-]
-description = "BugBot: AI Code Reviewer with Genkit + FastAPI"
-name = "web-fastapi-bugbot"
-requires-python = ">=3.10"
-version = "0.1.0"
+"""Allow running the package directly: ``python -m conform``."""
 
-[project.optional-dependencies]
-dev = ["watchdog>=6.0.0"]
+from conform.cli import main
 
-[tool.uv.sources]
-genkit                     = { workspace = true }
-genkit-plugin-fastapi      = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
+main()

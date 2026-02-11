@@ -14,23 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[project]
-dependencies = [
-  "genkit",
-  "genkit-plugin-fastapi",
-  "genkit-plugin-google-genai",
-  "python-dotenv>=1.0.0",
-  "uvicorn[standard]>=0.34.0",
-]
-description = "BugBot: AI Code Reviewer with Genkit + FastAPI"
-name = "web-fastapi-bugbot"
-requires-python = ">=3.10"
-version = "0.1.0"
+# Cohere model conformance test spec.
+#
+# Source: https://docs.cohere.com/docs/models
+#
+# command-a-03-2025: flagship model with tool use and structured output.
 
-[project.optional-dependencies]
-dev = ["watchdog>=6.0.0"]
-
-[tool.uv.sources]
-genkit                     = { workspace = true }
-genkit-plugin-fastapi      = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
+- model: cohere/command-a-03-2025
+  supports:
+    - tool-request
+    - structured-output
+    - multiturn
+    - system-role
+    - streaming-multiturn
+    - streaming-tool-request

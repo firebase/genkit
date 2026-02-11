@@ -38,6 +38,8 @@
 #  17. Python version classifiers (3.10-3.14)
 #  18. Namespace package __init__.py (plugins must not have __init__.py in genkit/ or genkit/plugins/)
 #  19. Test file basename uniqueness (no duplicate basenames across test directories)
+#  20. CHANGELOG.md files exist
+#  21. Model conformance spec coverage (model plugins → conformance spec + entry point)
 
 set -euo pipefail
 
@@ -59,7 +61,7 @@ PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$PY_DIR"
 
 # Total number of checks
-TOTAL_CHECKS=20
+TOTAL_CHECKS=21
 
 echo -e "${BLUE}=== Genkit Python Consistency Checks ===${NC}"
 echo ""
@@ -673,6 +675,18 @@ if [ $changelog_missing -eq 0 ]; then
   echo -e "  ${GREEN}✓${NC} All publishable packages have CHANGELOG.md files"
 else
   echo -e "  ${YELLOW}!${NC} Some packages are missing CHANGELOG.md files (warnings only)"
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 21: Model Conformance Spec Coverage
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[21/$TOTAL_CHECKS] Checking model conformance spec coverage...${NC}"
+# Delegated to the Python-based ``conform check-model`` tool which performs
+# the same checks (model_info.py scanning + additional-model-plugins from
+# TOML config) and prints output in the same colored format.
+if ! uv run --active conform check-plugin; then
+  ERRORS=$((ERRORS + 1))
 fi
 echo ""
 # -----------------------------------------------------------------------------

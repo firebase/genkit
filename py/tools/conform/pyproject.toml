@@ -1,0 +1,78 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "genkit-conformance"
+version = "0.1.0"
+description = "Model conformance test runner for Genkit Python plugins"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+classifiers = [
+  "Private :: Do Not Upload",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "rich>=13.0.0",
+  "rich-argparse>=1.6.0",
+  "tomli>=2.0.0; python_version < '3.11'",
+]
+
+[project.scripts]
+conform = "conform.cli:main"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/conform"]
+
+# ---------------------------------------------------------------------------
+# Conform tool configuration
+# ---------------------------------------------------------------------------
+# CLI flags override these values.  The ``conform`` tool reads this section
+# at startup via ``conform.config.load_config()``.
+
+[tool.conform]
+concurrency = 4
+
+# Plugins that are model providers but lack ``model_info.py`` (they use
+# dynamic model registration).  The ``check-model`` subcommand verifies
+# that these have conformance specs too.
+additional-model-plugins = ["google-genai", "vertex-ai", "ollama"]
+
+# Required environment variables per plugin.  An empty list means no
+# credentials are needed (e.g. ollama uses a local server).
+[tool.conform.env]
+google-genai          = ["GEMINI_API_KEY"]
+anthropic             = ["ANTHROPIC_API_KEY"]
+compat-oai            = ["OPENAI_API_KEY"]
+mistral               = ["MISTRAL_API_KEY"]
+deepseek              = ["DEEPSEEK_API_KEY"]
+xai                   = ["XAI_API_KEY"]
+cohere                = ["COHERE_API_KEY"]
+amazon-bedrock        = ["AWS_REGION"]
+huggingface           = ["HF_TOKEN"]
+microsoft-foundry     = ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"]
+cloudflare-workers-ai = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+vertex-ai             = ["GOOGLE_CLOUD_PROJECT"]
+ollama                = []

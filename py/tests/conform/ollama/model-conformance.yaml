@@ -14,23 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[project]
-dependencies = [
-  "genkit",
-  "genkit-plugin-fastapi",
-  "genkit-plugin-google-genai",
-  "python-dotenv>=1.0.0",
-  "uvicorn[standard]>=0.34.0",
-]
-description = "BugBot: AI Code Reviewer with Genkit + FastAPI"
-name = "web-fastapi-bugbot"
-requires-python = ">=3.10"
-version = "0.1.0"
+# Ollama model conformance test spec.
+#
+# Ollama runs locally. Capabilities depend on the model pulled.
+# gemma3 supports text generation, tool use, and vision (image input).
+# See: https://ollama.com/library/gemma3
 
-[project.optional-dependencies]
-dev = ["watchdog>=6.0.0"]
-
-[tool.uv.sources]
-genkit                     = { workspace = true }
-genkit-plugin-fastapi      = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
+- model: ollama/gemma3
+  supports:
+    - tool-request
+    - multiturn
+    - system-role
+    - input-image-base64

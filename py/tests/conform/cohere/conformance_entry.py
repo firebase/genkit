@@ -14,15 +14,27 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Mistral model conformance test spec.
-#
-# mistral-small-latest: fast, supports tool use and JSON mode.
+"""Minimal entry point for cohere model conformance testing.
 
-- model: mistral/mistral-small-latest
-  supports:
-    - tool-request
-    - structured-output
-    - multiturn
-    - system-role
-    - streaming-multiturn
-    - streaming-tool-request
+Usage:
+    genkit dev:test-model --from-file model-conformance.yaml -- uv run conformance_entry.py
+
+Env:
+    COHERE_API_KEY: Required. Cohere API key.
+"""
+
+import asyncio
+
+from genkit.ai import Genkit
+from genkit.plugins.cohere import Cohere
+
+ai = Genkit(plugins=[Cohere()])
+
+
+async def main() -> None:
+    """Keep the process alive for the test runner."""
+    await asyncio.Event().wait()
+
+
+if __name__ == '__main__':
+    ai.run_main(main())

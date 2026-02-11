@@ -14,13 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# DeepSeek model conformance test spec.
-#
-# deepseek-chat: general-purpose chat model with function calling.
+"""Conform — parallel model conformance test runner for Genkit Python plugins.
 
-- model: deepseek/deepseek-chat
-  supports:
-    - tool-request
-    - multiturn
-    - system-role
-    - streaming-multiturn
+Runs ``genkit dev:test-model`` against multiple plugins concurrently using
+``asyncio``, collecting results as they arrive and displaying a live Rich
+progress table.
+
+Subcommands::
+
+    conform run [PLUGIN...] [--all] [-j N]   Run tests in parallel
+    conform check-model                      Check for missing conformance files
+    conform list                             List plugins and env var status
+"""
+
+__all__: list[str] = []

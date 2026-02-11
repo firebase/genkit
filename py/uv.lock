@@ -22,6 +22,7 @@ members = [
     "framework-restaurant-demo",
     "framework-tool-interrupts",
     "genkit",
+    "genkit-conformance",
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
     "genkit-plugin-checks",
@@ -2220,6 +2221,23 @@ requires-dist = [
 provides-extras = ["dev-local-vectorstore", "flask", "google-cloud", "google-genai", "ollama", "openai", "vertex-ai"]
 
 [[package]]
+name = "genkit-conformance"
+version = "0.1.0"
+source = { editable = "tools/conform" }
+dependencies = [
+    { name = "rich" },
+    { name = "rich-argparse" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "rich-argparse", specifier = ">=1.6.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
+]
+
+[[package]]
 name = "genkit-plugin-amazon-bedrock"
 version = "0.5.0"
 source = { editable = "plugins/amazon-bedrock" }
@@ -2660,6 +2678,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "dotpromptz" },
     { name = "genkit" },
+    { name = "genkit-conformance" },
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-checks" },
@@ -2749,6 +2768,7 @@ lint = [
 requires-dist = [
     { name = "dotpromptz", specifier = "==0.1.5" },
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-conformance", editable = "tools/conform" },
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-checks", editable = "plugins/checks" },

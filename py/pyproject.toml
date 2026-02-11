@@ -42,6 +42,8 @@ dependencies = [
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
+  # Internal tools (private, not published)
+  "genkit-conformance",
   "liccheck>=0.9.2",
   "setuptools>=75.0.0,<82",                   # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
   "mcp>=1.25.0",
@@ -233,10 +235,12 @@ genkit-plugin-observability         = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
+# Internal tools (private, not published)
+genkit-conformance                  = { workspace = true }
 
 [tool.uv.workspace]
 exclude = ["*/shared", "samples/sample-test", "testapps/*"]
-members = ["packages/*", "plugins/*", "samples/*"]
+members = ["packages/*", "plugins/*", "samples/*", "tools/conform"]
 
 
 # Ruff checks and formatting.
@@ -451,8 +455,9 @@ root = [
   "samples/web-endpoints-hello",           # For src imports in tests
   "plugins/mcp/tests",                     # For fakes module imports in tests
   # Tools
-  "tools/releasekit/src", # For releasekit package imports
-  "tools/releasekit",     # For test imports (pythonpath = ["."])
+  "tools/releasekit/src",          # For releasekit package imports
+  "tools/releasekit",              # For test imports (pythonpath = ["."])
+  "tools/conform/src",             # For conform package imports
 ]
 
 # Pyright type checking configuration.
@@ -499,6 +504,7 @@ extraPaths = [
   "plugins/xai/src",
   # Tools
   "tools/releasekit/src",
+  "tools/conform/src",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -547,6 +553,7 @@ project_includes = [
   # Tools
   "tools/releasekit/src/**/*.py",
   "tools/releasekit/tests/**/*.py",
+  "tools/conform/src/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
@@ -563,6 +570,7 @@ search-path = [
   # Tools
   "tools/releasekit/src",
   "tools/releasekit",
+  "tools/conform/src",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime.

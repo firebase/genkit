@@ -14,23 +14,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[project]
-dependencies = [
-  "genkit",
-  "genkit-plugin-fastapi",
-  "genkit-plugin-google-genai",
-  "python-dotenv>=1.0.0",
-  "uvicorn[standard]>=0.34.0",
-]
-description = "BugBot: AI Code Reviewer with Genkit + FastAPI"
-name = "web-fastapi-bugbot"
-requires-python = ">=3.10"
-version = "0.1.0"
+# Amazon Bedrock model conformance test spec.
+#
+# Uses Claude Sonnet 4.5 via Bedrock cross-region inference profile.
+# Claude Sonnet 4.5 supports structured output (output=['text','json'],
+# constrained=ALL) per Anthropic docs.
 
-[project.optional-dependencies]
-dev = ["watchdog>=6.0.0"]
-
-[tool.uv.sources]
-genkit                     = { workspace = true }
-genkit-plugin-fastapi      = { workspace = true }
-genkit-plugin-google-genai = { workspace = true }
+- model: amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0
+  supports:
+    - tool-request
+    - structured-output
+    - multiturn
+    - system-role
+    - input-image-base64
+    - streaming-multiturn
+    - streaming-tool-request
+    - streaming-structured-output

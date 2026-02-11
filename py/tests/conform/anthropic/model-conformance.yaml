@@ -16,8 +16,12 @@
 
 # Anthropic model conformance test spec.
 #
+# Source: https://docs.anthropic.com/en/docs/about-claude/models
+#
 # claude-sonnet-4: output=['text'] only, no structured-output.
+# claude-sonnet-4-5: output=['text','json'], constrained=ALL.
 # claude-haiku-4-5: output=['text','json'], constrained=ALL.
+# claude-opus-4-6: latest flagship, output=['text','json'], constrained=ALL.
 
 - model: anthropic/claude-sonnet-4
   supports:
@@ -29,7 +33,31 @@
     - streaming-multiturn
     - streaming-tool-request
 
+- model: anthropic/claude-sonnet-4-5
+  supports:
+    - tool-request
+    - structured-output
+    - multiturn
+    - system-role
+    - input-image-base64
+    - input-image-url
+    - streaming-multiturn
+    - streaming-tool-request
+    - streaming-structured-output
+
 - model: anthropic/claude-haiku-4-5
+  supports:
+    - tool-request
+    - structured-output
+    - multiturn
+    - system-role
+    - input-image-base64
+    - input-image-url
+    - streaming-multiturn
+    - streaming-tool-request
+    - streaming-structured-output
+
+- model: anthropic/claude-opus-4-6
   supports:
     - tool-request
     - structured-output

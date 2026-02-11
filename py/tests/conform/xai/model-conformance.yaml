@@ -14,12 +14,26 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Ollama model conformance test spec.
+# xAI (Grok) model conformance test spec.
 #
-# Ollama runs locally. Capabilities depend on the model pulled.
-# gemma3 supports text generation and basic tool use.
+# Source: https://docs.x.ai/docs/models
+#
+# grok-4-fast-non-reasoning: non-reasoning variant with tool use and
+#   structured output. Replaces grok-3 (legacy) as primary test model.
+# grok-2-vision-1212: vision model supporting image input.
 
-- model: ollama/gemma3
+- model: xai/grok-4-fast-non-reasoning
   supports:
+    - tool-request
+    - structured-output
     - multiturn
     - system-role
+    - streaming-multiturn
+    - streaming-tool-request
+    - streaming-structured-output
+
+- model: xai/grok-2-vision-1212
+  supports:
+    - multiturn
+    - input-image-base64
+    - input-image-url
