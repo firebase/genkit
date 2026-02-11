@@ -642,4 +642,201 @@ describe('generateMiddleware', () => {
       some: 'metadata',
     });
   });
+
+  it('resumes tool execution with modified metadata after interrupt', async () => {
+    const mockTool = defineTool(
+      registry,
+      {
+        name: 'interruptTool',
+        description: 'interrupts',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => {
+        return 'tool output';
+      }
+    );
+
+    let middlewareRunCount = 0;
+    const interruptMiddleware = generateMiddleware(
+      { name: 'interruptMw' },
+      () => ({
+        tool: async (req, ctx, next) => {
+          middlewareRunCount++;
+          if (req.metadata?.['approved'] === true) {
+            return next(req, ctx);
+          }
+          throw new ToolInterruptError({ some: 'metadata' });
+        },
+      })
+    );
+
+    let callCount = 0;
+    const mockModel = defineModel(
+      registry,
+      { name: 'mockModelWithTool' },
+      async (req) => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    name: mockTool.__action.name,
+                    ref: '123',
+                    input: {},
+                  },
+                },
+              ],
+            },
+          };
+        } else {
+          return {
+            message: {
+              role: 'model',
+              content: [{ text: 'final response' }],
+            },
+          };
+        }
+      }
+    );
+
+    const result = await generate(registry, {
+      model: mockModel,
+      prompt: 'hi',
+      tools: ['interruptTool'],
+      use: [interruptMiddleware()],
+    });
+
+    assert.strictEqual(result.finishReason, 'interrupted');
+    const interruptPart = result.interrupts[0];
+    assert.ok(interruptPart);
+    assert.strictEqual(middlewareRunCount, 1);
+
+    // Modify metadata
+    if (interruptPart.metadata) {
+      interruptPart.metadata = { ...interruptPart.metadata, approved: true };
+    }
+
+    const result2 = await generate(registry, {
+      model: mockModel,
+      messages: result.messages,
+      tools: ['interruptTool'],
+      use: [interruptMiddleware()],
+      resume: {
+        restart: [interruptPart],
+      },
+    });
+
+    assert.strictEqual(result2.text, 'final response');
+    // Middleware should have run again
+    assert.strictEqual(middlewareRunCount, 2);
+  });
+
+  it('re-runs generate middleware after resuming tool execution', async () => {
+    const mockTool = defineTool(
+      registry,
+      {
+        name: 'interruptTool',
+        description: 'interrupts',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => {
+        return 'tool output';
+      }
+    );
+
+    let generateMiddlewareCallCount = 0;
+    let seenToolResponseInGenerate = false;
+
+    const testMiddleware = generateMiddleware(
+      { name: 'testMw' },
+      () => ({
+        generate: async (req, ctx, next) => {
+          generateMiddlewareCallCount++;
+          const lastMsg = req.messages[req.messages.length - 1];
+          if (lastMsg?.role === 'tool') {
+            seenToolResponseInGenerate = true;
+          }
+          return next(req, ctx);
+        },
+        tool: async (req, ctx, next) => {
+          if (req.metadata?.['approved'] === true) {
+            return next(req, ctx);
+          }
+          throw new ToolInterruptError({ some: 'metadata' });
+        },
+      })
+    );
+
+    let callCount = 0;
+    const mockModel = defineModel(
+      registry,
+      { name: 'mockModelWithTool2' },
+      async (req) => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    name: mockTool.__action.name,
+                    ref: '123',
+                    input: {},
+                  },
+                },
+              ],
+            },
+          };
+        } else {
+          return {
+            message: {
+              role: 'model',
+              content: [{ text: 'final response' }],
+            },
+          };
+        }
+      }
+    );
+
+    const result = await generate(registry, {
+      model: mockModel,
+      prompt: 'hi',
+      tools: ['interruptTool'],
+      use: [testMiddleware()],
+    });
+
+    assert.strictEqual(result.finishReason, 'interrupted');
+    const interruptPart = result.interrupts[0];
+    assert.ok(interruptPart);
+
+    // Modify metadata
+    if (interruptPart.metadata) {
+      interruptPart.metadata = { ...interruptPart.metadata, approved: true };
+    }
+
+    generateMiddlewareCallCount = 0; // Reset
+    seenToolResponseInGenerate = false;
+
+    await generate(registry, {
+      model: mockModel,
+      messages: result.messages,
+      tools: ['interruptTool'],
+      use: [testMiddleware()],
+      resume: {
+        restart: [interruptPart],
+      },
+    });
+
+    assert.ok(
+      seenToolResponseInGenerate,
+      'Generate middleware should see the tool response'
+    );
+    assert.strictEqual(generateMiddlewareCallCount, 2);
+  });
 });
