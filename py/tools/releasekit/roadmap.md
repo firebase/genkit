@@ -10,6 +10,43 @@ pinning, retry with jitter, and crash-safe file restoration.
 
 ---
 
+## Versioning Strategy
+
+`releasekit` supports two versioning models for monorepos, configurable via `[tool.releasekit.synchronize]`.
+
+### 1. Independent Versioning (Default)
+`synchronize = false` (default)
+
+Packages are versioned independently based on their own changes, but **propagated transitively**:
+1.  **Direct Bumps**: Commits to a package directory trigger semantic version bumps (Major/Minor/Patch).
+2.  **Transitive Propagation**: If a package depends on another package that was bumped, it receives a **PATCH bump**.
+    - **Rule**: ANY bump in a dependency (Major, Minor, or Patch) triggers a Patch bump in all dependents.
+    - **Why**: Ensures lockfiles and pins are updated to point to the new dependency version.
+    - **Mental Model**: Releases ripple through the dependency tree. A change in a leaf node (e.g. `genkit`) forces a republication of all consuming nodes.
+
+### 2. Synchronized Versioning (Lockstep)
+`synchronize = true`
+
+All packages in the workspace share the same version number.
+1.  **Compute Max Bump**: Calculate the highest semantic bump across *all* packages based on commits.
+2.  **Apply globally**: Bump *every* package to that new version.
+    - Example: `genkit` has a breaking change (Major), so `plugin-vertex-ai` also gets a Major bump, even if unchanged.
+    - **Use Case**: Frameworks where components must be installed with matching versions (e.g. `genkit==0.6.0` needs `genkit-plugin-x==0.6.0`).
+
+### 3. Cross-Repository Workflow (Plugins)
+
+To support dependent packages in external repositories (e.g. `genkit-community-plugins`):
+
+1.  **Trigger**: The main repo (`firebase/genkit`) fires a `repository_dispatch` event upon successful publish.
+2.  **Action**: The dependent repo runs `releasekit prepare`.
+3.  **Update**: `prepare` runs `uv lock --upgrade-package genkit` (checking PyPI).
+4.  **Result**: If `uv.lock` changes:
+    - Creates a `chore(deps): update genkit` bump.
+    - Bumps the plugin version (Patch).
+    - Opens/Updates a Release PR with the dependency update included.
+
+---
+
 ## Progress
 
 | Phase | Status | Notes |
@@ -80,32 +117,48 @@ changesets, and lerna issue trackers.
 | D-8 | Med | **Attestation support.** `uv publish` auto-discovers `.publish.attestation` files. | Document support. Don't interfere with attestation files. Passthrough `--no-attestations`. | 4 |
 | D-9 | Med | **`resolve_check` uses wrong tool.** Plan said `pip install --dry-run`. | Use `uv pip install --dry-run` for consistency. | 3 |
 | D-10 | Med | **`gh` CLI not installed.** | Graceful degradation: skip GitHub Releases with warning. Core publish works without `gh`. | 3, 5 |
-| D-11 | Med | **Transitive major bump propagation.** [changesets #1011](https://github.com/changesets/changesets/issues/1011) (62 upvotes). | Per-package bump from own commits only. No transitive propagation. | 2 |
+| D-11 | Med | **Transitive major bump propagation.** [changesets #1011](https://github.com/changesets/changesets/issues/1011) (62 upvotes). | Transitive propagation as **PATCH bumps only** (not matching the original bump type). Avoids the changesets problem where a transitive dep causes an unexpected Major bump. Configurable via `synchronize` (lockstep) vs independent (default). | 2 |
 | D-12 | Med | **`uv version` command overlap.** `uv version --bump` already handles PEP 440. | Evaluate delegating version writing to `uv version --frozen` during Phase 2. | 2 |
 
-### Corrected Pipeline (incorporating D-1 through D-12)
+### Corrected Pipeline (Release-Please Model)
 
-All external tool calls go through the backend shim layer (see Phase 0).
+The pipeline is split into 3 independent commands, each triggered by a
+different CI event. All external tool calls go through the backend shim
+layer (see Phase 0).
+
 `vcs.*` = VCS/GitBackend, `pm.*` = PackageManager/UvBackend,
 `forge.*` = Forge/GitHubBackend, `registry.*` = Registry/PyPIBackend.
 
 ```
- 0. preflight         vcs.is_clean(), pm.lock() --check, forge.is_available() (D-10),
-                      forge.list_releases() concurrent detection (D-6),
-                      vcs.is_shallow(), OSS file checks
- 1. versioning        vcs.log() + vcs.diff_files() -> compute semver (skip unchanged D-5)
- 2. lock update       pm.lock(upgrade_package=<pkg>) for each bumped package (D-2)
- 3. commit            vcs.commit("chore(release): <umbrella_tag>") (D-1)
- 4. tag               vcs.tag() per-package tags + umbrella tag
- 5. for each topo level:
-      pin ──► pm.build(no_sources=True) (D-3) ──► verify ──► checksum
-          ──► pm.publish(check_url=...) (D-7) ──► pm.resolve_check() (D-9)
-          ──► registry.poll_available() ──► registry.verify_checksum()
-          ──► pm.smoke_test() ──► restore
- 6. push              vcs.push() commit + tags
- 7. GitHub Release    forge.create_release() (graceful skip, D-10)
- 8. changelog         vcs.log() + prerelease rollup mode (D-4)
- 9. commitback        vcs.commit() + vcs.push() + forge.create_pr() (optional)
+ ── STEP 1: releasekit prepare (on push to main) ──────────────────────
+  0. preflight       vcs.is_clean(), pm.lock() --check, forge.is_available() (D-10),
+                     forge.list_releases() concurrent detection (D-6),
+                     vcs.is_shallow(), OSS file checks
+  1. versioning      vcs.log(paths=[pkg.path]) -> compute semver (skip unchanged D-5)
+  2. propagate       graph.reverse_deps() -> PATCH bump for dependents (D-11)
+  3. bump            bump.bump_pyproject() for each bumped package
+  4. lock update     pm.lock(upgrade_package=<pkg>) for each bumped package (D-2)
+  5. changelog       vcs.log() + prerelease rollup mode (D-4)
+  6. commit + push   vcs.commit() on release branch, vcs.push() (D-1)
+  7. Release PR      forge.create_pr() or forge.update_pr() with embedded manifest
+                     forge.add_labels("autorelease: pending")
+
+ ── STEP 2: releasekit tag (on Release PR merge) ──────────────────────
+  0. find PR         forge.list_prs(label="autorelease: pending", state="merged")
+  1. parse manifest  extract embedded manifest from PR body
+  2. tag             vcs.tag() per-package tags + umbrella tag on merge commit
+  3. GitHub Release  forge.create_release() (graceful skip, D-10)
+  4. label           forge.remove_labels("pending"), forge.add_labels("tagged")
+
+ ── STEP 3: releasekit publish (on GitHub Release creation) ───────────
+  0. checkout        vcs.checkout(tag)
+  1. for each topo level:
+       pin ──► pm.build(no_sources=True) (D-3) ──► verify ──► checksum
+           ──► pm.publish(check_url=...) (D-7) ──► pm.resolve_check() (D-9)
+           ──► registry.poll_available() ──► registry.verify_checksum()
+           ──► pm.smoke_test() ──► restore
+  2. label           forge.add_labels("autorelease: published")
+  3. dispatch        forge.repository_dispatch() to downstream repos
 ```
 
 ---
@@ -255,18 +308,20 @@ Future: Dynamic Scheduler  ▼    ✅ COMPLETE
 │  ★ Scheduler is fully dynamic — ready for HTTP server     │
 └───────────────────────────┬───────────────────────────────┘
                            │
-Phase 5: Post-Pipeline     ▼
+Phase 5: Release-Please    ▼
 ┌─────────────────────────────────────────────────────────┐
+│  prepare.py ──► versioning, graph, changelog, forge     │
+│    (Release PR with embedded manifest)                  │
+│  release.py ──► versions, vcs, forge                    │
+│    (tag merge commit, create GitHub Release)            │
 │  tags.py ──► config, versions, vcs, forge               │
-│    (graceful forge.is_available() skip, D-10)           │
 │  changelog.py ──► config, vcs (prerelease rollup, D-4) │
 │  release_notes.py ──► changelog, vcs, forge             │
-│  commitback.py ──► bump, vcs, forge                     │
-│  .github/workflows/publish_python_v2.yml                │
+│  .github/workflows/releasekit.yml (3-job pipeline)      │
 │                                                         │
-│  ✓ releasekit publish --publish-from=ci                │
-│  ✓ Structured changelog + rich release notes            │
-│  ✓ GitHub Releases + draft/promote                      │
+│  ✓ releasekit prepare (Release PR)                     │
+│  ✓ releasekit tag (tag + GitHub Release)               │
+│  ✓ releasekit publish (build + upload to PyPI)         │
 └──────────────────────────┬──────────────────────────────┘
                            │
 Phase 6: UX Polish         ▼
@@ -337,11 +392,12 @@ flowchart TD
         publisherFull["publisher.py -- full"]
     end
 
-    subgraph phase5 ["Phase 5: Post-Pipeline + CI"]
+    subgraph phase5 ["Phase 5: Release-Please"]
+        preparemod[prepare.py]
+        releasemod[release.py]
         tagsmod[tags.py]
         changelogmod[changelog.py]
         releaseNotesmod[release_notes.py]
-        commitbackmod[commitback.py]
         workflowmod[CI workflow]
     end
 
@@ -410,6 +466,14 @@ flowchart TD
     publisherFull --> publisherBasic
 
     %% Phase 5 edges
+    preparemod --> versioningmod
+    preparemod --> graphmod
+    preparemod --> changelogmod
+    preparemod --> forgemod
+    preparemod --> vcsmod
+    releasemod --> versionsmod
+    releasemod --> vcsmod
+    releasemod --> forgemod
     tagsmod --> configmod
     tagsmod --> versionsmod
     tagsmod --> vcsmod
@@ -419,9 +483,6 @@ flowchart TD
     releaseNotesmod --> changelogmod
     releaseNotesmod --> vcsmod
     releaseNotesmod --> forgemod
-    commitbackmod --> bumpmod
-    commitbackmod --> vcsmod
-    commitbackmod --> forgemod
 
     %% Phase 6 edges
     initmod --> configmod
@@ -493,7 +554,7 @@ implementations. `run_command()` logs and supports dry-run.
 
 | Module | Description | Est. Lines | Actual | Status |
 |--------|-------------|-----------|--------|--------|
-| `versioning.py` | Parse Conventional Commits via `vcs.log(paths=[pkg.path])`, compute per-package semver bumps. Monorepo-aware scoping. Configurable `tag_format`. PEP 440 compliance. Skip unchanged packages (D-5). No transitive bump propagation (D-11). `--prerelease`, `--force-unchanged`. | ~220 | 361 | ✅ |
+| `versioning.py` | Parse Conventional Commits via `vcs.log(paths=[pkg.path])`, compute per-package semver bumps. Monorepo-aware scoping. Configurable `tag_format`. PEP 440 compliance. Skip unchanged packages (D-5). Transitive PATCH propagation to dependents via dependency graph (D-11). Supports `synchronize` (lockstep) mode. `--prerelease`, `--force-unchanged`. | ~220 | 361 | ✅ |
 | `pin.py` | Ephemeral `tomlkit`-based pinning. Context manager with triple-layer crash safety (atexit + SIG_DFL/os.kill + `.bak` backup). `shutil.move` atomic restore. SHA-256 verification. `packaging.Requirement` for PEP 508 dep parsing. | ~120 | 279 | ✅ |
 | `bump.py` | Version string rewriting in `pyproject.toml` (tomlkit, comment-preserving) and arbitrary files (`__init__.py`, constants). Regex-based with `BumpTarget(path, pattern)` config. | ~80 | 195 | ✅ |
 | `versions.py` | JSON version manifest. `ReleaseManifest` + `PackageVersion` dataclasses. Fail-fast on missing required fields. `bumped`/`skipped` filter properties. | ~80 | 188 | ✅ |
@@ -968,10 +1029,11 @@ py/tools/releasekit/
       state.py                        ← run state + resume
       preflight.py                    ← safety checks + pip-audit
       publisher.py                    ← level-by-level orchestration
+      prepare.py                      ← Release PR creation (release-please step 1)
+      release.py                      ← Tag + GitHub Release (release-please step 2)
       tags.py                         ← git tags + GitHub Releases
       changelog.py                    ← structured changelog
       release_notes.py                ← umbrella release notes (Jinja2)
-      commitback.py                   ← post-release version bump PR
       ui.py                           ← Rich Live progress table
       templates/
         release_notes.md.j2           ← default release notes template
@@ -1010,7 +1072,8 @@ py/tools/releasekit/
     tags_test.py
     changelog_test.py
     release_notes_test.py
-    commitback_test.py
+    rk_prepare_test.py
+    rk_release_test.py
     ui_test.py
 ```
 
@@ -1027,4 +1090,75 @@ The existing release process uses:
 | `py/bin/bump_version` | Bump all to same version | No per-package semver |
 | `.github/workflows/publish_python.yml` | Matrix publish | No level gating |
 
+
 `releasekit` replaces all four with: `uvx releasekit publish`
+
+---
+
+## Architecture & Data Flow
+
+### 1. Dependency Tree Propagation (Independent Mode)
+
+When a core package updates, the change propagates down the dependency tree to ensure all consumers are tested and pinned against the new version.
+
+```text
+       [genkit]  v0.5.0 → v0.6.0  (Minor Bump: "feat: core update")
+          │
+          ▼
+   [genkit-plugin-vertex-ai]
+   Depends on: genkit
+   Action: v0.5.0 → v0.5.1  (Patch Bump)
+   Reason: "dependency genkit bumped"
+          │
+          ▼
+     [sample-app]
+     Depends on: genkit-plugin-vertex-ai
+     Action: v0.1.0 → v0.1.1  (Patch Bump)
+     Reason: "dependency genkit-plugin-vertex-ai bumped"
+```
+
+### 2. Release Lifecycle
+
+The 3-stage process separates planning, tagging, and publishing.
+
+```text
+   Developer
+      │
+      │ pushes to main
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 1: PREPARE (releasekit prepare)                          │
+ │                                                               │
+ │ 1. Scan commits per package                                   │
+ │ 2. Compute bumps + Propagate to dependents                    │
+ │ 3. Update pyproject.toml & uv.lock                            │
+ │ 4. Generate Changelogs                                        │
+ │ 5. Create/Update "Release PR" (autorelease: pending)          │
+ └───────────────────────────────────────────────────────────────┘
+      │
+      │ merges Release PR
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 2: TAG (releasekit tag)                                  │
+ │                                                               │
+ │ 1. Find merged PR with "autorelease: pending"                 │
+ │ 2. Parse Manifest from PR Body                                │
+ │ 3. Tag Merge Commit (pkg-v1.0 + py-v1.0)                      │
+ │ 4. Create GitHub Release                                      │
+ │ 5. Label PR "autorelease: tagged"                             │
+ └───────────────────────────────────────────────────────────────┘
+      │
+      │ triggered by Release creation
+      ▼
+ ┌───────────────────────────────────────────────────────────────┐
+ │ STEP 3: PUBLISH (releasekit publish)                          │
+ │                                                               │
+ │ 1. Checkout Tag                                               │
+ │ 2. Rewrite deps in pyproject.toml (Ephemeral Pinning)         │
+ │ 3. Build Wheels/Sdists                                        │
+ │ 4. Upload to PyPI                                             │
+ │ 5. Label PR "autorelease: published"                          │
+ │ 6. Dispatch "repository_dispatch" to Plugins Repos            │
+ └───────────────────────────────────────────────────────────────┘
+```
+
