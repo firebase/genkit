@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs/promises';
 import {
   generateMiddleware,
   MessageData,
-  Part,
   z,
   type GenerateMiddleware,
 } from 'genkit';
-import { tool } from 'genkit/beta';
-import mime from 'mime';
 import * as path from 'path';
+import { defineListFileTool } from './filesystem/list_files';
+import { defineReadFileTool } from './filesystem/read_file';
 
 export const FilesystemOptionsSchema = z.object({
   rootDirectory: z
@@ -66,105 +64,10 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
 
       const messageQueue: MessageData[] = [];
 
-      const listFiles = tool(
-        {
-          name: 'list_files',
-          description:
-            'Lists files and directories in a given path. Returns a list of objects with path and type.',
-          inputSchema: z.object({
-            dirPath: z
-              .string()
-              .describe('Directory path relative to root.')
-              .default(''),
-            recursive: z
-              .boolean()
-              .describe('Whether to list files recursively.')
-              .default(false),
-          }),
-          outputSchema: z.array(
-            z.object({ path: z.string(), isDirectory: z.boolean() })
-          ),
-        },
-        async (input) => {
-          const targetDir = resolvePath(input.dirPath);
+      const listFilesTool = defineListFileTool(resolvePath);
+      const readFileTool = defineReadFileTool(messageQueue, resolvePath);
 
-          async function list(
-            dir: string,
-            recursive: boolean,
-            base: string = ''
-          ) {
-            const results: { path: string; isDirectory: boolean }[] = [];
-            const entries = await fs.readdir(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              const relativePath = path.join(base, entry.name);
-              results.push({
-                path: relativePath,
-                isDirectory: entry.isDirectory(),
-              });
-              if (entry.isDirectory() && recursive) {
-                const subResults = await list(
-                  path.join(dir, entry.name),
-                  true,
-                  relativePath
-                );
-                results.push(...subResults);
-              }
-            }
-            return results;
-          }
-          return await list(targetDir, input.recursive);
-        }
-      );
-
-      const readFile = tool(
-        {
-          name: 'read_file',
-          description: 'Reads the contents of a file',
-          inputSchema: z.object({
-            filePath: z.string().describe('File path relative to root.'),
-          }),
-          outputSchema: z.string(),
-        },
-        async (input) => {
-          const targetFile = resolvePath(input.filePath);
-          const ext = path.extname(targetFile).toLowerCase();
-          const mimeType = mime.getType(ext);
-          const isImage = mimeType?.startsWith('image/');
-
-          const parts: Part[] = [];
-
-          if (isImage && mimeType) {
-            const buffer = await fs.readFile(targetFile);
-            const base64 = buffer.toString('base64');
-
-            parts.push({ text: `\n\nread_file media ${input.filePath}` });
-            parts.push({
-              media: {
-                url: `data:${mimeType};base64,${base64}`,
-                contentType: mimeType,
-              },
-            });
-          } else {
-            const content = await fs.readFile(targetFile, 'utf8');
-            parts.push({
-              text: `<read_file path="${input.filePath}">\n${content}\n</read_file>`,
-            });
-          }
-
-          if (
-            messageQueue.length > 0 &&
-            messageQueue[messageQueue.length - 1].role === 'user'
-          ) {
-            messageQueue[messageQueue.length - 1].content.push(...parts);
-          } else {
-            messageQueue.push({ role: 'user', content: parts });
-          }
-
-          return `File ${input.filePath} read successfully, see contents below`;
-        }
-      );
-
-      const filesystemTools = [listFiles, readFile];
+      const filesystemTools = [listFilesTool, readFileTool];
       const filesystemToolNames = filesystemTools.map((t) => t.__action.name);
 
       return {
