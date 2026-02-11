@@ -26,6 +26,7 @@ dependencies = [
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
+  "genkit-plugin-fastapi",
   "genkit-plugin-firebase",
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
@@ -203,6 +204,7 @@ provider-vertex-ai-vector-search-bigquery  = { workspace = true }
 provider-vertex-ai-vector-search-firestore = { workspace = true }
 provider-xai-hello                         = { workspace = true }
 web-endpoints-hello                        = { workspace = true }
+web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
 web-short-n-long                           = { workspace = true }
@@ -218,6 +220,7 @@ genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-evaluators            = { workspace = true }
+genkit-plugin-fastapi               = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
@@ -481,6 +484,7 @@ extraPaths = [
   "plugins/deepseek/src",
   "plugins/dev-local-vectorstore/src",
   "plugins/evaluators/src",
+  "plugins/fastapi/src",
   "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
