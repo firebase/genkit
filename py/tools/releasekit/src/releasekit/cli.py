@@ -52,6 +52,8 @@ import json
 import sys
 from pathlib import Path
 
+from rich_argparse import RichHelpFormatter
+
 from releasekit import __version__
 from releasekit.backends.forge import GitHubBackend
 from releasekit.backends.pm import UvBackend
@@ -59,8 +61,10 @@ from releasekit.backends.registry import PyPIBackend
 from releasekit.backends.vcs import GitBackend
 from releasekit.checks import run_checks
 from releasekit.config import ReleaseConfig, load_config
-from releasekit.errors import E, ReleaseKitError, explain
+from releasekit.errors import E, ReleaseKitError, explain, render_error
+from releasekit.formatters import FORMATTERS, format_graph
 from releasekit.graph import build_graph, topo_sort
+from releasekit.init import print_scaffold_preview, scaffold_config
 from releasekit.lock import release_lock
 from releasekit.logging import get_logger
 from releasekit.plan import build_plan
@@ -311,19 +315,9 @@ def _cmd_graph(args: argparse.Namespace) -> int:
     packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
     graph = build_graph(packages)
 
-    fmt = getattr(args, 'format', 'table')
-    if fmt == 'json':
-        data = {
-            'packages': graph.names,
-            'edges': graph.edges,
-            'reverse_edges': graph.reverse_edges,
-        }
-        print(json.dumps(data, indent=2))  # noqa: T201 - CLI output
-    else:
-        levels = topo_sort(graph)
-        for level_idx, level in enumerate(levels):
-            names = ', '.join(p.name for p in level)
-            print(f'  Level {level_idx}: {names}')  # noqa: T201 - CLI output
+    fmt = getattr(args, 'format', 'levels')
+    output = format_graph(graph, packages, fmt=fmt)
+    print(output, end='')  # noqa: T201 - CLI output
 
     return 0
 
@@ -405,6 +399,219 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_init(args: argparse.Namespace) -> int:
+    """Handle the ``init`` subcommand."""
+    workspace_root = _find_workspace_root()
+    dry_run = getattr(args, 'dry_run', False)
+    force = getattr(args, 'force', False)
+
+    toml_fragment = scaffold_config(
+        workspace_root,
+        dry_run=dry_run,
+        force=force,
+    )
+
+    if toml_fragment:
+        print_scaffold_preview(toml_fragment)
+        if not dry_run:
+            print('  ✅ Configuration written')  # noqa: T201 - CLI output
+    elif not dry_run:
+        print('  ℹ️  [tool.releasekit] already exists (use --force to overwrite)')  # noqa: T201 - CLI output
+
+    return 0
+
+
+def _cmd_rollback(args: argparse.Namespace) -> int:
+    """Handle the ``rollback`` subcommand."""
+    workspace_root = _find_workspace_root()
+    config = load_config(workspace_root / 'pyproject.toml')
+    vcs, _pm, forge, _registry = _create_backends(workspace_root, config)
+    dry_run = getattr(args, 'dry_run', False)
+    tag = args.tag
+
+    deleted: list[str] = []
+
+    # Delete the git tag (local + remote).
+    if vcs.tag_exists(tag):
+        logger.info('Deleting tag %s', tag)
+        vcs.delete_tag(tag, remote=True, dry_run=dry_run)
+        deleted.append(tag)
+    else:
+        logger.info('Tag %s does not exist locally', tag)
+
+    # Delete the GitHub release if forge is available.
+    if forge.is_available():
+        logger.info('Deleting GitHub release for %s', tag)
+        try:
+            forge.delete_release(tag, dry_run=dry_run)
+        except Exception as exc:
+            logger.warning('Release deletion failed: %s', exc)
+    else:
+        logger.info('Forge not available, skipping release deletion')
+
+    for t in deleted:
+        print(f'  \U0001f5d1\ufe0f  Deleted tag: {t}')  # noqa: T201 - CLI output
+
+    if not deleted:
+        print(f'  \u2139\ufe0f  Tag {tag} not found')  # noqa: T201 - CLI output
+
+    return 0
+
+
+def _cmd_completion(args: argparse.Namespace) -> int:
+    """Generate shell completion script.
+
+    Outputs a completion script for the requested shell to stdout.
+    Users install it by sourcing or placing in the appropriate directory.
+    """
+    shell = args.shell
+    prog = 'releasekit'
+
+    subcommands = [
+        'check',
+        'completion',
+        'discover',
+        'explain',
+        'graph',
+        'init',
+        'plan',
+        'publish',
+        'rollback',
+        'version',
+    ]
+    formats = ['ascii', 'csv', 'd2', 'dot', 'json', 'levels', 'mermaid', 'table']
+
+    if shell == 'bash':
+        subcmd_words = ' '.join(subcommands)
+        fmt_words = ' '.join(formats)
+        graph_opts = '--format --rdeps --deps --packages --groups --exclude'
+        pub_opts = (
+            '--dry-run --force --force-unchanged --concurrency'
+            ' --no-tag --no-push --no-release --version-only --max-retries'
+        )
+        script = f'''\
+# Bash completion for {prog}
+# Add to ~/.bashrc: eval "$({prog} completion bash)"
+_{prog}_completions() {{
+    local cur prev commands
+    cur="${{COMP_WORDS[COMP_CWORD]}}"
+    prev="${{COMP_WORDS[COMP_CWORD-1]}}"
+    commands="{subcmd_words}"
+
+    if [[ $COMP_CWORD -eq 1 ]]; then
+        COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+        return
+    fi
+
+    case "$prev" in
+        graph)
+            COMPREPLY=($(compgen -W "{graph_opts}" -- "$cur"))
+            ;;
+        --format)
+            COMPREPLY=($(compgen -W "{fmt_words}" -- "$cur"))
+            ;;
+        completion)
+            COMPREPLY=($(compgen -W "bash zsh fish" -- "$cur"))
+            ;;
+        publish)
+            COMPREPLY=($(compgen -W "{pub_opts}" -- "$cur"))
+            ;;
+        *)
+            COMPREPLY=($(compgen -W "--help --verbose --quiet" -- "$cur"))
+            ;;
+    esac
+}}
+complete -F _{prog}_completions {prog}
+'''
+    elif shell == 'zsh':
+        subcmd_lines = '\n            '.join(f"'{cmd}:{cmd} subcommand'" for cmd in subcommands)
+        script = f"""\
+#compdef {prog}
+# Zsh completion for {prog}
+# Add to ~/.zshrc: eval "$({prog} completion zsh)"
+
+_{prog}() {{
+    local -a commands
+    commands=(
+            {subcmd_lines}
+    )
+
+    _arguments -C \\
+        '1:command:->command' \\
+        '*::arg:->args'
+
+    case $state in
+        command)
+            _describe 'command' commands
+            ;;
+        args)
+            case $words[1] in
+                graph)
+                    _arguments \\
+                        '--format[Output format]:format:({' '.join(formats)})' \\
+                        '--rdeps[Show reverse dependencies]' \\
+                        '--deps[Show forward dependencies]' \\
+                        '--packages[Filter packages]' \\
+                        '--groups[Filter groups]' \\
+                        '--exclude[Exclude packages]'
+                    ;;
+                completion)
+                    _arguments '1:shell:(bash zsh fish)'
+                    ;;
+                publish)
+                    _arguments \\
+                        '--dry-run[Preview mode]' \\
+                        '--force[Skip confirmation]' \\
+                        '--force-unchanged[Include unchanged]' \\
+                        '--concurrency[Max parallel]:n:' \\
+                        '--no-tag[Skip tagging]' \\
+                        '--no-push[Skip pushing]' \\
+                        '--no-release[Skip releases]' \\
+                        '--version-only[Version only]' \\
+                        '--max-retries[Retry count]:n:'
+                    ;;
+            esac
+            ;;
+    esac
+}}
+
+_{prog} "$@"
+"""
+    elif shell == 'fish':
+        subcmd_completions = '\n'.join(
+            f"complete -c {prog} -n '__fish_use_subcommand' -a '{cmd}' -d '{cmd} subcommand'" for cmd in subcommands
+        )
+        format_completions = '\n'.join(
+            f"complete -c {prog} -n '__fish_seen_subcommand_from graph' -l format -a '{fmt}'" for fmt in formats
+        )
+        script = f"""\
+# Fish completion for {prog}
+# Add to ~/.config/fish/completions/{prog}.fish
+
+{subcmd_completions}
+
+# graph --format
+{format_completions}
+
+# completion shell
+complete -c {prog} -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
+
+# publish flags
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l dry-run -d 'Preview mode'
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l force -s y -d 'Skip confirmation'
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l no-tag -d 'Skip tagging'
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l no-push -d 'Skip pushing'
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l no-release -d 'Skip releases'
+complete -c {prog} -n '__fish_seen_subcommand_from publish' -l version-only -d 'Version only'
+"""
+    else:
+        print(f'Unknown shell: {shell}', file=sys.stderr)  # noqa: T201 - CLI output
+        return 1
+
+    print(script)  # noqa: T201 - CLI output
+    return 0
+
+
 # ── Argument parser ──────────────────────────────────────────────────
 
 
@@ -414,9 +621,11 @@ def build_parser() -> argparse.ArgumentParser:
     Returns:
         Configured :class:`argparse.ArgumentParser`.
     """
+    RichHelpFormatter.styles['argparse.groups'] = 'bold yellow'
     parser = argparse.ArgumentParser(
         prog='releasekit',
         description='Release orchestration for uv workspaces.',
+        formatter_class=RichHelpFormatter,
     )
     parser.add_argument(
         '--version',
@@ -424,7 +633,7 @@ def build_parser() -> argparse.ArgumentParser:
         version=f'%(prog)s {__version__}',
     )
 
-    subparsers = parser.add_subparsers(dest='command', required=True)
+    subparsers = parser.add_subparsers(dest='command')
 
     # ── publish ──
     publish_parser = subparsers.add_parser(
@@ -479,6 +688,26 @@ def build_parser() -> argparse.ArgumentParser:
         default=600.0,
         help='Timeout in seconds per publish attempt (default: 600).',
     )
+    publish_parser.add_argument(
+        '--no-tag',
+        action='store_true',
+        help='Skip git tag creation.',
+    )
+    publish_parser.add_argument(
+        '--no-push',
+        action='store_true',
+        help='Skip pushing tags and commits to remote.',
+    )
+    publish_parser.add_argument(
+        '--no-release',
+        action='store_true',
+        help='Skip creating GitHub releases.',
+    )
+    publish_parser.add_argument(
+        '--version-only',
+        action='store_true',
+        help='Compute and apply version bumps, then stop (no build/publish).',
+    )
 
     # ── plan ──
     plan_parser = subparsers.add_parser(
@@ -516,9 +745,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     graph_parser.add_argument(
         '--format',
-        choices=['table', 'json'],
-        default='table',
-        help='Output format (default: table).',
+        choices=sorted(FORMATTERS),
+        default='levels',
+        help='Output format (default: levels).',
+    )
+    graph_parser.add_argument(
+        '--deps',
+        metavar='PKG',
+        help='Show only forward dependencies of PKG.',
+    )
+    graph_parser.add_argument(
+        '--rdeps',
+        metavar='PKG',
+        help='Show only reverse dependencies of PKG.',
     )
 
     # ── check ──
@@ -554,6 +793,48 @@ def build_parser() -> argparse.ArgumentParser:
         help='Error code to explain (e.g., RK-PREFLIGHT-DIRTY-WORKTREE).',
     )
 
+    # ── init ──
+    init_parser = subparsers.add_parser(
+        'init',
+        help='Scaffold [tool.releasekit] config for the workspace.',
+    )
+    init_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview generated config without writing files.',
+    )
+    init_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite existing [tool.releasekit] section.',
+    )
+
+    # ── rollback ──
+    rollback_parser = subparsers.add_parser(
+        'rollback',
+        help='Delete a tag and its GitHub release.',
+    )
+    rollback_parser.add_argument(
+        'tag',
+        help='Git tag to delete (e.g., genkit-v0.5.0).',
+    )
+    rollback_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview mode: log commands without executing.',
+    )
+
+    # ── completion ──
+    completion_parser = subparsers.add_parser(
+        'completion',
+        help='Generate shell completion script.',
+    )
+    completion_parser.add_argument(
+        'shell',
+        choices=['bash', 'zsh', 'fish'],
+        help='Shell to generate completions for.',
+    )
+
     return parser
 
 
@@ -582,14 +863,22 @@ def main() -> int:
             return _cmd_version(args)
         if command == 'explain':
             return _cmd_explain(args)
+        if command == 'init':
+            return _cmd_init(args)
+        if command == 'rollback':
+            return _cmd_rollback(args)
+        if command == 'completion':
+            return _cmd_completion(args)
 
         parser.print_help()  # noqa: T201 - CLI output
-        return 1
+        print(  # noqa: T201 - CLI output
+            f'\n{parser.prog}: error: please provide a command',
+            file=sys.stderr,
+        )
+        return 2
 
     except ReleaseKitError as exc:
-        logger.error('releasekit_error', code=exc.code.value, message=str(exc))
-        if exc.hint:
-            logger.info('hint', hint=exc.hint)
+        render_error(exc)
         return 1
     except KeyboardInterrupt:
         logger.info('interrupted')

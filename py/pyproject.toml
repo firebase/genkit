@@ -115,6 +115,7 @@ lint = [
   # type checkers run at workspace scope.
   "diagnostic>=3.0.0",
   "packaging>=24.0",
+  "rich-argparse>=1.6.0",
   "tomlkit>=0.13.0",
 ]
 
