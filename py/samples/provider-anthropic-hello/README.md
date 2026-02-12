@@ -1,5 +1,19 @@
 ## Anthropic Sample
 
+### Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with Claude |
+| Streaming | `say_hi_stream` | Token-by-token streaming response |
+| Generation Config | `say_hi_with_config` | Custom temperature settings |
+| Tool Calling | `weather_flow` | Weather tool with function calling |
+| Currency Tool | `currency_exchange` | Currency conversion tool |
+| Thinking Mode (CoT) | `thinking_demo` | Chain-of-thought reasoning |
+| Multimodal (Image) | `describe_image` | Image description with Claude |
+| Prompt Caching | `cached_generation` | Cache breakpoint metadata |
+| PDF Input | `analyze_pdf` | PDF document analysis |
+
 ### How to Get Your Anthropic API Key
 
 To use the Anthropic plugin, you need an API key from Anthropic.

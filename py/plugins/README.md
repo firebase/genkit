@@ -347,6 +347,7 @@ first use, not at registration time.
 
 | Plugin | Purpose |
 |--------|---------|
+| **fastapi** | Serve flows via FastAPI endpoints with lifespan management |
 | **flask** | Serve flows via Flask HTTP endpoints |
 | **mcp** | Model Context Protocol for tool integration |
 
@@ -521,6 +522,7 @@ pip install genkit-checks-plugin
 pip install genkit-evaluators-plugin
 
 # Integrations
+pip install genkit-plugin-fastapi
 pip install genkit-flask-plugin
 pip install genkit-mcp-plugin
 pip install genkit-cohere-plugin
@@ -580,8 +582,8 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 │   ─────────────────────────────────────────────────                               │
 │   google-genai, anthropic, amazon-bedrock, microsoft-foundry,                    │
 │   ollama, xai, mistral, huggingface, cloudflare-workers-ai,                      │
-│   cohere, google-cloud, firebase, observability, mcp, evaluators,                │
-│   dev-local-vectorstore, checks                                                  │
+│   cohere, google-cloud, firebase, observability, mcp, fastapi,                   │
+│   evaluators, dev-local-vectorstore, checks                                      │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -594,10 +596,10 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 
 ## Cross-Language Plugin Coverage
 
-> **Last audited**: 2026-02-08
+> **Last audited**: 2026-02-12
 
 The table below compares plugin availability across Python and JavaScript SDKs.
-Python currently has **21 plugins** vs JavaScript's **17 plugins**, with broader
+Python currently has **22 plugins** vs JavaScript's **17 plugins**, with broader
 model provider diversity.
 
 ### Model Providers
@@ -631,6 +633,7 @@ model provider diversity.
 | Plugin | Python | JavaScript | Notes |
 |--------|:------:|:----------:|-------|
 | MCP (Model Context Protocol) | ✅ | ✅ | |
+| FastAPI | ✅ | — | Python-only |
 | Flask | ✅ | — | Python-only |
 | Express | — | ✅ | JS-only |
 | Next.js | — | ✅ | JS-only |

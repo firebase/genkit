@@ -3,6 +3,24 @@
 Demonstrates how Genkit propagates context through the execution chain:
 generate calls, flows, tools, and nested operations.
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Context in Generate | `context_in_generate` | Pass `context=` to `ai.generate()`, tool reads via `ctx.context` |
+| Context in Flow | `context_in_flow` | Flow receives `ActionRunContext`, reads `ctx.context` |
+| Static Context Access | `context_current_context` | Tool reads context via `Genkit.current_context()` |
+| Context Propagation | `context_propagation_chain` | Context flows through nested generate/tool calls |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Context** | Extra info passed alongside the AI request — like a sticky note on a letter |
+| **`ctx.context`** | Read the sticky note inside a tool or flow |
+| **`Genkit.current_context()`** | Read the sticky note from anywhere — like a global bulletin board |
+| **Propagation** | Context automatically passes through nested calls — like a family name |
+
 ## Quick Start
 
 ```bash
