@@ -46,7 +46,6 @@ from cohere.types import (
     AssistantChatMessageV2,
     AssistantMessageResponse,
     SystemChatMessageV2,
-    TextAssistantMessageV2ContentOneItem,
     ToolCallV2,
     ToolCallV2Function,
     ToolChatMessageV2,
@@ -55,6 +54,11 @@ from cohere.types import (
     Usage,
     UserChatMessageV2,
 )
+
+try:
+    from cohere.types import TextAssistantMessageV2ContentItem
+except ImportError:
+    from cohere.types import TextAssistantMessageV2ContentOneItem as TextAssistantMessageV2ContentItem
 from cohere.v2.types.v2chat_response import V2ChatResponse
 from genkit.core.typing import (
     FinishReason,
@@ -195,7 +199,7 @@ def convert_response(response: V2ChatResponse) -> GenerateResponse:
     msg: AssistantMessageResponse | None = response.message if response else None
     if msg and msg.content:
         for block in msg.content:
-            if isinstance(block, TextAssistantMessageV2ContentOneItem) and block.text:
+            if isinstance(block, TextAssistantMessageV2ContentItem) and block.text:
                 content.append(Part(root=TextPart(text=block.text)))
 
     # Handle tool calls in the response.
