@@ -61,7 +61,7 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         """Index documents into the local vector store."""
         docs = request.documents
         # pyrefly: ignore[missing-attribute] - inherited from LocalVectorStoreAPI
-        data = self._load_filestore()
+        data = await self._load_filestore()
 
         embed_resp = await self.ai.embed_many(
             embedder=self.embedder,
