@@ -27,6 +27,7 @@ from xai_sdk.proto.v6 import chat_pb2, image_pb2
 
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
+from genkit.core.logging import get_logger
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.converters import DEFAULT_MAX_OUTPUT_TOKENS, FINISH_REASON_MAP
 from genkit.plugins.xai.model_info import get_model_info
@@ -61,6 +62,8 @@ TOOL_TYPE_MAP = {
     'function': chat_pb2.ToolCallType.TOOL_CALL_TYPE_CLIENT_SIDE_TOOL,
 }
 
+
+logger = get_logger(__name__)
 
 __all__ = ['XAIModel']
 
@@ -110,6 +113,8 @@ class XAIModel:
         params = self._build_params(request)
         streaming = ctx and ctx.is_streaming
 
+        logger.debug('xAI generate request', model=self.model_name, streaming=bool(streaming))
+
         if streaming:
             assert ctx is not None  # streaming requires ctx
             return await self._generate_streaming(params, request, ctx)
@@ -119,6 +124,13 @@ class XAIModel:
             return chat.sample()
 
         response: Any = await asyncio.to_thread(_sample)
+        logger.debug(
+            'xAI raw API response',
+            model=self.model_name,
+            content=str(response.content)[:500] if response.content else None,
+            tool_calls=str(response.tool_calls) if response.tool_calls else None,
+            finish_reason=str(response.finish_reason),
+        )
         content = self._to_genkit_content(response)
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)

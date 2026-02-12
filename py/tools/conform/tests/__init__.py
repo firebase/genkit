@@ -14,18 +14,4 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Path constants for the ``conform`` tool.
-
-Only paths intrinsic to the tool itself are defined here.  All
-repository-specific paths (specs directory, plugins directory, working
-directory) are supplied via ``pyproject.toml`` configuration or CLI
-flags, making the tool fully portable across repositories.
-"""
-
-from __future__ import annotations
-
-from pathlib import Path
-
-# tools/conform/src/conform/paths.py  →  src/  →  tools/conform/
-PACKAGE_DIR: Path = Path(__file__).resolve().parent
-TOOL_DIR: Path = PACKAGE_DIR.parent.parent
+"""Tests for the ``conform`` tool."""

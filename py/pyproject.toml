@@ -144,11 +144,13 @@ addopts = [
   # releasekit is a standalone tool with its own venv. Run its tests from
   # tools/releasekit/ (e.g. 'cd tools/releasekit && uv run pytest tests/').
   "--ignore=tools/releasekit/tests",
+  "--ignore=tools/conform/tests",
+  "--import-mode=importlib",
 ]
 asyncio_default_fixture_loop_scope = "session"
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
-testpaths = ["packages", "plugins", "samples", "tests"]
+testpaths = ["packages", "plugins", "samples", "tests", "tools"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
 

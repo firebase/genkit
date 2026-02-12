@@ -119,11 +119,22 @@ class AnthropicModel:
         params = self._build_params(request)
         streaming = ctx and ctx.is_streaming
 
+        logger.debug('Anthropic generate request', model=self.model_name, streaming=bool(streaming))
+
         if streaming:
             assert ctx is not None  # streaming requires ctx
             response = await self._generate_streaming(params, ctx)
         else:
             response = await self.client.messages.create(**params)
+
+        logger.debug(
+            'Anthropic raw API response',
+            model=self.model_name,
+            stop_reason=str(response.stop_reason),
+            content_blocks=len(response.content),
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
 
         content = self._to_genkit_content(response.content)
         content = maybe_strip_fences(request, content)

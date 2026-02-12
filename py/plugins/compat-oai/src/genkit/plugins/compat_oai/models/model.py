@@ -24,6 +24,7 @@ from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import GenerationCommonConfig as CoreGenerationCommonConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import (
@@ -46,6 +47,8 @@ from genkit.types import (
     TextPart,
     ToolDefinition,
 )
+
+logger = get_logger(__name__)
 
 
 class OpenAIModel:
@@ -288,7 +291,13 @@ class OpenAIModel:
             A GenerateResponse object containing the generated message.
         """
         openai_config = await self._get_openai_request_config(request=request)
+        logger.debug('OpenAI generate request', model=self._model, streaming=False)
         response = await self._openai_client.chat.completions.create(**openai_config)
+        logger.debug(
+            'OpenAI raw API response',
+            model=self._model,
+            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+        )
 
         result = GenerateResponse(
             request=request,
@@ -386,6 +395,7 @@ class OpenAIModel:
         request.config = self.normalize_config(request.config)
 
         if ctx.is_streaming:
+            logger.debug('OpenAI generate request', model=self._model, streaming=True)
             return await self._generate_stream(request, ctx.send_chunk)
         else:
             return await self._generate(request)

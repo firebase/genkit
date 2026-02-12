@@ -332,7 +332,8 @@ py/
 │       ├── cli.py                  ← Argument parsing + subcommand dispatch
 │       ├── config.py               ← TOML config loader
 │       ├── checker.py              ← check-plugin: verify conformance files exist
-│       ├── display.py              ← Rich tables, Rust-style errors, emoji status
+│       ├── display.py              ← Rich tables, inline progress bars, Rust-style errors
+│       ├── log_redact.py           ← Structlog processor to truncate data URIs in logs
 │       ├── paths.py                ← Path constants derived from package location
 │       ├── plugins.py              ← Plugin discovery and env-var checking
 │       ├── reflection.py           ← Async HTTP client for reflection API (httpx)
@@ -392,8 +393,17 @@ A live Rich progress table updates as results arrive (log lines scroll
 above, table pinned at bottom), followed by a final summary table.
 
 **Concurrency control:** An `asyncio.Semaphore` bounds the number of
-concurrent plugin tests.  The default is 4 (configurable via TOML or
+concurrent plugin tests.  The default is 8 (configurable via TOML or
 `-j` flag).
+
+**Inline progress bars:** Each row in the progress table shows a colored
+bar (green = passed, red = failed, dim = remaining) with a `passed/total`
+count.  Total test counts are pre-calculated from the spec file before
+execution begins.
+
+**Log redaction:** Data URIs (`data:image/png;base64,...`) in debug logs
+are automatically truncated to keep output readable during multimodal
+input tests.
 
 **Pre-flight checks:** Before running tests, the runner verifies that
 the plugin's spec file, entry point, and required environment variables
@@ -403,7 +413,28 @@ exist.  Missing env vars cause the plugin to be skipped (not errored).
 |------|-------------|
 | `--use-cli` | Use legacy genkit CLI (`genkit dev:test-model`) instead of the native runner |
 | `-j N` | Maximum concurrent plugins |
+| `-t N` | Maximum concurrent tests per model spec (default: 3) |
 | `-v` | Verbose mode: plain-text log lines (no live table), full output on failure |
+
+#### Provider rate limits reference
+
+When choosing `-j` (plugin concurrency) and `-t` (test concurrency), keep
+provider rate limits in mind.  Worst-case concurrent requests =
+`concurrency × test-concurrency` (default 8 × 3 = 24).
+
+| Provider | Lowest paid tier RPM | Free tier RPM | Source |
+|----------|---------------------|---------------|--------|
+| Google Gemini (API key) | 1,000 | 15 | [ai.google.dev/gemini-api/docs/rate-limits](https://ai.google.dev/gemini-api/docs/rate-limits) |
+| Vertex AI (Google Cloud) | TPM-based (no RPM cap) | — | [cloud.google.com/vertex-ai/generative-ai/docs/quotas](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/quotas) |
+| Anthropic Claude | 50 (Tier 1) | — | [platform.claude.com/docs/en/api/rate-limits](https://platform.claude.com/docs/en/api/rate-limits) |
+| OpenAI (GPT-4o) | 500 (Tier 1) | 3 | [platform.openai.com/docs/guides/rate-limits](https://platform.openai.com/docs/guides/rate-limits) |
+| Mistral AI | ~60–300 (RPS-based) | Restrictive | [docs.mistral.ai/deployment/ai-studio/tier](https://docs.mistral.ai/deployment/ai-studio/tier) |
+| Cloudflare Workers AI | 300 (text gen) | Same | [developers.cloudflare.com/workers-ai/platform/limits](https://developers.cloudflare.com/workers-ai/platform/limits/) |
+| Amazon Bedrock | ~100–1,000 (varies) | — | [docs.aws.amazon.com/bedrock/latest/userguide/quotas.html](https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html) |
+| Ollama (local) | ∞ (hardware-bound) | ∞ | — |
+
+> **Tip:** The defaults (`-j 8 -t 3`) are safe for all paid tiers.
+> If you are on a free tier, use `-t 1` to avoid 429 errors.
 
 ### `conform check-plugin`
 
@@ -446,43 +477,58 @@ with `@register('name')` in a new module under `validators/`.
 
 ## Configuration
 
-The tool reads `[tool.conform]` from its own `pyproject.toml`:
+All repo-specific settings live in a `conform.toml` file alongside the
+conformance specs (e.g. `py/tests/conform/conform.toml`).  The tool
+auto-discovers this file by walking up from the current directory, or
+you can pass `--config <path>` explicitly.
+
+The wrapper script `py/bin/conform` passes `--config` automatically.
 
 ```toml
-[tool.conform]
-concurrency = 4
+[conform]
+concurrency = 8
+test-concurrency = 3
 additional-model-plugins = ["google-genai", "vertex-ai", "ollama"]
 
-[tool.conform.env]
+[conform.env]
 anthropic = ["ANTHROPIC_API_KEY"]
 google-genai = ["GEMINI_API_KEY"]
 # ...
 
-[tool.conform.runtimes.python]
-specs-dir = "py/tests/conform"
-plugins-dir = "py/plugins"
+# Per-plugin overrides (e.g. lower concurrency for rate-limited APIs).
+[conform.plugin-overrides.cloudflare-workers-ai]
+test-concurrency = 1
+
+# Paths are relative to the conform.toml file.
+[conform.runtimes.python]
+cwd           = "../../.."
+specs-dir     = "."
+plugins-dir   = "../../plugins"
 entry-command = ["uv", "run", "--project", "py", "--active"]
 
-[tool.conform.runtimes.js]
-specs-dir = "py/tests/conform"
-plugins-dir = "js/plugins"
+[conform.runtimes.js]
+cwd           = "../../../js"
+specs-dir     = "."
+plugins-dir   = "../../../js/plugins"
 entry-command = ["npx", "tsx"]
-cwd = "js"
 
-[tool.conform.runtimes.go]
-specs-dir = "py/tests/conform"
-plugins-dir = "go/plugins"
+[conform.runtimes.go]
+cwd           = "../../../go"
+specs-dir     = "."
+plugins-dir   = "../../../go/plugins"
 entry-command = ["go", "run"]
-cwd = "go"
 ```
 
 CLI flags override TOML values:
 
 | Flag | TOML Key | Description |
 |------|----------|-------------|
+| `--config FILE` | — | Path to `conform.toml` (auto-discovered if omitted) |
 | `--runtime NAME` | — | Filter to a single runtime |
 | `--specs-dir DIR` | `runtimes.<name>.specs-dir` | Override specs directory |
+| `--plugins-dir DIR` | `runtimes.<name>.plugins-dir` | Override plugins directory |
 | `-j N` | `concurrency` | Max concurrent plugins |
+| `-t N` | `test-concurrency` | Max concurrent tests per model spec |
 | `--verbose` | — | Print full output for failures |
 
 ## Adding a New Plugin
@@ -493,8 +539,8 @@ CLI flags override TOML values:
    - `tests/conform/<plugin>/conformance_entry.py` (Python)
    - `tests/conform/<plugin>/conformance_entry.ts` (JS)
    - `tests/conform/<plugin>/conformance_entry.go` (Go)
-3. Add the plugin's env vars to `[tool.conform.env]` in
-   `tools/conform/pyproject.toml`.
+3. Add the plugin's env vars to `[conform.env]` in
+   `conform.toml`.
 4. If the plugin lacks `model_info.py`, add it to
    `additional-model-plugins`.
 5. Run `conform check-plugin` to verify.

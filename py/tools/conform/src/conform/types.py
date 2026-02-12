@@ -123,5 +123,8 @@ class PluginResult:
     return_code: int = -1
     error_message: str = ''
     missing_env_vars: list[str] = field(default_factory=list)
+    tests_total: int = 0
+    tests_supports: int = 0
+    tests_custom: int = 0
     tests_passed: int = 0
     tests_failed: int = 0

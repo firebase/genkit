@@ -30,6 +30,7 @@ from huggingface_hub import InferenceClient
 from pydantic import BaseModel, Field
 
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -52,6 +53,8 @@ from genkit.plugins.huggingface.model_info import (
 )
 
 HUGGINGFACE_PLUGIN_NAME = 'huggingface'
+
+logger = get_logger(__name__)
 
 # JSON value that can appear in a JSON Schema tree.
 JSONValue = dict[str, 'JSONValue'] | list['JSONValue'] | str | int | float | bool | None
@@ -381,10 +384,17 @@ class HuggingFaceModel:
 
         # Handle streaming
         if ctx and ctx.send_chunk:
+            logger.debug('HuggingFace generate request', model=self.name, streaming=True)
             return await self._generate_streaming(params, ctx)
 
         # Non-streaming request using chat_completion
+        logger.debug('HuggingFace generate request', model=self.name, streaming=False)
         response = self.client.chat_completion(**params)
+        logger.debug(
+            'HuggingFace raw API response',
+            model=self.name,
+            choices=len(response.choices) if response.choices else 0,
+        )
 
         # Extract content from response
         content: list[Part] = []

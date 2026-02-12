@@ -51,57 +51,8 @@ packages = ["src/conform"]
 # ---------------------------------------------------------------------------
 # Conform tool configuration
 # ---------------------------------------------------------------------------
-# CLI flags override these values.  The ``conform`` tool reads this section
-# at startup via ``conform.config.load_config()``.
-
-[tool.conform]
-concurrency = 4
-
-# Plugins that are model providers but lack ``model_info.py`` (they use
-# dynamic model registration).  The ``check-model`` subcommand verifies
-# that these have conformance specs too.
-additional-model-plugins = ["google-genai", "vertex-ai", "ollama"]
-
-# Required environment variables per plugin.  An empty list means no
-# credentials are needed (e.g. ollama uses a local server).
-[tool.conform.env]
-amazon-bedrock        = ["AWS_REGION"]
-anthropic             = ["ANTHROPIC_API_KEY"]
-cloudflare-workers-ai = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
-cohere                = ["COHERE_API_KEY"]
-compat-oai            = ["OPENAI_API_KEY"]
-deepseek              = ["DEEPSEEK_API_KEY"]
-google-genai          = ["GEMINI_API_KEY"]
-huggingface           = ["HF_TOKEN"]
-microsoft-foundry     = ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"]
-mistral               = ["MISTRAL_API_KEY"]
-ollama                = []
-vertex-ai             = ["GOOGLE_CLOUD_PROJECT"]
-xai                   = ["XAI_API_KEY"]
-
-# ---------------------------------------------------------------------------
-# Runtime configurations
-# ---------------------------------------------------------------------------
-# Each runtime defines how to locate specs, plugins, and what command to use
-# for running entry points.  The --runtime CLI flag selects which runtime
-# to use (default: python).
+# All repo-specific settings (concurrency, env vars, runtime paths) live in
+# the conform.toml file alongside the conformance specs.  The wrapper script
+# py/bin/conform passes --config pointing to that file.
 #
-# Paths are relative to the repository root.  The tool resolves them to
-# absolute paths at load time.
-
-[tool.conform.runtimes.python]
-entry-command = ["uv", "run", "--project", "py", "--active"]
-plugins-dir   = "py/plugins"
-specs-dir     = "py/tests/conform"
-
-[tool.conform.runtimes.js]
-cwd           = "js"
-entry-command = ["npx", "tsx"]
-plugins-dir   = "js/plugins"
-specs-dir     = "py/tests/conform"
-
-[tool.conform.runtimes.go]
-cwd           = "go"
-entry-command = ["go", "run"]
-plugins-dir   = "go/plugins"
-specs-dir     = "py/tests/conform"
+# See: py/tests/conform/conform.toml
