@@ -18,10 +18,12 @@
 # Wrapper script for the ``conform`` tool.
 #
 # Usage:
-#   py/bin/conform check-model --all      Run all model conformance tests
-#   py/bin/conform check-plugin           Check plugins have conformance files
-#   py/bin/conform list                   List plugins and env-var readiness
-#   py/bin/conform --help                 Show help
+#   py/bin/conform check-model              Run all model conformance tests
+#   py/bin/conform check-model anthropic    Run specific plugin(s)
+#   py/bin/conform check-model --use-cli    Legacy genkit CLI fallback
+#   py/bin/conform check-plugin             Check plugins have conformance files
+#   py/bin/conform list                     List plugins, runtimes, and readiness
+#   py/bin/conform --help                   Show help
 
 set -euo pipefail
 
