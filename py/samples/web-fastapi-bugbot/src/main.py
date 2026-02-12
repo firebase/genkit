@@ -38,10 +38,6 @@ ai = Genkit(
 lifespan: Lifespan[ASGIApp] = genkit_lifespan(ai)
 
 
-# =============================================================================
-# Models
-# =============================================================================
-
 Severity = Literal['critical', 'warning', 'info']
 Category = Literal['security', 'bug', 'style']
 
@@ -77,19 +73,10 @@ class DiffInput(BaseModel):
     context: str = ''
 
 
-# =============================================================================
-# Typed Prompt Handles (defined once, reused everywhere)
-# =============================================================================
-
 security_prompt = ai.prompt('analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis))
 bugs_prompt = ai.prompt('analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis))
 style_prompt = ai.prompt('analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis))
 diff_prompt = ai.prompt('analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis))
-
-
-# =============================================================================
-# Flows
-# =============================================================================
 
 
 @ai.flow()
@@ -131,10 +118,6 @@ async def review_diff(input: DiffInput) -> Analysis:
     return response.output
 
 
-# =============================================================================
-# FastAPI App
-# =============================================================================
-
 app = FastAPI(title='BugBot', description='AI-powered code review API', lifespan=lifespan)
 
 
@@ -154,12 +137,6 @@ async def review_security_endpoint(code: str, language: str = 'python') -> Analy
 async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
     """Review a code diff."""
     return await review_diff(DiffInput(diff=diff, context=context))
-
-
-# =============================================================================
-# Flow Endpoints (using genkit_fastapi_handler)
-# These expose flows directly with {"data": ...} format
-# =============================================================================
 
 
 @app.post('/flow/review', response_model=None)
