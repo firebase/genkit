@@ -18,7 +18,7 @@
 
 from typing import Any, cast
 
-from openai import OpenAI as _OpenAI
+from openai import AsyncOpenAI as _AsyncOpenAI
 
 # Official DeepSeek API endpoint
 # This is the standard endpoint and doesn't vary by region
@@ -28,7 +28,7 @@ DEFAULT_DEEPSEEK_API_URL = 'https://api.deepseek.com'
 class DeepSeekClient:
     """DeepSeek API client initialization."""
 
-    def __new__(cls, **deepseek_params: object) -> _OpenAI:
+    def __new__(cls, **deepseek_params: object) -> _AsyncOpenAI:
         """Initialize the DeepSeek client.
 
         Args:
@@ -38,9 +38,9 @@ class DeepSeekClient:
                 - Additional OpenAI client parameters.
 
         Returns:
-            Configured OpenAI client instance.
+            Configured async OpenAI client instance.
         """
         api_key = cast(str | None, deepseek_params.pop('api_key', None))
         base_url = cast(str, deepseek_params.pop('base_url', DEFAULT_DEEPSEEK_API_URL))
 
-        return _OpenAI(api_key=api_key, base_url=base_url, **cast(dict[str, Any], deepseek_params))
+        return _AsyncOpenAI(api_key=api_key, base_url=base_url, **cast(dict[str, Any], deepseek_params))
