@@ -388,6 +388,7 @@ class TestCleanJsonResponse:
             ),
         )
         cleaned = model._clean_json_response(response, request)
+        assert cleaned.message is not None
         assert cleaned.message.content[0].root.text == '{"name": "John", "level": 5}'
 
     def test_no_op_for_gpt_model(self) -> None:
@@ -406,6 +407,7 @@ class TestCleanJsonResponse:
             ),
         )
         result = model._clean_json_response(response, request)
+        assert result.message is not None
         assert result.message.content[0].root.text == fenced_text
 
     def test_no_op_for_text_output(self) -> None:
@@ -421,6 +423,7 @@ class TestCleanJsonResponse:
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
         result = model._clean_json_response(response, request)
+        assert result.message is not None
         assert result.message.content[0].root.text == text
 
     def test_no_op_for_no_output(self) -> None:
@@ -435,6 +438,7 @@ class TestCleanJsonResponse:
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
         result = model._clean_json_response(response, request)
+        assert result.message is not None
         assert result.message.content[0].root.text == text
 
     def test_no_op_when_no_fences(self) -> None:
