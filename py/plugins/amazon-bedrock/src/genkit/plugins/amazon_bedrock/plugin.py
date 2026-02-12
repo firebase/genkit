@@ -487,7 +487,7 @@ class AmazonBedrock(Plugin):
                 )
 
                 # Parse response
-                response_body = json.loads(response['body'].read())
+                response_body = json.loads(await response['body'].read())
 
                 # Extract embedding based on model type
                 if base_model_id.startswith('amazon.titan-embed'):
