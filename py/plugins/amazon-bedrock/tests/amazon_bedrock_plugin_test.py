@@ -955,7 +955,7 @@ class TestStreamingToolUseParsing:
     async def test_multiple_tool_calls_in_stream(self, mock_client: MagicMock) -> None:
         """Multiple tool calls in a single stream are assembled correctly."""
         mock_client.converse_stream.return_value = {
-            'stream': [
+            'stream': _AsyncIter([
                 # First tool call at block index 0
                 {
                     'contentBlockStart': {
@@ -1002,7 +1002,7 @@ class TestStreamingToolUseParsing:
                         }
                     }
                 },
-            ]
+            ])
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
