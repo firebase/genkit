@@ -15,11 +15,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -33,9 +41,10 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
+  "Private :: Do Not Upload",
 ]
 dependencies = ["genkit", "huggingface_hub>=0.25.0"]
-description = "Genkit Hugging Face Plugin"
+description = "Genkit Hugging Face Plugin (Community)"
 keywords = [
   "genkit",
   "ai",

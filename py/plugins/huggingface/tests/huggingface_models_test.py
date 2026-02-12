@@ -16,6 +16,7 @@
 
 """Tests for Hugging Face model implementation."""
 
+import copy
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -184,24 +185,31 @@ def test_convert_tools(model: HuggingFaceModel) -> None:
 
 
 def test_get_response_format_json(model: HuggingFaceModel) -> None:
-    """Test response format for JSON output."""
+    """Test response format for JSON output without schema."""
     from genkit.core.typing import OutputConfig
 
     output = OutputConfig(format='json')
     result = model._get_response_format(output)
 
-    assert result == {'type': 'json'}
+    assert result == {'type': 'json_object'}
 
 
 def test_get_response_format_json_with_schema(model: HuggingFaceModel) -> None:
-    """Test response format for JSON with schema."""
+    """Test response format for JSON with schema uses OpenAI-compatible json_schema format."""
     from genkit.core.typing import OutputConfig
 
-    schema = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
+    schema = {'type': 'object', 'title': 'Person', 'properties': {'name': {'type': 'string'}}}
     output = OutputConfig(format='json', schema=schema)
     result = model._get_response_format(output)
 
-    assert result == {'type': 'json', 'value': schema}
+    assert result == {
+        'type': 'json_schema',
+        'json_schema': {
+            'name': 'Person',
+            'schema': schema,
+            'strict': True,
+        },
+    }
 
 
 def test_get_response_format_text(model: HuggingFaceModel) -> None:
@@ -212,6 +220,21 @@ def test_get_response_format_text(model: HuggingFaceModel) -> None:
     result = model._get_response_format(output)
 
     assert result is None
+
+
+def test_get_response_format_json_schema_without_title(model: HuggingFaceModel) -> None:
+    """Test that schemas without a title fall back to 'Response' as the name."""
+    from genkit.core.typing import OutputConfig
+
+    schema = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
+    output = OutputConfig(format='json', schema=schema)
+    result = model._get_response_format(output)
+
+    assert result is not None
+    assert result['type'] == 'json_schema'
+    assert result['json_schema']['name'] == 'Response'
+    assert result['json_schema']['schema'] == schema
+    assert result['json_schema']['strict'] is True
 
 
 @patch('genkit.plugins.huggingface.models.InferenceClient')
@@ -306,3 +329,142 @@ def test_to_generate_fn(model: HuggingFaceModel) -> None:
     fn = model.to_generate_fn()
     assert callable(fn)
     assert fn == model.generate
+
+
+class TestResolveSchemaRefs:
+    """Tests for HuggingFaceModel._resolve_schema_refs."""
+
+    def test_no_defs_returns_schema_unchanged(self) -> None:
+        """Schema without $defs is returned as-is."""
+        schema: dict = {
+            'type': 'object',
+            'properties': {'name': {'type': 'string'}},
+            'required': ['name'],
+            'title': 'Simple',
+        }
+        result = HuggingFaceModel._resolve_schema_refs(schema)
+        assert result == schema
+
+    def test_single_ref_is_inlined(self) -> None:
+        """A single $ref is replaced with the corresponding $defs entry."""
+        schema: dict = {
+            '$defs': {
+                'Skills': {
+                    'type': 'object',
+                    'properties': {
+                        'strength': {'type': 'integer'},
+                    },
+                    'required': ['strength'],
+                    'title': 'Skills',
+                },
+            },
+            'type': 'object',
+            'properties': {
+                'name': {'type': 'string'},
+                'skills': {'$ref': '#/$defs/Skills'},
+            },
+            'required': ['name', 'skills'],
+            'title': 'Character',
+        }
+        result = HuggingFaceModel._resolve_schema_refs(schema)
+
+        # $defs should be stripped from the result.
+        assert '$defs' not in result
+        # The $ref should be replaced with the inlined definition.
+        assert result['properties']['skills'] == {
+            'type': 'object',
+            'properties': {'strength': {'type': 'integer'}},
+            'required': ['strength'],
+            'title': 'Skills',
+        }
+        # Other fields should be preserved.
+        assert result['title'] == 'Character'
+        assert result['properties']['name'] == {'type': 'string'}
+
+    def test_nested_refs_are_resolved(self) -> None:
+        """$refs inside $defs entries are recursively resolved."""
+        schema: dict = {
+            '$defs': {
+                'Inner': {
+                    'type': 'object',
+                    'properties': {'value': {'type': 'integer'}},
+                    'title': 'Inner',
+                },
+                'Outer': {
+                    'type': 'object',
+                    'properties': {'inner': {'$ref': '#/$defs/Inner'}},
+                    'title': 'Outer',
+                },
+            },
+            'type': 'object',
+            'properties': {'data': {'$ref': '#/$defs/Outer'}},
+            'title': 'Root',
+        }
+        result = HuggingFaceModel._resolve_schema_refs(schema)
+
+        assert '$defs' not in result
+        # Outer.inner should be fully resolved to Inner's definition.
+        outer = result['properties']['data']
+        assert outer['properties']['inner'] == {
+            'type': 'object',
+            'properties': {'value': {'type': 'integer'}},
+            'title': 'Inner',
+        }
+
+    def test_unknown_ref_preserved(self) -> None:
+        """An unresolvable $ref is kept so the backend surfaces the error."""
+        schema: dict = {
+            '$defs': {},
+            'type': 'object',
+            'properties': {
+                'item': {'$ref': '#/$defs/Unknown'},
+            },
+            'title': 'Root',
+        }
+        result = HuggingFaceModel._resolve_schema_refs(schema)
+
+        # Unknown ref kept as-is.
+        assert result['properties']['item'] == {'$ref': '#/$defs/Unknown'}
+
+    def test_ref_in_array_items_is_inlined(self) -> None:
+        """$ref inside array items is resolved."""
+        schema: dict = {
+            '$defs': {
+                'Tag': {
+                    'type': 'object',
+                    'properties': {'label': {'type': 'string'}},
+                    'title': 'Tag',
+                },
+            },
+            'type': 'object',
+            'properties': {
+                'tags': {
+                    'type': 'array',
+                    'items': {'$ref': '#/$defs/Tag'},
+                },
+            },
+            'title': 'Root',
+        }
+        result = HuggingFaceModel._resolve_schema_refs(schema)
+
+        assert '$defs' not in result
+        assert result['properties']['tags']['items'] == {
+            'type': 'object',
+            'properties': {'label': {'type': 'string'}},
+            'title': 'Tag',
+        }
+
+    def test_original_schema_is_not_mutated(self) -> None:
+        """The input schema dict must not be modified in-place."""
+        schema: dict = {
+            '$defs': {
+                'Foo': {'type': 'string'},
+            },
+            'type': 'object',
+            'properties': {'foo': {'$ref': '#/$defs/Foo'}},
+            'title': 'Root',
+        }
+        original = copy.deepcopy(schema)
+        HuggingFaceModel._resolve_schema_refs(schema)
+
+        assert schema == original

@@ -5,10 +5,11 @@
 # Ollama Hello World Demo
 # =======================
 #
-# Demonstrates local LLM inference, tools, vision, and embeddings with Genkit.
+# Demonstrates local LLM inference, tools, vision, reasoning, and embeddings
+# with Genkit.
 #
 # Prerequisites:
-#   - Ollama installed and running locally
+#   - Ollama (auto-installed if missing)
 #
 # Usage:
 #   ./run.sh          # Start the demo with Dev UI
@@ -24,30 +25,24 @@ MODELS=(
     "gemma3:latest"       # General generation & structured output
     "mistral-nemo:latest" # Tool calling (gablorken, currency, weather)
     "llava:latest"        # Vision / image description
+    "moondream:v2"        # Vision / object detection (detect_objects flow)
     "nomic-embed-text"    # Embeddings for RAG
 )
 
-check_ollama() {
-    if ! command -v ollama &> /dev/null; then
-        echo -e "${RED}Error: Ollama not found${NC}"
-        echo "Install from: https://ollama.com/download"
-        return 1
-    fi
-    
-    if ! curl -s http://localhost:11434/api/tags &> /dev/null; then
-        echo -e "${YELLOW}Warning: Ollama server not responding${NC}"
-        echo "Start with: ollama serve"
-        echo ""
-    else
-        echo -e "${GREEN}✓${NC} Ollama server is running"
-    fi
-}
+# HuggingFace models (pulled via hf.co/ prefix, requires Ollama 0.4+)
+HF_MODELS=(
+    "hf.co/Mungert/Fathom-R1-14B-GGUF"  # Reasoning (math, chain-of-thought)
+)
 
 pull_models() {
     echo ""
     echo "Pulling required models..."
     for model in "${MODELS[@]}"; do
         echo -e "  Pulling ${CYAN}${model}${NC}..."
+        ollama pull "$model" 2>/dev/null || echo -e "  ${YELLOW}⚠${NC} Could not pull ${model} (will retry on first use)"
+    done
+    for model in "${HF_MODELS[@]}"; do
+        echo -e "  Pulling ${CYAN}${model}${NC} (from HuggingFace)..."
         ollama pull "$model" 2>/dev/null || echo -e "  ${YELLOW}⚠${NC} Could not pull ${model} (will retry on first use)"
     done
     echo ""
@@ -61,11 +56,15 @@ print_help() {
     echo "  --help     Show this help message"
     echo ""
     echo "Prerequisites:"
-    echo "  - Ollama installed: https://ollama.com/download"
-    echo "  - Ollama running: ollama serve"
+    echo "  - Ollama (auto-installed if missing)"
     echo ""
     echo "Models (auto-pulled on first run):"
     for model in "${MODELS[@]}"; do
+        echo "  - $model"
+    done
+    echo ""
+    echo "HuggingFace models:"
+    for model in "${HF_MODELS[@]}"; do
         echo "  - $model"
     done
     print_help_footer
@@ -80,7 +79,7 @@ esac
 
 print_banner "Ollama Hello World" "🦙"
 
-check_ollama || true
+check_ollama_installed || exit 1
 pull_models
 
 install_deps

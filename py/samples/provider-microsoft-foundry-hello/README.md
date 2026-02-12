@@ -26,7 +26,7 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
    5. Open the **Details** pane
 
    You'll see information like:
-   - **Target URI**: `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview`
+   - **Target URI**: `https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21`
    - **Key**: (click to reveal)
    - **Name**: `gpt-4o` (this is your deployment name)
 
@@ -39,8 +39,8 @@ Microsoft Foundry (formerly Azure AI Foundry) provides access to 11,000+ AI mode
    # Your API key from the Details pane
    export AZURE_OPENAI_API_KEY="your-api-key"
    
-   # API version from the Target URI query parameter
-   export AZURE_OPENAI_API_VERSION="2024-05-01-preview"
+   # Optional: API version from the Target URI query parameter (plugin has a sensible default)
+   export AZURE_OPENAI_API_VERSION="2024-10-21"
    
    # Deployment name from the Details pane
    export AZURE_OPENAI_DEPLOYMENT="gpt-4o"

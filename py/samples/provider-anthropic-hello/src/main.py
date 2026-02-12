@@ -226,7 +226,7 @@ async def generate_code(input: CodeInput) -> str:
     Returns:
         Generated code.
     """
-    return await generate_code_logic(ai, input.task)
+    return await generate_code_logic(ai, input.task, model=anthropic_name('claude-opus-4-6'))
 
 
 @ai.flow()

@@ -30,3 +30,10 @@ site/
 var/
 venv/
 wheels/
+.gemini/artifacts/
+
+# releasekit backup files and runtime artifacts
+*.bak
+.releasekit/
+.releasekit-state.json
+release-manifest.json

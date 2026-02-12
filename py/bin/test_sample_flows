@@ -17,8 +17,8 @@
 
 # Tests flows in a Python sample by name.
 # Usage: py/bin/test_sample_flows <sample-name>
-# Example: py/bin/test_sample_flows google-genai-hello
-#          py/bin/test_sample_flows evaluator-demo
+# Example: py/bin/test_sample_flows provider-google-genai-hello
+#          py/bin/test_sample_flows framework-evaluator-demo
 
 set -euo pipefail
 

@@ -24,12 +24,12 @@ See:
     - Document input: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
 """
 
-import logging
 from typing import Any
 
+from genkit.core.logging import get_logger
 from genkit.types import GenerationUsage, MediaPart
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # PDF MIME type for document handling.
 PDF_MIME_TYPE = 'application/pdf'

@@ -17,8 +17,8 @@
 
 # Runs a Python sample by name.
 # Usage: py/bin/run_sample <sample-name> [args...]
-# Example: py/bin/run_sample google-genai-hello
-#          py/bin/run_sample evaluator-demo
+# Example: py/bin/run_sample provider-google-genai-hello
+#          py/bin/run_sample framework-evaluator-demo
 
 set -euo pipefail
 

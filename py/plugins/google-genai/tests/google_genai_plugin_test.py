@@ -44,7 +44,7 @@ from genkit.plugins.google_genai.google import (
 def test_googleai_name() -> None:
     """Test googleai_name helper function."""
     assert googleai_name('gemini-2.0-flash') == 'googleai/gemini-2.0-flash'
-    assert googleai_name('text-embedding-004') == 'googleai/text-embedding-004'
+    assert googleai_name('gemini-embedding-001') == 'googleai/gemini-embedding-001'
 
 
 def test_vertexai_name() -> None:
@@ -181,11 +181,11 @@ async def test_googleai_resolve_embedder(mock_list_models: MagicMock, mock_clien
     mock_list_models.return_value = GenaiModels()
 
     plugin = GoogleAI(api_key='test-key')
-    action = await plugin.resolve(ActionKind.EMBEDDER, 'googleai/text-embedding-004')
+    action = await plugin.resolve(ActionKind.EMBEDDER, 'googleai/gemini-embedding-001')
 
     assert action is not None
     assert action.kind == ActionKind.EMBEDDER
-    assert action.name == 'googleai/text-embedding-004'
+    assert action.name == 'googleai/gemini-embedding-001'
 
 
 @patch('genkit.plugins.google_genai.google.genai.client.Client')
@@ -213,6 +213,21 @@ async def test_vertexai_resolve_model(mock_list_models: MagicMock, mock_client: 
     assert action is not None
     assert action.kind == ActionKind.MODEL
     assert action.name == 'vertexai/gemini-2.0-flash'
+
+
+@patch('genkit.plugins.google_genai.google.genai.client.Client')
+@patch('genkit.plugins.google_genai.google._list_genai_models')
+@pytest.mark.asyncio
+async def test_vertexai_resolve_embedder(mock_list_models: MagicMock, mock_client: MagicMock) -> None:
+    """Test VertexAI plugin resolves embedder actions."""
+    mock_list_models.return_value = GenaiModels()
+
+    plugin = VertexAI(project='test-project')
+    action = await plugin.resolve(ActionKind.EMBEDDER, 'vertexai/gemini-embedding-001')
+
+    assert action is not None
+    assert action.kind == ActionKind.EMBEDDER
+    assert action.name == 'vertexai/gemini-embedding-001'
 
 
 def test_embedding_task_types() -> None:

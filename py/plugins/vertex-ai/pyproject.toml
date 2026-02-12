@@ -15,11 +15,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -65,6 +73,7 @@ version = "0.5.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/py/plugins/vertex-ai/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

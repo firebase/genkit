@@ -752,25 +752,22 @@ describe('generateMiddleware', () => {
     let generateMiddlewareCallCount = 0;
     let seenToolResponseInGenerate = false;
 
-    const testMiddleware = generateMiddleware(
-      { name: 'testMw' },
-      () => ({
-        generate: async (req, ctx, next) => {
-          generateMiddlewareCallCount++;
-          const lastMsg = req.messages[req.messages.length - 1];
-          if (lastMsg?.role === 'tool') {
-            seenToolResponseInGenerate = true;
-          }
+    const testMiddleware = generateMiddleware({ name: 'testMw' }, () => ({
+      generate: async (req, ctx, next) => {
+        generateMiddlewareCallCount++;
+        const lastMsg = req.messages[req.messages.length - 1];
+        if (lastMsg?.role === 'tool') {
+          seenToolResponseInGenerate = true;
+        }
+        return next(req, ctx);
+      },
+      tool: async (req, ctx, next) => {
+        if (req.metadata?.['approved'] === true) {
           return next(req, ctx);
-        },
-        tool: async (req, ctx, next) => {
-          if (req.metadata?.['approved'] === true) {
-            return next(req, ctx);
-          }
-          throw new ToolInterruptError({ some: 'metadata' });
-        },
-      })
-    );
+        }
+        throw new ToolInterruptError({ some: 'metadata' });
+      },
+    }));
 
     let callCount = 0;
     const mockModel = defineModel(

@@ -425,8 +425,6 @@ async function generateActionTurn(
     });
   };
 
-
-
   var response: GenerateResponse;
   const sendChunk =
     streamingCallback &&
