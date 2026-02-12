@@ -23,6 +23,7 @@ import pytest
 
 from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModel
+from genkit.plugins.compat_oai.models.utils import strip_markdown_fences
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateRequest,
@@ -336,37 +337,37 @@ class TestSchemaInjectionInConfig:
 
 
 class TestStripMarkdownFences:
-    """Tests for _strip_markdown_fences."""
+    """Tests for strip_markdown_fences."""
 
     def test_strips_json_fences(self) -> None:
         """Strips ```json ... ``` fences."""
         text = '```json\n{"name": "John", "age": 30}\n```'
-        assert OpenAIModel._strip_markdown_fences(text) == '{"name": "John", "age": 30}'
+        assert strip_markdown_fences(text) == '{"name": "John", "age": 30}'
 
     def test_strips_plain_fences(self) -> None:
         """Strips ``` ... ``` fences without language tag."""
         text = '```\n{"name": "John"}\n```'
-        assert OpenAIModel._strip_markdown_fences(text) == '{"name": "John"}'
+        assert strip_markdown_fences(text) == '{"name": "John"}'
 
     def test_strips_fences_with_surrounding_whitespace(self) -> None:
         """Strips fences even with leading/trailing whitespace."""
         text = '  \n```json\n{"a": 1}\n```\n  '
-        assert OpenAIModel._strip_markdown_fences(text) == '{"a": 1}'
+        assert strip_markdown_fences(text) == '{"a": 1}'
 
     def test_preserves_plain_json(self) -> None:
         """Does not alter valid JSON without fences."""
         text = '{"name": "John", "age": 30}'
-        assert OpenAIModel._strip_markdown_fences(text) == text
+        assert strip_markdown_fences(text) == text
 
     def test_preserves_non_json_text(self) -> None:
         """Does not alter plain text."""
         text = 'Hello, world!'
-        assert OpenAIModel._strip_markdown_fences(text) == text
+        assert strip_markdown_fences(text) == text
 
     def test_strips_multiline_json_in_fences(self) -> None:
         """Strips fences around multiline JSON."""
         text = '```json\n{\n  "name": "John",\n  "age": 30\n}\n```'
-        result = OpenAIModel._strip_markdown_fences(text)
+        result = strip_markdown_fences(text)
         assert result == '{\n  "name": "John",\n  "age": 30\n}'
 
 

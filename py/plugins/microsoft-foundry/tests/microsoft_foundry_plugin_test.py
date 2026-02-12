@@ -28,6 +28,7 @@ This module includes:
 - Request/response conversion tests
 """
 
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -49,11 +50,14 @@ from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
 from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
+    GenerateResponseChunk,
     Message,
     OutputConfig,
     Part,
     Role,
     TextPart,
+    ToolRequest,
+    ToolRequestPart,
 )
 
 
@@ -317,6 +321,89 @@ class TestMicrosoftFoundryModel:
         body = model._build_request_body(request, config)
 
         assert body['response_format'] == {'type': 'json_object'}
+
+    @pytest.mark.asyncio
+    async def test_streaming_tool_request_emits_chunk(self) -> None:
+        """Tool request chunks are emitted via ctx.send_chunk during streaming."""
+        mock_client = AsyncMock()
+
+        # Build mock streaming chunks for a tool call.
+        def _make_chunk(
+            *,
+            tool_calls: list[MagicMock] | None = None,
+            content: str | None = None,
+            has_choices: bool = True,
+            usage: MagicMock | None = None,
+        ) -> MagicMock:
+            """Create a mock ChatCompletionChunk."""
+            chunk = MagicMock()
+            if has_choices:
+                delta = MagicMock()
+                delta.content = content
+                delta.tool_calls = tool_calls
+                choice = MagicMock()
+                choice.delta = delta
+                choice.index = 0
+                chunk.choices = [choice]
+            else:
+                chunk.choices = []
+            chunk.usage = usage
+            return chunk
+
+        tc_start = MagicMock()
+        tc_start.index = 0
+        tc_start.id = 'call_abc'
+        tc_start.function = MagicMock()
+        tc_start.function.name = 'weather'
+        tc_start.function.arguments = '{"city":'
+
+        tc_cont = MagicMock()
+        tc_cont.index = 0
+        tc_cont.id = None
+        tc_cont.function = MagicMock()
+        tc_cont.function.name = None
+        tc_cont.function.arguments = ' "London"}'
+
+        async def _stream() -> AsyncIterator[MagicMock]:
+            yield _make_chunk(tool_calls=[tc_start])
+            yield _make_chunk(tool_calls=[tc_cont])
+            yield _make_chunk(has_choices=False)
+
+        mock_client.chat.completions.create = AsyncMock(return_value=_stream())
+
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
+        request = GenerateRequest(
+            messages=[
+                Message(role=Role.USER, content=[Part(root=TextPart(text='Weather?'))]),
+            ],
+            tools=[],
+        )
+
+        chunks: list[GenerateResponseChunk] = []
+        ctx = MagicMock()
+        ctx.is_streaming = True
+        ctx.send_chunk = MagicMock(side_effect=lambda c: chunks.append(c))
+
+        response = await model._generate_streaming(
+            model._build_request_body(request, normalize_config(None)),
+            ctx,
+            request,
+        )
+
+        # Final response should contain the tool request.
+        assert response.message is not None
+        tool_parts = [p for p in response.message.content if isinstance(p.root, ToolRequestPart)]
+        assert len(tool_parts) == 1
+        tr = tool_parts[0].root.tool_request
+        assert tr is not None
+        assert isinstance(tr, ToolRequest)
+        assert tr.name == 'weather'
+        assert tr.ref == 'call_abc'
+        assert tr.input == {'city': 'London'}
+
+        # A tool request chunk must have been emitted.
+        tool_chunks = [c for c in chunks if any(isinstance(p.root, ToolRequestPart) for p in c.content)]
+        assert len(tool_chunks) == 1, f'Expected 1 tool request chunk, got {len(tool_chunks)}'
 
 
 class TestMicrosoftFoundryEmbed:

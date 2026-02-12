@@ -65,7 +65,7 @@ from conform.display import (
 from conform.plugins import check_env, discover_plugins, entry_point
 from conform.runner import run_all
 from conform.types import PluginResult, Status
-from conform.util_test_model import run_test_model
+from conform.util_test_model import TestResult, run_test_model
 
 
 def _resolve_runtime_names(runtime_arg: str | None) -> list[str]:
@@ -287,8 +287,18 @@ async def _run_native_check(
             result.status = Status.RUNNING
             on_complete.set()  # Trigger refresh to show RUNNING status.
             start = time.monotonic()
+
+            def _on_test_done(tr: TestResult) -> None:
+                """Update counts after each individual test."""
+                if tr.passed:
+                    result.tests_passed += 1
+                else:
+                    result.tests_failed += 1
+                result.elapsed_s = time.monotonic() - start
+                on_complete.set()
+
             try:
-                run_result = await run_test_model(plugin, config)
+                run_result = await run_test_model(plugin, config, on_test_done=_on_test_done)
                 result.elapsed_s = time.monotonic() - start
                 result.tests_passed = run_result.total_passed
                 result.tests_failed = run_result.total_failed

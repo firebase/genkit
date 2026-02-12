@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
 from genkit.types import (
     GenerateRequest,
     GenerateResponseChunk,
@@ -286,7 +287,8 @@ async def test_streaming_tool_request() -> None:
     mock_client = MagicMock()
 
     # Simulate: text chunk, then tool_use block (start + json deltas + stop).
-    tool_block = MagicMock(type='tool_use', id='tool_abc', name='get_weather')
+    tool_block = MagicMock(type='tool_use', id='tool_abc')
+    tool_block.name = 'get_weather'
     chunks = [
         MagicMock(type='content_block_delta', delta=MagicMock(type='text_delta', text='Let me check.')),
         MagicMock(type='content_block_start', index=1, content_block=tool_block),
@@ -303,9 +305,11 @@ async def test_streaming_tool_request() -> None:
         MagicMock(type='content_block_stop', index=1),
     ]
 
+    final_tool = MagicMock(type='tool_use', id='tool_abc', input={'location': 'Paris'})
+    final_tool.name = 'get_weather'
     final_content = [
         MagicMock(type='text', text='Let me check.'),
-        MagicMock(type='tool_use', id='tool_abc', name='get_weather', input={'location': 'Paris'}),
+        final_tool,
     ]
     mock_stream = MockStreamManager(chunks, final_content=final_content)
     mock_client.messages.stream.return_value = mock_stream
@@ -338,87 +342,83 @@ async def test_streaming_tool_request() -> None:
 
 
 class TestStripMarkdownFences:
-    """Tests for _strip_markdown_fences."""
+    """Tests for strip_markdown_fences."""
 
     def test_strips_json_fences(self) -> None:
         """Strips ```json ... ``` fences."""
         text = '```json\n{"name": "John", "age": 30}\n```'
-        assert AnthropicModel._strip_markdown_fences(text) == '{"name": "John", "age": 30}'
+        assert strip_markdown_fences(text) == '{"name": "John", "age": 30}'
 
     def test_strips_plain_fences(self) -> None:
         """Strips ``` ... ``` fences without language tag."""
         text = '```\n{"name": "John"}\n```'
-        assert AnthropicModel._strip_markdown_fences(text) == '{"name": "John"}'
+        assert strip_markdown_fences(text) == '{"name": "John"}'
 
     def test_strips_fences_with_surrounding_whitespace(self) -> None:
         """Strips fences even with leading/trailing whitespace."""
         text = '  \n```json\n{"a": 1}\n```\n  '
-        assert AnthropicModel._strip_markdown_fences(text) == '{"a": 1}'
+        assert strip_markdown_fences(text) == '{"a": 1}'
 
     def test_preserves_plain_json(self) -> None:
         """Does not alter valid JSON without fences."""
         text = '{"name": "John", "age": 30}'
-        assert AnthropicModel._strip_markdown_fences(text) == text
+        assert strip_markdown_fences(text) == text
 
     def test_preserves_non_json_text(self) -> None:
         """Does not alter plain text."""
         text = 'Hello, world!'
-        assert AnthropicModel._strip_markdown_fences(text) == text
+        assert strip_markdown_fences(text) == text
 
     def test_strips_multiline_json_in_fences(self) -> None:
         """Strips fences around multiline JSON."""
         text = '```json\n{\n  "name": "John",\n  "age": 30\n}\n```'
-        result = AnthropicModel._strip_markdown_fences(text)
+        result = strip_markdown_fences(text)
         assert result == '{\n  "name": "John",\n  "age": 30\n}'
 
 
 class TestMaybeStripFences:
-    """Tests for _maybe_strip_fences."""
+    """Tests for maybe_strip_fences."""
 
     def test_strips_fences_for_json_output(self) -> None:
         """Strips markdown fences when JSON output is requested."""
-        model = AnthropicModel(model_name='claude-sonnet-4', client=MagicMock())
         request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )
         parts = [Part(root=TextPart(text='```json\n{"a": 1}\n```'))]
-        result = model._maybe_strip_fences(request, parts)
+        result = maybe_strip_fences(request, parts)
         assert result[0].root.text == '{"a": 1}'
 
     def test_no_op_for_text_output(self) -> None:
         """Does not modify responses when output format is not json."""
-        model = AnthropicModel(model_name='claude-sonnet-4', client=MagicMock())
         request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='text'),
         )
         fenced = '```json\n{"a": 1}\n```'
         parts = [Part(root=TextPart(text=fenced))]
-        result = model._maybe_strip_fences(request, parts)
+        result = maybe_strip_fences(request, parts)
         assert result[0].root.text == fenced
 
     def test_no_op_for_no_output(self) -> None:
         """Does not modify responses when no output config is set."""
-        model = AnthropicModel(model_name='claude-sonnet-4', client=MagicMock())
         request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
         )
         fenced = '```json\n{"a": 1}\n```'
         parts = [Part(root=TextPart(text=fenced))]
-        result = model._maybe_strip_fences(request, parts)
+        result = maybe_strip_fences(request, parts)
         assert result[0].root.text == fenced
 
     def test_no_op_when_no_fences(self) -> None:
         """Does not modify clean JSON responses."""
-        model = AnthropicModel(model_name='claude-sonnet-4', client=MagicMock())
         request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )
         text = '{"name": "John"}'
         parts = [Part(root=TextPart(text=text))]
-        result = model._maybe_strip_fences(request, parts)
+        result = maybe_strip_fences(request, parts)
         assert result is parts
 
 

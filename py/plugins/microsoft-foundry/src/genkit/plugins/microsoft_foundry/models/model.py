@@ -209,19 +209,25 @@ class MicrosoftFoundryModel:
                     )
                 )
 
-        # Add accumulated tool calls to content
+        # Add accumulated tool calls to content and emit as chunks.
         for tc_data in accumulated_tool_calls.values():
             args = parse_tool_call_args(tc_data['arguments'])
 
-            accumulated_content.append(
-                Part(
-                    root=ToolRequestPart(
-                        tool_request=ToolRequest(
-                            ref=tc_data['id'],
-                            name=tc_data['name'],
-                            input=args,
-                        )
+            tool_part = Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        ref=tc_data['id'],
+                        name=tc_data['name'],
+                        input=args,
                     )
+                )
+            )
+            accumulated_content.append(tool_part)
+            ctx.send_chunk(
+                GenerateResponseChunk(
+                    role=Role.MODEL,
+                    content=[tool_part],
+                    index=0,
                 )
             )
 
