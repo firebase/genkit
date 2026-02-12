@@ -979,6 +979,8 @@ name = "conform"
 version = "0.1.0"
 source = { editable = "tools/conform" }
 dependencies = [
+    { name = "httpx" },
+    { name = "pyyaml" },
     { name = "rich" },
     { name = "rich-argparse" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
@@ -986,6 +988,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "rich-argparse", specifier = ">=1.6.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
