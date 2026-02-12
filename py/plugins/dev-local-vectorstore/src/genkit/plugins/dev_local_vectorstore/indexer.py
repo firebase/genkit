@@ -22,7 +22,6 @@ import hashlib
 import json
 from typing import Any
 
-
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
