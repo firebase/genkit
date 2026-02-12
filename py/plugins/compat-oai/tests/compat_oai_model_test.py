@@ -189,8 +189,6 @@ def test_normalize_config(config: object, expected: object) -> None:
         assert response == expected
 
 
-# -- Schema injection for json_object mode (DeepSeek) --
-
 _SAMPLE_SCHEMA: dict[str, object] = {
     'type': 'object',
     'title': 'RpgCharacter',
@@ -335,3 +333,122 @@ class TestSchemaInjectionInConfig:
         assert messages[1]['role'] == 'system'
         assert messages[1]['content'] == 'You are helpful'
         assert messages[2]['role'] == 'user'
+
+
+class TestStripMarkdownFences:
+    """Tests for _strip_markdown_fences."""
+
+    def test_strips_json_fences(self) -> None:
+        """Strips ```json ... ``` fences."""
+        text = '```json\n{"name": "John", "age": 30}\n```'
+        assert OpenAIModel._strip_markdown_fences(text) == '{"name": "John", "age": 30}'
+
+    def test_strips_plain_fences(self) -> None:
+        """Strips ``` ... ``` fences without language tag."""
+        text = '```\n{"name": "John"}\n```'
+        assert OpenAIModel._strip_markdown_fences(text) == '{"name": "John"}'
+
+    def test_strips_fences_with_surrounding_whitespace(self) -> None:
+        """Strips fences even with leading/trailing whitespace."""
+        text = '  \n```json\n{"a": 1}\n```\n  '
+        assert OpenAIModel._strip_markdown_fences(text) == '{"a": 1}'
+
+    def test_preserves_plain_json(self) -> None:
+        """Does not alter valid JSON without fences."""
+        text = '{"name": "John", "age": 30}'
+        assert OpenAIModel._strip_markdown_fences(text) == text
+
+    def test_preserves_non_json_text(self) -> None:
+        """Does not alter plain text."""
+        text = 'Hello, world!'
+        assert OpenAIModel._strip_markdown_fences(text) == text
+
+    def test_strips_multiline_json_in_fences(self) -> None:
+        """Strips fences around multiline JSON."""
+        text = '```json\n{\n  "name": "John",\n  "age": 30\n}\n```'
+        result = OpenAIModel._strip_markdown_fences(text)
+        assert result == '{\n  "name": "John",\n  "age": 30\n}'
+
+
+class TestCleanJsonResponse:
+    """Tests for _clean_json_response."""
+
+    def test_cleans_deepseek_json_response(self) -> None:
+        """Strips markdown fences from DeepSeek JSON response."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        response = GenerateResponse(
+            request=request,
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text='```json\n{"name": "John", "level": 5}\n```'))],
+            ),
+        )
+        cleaned = model._clean_json_response(response, request)
+        assert cleaned.message.content[0].root.text == '{"name": "John", "level": 5}'
+
+    def test_no_op_for_gpt_model(self) -> None:
+        """Does not modify responses from non-DeepSeek models."""
+        model = OpenAIModel(model='gpt-4o', client=MagicMock())
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        fenced_text = '```json\n{"name": "John", "level": 5}\n```'
+        response = GenerateResponse(
+            request=request,
+            message=Message(
+                role=Role.MODEL,
+                content=[Part(root=TextPart(text=fenced_text))],
+            ),
+        )
+        result = model._clean_json_response(response, request)
+        assert result.message.content[0].root.text == fenced_text
+
+    def test_no_op_for_text_output(self) -> None:
+        """Does not modify responses when output format is not json."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='text'),
+        )
+        text = '```json\n{"a": 1}\n```'
+        response = GenerateResponse(
+            request=request,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
+        )
+        result = model._clean_json_response(response, request)
+        assert result.message.content[0].root.text == text
+
+    def test_no_op_for_no_output(self) -> None:
+        """Does not modify responses when no output config is set."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+        )
+        text = '```json\n{"a": 1}\n```'
+        response = GenerateResponse(
+            request=request,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
+        )
+        result = model._clean_json_response(response, request)
+        assert result.message.content[0].root.text == text
+
+    def test_no_op_when_no_fences(self) -> None:
+        """Does not modify clean JSON responses."""
+        model = OpenAIModel(model='deepseek-chat', client=MagicMock())
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
+        )
+        text = '{"name": "John", "level": 5}'
+        response = GenerateResponse(
+            request=request,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
+        )
+        result = model._clean_json_response(response, request)
+        # Should return the exact same object (no copy).
+        assert result is response
