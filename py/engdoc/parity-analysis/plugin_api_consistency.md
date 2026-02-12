@@ -237,7 +237,7 @@ model='ollama/llama3'
 
 **JS Pattern:**
 ```typescript
-const embedder = googleAI.embedder('text-embedding-004');
+const embedder = googleAI.embedder('gemini-embedding-001');
 ```
 
 **Python:** ❌ No equivalent

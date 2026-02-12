@@ -22,6 +22,7 @@ import {
   type Operation,
 } from '@genkit-ai/core';
 import { type Registry } from '@genkit-ai/core/registry';
+import { cancelOperation } from './cancel-operation.js';
 import { checkOperation } from './check-operation.js';
 import { type DocumentData } from './document.js';
 import {
@@ -282,6 +283,16 @@ export class GenerateAPI {
    */
   checkOperation<T>(operation: Operation<T>): Promise<Operation<T>> {
     return checkOperation(this.registry, operation);
+  }
+
+  /**
+   * Cancels a given operation. Returns a new operation which will contain the updated status.
+   *
+   * @param operation
+   * @returns
+   */
+  cancelOperation<T>(operation: Operation<T>): Promise<Operation<T>> {
+    return cancelOperation(this.registry, operation);
   }
 
   /**

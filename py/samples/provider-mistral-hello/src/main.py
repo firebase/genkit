@@ -90,6 +90,7 @@ from samples.shared import (
     CharacterInput,
     CodeInput,
     ConfigInput,
+    EmbedInput,
     GreetingInput,
     ImageDescribeInput,
     MultiTurnInput,
@@ -99,6 +100,7 @@ from samples.shared import (
     StreamInput,
     SystemPromptInput,
     WeatherInput,
+    chat_flow_logic,
     describe_image_logic,
     generate_character_logic,
     generate_code_logic,
@@ -127,12 +129,6 @@ ai = Genkit(
 )
 
 ai.tool()(get_weather)
-
-
-class EmbedInput(BaseModel):
-    """Input for embedding flow."""
-
-    text: str = Field(default='Artificial intelligence is transforming the world.', description='Text to embed')
 
 
 class CodeEmbedInput(BaseModel):
@@ -271,52 +267,21 @@ async def generate_with_config(input: ConfigInput) -> str:
 
 @ai.flow()
 async def chat_flow() -> str:
-    """Multi-turn chat example demonstrating context retention.
+    """Multi-turn chat demonstrating context retention across 3 turns.
 
     Returns:
         Final chat response.
     """
-    history: list[Message] = []
-
-    # First turn - User shares information
-    prompt1 = (
-        "Hi! I'm planning a trip to Paris next month. I'm really excited because I love French cuisine, "
-        'especially croissants and macarons.'
+    return await chat_flow_logic(
+        ai,
+        system_prompt='You are a helpful travel assistant specializing in French destinations.',
+        prompt1=(
+            "Hi! I'm planning a trip to Paris next month. I'm really excited because I love French cuisine, "
+            'especially croissants and macarons.'
+        ),
+        followup_question='What foods did I say I enjoy?',
+        final_question='Based on our conversation, suggest one bakery I should visit.',
     )
-    response1 = await ai.generate(
-        prompt=prompt1,
-        system='You are a helpful travel assistant specializing in French destinations.',
-    )
-    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=prompt1))]))
-    if response1.message:
-        history.append(response1.message)
-    await logger.ainfo('chat_flow turn 1', result=response1.text)
-
-    # Second turn - Ask question requiring context from first turn
-    response2 = await ai.generate(
-        messages=[
-            *history,
-            Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]),
-        ],
-        system='You are a helpful travel assistant specializing in French destinations.',
-    )
-    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text='What foods did I say I enjoy?'))]))
-    if response2.message:
-        history.append(response2.message)
-    await logger.ainfo('chat_flow turn 2', result=response2.text)
-
-    # Third turn - Ask for recommendation based on context
-    response3 = await ai.generate(
-        messages=[
-            *history,
-            Message(
-                role=Role.USER,
-                content=[Part(root=TextPart(text='Based on our conversation, suggest one bakery I should visit.'))],
-            ),
-        ],
-        system='You are a helpful travel assistant specializing in French destinations.',
-    )
-    return response3.text
 
 
 @ai.flow()

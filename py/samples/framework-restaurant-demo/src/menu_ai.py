@@ -38,5 +38,5 @@ ai = Genkit(plugins=[GoogleAI()])
 define_dev_local_vector_store(
     ai,
     name='menu-items',
-    embedder='googleai/text-embedding-004',
+    embedder='googleai/gemini-embedding-001',
 )

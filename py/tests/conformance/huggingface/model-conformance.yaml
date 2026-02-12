@@ -16,10 +16,10 @@
 
 # Hugging Face model conformance test spec.
 #
-# Uses Mistral-7B-Instruct via the Inference API.
+# Uses Llama-3.1-8B-Instruct via the Inference API.
 # Capabilities are limited by the Inference API endpoints.
 
-- model: huggingface/mistralai/Mistral-7B-Instruct-v0.3
+- model: huggingface/meta-llama/Llama-3.1-8B-Instruct
   supports:
     - multiturn
     - system-role

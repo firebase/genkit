@@ -77,7 +77,6 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.core.typing import Message, Part, Role, TextPart
 from genkit.plugins.huggingface import HuggingFace, huggingface_name
 from samples.shared import (
     CharacterInput,
@@ -90,6 +89,7 @@ from samples.shared import (
     StreamInput,
     SystemPromptInput,
     WeatherInput,
+    chat_flow_logic,
     generate_character_logic,
     generate_code_logic,
     generate_greeting_logic,
@@ -110,10 +110,9 @@ if 'HF_TOKEN' not in os.environ:
 
 logger = get_logger(__name__)
 
-# Default to a popular, capable model
 ai = Genkit(
-    plugins=[HuggingFace()],
-    model=huggingface_name('mistralai/Mistral-7B-Instruct-v0.3'),
+    plugins=[HuggingFace(provider='auto')],
+    model=huggingface_name('meta-llama/Llama-3.1-8B-Instruct'),
 )
 
 
@@ -210,23 +209,6 @@ async def qwen_flow(input: ModelInput) -> str:
 
 
 @ai.flow()
-async def gemma_flow(input: ModelInput) -> str:
-    """Use Google's Gemma model for generation.
-
-    Args:
-        input: Input with prompt.
-
-    Returns:
-        Generated response from Gemma.
-    """
-    response = await ai.generate(
-        model=huggingface_name('google/gemma-2-9b-it'),
-        prompt=input.prompt,
-    )
-    return response.text
-
-
-@ai.flow()
 async def generate_with_config(input: ConfigInput) -> str:
     """Generate a greeting with custom model configuration.
 
@@ -241,50 +223,20 @@ async def generate_with_config(input: ConfigInput) -> str:
 
 @ai.flow()
 async def chat_flow() -> str:
-    """Multi-turn chat example demonstrating context retention.
+    """Multi-turn chat demonstrating context retention across 3 turns.
 
     Returns:
         Final chat response.
     """
-    history: list[Message] = []
-
-    # First turn - User shares information
-    prompt1 = "Hi! I'm learning about neural networks. I find the concept of backpropagation particularly interesting."
-    response1 = await ai.generate(
-        prompt=prompt1,
-        system='You are a helpful AI tutor specializing in machine learning.',
+    return await chat_flow_logic(
+        ai,
+        system_prompt='You are a helpful AI tutor specializing in machine learning.',
+        prompt1=(
+            "Hi! I'm learning about neural networks. I find the concept of backpropagation particularly interesting."
+        ),
+        followup_question='What concept did I say I find interesting?',
+        final_question='Can you explain that concept in simple terms?',
     )
-    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=prompt1))]))
-    if response1.message:
-        history.append(response1.message)
-    await logger.ainfo('chat_flow turn 1', result=response1.text)
-
-    # Second turn - Ask question requiring context from first turn
-    response2 = await ai.generate(
-        messages=[
-            *history,
-            Message(role=Role.USER, content=[Part(root=TextPart(text='What concept did I say I find interesting?'))]),
-        ],
-        system='You are a helpful AI tutor specializing in machine learning.',
-    )
-    history.append(
-        Message(role=Role.USER, content=[Part(root=TextPart(text='What concept did I say I find interesting?'))])
-    )
-    if response2.message:
-        history.append(response2.message)
-    await logger.ainfo('chat_flow turn 2', result=response2.text)
-
-    # Third turn - Ask for more details based on context
-    response3 = await ai.generate(
-        messages=[
-            *history,
-            Message(
-                role=Role.USER, content=[Part(root=TextPart(text='Can you explain that concept in simple terms?'))]
-            ),
-        ],
-        system='You are a helpful AI tutor specializing in machine learning.',
-    )
-    return response3.text
 
 
 @ai.flow()
@@ -335,7 +287,7 @@ async def streaming_structured_output(
         The fully-parsed RPG character once streaming completes.
     """
     stream, result = ai.generate_stream(
-        model=huggingface_name('mistralai/Mistral-7B-Instruct-v0.3'),
+        model=huggingface_name('meta-llama/Llama-3.1-8B-Instruct'),
         prompt=(
             f'Generate an RPG character named {input.name}. '
             'Include a creative backstory, 3-4 unique abilities, '

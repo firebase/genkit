@@ -1895,9 +1895,9 @@ importers:
 
   testapps/prompt-file:
     dependencies:
-      '@genkit-ai/googleai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
-        version: link:../../plugins/googleai
+        version: link:../../plugins/google-genai
       genkit:
         specifier: workspace:*
         version: link:../../genkit

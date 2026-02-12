@@ -32,12 +32,10 @@ from typing import Any
 import httpx
 
 from genkit.core.logging import get_logger
+from genkit.plugins.cloudflare_workers_ai.constants import CF_API_BASE_URL
 from genkit.plugins.cloudflare_workers_ai.models.model_info import SUPPORTED_EMBEDDING_MODELS
 
 logger = get_logger(__name__)
-
-# Base URL for Cloudflare Workers AI API
-CF_API_BASE_URL = 'https://api.cloudflare.com/client/v4/accounts'
 
 
 class CfEmbedder:

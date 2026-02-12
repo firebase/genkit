@@ -397,6 +397,7 @@ async function resolveResumedToolRequest(
 export async function resolveResumeOption(
   registry: Registry,
   rawRequest: GenerateActionOptions,
+  tools: ToolAction[],
   middleware: GenerateMiddlewareDef[] = []
 ): Promise<{
   revisedRequest?: GenerateActionOptions;
@@ -404,7 +405,7 @@ export async function resolveResumeOption(
   toolMessage?: MessageData;
 }> {
   if (!rawRequest.resume) return { revisedRequest: rawRequest }; // no-op if no resume option
-  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+  const toolMap = toToolMap(tools);
 
   const messages = rawRequest.messages;
   const lastMessage = messages.at(-1);

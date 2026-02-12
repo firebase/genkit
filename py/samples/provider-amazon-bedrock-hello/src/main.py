@@ -78,20 +78,16 @@ Supported Models
 import asyncio
 import os
 
-from pydantic import BaseModel, Field
-
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
-    # Telemetry
     add_aws_telemetry,
     bedrock_model,
-    # Direct model IDs (for IAM credentials)
+    claude_opus_4_6,
     claude_sonnet_4_5,
     deepseek_r1,
-    # Inference profile helper (for API keys)
     inference_profile,
     nova_pro,
 )
@@ -100,6 +96,7 @@ from samples.shared import (
     CharacterInput,
     CodeInput,
     CurrencyExchangeInput,
+    EmbedInput,
     GreetingInput,
     ImageDescribeInput,
     MultiTurnInput,
@@ -141,6 +138,7 @@ add_aws_telemetry(region=os.environ.get('AWS_REGION'))
 # Default model configuration
 # Model IDs without regional prefix - used as base for both auth methods
 _CLAUDE_SONNET_MODEL_ID = 'anthropic.claude-sonnet-4-5-20250929-v1:0'
+_CLAUDE_OPUS_MODEL_ID = 'anthropic.claude-opus-4-6-20260205-v1:0'
 _DEEPSEEK_R1_MODEL_ID = 'deepseek.r1-v1:0'
 _NOVA_PRO_MODEL_ID = 'amazon.nova-pro-v1:0'
 _TITAN_EMBED_MODEL_ID = 'amazon.titan-embed-text-v2:0'
@@ -155,12 +153,14 @@ _using_api_key = 'AWS_BEARER_TOKEN_BEDROCK' in os.environ
 # IAM credentials work with direct model IDs
 if _using_api_key:
     _default_model = inference_profile(_CLAUDE_SONNET_MODEL_ID)
+    _opus_model = inference_profile(_CLAUDE_OPUS_MODEL_ID)
     _deepseek_model = inference_profile(_DEEPSEEK_R1_MODEL_ID)
     _nova_model = inference_profile(_NOVA_PRO_MODEL_ID)
     _embed_model = inference_profile(_TITAN_EMBED_MODEL_ID)
     logger.info('Using API key auth - model IDs will use inference profiles')
 else:
     _default_model = claude_sonnet_4_5
+    _opus_model = claude_opus_4_6
     _deepseek_model = deepseek_r1
     _nova_model = nova_pro
     _embed_model = bedrock_model(_TITAN_EMBED_MODEL_ID)
@@ -177,12 +177,6 @@ ai = Genkit(
 
 ai.tool()(get_weather)
 ai.tool()(_convert_currency_tool)
-
-
-class EmbedInput(BaseModel):
-    """Input for embedding flow."""
-
-    text: str = Field(default='Hello, world!', description='Text to embed')
 
 
 @ai.flow()
@@ -316,7 +310,10 @@ async def generate_code(input: CodeInput) -> str:
     Returns:
         Generated code.
     """
-    return await generate_code_logic(ai, input.task)
+    # NOTE: Claude Opus 4.6 (_opus_model) is ideal for complex code generation,
+    # but it may not be available in all regions yet (released Feb 5, 2026).
+    # Swap to _opus_model once it's enabled in your region's inference profiles.
+    return await generate_code_logic(ai, input.task, model=_default_model)
 
 
 @ai.flow()

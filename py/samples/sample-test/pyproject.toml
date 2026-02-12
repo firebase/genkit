@@ -1,0 +1,47 @@
+# Copyright 2026 Google LLC
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+  "genkit",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-vertex-ai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-amazon-bedrock",
+  "genkit-plugin-anthropic",
+  "genkit-plugin-deepseek",
+  "genkit-plugin-xai",
+  "genkit-plugin-ollama",
+  "genkit-plugin-mistral",
+  "genkit-plugin-evaluators",
+  "fastapi",
+  "uvicorn",
+  "datamodel-code-generator",
+  "tomli>=2.0.0; python_version < '3.11'",
+]
+description = "Model Performance Testing Tool"
+name = "sample-test"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
+
+[build-system]
+build-backend = "hatchling.build"
+requires      = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_performance_test.py", "run_single_model_test.py"]
+
+[tool.uv.sources]
+genkit                       = { path = "../../packages/genkit", editable = true }
+genkit-plugin-amazon-bedrock = { path = "../../plugins/amazon-bedrock", editable = true }
+genkit-plugin-anthropic      = { path = "../../plugins/anthropic", editable = true }
+genkit-plugin-deepseek       = { path = "../../plugins/deepseek", editable = true }
+genkit-plugin-evaluators     = { path = "../../plugins/evaluators", editable = true }
+genkit-plugin-google-cloud   = { path = "../../plugins/google-cloud", editable = true }
+genkit-plugin-google-genai   = { path = "../../plugins/google-genai", editable = true }
+genkit-plugin-mistral        = { path = "../../plugins/mistral", editable = true }
+genkit-plugin-ollama         = { path = "../../plugins/ollama", editable = true }
+genkit-plugin-vertex-ai      = { path = "../../plugins/vertex-ai", editable = true }
+genkit-plugin-xai            = { path = "../../plugins/xai", editable = true }

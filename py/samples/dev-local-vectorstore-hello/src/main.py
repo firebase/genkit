@@ -116,7 +116,7 @@ ai = Genkit(
 define_dev_local_vector_store(
     ai,
     name='films',
-    embedder='vertexai/text-embedding-004',
+    embedder='vertexai/gemini-embedding-001',
 )
 
 films = [

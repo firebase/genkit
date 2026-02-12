@@ -1,4 +1,7 @@
-# Genkit Mistral AI Plugin
+# Genkit Mistral AI Plugin (Community)
+
+> **Community Plugin** — This plugin is community-maintained and is not an
+> official Google or Mistral AI product. It is provided on an "as-is" basis.
 
 This Genkit plugin provides integration with Mistral AI's models, including
 Mistral Large, Mistral Small, Codestral, and Pixtral vision models.
@@ -71,9 +74,21 @@ ai = Genkit(plugins=[Mistral(api_key='your-key')])
 |----------|-------------|----------|
 | `MISTRAL_API_KEY` | Your Mistral AI API key | Yes |
 
-## Links
+## Disclaimer
 
-- [Mistral AI Documentation](https://docs.mistral.ai/)
-- [Mistral API Reference](https://docs.mistral.ai/api/)
-- [Mistral Console](https://console.mistral.ai/)
-- [Genkit Documentation](https://genkit.dev/)
+This is a **community-maintained** plugin and is not officially supported by
+Google or Mistral AI. Use of Mistral's API is subject to
+[Mistral AI's Terms of Service](https://mistral.ai/terms/) and
+[Privacy Policy](https://mistral.ai/terms/#privacy-policy). You are responsible
+for complying with all applicable terms when using this plugin.
+
+- **API Key Security** — Never commit your Mistral API key to version control.
+  Use environment variables or a secrets manager.
+- **Usage Limits** — Be aware of your Mistral plan's rate limits and token
+  quotas. See [Mistral Pricing](https://mistral.ai/products/la-plateforme/).
+- **Data Handling** — Review Mistral's data processing practices before
+  sending sensitive or personally identifiable information.
+
+## License
+
+Apache-2.0

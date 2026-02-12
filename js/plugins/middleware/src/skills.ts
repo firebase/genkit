@@ -63,7 +63,6 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
       }
 
       const useSkillTool = defineUseSkillTool(resolvePath);
-      var systemInstructionsAlreadyInjected = false;
 
       return {
         tools: [useSkillTool],
@@ -97,10 +96,7 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
 
           if (skillsList.length > 0) {
             const skillsTag = '<skills>';
-
-            if (!systemInstructionsAlreadyInjected) {
-              systemInstructionsAlreadyInjected = true;
-              const systemPromptText = `${skillsTag}
+            const systemPromptText = `${skillsTag}
 You have access to a library of skills that serve as specialized instructions/personas.
 Strongly prefer to use them when working on anything related to them.
 Only use them once to load the context.
@@ -108,13 +104,37 @@ Here are the available skills:
 ${skillsList.join('\n')}
 </skills>`;
 
+            let injectedPart;
+            for (const msg of req.messages) {
+              for (const part of msg.content) {
+                if (part.metadata && part.metadata['skills-instructions']) {
+                  injectedPart = part;
+                  break;
+                }
+              }
+              if (injectedPart) break;
+            }
+
+            if (injectedPart) {
+              if (injectedPart.text !== systemPromptText) {
+                injectedPart.text = systemPromptText;
+              }
+            } else {
               const systemMsg = req.messages.find((m) => m.role === 'system');
               if (systemMsg) {
-                systemMsg.content.push({ text: systemPromptText });
+                systemMsg.content.push({
+                  text: systemPromptText,
+                  metadata: { 'skills-instructions': true },
+                });
               } else {
                 req.messages.unshift({
                   role: 'system',
-                  content: [{ text: systemPromptText }],
+                  content: [
+                    {
+                      text: systemPromptText,
+                      metadata: { 'skills-instructions': true },
+                    },
+                  ],
                 });
               }
             }
