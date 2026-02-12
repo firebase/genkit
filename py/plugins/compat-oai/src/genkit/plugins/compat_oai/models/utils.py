@@ -310,16 +310,15 @@ class MessageConverter:
     _openai_role_map: dict[Role, str] = {Role.MODEL: 'assistant'}
     _genkit_role_map: dict[str, Role] = {'assistant': Role.MODEL}
 
-    # String-level fallback for when the role arrives as a plain str
-    # (e.g. from JSON deserialization) rather than a Role enum instance.
-    _openai_str_role_map: dict[str, str] = {'model': 'assistant'}
-
     @classmethod
     def _get_openai_role(cls, role: Role | str) -> str:
         """Convert a Role to its OpenAI string representation."""
         if isinstance(role, Role):
             return cls._openai_role_map.get(role, role.value)
-        return cls._openai_str_role_map.get(str(role), str(role))
+
+        if role == 'model':
+            return 'assistant'
+        return str(role)
 
     @classmethod
     def to_openai(cls, message: Message) -> list[dict]:
