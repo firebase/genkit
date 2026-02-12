@@ -80,7 +80,7 @@ async def test__generate(sample_request: GenerateRequest) -> None:
     mock_response.choices = [MagicMock(message=mock_message)]
 
     mock_client = MagicMock()
-    mock_client.chat.completions.create.return_value = mock_response
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
     response = await model._generate(sample_request)
@@ -102,12 +102,12 @@ async def test__generate_stream(sample_request: GenerateRequest) -> None:
             self._data = data
             self._current = 0
 
-        def __iter__(self) -> 'MockStream':
+        def __aiter__(self) -> 'MockStream':
             return self
 
-        def __next__(self) -> object:
+        async def __anext__(self) -> object:
             if self._current >= len(self._data):
-                raise StopIteration
+                raise StopAsyncIteration
 
             content = self._data[self._current]
             self._current += 1
@@ -123,7 +123,7 @@ async def test__generate_stream(sample_request: GenerateRequest) -> None:
 
             return MagicMock(choices=[choice_mock])
 
-    mock_client.chat.completions.create.return_value = MockStream(['Hello', ', world!'])
+    mock_client.chat.completions.create = AsyncMock(return_value=MockStream(['Hello', ', world!']))
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
