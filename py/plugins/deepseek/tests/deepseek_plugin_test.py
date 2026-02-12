@@ -16,11 +16,11 @@
 
 """Tests for DeepSeek plugin."""
 
-import logging
 import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+import structlog.testing
 from openai import OpenAI
 
 from genkit.core.error import GenkitError
@@ -89,7 +89,7 @@ async def test_plugin_list_actions() -> None:
     plugin = DeepSeek(api_key='test-key')
     actions = await plugin.list_actions()
 
-    assert len(actions) == 4
+    assert len(actions) == 5
     action_names = [action.name for action in actions]
     assert 'deepseek/deepseek-reasoner' in action_names
     assert 'deepseek/deepseek-chat' in action_names
@@ -205,50 +205,61 @@ class TestIsReasoningModel:
 
 
 class TestWarnReasoningParams:
-    """Tests for _warn_reasoning_params."""
+    """Tests for _warn_reasoning_params.
 
-    def test_warns_on_temperature_for_reasoning_model(self, caplog: pytest.LogCaptureFixture) -> None:
+    Uses structlog.testing.capture_logs() because the logger is structlog-based
+    (via genkit.core.logging.get_logger) and does not route through the
+    standard logging module, so pytest's caplog fixture cannot capture it.
+    """
+
+    def test_warns_on_temperature_for_reasoning_model(self) -> None:
         """Warn when temperature is set for a reasoning model."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', {'temperature': 0.7})
-        assert 'temperature' in caplog.text
-        assert 'deepseek-r1' in caplog.text
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 1
+        assert warnings[0]['parameter'] == 'temperature'
+        assert warnings[0]['model_name'] == 'deepseek-r1'
 
-    def test_warns_on_top_p_for_reasoning_model(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_warns_on_top_p_for_reasoning_model(self) -> None:
         """Warn when top_p is set for a reasoning model."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-reasoner', {'top_p': 0.9})
-        assert 'top_p' in caplog.text
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 1
+        assert warnings[0]['parameter'] == 'top_p'
 
-    def test_no_warning_for_chat_model(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_for_chat_model(self) -> None:
         """No warnings for chat models even with temperature set."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-chat', {'temperature': 0.7})
-        assert caplog.text == ''
+        assert len(captured) == 0
 
-    def test_no_warning_when_params_are_none(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_when_params_are_none(self) -> None:
         """No warnings when params are None."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', {'temperature': None})
-        assert caplog.text == ''
+        assert len(captured) == 0
 
-    def test_no_warning_for_none_config(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_warning_for_none_config(self) -> None:
         """No warnings when config is None."""
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', None)
-        assert caplog.text == ''
+        assert len(captured) == 0
 
-    def test_warns_on_pydantic_config(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_warns_on_pydantic_config(self) -> None:
         """Warn when Pydantic config has temperature set."""
 
         class FakeConfig:
             temperature = 0.5
             top_p = None
 
-        with caplog.at_level(logging.WARNING):
+        with structlog.testing.capture_logs() as captured:
             _warn_reasoning_params('deepseek-r1', FakeConfig())
-        assert 'temperature' in caplog.text
-        assert 'top_p' not in caplog.text
+        warnings = [log for log in captured if log.get('log_level') == 'warning']
+        assert len(warnings) == 1
+        assert warnings[0]['parameter'] == 'temperature'
+        assert all(w['parameter'] != 'top_p' for w in warnings)
 
 
 @patch('genkit.plugins.deepseek.models.DeepSeekClient')

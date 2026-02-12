@@ -89,7 +89,7 @@ async def draw_image_with_imagen() -> GenerateResponseWrapper:
     # pyrefly: ignore[no-matching-overload] - config dict is compatible with dict[str, object]
     return await ai.generate(
         prompt='Draw a cat in a hat',
-        model='vertexai/imagegeneration@006',
+        model='vertexai/imagen-3.0-generate-002',
         # optional config; check README for available fields
         config=config,
     )

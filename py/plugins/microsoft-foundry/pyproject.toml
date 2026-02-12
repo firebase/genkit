@@ -15,11 +15,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+  { name = "Elisa Shen", email = "mengqin@google.com" },
+  { name = "Niraj Nepal", email = "nnepal@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -33,14 +41,16 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
+  "Private :: Do Not Upload",
 ]
 dependencies = [
   "genkit",
   "openai>=1.0.0",
   "azure-identity>=1.15.0",
   "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+  "opentelemetry-exporter-otlp-proto-http>=1.20.0",
 ]
-description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability"
+description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability (Community)"
 keywords = [
   "genkit",
   "ai",

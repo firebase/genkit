@@ -352,16 +352,45 @@ async function generateActionTurn(
     revisedRequest,
     interruptedResponse,
     toolMessage: resumedToolMessage,
-  } = await resolveResumeOption(registry, rawRequest, middleware || []);
+  } = await resolveResumeOption(registry, rawRequest, tools, middleware || []);
   // NOTE: in the future we should make it possible to interrupt a restart, but
   // at the moment it's too complicated because it's not clear how to return a
   // response that amends history but doesn't generate a new message, so we throw
-  if (interruptedResponse) {
-    throw new GenkitError({
-      status: 'FAILED_PRECONDITION',
-      message:
-        'One or more tools triggered an interrupt during a restarted execution.',
-      detail: { message: interruptedResponse.message },
+  if (revisedRequest && revisedRequest !== rawRequest) {
+    if (interruptedResponse) {
+      throw new GenkitError({
+        status: 'FAILED_PRECONDITION',
+        message:
+          'One or more tools triggered an interrupt during a restarted execution.',
+        detail: { message: interruptedResponse.message },
+      });
+    }
+
+    if (resumedToolMessage && streamingCallback) {
+      streamingCallback(
+        new GenerateResponseChunk(
+          {
+            role: 'tool',
+            content: resumedToolMessage.content,
+          },
+          {
+            index: messageIndex,
+            role: 'tool',
+            previousChunks: [],
+            parser: format?.handler(rawRequest.output?.jsonSchema).parseChunk,
+          }
+        )
+      );
+    }
+
+    return await generateHelper(registry, {
+      rawRequest: revisedRequest,
+      middleware,
+      currentTurn,
+      messageIndex: messageIndex + (resumedToolMessage ? 1 : 0),
+      abortSignal,
+      streamingCallback,
+      context,
     });
   }
   rawRequest = revisedRequest!;
@@ -395,11 +424,6 @@ async function generateActionTurn(
       parser: format?.handler(request.output?.schema).parseChunk,
     });
   };
-
-  // if resolving the 'resume' option above generated a tool message, stream it.
-  if (resumedToolMessage && streamingCallback) {
-    streamingCallback(makeChunk('tool', resumedToolMessage));
-  }
 
   var response: GenerateResponse;
   const sendChunk =

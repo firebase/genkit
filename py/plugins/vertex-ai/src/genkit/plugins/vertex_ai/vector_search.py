@@ -416,7 +416,7 @@ def define_vertex_vector_search_big_query(
     Args:
         ai: The Genkit instance to register the retriever with.
         name: Name of the retriever.
-        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder: The embedder to use (e.g., 'vertexai/gemini-embedding-001').
         embedder_options: Optional configuration to pass to the embedder.
         bq_client: The BigQuery client to use for querying.
         dataset_id: The ID of the BigQuery dataset.
@@ -472,7 +472,7 @@ def define_vertex_vector_search_firestore(
     Args:
         ai: The Genkit instance to register the retriever with.
         name: Name of the retriever.
-        embedder: The embedder to use (e.g., 'vertexai/text-embedding-004').
+        embedder: The embedder to use (e.g., 'vertexai/gemini-embedding-001').
         embedder_options: Optional configuration to pass to the embedder.
         firestore_client: The Firestore client to use for querying.
         collection_name: The name of the Firestore collection.

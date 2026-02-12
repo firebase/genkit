@@ -1,4 +1,7 @@
-# Genkit DeepSeek Plugin
+# Genkit DeepSeek Plugin (Community)
+
+> **Community Plugin** — This plugin is community-maintained and is not an
+> official Google or DeepSeek product. It is provided on an "as-is" basis.
 
 This Genkit plugin provides integration with DeepSeek's AI models, including
 their powerful reasoning model (R1) and general-purpose chat model (V3).
@@ -69,8 +72,21 @@ ai = Genkit(plugins=[DeepSeek(api_url='https://your-proxy.com')])
 |----------|-------------|----------|
 | `DEEPSEEK_API_KEY` | Your DeepSeek API key | Yes |
 
-## Links
+## Disclaimer
 
-- [DeepSeek API Documentation](https://api-docs.deepseek.com/)
-- [DeepSeek Platform](https://platform.deepseek.com/)
-- [Genkit Documentation](https://genkit.dev/)
+This is a **community-maintained** plugin and is not officially supported by
+Google or DeepSeek. Use of DeepSeek's API is subject to
+[DeepSeek's Terms of Use](https://chat.deepseek.com/downloads/DeepSeek%20Terms%20of%20Use.html)
+and [Privacy Policy](https://chat.deepseek.com/downloads/DeepSeek%20Privacy%20Policy.html).
+You are responsible for complying with all applicable terms when using this plugin.
+
+- **API Key Security** — Never commit your DeepSeek API key to version control.
+  Use environment variables or a secrets manager.
+- **Usage Limits** — Be aware of your DeepSeek plan's rate limits and token
+  quotas. See [DeepSeek Pricing](https://api-docs.deepseek.com/quick_start/pricing).
+- **Data Handling** — Review DeepSeek's data processing practices before
+  sending sensitive or personally identifiable information.
+
+## License
+
+Apache-2.0

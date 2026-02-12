@@ -26,16 +26,21 @@ Example:
 import argparse
 import asyncio
 import importlib.util
+import json
+import logging
+import platform
+import subprocess  # noqa: S404
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
+
+from genkit.core.action import ActionKind
+from genkit.types import Media
 
 
 def open_file(path: str) -> None:
     """Open a file with the default system application."""
-    import platform
-    import subprocess  # noqa: S404
-
     try:
         if platform.system() == 'Darwin':  # macOS
             subprocess.run(['open', path], check=False)  # noqa: S603, S607
@@ -102,8 +107,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     args = parser.parse_args()
 
     # Suppress verbose logging from genkit framework to avoid printing full data URLs
-    import logging
-
     logging.basicConfig(level=logging.WARNING)
     logging.getLogger('genkit').setLevel(logging.WARNING)
     logging.getLogger('google').setLevel(logging.WARNING)
@@ -123,6 +126,12 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     src_dir = main_py_path.parent
     sys.path.insert(0, str(src_dir))
 
+    # Add the py/ root directory to sys.path so 'samples.shared' imports work
+    # sample_path is .../py/samples/sample-name
+    # sample_path.parent is .../py/samples
+    # sample_path.parent.parent is .../py
+    sys.path.insert(0, str(sample_path.parent.parent))
+
     # Import the module dynamically
     spec = importlib.util.spec_from_file_location('sample_main', main_py_path)
     if spec is None or spec.loader is None:
@@ -137,8 +146,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     try:
         spec.loader.exec_module(module)
     except Exception:
-        import traceback  # noqa: F823
-
         traceback.print_exc()
         sys.exit(1)
 
@@ -156,8 +163,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     assert ai_instance is not None  # Type narrowing for ai_instance.registry
 
-    from genkit.core.action import ActionKind
-
     # List all flows
     registry = ai_instance.registry
     actions_map = asyncio.run(registry.resolve_actions_by_kind(ActionKind.FLOW))
@@ -167,7 +172,11 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     failed_flows = []
 
     # We'll add the summary after testing all flows
-    detail_lines = []
+    class LiveLogger(list):
+        def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
+            super().append(item)
+
+    detail_lines = LiveLogger()
 
     try:
         for flow_name, flow_action in actions_map.items():
@@ -179,9 +188,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 detail_lines.append(f'Generated Input: {input_data}')
 
                 # Run flow in subprocess to avoid event loop conflicts
-                import json
-                import subprocess  # noqa: S404 - test script, subprocess usage is intentional
-
                 # Get path to helper script
                 script_dir = Path(__file__).parent
                 helper_script = script_dir / 'run_single_flow.py'
@@ -198,64 +204,69 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 ]
 
                 # Run subprocess
+                process = subprocess.Popen(  # noqa: S603 - cmd is constructed internally from trusted script paths
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    cwd=sample_path.parent.parent,  # Run from py/ directory
+                )
+
+                # Stream output
+                stdout_lines = []
+                if process.stdout:
+                    for line in process.stdout:
+                        stdout_lines.append(line)
+
+                process.wait(timeout=120)
+
+                # Reconstruct stdout for parsing
+                stdout = ''.join(stdout_lines)
+
                 try:
-                    result_proc = subprocess.run(  # noqa: S603 - cmd is constructed internally from trusted script paths
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=120,  # 2 minute timeout
-                        cwd=sample_path.parent.parent,  # Run from py/ directory
-                    )
-
-                    # Parse JSON output using markers
-                    stdout = result_proc.stdout
-                    try:
-                        if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
-                            json_str = (
-                                stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
-                            )
-                            result_data = json.loads(json_str)
-                        else:
-                            result_data = json.loads(stdout)
-                    except (json.JSONDecodeError, IndexError):
-                        detail_lines.append('Status: FAILED')
-                        detail_lines.append('Error: Failed to parse subprocess output')
-                        detail_lines.append(f'Stdout (partial): {stdout[:500]}')
-                        detail_lines.append(f'Stderr (partial): {result_proc.stderr[:500]}')
-                        failed_flows.append(flow_name)
-                        continue
-
-                    if result_data.get('success'):
-                        detail_lines.append('Status: SUCCESS')
-
-                        # Format the result
-                        flow_result = result_data.get('result')
-                        formatted_output = format_output(flow_result, max_length=500)
-                        detail_lines.append(f'Output: {formatted_output}')
-
-                        successful_flows.append(flow_name)
+                    if '---JSON_RESULT_START---' in stdout and '---JSON_RESULT_END---' in stdout:
+                        json_str = stdout.split('---JSON_RESULT_START---')[1].split('---JSON_RESULT_END---')[0].strip()
+                        result_data = json.loads(json_str)
                     else:
-                        detail_lines.append('Status: FAILED')
-                        error_msg = result_data.get('error', 'Unknown error')
-                        detail_lines.append(f'Error: {error_msg}')
-                        failed_flows.append(flow_name)
+                        # Fallback try to parse the whole thing if markers missing (unlikely for success case)
+                        result_data = json.loads(stdout)
+                except (json.JSONDecodeError, IndexError):
+                    detail_lines.append('Status: FAILED')
+                    detail_lines.append('Error: Failed to parse subprocess output')
 
-                except subprocess.TimeoutExpired:
-                    detail_lines.append('Status: FAILED')
-                    detail_lines.append('Error: Flow execution timed out (120s)')
+                    # Print raw output for debugging since parsing failed
+                    detail_lines.append('Raw Output:')
+                    detail_lines.append(stdout)
+
                     failed_flows.append(flow_name)
-                except Exception as e:
+                    continue
+
+                if result_data.get('success'):
+                    detail_lines.append('Status: SUCCESS')
+
+                    # Format the result
+                    flow_result = result_data.get('result')
+                    formatted_output = format_output(flow_result, max_length=500)
+                    detail_lines.append(f'Output: {formatted_output}')
+
+                    successful_flows.append(flow_name)
+                else:
                     detail_lines.append('Status: FAILED')
-                    detail_lines.append(f'Error: Subprocess failed: {e}')
+                    error_msg = result_data.get('error', 'Unknown error')
+                    detail_lines.append(f'Error: {error_msg}')
                     failed_flows.append(flow_name)
+
+            except subprocess.TimeoutExpired:
+                detail_lines.append('Status: FAILED')
+                detail_lines.append('Error: Flow execution timed out (120s)')
+                failed_flows.append(flow_name)
             except Exception as e:
                 detail_lines.append('Status: FAILED')
-                error_msg = str(e)
-                detail_lines.append(f'Error: {error_msg}')
+                detail_lines.append(f'Error: Subprocess failed: {e}')
+                failed_flows.append(flow_name)
 
                 # Add traceback for debugging
-                import traceback
-
                 tb_lines = traceback.format_exc().split('\n')
                 detail_lines.append('Traceback:')
                 for line in tb_lines:
@@ -263,7 +274,12 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
                 failed_flows.append(flow_name)
 
-            detail_lines.append('')
+        detail_lines.append('')
+
+        # Add a small delay between tests to avoid rate limiting
+        import time
+
+        time.sleep(10)
 
     except KeyboardInterrupt:
         pass
@@ -289,10 +305,6 @@ def format_output(output: Any, max_length: int = 500) -> str:  # noqa: ANN401 - 
     Returns:
         Formatted string representation
     """
-    import json
-
-    from genkit.types import Media
-
     # Handle None
     if output is None:
         return 'None'

@@ -63,7 +63,7 @@ def test_is_reranker_model_name_valid() -> None:
 def test_is_reranker_model_name_invalid() -> None:
     """Test is_reranker_model_name returns False for invalid names."""
     assert is_reranker_model_name('gemini-2.0-flash') is False
-    assert is_reranker_model_name('text-embedding-004') is False
+    assert is_reranker_model_name('gemini-embedding-001') is False
     assert is_reranker_model_name(None) is False
     assert is_reranker_model_name('') is False
 

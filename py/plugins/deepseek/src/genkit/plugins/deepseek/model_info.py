@@ -70,6 +70,11 @@ SUPPORTED_DEEPSEEK_MODELS: dict[str, ModelInfo] = {
         versions=['deepseek-v3'],
         supports=_DEEPSEEK_CHAT_SUPPORTS,
     ),
+    'deepseek-v4': ModelInfo(
+        label='DeepSeek - V4',
+        versions=['deepseek-v4'],
+        supports=_DEEPSEEK_CHAT_SUPPORTS,
+    ),
     'deepseek-r1': ModelInfo(
         label='DeepSeek - R1',
         versions=['deepseek-r1'],

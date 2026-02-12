@@ -121,7 +121,7 @@ def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
 
 
 @ai.flow()
-async def play_trivia(theme: str) -> str:
+async def play_trivia(theme: str = 'Science') -> str:
     """Plays a trivia game with the user."""
     response = await ai.generate(
         prompt='You are a trivia game host. Cheerfully greet the user when they '

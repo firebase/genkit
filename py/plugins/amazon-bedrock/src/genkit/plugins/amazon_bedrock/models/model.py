@@ -129,6 +129,7 @@ from typing import Any
 import httpx
 
 from genkit.ai import ActionRunContext
+from genkit.core.http_client import get_cached_client
 from genkit.core.logging import get_logger
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit.types import (
@@ -378,12 +379,16 @@ class BedrockModel:
                             index=0,
                         )
                     )
-                # Handle tool use delta
+                # Handle tool use delta (input fragments only).
+                # contentBlockStart always fires first with name/toolUseId,
+                # so by the time we get here the entry should already exist.
                 if 'toolUse' in delta:
                     tool_use = delta['toolUse']
-                    tool_use_id = event['contentBlockDelta'].get('contentBlockIndex', 0)
-                    if tool_use_id not in accumulated_tool_uses:
-                        accumulated_tool_uses[str(tool_use_id)] = {
+                    block_idx = str(event['contentBlockDelta'].get('contentBlockIndex', 0))
+                    if block_idx not in accumulated_tool_uses:
+                        # Defensive fallback — should not happen in practice
+                        # because contentBlockStart always precedes deltas.
+                        accumulated_tool_uses[block_idx] = {
                             'toolUseId': tool_use.get('toolUseId', ''),
                             'name': tool_use.get('name', ''),
                             'input': '',
@@ -391,7 +396,7 @@ class BedrockModel:
                     if 'input' in tool_use:
                         tool_input = tool_use['input']
                         if isinstance(tool_input, str):
-                            accumulated_tool_uses[str(tool_use_id)]['input'] += tool_input
+                            accumulated_tool_uses[block_idx]['input'] += tool_input
 
             # Handle content block start (for tool use)
             if 'contentBlockStart' in event:
@@ -768,11 +773,16 @@ class BedrockModel:
                 },
             }
 
+    # TODO(#4360): Replace with downloadRequestMedia middleware (G15 parity).
+    # User-Agent is required because many servers (e.g. Wikipedia) return
+    # 403 Forbidden for the default httpx user-agent string.
+    _DOWNLOAD_HEADERS: dict[str, str] = {
+        'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
+        'Accept': 'image/*,video/*,*/*',
+    }
+
     async def _fetch_media_from_url(self, url: str, default_format: str) -> tuple[bytes, str]:
         """Fetch media content from a URL asynchronously.
-
-        Uses httpx.AsyncClient for true async HTTP requests without blocking
-        the event loop.
 
         Args:
             url: The URL to fetch media from.
@@ -783,35 +793,28 @@ class BedrockModel:
 
         Raises:
             ValueError: If the URL cannot be fetched.
-
-        Note:
-            Some servers (e.g., Wikipedia) require a User-Agent header and will
-            return 403 Forbidden without one. We include a standard User-Agent
-            to ensure compatibility with such servers.
         """
         logger.debug('Fetching media from URL', url=url[:100])
 
-        # Headers required for compatibility with servers that block bot-like requests
-        # (e.g., Wikipedia returns 403 without a User-Agent)
-        headers = {
-            'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; Python httpx)',
-            'Accept': 'image/*,video/*,*/*',
-        }
-
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
-                response = await client.get(url)
-                response.raise_for_status()
+            client = get_cached_client(
+                cache_key='amazon-bedrock/media-fetch',
+                headers=self._DOWNLOAD_HEADERS,
+                timeout=30.0,
+                follow_redirects=True,
+            )
+            response = await client.get(url)
+            response.raise_for_status()
 
-                media_bytes = response.content
-                format_str = default_format
+            media_bytes = response.content
+            format_str = default_format
 
-                # Update format from response content-type if available
-                resp_content_type = response.headers.get('content-type', '')
-                if resp_content_type and '/' in resp_content_type:
-                    format_str = resp_content_type.split('/')[-1].split(';')[0]
-                    if format_str == 'jpg':
-                        format_str = 'jpeg'
+            # Update format from response content-type if available
+            resp_content_type = response.headers.get('content-type', '')
+            if resp_content_type and '/' in resp_content_type:
+                format_str = resp_content_type.split('/')[-1].split(';')[0]
+                if format_str == 'jpg':
+                    format_str = 'jpeg'
 
             logger.debug('Fetched media', size=len(media_bytes), format=format_str)
             return media_bytes, format_str

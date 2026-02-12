@@ -156,7 +156,7 @@ if 'GCLOUD_PROJECT' not in os.environ:
 
 ai = Genkit(
     plugins=[VertexAI()],
-    model='vertexai/gemini-3-pro-preview',
+    model='vertexai/gemini-2.5-flash',
 )
 
 
@@ -236,7 +236,7 @@ async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
         docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed_many(
-        embedder='vertexai/text-embedding-004',
+        embedder='vertexai/gemini-embedding-001',
         content=docs,
         options=options,
     )

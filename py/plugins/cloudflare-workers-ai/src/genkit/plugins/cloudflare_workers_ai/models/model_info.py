@@ -30,7 +30,7 @@ _DEFAULT_TEXT_SUPPORTS = Supports(
     media=False,
     tools=True,  # Some Cloudflare models support tool_calls
     system_role=True,
-    output=['text'],
+    output=['text', 'json'],
 )
 
 # Multimodal model capabilities (e.g., Llama 4 Scout)
@@ -39,7 +39,7 @@ _MULTIMODAL_SUPPORTS = Supports(
     media=True,
     tools=True,
     system_role=True,
-    output=['text'],
+    output=['text', 'json'],
 )
 
 # Embedding model capabilities

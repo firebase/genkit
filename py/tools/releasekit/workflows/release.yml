@@ -1,0 +1,277 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ──────────────────────────────────────────────────────────────────────
+# Automated Release Workflow for releasekit
+# ──────────────────────────────────────────────────────────────────────
+#
+# This workflow automates the full release lifecycle:
+#
+#   1. prepare  — bumps versions, generates changelogs, opens Release PR
+#   2. merge    — auto-merges the Release PR (optional, for no-touch mode)
+#   3. release  — tags the merged commit, creates GitHub Releases
+#   4. publish  — publishes packages to PyPI (or other registries)
+#
+# Trigger modes:
+#
+#   - Manual dispatch    → full control (pick ecosystem, group, dry-run)
+#   - Schedule (cron)    → nightly/weekly release train
+#   - Push to main       → release-on-merge (most common for OSS)
+#
+# The workflow uses a GitHub App token for PR operations so that
+# status checks still run on the release branch (personal tokens
+# bypass branch protection, App tokens do not).
+#
+# Required secrets:
+#   - PYPI_TOKEN            — PyPI API token for publishing
+#   - RELEASEKIT_APP_ID     — GitHub App ID (optional, for auto-merge)
+#   - RELEASEKIT_APP_KEY    — GitHub App private key (optional)
+#
+# Required permissions (for GITHUB_TOKEN fallback):
+#   - contents: write       — push tags and release branches
+#   - pull-requests: write  — create/merge PRs
+#   - issues: write         — add labels
+# ──────────────────────────────────────────────────────────────────────
+
+name: Release
+
+on:
+  # Manual trigger — full control over what gets released.
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: >-
+          Release mode:
+            prepare   = bump + changelog + open PR (default)
+            publish   = tag + release + publish (after PR merge)
+            full      = prepare + auto-merge + publish (no-touch)
+            dry-run   = simulate everything, change nothing
+        required: true
+        default: prepare
+        type: choice
+        options:
+          - prepare
+          - publish
+          - full
+          - dry-run
+      ecosystem:
+        description: 'Target ecosystem (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - python
+          - js
+          - go
+      group:
+        description: 'Release group (leave empty for all)'
+        required: false
+        type: string
+
+  # Auto-release: trigger publish after a Release PR is merged.
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+  # Optional: scheduled release train (disabled by default).
+  # Uncomment to enable weekly releases every Tuesday at 10:00 UTC.
+  # schedule:
+  #   - cron: '0 10 * * 2'
+
+# Prevent concurrent releases.
+concurrency:
+  group: releasekit-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  # Pin tool versions for reproducibility.
+  UV_VERSION: '0.7.x'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # ── Step 1: Prepare ──────────────────────────────────────────────
+  # Compute version bumps, generate changelogs, open/update Release PR.
+  prepare:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.mode == 'prepare' ||
+       github.event.inputs.mode == 'full' ||
+       github.event.inputs.mode == 'dry-run')
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.prepare.outputs.pr_number }}
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation.
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install releasekit
+        run: uv sync --project py/tools/releasekit
+
+      - name: Prepare release
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.mode == 'dry-run' && '--dry-run' || '' }}
+          ECOSYSTEM: ${{ github.event.inputs.ecosystem && format('--ecosystem {0}', github.event.inputs.ecosystem) || '' }}
+          GROUP: ${{ github.event.inputs.group && format('--group {0}', github.event.inputs.group) || '' }}
+        run: |
+          set -euo pipefail
+
+          result=$(bin/releasekit prepare \
+            --forge-backend api \
+            $DRY_RUN \
+            $ECOSYSTEM \
+            $GROUP \
+            2>&1) || true
+
+          echo "$result"
+
+          # Extract PR number from output (format: "PR #123" or "pr_url=...123").
+          pr_number=$(echo "$result" | grep -oP '(?:PR #|/pull/)(\d+)' | head -1 | grep -oP '\d+' || echo '')
+          echo "pr_number=${pr_number}" >> "$GITHUB_OUTPUT"
+
+          # Check if any packages were bumped.
+          if echo "$result" | grep -q 'bumped_packages'; then
+            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Step 2: Auto-Merge (optional) ───────────────────────────────
+  # Merges the Release PR without human intervention.
+  # Only runs in "full" mode. Uses squash merge to keep history clean.
+  auto-merge:
+    needs: prepare
+    if: >-
+      github.event.inputs.mode == 'full' &&
+      needs.prepare.outputs.has_bumps == 'true' &&
+      needs.prepare.outputs.pr_number != ''
+    runs-on: ubuntu-latest
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
+    steps:
+      - name: Wait for CI checks
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: release-please--packages--default
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success,skipped
+
+      - name: Merge Release PR
+        id: merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          echo "Merging Release PR #${PR_NUMBER}..."
+
+          gh pr merge "$PR_NUMBER" \
+            --squash \
+            --auto \
+            --delete-branch \
+            --subject "chore: release (releasekit auto-merge)" \
+            || {
+              echo "::warning::Auto-merge failed. PR may need manual review."
+              echo "merged=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            }
+
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+  # ── Step 3: Publish ─────────────────────────────────────────────
+  # Tags, creates GitHub Releases, and publishes to registries.
+  # Triggers either:
+  #   a) After auto-merge in "full" mode, OR
+  #   b) On manual "publish" dispatch, OR
+  #   c) When a Release PR is merged (pull_request.closed event).
+  publish:
+    needs: [prepare, auto-merge]
+    if: |
+      always() && (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish') ||
+        (needs.auto-merge.result == 'success' && needs.auto-merge.outputs.merged == 'true') ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.merged == true &&
+         contains(github.event.pull_request.labels.*.name, 'autorelease: pending'))
+      )
+    runs-on: ubuntu-latest
+    environment: pypi  # Use a protected environment for publishing.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install releasekit
+        run: uv sync --project py/tools/releasekit
+
+      - name: Tag and create GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bin/releasekit release --forge-backend api
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          bin/releasekit publish \
+            --forge-backend api \
+            --force \
+            --no-tag \
+            --no-release \
+            --check-url https://pypi.org/simple/
+
+  # ── Notify ──────────────────────────────────────────────────────
+  notify:
+    needs: [prepare, auto-merge, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Step | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Prepare | ${{ needs.prepare.result || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Auto-merge | ${{ needs.auto-merge.result || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Publish | ${{ needs.publish.result || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"

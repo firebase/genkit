@@ -99,6 +99,32 @@ from genkit.plugins.amazon_bedrock.typing import (
 )
 from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
+# Regional prefixes for inference profiles (must match model.py)
+_INFERENCE_PROFILE_PREFIXES = ('us.', 'eu.', 'apac.')
+
+
+def _strip_inference_profile_prefix(model_id: str) -> str:
+    """Strip the regional inference profile prefix from a model ID.
+
+    Converts inference profile IDs (e.g., ``us.amazon.titan-embed-text-v2:0``)
+    back to base model IDs (``amazon.titan-embed-text-v2:0``).
+
+    The InvokeModel API (used for embeddings) does NOT support inference profile
+    IDs — only Converse/ConverseStream do. This helper ensures we always pass
+    base model IDs to InvokeModel.
+
+    Args:
+        model_id: A model ID, possibly with a regional prefix.
+
+    Returns:
+        The base model ID with any regional prefix stripped.
+    """
+    for prefix in _INFERENCE_PROFILE_PREFIXES:
+        if model_id.startswith(prefix):
+            return model_id[len(prefix) :]
+    return model_id
+
+
 _MODEL_CONFIG_PREFIX_MAP: dict[str, type] = {
     # Amazon models
     'amazon.nova': AmazonNovaConfig,
@@ -394,7 +420,16 @@ class AmazonBedrock(Plugin):
         )
 
         async def embed_fn(request: EmbedRequest) -> EmbedResponse:
-            """Generate embeddings using AWS Bedrock."""
+            """Generate embeddings using AWS Bedrock.
+
+            The InvokeModel API does NOT support inference profile IDs
+            (regional prefixes like ``us.``, ``eu.``, ``apac.``). Only
+            the Converse/ConverseStream APIs support them. We must strip
+            any inference profile prefix before calling InvokeModel.
+            """
+            # Strip inference profile prefix — InvokeModel requires base model IDs
+            base_model_id = _strip_inference_profile_prefix(model_id)
+
             # Extract text from document content
             texts: list[str] = []
             for doc in request.input:
@@ -410,21 +445,21 @@ class AmazonBedrock(Plugin):
             # Process each text (Bedrock embedding API typically handles one at a time)
             for text in texts:
                 # Build request body based on model type
-                if model_id.startswith('amazon.titan-embed'):
+                if base_model_id.startswith('amazon.titan-embed'):
                     body = {'inputText': text}
-                elif model_id.startswith('cohere.embed'):
+                elif base_model_id.startswith('cohere.embed'):
                     body = {
                         'texts': [text],
                         'input_type': 'search_document',
                     }
-                elif model_id.startswith('amazon.nova'):
+                elif base_model_id.startswith('amazon.nova'):
                     body = {'inputText': text}
                 else:
                     body = {'inputText': text}
 
-                # Call InvokeModel for embeddings
+                # Call InvokeModel for embeddings (uses base model ID, not inference profile)
                 response = self._client.invoke_model(
-                    modelId=model_id,
+                    modelId=base_model_id,
                     body=json.dumps(body),
                     contentType='application/json',
                     accept='application/json',
@@ -434,11 +469,11 @@ class AmazonBedrock(Plugin):
                 response_body = json.loads(response['body'].read())
 
                 # Extract embedding based on model type
-                if model_id.startswith('amazon.titan-embed'):
+                if base_model_id.startswith('amazon.titan-embed'):
                     embedding_vector = response_body.get('embedding', [])
-                elif model_id.startswith('cohere.embed'):
+                elif base_model_id.startswith('cohere.embed'):
                     embedding_vector = response_body.get('embeddings', [[]])[0]
-                elif model_id.startswith('amazon.nova'):
+                elif base_model_id.startswith('amazon.nova'):
                     embedding_vector = response_body.get('embedding', [])
                 else:
                     embedding_vector = response_body.get('embedding', [])
@@ -629,11 +664,12 @@ def inference_profile(model_id: str, region: str | None = None) -> str:
 #
 # Or use the region-specific helpers defined below.
 
-# Anthropic Claude models
-claude_sonnet_4_5 = bedrock_name('anthropic.claude-sonnet-4-5-20250929-v1:0')
-claude_sonnet_4 = bedrock_name('anthropic.claude-sonnet-4-20250514-v1:0')
+# Anthropic Claude models — grouped by family, descending version
+claude_opus_4_6 = bedrock_name('anthropic.claude-opus-4-6-20260205-v1:0')
 claude_opus_4_5 = bedrock_name('anthropic.claude-opus-4-5-20251101-v1:0')
 claude_opus_4_1 = bedrock_name('anthropic.claude-opus-4-1-20250805-v1:0')
+claude_sonnet_4_5 = bedrock_name('anthropic.claude-sonnet-4-5-20250929-v1:0')
+claude_sonnet_4 = bedrock_name('anthropic.claude-sonnet-4-20250514-v1:0')
 claude_haiku_4_5 = bedrock_name('anthropic.claude-haiku-4-5-20251001-v1:0')
 claude_3_5_haiku = bedrock_name('anthropic.claude-3-5-haiku-20241022-v1:0')
 claude_3_haiku = bedrock_name('anthropic.claude-3-haiku-20240307-v1:0')

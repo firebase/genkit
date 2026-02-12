@@ -51,6 +51,7 @@ check_env_var "GEMINI_API_KEY" "https://makersuite.google.com/app/apikey" || tru
 
 install_deps
 
+# shellcheck disable=SC2016  # Single quotes intentional for sh -c.
 genkit_start_with_browser -- \
     uv tool run --from watchdog watchmedo auto-restart \
         -d evaluator_demo \

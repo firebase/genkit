@@ -33,41 +33,36 @@ Key features:
 - JSON output mode
 """
 
-import json
 from typing import Any
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from openai.lib._pydantic import _ensure_strict_json_schema
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
+from genkit.plugins.microsoft_foundry.models.converters import (
+    build_usage,
+    from_openai_tool_calls,
+    map_finish_reason,
+    normalize_config,
+    parse_tool_call_args,
+    to_openai_messages,
+    to_openai_tool,
+)
 from genkit.plugins.microsoft_foundry.models.model_info import MODELS_SUPPORTING_RESPONSE_FORMAT, get_model_info
 from genkit.plugins.microsoft_foundry.typing import MicrosoftFoundryConfig, VisualDetailLevel
 from genkit.types import (
-    FinishReason,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    GenerationCommonConfig,
     GenerationUsage,
-    MediaPart,
     Message,
     Part,
     Role,
     TextPart,
-    ToolDefinition,
     ToolRequest,
     ToolRequestPart,
-    ToolResponsePart,
 )
-
-# Mapping from OpenAI finish reasons to Genkit finish reasons
-FINISH_REASON_MAP: dict[str, FinishReason] = {
-    'stop': FinishReason.STOP,
-    'length': FinishReason.LENGTH,
-    'tool_calls': FinishReason.STOP,
-    'content_filter': FinishReason.BLOCKED,
-    'function_call': FinishReason.STOP,
-}
 
 
 class MicrosoftFoundryModel:
@@ -113,7 +108,7 @@ class MicrosoftFoundryModel:
         Returns:
             GenerateResponse with the model's output.
         """
-        config = self._normalize_config(request.config)
+        config = normalize_config(request.config)
         params = self._build_request_body(request, config)
         streaming = ctx is not None and ctx.is_streaming
 
@@ -130,13 +125,13 @@ class MicrosoftFoundryModel:
         response_message = Message(role=Role.MODEL, content=content)
 
         # Build usage statistics
-        usage = GenerationUsage(
-            input_tokens=response.usage.prompt_tokens if response.usage else 0,
-            output_tokens=response.usage.completion_tokens if response.usage else 0,
-            total_tokens=response.usage.total_tokens if response.usage else 0,
+        usage = build_usage(
+            response.usage.prompt_tokens if response.usage else 0,
+            response.usage.completion_tokens if response.usage else 0,
+            response.usage.total_tokens if response.usage else 0,
         )
 
-        finish_reason = FINISH_REASON_MAP.get(choice.finish_reason or '', FinishReason.UNKNOWN)
+        finish_reason = map_finish_reason(choice.finish_reason or '')
 
         return GenerateResponse(
             message=response_message,
@@ -175,10 +170,10 @@ class MicrosoftFoundryModel:
             if not chunk.choices:
                 # May contain usage info at the end
                 if chunk.usage:
-                    final_usage = GenerationUsage(
-                        input_tokens=chunk.usage.prompt_tokens,
-                        output_tokens=chunk.usage.completion_tokens,
-                        total_tokens=chunk.usage.total_tokens,
+                    final_usage = build_usage(
+                        chunk.usage.prompt_tokens,
+                        chunk.usage.completion_tokens,
+                        chunk.usage.total_tokens,
                     )
                 continue
 
@@ -216,10 +211,7 @@ class MicrosoftFoundryModel:
 
         # Add accumulated tool calls to content
         for tc_data in accumulated_tool_calls.values():
-            try:
-                args = json.loads(tc_data['arguments']) if tc_data['arguments'] else {}
-            except json.JSONDecodeError:
-                args = tc_data['arguments']
+            args = parse_tool_call_args(tc_data['arguments'])
 
             accumulated_content.append(
                 Part(
@@ -239,57 +231,8 @@ class MicrosoftFoundryModel:
             request=request,
         )
 
-    def _normalize_config(self, config: object) -> MicrosoftFoundryConfig:
-        """Normalize config to MicrosoftFoundryConfig.
-
-        Args:
-            config: Request configuration (dict, MicrosoftFoundryConfig, or GenerationCommonConfig).
-
-        Returns:
-            Normalized MicrosoftFoundryConfig instance.
-        """
-        if config is None:
-            return MicrosoftFoundryConfig()
-
-        if isinstance(config, MicrosoftFoundryConfig):
-            return config
-
-        if isinstance(config, GenerationCommonConfig):
-            max_tokens = int(config.max_output_tokens) if config.max_output_tokens is not None else None
-            return MicrosoftFoundryConfig(
-                temperature=config.temperature,
-                max_tokens=max_tokens,
-                top_p=config.top_p,
-                stop=config.stop_sequences,
-            )
-
-        if isinstance(config, dict):
-            # Handle camelCase to snake_case mapping
-            mapped: dict[str, Any] = {}
-            key_map: dict[str, str] = {
-                'maxOutputTokens': 'max_tokens',
-                'maxTokens': 'max_tokens',
-                'maxCompletionTokens': 'max_completion_tokens',
-                'topP': 'top_p',
-                'stopSequences': 'stop',
-                'frequencyPenalty': 'frequency_penalty',
-                'presencePenalty': 'presence_penalty',
-                'logitBias': 'logit_bias',
-                'logProbs': 'logprobs',
-                'topLogProbs': 'top_logprobs',
-                'visualDetailLevel': 'visual_detail_level',
-                'reasoningEffort': 'reasoning_effort',
-                'parallelToolCalls': 'parallel_tool_calls',
-                'responseFormat': 'response_format',
-            }
-            for key, value in config.items():
-                # Map camelCase keys to snake_case, or use key as-is
-                str_key = str(key)
-                mapped_key = key_map.get(str_key, str_key)
-                mapped[mapped_key] = value
-            return MicrosoftFoundryConfig(**mapped)
-
-        return MicrosoftFoundryConfig()
+    # _normalize_config is now delegated to the converters module.
+    # See: normalize_config() imported at the top of this file.
 
     def _build_request_body(
         self,
@@ -311,7 +254,7 @@ class MicrosoftFoundryModel:
 
         body: dict[str, Any] = {
             'model': config.model or self.deployment,
-            'messages': self._to_openai_messages(request.messages, visual_detail),
+            'messages': to_openai_messages(request.messages, visual_detail),
         }
 
         # Add optional parameters
@@ -359,7 +302,7 @@ class MicrosoftFoundryModel:
 
         # Handle tools
         if request.tools:
-            body['tools'] = [self._to_openai_tool(t) for t in request.tools]
+            body['tools'] = [to_openai_tool(t) for t in request.tools]
             if request.tool_choice:
                 body['tool_choice'] = request.tool_choice
             # Allow explicit control over parallel tool calls (defaults to True in API)
@@ -377,158 +320,33 @@ class MicrosoftFoundryModel:
                 output_modes = (model_info.supports.output or []) if model_info.supports else []
 
                 if request.output.format == 'json' and 'json' in output_modes:
-                    body['response_format'] = {'type': 'json_object'}
+                    if request.output.schema:
+                        # Use Structured Outputs (json_schema) when a schema
+                        # is provided — the API constrains the model to emit
+                        # JSON that conforms exactly to the schema.
+                        body['response_format'] = {
+                            'type': 'json_schema',
+                            'json_schema': {
+                                'name': request.output.schema.get('title', 'Response'),
+                                'schema': _ensure_strict_json_schema(
+                                    request.output.schema,
+                                    path=(),
+                                    root=request.output.schema,
+                                ),
+                                'strict': True,
+                            },
+                        }
+                    else:
+                        body['response_format'] = {'type': 'json_object'}
                 elif request.output.format == 'text' and 'text' in output_modes:
                     body['response_format'] = {'type': 'text'}
 
         return body
 
-    def _to_openai_tool(self, tool: ToolDefinition) -> dict[str, Any]:
-        """Convert a Genkit tool definition to OpenAI format.
-
-        Args:
-            tool: Genkit ToolDefinition.
-
-        Returns:
-            OpenAI-compatible tool definition.
-        """
-        parameters = tool.input_schema or {}
-        if parameters:
-            parameters = {**parameters, 'type': 'object'}
-
-        return {
-            'type': 'function',
-            'function': {
-                'name': tool.name,
-                'description': tool.description or '',
-                'parameters': parameters,
-            },
-        }
-
-    def _to_openai_messages(
-        self,
-        messages: list[Message],
-        visual_detail_level: VisualDetailLevel = VisualDetailLevel.AUTO,
-    ) -> list[dict[str, Any]]:
-        """Convert Genkit messages to OpenAI chat message format.
-
-        This follows the same logic as `toOpenAiMessages` in the JS plugin.
-
-        Args:
-            messages: List of Genkit messages.
-            visual_detail_level: Detail level for image processing.
-
-        Returns:
-            List of OpenAI-compatible message dictionaries.
-        """
-        openai_msgs: list[dict[str, Any]] = []
-
-        for msg in messages:
-            role = self._to_openai_role(msg.role)
-
-            if role == 'system':
-                # System messages are text-only
-                text_content = self._extract_text(msg)
-                openai_msgs.append({'role': 'system', 'content': text_content})
-
-            elif role == 'user':
-                # User messages can be multimodal
-                content_parts: list[dict[str, Any]] = []
-                for part in msg.content:
-                    root = part.root if isinstance(part, Part) else part
-                    if isinstance(root, TextPart):
-                        content_parts.append({'type': 'text', 'text': root.text})
-                    elif isinstance(root, MediaPart):
-                        content_parts.append({
-                            'type': 'image_url',
-                            'image_url': {
-                                'url': root.media.url,
-                                'detail': visual_detail_level.value,
-                            },
-                        })
-                openai_msgs.append({'role': 'user', 'content': content_parts})
-
-            elif role == 'assistant':
-                # Assistant messages may contain tool calls
-                tool_calls = []
-                text_parts = []
-
-                for part in msg.content:
-                    root = part.root if isinstance(part, Part) else part
-                    if isinstance(root, TextPart):
-                        text_parts.append(root.text)
-                    elif isinstance(root, ToolRequestPart):
-                        tool_calls.append({
-                            'id': root.tool_request.ref or '',
-                            'type': 'function',
-                            'function': {
-                                'name': root.tool_request.name,
-                                'arguments': json.dumps(root.tool_request.input),
-                            },
-                        })
-
-                if tool_calls:
-                    openai_msgs.append({'role': 'assistant', 'tool_calls': tool_calls})
-                else:
-                    openai_msgs.append({'role': 'assistant', 'content': ''.join(text_parts)})
-
-            elif role == 'tool':
-                # Tool response messages
-                for part in msg.content:
-                    root = part.root if isinstance(part, Part) else part
-                    if isinstance(root, ToolResponsePart):
-                        output = root.tool_response.output
-                        content = output if isinstance(output, str) else json.dumps(output)
-                        openai_msgs.append({
-                            'role': 'tool',
-                            'tool_call_id': root.tool_response.ref or '',
-                            'content': content,
-                        })
-
-        return openai_msgs
-
-    def _to_openai_role(self, role: Role | str) -> str:
-        """Convert Genkit role to OpenAI role.
-
-        Args:
-            role: Genkit message role (can be Role enum or string).
-
-        Returns:
-            OpenAI role string.
-        """
-        # Handle string roles directly
-        if isinstance(role, str):
-            str_role_map = {
-                'user': 'user',
-                'model': 'assistant',
-                'system': 'system',
-                'tool': 'tool',
-            }
-            return str_role_map.get(role.lower(), 'user')
-
-        role_map = {
-            Role.USER: 'user',
-            Role.MODEL: 'assistant',
-            Role.SYSTEM: 'system',
-            Role.TOOL: 'tool',
-        }
-        return role_map.get(role, 'user')
-
-    def _extract_text(self, msg: Message) -> str:
-        """Extract text content from a message.
-
-        Args:
-            msg: Message to extract text from.
-
-        Returns:
-            Concatenated text content.
-        """
-        texts = []
-        for part in msg.content:
-            root = part.root if isinstance(part, Part) else part
-            if isinstance(root, TextPart):
-                texts.append(root.text)
-        return ''.join(texts)
+    # _to_openai_tool, _to_openai_messages, _to_openai_role, and _extract_text
+    # are now delegated to the converters module.
+    # See: to_openai_tool(), to_openai_messages(), to_openai_role(), and
+    # extract_text() imported at the top of this file.
 
     def _from_openai_message(self, message: ChatCompletionMessage) -> list[Part]:
         """Convert OpenAI response message to Genkit parts.
@@ -541,38 +359,10 @@ class MicrosoftFoundryModel:
         """
         parts: list[Part] = []
 
-        # Handle text content
         if message.content:
             parts.append(Part(root=TextPart(text=message.content)))
 
-        # Handle tool calls
         if message.tool_calls:
-            for tc in message.tool_calls:
-                # Skip tool calls without function attribute (custom tool calls)
-                func = getattr(tc, 'function', None)
-                if func is None:
-                    continue
-
-                # Parse arguments
-                func_args = getattr(func, 'arguments', None)
-                func_name = getattr(func, 'name', 'unknown')
-                args: dict[str, Any] | str = {}
-                if func_args:
-                    try:
-                        args = json.loads(func_args)
-                    except json.JSONDecodeError:
-                        args = func_args
-
-                parts.append(
-                    Part(
-                        root=ToolRequestPart(
-                            tool_request=ToolRequest(
-                                ref=tc.id,
-                                name=func_name,
-                                input=args,
-                            )
-                        )
-                    )
-                )
+            parts.extend(from_openai_tool_calls(message.tool_calls))
 
         return parts

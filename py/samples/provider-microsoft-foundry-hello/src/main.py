@@ -120,11 +120,11 @@ Testing
 1. Set environment variables (extract from Target URI in the Details pane):
 
    # Example Target URI:
-   # https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview
+   # https://your-resource.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21
 
    export AZURE_OPENAI_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"  # Base URL only
    export AZURE_OPENAI_API_KEY="your-api-key"  # From Key field
-   export AZURE_OPENAI_API_VERSION="2024-05-01-preview"  # From api-version in Target URI
+   export AZURE_OPENAI_API_VERSION="2024-10-21"  # Optional: from api-version in Target URI
    export AZURE_OPENAI_DEPLOYMENT="gpt-4o"  # From Name field
 
 2. Run the sample:
@@ -182,7 +182,7 @@ setup_sample()
 # ai.azure.com > [Project] > Models > Deployments > [Deployment] > Details
 API_KEY = os.environ.get('AZURE_OPENAI_API_KEY')
 ENDPOINT = os.environ.get('AZURE_OPENAI_ENDPOINT')
-API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', '2024-05-01-preview')
+API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION')  # None = use plugin default
 DEPLOYMENT = os.environ.get('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
 
 logger = get_logger(__name__)
@@ -199,7 +199,7 @@ ai = Genkit(
         MicrosoftFoundry(
             api_key=API_KEY,
             endpoint=ENDPOINT,
-            api_version=API_VERSION,
+            api_version=API_VERSION,  # None lets plugin use DEFAULT_API_VERSION
             deployment=DEPLOYMENT,
         )
     ],

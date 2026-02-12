@@ -28,6 +28,7 @@ from xai_sdk.proto.v6 import chat_pb2, image_pb2
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.core.schema import to_json_schema
+from genkit.plugins.xai.converters import DEFAULT_MAX_OUTPUT_TOKENS, FINISH_REASON_MAP
 from genkit.plugins.xai.model_info import get_model_info
 from genkit.types import (
     FinishReason,
@@ -62,15 +63,6 @@ TOOL_TYPE_MAP = {
 
 
 __all__ = ['XAIModel']
-
-DEFAULT_MAX_OUTPUT_TOKENS = 4096
-
-FINISH_REASON_MAP = {
-    'STOP': FinishReason.STOP,
-    'LENGTH': FinishReason.LENGTH,
-    'TOOL_CALLS': FinishReason.STOP,
-    'CONTENT_FILTER': FinishReason.OTHER,
-}
 
 ROLE_MAP = {
     Role.SYSTEM: chat_pb2.MessageRole.ROLE_SYSTEM,

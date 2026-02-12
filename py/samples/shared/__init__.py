@@ -17,6 +17,7 @@
 
 from .flows import (
     calculation_logic,
+    chat_flow_logic,
     convert_currency_logic,
     describe_image_logic,
     generate_character_logic,
@@ -29,6 +30,7 @@ from .flows import (
     generate_with_config_logic,
     generate_with_system_prompt_logic,
     solve_reasoning_problem_logic,
+    translate_text_logic,
 )
 from .logging import setup_sample
 from .tools import (
@@ -42,6 +44,7 @@ from .types import (
     CodeInput,
     ConfigInput,
     CurrencyExchangeInput,
+    EmbedInput,
     GreetingInput,
     ImageDescribeInput,
     MultiTurnInput,
@@ -51,20 +54,19 @@ from .types import (
     StreamingToolInput,
     StreamInput,
     SystemPromptInput,
+    TranslateInput,
     WeatherInput,
 )
 
 __all__ = [
-    # Setup
     'setup_sample',
-    # Tools
     'calculate',
     'convert_currency',
     'get_weather',
-    # Flow logic
     'calculation_logic',
-    'describe_image_logic',
+    'chat_flow_logic',
     'convert_currency_logic',
+    'describe_image_logic',
     'generate_character_logic',
     'generate_code_logic',
     'generate_greeting_logic',
@@ -75,12 +77,13 @@ __all__ = [
     'generate_with_config_logic',
     'generate_with_system_prompt_logic',
     'solve_reasoning_problem_logic',
-    # Types
+    'translate_text_logic',
     'CalculatorInput',
     'CharacterInput',
     'CodeInput',
     'ConfigInput',
     'CurrencyExchangeInput',
+    'EmbedInput',
     'GreetingInput',
     'ImageDescribeInput',
     'MultiTurnInput',
@@ -90,5 +93,6 @@ __all__ = [
     'StreamInput',
     'StreamingToolInput',
     'SystemPromptInput',
+    'TranslateInput',
     'WeatherInput',
 ]
