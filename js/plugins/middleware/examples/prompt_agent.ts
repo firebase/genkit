@@ -16,27 +16,30 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import { genkit } from 'genkit';
-import { retry } from '../src/index.js'; // @genkit-ai/middleware
+import path from 'path';
+import { fallback, filesystem, retry, skills } from '../src';
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [
+    googleAI(),
+    filesystem.plugin(),
+    skills.plugin(),
+    retry.plugin(),
+    fallback.plugin(),
+  ],
+  promptDir: 'examples/prompts',
 });
 
+const agent = ai.prompt('agent');
+
 async function main() {
-  const { text } = await ai.generate({
-    model: googleAI.model('gemini-3-flash-preview'),
-    prompt: 'Tell me a joke about retries.',
-    use: [
-      retry({
-        maxRetries: 3,
-        initialDelayMs: 500,
-        onError: (err, attempt) => {
-          console.error(`Retry attempt ${attempt} failed: ${err.message}`);
-        },
-      }),
-    ],
+  const workspaceDir = path.resolve(__dirname, 'workspace');
+
+  const response = await agent({
+    workspaceDir,
+    task: 'implement a flappy bird game in a single html file with js and css inlined',
   });
-  console.log(text);
+  console.log(response.text);
 }
 
 main().catch(console.error);

@@ -1,0 +1,30 @@
+---
+model: googleai/gemini-3-pro-preview
+config:
+  temperature: 0.75
+  topK: 10
+input:
+  schema:
+    workspaceDir: string
+use:
+  - name: filesystem
+    config:
+      rootDirectory: ./examples/workspace/
+  - name: skills
+    config:
+      skillsDirectory: ./examples/skills
+  - name: retry
+    config:
+      maxRetries: 2
+  - name: fallback
+    config:
+      models:
+        - name: googleai/gemini-3-flash-preview
+---
+
+{{role "system"}}
+You are a coding agent. You have access to {{ workspaceDir }} folder.
+You are not allowed to access anything outside it.
+
+{{role "user"}}
+{{ task }}

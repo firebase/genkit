@@ -17,19 +17,22 @@
 import { googleAI } from '@genkit-ai/google-genai';
 import { genkit } from 'genkit';
 import { filesystem } from '../src/index.js';
+import path from 'path';
 
 const ai = genkit({
   plugins: [googleAI()],
 });
 
 async function main() {
+  const workspaceDir = path.resolve(__dirname, 'workspace');
+
   const { text } = await ai.generate({
     model: googleAI.model('gemini-3-flash-preview'),
     prompt:
-      'Can you list the files in my temporary directory and read whatever is in `hello.txt`?',
+      'What does `hello.txt` say?',
     use: [
       filesystem({
-        rootDirectory: process.env.TEMP_DIR || '/tmp',
+        rootDirectory: workspaceDir,
       }),
     ],
     maxTurns: 10,
