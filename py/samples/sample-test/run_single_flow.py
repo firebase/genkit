@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
+from genkit.types import Media
 
 
 def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any for arbitrary flow outputs
@@ -52,8 +53,6 @@ def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any 
     Returns:
         Serializable representation
     """
-    from genkit.types import Media
-
     # Handle None
     if output is None:
         return None
@@ -73,15 +72,22 @@ def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any 
     # Handle Pydantic models
     if hasattr(output, 'model_dump'):
         try:
-            return output.model_dump()
+            return format_output(output.model_dump())
         except Exception:  # noqa: S110 - intentional fallback if model_dump fails
             pass
 
-    # Handle dicts/lists
-    if isinstance(output, (dict, list)):
+    # Handle dicts
+    if isinstance(output, dict):
+        return {k: format_output(v) for k, v in output.items()}
+
+    # Handle lists
+    if isinstance(output, list):
+        return [format_output(v) for v in output]
+
+    # Default: convert to string for non-serializable objects (except basics)
+    if isinstance(output, (str, int, float, bool, type(None))):
         return output
 
-    # Default: convert to string
     return str(output)
 
 
@@ -209,6 +215,9 @@ def main() -> None:
     logging.basicConfig(level=logging.ERROR)
     logging.getLogger('genkit').setLevel(logging.ERROR)
     logging.getLogger('google').setLevel(logging.ERROR)
+    logging.getLogger('asyncio').setLevel(logging.ERROR)
+    logging.getLogger('httpx').setLevel(logging.ERROR)
+    logging.getLogger('httpcore').setLevel(logging.ERROR)
 
     # Parse input
     try:
@@ -219,13 +228,18 @@ def main() -> None:
     # Run flow in async context
     # We do NOT redirect stdout so that logs/prints from the flow are visible
     try:
-        asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
-    except Exception:
-        # pyrefly: ignore[unbound-name] - traceback is imported at top of file
-        traceback.print_exc()
-        return
+        result = asyncio.run(run_flow(args.sample_dir, args.flow_name, input_data))
+    except Exception as e:
+        result = {
+            'success': False,
+            'result': None,
+            'error': f'Subprocess execution failed: {e}\n{traceback.format_exc()}',
+        }
 
     # Print result with markers so the caller can extract it from stdout
+    print('\n---JSON_RESULT_START---')  # noqa: T201
+    print(json.dumps(result))  # noqa: T201
+    print('---JSON_RESULT_END---')  # noqa: T201
 
 
 if __name__ == '__main__':
