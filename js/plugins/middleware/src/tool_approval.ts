@@ -32,6 +32,8 @@ export type ToolApprovalOptions = z.infer<typeof ToolApprovalOptionsSchema>;
 export const toolApproval = generateMiddleware(
   {
     name: 'toolApproval',
+    description:
+      'Checks if a tool is on the approved list and interrupts if not.',
     configSchema: ToolApprovalOptionsSchema,
   },
   (options, ai) => {

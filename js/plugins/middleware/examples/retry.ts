@@ -19,7 +19,7 @@ import { genkit } from 'genkit';
 import { retry } from '../src/index.js'; // @genkit-ai/middleware
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI(), retry.plugin()],
 });
 
 async function main() {
@@ -30,9 +30,6 @@ async function main() {
       retry({
         maxRetries: 3,
         initialDelayMs: 500,
-        onError: (err, attempt) => {
-          console.error(`Retry attempt ${attempt} failed: ${err.message}`);
-        },
       }),
     ],
   });

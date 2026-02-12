@@ -33,7 +33,14 @@ import {
 } from '../src/index.js';
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [
+    googleAI(),
+    filesystem.plugin(),
+    skills.plugin(),
+    retry.plugin(),
+    fallback.plugin(),
+    toolApproval.plugin(),
+  ],
 });
 
 const rl = readline.createInterface({
