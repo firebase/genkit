@@ -28,7 +28,17 @@ import asyncio
 import importlib.util
 import json
 import logging
+
+logging.getLogger().setLevel(logging.ERROR)
+logging.getLogger('asyncio').setLevel(logging.ERROR)
+logging.getLogger('httpx').setLevel(logging.ERROR)
+logging.getLogger('httpcore').setLevel(logging.ERROR)
 import platform
+import re
+import time
+import warnings
+
+warnings.filterwarnings('ignore')
 import subprocess  # noqa: S404
 import sys
 import traceback
@@ -175,12 +185,14 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     class LiveLogger(list):
         def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
             super().append(item)
+            # Print to stdout for immediate feedback
+            print(item)  # noqa: T201
 
     detail_lines = LiveLogger()
 
     try:
         for flow_name, flow_action in actions_map.items():
-            detail_lines.append(f'Flow: {flow_name}')
+            detail_lines.append(f'\nFlow: {flow_name}')
             detail_lines.append('-' * 30)
 
             try:
@@ -218,6 +230,28 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                 if process.stdout:
                     for line in process.stdout:
                         stdout_lines.append(line)
+                        # Suppress debug logs as requested, but stream everything else for "live logging"
+                        # We strip ANSI codes before checking per report/pic requirement
+                        clean_line = re.sub(r'\x1b\[[0-9;]*[mGKF]', '', line).lower()
+                        # Level tags like [debug], [debug   ], etc.
+                        is_debug = '[debug' in clean_line
+                        # List of noisy patterns to filter from test output.
+                        noise_patterns = [
+                            'userwarning:',
+                            'shadows an attribute',
+                            'class outputconfig',
+                            'class promptinputconfig',
+                            'class promptoutputconfig',
+                            '---json_result_',
+                            '{"success":',
+                            '[info',
+                        ]
+                        is_noise = any(p in clean_line for p in noise_patterns)
+
+                        if not is_debug and not is_noise:
+                            # Also filter out empty lines or just markers
+                            if line.strip():
+                                print(f'  {line}', end='')  # noqa: T201
 
                 process.wait(timeout=120)
 
@@ -277,8 +311,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
         detail_lines.append('')
 
         # Add a small delay between tests to avoid rate limiting
-        import time
-
         time.sleep(10)
 
     except KeyboardInterrupt:

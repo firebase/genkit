@@ -176,7 +176,7 @@ WATCH_DIRS=(-d src)
 # genkit_start_with_browser also opens the Genkit DevUI in a browser.
 genkit_start_with_browser -- \
     uv tool run --from watchdog watchmedo auto-restart \
-        "${WATCH_DIRS[@]}" \
+        ${WATCH_DIRS[@]+"${WATCH_DIRS[@]}"} \
         -p '*.py;*.prompt;*.json' \
         -R \
-        -- uv run python -m src --debug "${OTEL_ARGS[@]}" "$@"
+        -- uv run python -m src --debug ${OTEL_ARGS[@]+"${OTEL_ARGS[@]}"} "$@"
