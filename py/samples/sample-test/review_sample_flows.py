@@ -27,12 +27,6 @@ import argparse
 import asyncio
 import importlib.util
 import json
-import logging
-
-logging.getLogger().setLevel(logging.ERROR)
-logging.getLogger('asyncio').setLevel(logging.ERROR)
-logging.getLogger('httpx').setLevel(logging.ERROR)
-logging.getLogger('httpcore').setLevel(logging.ERROR)
 import platform
 import re
 import time
@@ -112,17 +106,15 @@ def write_report(
         f.write('\n'.join(report_lines))
 
 
-def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acceptable
+async def main() -> None:
     """Test all flows in a Genkit sample and generate a report."""
     parser = argparse.ArgumentParser(description='Test all flows in a Genkit sample.')
     parser.add_argument('sample_dir', type=str, help='Path to the sample directory')
     parser.add_argument('--output', type=str, default='flow_review_results.txt', help='Output report file')
     args = parser.parse_args()
 
-    # Suppress verbose logging from genkit framework to avoid printing full data URLs
-    # However, we allow standard library logging to be configured via get_logger above.
-    logging.getLogger('genkit').setLevel(logging.WARNING)
-    logging.getLogger('google').setLevel(logging.WARNING)
+    # Logging is handled via structlog automatically when using get_logger.
+    # We rely on Genkit's standardized logging configuration.
 
     sample_path = Path(args.sample_dir).resolve()
     if not sample_path.exists():
@@ -178,29 +170,33 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
 
     # List all flows
     registry = ai_instance.registry
-    actions_map = asyncio.run(registry.resolve_actions_by_kind(ActionKind.FLOW))
+    actions_map = await registry.resolve_actions_by_kind(ActionKind.FLOW)
 
     # Track results for summary
     successful_flows = []
     failed_flows = []
 
     # We'll add the summary after testing all flows
-    class LiveLogger(list):
-        def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
-            super().append(item)
-            # Use logger for immediate feedback
-            logger.info(str(item))
+    class ReportCollector(list):
+        pass
 
-    detail_lines = LiveLogger()
+    detail_lines = ReportCollector()
 
     try:
         for flow_name, flow_action in actions_map.items():
-            detail_lines.append(f'\nFlow: {flow_name}')
-            detail_lines.append('-' * 30)
+            msg = f'\nFlow: {flow_name}'
+            detail_lines.append(msg)
+            await logger.ainfo(msg)
+
+            divider = '-' * 30
+            detail_lines.append(divider)
+            await logger.ainfo(divider)
 
             try:
                 input_data = generate_input(flow_action)
-                detail_lines.append(f'Generated Input: {input_data}')
+                msg = f'Generated Input: {input_data}'
+                detail_lines.append(msg)
+                await logger.ainfo(msg)
 
                 # Run flow in subprocess to avoid event loop conflicts
                 # Get path to helper script
@@ -254,7 +250,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         if not is_debug and not is_noise:
                             # Also filter out empty lines or just markers
                             if line.strip():
-                                logger.info(f'  {line.rstrip()}')
+                                await logger.ainfo(f'  {line.rstrip()}')
 
                 process.wait(timeout=120)
 
@@ -269,8 +265,13 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         # Fallback try to parse the whole thing if markers missing (unlikely for success case)
                         result_data = json.loads(stdout)
                 except (json.JSONDecodeError, IndexError):
-                    detail_lines.append('Status: FAILED')
-                    detail_lines.append('Error: Failed to parse subprocess output')
+                    msg = 'Status: FAILED'
+                    detail_lines.append(msg)
+                    await logger.ainfo(msg)
+
+                    err = 'Error: Failed to parse subprocess output'
+                    detail_lines.append(err)
+                    await logger.ainfo(err)
 
                     # Print raw output for debugging since parsing failed
                     detail_lines.append('Raw Output:')
@@ -280,27 +281,46 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                     continue
 
                 if result_data.get('success'):
-                    detail_lines.append('Status: SUCCESS')
+                    msg = 'Status: SUCCESS'
+                    detail_lines.append(msg)
+                    await logger.ainfo(msg)
 
                     # Format the result
                     flow_result = result_data.get('result')
                     formatted_output = format_output(flow_result, max_length=500)
-                    detail_lines.append(f'Output: {formatted_output}')
+                    msg = f'Output: {formatted_output}'
+                    detail_lines.append(msg)
+                    await logger.ainfo(msg)
 
                     successful_flows.append(flow_name)
                 else:
-                    detail_lines.append('Status: FAILED')
+                    msg = 'Status: FAILED'
+                    detail_lines.append(msg)
+                    await logger.ainfo(msg)
+
                     error_msg = result_data.get('error', 'Unknown error')
-                    detail_lines.append(f'Error: {error_msg}')
+                    err = f'Error: {error_msg}'
+                    detail_lines.append(err)
+                    await logger.ainfo(err)
                     failed_flows.append(flow_name)
 
             except subprocess.TimeoutExpired:
-                detail_lines.append('Status: FAILED')
-                detail_lines.append('Error: Flow execution timed out (120s)')
+                msg = 'Status: FAILED'
+                detail_lines.append(msg)
+                await logger.ainfo(msg)
+
+                err = 'Error: Flow execution timed out (120s)'
+                detail_lines.append(err)
+                await logger.ainfo(err)
                 failed_flows.append(flow_name)
             except Exception as e:
-                detail_lines.append('Status: FAILED')
-                detail_lines.append(f'Error: Subprocess failed: {e}')
+                msg = 'Status: FAILED'
+                detail_lines.append(msg)
+                await logger.ainfo(msg)
+
+                err = f'Error: Subprocess failed: {e}'
+                detail_lines.append(err)
+                await logger.ainfo(err)
                 failed_flows.append(flow_name)
 
                 # Add traceback for debugging
@@ -437,4 +457,4 @@ def generate_from_json_schema(schema: dict[str, Any]) -> Any:  # noqa: ANN401 - 
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
