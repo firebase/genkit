@@ -26,17 +26,18 @@ This directory contains sample applications demonstrating various Genkit feature
 │   │   hello                          │      WEB FRAMEWORKS (web-*)                      │
 │   │ provider-mistral-hello           │      ──────────────────────────                  │
 │   │ provider-huggingface-hello       │      ┌──────────────────────────────────┐        │
+│   │ provider-cohere-hello            │      │ web-endpoints-hello              │        │
 │   │ provider-observability-hello     │      │ web-flask-hello                  │        │
 │   │ provider-vertex-ai-model-garden  │      │ web-multi-server                 │        │
-│   │ provider-vertex-ai-rerank-eval    │      │ web-short-n-long                 │        │
+│   │ provider-vertex-ai-rerank-eval   │      │ web-short-n-long                 │        │
 │   │ provider-firestore-retriever     │      └──────────────────────────────────┘        │
 │   │ provider-google-genai-code-      │                                                   │
-│   │   execution                      │      OTHER                                       │
-│   │ provider-google-genai-context-   │      ─────                                       │
-│   │   caching                        │      ┌──────────────────────────────────┐        │
-│   │ provider-google-genai-vertexai-  │      │ dev-local-vectorstore-hello      │        │
-│   │   image                          │      └──────────────────────────────────┘        │
-│   │ provider-google-genai-media-     │                                                   │
+│   │   execution                      │                                                   │
+│   │ provider-google-genai-context-   │      OTHER                                       │
+│   │   caching                        │      ─────                                       │
+│   │ provider-google-genai-vertexai-  │      ┌──────────────────────────────────┐        │
+│   │   image                          │      │ dev-local-vectorstore-hello      │        │
+│   │ provider-google-genai-media-     │      └──────────────────────────────────┘        │
 │   │   models-demo                    │                                                   │
 │   │ provider-vertex-ai-vector-       │                                                   │
 │   │   search-bigquery                │                                                   │
@@ -77,6 +78,7 @@ cd py/samples/<sample-name>
 | **provider-cloudflare-workers-ai-hello** | cloudflare-workers-ai | Cloudflare Workers AI + OTLP telemetry |
 | **provider-mistral-hello** | mistral | Mistral models |
 | **provider-huggingface-hello** | huggingface | HuggingFace Inference API models |
+| **provider-cohere-hello** | cohere | Cohere models, embeddings, reranking |
 | **provider-vertex-ai-model-garden** | vertex-ai | Third-party models via Vertex AI Model Garden |
 | **provider-observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
 
@@ -111,6 +113,7 @@ cd py/samples/<sample-name>
 
 | Sample | Features | Description |
 |--------|----------|-------------|
+| **web-endpoints-hello** | FastAPI, Litestar, Quart, gRPC | REST + gRPC endpoints with multi-cloud deploy, auto-telemetry |
 | **web-flask-hello** | Flask | Flask HTTP endpoints with Genkit |
 | **web-multi-server** | Litestar, Starlette | Multiple Genkit servers |
 | **web-short-n-long** | ASGI | ASGI deployment with long-running flows |
@@ -126,13 +129,14 @@ cd py/samples/<sample-name>
 The table below tracks which capabilities each model provider sample exercises.
 This is a living document — update it as new flows are added to samples.
 
-> **Last audited**: 2026-02-07
+> **Last audited**: 2026-02-08
 
 | Sample | Basic | Stream | Tools | Struct | Vision | Embed | Code | Reasoning | TTS | Cache | PDF |
 |--------|:-----:|:------:|:-----:|:------:|:------:|:-----:|:----:|:---------:|:---:|:-----:|:---:|
 | **provider-amazon-bedrock-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | **provider-anthropic-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ✅ | ✅ |
 | **provider-cloudflare-workers-ai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| **provider-cohere-hello** | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — |
 | **provider-compat-oai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | — |
 | **provider-deepseek-hello** | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | — | — | — |
 | **provider-google-genai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
@@ -168,6 +172,7 @@ Most samples require environment variables for API keys. Configure these before 
 | `XAI_API_KEY` | provider-xai-hello | Yes | xAI API key | [xAI Console](https://console.x.ai/) |
 | `CLOUDFLARE_ACCOUNT_ID` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare account ID | [Cloudflare Dashboard](https://dash.cloudflare.com/) |
 | `CLOUDFLARE_API_TOKEN` | provider-cloudflare-workers-ai-hello | Yes | Cloudflare API token | [Cloudflare API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) |
+| `COHERE_API_KEY` | provider-cohere-hello | Yes | Cohere API key | [Cohere Dashboard](https://dashboard.cohere.com/api-keys) |
 
 *Can use IAM roles, managed identity, or other credential providers instead.
 
@@ -269,9 +274,85 @@ export GRAFANA_API_KEY="glc_..."
 
 # Axiom (provider-observability-hello)
 export AXIOM_TOKEN="xaat-..."
+
+# Cohere (provider-cohere-hello)
+export COHERE_API_KEY="..."
 ```
 
 Each sample's README.md contains specific environment requirements.
+
+## Cross-Language Sample Parity
+
+> **Last audited**: 2026-02-08
+
+The table below compares sample coverage across Python and JavaScript SDKs.
+Python currently has **33 samples/testapps** covering more provider diversity
+than JavaScript's **32 testapps + 9 top-level samples**.
+
+### Parity Status
+
+| JS Testapp / Sample | Python Equivalent | Status |
+|---------------------|-------------------|:------:|
+| `basic-gemini` | `provider-google-genai-hello` | ✅ |
+| `anthropic` | `provider-anthropic-hello` | ✅ |
+| `ollama` | `provider-ollama-hello` | ✅ |
+| `compat-oai` | `provider-compat-oai-hello` | ✅ |
+| `prompt-file` | `framework-prompt-demo` | ✅ |
+| `context-caching` | `provider-google-genai-context-caching` | ✅ |
+| `custom-evaluators`, `evals` | `framework-evaluator-demo` | ✅ |
+| `format-tester` | `framework-format-demo` | ✅ |
+| `express` | `web-flask-hello` | ✅ |
+| `vertexai-vector-search-bigquery` | `provider-vertex-ai-vector-search-bigquery` | ✅ |
+| `vertexai-vector-search-firestore` | `provider-vertex-ai-vector-search-firestore` | ✅ |
+| `vertexai-modelgarden` | `provider-vertex-ai-model-garden` | ✅ |
+| `vertexai-reranker` | `provider-vertex-ai-rerank-eval` | ✅ |
+| `menu`, `docs-menu-rag` | `framework-restaurant-demo` | ✅ |
+| `multimodal` | `provider-google-genai-media-models-demo` | ✅ |
+| `mcp` | — | ❌ |
+| `multiagents-demo` | — | ❌ |
+| `rag` | — | ❌ |
+| `dev-ui-gallery` | — | 🟡 |
+| `durable-streaming` | — | 🟡 |
+| `firebase-functions-sample1` | — | 🟡 |
+| `next`, `esm` | — | 🟡 |
+| `model-armor` | — | 🟡 |
+| `model-tester` | — | 🟡 |
+| `js-chatbot`, `js-coffee-shop`, etc. | — | 🟡 |
+
+**Legend**: ✅ = parity achieved, ❌ = gap (should port), 🟡 = low priority or JS-specific
+
+### Python-Only Samples (No JS Equivalent)
+
+Python has significantly broader provider and framework coverage:
+
+| Python Sample | Category |
+|---------------|----------|
+| `provider-amazon-bedrock-hello` | Model provider |
+| `provider-microsoft-foundry-hello` | Model provider |
+| `provider-deepseek-hello` | Model provider |
+| `provider-xai-hello` | Model provider |
+| `provider-cloudflare-workers-ai-hello` | Model provider |
+| `provider-mistral-hello` | Model provider |
+| `provider-huggingface-hello` | Model provider |
+| `provider-observability-hello` | Telemetry (5 backends) |
+| `provider-firestore-retriever` | Vector store |
+| `provider-cohere-hello` | Model provider |
+| `provider-google-genai-vertexai-image` | Image generation |
+| `framework-middleware-demo` | Framework |
+| `framework-realtime-tracing-demo` | Framework |
+| `framework-context-demo` | Framework |
+| `framework-dynamic-tools-demo` | Framework |
+| `web-multi-server` | Web (Litestar + Starlette) |
+| `web-short-n-long` | Web (ASGI long-running) |
+| `genkit-chat` (testapp) | Full-stack testapp |
+
+### Gaps to Close (Prioritized)
+
+| Priority | Sample to Create | JS Reference | Why |
+|:--------:|------------------|--------------|-----|
+| 🔴 High | `framework-multiagent-demo` | `multiagents-demo` | Multi-agent orchestration with handoffs is a flagship feature |
+| 🟡 Medium | `framework-mcp-demo` | `mcp` | Python has the MCP plugin but no sample demonstrating it |
+| 🟡 Medium | `framework-rag-demo` | `rag` | End-to-end RAG pipeline (index → embed → retrieve → generate) |
 
 ## Creating New Samples
 

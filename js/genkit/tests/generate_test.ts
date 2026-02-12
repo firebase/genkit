@@ -1530,5 +1530,44 @@ describe('generate', () => {
         action: '/background-model/bkg-model',
       });
     });
+
+    it('cancels operation', async () => {
+      const newOp = {
+        id: '123',
+        done: true,
+        output: {
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [{ text: 'cancelled' }],
+          },
+        },
+      } as Operation;
+
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return operation;
+        },
+        async cancel(operation) {
+          return { ...newOp };
+        },
+      });
+
+      const operation = await ai.cancelOperation({
+        action: '/background-model/bkg-model',
+        id: '123',
+      });
+
+      assert.deepStrictEqual(operation, {
+        ...newOp,
+        action: '/background-model/bkg-model',
+      });
+    });
   });
 });

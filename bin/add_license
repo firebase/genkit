@@ -59,4 +59,7 @@ fi
   -ignore '**/pnpm-lock.yaml' \
   -ignore '.nx/**/*' \
   -ignore '.trunk/**/*' \
+  -ignore '**/site/**/*' \
+  -ignore '**/generated/*_pb2.py' \
+  -ignore '**/generated/*_pb2_grpc.py' \
   "$TOP_DIR"

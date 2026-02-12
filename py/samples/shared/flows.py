@@ -23,9 +23,12 @@ Provider-specific flow logic stays in each sample's main.py.
 
 from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
+
+logger = get_logger(__name__)
 
 
 async def calculation_logic(ai: Genkit, input: CalculatorInput, model: str | None = None) -> str:
@@ -104,24 +107,40 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
     Returns:
         The generated RPG character.
     """
+    # Example schema hint for models that don't fully support constrained JSON output
+    schema_hint = """
+        Example output:
+        {
+            "name": "<character_name>",
+            "backStory": "<character_backStory>",
+            "abilities": ["<character_ability1>", "<character_ability2>"],
+            "skills": {
+                "strength": <character_strength>,
+                "charisma": <character_charisma>,
+                "endurance": <character_endurance>
+            }
+        }
+    """
     result = await ai.generate(
-        prompt=f'Generate a structured RPG character named {name}. Output ONLY the JSON object.',
+        prompt=f'Generate a RPG character named {name}.\n{schema_hint}',
         output=Output(schema=RpgCharacter),
     )
     return result.output
 
 
-async def generate_code_logic(ai: Genkit, task: str) -> str:
+async def generate_code_logic(ai: Genkit, task: str, model: str | None = None) -> str:
     """Generate code for a given task.
 
     Args:
         ai: The Genkit instance.
         task: Coding task description.
+        model: Optional model override for provider-specific code models.
 
     Returns:
         Generated code.
     """
     response = await ai.generate(
+        model=model,
         prompt=task,
         system='You are an expert programmer. Provide clean, well-documented code with explanations.',
     )
@@ -299,3 +318,77 @@ async def solve_reasoning_problem_logic(ai: Genkit, prompt: str, model: str | No
         prompt=prompt,
     )
     return response.text
+
+
+async def translate_text_logic(
+    ai: Genkit,
+    text: str,
+    target_language: str,
+    model: str | None = None,
+) -> str:
+    """Translate text to a target language.
+
+    Args:
+        ai: The Genkit instance.
+        text: Text to translate.
+        target_language: Target language name (e.g. "French").
+        model: Optional model override for provider-specific translation models.
+
+    Returns:
+        The translated text.
+    """
+    response = await ai.generate(
+        model=model,
+        prompt=f'Translate the following text to {target_language}:\n{text}',
+        system=f'You are a professional translator. Output only the {target_language} translation, nothing else.',
+    )
+    return response.text
+
+
+async def chat_flow_logic(
+    ai: Genkit,
+    system_prompt: str,
+    prompt1: str,
+    followup_question: str,
+    final_question: str,
+) -> str:
+    """Run a 3-turn conversation demonstrating context retention.
+
+    Args:
+        ai: The Genkit instance.
+        system_prompt: System prompt for all turns.
+        prompt1: First user message that sets context.
+        followup_question: Second turn question requiring first-turn context.
+        final_question: Third turn question building on prior context.
+
+    Returns:
+        The model's response to the final question.
+    """
+    history: list[Message] = []
+
+    response1 = await ai.generate(prompt=prompt1, system=system_prompt)
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=prompt1))]))
+    if response1.message:
+        history.append(response1.message)
+    await logger.ainfo('chat_flow turn 1', result=response1.text)
+
+    response2 = await ai.generate(
+        messages=[
+            *history,
+            Message(role=Role.USER, content=[Part(root=TextPart(text=followup_question))]),
+        ],
+        system=system_prompt,
+    )
+    history.append(Message(role=Role.USER, content=[Part(root=TextPart(text=followup_question))]))
+    if response2.message:
+        history.append(response2.message)
+    await logger.ainfo('chat_flow turn 2', result=response2.text)
+
+    response3 = await ai.generate(
+        messages=[
+            *history,
+            Message(role=Role.USER, content=[Part(root=TextPart(text=final_question))]),
+        ],
+        system=system_prompt,
+    )
+    return response3.text

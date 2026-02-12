@@ -37,6 +37,7 @@
 #  16. IDE autocomplete - No broad "type: ignore" comments
 #  17. Python version classifiers (3.10-3.14)
 #  18. Namespace package __init__.py (plugins must not have __init__.py in genkit/ or genkit/plugins/)
+#  19. Test file basename uniqueness (no duplicate basenames across test directories)
 
 set -euo pipefail
 
@@ -58,7 +59,7 @@ PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$PY_DIR"
 
 # Total number of checks
-TOTAL_CHECKS=18
+TOTAL_CHECKS=20
 
 echo -e "${BLUE}=== Genkit Python Consistency Checks ===${NC}"
 echo ""
@@ -173,7 +174,8 @@ done
 
 # Check samples are in sources
 for d in samples/*/; do
-  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ]; then
+  name=$(basename "$d")
+  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ] && [ "$name" != "sample-test" ]; then
     pkg=$(grep '^name' "$d/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
     if ! echo "$sources_content" | grep -q "^$pkg$"; then
       echo -e "  ${RED}MISSING${NC}: Sample '$pkg' not in [tool.uv.sources]"
@@ -388,7 +390,8 @@ echo -e "${BLUE}[12/$TOTAL_CHECKS] Checking sample run.sh scripts...${NC}"
 runsh_missing=0
 
 for d in samples/*/; do
-  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ]; then
+  name=$(basename "$d")
+  if [ -d "$d" ] && [ -f "$d/pyproject.toml" ] && [ "$name" != "sample-test" ]; then
     if [ ! -f "$d/run.sh" ]; then
       sample_name=$(basename "$d")
       echo -e "  ${YELLOW}WARNING${NC}: samples/$sample_name/ is missing run.sh"
@@ -599,6 +602,79 @@ else
 fi
 echo ""
 
+# -----------------------------------------------------------------------------
+# Check 19: Test File Basename Uniqueness
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[19/$TOTAL_CHECKS] Checking test file basename uniqueness...${NC}"
+basename_errors=0
+
+# Common exclusion arguments for find — shared across invocations
+# to avoid repetition and keep the exclusion list in sync.
+FIND_EXCLUDE_ARGS=(
+  -not -path './.tox/*'
+  -not -path './.venv/*'
+  -not -path '*/__pycache__/*'
+  -not -path '*/node_modules/*'
+  -not -path './.gemini/*'
+)
+
+# Single find pass: collect all test file paths.
+all_test_paths=$(
+  find . -name '*_test.py' "${FIND_EXCLUDE_ARGS[@]}" 2>/dev/null
+)
+
+# Extract basenames and find duplicates.
+duplicates=$(
+  echo "$all_test_paths" \
+  | while read -r p; do basename "$p"; done \
+  | sort \
+  | uniq -d
+)
+
+if [ -n "$duplicates" ]; then
+  for dup in $duplicates; do
+    echo -e "  ${RED}COLLISION${NC}: '$dup' exists in multiple locations:"
+    echo "$all_test_paths" | grep "/${dup}$" | while read -r loc; do
+      echo -e "    - $loc"
+    done
+    basename_errors=$((basename_errors + 1))
+  done
+  ERRORS=$((ERRORS + basename_errors))
+else
+  echo -e "  ${GREEN}✓${NC} All test file basenames are unique"
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 20: CHANGELOG.md Files Exist
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[20/$TOTAL_CHECKS] Checking CHANGELOG.md files exist...${NC}"
+changelog_missing=0
+
+
+# Check core package
+if [ ! -f "packages/genkit/CHANGELOG.md" ]; then
+  echo -e "  ${YELLOW}WARNING${NC}: packages/genkit/ is missing CHANGELOG.md"
+  WARNINGS=$((WARNINGS + 1))
+  changelog_missing=$((changelog_missing + 1))
+fi
+
+# Check plugins
+for d in plugins/*/; do
+  if [ -d "$d" ] && [ ! -f "$d/CHANGELOG.md" ]; then
+    pkg_name=$(basename "$d")
+    echo -e "  ${YELLOW}WARNING${NC}: plugins/$pkg_name/ is missing CHANGELOG.md"
+    WARNINGS=$((WARNINGS + 1))
+    changelog_missing=$((changelog_missing + 1))
+  fi
+done
+
+if [ $changelog_missing -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All publishable packages have CHANGELOG.md files"
+else
+  echo -e "  ${YELLOW}!${NC} Some packages are missing CHANGELOG.md files (warnings only)"
+fi
+echo ""
 # -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------

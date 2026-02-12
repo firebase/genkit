@@ -668,6 +668,13 @@ export class Genkit extends GenerateAPI implements HasRegistry {
     plugins.forEach((plugin) => {
       if (isPluginV2(plugin)) {
         logger.debug(`Registering v2 plugin ${plugin.name}...`);
+        plugin.generateMiddleware?.()?.forEach((middleware) => {
+          activeRegistry.registerValue(
+            'middleware',
+            middleware.name,
+            middleware
+          );
+        });
         activeRegistry.registerPluginProvider(plugin.name, {
           name: plugin.name,
           async initializer() {
@@ -676,14 +683,6 @@ export class Genkit extends GenerateAPI implements HasRegistry {
             const resolvedActions = await plugin.init();
             resolvedActions?.forEach((resolvedAction) => {
               registerActionV2(activeRegistry, resolvedAction, plugin);
-            });
-            const definedMiddleware = plugin.generateMiddleware?.();
-            definedMiddleware?.forEach((middleware) => {
-              activeRegistry.registerValue(
-                'middleware',
-                middleware.name,
-                middleware
-              );
             });
           },
           async resolver(action: ActionType, target: string) {

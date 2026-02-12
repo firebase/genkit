@@ -20,9 +20,11 @@ This module provides the model implementation for Hugging Face,
 using the huggingface_hub InferenceClient.
 """
 
+from __future__ import annotations
+
 import json
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from huggingface_hub import InferenceClient
 from pydantic import BaseModel, Field
@@ -50,6 +52,9 @@ from genkit.plugins.huggingface.model_info import (
 )
 
 HUGGINGFACE_PLUGIN_NAME = 'huggingface'
+
+# JSON value that can appear in a JSON Schema tree.
+JSONValue = dict[str, 'JSONValue'] | list['JSONValue'] | str | int | float | bool | None
 
 
 def huggingface_name(name: str) -> str:
@@ -110,7 +115,10 @@ class HuggingFaceModel:
         """
         self.name = model
         self.provider = provider
-        self.client = InferenceClient(token=token, **hf_params)
+        # cast: provider is a free-form str at our API boundary, but
+        # huggingface_hub annotates it as a Literal union.  At runtime any
+        # string is accepted.
+        self.client = InferenceClient(token=token, provider=cast(Any, provider), **hf_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieve metadata and supported features for the specified model.
@@ -219,24 +227,92 @@ class HuggingFaceModel:
             })
         return hf_tools
 
+    @staticmethod
+    def _resolve_schema_refs(schema: dict[str, Any]) -> dict[str, Any]:
+        """Resolve all ``$ref`` pointers in a JSON Schema, inlining ``$defs``.
+
+        The HuggingFace router (and most OpenAI-compatible backends) does
+        **not** support ``$ref`` / ``$defs`` in ``response_format`` schemas.
+        Pydantic's ``model_json_schema()`` emits these for any nested model,
+        so we must inline them before sending the request.
+
+        The algorithm performs a depth-first walk of the schema tree.  Every
+        ``{"$ref": "#/$defs/Foo"}`` node is replaced with a deep copy of the
+        corresponding definition, and the top-level ``$defs`` key is removed
+        from the result.
+
+        Args:
+            schema: A JSON Schema dict, potentially containing ``$defs``
+                    and ``$ref`` entries.
+
+        Returns:
+            A new schema dict with all references fully resolved and the
+            ``$defs`` key removed.  The input dict is not mutated.
+        """
+        defs: dict[str, Any] = schema.get('$defs', {})
+        if not defs:
+            return schema
+
+        def _resolve(node: JSONValue) -> JSONValue:
+            """Recursively resolve ``$ref`` in *node*."""
+            if isinstance(node, dict):
+                ref = node.get('$ref')
+                if ref and isinstance(ref, str) and ref.startswith('#/$defs/'):
+                    def_name = ref[len('#/$defs/') :]
+                    if def_name in defs:
+                        # Recurse into the definition itself (it may
+                        # contain further ``$ref`` entries).
+                        return _resolve(defs[def_name])
+                    # Unknown $ref — return as-is so the backend can
+                    # surface its own error rather than silently dropping.
+                    return node
+                return {k: _resolve(v) for k, v in node.items() if k != '$defs'}
+            if isinstance(node, list):
+                return [_resolve(item) for item in node]
+            return node
+
+        # _resolve preserves the top-level dict structure; cast to satisfy
+        # the declared return type.
+        return cast(dict[str, Any], _resolve(schema))
+
     def _get_response_format(self, output: OutputConfig) -> dict[str, Any] | None:
         """Get response format configuration for structured output.
+
+        The HuggingFace Inference API router (``router.huggingface.co``)
+        uses the OpenAI-compatible chat completion format:
+
+        - ``{'type': 'json_object'}`` for basic JSON mode (valid JSON,
+          no schema enforcement).
+        - ``{'type': 'json_schema', 'json_schema': {...}}`` for
+          Structured Outputs that must conform to a specific schema.
+
+        Schemas produced by Pydantic often contain ``$ref`` / ``$defs``
+        for nested models.  These are resolved (inlined) before being
+        sent to the API because the HuggingFace router does not support
+        JSON Schema references.
 
         Args:
             output: Output configuration specifying desired format.
 
         Returns:
-            Response format dict for HF API, or None for default.
+            Response format dict for the HF chat completion API, or None
+            for plain-text output.
         """
         if output.format == 'json':
             if output.schema:
-                # Use JSON schema mode for structured output
+                # Inline any $ref/$defs so the backend receives a
+                # self-contained schema without references.
+                resolved = self._resolve_schema_refs(output.schema)
                 return {
-                    'type': 'json',
-                    'value': output.schema,
+                    'type': 'json_schema',
+                    'json_schema': {
+                        'name': resolved.get('title', 'Response'),
+                        'schema': resolved,
+                        'strict': True,
+                    },
                 }
-            # Use basic JSON mode
-            return {'type': 'json'}
+            # Use basic JSON object mode (valid JSON, no schema).
+            return {'type': 'json_object'}
         return None
 
     async def generate(
@@ -260,10 +336,6 @@ class HuggingFaceModel:
             'model': self.name,
             'messages': messages,
         }
-
-        # Add provider if specified
-        if self.provider:
-            params['provider'] = self.provider
 
         # Add tools if provided
         if request.tools:
@@ -292,13 +364,20 @@ class HuggingFaceModel:
                     params['max_tokens'] = config['max_tokens']
                 if config.get('top_p') is not None:
                     params['top_p'] = config['top_p']
-                if config.get('top_k') is not None:
-                    params['top_k'] = config['top_k']
                 if config.get('seed') is not None:
                     params['seed'] = config['seed']
-                # Override provider from config if specified
-                if config.get('provider') is not None:
-                    params['provider'] = config['provider']
+                # top_k and repetition_penalty are not standard
+                # chat_completion params; pass via extra_body for
+                # providers that support them.
+                extra: dict[str, Any] = {}
+                if config.get('top_k') is not None:
+                    extra['top_k'] = config['top_k']
+                if config.get('repetition_penalty') is not None:
+                    extra['repetition_penalty'] = config['repetition_penalty']
+                if extra:
+                    params['extra_body'] = extra
+                # Note: provider is set at InferenceClient construction
+                # time and cannot be overridden per-request.
 
         # Handle streaming
         if ctx and ctx.send_chunk:

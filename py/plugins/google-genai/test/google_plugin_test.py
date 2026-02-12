@@ -137,7 +137,7 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
     m1.description = ' Gemini Pro '
 
     m2 = MagicMock()
-    m2.name = 'models/text-embedding-004'
+    m2.name = 'models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
     m2.description = ' Embedding '
 
@@ -264,7 +264,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
 
     models_return_value = [
         MockModel(supported_actions=['generateContent'], name='models/gemini-pro'),
-        MockModel(supported_actions=['embedContent'], name='models/text-embedding-004'),
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
         MockModel(supported_actions=['generateContent'], name='models/gemini-2.0-flash-tts'),  # TTS
     ]
 
@@ -279,7 +279,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     assert action1 is not None
 
     # Check Embedder
-    action2 = next(a for a in result if a.name == googleai_name('text-embedding-004'))
+    action2 = next(a for a in result if a.name == googleai_name('gemini-embedding-001'))
     assert action2 is not None
     assert action2.kind == ActionKind.EMBEDDER
 
@@ -490,7 +490,7 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     m1.supported_actions = ['generateContent']
 
     m2 = MagicMock()
-    m2.name = 'publishers/google/models/text-embedding-004'
+    m2.name = 'publishers/google/models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
 
     plugin._client.models.list.return_value = [m1, m2]  # type: ignore
@@ -661,7 +661,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
 
     [
         MockModel(name='publishers/google/models/gemini-1.5-flash'),
-        MockModel(name='publishers/google/models/text-embedding-004'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
         MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
         MockModel(name='publishers/google/models/veo-2.0-generate-001'),
     ]
@@ -674,7 +674,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     m1.description = 'Gemini model'
 
     m2 = MagicMock()
-    m2.name = 'publishers/google/models/text-embedding-004'
+    m2.name = 'publishers/google/models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
     m2.description = 'Embedder'
 
@@ -698,7 +698,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     assert action1 is not None
 
     # Verify Embedder
-    action2 = next(a for a in result if a.name == vertexai_name('text-embedding-004'))
+    action2 = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
     assert action2 is not None
 
     # Verify Imagen

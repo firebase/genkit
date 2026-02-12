@@ -40,11 +40,17 @@ from genkit.plugins.microsoft_foundry import (
     gpt4o,
     microsoft_foundry_model,
 )
+from genkit.plugins.microsoft_foundry.models.converters import (
+    extract_text,
+    normalize_config,
+    to_openai_role,
+)
 from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
 from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
 from genkit.types import (
     GenerateRequest,
     Message,
+    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -178,51 +184,36 @@ class TestMicrosoftFoundryModel:
 
     def test_normalize_config_with_none(self) -> None:
         """Test config normalization with None input."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
-        config = model._normalize_config(None)
+        config = normalize_config(None)
         assert isinstance(config, MicrosoftFoundryConfig)
 
     def test_normalize_config_with_microsoft_foundry_config(self) -> None:
         """Test config normalization with MicrosoftFoundryConfig input."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         input_config = MicrosoftFoundryConfig(temperature=0.5, max_tokens=100)
-        config = model._normalize_config(input_config)
+        config = normalize_config(input_config)
         assert config.temperature == 0.5
         assert config.max_tokens == 100
 
     def test_normalize_config_with_dict(self) -> None:
         """Test config normalization with dict input (camelCase keys)."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         input_config = {'temperature': 0.8, 'maxTokens': 200, 'topP': 0.9}
-        config = model._normalize_config(input_config)
+        config = normalize_config(input_config)
         assert config.temperature == 0.8
         assert config.max_tokens == 200
         assert config.top_p == 0.9
 
     def test_to_openai_role_conversion(self) -> None:
         """Test role conversion from Genkit to OpenAI format."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
-        assert model._to_openai_role(Role.USER) == 'user'
-        assert model._to_openai_role(Role.MODEL) == 'assistant'
-        assert model._to_openai_role(Role.SYSTEM) == 'system'
-        assert model._to_openai_role(Role.TOOL) == 'tool'
+        assert to_openai_role(Role.USER) == 'user'
+        assert to_openai_role(Role.MODEL) == 'assistant'
+        assert to_openai_role(Role.SYSTEM) == 'system'
+        assert to_openai_role(Role.TOOL) == 'tool'
         # Test string roles
-        assert model._to_openai_role('user') == 'user'
-        assert model._to_openai_role('model') == 'assistant'
+        assert to_openai_role('user') == 'user'
+        assert to_openai_role('model') == 'assistant'
 
     def test_extract_text_from_message(self) -> None:
         """Test text extraction from a message."""
-        mock_client = MagicMock()
-        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
-
         msg = Message(
             role=Role.USER,
             content=[
@@ -230,7 +221,7 @@ class TestMicrosoftFoundryModel:
                 Part(root=TextPart(text='world!')),
             ],
         )
-        text = model._extract_text(msg)
+        text = extract_text(msg)
         assert text == 'Hello world!'
 
     @pytest.mark.asyncio
@@ -272,6 +263,60 @@ class TestMicrosoftFoundryModel:
         assert response.usage is not None
         assert response.usage.input_tokens == 10
         assert response.usage.output_tokens == 8
+
+    def test_build_request_body_json_schema_format(self) -> None:
+        """Test that structured output uses json_schema format with schema."""
+        mock_client = AsyncMock()
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
+
+        schema = {
+            'title': 'RpgCharacter',
+            'type': 'object',
+            'properties': {
+                'name': {'type': 'string'},
+                'backstory': {'type': 'string'},
+            },
+            'required': ['name', 'backstory'],
+        }
+
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Generate a character'))],
+                )
+            ],
+            output=OutputConfig(format='json', schema=schema),
+        )
+
+        config = normalize_config(None)
+        body = model._build_request_body(request, config)
+
+        # Must use json_schema format when schema is provided
+        assert body['response_format']['type'] == 'json_schema'
+        assert body['response_format']['json_schema']['name'] == 'RpgCharacter'
+        assert body['response_format']['json_schema']['strict'] is True
+        assert 'schema' in body['response_format']['json_schema']
+
+    def test_build_request_body_json_object_without_schema(self) -> None:
+        """Test that JSON mode without schema uses json_object format."""
+        mock_client = AsyncMock()
+        model = MicrosoftFoundryModel(model_name='gpt-4o', client=mock_client)
+
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Give me JSON'))],
+                )
+            ],
+            output=OutputConfig(format='json'),
+        )
+
+        config = normalize_config(None)
+        body = model._build_request_body(request, config)
+
+        assert body['response_format'] == {'type': 'json_object'}
 
 
 class TestMicrosoftFoundryEmbed:

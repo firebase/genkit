@@ -104,6 +104,16 @@ from samples.shared.logging import setup_sample
 
 setup_sample()
 
+# Initialize Genkit instance at module level for test discovery
+g = Genkit(plugins=[])
+
+
+@g.flow()
+async def multi_server_flow(name: str = 'World') -> str:
+    """A sample flow for multi-server demo."""
+    return f'Hello from multi-server, {name}!'
+
+
 # TODO(#4368): Logging middleware > log ALL access requests and fix dups
 # TODO(#4368): Logging middleware > access requests different color for each server.
 # TODO(#4368): Logging middleware > show the METHOD and path first and then the structure.
@@ -112,6 +122,7 @@ setup_sample()
 # TODO(#4369): Logger > default configuration and console output and json output
 # TODO(#4370): Add opentelemetry integration
 # TODO(#4371): replace 'requests' with 'aiohttp' or 'httpx' in genkit
+
 
 logging_config = LoggingConfig(
     loggers={
@@ -337,13 +348,6 @@ async def add_server_after(mgr: ServerManager, server: Server, delay: float) -> 
 
 async def main() -> None:
     """Entry point function."""
-    g = Genkit(plugins=[])
-
-    @g.flow()
-    async def multi_server_flow(name: str) -> str:
-        """A sample flow for multi-server demo."""
-        return f'Hello from multi-server, {name}!'
-
     servers = [
         Server(
             config=ServerConfig(

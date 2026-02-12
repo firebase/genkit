@@ -84,6 +84,34 @@ Key Features
 | URL Context                                              | `url_context`                          |
 | Multimodal Generation (Video input)                      | `youtube_videos`                       |
 | Context Propagation                                      | `context_demo`                         |
+
+Edge Cases
+==========
+The following edge cases were discovered during testing and are worth noting:
+
+1. **Tool inputs must be Pydantic models, not bare primitives.**
+   LLMs always send tool arguments as JSON objects with named keys (e.g.
+   ``{'celsius': 21.5}``). A tool with a bare ``float`` input generates
+   a ``{'type': 'number'}`` schema that doesn't match the object the model
+   sends, causing a validation ``TypeError``. Always wrap tool inputs in a
+   ``BaseModel``. See ``CelsiusInput`` below.
+
+2. **YouTube URLs are natively resolved by the Gemini API.**
+   Do not try to download YouTube video URLs — the HTTP response is an HTML
+   page, not raw video. The Gemini API resolves YouTube URLs server-side
+   when passed as ``file_data`` with the original URL. The plugin handles
+   this automatically via ``_GEMINI_NATIVE_HOSTS``.
+
+3. **Use ``gemini-embedding-001``, not ``text-embedding-004``.**
+   The ``text-embedding-004`` model returns ``404 NOT_FOUND`` on the
+   ``v1beta`` API endpoint with an API key. Use ``gemini-embedding-001``
+   as the replacement.
+
+4. **``GoogleSearch`` vs ``GoogleSearchRetrieval``.**
+   The ``google.genai`` SDK's ``Tool.google_search`` field expects a
+   ``GoogleSearch`` object. The legacy ``GoogleSearchRetrieval`` type is
+   for the separate ``Tool.google_search_retrieval`` field. Mixing them
+   up produces a silent type mismatch warning.
 """
 
 import argparse
@@ -258,10 +286,16 @@ def get_weather_detailed(input_: WeatherInput) -> dict:
     }
 
 
+class CelsiusInput(BaseModel):
+    """Input for the Celsius to Fahrenheit conversion tool."""
+
+    celsius: float = Field(description='Temperature in Celsius to convert')
+
+
 @ai.tool(name='celsiusToFahrenheit')
-def celsius_to_fahrenheit(celsius: float) -> float:
+def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
     """Converts Celsius to Fahrenheit."""
-    return (celsius * 9) / 5 + 32
+    return (input_.celsius * 9) / 5 + 32
 
 
 @ai.tool()
@@ -636,7 +670,7 @@ async def embed_docs(
         docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     embeddings = await ai.embed_many(
-        embedder='googleai/text-embedding-004',
+        embedder='googleai/gemini-embedding-001',
         content=docs,
         options=options,
     )
