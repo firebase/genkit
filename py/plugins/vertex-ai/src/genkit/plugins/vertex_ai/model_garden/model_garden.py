@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import cast
 
 if typing.TYPE_CHECKING:
-    from openai import OpenAI
+    from openai import AsyncOpenAI
 
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -106,5 +106,5 @@ class ModelGarden:
             A callable function (specifically, the `generate` method of an
             `OpenAIModel` instance) that can be used by Genkit.
         """
-        openai_model = OpenAIModel(self.name, cast('OpenAI', self.client))
+        openai_model = OpenAIModel(self.name, cast('AsyncOpenAI', self.client))
         return openai_model.generate
