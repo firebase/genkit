@@ -686,6 +686,59 @@ class TestMessageConverterToOpenAI:
         assert isinstance(content, list)
         assert content[1]['image_url']['url'] == data_uri
 
+    def test_reasoning_part_stripped_from_assistant_message(self) -> None:
+        """ReasoningPart should be stripped when converting back to OpenAI format.
+
+        DeepSeek's API rejects reasoning_content in context messages. The JS
+        canonical implementation naturally excludes it by using msg.text (which
+        only returns text parts) for assistant messages. We must explicitly skip
+        ReasoningPart instances.
+        """
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part(root=ReasoningPart(reasoning='Let me think step by step...')),
+                Part(root=TextPart(text='The answer is 42.')),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert len(result) == 1
+        assert result[0] == {'role': 'assistant', 'content': 'The answer is 42.'}
+
+    def test_reasoning_only_message_produces_empty_result(self) -> None:
+        """A message with only ReasoningPart should produce an empty result.
+
+        This can happen when a DeepSeek R1 model returns only reasoning_content
+        without any text content. The reasoning must not be sent back.
+        """
+        message = Message(
+            role=Role.MODEL,
+            content=[
+                Part(root=ReasoningPart(reasoning='Let me think about this...')),
+            ],
+        )
+        result = MessageConverter.to_openai(message)
+        assert result == []
+
+    def test_multi_turn_with_reasoning_strips_all_reasoning(self) -> None:
+        """In a multi-turn conversation, all ReasoningParts should be stripped.
+
+        Simulates a multi-turn context where a previous assistant message
+        contained both reasoning and text content.
+        """
+        # Previous assistant message with reasoning + text
+        assistant_msg = Message(
+            role=Role.MODEL,
+            content=[
+                Part(root=ReasoningPart(reasoning='Step 1: analyze the question...')),
+                Part(root=ReasoningPart(reasoning='Step 2: formulate answer...')),
+                Part(root=TextPart(text='Paris is the capital of France.')),
+            ],
+        )
+        result = MessageConverter.to_openai(assistant_msg)
+        assert len(result) == 1
+        assert result[0] == {'role': 'assistant', 'content': 'Paris is the capital of France.'}
+
     def test_empty_message_produces_no_result(self) -> None:
         """A message with no content parts should produce an empty result."""
         message = Message(role=Role.USER, content=[])

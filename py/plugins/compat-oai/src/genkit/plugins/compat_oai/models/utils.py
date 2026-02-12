@@ -367,6 +367,13 @@ class MessageConverter:
         for part in message.content:
             root = part.root
 
+            # Skip ReasoningPart — reasoning_content must not be sent back
+            # in multi-turn context. DeepSeek's API rejects it, and the JS
+            # canonical implementation naturally excludes it by using msg.text
+            # (which only returns text parts) for assistant messages.
+            if isinstance(root, ReasoningPart):
+                continue
+
             if isinstance(root, TextPart):
                 content_parts.append({'type': 'text', 'text': root.text})
 
