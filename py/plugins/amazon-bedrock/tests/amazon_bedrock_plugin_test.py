@@ -24,6 +24,8 @@ This module tests the AWS Bedrock plugin functionality including:
 - Model info registry
 """
 
+from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -819,6 +821,22 @@ class TestAutoInferenceProfileConversion:
         assert model._get_effective_model_id() == 'unknown-provider.some-model-v1:0'
 
 
+class _AsyncIter(AsyncIterator[Any]):
+    """Wraps a list into an async iterator for mocking aioboto3 streams."""
+
+    def __init__(self, items: list[Any]) -> None:
+        self._items = iter(items)
+
+    def __aiter__(self) -> '_AsyncIter':
+        return self
+
+    async def __anext__(self) -> Any:  # noqa: ANN401
+        try:
+            return next(self._items)
+        except StopIteration:
+            raise StopAsyncIteration  # noqa: B904
+
+
 class TestStreamingToolUseParsing:
     """Regression tests for streaming tool use assembly.
 
@@ -846,7 +864,7 @@ class TestStreamingToolUseParsing:
         """Tool name and ref from contentBlockStart survive delta assembly."""
         # Simulate the ConverseStream event sequence for a tool call
         mock_client.converse_stream.return_value = {
-            'stream': [
+            'stream': _AsyncIter([
                 # 1. contentBlockStart: carries toolUseId and name
                 {
                     'contentBlockStart': {
@@ -897,7 +915,7 @@ class TestStreamingToolUseParsing:
                         }
                     }
                 },
-            ]
+            ])
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
