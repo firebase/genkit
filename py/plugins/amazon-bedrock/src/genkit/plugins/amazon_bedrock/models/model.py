@@ -365,7 +365,7 @@ class BedrockModel:
 
         # Process the event stream
         stream = response.get('stream', [])
-        for event in stream:
+        async for event in stream:
             # Handle content block delta (text chunks)
             if 'contentBlockDelta' in event:
                 delta = event['contentBlockDelta'].get('delta', {})
