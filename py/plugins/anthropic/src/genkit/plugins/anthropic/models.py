@@ -25,6 +25,7 @@ See:
 """
 
 import json
+import re
 from typing import Any
 
 from anthropic import AsyncAnthropic
@@ -57,6 +58,25 @@ from genkit.types import (
 logger = get_logger(__name__)
 
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
+
+
+def _to_anthropic_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Transform a JSON schema for Anthropic structured output.
+
+    Anthropic requires ``additionalProperties: false`` on all object
+    types.  This recursively adds it.
+
+    See:
+        https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
+    """
+    out = dict(schema)
+    out.pop('$schema', None)
+    if out.get('type') == 'object':
+        out['additionalProperties'] = False
+    for key, value in out.items():
+        if isinstance(value, dict):
+            out[key] = _to_anthropic_schema(value)
+    return out
 
 
 class AnthropicModel:
@@ -106,6 +126,7 @@ class AnthropicModel:
             response = await self.client.messages.create(**params)
 
         content = self._to_genkit_content(response.content)
+        content = self._maybe_strip_fences(request, content)
 
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -201,11 +222,18 @@ class AnthropicModel:
 
         # Handle JSON output constraint
         if request.output and request.output.format == 'json':
-            schema_str = json.dumps(request.output.schema, indent=2) if request.output.schema else ''
-            instruction = (
-                f'\n\nOutput valid JSON matching this schema:\n{schema_str}' if schema_str else '\n\nOutput valid JSON.'
-            )
-            system = (system or '') + instruction
+            if request.output.schema:
+                # Use native structured outputs via output_config.
+                params['output_config'] = {
+                    'format': {
+                        'type': 'json_schema',
+                        'schema': _to_anthropic_schema(request.output.schema),
+                    }
+                }
+            else:
+                # No schema — fall back to system prompt instruction.
+                instruction = '\n\nOutput valid JSON. Do not wrap the JSON in markdown code fences.'
+                system = (system or '') + instruction
 
         if system:
             params['system'] = system
@@ -231,17 +259,78 @@ class AnthropicModel:
         return params
 
     async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext) -> AnthropicMessage:
-        """Handle streaming generation."""
+        """Handle streaming generation.
+
+        Processes Anthropic streaming events including text deltas and
+        tool-use blocks.  Tool-use blocks arrive as:
+
+        1. ``content_block_start`` with ``content_block.type == 'tool_use'``
+        2. Zero or more ``content_block_delta`` with ``delta.type == 'input_json_delta'``
+        3. ``content_block_stop``
+
+        We track in-progress tool calls and emit a
+        :class:`GenerateResponseChunk` containing the tool request when
+        the block finishes.
+        """
+        # Track in-progress tool-use blocks by index.
+        pending_tools: dict[int, dict[str, Any]] = {}
+
         async with self.client.messages.stream(**params) as stream:
             async for chunk in stream:
-                if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            index=0,
-                            content=[Part(root=TextPart(text=str(chunk.delta.text)))],
+                if chunk.type == 'content_block_start' and hasattr(chunk, 'content_block'):
+                    block = chunk.content_block
+                    if getattr(block, 'type', None) == 'tool_use':
+                        idx = getattr(chunk, 'index', None)
+                        if idx is not None:
+                            pending_tools[idx] = {
+                                'id': getattr(block, 'id', ''),
+                                'name': getattr(block, 'name', ''),
+                                'input_json': '',
+                            }
+
+                elif chunk.type == 'content_block_delta' and hasattr(chunk, 'delta'):
+                    delta = chunk.delta
+                    if getattr(delta, 'type', None) == 'text_delta' and hasattr(delta, 'text'):
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                index=0,
+                                content=[Part(root=TextPart(text=str(delta.text)))],
+                            )
                         )
-                    )
+                    elif getattr(delta, 'type', None) == 'input_json_delta' and hasattr(delta, 'partial_json'):
+                        idx = getattr(chunk, 'index', None)
+                        if idx is not None and idx in pending_tools:
+                            pending_tools[idx]['input_json'] += delta.partial_json
+
+                elif chunk.type == 'content_block_stop':
+                    idx = getattr(chunk, 'index', None)
+                    if idx is not None and idx in pending_tools:
+                        tool_info = pending_tools.pop(idx)
+                        tool_input: object = {}
+                        if tool_info['input_json']:
+                            try:
+                                tool_input = json.loads(tool_info['input_json'])
+                            except (json.JSONDecodeError, TypeError):
+                                tool_input = tool_info['input_json']
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                index=0,
+                                content=[
+                                    Part(
+                                        root=ToolRequestPart(
+                                            tool_request=ToolRequest(
+                                                ref=tool_info['id'],
+                                                name=tool_info['name'],
+                                                input=tool_input,
+                                            )
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+
             return await stream.get_final_message()
 
     def _extract_system(self, messages: list[Message]) -> str | None:
@@ -311,6 +400,53 @@ class AnthropicModel:
                 'content': str(part.tool_response.output),
             }
         return None
+
+    @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        r"""Strip markdown code fences from a JSON response.
+
+        Anthropic models sometimes wrap JSON output in markdown fences
+        like ``\`\`\`json ... \`\`\``` even when instructed to output
+        valid JSON.  This helper removes the fences so downstream
+        consumers receive valid JSON.
+
+        Args:
+            text: The response text, possibly wrapped in fences.
+
+        Returns:
+            The text with markdown fences removed, or the original
+            text if no fences are found.
+        """
+        stripped = text.strip()
+        match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text
+
+    def _maybe_strip_fences(self, request: GenerateRequest, parts: list[Part]) -> list[Part]:
+        """Strip markdown fences from text parts when JSON output is expected.
+
+        Args:
+            request: The original generate request.
+            parts: The response content parts.
+
+        Returns:
+            Parts with fences stripped from text if JSON was requested.
+        """
+        if not request.output or request.output.format != 'json':
+            return parts
+
+        cleaned: list[Part] = []
+        for part in parts:
+            if isinstance(part.root, TextPart) and part.root.text:
+                cleaned_text = self._strip_markdown_fences(part.root.text)
+                if cleaned_text != part.root.text:
+                    cleaned.append(Part(root=TextPart(text=cleaned_text)))
+                else:
+                    cleaned.append(part)
+            else:
+                cleaned.append(part)
+        return cleaned
 
     def _to_genkit_content(self, content_blocks: list[Any]) -> list[Part]:
         """Convert Anthropic response to Genkit format."""
