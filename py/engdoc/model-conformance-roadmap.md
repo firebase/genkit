@@ -187,6 +187,24 @@ phase are independent and should run in parallel** for fastest completion.
 |------|-------------|------------|---------|--------|
 | `runner-script` | Shell script to orchestrate per-plugin conformance test runs | All Phase 1 tasks | `py/bin/test-model-conformance` | ✅ Done |
 
+### Phase 2.5: Spec Audit + Model Updates ✅ COMPLETE
+
+| Task | Description | File(s) | Status |
+|------|-------------|---------|--------|
+| `audit-specs` | Verified all 11 plugin specs against official provider documentation (Feb 11, 2026). Fixed model names, corrected Supports flags, added missing models. Total: 24 models across 11 plugins. | All `model-conformance.yaml` files | ✅ Done |
+
+**Changes made during audit:**
+
+| Plugin | Before | After | Changes |
+|--------|--------|-------|---------|
+| **anthropic** | 2 models | 4 models | Added claude-sonnet-4-5, claude-opus-4-6 |
+| **deepseek** | 1 model (no structured-output) | 2 models | Added structured-output to chat, added deepseek-reasoner (no tools) |
+| **xai** | 1 model (grok-3, legacy) | 2 models | Replaced grok-3 → grok-4-fast-non-reasoning, added grok-2-vision-1212 |
+| **mistral** | 1 model (no vision) | 2 models | Added vision tests, added mistral-large-latest |
+| **amazon-bedrock** | Missing structured-output | Fixed | Added structured-output, streaming-structured-output |
+| **cloudflare** | Missing tool-request | Fixed | Added tool-request, streaming-multiturn |
+| **ollama** | Missing tool-request, vision | Fixed | Added tool-request, input-image-base64 |
+
 ### Phase 3: Validation ⏳ PENDING
 
 | Task | Description | Depends On | File(s) | Status |

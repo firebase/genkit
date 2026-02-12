@@ -47,7 +47,7 @@ google_plugins = [
   "genkit-plugin-google-genai",
   "genkit-plugin-vertex-ai",
 ]
-internal_tools = []
+internal_tools = ["conform"]
 samples = [
   "dev-local-vectorstore-hello",
   "framework-context-demo",
