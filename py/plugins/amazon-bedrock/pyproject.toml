@@ -45,6 +45,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
+  "aioboto3>=13.0.0",
   "boto3>=1.35.0",
   "botocore>=1.35.0",
   "opentelemetry-sdk-extension-aws>=2.1.0",

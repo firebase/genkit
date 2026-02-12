@@ -24,7 +24,7 @@ This module tests the AWS Bedrock plugin functionality including:
 - Model info registry
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -835,8 +835,11 @@ class TestStreamingToolUseParsing:
 
     @pytest.fixture()
     def mock_client(self) -> MagicMock:
-        """Create a mock boto3 bedrock-runtime client."""
-        return MagicMock()
+        """Create a mock async bedrock-runtime client."""
+        client = MagicMock()
+        # converse_stream is async with aioboto3
+        client.converse_stream = AsyncMock()
+        return client
 
     @pytest.mark.asyncio
     async def test_tool_use_name_preserved_across_stream_events(self, mock_client: MagicMock) -> None:

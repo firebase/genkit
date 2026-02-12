@@ -63,7 +63,7 @@ import json
 import os
 from typing import Any
 
-import boto3
+import aioboto3
 from botocore.config import Config
 
 from genkit.ai import Plugin
@@ -288,9 +288,9 @@ class AmazonBedrock(Plugin):
         if not resolved_region:
             raise ValueError('AWS region is required. Set AWS_REGION environment variable or pass region parameter.')
 
-        # Build boto3 config with timeouts
+        # Build botocore config with timeouts
         # Nova models have 60-minute inference timeout, so we set read_timeout high
-        config = Config(
+        self._botocore_config = Config(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             **boto_config,
@@ -304,23 +304,24 @@ class AmazonBedrock(Plugin):
         if profile_name:
             session_kwargs['profile_name'] = profile_name
 
-        # Create session
-        session = boto3.Session(**session_kwargs)
+        # Create aioboto3 session (sync — session creation is lightweight)
+        self._session = aioboto3.Session(**session_kwargs)
 
-        # Build client kwargs
-        client_kwargs: dict[str, Any] = {
-            'config': config,
+        # Client kwargs for bedrock-runtime
+        self._client_kwargs: dict[str, Any] = {
+            'config': self._botocore_config,
         }
 
         # Add explicit credentials if provided
         if access_key_id and secret_access_key:
-            client_kwargs['aws_access_key_id'] = access_key_id
-            client_kwargs['aws_secret_access_key'] = secret_access_key
+            self._client_kwargs['aws_access_key_id'] = access_key_id
+            self._client_kwargs['aws_secret_access_key'] = secret_access_key
             if session_token:
-                client_kwargs['aws_session_token'] = session_token
+                self._client_kwargs['aws_session_token'] = session_token
 
-        # Create bedrock-runtime client
-        self._client = session.client('bedrock-runtime', **client_kwargs)
+        # Async client — created in init(), closed in close()
+        self._client: Any = None  # noqa: ANN401
+        self._client_ctx: Any = None  # noqa: ANN401
         self._region = resolved_region
 
         logger.debug(
@@ -331,9 +332,18 @@ class AmazonBedrock(Plugin):
     async def init(self) -> list[Action]:
         """Initialize plugin and register supported models.
 
+        Creates the async bedrock-runtime client and registers all
+        supported models and embedders.
+
         Returns:
             List of Action objects for supported models and embedders.
         """
+        # Create the async bedrock-runtime client.
+        # aioboto3 requires async context managers for client creation.
+        # We enter the context here and exit in close().
+        self._client_ctx = self._session.client('bedrock-runtime', **self._client_kwargs)
+        self._client = await self._client_ctx.__aenter__()
+
         actions: list[Action] = []
 
         # Register all supported models from predefined list
@@ -458,7 +468,7 @@ class AmazonBedrock(Plugin):
                     body = {'inputText': text}
 
                 # Call InvokeModel for embeddings (uses base model ID, not inference profile)
-                response = self._client.invoke_model(
+                response = await self._client.invoke_model(
                     modelId=base_model_id,
                     body=json.dumps(body),
                     contentType='application/json',
