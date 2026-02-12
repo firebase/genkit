@@ -17,6 +17,7 @@
 """OpenAI Compatible Models for Genkit."""
 
 import json
+import re
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -37,6 +38,7 @@ from genkit.types import (
     Part,
     ReasoningPart,
     Role,
+    TextPart,
     ToolDefinition,
 )
 
@@ -164,6 +166,74 @@ class OpenAIModel:
         return {'type': 'text'}
 
     @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        r"""Strip markdown code fences from a JSON response.
+
+        Some models (e.g. DeepSeek) wrap JSON output in markdown fences
+        like ``\`\`\`json ... \`\`\`` even when ``json_object`` mode is
+        requested.  This helper removes the fences so downstream
+        consumers receive valid JSON.
+
+        Args:
+            text: The response text, possibly wrapped in fences.
+
+        Returns:
+            The text with markdown fences removed, or the original
+            text if no fences are found.
+        """
+        stripped = text.strip()
+        match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text
+
+    def _clean_json_response(self, response: 'GenerateResponse', request: 'GenerateRequest') -> 'GenerateResponse':
+        """Strip markdown fences from JSON responses for json_object-mode models.
+
+        Only applies when the model uses ``json_object`` mode (e.g. DeepSeek)
+        and the request asked for JSON output.
+
+        Args:
+            response: The generate response.
+            request: The original request.
+
+        Returns:
+            The response with cleaned text parts, or the original response.
+        """
+        if (
+            not request.output
+            or request.output.format != 'json'
+            or not self._model.startswith('deepseek')
+            or response.message is None
+        ):
+            return response
+
+        cleaned_parts: list[Part] = []
+        changed = False
+        for part in response.message.content:
+            if isinstance(part.root, TextPart) and part.root.text:
+                cleaned_text = self._strip_markdown_fences(part.root.text)
+                if cleaned_text != part.root.text:
+                    cleaned_parts.append(Part(root=TextPart(text=cleaned_text)))
+                    changed = True
+                else:
+                    cleaned_parts.append(part)
+            else:
+                cleaned_parts.append(part)
+
+        if changed:
+            return GenerateResponse(
+                request=request,
+                message=Message(role=response.message.role, content=cleaned_parts),
+                finish_reason=response.finish_reason,
+                finish_message=response.finish_message,
+                latency_ms=response.latency_ms,
+                usage=response.usage,
+                custom=response.custom,
+            )
+        return response
+
+    @staticmethod
     def _build_schema_instruction(schema: dict[str, Any]) -> dict[str, str]:
         """Build a system message instructing the model to follow a JSON schema.
 
@@ -237,10 +307,11 @@ class OpenAIModel:
         openai_config = await self._get_openai_request_config(request=request)
         response = await self._openai_client.chat.completions.create(**openai_config)
 
-        return GenerateResponse(
+        result = GenerateResponse(
             request=request,
             message=MessageConverter.to_genkit(MessageAdapter(response.choices[0].message)),
         )
+        return self._clean_json_response(result, request)
 
     async def _generate_stream(
         self, request: GenerateRequest, callback: Callable[[GenerateResponseChunk], None]
@@ -313,10 +384,11 @@ class OpenAIModel:
             )
             accumulated_content.extend(message.content)
 
-        return GenerateResponse(
+        result = GenerateResponse(
             request=request,
             message=Message(role=Role.MODEL, content=accumulated_content),
         )
+        return self._clean_json_response(result, request)
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
