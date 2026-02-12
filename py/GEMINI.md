@@ -34,6 +34,7 @@
   | Broad type ignores | No `# type: ignore` without codes | ✅ Automated |
   | Python classifiers | All packages have 3.10-3.14 classifiers | ✅ Automated |
   | Namespace `__init__.py` | Plugins must not have `__init__.py` in `genkit/` or `genkit/plugins/` | ✅ Automated |
+  | Model conformance specs | Model plugins have `model-conformance.yaml` + `conformance_entry.py` | ✅ Automated |
 
   **Release Checks** (`py/bin/release_check`):
 

@@ -14,11 +14,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Amazon Bedrock model conformance test spec.
+# Vertex AI Model Garden conformance test spec.
 #
-# Uses Claude Sonnet via Bedrock cross-region inference profile.
+# Source: https://cloud.google.com/vertex-ai/docs/model-garden
+#
+# Tests the Model Garden plugin path which proxies to third-party models
+# hosted on Vertex AI. Uses the Anthropic Claude path since it's the most
+# commonly used Model Garden integration.
+#
+# Note: The plugin name is "modelgarden", not "vertex-ai".
 
-- model: amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0
+- model: modelgarden/anthropic/claude-sonnet-4
   supports:
     - tool-request
     - multiturn

@@ -14,11 +14,28 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Cloudflare Workers AI model conformance test spec.
-#
-# Llama 3.1 8B via Cloudflare Workers AI.
+"""Minimal entry point for Vertex AI Model Garden conformance testing.
 
-- model: cloudflare-workers-ai/@cf/meta/llama-3.1-8b-instruct
-  supports:
-    - multiturn
-    - system-role
+Usage:
+    genkit dev:test-model --from-file model-conformance.yaml -- uv run conformance_entry.py
+
+Env:
+    GOOGLE_CLOUD_PROJECT: Required. GCP project ID.
+    GOOGLE_CLOUD_LOCATION: Optional. Defaults to us-central1.
+"""
+
+import asyncio
+
+from genkit.ai import Genkit
+from genkit.plugins.vertex_ai import ModelGardenPlugin
+
+ai = Genkit(plugins=[ModelGardenPlugin()])
+
+
+async def main() -> None:
+    """Keep the process alive for the test runner."""
+    await asyncio.Event().wait()
+
+
+if __name__ == '__main__':
+    ai.run_main(main())

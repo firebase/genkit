@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +15,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# xAI (Grok) model conformance test spec.
+# Wrapper script for the ``conform`` tool.
 #
-# grok-3: flagship model with tool use and vision support.
+# Usage:
+#   py/bin/conform check-model --all      Run all model conformance tests
+#   py/bin/conform check-plugin           Check plugins have conformance files
+#   py/bin/conform list                   List plugins and env-var readiness
+#   py/bin/conform --help                 Show help
 
-- model: xai/grok-3
-  supports:
-    - tool-request
-    - structured-output
-    - multiturn
-    - system-role
-    - streaming-multiturn
-    - streaming-tool-request
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+exec uv run --directory "${PY_DIR}" --active conform "$@"
