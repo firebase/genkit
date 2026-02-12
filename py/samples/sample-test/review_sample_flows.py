@@ -46,7 +46,10 @@ from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
+from genkit.core.logging import get_logger
 from genkit.types import Media
+
+logger = get_logger(__name__)
 
 
 def open_file(path: str) -> None:
@@ -117,7 +120,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     args = parser.parse_args()
 
     # Suppress verbose logging from genkit framework to avoid printing full data URLs
-    logging.basicConfig(level=logging.WARNING)
+    # However, we allow standard library logging to be configured via get_logger above.
     logging.getLogger('genkit').setLevel(logging.WARNING)
     logging.getLogger('google').setLevel(logging.WARNING)
 
@@ -185,8 +188,8 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     class LiveLogger(list):
         def append(self, item: Any) -> None:  # noqa: ANN401 - override requires Any
             super().append(item)
-            # Print to stdout for immediate feedback
-            print(item)  # noqa: T201
+            # Use logger for immediate feedback
+            logger.info(str(item))
 
     detail_lines = LiveLogger()
 
@@ -251,7 +254,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         if not is_debug and not is_noise:
                             # Also filter out empty lines or just markers
                             if line.strip():
-                                print(f'  {line}', end='')  # noqa: T201
+                                logger.info(f'  {line.rstrip()}')
 
                 process.wait(timeout=120)
 
