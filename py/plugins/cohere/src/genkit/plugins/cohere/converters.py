@@ -46,7 +46,6 @@ from cohere.types import (
     AssistantChatMessageV2,
     AssistantMessageResponse,
     SystemChatMessageV2,
-    TextAssistantMessageV2ContentItem,
     ToolCallV2,
     ToolCallV2Function,
     ToolChatMessageV2,
@@ -55,6 +54,11 @@ from cohere.types import (
     Usage,
     UserChatMessageV2,
 )
+
+try:
+    from cohere.types import TextAssistantMessageV2ContentItem
+except ImportError:
+    from cohere.types import TextAssistantMessageV2ContentOneItem as TextAssistantMessageV2ContentItem
 from cohere.v2.types.v2chat_response import V2ChatResponse
 from genkit.core.typing import (
     FinishReason,
