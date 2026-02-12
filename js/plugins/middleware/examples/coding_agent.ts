@@ -15,7 +15,13 @@
  */
 
 import { googleAI } from '@genkit-ai/google-genai';
-import { genkit, Message, MessageData } from 'genkit';
+import {
+  GenerateResponse,
+  genkit,
+  MessageData,
+  ResumeOptions,
+  ToolRequestPart,
+} from 'genkit';
 import * as path from 'path';
 import * as readline from 'readline';
 import {
@@ -46,14 +52,19 @@ async function main() {
   console.log('--- Coding Agent ---');
   console.log('Type your request. To exit, type "exit".');
 
-  const messages: MessageData[] = [{
-    role: 'system',
-    content: [{
-        text: 'You are a helpful coding agent. Very terse but thoughful and careful.' + 
-        `Your working directory is in ${workspaceDir}, you are not allowed to access anything outside it.\n
-        Use skills.`,
-    }],
-  }];
+  const messages: MessageData[] = [
+    {
+      role: 'system',
+      content: [
+        {
+          text:
+            'You are a helpful coding agent. Very terse but thoughful and careful.' +
+            `Your working directory is in ${workspaceDir}, you are not allowed to access anything outside it.\n
+        Use skills. ALWAYS start by analyzing the current state of the workspace, there might be something already there.`,
+        },
+      ],
+    },
+  ];
 
   while (true) {
     const input = await ask('\n> ');
@@ -62,67 +73,71 @@ async function main() {
     }
 
     try {
-      let response = await ai.generate({
-        model: googleAI.model('gemini-3-pro-preview'),
-        prompt: input,
-        messages: messages,
-        use: [
-          retry({ maxRetries: 2 }),
-          fallback({
-            models: [googleAI.model('gemini-3-flash-preview')],
-          }),
-          toolApproval(),
-          skills({ skillsDirectory: skillsDir }),
-          filesystem({ rootDirectory: workspaceDir }),
-        ],
-      });
+      let resume: ResumeOptions | undefined = undefined;
+      let currentMessages = messages;
+      let response: GenerateResponse;
 
-      while (response.finishReason === 'interrupted') {
-        const interrupt = response.interrupts[0];
-        if (!interrupt) {
+      while (true) {
+        response = await ai.generate({
+          model: googleAI.model('gemini-3-pro-preview'),
+          prompt: resume ? undefined : input,
+          messages: currentMessages,
+          use: [
+            toolApproval({ approved: ['read_file', 'list_files'] }),
+            skills({ skillsDirectory: skillsDir }),
+            filesystem({ rootDirectory: workspaceDir }),
+            retry({ maxRetries: 2 }),
+            fallback({
+              models: [googleAI.model('gemini-3-flash-preview')],
+            }),
+          ],
+          resume,
+        });
+
+        if (response.finishReason !== 'interrupted') {
+          break;
+        }
+
+        if (!response.interrupts || response.interrupts.length === 0) {
           console.error('Interrupted but no interrupt record found.');
           break;
         }
 
-        console.log('\n*** Tool Approval Required ***');
-        console.log('Tool:', interrupt.toolRequest?.name);
-        console.log('Input:', JSON.stringify(interrupt.toolRequest?.input, null, 2));
-        
-        const approval = await ask('Approve? (y/N): ');
-        if (approval.toLowerCase() === 'y') {
-          // Approve
-          interrupt.metadata = { ...interrupt.metadata, 'tool-approved': true };
-          
+        const approvedInterrupts: ToolRequestPart[] = [];
+        for (const interrupt of response.interrupts) {
+          console.log('\n*** Tool Approval Required ***');
+          console.log('Tool:', interrupt.toolRequest?.name);
+          console.log(
+            'Input:',
+            JSON.stringify(interrupt.toolRequest?.input, null, 2)
+          );
+
+          const approval = await ask('Approve? (y/N): ');
+          if (approval.toLowerCase() === 'y') {
+            interrupt.metadata = {
+              ...interrupt.metadata,
+              'tool-approved': true,
+            };
+            approvedInterrupts.push(interrupt);
+          }
+        }
+
+        if (approvedInterrupts.length > 0) {
           console.log('Resuming...');
-          response = await ai.generate({
-            model: googleAI.model('gemini-3-pro-preview'),
-            messages: response.messages,
-            use: [
-              retry({ maxRetries: 2 }),
-              fallback({
-                models: [googleAI.model('gemini-3-flash-preview')],
-              }),
-              toolApproval(),
-              skills({ skillsDirectory: skillsDir }),
-              filesystem({ rootDirectory: workspaceDir }),
-            ],
-            resume: {
-              restart: [interrupt],
-            },
-          });
+          resume = { restart: approvedInterrupts };
+          currentMessages = response.messages;
         } else {
-            console.log('Tool denied.');
-            break;
+          console.log('Tool denied.');
+          break;
         }
       }
 
       console.log('\nAI Response:\n' + response.text);
-      
-      if (response.messages) {
-          messages.length = 0;
-          messages.push(...response.messages);
-      }
 
+      if (response.messages) {
+        messages.length = 0;
+        messages.push(...response.messages);
+      }
     } catch (e: any) {
       console.error('Error during generation:', e.message);
     }

@@ -57,7 +57,9 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
         // Ensure the resolved path starts with the skillsDir and a path separator
         // to prevent directory traversal attacks
         if (!p.startsWith(skillsDir + path.sep) && p !== skillsDir) {
-          throw new Error('Access denied: Path is outside of skills directory.');
+          throw new Error(
+            'Access denied: Path is outside of skills directory.'
+          );
         }
         return p;
       }

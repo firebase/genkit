@@ -16,8 +16,8 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import { genkit } from 'genkit';
-import { filesystem } from '../src/index.js';
 import path from 'path';
+import { filesystem } from '../src/index.js';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -28,8 +28,7 @@ async function main() {
 
   const { text } = await ai.generate({
     model: googleAI.model('gemini-3-flash-preview'),
-    prompt:
-      'What does `hello.txt` say?',
+    prompt: 'What does `hello.txt` say?',
     use: [
       filesystem({
         rootDirectory: workspaceDir,
