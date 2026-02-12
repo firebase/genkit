@@ -21,7 +21,11 @@ umbrella_tag = "v{version}"
 
 # Packages listed here are discovered, checked, and version-bumped
 # but skipped during publish. Use "group:<name>" to reference a group.
-exclude_publish = ["group:samples", "group:unreleased_plugins"]
+exclude_publish = [
+  "group:samples",
+  "group:unreleased_plugins",
+  "group:internal_tools",
+]
 
 [groups]
 community_plugins = [
@@ -30,6 +34,7 @@ community_plugins = [
   "genkit-plugin-compat-oai",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
+  "genkit-plugin-fastapi",
   "genkit-plugin-flask",
   "genkit-plugin-mcp",
   "genkit-plugin-observability",
@@ -42,6 +47,7 @@ google_plugins = [
   "genkit-plugin-google-genai",
   "genkit-plugin-vertex-ai",
 ]
+internal_tools = []
 samples = [
   "dev-local-vectorstore-hello",
   "framework-context-demo",
@@ -78,6 +84,7 @@ samples = [
   "provider-vertex-ai-vector-search-firestore",
   "provider-xai-hello",
   "web-endpoints-hello",
+  "web-fastapi-bugbot",
   "web-flask-hello",
   "web-multi-server",
   "web-short-n-long",

@@ -25,7 +25,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from cohere.types import TextAssistantMessageV2ContentItem
+from cohere.types import TextAssistantMessageV2ContentOneItem
 from cohere.v2.types.v2chat_stream_response import (
     ContentDeltaV2ChatStreamResponse,
     MessageEndV2ChatStreamResponse,
@@ -62,9 +62,9 @@ def _make_mock_response(
     mock.id = 'resp-1'
     mock.finish_reason = finish_reason
 
-    # Message content — must pass isinstance(TextAssistantMessageV2ContentItem)
+    # Message content — must pass isinstance(TextAssistantMessageV2ContentOneItem)
     content_item = MagicMock()
-    content_item.__class__ = TextAssistantMessageV2ContentItem
+    content_item.__class__ = TextAssistantMessageV2ContentOneItem
     content_item.type = 'text'
     content_item.text = text
     mock.message.content = [content_item]
