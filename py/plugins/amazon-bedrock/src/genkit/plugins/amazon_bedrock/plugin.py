@@ -356,6 +356,17 @@ class AmazonBedrock(Plugin):
 
         return actions
 
+    async def close(self) -> None:
+        """Close the async bedrock-runtime client.
+
+        Exits the aioboto3 async context manager entered in init(),
+        releasing network connections and other resources.
+        """
+        if self._client_ctx is not None:
+            await self._client_ctx.__aexit__(None, None, None)
+            self._client = None
+            self._client_ctx = None
+
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by type and name.
 
