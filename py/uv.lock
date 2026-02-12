@@ -2271,7 +2271,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-logging", specifier = ">=0.60b1" },
     { name = "opentelemetry-sdk", specifier = ">=1.29.0" },
     { name = "partial-json-parser", specifier = ">=0.2.1.1.post5" },
-    { name = "pillow" },
+    { name = "pillow", specifier = ">=12.1.1" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "python-multipart", specifier = ">=0.0.22" },
