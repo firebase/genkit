@@ -40,6 +40,7 @@ from openai.lib._pydantic import _ensure_strict_json_schema
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.microsoft_foundry.models.converters import (
     build_usage,
     from_openai_tool_calls,
@@ -63,6 +64,8 @@ from genkit.types import (
     ToolRequest,
     ToolRequestPart,
 )
+
+logger = get_logger(__name__)
 
 
 class MicrosoftFoundryModel:
@@ -112,11 +115,23 @@ class MicrosoftFoundryModel:
         params = self._build_request_body(request, config)
         streaming = ctx is not None and ctx.is_streaming
 
+        logger.debug(
+            'Microsoft Foundry generate request',
+            model=self.model_name,
+            streaming=streaming,
+        )
+
         if streaming and ctx is not None:
             return await self._generate_streaming(params, ctx, request)
 
         # Non-streaming request
         response: ChatCompletion = await self.client.chat.completions.create(**params)
+        logger.debug(
+            'Microsoft Foundry raw API response',
+            model=self.model_name,
+            choices=len(response.choices),
+            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+        )
         choice = response.choices[0]
         message = choice.message
 

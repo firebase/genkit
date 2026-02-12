@@ -19,6 +19,24 @@
 All shared types (:class:`Status`, :class:`PluginResult`) live in
 :mod:`conform.types` to avoid circular imports between this module
 and :mod:`conform.runner`.
+
+Key Concepts (ELI5)::
+
+    ┌──────────────────────┬──────────────────────────────────────────────┐
+    │ Concept              │ ELI5 Explanation                             │
+    ├──────────────────────┼──────────────────────────────────────────────┤
+    │ Progress table       │ A live-updating table shown while tests run. │
+    │                      │ Each row is a plugin with an inline bar.     │
+    ├──────────────────────┼──────────────────────────────────────────────┤
+    │ Summary table        │ A final table printed once all tests finish, │
+    │                      │ showing pass/fail/skip for every plugin.     │
+    ├──────────────────────┼──────────────────────────────────────────────┤
+    │ Inline progress bar  │ A row of colored blocks: green = passed,     │
+    │                      │ red = failed, dim = remaining.               │
+    ├──────────────────────┼──────────────────────────────────────────────┤
+    │ Rust-style message   │ Error/warning output styled like the Rust    │
+    │                      │ compiler (``error[E0001]: ...``).            │
+    └──────────────────────┴──────────────────────────────────────────────┘
 """
 
 from __future__ import annotations
@@ -46,11 +64,6 @@ _STATUS_DISPLAY: dict[Status, tuple[str, str]] = {
 #   stdout_console → stdout (tables, help-adjacent output)
 console = Console(stderr=True)
 stdout_console = Console()
-
-
-# ---------------------------------------------------------------------------
-# Rust-style messages
-# ---------------------------------------------------------------------------
 
 
 def rust_error(code: str, message: str, *, hint: str = '', note: str = '') -> None:
@@ -81,11 +94,6 @@ def rust_warning(code: str, message: str, *, note: str = '') -> None:
     console.print()
 
 
-# ---------------------------------------------------------------------------
-# Formatting helpers
-# ---------------------------------------------------------------------------
-
-
 def elapsed_str(secs: float) -> str:
     """Format elapsed seconds as ``Xm Ys`` or ``Ys``."""
     if secs <= 0:
@@ -107,9 +115,64 @@ def status_style(status: Status) -> str:
     return _STATUS_DISPLAY[status][1]
 
 
-# ---------------------------------------------------------------------------
-# Progress table (live-updated during ``conform check-model``)
-# ---------------------------------------------------------------------------
+_INLINE_BAR = 12  # Width of the inline progress bar (in block characters).
+
+
+def build_progress_bar(
+    passed: int,
+    failed: int,
+    total: int,
+    *,
+    bar_width: int = _INLINE_BAR,
+) -> Text:
+    """Build an inline progress bar as a Rich :class:`Text` object.
+
+    Pure function — no side effects, fully testable.
+
+    Args:
+        passed: Number of passed tests.
+        failed: Number of failed tests.
+        total: Total number of tests (pre-calculated from spec).
+        bar_width: Width of the bar in block characters.
+
+    Returns:
+        A styled ``Text`` like ``████████░░░░ 8/11``.
+    """
+    if total <= 0:
+        return Text('—', style='dim')
+
+    p = min(round(passed / total * bar_width), bar_width)
+    f = min(round(failed / total * bar_width), bar_width - p)
+    r = bar_width - p - f
+    text = Text()
+    text.append('█' * p, style='green')
+    text.append('█' * f, style='red')
+    text.append('░' * r, style='dim')
+    count_style = 'green' if failed == 0 else 'red'
+    text.append(f' {passed}/{total}', style=count_style)
+    return text
+
+
+def build_detail_text(
+    result: PluginResult,
+    *,
+    max_error_len: int = 80,
+) -> str:
+    """Build the detail string for a result row.
+
+    Pure function — no side effects, fully testable.
+
+    Returns:
+        A string like ``9 std + 2 custom`` or ``9 std + 0 custom · missing: API_KEY``.
+    """
+    parts: list[str] = []
+    if result.tests_supports or result.tests_custom:
+        parts.append(f'{result.tests_supports} std + {result.tests_custom} custom')
+    if result.status == Status.SKIPPED and result.missing_env_vars:
+        parts.append(f'missing: {", ".join(result.missing_env_vars)}')
+    elif result.status in (Status.FAILED, Status.ERROR) and result.error_message:
+        parts.append(result.error_message[:max_error_len])
+    return ' · '.join(parts)
 
 
 def build_progress_table(results: dict[str, PluginResult]) -> Table:
@@ -128,7 +191,7 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
     table.add_column('Plugin', style='bold', min_width=24)
     table.add_column('Runtime', min_width=8)
     table.add_column('Status', min_width=10)
-    table.add_column('Tests', justify='right', min_width=8)
+    table.add_column('Progress', min_width=20)
     table.add_column('Time', justify='right', min_width=10)
     table.add_column('Details', ratio=1)
 
@@ -141,23 +204,9 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
             style=style,
         )
 
-        # Show test counts if available.
-        total = result.tests_passed + result.tests_failed
-        if total > 0:
-            if result.tests_failed == 0:
-                tests_text = Text(f'{result.tests_passed}/{total}', style='green')
-            else:
-                tests_text = Text()
-                tests_text.append(str(result.tests_passed), style='green')
-                tests_text.append(f'/{total}', style='red')
-        else:
-            tests_text = Text('—', style='dim')
-
-        detail = ''
-        if result.status == Status.SKIPPED and result.missing_env_vars:
-            detail = f'missing: {", ".join(result.missing_env_vars)}'
-        elif result.status in (Status.FAILED, Status.ERROR) and result.error_message:
-            detail = result.error_message[:80]
+        total = result.tests_total or (result.tests_passed + result.tests_failed)
+        tests_text = build_progress_bar(result.tests_passed, result.tests_failed, total)
+        detail = build_detail_text(result, max_error_len=80)
 
         row: list[str | Text] = [
             emoji,
@@ -171,11 +220,6 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
         table.add_row(*row)
 
     return table
-
-
-# ---------------------------------------------------------------------------
-# Summary table (printed once after ``conform check-model`` completes)
-# ---------------------------------------------------------------------------
 
 
 def build_summary_table(results: dict[str, PluginResult]) -> Table:
@@ -194,7 +238,7 @@ def build_summary_table(results: dict[str, PluginResult]) -> Table:
     table.add_column('Plugin', style='bold', min_width=24)
     table.add_column('Runtime', min_width=8)
     table.add_column('Result', min_width=12)
-    table.add_column('Tests', justify='right', min_width=8)
+    table.add_column('Progress', min_width=20)
     table.add_column('Time', justify='right', min_width=10)
     table.add_column('Details', ratio=1, style='dim')
 
@@ -203,23 +247,9 @@ def build_summary_table(results: dict[str, PluginResult]) -> Table:
         style = status_style(result.status)
         label = result.status.value.upper()
 
-        # Show test counts if available.
-        total = result.tests_passed + result.tests_failed
-        if total > 0:
-            if result.tests_failed == 0:
-                tests_text = Text(f'{result.tests_passed}/{total}', style='green')
-            else:
-                tests_text = Text()
-                tests_text.append(str(result.tests_passed), style='green')
-                tests_text.append(f'/{total}', style='red')
-        else:
-            tests_text = Text('—', style='dim')
-
-        detail = ''
-        if result.status == Status.SKIPPED and result.missing_env_vars:
-            detail = f'missing: {", ".join(result.missing_env_vars)}'
-        elif result.status in (Status.FAILED, Status.ERROR) and result.error_message:
-            detail = result.error_message[:100]
+        total = result.tests_total or (result.tests_passed + result.tests_failed)
+        tests_text = build_progress_bar(result.tests_passed, result.tests_failed, total)
+        detail = build_detail_text(result, max_error_len=100)
 
         row: list[str | Text] = [
             emoji,

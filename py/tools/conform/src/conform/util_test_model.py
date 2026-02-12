@@ -41,18 +41,18 @@ import importlib.util
 import json
 import logging
 import os
+import random
 import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, NamedTuple, Protocol, cast
 
 import yaml
 
 from conform.config import ConformConfig
 from conform.display import console
-from conform.paths import REPO_ROOT
 from conform.plugins import entry_point, spec_file
 from conform.reflection import ReflectionClient
 from conform.util_test_cases import TEST_CASES
@@ -64,6 +64,9 @@ logger = logging.getLogger(__name__)
 # How long to wait for the runtime file to appear (seconds).
 _RUNTIME_FILE_TIMEOUT = 30.0
 _RUNTIME_FILE_POLL = 0.5
+
+# Cap for exponential backoff on test retries (seconds).
+_MAX_BACKOFF = 60.0
 
 
 @dataclass
@@ -342,10 +345,8 @@ class ReflectionRunner:
 
     async def start(self) -> None:
         """Start the subprocess and wait for the reflection server."""
-        project_root = REPO_ROOT
-
         # Clean up stale runtime files.
-        runtimes_dir = project_root / '.genkit' / 'runtimes'
+        runtimes_dir = Path(self._cwd) / '.genkit' / 'runtimes'
         if runtimes_dir.exists():
             for f in runtimes_dir.iterdir():
                 if f.is_file():
@@ -366,7 +367,7 @@ class ReflectionRunner:
         )
 
         # Discover the reflection server URL.
-        url = await _find_runtime_url(project_root)
+        url = await _find_runtime_url(Path(self._cwd))
         if not url:
             raise RuntimeError('Runtime file not found after 30s.')
 
@@ -414,6 +415,55 @@ def _load_spec(spec_path: Path) -> list[dict[str, Any]]:
     raise ValueError(f'Unexpected spec format in {spec_path}')
 
 
+class SpecTestCounts(NamedTuple):
+    """Pre-calculated test counts from a spec file."""
+
+    supports: int
+    custom: int
+    total: int
+
+
+def count_spec_tests(
+    spec_path: Path,
+    default_supports: list[str] | None = None,
+) -> SpecTestCounts:
+    """Count the total number of tests in a spec file without running them.
+
+    This allows the progress table to show ``passed/total`` from the start
+    rather than incrementing the denominator as tests complete.
+
+    Returns:
+        A :class:`SpecTestCounts` with the breakdown of built-in
+        (supports) tests, custom tests, and the total.
+    """
+    if default_supports is None:
+        default_supports = [
+            'tool-request',
+            'structured-output',
+            'multiturn',
+            'system-role',
+            'input-image-base64',
+            'input-image-url',
+            'streaming-multiturn',
+            'streaming-tool-request',
+            'streaming-structured-output',
+        ]
+
+    if not spec_path.exists():
+        return SpecTestCounts(supports=0, custom=0, total=0)
+
+    suites = _load_spec(spec_path)
+    n_supports = 0
+    n_custom = 0
+    for suite in suites:
+        caps = suite.get('supports') or ([] if suite.get('tests') else default_supports)
+        # Count only capabilities that have a matching built-in test case.
+        n_supports += sum(1 for cap in caps if cap in TEST_CASES)
+        # Count custom tests.
+        n_custom += len(suite.get('tests', []))
+    return SpecTestCounts(supports=n_supports, custom=n_custom, total=n_supports + n_custom)
+
+
 def _model_to_action_key(model: str) -> str:
     """Convert a model name to an action key."""
     return model if model.startswith('/') else f'/model/{model}'
@@ -445,47 +495,77 @@ async def _run_single_test(
     runner: ActionRunner,
     model: str,
     test_case: dict[str, Any],
+    *,
+    max_retries: int = 0,
+    retry_base_delay: float = 1.0,
 ) -> TestResult:
-    """Execute a single test case."""
+    """Execute a single test case with optional retry.
+
+    When *max_retries* > 0, a failed test is retried with exponential
+    backoff and full jitter (delay = random() × min(base × 2^k, 60)).
+    The caller (``_run_suite``) switches to serial execution on retry
+    to avoid hammering rate-limited APIs.
+    """
     name = test_case.get('name', 'Unnamed Test')
     result = TestResult(name=name)
     start = time.monotonic()
 
-    try:
-        action_key = _model_to_action_key(model)
-        should_stream = bool(test_case.get('stream'))
-        input_data = test_case['input']
+    for attempt in range(1 + max_retries):
+        try:
+            action_key = _model_to_action_key(model)
+            should_stream = bool(test_case.get('stream'))
+            input_data = test_case['input']
 
-        response, chunks = await runner.run_action(
-            action_key,
-            input_data,
-            stream=should_stream,
-        )
+            response, chunks = await runner.run_action(
+                action_key,
+                input_data,
+                stream=should_stream,
+            )
 
-        if should_stream and not chunks:
-            raise ValidationError('Streaming requested but no chunks received.')
+            if should_stream and not chunks:
+                raise ValidationError('Streaming requested but no chunks received.')
 
-        # Run all validators.
-        for v_spec in test_case.get('validators', []):
-            parts = v_spec.split(':', 1)
-            v_name = parts[0]
-            v_arg = parts[1] if len(parts) > 1 else None
-            validator = get_validator(v_name)
-            validator(response, v_arg, chunks)
+            # Run all validators.
+            for v_spec in test_case.get('validators', []):
+                parts = v_spec.split(':', 1)
+                v_name = parts[0]
+                v_arg = parts[1] if len(parts) > 1 else None
+                validator = get_validator(v_name)
+                validator(response, v_arg, chunks)
 
-        result.passed = True
-        console.print(f'  [green]✅ Passed:[/green] {name}')
+            result.passed = True
+            if attempt > 0:
+                console.print(f'  [green]✅ Passed:[/green] {name} [dim](after {attempt} retry/retries)[/dim]')
+            else:
+                console.print(f'  [green]✅ Passed:[/green] {name}')
+            break
 
-    except ValidationError as exc:
-        result.error = str(exc)
-        console.print(f'  [red]❌ Failed:[/red] {name} — {exc}')
-    except Exception as exc:
-        # Walk the cause chain to surface the real error, not just
-        # the GenkitError wrapper ("INTERNAL: Error while running action …").
-        cause = exc.__cause__ if exc.__cause__ else exc
-        error_msg = f'{exc}' if cause is exc else f'{exc} — caused by: {cause}'
-        result.error = error_msg
-        console.print(f'  [red]❌ Failed:[/red] {name} — {error_msg}')
+        except ValidationError as exc:
+            result.error = str(exc)
+            if attempt < max_retries:
+                delay = random.random() * min(retry_base_delay * (2**attempt), _MAX_BACKOFF)
+                console.print(
+                    f'  [yellow]⟳ Retry {attempt + 1}/{max_retries}:[/yellow] {name}'
+                    f' — {exc} [dim](backoff {delay:.1f}s)[/dim]'
+                )
+                await asyncio.sleep(delay)
+            else:
+                console.print(f'  [red]❌ Failed:[/red] {name} — {exc}')
+        except Exception as exc:
+            # Walk the cause chain to surface the real error, not just
+            # the GenkitError wrapper ("INTERNAL: Error while running action …").
+            cause = exc.__cause__ if exc.__cause__ else exc
+            error_msg = f'{exc}' if cause is exc else f'{exc} — caused by: {cause}'
+            result.error = error_msg
+            if attempt < max_retries:
+                delay = random.random() * min(retry_base_delay * (2**attempt), _MAX_BACKOFF)
+                console.print(
+                    f'  [yellow]⟳ Retry {attempt + 1}/{max_retries}:[/yellow] {name}'
+                    f' — {error_msg} [dim](backoff {delay:.1f}s)[/dim]'
+                )
+                await asyncio.sleep(delay)
+            else:
+                console.print(f'  [red]❌ Failed:[/red] {name} — {error_msg}')
 
     result.elapsed_s = time.monotonic() - start
     return result
@@ -500,8 +580,22 @@ async def _run_suite(
     suite: dict[str, Any],
     default_supports: list[str],
     on_test_done: OnTestDone = None,
+    test_concurrency: int = 3,
+    max_retries: int = 0,
+    retry_base_delay: float = 1.0,
 ) -> SuiteResult:
-    """Run all tests for a single model suite."""
+    """Run all tests for a single model suite.
+
+    Args:
+        runner: The action runner to execute tests with.
+        suite: A single model suite from the spec file.
+        default_supports: Default capabilities to test.
+        on_test_done: Optional per-test progress callback.
+        test_concurrency: Maximum parallel requests per model.
+            Defaults to 3.
+        max_retries: Maximum retries per failed test (0 = no retries).
+        retry_base_delay: Base delay in seconds for exponential backoff.
+    """
     model = suite['model']
     supports = suite.get('supports') or ([] if suite.get('tests') else default_supports)
 
@@ -509,29 +603,70 @@ async def _run_suite(
 
     result = SuiteResult(model=model)
 
-    # Built-in conformance tests from supports list.
+    # Collect all test cases (built-in + custom).
+    all_cases: list[dict[str, Any]] = []
     for capability in supports:
         test_case = TEST_CASES.get(capability)
         if test_case:
-            tr = await _run_single_test(runner, model, test_case)
-            result.tests.append(tr)
-            if on_test_done:
-                on_test_done(tr)
+            all_cases.append(test_case)
         else:
             console.print(f'  [yellow]⚠ Unknown capability:[/yellow] {capability}')
 
-    # Custom tests defined in the spec.
     for custom in suite.get('tests', []):
-        test_case = {
+        all_cases.append({
             'name': custom.get('name', 'Custom Test'),
             'input': custom['input'],
             'validators': custom.get('validators', []),
             'stream': custom.get('stream', False),
-        }
-        tr = await _run_single_test(runner, model, test_case)
-        result.tests.append(tr)
-        if on_test_done:
-            on_test_done(tr)
+        })
+
+    retry_kwargs: dict[str, Any] = {
+        'max_retries': max_retries,
+        'retry_base_delay': retry_base_delay,
+    }
+
+    if test_concurrency <= 1:
+        # Sequential execution (default, safest for rate-limited APIs).
+        for test_case in all_cases:
+            tr = await _run_single_test(runner, model, test_case, **retry_kwargs)
+            result.tests.append(tr)
+            if on_test_done:
+                on_test_done(tr)
+    else:
+        # Parallel execution bounded by a semaphore.
+        sem = asyncio.Semaphore(test_concurrency)
+
+        async def _bounded(tc: dict[str, Any]) -> TestResult:
+            async with sem:
+                return await _run_single_test(runner, model, tc, **retry_kwargs)
+
+        tasks = [asyncio.ensure_future(_bounded(tc)) for tc in all_cases]
+        for coro in asyncio.as_completed(tasks):
+            tr = await coro
+            result.tests.append(tr)
+            if on_test_done:
+                on_test_done(tr)
+
+    # If any tests failed during parallel execution, re-run them
+    # serially with retries to rule out flakes caused by rate limiting.
+    if max_retries > 0 and test_concurrency > 1:
+        failed_names = {tr.name for tr in result.tests if not tr.passed}
+        failed_cases = [tc for tc in all_cases if tc.get('name', 'Unnamed Test') in failed_names]
+        if failed_cases:
+            console.print(
+                f'  [yellow]⚠ {len(failed_cases)} test(s) failed — re-running serially'
+                f' with retries to rule out flakes.[/yellow]'
+            )
+            for test_case in failed_cases:
+                tc_name = test_case.get('name', 'Unnamed Test')
+                tr = await _run_single_test(runner, model, test_case, **retry_kwargs)
+                # Replace the original failed result.
+                for i, old_tr in enumerate(result.tests):
+                    if old_tr.name == tc_name and not old_tr.passed:
+                        result.tests[i] = tr
+                        break
+                if on_test_done:
+                    on_test_done(tr)
 
     return result
 
@@ -604,7 +739,12 @@ async def run_test_model(
         runner = InProcessRunner(entry)
     else:
         entry_cmd = list(runtime.entry_command) + [str(entry)]
-        cwd = str(runtime.cwd) if runtime.cwd else str(REPO_ROOT)
+        if not runtime.cwd:
+            raise SystemExit(
+                f"error: runtime '{runtime.name}' has no 'cwd' configured.  "
+                f"Set 'cwd' in the [conform.runtimes.{runtime.name}] section."
+            )
+        cwd = str(runtime.cwd)
         runner = ReflectionRunner(entry_cmd, cwd, required_keys)
         await runner.start()
 
@@ -618,7 +758,15 @@ async def run_test_model(
             if not suite.get('model'):
                 console.print('[red]Error:[/red] Model name required in test suite.')
                 continue
-            sr = await _run_suite(runner, suite, default_supports, on_test_done)
+            sr = await _run_suite(
+                runner,
+                suite,
+                default_supports,
+                on_test_done,
+                test_concurrency=config.test_concurrency_for(plugin),
+                max_retries=config.max_retries,
+                retry_base_delay=config.retry_base_delay,
+            )
             run_result.suites.append(sr)
 
         # Summary.

@@ -17,6 +17,10 @@
 
 # Wrapper script for the ``conform`` tool.
 #
+# This is the only file that knows about the repository layout.
+# The conform tool itself is fully portable — all repo-specific paths
+# are supplied via the conform.toml config file.
+#
 # Usage:
 #   py/bin/conform check-model              Run all model conformance tests
 #   py/bin/conform check-model anthropic    Run specific plugin(s)
@@ -29,5 +33,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+CONFORM_CONFIG="${PY_DIR}/tests/conform/conform.toml"
 
-exec uv run --directory "${PY_DIR}" --active conform "$@"
+# --config must come after the subcommand (it's a per-subcommand flag).
+# Insert it right after the first positional argument (the subcommand).
+args=()
+subcommand_seen=false
+for arg in "$@"; do
+    args+=("$arg")
+    if [[ "$subcommand_seen" == false && "$arg" != -* ]]; then
+        args+=("--config" "${CONFORM_CONFIG}")
+        subcommand_seen=true
+    fi
+done
+# If no subcommand was given, just pass --help.
+if [[ "$subcommand_seen" == false ]]; then
+    args+=("--help")
+fi
+
+exec uv run --directory "${PY_DIR}" --active conform "${args[@]}"

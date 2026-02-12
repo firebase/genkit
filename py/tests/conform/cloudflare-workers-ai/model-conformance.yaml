@@ -16,11 +16,11 @@
 
 # Cloudflare Workers AI model conformance test spec.
 #
-# Llama 3.1 8B via Cloudflare Workers AI.
-# Supports tool calling per Cloudflare docs:
-# https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct/
+# Llama 4 Scout 17B via Cloudflare Workers AI.
+# Supports tool calling and multimodal inputs per Cloudflare docs:
+# https://developers.cloudflare.com/workers-ai/models/llama-4-scout-17b-16e-instruct/
 
-- model: cloudflare-workers-ai/@cf/meta/llama-3.1-8b-instruct
+- model: cloudflare-workers-ai/@cf/meta/llama-4-scout-17b-16e-instruct
   supports:
     - tool-request
     - multiturn

@@ -39,10 +39,10 @@ Previously, conformance was tested ad hoc:
 
 Conform provides a unified test framework with a single CLI:
 
-```
-conform list           →  Show all plugins, runtimes, and env-var readiness
-conform check-model    →  Run model conformance tests across all plugins
-conform check-plugin   →  Verify every model plugin has conformance specs
+```bash
+conform list           #  Show all plugins, runtimes, and env-var readiness
+conform check-model    #  Run model conformance tests across all plugins
+conform check-plugin   #  Verify every model plugin has conformance specs
 ```
 
 ---
@@ -132,12 +132,17 @@ models:
 | **10 validators** | Ported 1:1 from canonical JS source |
 | **YAML-driven specs** | Declarative test definitions per plugin |
 | **Live progress table** | Rich terminal UI with real-time updates |
-| **Concurrent execution** | Semaphore-bounded parallelism across plugins |
+| **Inline progress bars** | Per-row colored bars (green/red/dim) with pre-calculated totals |
+| **Log redaction** | Data URIs auto-truncated in debug logs for readability |
+| **Concurrent execution** | Semaphore-bounded parallelism (default: 8 plugins, 3 tests/model) |
+| **Retry with backoff** | Exponential backoff + full jitter on failure; serial fallback |
+| **Human-readable details** | Details column shows `8 std + 0 custom` instead of cryptic `8s+0c` |
+| **Per-plugin overrides** | `[conform.plugin-overrides.<name>]` for rate-sensitive plugins |
 | **Pre-flight checks** | Validates specs, entry points, and env vars before running |
 | **CI integration** | `check-plugin` runs in `bin/lint` on every PR |
 | **Multi-runtime** | Python, JS, Go from a single command |
 | **Rust-style diagnostics** | Unique error codes with actionable help messages |
-| **TOML configuration** | Concurrency, env vars, runtime paths — all configurable |
+| **TOML configuration** | `conform.toml` alongside specs — concurrency, env vars, runtime paths |
 | **Legacy CLI fallback** | `--use-cli` delegates to `genkit dev:test-model` |
 
 ---
@@ -171,12 +176,13 @@ conform check-model google-genai
 ```
 py/
 ├── tools/conform/                  ← The CLI tool
-│   ├── pyproject.toml              ← Private package + [tool.conform] config
+│   ├── pyproject.toml              ← Private package metadata
 │   └── src/conform/
 │       ├── cli.py                  ← Argument parsing + subcommand dispatch
 │       ├── config.py               ← TOML config loader
 │       ├── checker.py              ← check-plugin: verify conformance files
-│       ├── display.py              ← Rich tables, Rust-style errors
+│       ├── display.py              ← Rich tables, inline progress bars, Rust-style errors
+│       ├── log_redact.py           ← Structlog processor to truncate data URIs
 │       ├── plugins.py              ← Plugin discovery + env-var checking
 │       ├── reflection.py           ← Async HTTP client for reflection API
 │       ├── util_test_model.py      ← Native test runner (ActionRunner)
@@ -190,6 +196,7 @@ py/
 │           └── tool.py             ← has-tool-request
 │
 └── tests/conform/                  ← Per-plugin conformance specs
+    ├── conform.toml                ← All repo-specific config (auto-discovered)
     ├── anthropic/
     │   ├── model-conformance.yaml
     │   ├── conformance_entry.py
@@ -228,22 +235,34 @@ py/
 
 ```bash
 # List all plugins and their readiness
-uv run --active conform list
+py/bin/conform list
 
 # Run conformance tests for a single plugin
-uv run --active conform check-model google-genai
+py/bin/conform check-model google-genai
 
 # Run all plugins (Python runtime)
-uv run --active conform check-model
+py/bin/conform check-model
 
 # Run with verbose output
-uv run --active conform check-model -v
+py/bin/conform check-model -v
+
+# Control concurrency: 4 plugins, 1 test/model (safe for free tiers)
+py/bin/conform check-model -j 4 -t 1
+
+# Disable retries (default: 2 retries with exponential backoff)
+py/bin/conform check-model --max-retries 0
+
+# Custom retry settings
+py/bin/conform check-model --max-retries 3 --retry-base-delay 2.0
 
 # Filter to a specific runtime
-uv run --active conform --runtime python check-model
+py/bin/conform check-model --runtime python
+
+# Specify config explicitly (flags are per-subcommand)
+py/bin/conform list --config py/tests/conform/conform.toml
 
 # Verify all plugins have conformance specs (used by bin/lint)
-uv run --active conform check-plugin
+py/bin/conform check-plugin
 ```
 
 ---
@@ -251,6 +270,6 @@ uv run --active conform check-plugin
 ## Links
 
 - **Source**: `py/tools/conform/`
-- **Specs**: `py/tests/conform/`
+- **Specs + config**: `py/tests/conform/` (includes `conform.toml`)
 - **Documentation**: `py/tools/conform/README.md`
 - **Validators**: `py/tools/conform/src/conform/validators/`

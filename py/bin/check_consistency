@@ -549,13 +549,13 @@ for pkg in packages/genkit plugins/*/; do
   if [ -d "$pkg" ] && [ -f "$pkg/pyproject.toml" ]; then
     pkg_name=$(grep '^name' "$pkg/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
     missing_versions=""
-    
+
     for ver in "${REQUIRED_VERSIONS[@]}"; do
       if ! grep -q "Programming Language :: Python :: $ver" "$pkg/pyproject.toml" 2>/dev/null; then
         missing_versions="$missing_versions $ver"
       fi
     done
-    
+
     if [ -n "$missing_versions" ]; then
       echo -e "  ${RED}MISSING${NC}: $pkg_name missing Python classifiers:$missing_versions"
       classifier_errors=$((classifier_errors + 1))
@@ -582,13 +582,13 @@ namespace_errors=0
 for plugin in plugins/*/; do
   if [ -d "$plugin" ]; then
     plugin_name=$(basename "$plugin")
-    
+
     # Check for __init__.py in genkit/ namespace directory
     if [ -f "$plugin/src/genkit/__init__.py" ]; then
       echo -e "  ${RED}ERROR${NC}: $plugin_name has src/genkit/__init__.py (breaks namespace package)"
       namespace_errors=$((namespace_errors + 1))
     fi
-    
+
     # Check for __init__.py in genkit/plugins/ namespace directory
     if [ -f "$plugin/src/genkit/plugins/__init__.py" ]; then
       echo -e "  ${RED}ERROR${NC}: $plugin_name has src/genkit/plugins/__init__.py (breaks namespace package)"
@@ -685,7 +685,8 @@ echo -e "${BLUE}[21/$TOTAL_CHECKS] Checking model conformance spec coverage...${
 # Delegated to the Python-based ``conform check-model`` tool which performs
 # the same checks (model_info.py scanning + additional-model-plugins from
 # TOML config) and prints output in the same colored format.
-if ! uv run --active conform check-plugin; then
+CONFORM_CONFIG="${PY_DIR}/tests/conform/conform.toml"
+if ! uv run --active conform check-plugin --config "${CONFORM_CONFIG}"; then
   ERRORS=$((ERRORS + 1))
 fi
 echo ""

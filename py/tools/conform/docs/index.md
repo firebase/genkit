@@ -39,8 +39,10 @@ py/bin/conform                             # Help + plugin table
 ## Key features
 
 - **Native test runner** — in-process for Python, async HTTP for JS/Go (no genkit CLI needed)
-- **Parallel execution** — `asyncio.Semaphore` bounds concurrency, configurable via `-j N`
+- **Parallel execution** — `asyncio.Semaphore` bounds concurrency (default: 8), configurable via `-j N`
 - **Live progress** — Rich table pinned at bottom, log lines scroll above
+- **Inline progress bars** — per-row colored bars (green/red/dim) with pre-calculated totals
+- **Log redaction** — data URIs auto-truncated in debug logs for readability
 - **Error log** — last 15 lines per failure, full output with `-v`
 - **10 validators** — ported 1:1 from the canonical JS implementation
 - **Rust-style messages** — color-coded errors and warnings

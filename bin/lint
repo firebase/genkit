@@ -81,8 +81,8 @@ if command -v shellcheck &> /dev/null; then
   for script in "${TOP_DIR}"/bin/* "${PY_DIR}"/bin/*; do
     if [ -f "$script" ] && file "$script" | grep -qE "shell|bash|sh script" 2>/dev/null; then
       script_name=$(basename "$script")
-      # Skip .py files
-      if [[ "$script_name" == *.py ]]; then
+      # Skip .py files and .venv directories.
+      if [[ "$script_name" == *.py ]] || [[ "$script" == */.venv/* ]]; then
         continue
       fi
       shell_scripts+=("$script")
@@ -92,7 +92,7 @@ if command -v shellcheck &> /dev/null; then
   # py/samples/ shell scripts (find all .sh files recursively).
   while IFS= read -r -d '' script; do
     shell_scripts+=("$script")
-  done < <(find "${PY_DIR}/samples" -name '*.sh' -type f -print0 2>/dev/null)
+  done < <(find "${PY_DIR}/samples" -not -path '*/.venv/*' -name '*.sh' -type f -print0 2>/dev/null)
 
   for script in "${shell_scripts[@]}"; do
     # -x follows sourced files; -e SC1091 skips "not following" warnings

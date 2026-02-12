@@ -29,8 +29,10 @@ Provides subcommands::
 
 Global flags (apply to all subcommands)::
 
+    --config FILE               Path to conform.toml config file
     --runtime NAME[,NAME,...]   Runtimes to use (default: all configured)
     --specs-dir DIR             Override the specs directory
+    --plugins-dir DIR           Override the plugins directory
 
 When invoked with no subcommand, displays the help screen followed by
 the plugin env-var readiness table.
@@ -44,6 +46,7 @@ import sys
 import time
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from rich import box
 from rich.console import Console
@@ -62,37 +65,81 @@ from conform.display import (
     rust_warning,
     stdout_console,
 )
-from conform.plugins import check_env, discover_plugins, entry_point
+from conform.plugins import check_env, discover_plugins, entry_point, spec_file
 from conform.runner import run_all
 from conform.types import PluginResult, Status
-from conform.util_test_model import TestResult, run_test_model
+from conform.util_test_model import TestResult, count_spec_tests, run_test_model
 
 
-def _resolve_runtime_names(runtime_arg: str | None) -> list[str]:
+def _resolve_runtime_names(
+    runtime_arg: str | None,
+    config_path: Path | None = None,
+) -> list[str]:
     """Resolve which runtimes to use.
 
     Args:
         runtime_arg: Comma-separated runtime name(s), or ``None`` for all
             configured.
+        config_path: Explicit path to the config file.
 
     Returns:
         List of runtime names to operate on.
     """
     if runtime_arg:
         return [name.strip() for name in runtime_arg.split(',') if name.strip()]
-    names = load_all_runtime_names()
+    names = load_all_runtime_names(config_path=config_path)
     return names if names else ['python']
 
 
-def _plugin_runtimes(plugin: str) -> list[str]:
+def _plugin_runtimes(
+    plugin: str,
+    config_path: Path | None = None,
+) -> list[str]:
     """Return the runtime names that have an entry point for *plugin*."""
     available: list[str] = []
-    for rt_name in load_all_runtime_names():
-        rt_config = load_config(runtime_name=rt_name)
+    for rt_name in load_all_runtime_names(config_path=config_path):
+        rt_config = load_config(runtime_name=rt_name, config_path=config_path)
         ep = entry_point(plugin, rt_config)
         if ep.exists():
             available.append(rt_name)
     return available
+
+
+def _add_common_args(p: argparse.ArgumentParser) -> None:
+    """Add flags shared by every subcommand to *p*.
+
+    These are added directly to each subparser (not via a parent parser)
+    to avoid the argparse bug where parent-parser defaults silently
+    overwrite values parsed by the main parser.
+    """
+    p.add_argument(
+        '--config',
+        '-c',
+        default=None,
+        metavar='FILE',
+        help='Path to conform.toml config file (default: auto-detected).',
+    )
+    p.add_argument(
+        '--runtime',
+        default=None,
+        metavar='NAME[,NAME,...]',
+        help=(
+            'Runtime(s) to use, comma-separated (e.g. python, python,js). '
+            'If not specified, runs all configured runtimes.'
+        ),
+    )
+    p.add_argument(
+        '--specs-dir',
+        default=None,
+        metavar='DIR',
+        help='Override the specs directory (default: from runtime config).',
+    )
+    p.add_argument(
+        '--plugins-dir',
+        default=None,
+        metavar='DIR',
+        help='Override the plugins directory (default: from runtime config).',
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -107,25 +154,6 @@ def _build_parser() -> argparse.ArgumentParser:
     except ImportError:
         formatter_class = argparse.HelpFormatter
 
-    # Shared parent parser for global flags — ensures they appear in
-    # every subcommand's ``--help`` output.
-    global_parser = argparse.ArgumentParser(add_help=False)
-    global_parser.add_argument(
-        '--runtime',
-        default=None,
-        metavar='NAME[,NAME,...]',
-        help=(
-            'Runtime(s) to use, comma-separated (e.g. python, python,js). '
-            'If not specified, runs all configured runtimes.'
-        ),
-    )
-    global_parser.add_argument(
-        '--specs-dir',
-        default=None,
-        metavar='DIR',
-        help='Override the specs directory (default: from runtime config).',
-    )
-
     parser = argparse.ArgumentParser(
         prog='conform',
         description=(
@@ -134,7 +162,6 @@ def _build_parser() -> argparse.ArgumentParser:
             'concurrently, collecting results and displaying a unified table.'
         ),
         formatter_class=formatter_class,
-        parents=[global_parser],
     )
 
     subparsers = parser.add_subparsers(dest='command', help='Available subcommands')
@@ -149,8 +176,8 @@ def _build_parser() -> argparse.ArgumentParser:
             'Use --use-cli to fall back to genkit dev:test-model subprocess.'
         ),
         formatter_class=formatter_class,
-        parents=[global_parser],
     )
+    _add_common_args(cm_parser)
     cm_parser.add_argument(
         'plugins',
         nargs='*',
@@ -167,10 +194,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Maximum concurrent plugins (overrides pyproject.toml).',
     )
     cm_parser.add_argument(
+        '--test-concurrency',
+        '-t',
+        type=int,
+        default=-1,
+        metavar='N',
+        help='Maximum concurrent tests per model spec (overrides config, default: 3).',
+    )
+    cm_parser.add_argument(
         '--verbose',
         '-v',
         action='store_true',
         help='Print full stdout/stderr for failed plugins.',
+    )
+    cm_parser.add_argument(
+        '--max-retries',
+        type=int,
+        default=-1,
+        metavar='N',
+        help='Max retries per failed test with exponential backoff (overrides config, default: 2).',
+    )
+    cm_parser.add_argument(
+        '--retry-base-delay',
+        type=float,
+        default=-1.0,
+        metavar='SECS',
+        help='Base delay in seconds for retry backoff (overrides config, default: 1.0).',
     )
     cm_parser.add_argument(
         '--use-cli',
@@ -179,7 +228,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Use genkit CLI (genkit dev:test-model) instead of the native runner.',
     )
 
-    subparsers.add_parser(
+    cp_parser = subparsers.add_parser(
         'check-plugin',
         help='Check that every model plugin has conformance files.',
         description=(
@@ -188,10 +237,10 @@ def _build_parser() -> argparse.ArgumentParser:
             'model-conformance.yaml spec and a conformance_entry.py file.'
         ),
         formatter_class=formatter_class,
-        parents=[global_parser],
     )
+    _add_common_args(cp_parser)
 
-    subparsers.add_parser(
+    list_parser = subparsers.add_parser(
         'list',
         help='List available plugins and their env-var readiness.',
         description=(
@@ -199,8 +248,8 @@ def _build_parser() -> argparse.ArgumentParser:
             'showing which runtimes and environment variables are available.'
         ),
         formatter_class=formatter_class,
-        parents=[global_parser],
     )
+    _add_common_args(list_parser)
 
     return parser
 
@@ -209,8 +258,13 @@ async def _run_native_check(
     plugins: list[str],
     runtime_names: list[str],
     concurrency: int,
+    test_concurrency: int,
+    max_retries: int,
+    retry_base_delay: float,
     specs_dir_override: Path | None,
+    plugins_dir_override: Path | None,
     verbose: bool,
+    config_path: Path | None = None,
 ) -> dict[str, PluginResult]:
     """Run native conformance tests for all (plugin, runtime) pairs.
 
@@ -226,12 +280,18 @@ async def _run_native_check(
         rt_config = load_config(
             runtime_name=rt_name,
             concurrency_override=concurrency,
+            test_concurrency_override=test_concurrency,
+            max_retries_override=max_retries,
+            retry_base_delay_override=retry_base_delay,
+            config_path=config_path,
         )
+        overrides: dict[str, Any] = {}
         if specs_dir_override:
-            new_rt = replace(
-                rt_config.runtime,
-                specs_dir=specs_dir_override,
-            )
+            overrides['specs_dir'] = specs_dir_override
+        if plugins_dir_override:
+            overrides['plugins_dir'] = plugins_dir_override
+        if overrides:
+            new_rt = replace(rt_config.runtime, **overrides)
             rt_config = replace(rt_config, runtime=new_rt)
 
         available = discover_plugins(rt_config.runtime)
@@ -267,6 +327,14 @@ async def _run_native_check(
                 results[key] = result
                 continue
 
+            # Pre-calculate total test count from the spec so the
+            # progress table can show passed/total from the start.
+            spec = spec_file(plugin, rt_config)
+            counts = count_spec_tests(spec)
+            result.tests_total = counts.total
+            result.tests_supports = counts.supports
+            result.tests_custom = counts.custom
+
             results[key] = result
             tasks.append((key, plugin, rt_name, rt_config))
 
@@ -274,7 +342,8 @@ async def _run_native_check(
         console.print('[yellow]No plugins found to test.[/yellow]')
         return results
 
-    sem = asyncio.Semaphore(max(concurrency if concurrency > 0 else 4, 1))
+    effective_concurrency = tasks[0][3].concurrency if tasks else 8
+    sem = asyncio.Semaphore(max(effective_concurrency, 1))
     on_complete = asyncio.Event()
 
     # Mutable reference to the Live object so the inner function can
@@ -392,20 +461,29 @@ def _log_native_result(
         )
 
 
-def _cmd_check_model(args: argparse.Namespace, runtime_names: list[str]) -> int:
+def _cmd_check_model(
+    args: argparse.Namespace,
+    runtime_names: list[str],
+    config_path: Path | None = None,
+) -> int:
     """Handle ``conform check-model``.
 
     Uses the native runner by default.  Falls back to the genkit CLI
     subprocess when ``--use-cli`` is specified.
     """
     specs_dir_raw: str | None = getattr(args, 'specs_dir', None)
+    plugins_dir_raw: str | None = getattr(args, 'plugins_dir', None)
     resolved_specs_dir: Path | None = Path(specs_dir_raw).resolve() if specs_dir_raw else None
+    resolved_plugins_dir: Path | None = Path(plugins_dir_raw).resolve() if plugins_dir_raw else None
     concurrency_override: int = getattr(args, 'concurrency', -1)
+    test_concurrency_override: int = getattr(args, 'test_concurrency', -1)
+    max_retries_override: int = getattr(args, 'max_retries', -1)
+    retry_base_delay_override: float = getattr(args, 'retry_base_delay', -1.0)
     use_cli = getattr(args, 'use_cli', False)
     verbose = getattr(args, 'verbose', False)
 
     if use_cli:
-        return _cmd_check_model_cli(args, runtime_names)
+        return _cmd_check_model_cli(args, runtime_names, config_path=config_path)
 
     # Native runner path.
     results = asyncio.run(
@@ -413,8 +491,13 @@ def _cmd_check_model(args: argparse.Namespace, runtime_names: list[str]) -> int:
             plugins=args.plugins,
             runtime_names=runtime_names,
             concurrency=concurrency_override,
+            test_concurrency=test_concurrency_override,
+            max_retries=max_retries_override,
+            retry_base_delay=retry_base_delay_override,
             specs_dir_override=resolved_specs_dir,
+            plugins_dir_override=resolved_plugins_dir,
             verbose=verbose,
+            config_path=config_path,
         )
     )
 
@@ -452,7 +535,11 @@ def _cmd_check_model(args: argparse.Namespace, runtime_names: list[str]) -> int:
     return 1 if failed > 0 else 0
 
 
-def _cmd_check_model_cli(args: argparse.Namespace, runtime_names: list[str]) -> int:
+def _cmd_check_model_cli(
+    args: argparse.Namespace,
+    runtime_names: list[str],
+    config_path: Path | None = None,
+) -> int:
     """Handle ``conform check-model --use-cli`` (legacy genkit CLI path)."""
     specs_dir_override: str | None = getattr(args, 'specs_dir', None)
     concurrency_override: int = getattr(args, 'concurrency', -1)
@@ -462,6 +549,7 @@ def _cmd_check_model_cli(args: argparse.Namespace, runtime_names: list[str]) -> 
         rt_config = load_config(
             runtime_name=rt_name,
             concurrency_override=concurrency_override,
+            config_path=config_path,
         )
         if specs_dir_override:
             new_rt = replace(
@@ -515,7 +603,10 @@ def _cmd_check_plugin(config: ConformConfig) -> int:
     return 1 if error_count > 0 else 0
 
 
-def _cmd_list(runtime_names: list[str]) -> int:
+def _cmd_list(
+    runtime_names: list[str],
+    config_path: Path | None = None,
+) -> int:
     """Handle ``conform list``.
 
     Shows all plugins across all active runtimes with a column indicating
@@ -524,7 +615,7 @@ def _cmd_list(runtime_names: list[str]) -> int:
     # Collect the union of all plugins across runtimes.
     all_plugins: dict[str, ConformConfig] = {}
     for rt_name in runtime_names:
-        rt_config = load_config(runtime_name=rt_name)
+        rt_config = load_config(runtime_name=rt_name, config_path=config_path)
         for plugin in discover_plugins(rt_config.runtime):
             if plugin not in all_plugins:
                 all_plugins[plugin] = rt_config
@@ -533,7 +624,7 @@ def _cmd_list(runtime_names: list[str]) -> int:
         stdout_console.print('[yellow]No plugins found.[/yellow]')
         return 0
 
-    all_rt_names = load_all_runtime_names()
+    all_rt_names = load_all_runtime_names(config_path=config_path)
 
     table = Table(
         title='Available Plugins',
@@ -605,35 +696,77 @@ def _cmd_list(runtime_names: list[str]) -> int:
     return 0
 
 
+def _install_log_redaction() -> None:
+    """Install a structlog processor that truncates data URIs in log output.
+
+    Data URIs (e.g. base64-encoded images) can be 20,000+ characters and
+    make debug logs unreadable during conformance tests with multimodal
+    inputs.  This inserts the redaction processor before the final
+    renderer in the structlog chain.
+    """
+    try:
+        import structlog
+
+        from conform.log_redact import redact_data_uris_processor
+
+        cfg = structlog.get_config()
+        processors = list(cfg.get('processors', []))
+        # Insert before the last processor (usually the renderer).
+        insert_pos = max(0, len(processors) - 1)
+        processors.insert(insert_pos, redact_data_uris_processor)
+        structlog.configure(processors=processors)
+    except Exception:  # noqa: S110 - non-critical; logging still works, just verbose
+        pass
+
+
+def _extract_common_args(args: argparse.Namespace) -> tuple[list[str], Path | None]:
+    """Extract the common flags from parsed *args*.
+
+    Returns:
+        ``(runtime_names, config_path)`` derived from ``--runtime``
+        and ``--config``.
+    """
+    config_raw: str | None = getattr(args, 'config', None)
+    config_path: Path | None = Path(config_raw).resolve() if config_raw else None
+    runtime_arg: str | None = getattr(args, 'runtime', None)
+    runtime_names = _resolve_runtime_names(runtime_arg, config_path=config_path)
+    return runtime_names, config_path
+
+
 def main() -> None:
     """Entry point for the ``conform`` CLI."""
+    _install_log_redaction()
+
     parser = _build_parser()
     args = parser.parse_args()
 
-    runtime_arg: str | None = getattr(args, 'runtime', None)
-
     if args.command is None:
         parser.print_help()
-        _cmd_list(_resolve_runtime_names(runtime_arg))
         sys.exit(0)
 
-    runtime_names = _resolve_runtime_names(runtime_arg)
+    runtime_names, config_path = _extract_common_args(args)
 
     if args.command == 'check-model':
-        sys.exit(_cmd_check_model(args, runtime_names))
+        sys.exit(_cmd_check_model(args, runtime_names, config_path=config_path))
     elif args.command == 'check-plugin':
         exit_code = 0
         specs_dir: str | None = getattr(args, 'specs_dir', None)
+        plugins_dir: str | None = getattr(args, 'plugins_dir', None)
         for rt_name in runtime_names:
-            config = load_config(runtime_name=rt_name)
+            config = load_config(runtime_name=rt_name, config_path=config_path)
+            overrides: dict[str, Any] = {}
             if specs_dir:
-                new_rt = replace(config.runtime, specs_dir=Path(specs_dir).resolve())
+                overrides['specs_dir'] = Path(specs_dir).resolve()
+            if plugins_dir:
+                overrides['plugins_dir'] = Path(plugins_dir).resolve()
+            if overrides:
+                new_rt = replace(config.runtime, **overrides)
                 config = replace(config, runtime=new_rt)
             if _cmd_check_plugin(config) != 0:
                 exit_code = 1
         sys.exit(exit_code)
     elif args.command == 'list':
-        sys.exit(_cmd_list(runtime_names))
+        sys.exit(_cmd_list(runtime_names, config_path=config_path))
     else:
         parser.print_help()
         sys.exit(0)
