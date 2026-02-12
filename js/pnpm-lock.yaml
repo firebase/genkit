@@ -853,6 +853,40 @@ importers:
         specifier: ^5.3.0
         version: 5.8.3
 
+  plugins/middleware:
+    dependencies:
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
+      mime-types:
+        specifier: ^3.0.2
+        version: 3.0.2
+    devDependencies:
+      '@genkit-ai/google-genai':
+        specifier: workspace:^
+        version: link:../google-genai
+      '@types/mime-types':
+        specifier: ^3.0.1
+        version: 3.0.1
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.19.1
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.20.3
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/next:
     devDependencies:
       '@jest/globals':
@@ -4406,6 +4440,9 @@ packages:
   '@types/memcached@2.2.10':
     resolution: {integrity: sha512-AM9smvZN55Gzs2wRrqeMHVP7KE8KWgCJO/XL5yCly2xF6EKa4YlbpK+cLSAH4NG/Ah64HrlegmGqW8kYws7Vxg==}
 
+  '@types/mime-types@3.0.1':
+    resolution: {integrity: sha512-xRMsfuQbnRq1Ef+C+RKaENOxXX87Ygl38W1vDfPHRku02TgQr+Qd8iivLtAMcR0KF5/29xlnFihkTlbqFrGOVQ==}
+
   '@types/mime@1.3.5':
     resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
 
@@ -7161,6 +7198,10 @@ packages:
   mime-types@3.0.1:
     resolution: {integrity: sha512-xRc4oEhT6eaBpU1XF7AjpOFD+xQmXNB5OVKwp4tqCuBpHLS/ZbBDrc07mYTDqVMg6PfxUjjNp85O6Cd2Z/5HWA==}
     engines: {node: '>= 0.6'}
+
+  mime-types@3.0.2:
+    resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
+    engines: {node: '>=18'}
 
   mime@1.6.0:
     resolution: {integrity: sha512-x0Vn8spI+wuJ1O6S7gnbaQg8Pxh4NNHb7KSINmEWKiPE4RKOplvijn+NkmYmmRgP68mc70j2EbeTFRsrswaQeg==}
@@ -11729,6 +11770,8 @@ snapshots:
     dependencies:
       '@types/node': 20.19.1
 
+  '@types/mime-types@3.0.1': {}
+
   '@types/mime@1.3.5': {}
 
   '@types/mime@3.0.4': {}
@@ -11861,7 +11904,7 @@ snapshots:
 
   accepts@2.0.0:
     dependencies:
-      mime-types: 3.0.1
+      mime-types: 3.0.2
       negotiator: 1.0.0
 
   acorn-import-attributes@1.9.5(acorn@8.11.3):
@@ -15216,6 +15259,10 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
+  mime-types@3.0.2:
+    dependencies:
+      mime-db: 1.54.0
+
   mime@1.6.0: {}
 
   mime@2.6.0: {}
@@ -16280,7 +16327,7 @@ snapshots:
       etag: 1.8.1
       fresh: 2.0.0
       http-errors: 2.0.0
-      mime-types: 3.0.1
+      mime-types: 3.0.2
       ms: 2.1.3
       on-finished: 2.4.1
       range-parser: 1.2.1
@@ -16980,7 +17027,7 @@ snapshots:
     dependencies:
       content-type: 1.0.5
       media-typer: 1.1.0
-      mime-types: 3.0.1
+      mime-types: 3.0.2
 
   typed-array-buffer@1.0.3:
     dependencies:
