@@ -160,6 +160,18 @@ class XAIModel:
         if config.reasoning_effort is not None:
             params['reasoning_effort'] = config.reasoning_effort
 
+        # Structured output: set response_format for JSON output requests.
+        if request.output and request.output.format == 'json':
+            if request.output.schema:
+                params['response_format'] = chat_pb2.ResponseFormat(
+                    format_type=chat_pb2.FormatType.FORMAT_TYPE_JSON_SCHEMA,
+                    schema=json.dumps(request.output.schema),
+                )
+            else:
+                params['response_format'] = chat_pb2.ResponseFormat(
+                    format_type=chat_pb2.FormatType.FORMAT_TYPE_JSON_OBJECT,
+                )
+
         if request.tools:
             params['tools'] = [
                 chat_pb2.Tool(
@@ -207,17 +219,24 @@ class XAIModel:
                                     with contextlib.suppress(json.JSONDecodeError, TypeError):
                                         tool_input = json.loads(tool_input)
 
-                                accumulated_content.append(
-                                    Part(
-                                        root=ToolRequestPart(
-                                            tool_request=ToolRequest(
-                                                ref=tool_call.id,
-                                                name=tool_call.function.name,
-                                                input=tool_input,
-                                            )
+                                tool_part = Part(
+                                    root=ToolRequestPart(
+                                        tool_request=ToolRequest(
+                                            ref=tool_call.id,
+                                            name=tool_call.function.name,
+                                            input=tool_input,
                                         )
                                     )
                                 )
+                                loop.call_soon_threadsafe(
+                                    ctx.send_chunk,
+                                    GenerateResponseChunk(
+                                        role=Role.MODEL,
+                                        index=0,
+                                        content=[tool_part],
+                                    ),
+                                )
+                                accumulated_content.append(tool_part)
 
             response_message = Message(role=Role.MODEL, content=accumulated_content)
             basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
