@@ -44,45 +44,55 @@ from genkit.core.action import ActionKind
 from genkit.types import Media
 
 
-def format_output(output: Any) -> Any:  # noqa: ANN401 - intentional use of Any for arbitrary flow outputs
+def format_output(
+    output: Any,  # noqa: ANN401
+    visited: set[int] | None = None,  # noqa: ANN401
+) -> Any:  # noqa: ANN401
     """Format flow output for serialization.
 
     Args:
         output: The flow output to format
+        visited: Set of object IDs already visited to prevent infinite recursion
 
     Returns:
         Serializable representation
     """
+    if visited is None:
+        visited = set()
+
+    # Track visited objects to prevent infinite recursion
+    # Only track mutable/container types that could be involved in cycles
+    if isinstance(output, (dict, list)) or hasattr(output, 'model_dump'):
+        if id(output) in visited:
+            return '(Recursive Reference)'
+        visited.add(id(output))
+
     # Handle None
     if output is None:
         return None
 
     # Handle Media objects
     if isinstance(output, Media):
-        url = output.url or ''
-        if len(url) > 500:
-            url = f'{url[:100]}...{url[-50:]}'
         return {
             'type': 'Media',
-            'url': url,
-            'url_length': len(output.url or ''),
+            'url': '(Media data not shown)',
             'content_type': output.content_type,
         }
 
     # Handle Pydantic models
     if hasattr(output, 'model_dump'):
         try:
-            return format_output(output.model_dump())
+            return format_output(output.model_dump(), visited)
         except Exception:  # noqa: S110 - intentional fallback if model_dump fails
             pass
 
     # Handle dicts
     if isinstance(output, dict):
-        return {k: format_output(v) for k, v in output.items()}
+        return {k: format_output(v, visited) for k, v in output.items()}
 
     # Handle lists
     if isinstance(output, list):
-        return [format_output(v) for v in output]
+        return [format_output(v, visited) for v in output]
 
     # Default: convert to string for non-serializable objects (except basics)
     if isinstance(output, (str, int, float, bool, type(None))):

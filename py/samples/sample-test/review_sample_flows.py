@@ -234,18 +234,20 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
                         # We strip ANSI codes before checking per report/pic requirement
                         clean_line = re.sub(r'\x1b\[[0-9;]*[mGKF]', '', line).lower()
                         # Level tags like [debug], [debug   ], etc.
-                        is_debug = re.search(r'\[\s*debug\s*\]', clean_line) or '[debug' in clean_line
-                        # Noise: UserWarning, shadows an attribute, pydantic/dotpromptz warnings
-                        is_noise = (
-                            'userwarning:' in clean_line
-                            or 'shadows an attribute' in clean_line
-                            or 'class outputconfig' in clean_line
-                            or 'class promptinputconfig' in clean_line
-                            or 'class promptoutputconfig' in clean_line
-                            or '---json_result_' in clean_line
-                            or '{"success":' in clean_line
-                            or '[info' in clean_line
-                        )
+                        is_debug = '[debug' in clean_line
+                        # List of noisy patterns to filter from test output.
+                        noise_patterns = [
+                            'userwarning:',
+                            'shadows an attribute',
+                            'class outputconfig',
+                            'class promptinputconfig',
+                            'class promptoutputconfig',
+                            '---json_result_',
+                            '{"success":',
+                            '[info',
+                        ]
+                        is_noise = any(p in clean_line for p in noise_patterns)
+
                         if not is_debug and not is_noise:
                             # Also filter out empty lines or just markers
                             if line.strip():
