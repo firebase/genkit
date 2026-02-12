@@ -22,12 +22,10 @@ import hashlib
 import json
 from typing import Any
 
-import aiofiles
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
-from genkit.codec import dump_json
 from genkit.types import Embedding
 
 from .constant import DbValue
@@ -83,11 +81,8 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
 
         await asyncio.gather(*tasks)
 
-        # pyrefly: ignore[missing-attribute] - index_file_name inherited from LocalVectorStoreAPI
-        # Use aiofiles for async file I/O to avoid blocking the event loop
-        async with aiofiles.open(self.index_file_name, 'w', encoding='utf-8') as f:
-            # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
-            await f.write(dump_json(self._serialize_data(data=data), indent=2))
+        # pyrefly: ignore[missing-attribute] - _dump_filestore inherited from LocalVectorStoreAPI
+        await self._dump_filestore(data)
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
         """Process a single document and add its embedding to the store."""

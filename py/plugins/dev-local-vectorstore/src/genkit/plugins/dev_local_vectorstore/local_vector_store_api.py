@@ -21,7 +21,7 @@ Provides async file-backed storage for document embeddings using
 ``aiofiles`` to avoid blocking the event loop during reads and writes.
 """
 
-import json
+from genkit.core.typing import dump_json
 from functools import cached_property
 
 import aiofiles
@@ -60,7 +60,7 @@ class LocalVectorStoreAPI:
         """Dump the filestore asynchronously to avoid blocking the event loop."""
         serialized_data = self._serialize_data(data)
         async with aiofiles.open(self.index_file_name, 'w', encoding='utf-8') as f:
-            await f.write(json.dumps(serialized_data, indent=2))
+            await f.write(dump_json(serialized_data, indent=2))
 
     @staticmethod
     def _serialize_data(data: dict[str, DbValue]) -> dict[str, object]:
