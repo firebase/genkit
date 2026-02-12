@@ -42,12 +42,18 @@ cd py/samples/provider-xai-hello
 uv run src/main.py
 ```
 
-## Features
+## Features Demonstrated
 
-- Simple text generation
-- Streaming generation
-- Custom configuration (temperature, max_output_tokens)
-- xAI-specific parameters (reasoning_effort)
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with Grok |
+| Streaming | `say_hi_stream` | Token-by-token streaming response |
+| Generation Config | `say_hi_with_config` | Custom temperature, max_output_tokens |
+| Tool Calling | `weather_flow` | Weather tool with function calling |
+| Math Tool | `calculate` | Math calculation tool |
+| Vision | `describe_image` | Image description using Grok Vision |
+| Reasoning (CoT) | `reasoning_flow` | Chain-of-thought with Grok 4 |
+| xAI Parameters | `reasoning_effort` | xAI-specific config options |
 
 ## Testing This Demo
 

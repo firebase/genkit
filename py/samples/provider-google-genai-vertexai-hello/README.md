@@ -2,6 +2,22 @@
 
 Demonstrates using Google Cloud Vertex AI with Genkit for text generation.
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with Gemini |
+| Streaming | `say_hi_stream` | Token-by-token streaming response |
+| System Prompts | `system_prompt` | Persona control (pirate captain) |
+| Multi-turn Chat | `multi_turn_chat` | Context-preserving conversations |
+| Tool Calling | `tool_calling` | Weather + Fahrenheit conversion |
+| Structured Output | `generate_character` | RPG character as JSON (Pydantic) |
+| Streaming Structured | `streaming_structured_output` | Progressive JSON parsing |
+| Generation Config | `generate_with_config` | Custom temperature, max_output_tokens |
+| Multimodal (Image) | `describe_image` | Image description with Gemini |
+| Code Generation | `generate_code` | Code generation from descriptions |
+| Embeddings | `embed_docs` | Text embeddings with Vertex AI |
+
 ## Quick Start
 
 ```bash

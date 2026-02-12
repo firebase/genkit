@@ -1,69 +1,117 @@
-# Hello world
+# Tool Interrupts Demo
 
-## Setup environment
+Human-in-the-loop AI interactions using Genkit's tool interruption mechanism.
+The AI pauses execution, asks the human a question, and resumes with the answer.
 
-### How to Get Your Gemini API Key
+## Features Demonstrated
 
-To use the Google GenAI plugin, you need a Gemini API key.
+| Feature | Flow / API | Description |
+|---------|-----------|-------------|
+| Tool Interruption | `ctx.interrupt(payload)` | Pause AI execution and return data to the caller |
+| Interrupt Detection | `response.interrupts` | Check if the AI is waiting for human input |
+| Resume with Response | `tool_response(request, answer)` | Continue AI execution with the human's answer |
+| Interactive CLI Loop | `while True: input()` | Multi-turn game loop with interrupt handling |
+| Pydantic Tool Schema | `TriviaQuestions` | Structured tool input with validation |
 
-1.  **Visit AI Studio**: Go to [Google AI Studio](https://aistudio.google.com/).
-2.  **Create API Key**: Click on "Get API key" and create a key in a new or existing Google Cloud project.
+## How Tool Interrupts Work
 
-For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
-
-Export the API key as env variable `GEMINI_API_KEY`:
-
-```bash
-export GEMINI_API_KEY=<Your api key>
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              TOOL INTERRUPT FLOW (Trivia Game)                   │
+│                                                                  │
+│  1. User starts game         2. AI calls tool                   │
+│  ┌──────────┐                ┌──────────────────┐               │
+│  │ "Science"│───► AI ──────►│ present_questions │               │
+│  └──────────┘    (host)      └────────┬─────────┘               │
+│                                       │                          │
+│                              3. Tool calls ctx.interrupt()       │
+│                                       │                          │
+│                                       ▼                          │
+│                              ┌──────────────────┐               │
+│                              │  EXECUTION PAUSES │               │
+│                              │  response.interrupts              │
+│                              │  has the question  │               │
+│                              └────────┬─────────┘               │
+│                                       │                          │
+│                              4. Human answers                    │
+│                                       │                          │
+│                                       ▼                          │
+│                              ┌──────────────────┐               │
+│                              │ tool_response()   │               │
+│                              │ resumes AI        │               │
+│                              └────────┬─────────┘               │
+│                                       │                          │
+│                              5. AI continues                     │
+│                                       ▼                          │
+│                              "That's correct!"                   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Monitoring and Running
+## ELI5: Key Concepts
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+| Concept | ELI5 |
+|---------|------|
+| **Tool Interrupt** | AI pauses and asks you a question — like a waiter asking "How do you want that cooked?" |
+| **Human-in-the-Loop** | A person reviews/approves AI actions before they happen |
+| **`ctx.interrupt()`** | The function that pauses execution and sends data back to the caller |
+| **`tool_response()`** | Resume execution by passing the human's answer back to the AI |
+| **`response.interrupts`** | Check if AI is waiting for input — non-empty means there's a question |
+
+## Quick Start
+
+```bash
+export GEMINI_API_KEY=your-api-key
+./run.sh
+```
+
+Then open the Dev UI at http://localhost:4000.
+
+## Setup
+
+### Get a Gemini API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/)
+2. Click "Get API key" and create a key
+
+```bash
+export GEMINI_API_KEY='your-api-key'
+```
+
+### Run the Sample
+
+**Dev UI mode** (recommended for exploring the `play_trivia` flow):
 
 ```bash
 ./run.sh
 ```
 
-This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
-
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
+**CLI mode** (interactive trivia game in your terminal):
 
 ```bash
-uv venv
-source .venv/bin/activate
-```
-
-## Run the sample
-
-```bash
-genkit start -- uv run src/main.py
+uv run python src/main.py
 ```
 
 ## Testing This Demo
 
-1. **Run the demo** (CLI-based):
-   ```bash
-   uv run python src/main.py
-   ```
+### Via Dev UI (http://localhost:4000)
 
-2. **Test the trivia game**:
-   - [ ] The AI greets you and asks for a trivia theme
-   - [ ] Type a theme (e.g., "science", "movies")
-   - [ ] When questions appear, they're tool interrupts
-   - [ ] Answer the questions and see AI reactions
+- [ ] `play_trivia` — Enter a theme (e.g., "Science"), see the AI greet you and return an interrupted question
 
-3. **Test interrupt flow**:
-   - [ ] Verify `present_questions` tool triggers interrupt
-   - [ ] Check that game waits for your input
-   - [ ] Confirm AI responds to your answers appropriately
+### Via CLI (`uv run python src/main.py`)
 
-4. **Expected behavior**:
-   - AI acts as enthusiastic game host
-   - Questions pause for user input (interrupt)
-   - Answers are evaluated with dramatic responses
-   - Game loop continues until you exit (Ctrl+C)
+- [ ] AI greets you and asks for a trivia theme
+- [ ] Type a theme (e.g., "science", "movies")
+- [ ] Questions appear as tool interrupts — answer by number
+- [ ] AI reacts dramatically to your answers
+- [ ] Game loop continues until Ctrl+C
+
+### Expected Behavior
+
+- AI acts as an enthusiastic trivia game host
+- Questions pause execution (interrupt) and wait for human input
+- Answers are evaluated with dramatic responses
+- In Dev UI: flow returns `INTERRUPTED: <question>` with answer choices
+
+## Development
+
+The `run.sh` script uses `watchmedo` for hot reloading on file changes.

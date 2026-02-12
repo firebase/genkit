@@ -1,5 +1,16 @@
 ## DeepSeek Sample
 
+### Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with deepseek-chat |
+| Streaming | `streaming_flow` | Token-by-token streaming response |
+| Generation Config | `custom_config_flow` | Custom temperature and config |
+| Tool Calling | `weather_flow` | Function calling with tools |
+| Reasoning (CoT) | `reasoning_flow` | Chain-of-thought with deepseek-reasoner |
+| Multi-turn Chat | `chat_flow` | Context-preserving conversations |
+
 ### How to Get Your DeepSeek API Key
 
 A DeepSeek API key is a secret token for accessing DeepSeek's powerful AI models, obtained by signing up/logging in at platform.deepseek.com, navigating to the API Keys section in your dashboard, and clicking "Create API Key," requiring an account and potentially adding funds for usage beyond free limits.

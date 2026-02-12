@@ -199,7 +199,7 @@
 |-----|-------------|--------|----------|
 | ~~`reasoning_content`~~ | ~~CoT output not extracted/exposed~~ | ~~**Critical**~~ | ✅ Done (PR #4480) |
 | ~~Parameter validation~~ | ~~R1 ignores temp/top_p but no warning~~ | ~~High~~ | ✅ Done (PR #4480) |
-| Multi-round reasoning | Must strip reasoning_content from context | High - breaks multi-turn | P1 |
+| ~~Multi-round reasoning~~ | ~~Must strip reasoning_content from context~~ | ~~High~~ | ✅ Done — `ReasoningPart` skipped in `MessageConverter.to_openai()` |
 | Tool calling in R1 | Not supported in reasoner mode | Medium - documented limitation | P2 |
 
 ---
@@ -254,4 +254,3 @@
 | Azure AI Studio | New unified API not supported | Medium | P3 |
 | Entra ID Auth | Managed identity support | Medium - enterprise | P2 |
 | On Your Data | Azure Search integration | Medium | P3 |
-
