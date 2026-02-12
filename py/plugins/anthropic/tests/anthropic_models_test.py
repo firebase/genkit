@@ -631,9 +631,9 @@ def test_pdf_with_cache_control() -> None:
 
 
 def test_structured_output_uses_native_output_config() -> None:
-    """Test that JSON schema uses native output_config when schema is provided."""
+    """Test that JSON schema uses native output_config when model supports it."""
     mock_client = MagicMock()
-    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+    model = AnthropicModel(model_name='claude-opus-4-6', client=mock_client)
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
@@ -665,3 +665,26 @@ def test_structured_output_falls_back_to_system_prompt() -> None:
     assert 'output_config' not in params
     assert 'system' in params
     assert 'Output valid JSON' in params['system']
+
+
+def test_structured_output_falls_back_for_unsupported_models() -> None:
+    """Test that JSON with schema falls back to system prompt for unsupported models."""
+    mock_client = MagicMock()
+    # Claude 3.5 Haiku is marked as not supporting JSON natively in model_info.py
+    model = AnthropicModel(model_name='claude-3-5-haiku', client=mock_client)
+
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
+        output=OutputConfig(
+            format='json',
+            schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
+        ),
+    )
+
+    params = model._build_params(request)
+
+    assert 'output_config' not in params
+    assert 'system' in params
+    assert 'Output valid JSON' in params['system']
+    assert 'Follow this JSON schema' in params['system']
+    assert '"name"' in params['system']
