@@ -21,11 +21,13 @@ Provides async file-backed storage for document embeddings using
 ``aiofiles`` to avoid blocking the event loop during reads and writes.
 """
 
-from genkit.core.typing import dump_json
+import json
 from functools import cached_property
 
 import aiofiles
 import aiofiles.os
+
+from genkit.codec import dump_json
 
 from .constant import DbValue
 
