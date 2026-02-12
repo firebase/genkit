@@ -107,9 +107,15 @@ class Runtime(Protocol):
 
 @dataclass
 class PluginResult:
-    """Result of running conformance tests for a single plugin."""
+    """Result of running conformance tests for a single plugin.
+
+    When multiple runtimes are active, each (plugin, runtime) pair
+    produces a separate ``PluginResult``.  The ``runtime`` field
+    identifies which runtime produced the result.
+    """
 
     plugin: str
+    runtime: str = ''
     status: Status = Status.PENDING
     elapsed_s: float = 0.0
     stdout: str = ''

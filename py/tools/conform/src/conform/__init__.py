@@ -18,8 +18,10 @@
 
 __all__ = [
     'PluginResult',
+    'RunResult',
     'Runtime',
     'Status',
 ]
 
 from conform.types import PluginResult, Runtime, Status
+from conform.util_test_model import RunResult

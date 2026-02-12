@@ -7,11 +7,14 @@ has a test spec (`model-conformance.yaml`) and a minimal entry point
 ## Quick start
 
 ```bash
-# Test a single plugin
+# Test a single plugin (native runner, all runtimes)
 py/bin/conform check-model anthropic
 
 # Test all plugins (requires ALL env vars below)
-py/bin/conform check-model --all
+py/bin/conform check-model
+
+# Test with a specific runtime matrix
+py/bin/conform --runtime python go check-model
 
 # Check env-var readiness
 py/bin/conform list

@@ -126,6 +126,7 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
     )
     table.add_column('', width=3, justify='center')
     table.add_column('Plugin', style='bold', min_width=24)
+    table.add_column('Runtime', min_width=8)
     table.add_column('Status', min_width=10)
     table.add_column('Tests', justify='right', min_width=8)
     table.add_column('Time', justify='right', min_width=10)
@@ -146,7 +147,9 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
             if result.tests_failed == 0:
                 tests_text = Text(f'{result.tests_passed}/{total}', style='green')
             else:
-                tests_text = Text(f'{result.tests_passed}/{total}', style='red')
+                tests_text = Text()
+                tests_text.append(str(result.tests_passed), style='green')
+                tests_text.append(f'/{total}', style='red')
         else:
             tests_text = Text('—', style='dim')
 
@@ -156,14 +159,16 @@ def build_progress_table(results: dict[str, PluginResult]) -> Table:
         elif result.status in (Status.FAILED, Status.ERROR) and result.error_message:
             detail = result.error_message[:80]
 
-        table.add_row(
+        row: list[str | Text] = [
             emoji,
             result.plugin,
+            Text(result.runtime, style='cyan'),
             status_text,
             tests_text,
             elapsed_str(result.elapsed_s),
             Text(detail, style='dim'),
-        )
+        ]
+        table.add_row(*row)
 
     return table
 
@@ -187,6 +192,7 @@ def build_summary_table(results: dict[str, PluginResult]) -> Table:
     )
     table.add_column('', width=3, justify='center')
     table.add_column('Plugin', style='bold', min_width=24)
+    table.add_column('Runtime', min_width=8)
     table.add_column('Result', min_width=12)
     table.add_column('Tests', justify='right', min_width=8)
     table.add_column('Time', justify='right', min_width=10)
@@ -203,7 +209,9 @@ def build_summary_table(results: dict[str, PluginResult]) -> Table:
             if result.tests_failed == 0:
                 tests_text = Text(f'{result.tests_passed}/{total}', style='green')
             else:
-                tests_text = Text(f'{result.tests_passed}/{total}', style='red')
+                tests_text = Text()
+                tests_text.append(str(result.tests_passed), style='green')
+                tests_text.append(f'/{total}', style='red')
         else:
             tests_text = Text('—', style='dim')
 
@@ -213,14 +221,16 @@ def build_summary_table(results: dict[str, PluginResult]) -> Table:
         elif result.status in (Status.FAILED, Status.ERROR) and result.error_message:
             detail = result.error_message[:100]
 
-        table.add_row(
+        row: list[str | Text] = [
             emoji,
             result.plugin,
+            Text(result.runtime, style='cyan'),
             Text(label, style=style),
             tests_text,
             elapsed_str(result.elapsed_s),
             detail,
-        )
+        ]
+        table.add_row(*row)
 
     return table
 

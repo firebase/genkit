@@ -1720,3 +1720,52 @@ Framework :: Genkit :: 1
 **Workaround:** Until the classifier is registered, use the `keywords`
 field (`"genkit"`, `"ai"`, `"llm"`) for PyPI discoverability.
 
+### Async Refactoring: Dotprompt File I/O
+
+**Status:** Not started (separate PR)
+**Priority:** Low (startup-only, small files)
+
+The `load_prompt()` and `load_prompt_folder_recursively()` functions in
+`packages/genkit/src/genkit/blocks/prompt.py` use synchronous file I/O
+(`Path.open()`, `os.scandir()`) to read `.prompt` files during startup.
+These are called from `_aio.py:124` during Genkit initialization.
+
+**Impact:** Low — these operations run once at startup, reading small text
+files (~1-5 KB each). The event-loop blocking time is negligible (~1ms per
+file).
+
+**Scope of refactoring:**
+- Convert `load_prompt_folder_recursively()` to use `asyncio.to_thread()`
+  for `os.scandir()` calls
+- Convert file reads to use `aiofiles.open()`
+- Make `load_prompt_folder()` async
+- Update the caller in `_aio.py` to `await` the async version
+- Update all tests that call these functions
+
+**Why a separate PR:** The functions are deeply intertwined with sync
+directory walking and recursive logic. Converting to async touches many
+callers and test files, making it too large to combine with the critical
+credential refresh and vectorstore fixes.
+
+### CI: Add Path Filters to JS Workflows
+
+**Status:** Not started
+**Priority:** Medium (saves ~10-15 min CI time per Python/Go PR)
+
+Three JS/TS workflows (`builder.yml`, `formatter.yml`, `tests.yml`) use bare
+`on: pull_request` without path filters, causing JS build + Jest tests to run
+on every PR — including Python-only and Go-only changes.
+
+**History:** Jonathan Amsterdam added `paths-ignore: 'go/**'` in PR #353
+(March 2024) but reverted it the next day in PR #390 because GitHub Actions
+had a bug where required checks filtered by path would "block forever." GitHub
+has since fixed this — skipped required checks now count as passing.
+
+**Fix:**
+- Add `paths:` filters to `builder.yml`, `formatter.yml`, and `tests.yml`
+  scoped to `js/**`, `genkit-tools/**`, `package.json`, `pnpm-lock.yaml`, and
+  the respective workflow file
+- Verify that branch protection required checks still pass when the workflow
+  is skipped (test with a Python-only PR)
+- If the required checks still block, use the `dorny/paths-filter` action to
+  conditionally skip individual jobs while still reporting a status
