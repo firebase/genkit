@@ -18,7 +18,6 @@
 
 import copy
 import re
-import re
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -67,7 +66,6 @@ logger = get_logger(__name__)
 # Matches data URIs: everything up to the first comma is the media-type +
 # parameters (e.g. "data:audio/L16;codec=pcm;rate=24000;base64,").
 _DATA_URI_RE = re.compile(r'data:[^,]{0,200},(?=.{100})', re.ASCII)
-_DATA_URI_MAX_LEN = 100
 
 
 def _redact_data_uris(obj: Any) -> Any:  # noqa: ANN401
@@ -79,7 +77,7 @@ def _redact_data_uris(obj: Any) -> Any:  # noqa: ANN401
     """
     if isinstance(obj, str):
         m = _DATA_URI_RE.match(obj)
-        if m and len(obj) > _DATA_URI_MAX_LEN:
+        if m:
             return f'{m.group()}...<{len(obj) - m.end()} bytes>'
         return obj
     if isinstance(obj, dict):
