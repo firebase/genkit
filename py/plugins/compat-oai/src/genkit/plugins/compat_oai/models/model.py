@@ -20,7 +20,7 @@ import json
 from collections.abc import Callable
 from typing import Any, cast
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext
@@ -44,12 +44,12 @@ from genkit.types import (
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI) -> None:
+    def __init__(self, model: str, client: AsyncOpenAI) -> None:
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
             model: The OpenAI model to use for generating responses.
-            client: OpenAI client instance.
+            client: Async OpenAI client instance.
         """
         self._model = model
         self._openai_client = client
@@ -235,7 +235,7 @@ class OpenAIModel:
             A GenerateResponse object containing the generated message.
         """
         openai_config = await self._get_openai_request_config(request=request)
-        response = self._openai_client.chat.completions.create(**openai_config)
+        response = await self._openai_client.chat.completions.create(**openai_config)
 
         return GenerateResponse(
             request=request,
@@ -257,11 +257,11 @@ class OpenAIModel:
         openai_config = await self._get_openai_request_config(request=request)
         openai_config['stream'] = True
 
-        stream = self._openai_client.chat.completions.create(**openai_config)
+        stream = await self._openai_client.chat.completions.create(**openai_config)
 
         tool_calls: dict[int, Any] = {}
         accumulated_content: list[Part] = []
-        for chunk in stream:
+        async for chunk in stream:
             delta = chunk.choices[0].delta
 
             # Text content chunk

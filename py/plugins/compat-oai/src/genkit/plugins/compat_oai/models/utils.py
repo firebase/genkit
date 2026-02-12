@@ -315,6 +315,9 @@ class MessageConverter:
         """Convert a Role to its OpenAI string representation."""
         if isinstance(role, Role):
             return cls._openai_role_map.get(role, role.value)
+
+        if role == 'model':
+            return 'assistant'
         return str(role)
 
     @classmethod
