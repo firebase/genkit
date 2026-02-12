@@ -81,13 +81,13 @@ class OpenAIClient:
             A configured AsyncOpenAI client.
         """
         location = openai_params.get('location')
-        pid = str(openai_params['project_id']) if 'project_id' in openai_params else None
+        project_id_str = str(val) if (val := openai_params.get('project_id')) is not None else None
 
         # Offload blocking credential refresh to a thread.
-        credentials, resolved_pid = await asyncio.to_thread(_refresh_credentials, pid)
+        credentials, resolved_project_id = await asyncio.to_thread(_refresh_credentials, project_id_str)
 
         base_url = (
             f'https://{location}-aiplatform.googleapis.com/v1beta1'
-            f'/projects/{resolved_pid}/locations/{location}/endpoints/openapi'
+            f'/projects/{resolved_project_id}/locations/{location}/endpoints/openapi'
         )
         return _AsyncOpenAI(api_key=credentials.token, base_url=base_url)

@@ -26,7 +26,7 @@ from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 @pytest.mark.asyncio
 @patch('google.auth.default')
 @patch('google.auth.transport.requests.Request')
-@patch('openai.OpenAI')
+@patch('genkit.plugins.vertex_ai.model_garden.client._AsyncOpenAI')
 async def test_client_initialization_with_explicit_project_id(
     mock_openai_cls: MagicMock, mock_request_cls: MagicMock, mock_default_auth: MagicMock
 ) -> None:
@@ -52,7 +52,7 @@ async def test_client_initialization_with_explicit_project_id(
 @pytest.mark.asyncio
 @patch('google.auth.default')
 @patch('google.auth.transport.requests.Request')
-@patch('openai.OpenAI')
+@patch('genkit.plugins.vertex_ai.model_garden.client._AsyncOpenAI')
 async def test_client_initialization_without_explicit_project_id(
     mock_openai_cls: MagicMock, mock_request_cls: MagicMock, mock_default_auth: MagicMock
 ) -> None:
