@@ -261,6 +261,53 @@
           return await f.read()
   ```
 
+  **Blocking I/O Audit Checklist**:
+
+  When writing or reviewing async code, check for these common sources of
+  event-loop blocking. Each pattern looks innocent but can stall the event
+  loop for 50-500ms:
+
+  | Pattern | Where it hides | Fix |
+  |---------|---------------|-----|
+  | `credentials.refresh(Request())` | Google Cloud auth, plugin init | `await asyncio.to_thread(credentials.refresh, req)` |
+  | `boto3.client(...)` / `client.invoke(...)` | AWS SDK calls | Use `aioboto3` with `async with session.client(...)` |
+  | `requests.get(url)` | Third-party HTTP in async code | Use `httpx.AsyncClient` or `get_cached_client()` |
+  | `pathlib.Path.open()` / `open()` | File reads/writes in async methods | Use `aiofiles.open()` |
+  | `json.load(open(...))` | Loading config/data in async code | `aiofiles.open()` + `json.loads(await f.read())` |
+  | `os.scandir()` / `os.listdir()` | Directory scanning | `await asyncio.to_thread(os.scandir, path)` |
+  | `subprocess.run()` | Shelling out from async code | `asyncio.create_subprocess_exec()` |
+  | `time.sleep(n)` | Delays in async code | `await asyncio.sleep(n)` |
+
+  **Detection strategy**: Search for these patterns in `async def` functions:
+
+  ```bash
+  # Find sync file I/O in async functions
+  rg -n 'open\(' --glob '*.py' | rg -v 'aiofiles'
+
+  # Find sync HTTP in async code
+  rg -n 'requests\.(get|post|put)' --glob '*.py'
+  rg -n 'httpx\.Client\(\)' --glob '*.py'
+
+  # Find blocking credential refresh
+  rg -n 'credentials\.refresh' --glob '*.py'
+
+  # Find sync subprocess calls
+  rg -n 'subprocess\.(run|call|check_output)' --glob '*.py'
+  ```
+
+  **When blocking I/O is acceptable**:
+
+  * **Startup-only code** (e.g., `load_prompt_folder()` reading small `.prompt`
+    files): If the I/O happens once during initialization with small files,
+    the latency is negligible (~1ms for a few KB). Document the choice.
+  * **OpenTelemetry exporters**: The OTEL SDK calls `export()` from its own
+    background thread via `BatchSpanProcessor`, so sync HTTP there is by design.
+  * **`atexit` handlers**: These run during interpreter shutdown when the event
+    loop is already closed. Sync I/O is the only option.
+  * **Sync tool functions**: Genkit's `@ai.tool()` can wrap sync functions.
+    The framework handles thread offloading. However, prefer async tools for
+    network-bound operations.
+
   **CRITICAL: Per-Event-Loop HTTP Client Caching**:
 
   When making multiple HTTP requests in async code, **do NOT create a new

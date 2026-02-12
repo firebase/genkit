@@ -1,10 +1,11 @@
 # Model Conformance Testing Plan for Python Plugins
 
-> **Status:** Infrastructure Complete (P0–P2 done, P3 pending manual validation)  
-> **Date:** 2026-02-06 (updated)  
-> **Owner:** Python Genkit Team  
-> **Scope:** Phase 1 covers google-genai, anthropic, and compat-oai (OpenAI).  
->   All 10 plugins have entry points and specs (Phase 2 plugins included early).
+> **Status:** Infrastructure + Native Runner Complete (P0–P3 done, P4 pending manual validation)
+> **Date:** 2026-02-11 (updated)
+> **Owner:** Python Genkit Team
+> **Scope:** Phase 1 covers google-genai, anthropic, and compat-oai (OpenAI).
+>   All 13 plugins have entry points and specs.  Native test runner replaces
+>   genkit CLI dependency.  Unified multi-runtime table.
 
 ---
 
@@ -29,35 +30,54 @@ We need to:
 
 ## Architecture
 
+The `conform` tool supports two execution modes:
+
 ```
-                 py/bin/test-model-conformance
-                           |
-                           v
-               genkit dev:test-model --from-file spec.yaml
-                           |
-                    discovers runtime
-                           |
-                           v
-                 Reflection Server (:3100)
-                           |
-                    /api/runAction
-                           |
-                           v
-              Plugin: GoogleAI / Anthropic / etc.
-                           ^
-                           |
-                 conformance_entry.py
+                py/bin/conform check-model [PLUGIN...]
+                              |
+                     +--------+--------+
+                     |                 |
+            default (native)    --use-cli (legacy)
+                     |                 |
+           +---------+---------+       |
+           |         |         |       v
+        python      js        go    genkit dev:test-model
+           |         |         |       |
+     InProcess   Reflection  Reflection
+      Runner      Runner     Runner
+           |         |         |       |
+      import    subprocess subprocess subprocess
+     entry.py   entry.ts   entry.go   genkit CLI
+           |         |         |       |
+      action.   async HTTP  async HTTP  |
+      arun_raw   reflection  reflection |
+           |         |         |       |
+           +----+----+----+----+       |
+                |         |            |
+           10 Validators  |            |
+           (1:1 with JS)  |            |
+                |         |            |
+         Unified Results Table         |
+         (Runtime column when          v
+          multiple runtimes)    Legacy per-runtime
+                                   tables
 ```
 
-**How it works:**
+**Native runner (default):**
 
-1. A lightweight Python entry point (`conformance_entry.py`) initializes Genkit
-   with a single plugin and starts the reflection server.
-2. The `genkit dev:test-model` JS CLI discovers the running Python runtime via
-   `.genkit/runtimes/*.json` discovery files.
-3. The CLI sends standardized test requests to models through `POST /api/runAction`.
-4. Responses are validated using built-in validators (tool calling, structured
-   output, multimodal, streaming, etc.).
+1. For Python: imports `conformance_entry.py` in-process, calls
+   `action.arun_raw()` directly (no subprocess, no HTTP, no genkit CLI).
+2. For JS/Go: starts the entry point subprocess, discovers the reflection
+   server via `.genkit/runtimes/*.json`, communicates via async HTTP.
+3. 10 validators ported 1:1 from the canonical JS source.
+4. Results displayed in a unified table with Runtime column.
+
+**Legacy CLI runner (`--use-cli`):**
+
+1. Delegates to `genkit dev:test-model` via subprocess.
+2. Discovers the running Python runtime via `.genkit/runtimes/*.json`.
+3. Sends standardized test requests via `POST /api/runAction`.
+4. Validates responses using built-in validators.
 
 ---
 
@@ -230,10 +250,27 @@ P1:  [symlink-gemini-spec ~]  [entry-google-genai ~]
                     |
 P2:  [runner-script ~~~~~~~~~~~~]
                     |
-P3:  [validate-google-genai ~~~~]
+P2.5:[audit-specs ~~~~~~~~~]
+                    |
+P3:  [conform tool ~~~~~~~~~~~~~~~]  ← native runner, unified table
+                    |
+P4:  [validate-google-genai ~~~~]
                     |
      === PHASE 1 SCOPE COMPLETE ===
 ```
+
+### Phase 3: Conform CLI Tool + Native Runner ✅ COMPLETE
+
+| Task | Description | File(s) | Status |
+|------|-------------|---------|--------|
+| `conform-cli` | Multi-runtime CLI tool (`py/tools/conform/`) | `cli.py`, `config.py`, `runner.py`, etc. | ✅ Done (PR #4593) |
+| `native-runner` | In-process runner for Python, reflection runner for JS/Go | `test_model.py`, `reflection.py` | ✅ Done |
+| `validators` | 10 validators ported 1:1 from JS canonical source | `validators/*.py` | ✅ Done |
+| `unified-table` | Single table with Runtime column across runtimes | `display.py`, `types.py` | ✅ Done |
+| `global-flags` | `--runtime` accepts matrix (e.g., `python go`), shown in subcommand help | `cli.py` | ✅ Done |
+| `remove-test-model` | Merged into `check-model` (native runner is default, `--use-cli` for legacy) | `cli.py` | ✅ Done |
+
+### Phase 4: Validation ⏳ PENDING
 
 ---
 
@@ -279,11 +316,10 @@ both); only the registration code needs updating.
 
 ### Directory Layout
 
-All conformance testing files live under `py/tests/conformance/` to avoid
-disturbing other runtimes:
+All conformance testing files live under `py/tests/conform/`:
 
 ```
-py/tests/conformance/
+py/tests/conform/
   google-genai/
     conformance_entry.py                  # minimal Genkit entry point
     model-conformance.yaml -> symlink     # -> js/plugins/google-genai/tests/model-tests-tts.yaml
@@ -293,8 +329,16 @@ py/tests/conformance/
   compat-oai/
     conformance_entry.py
     model-conformance.yaml                # openai-specific spec
-py/bin/
-  test-model-conformance                  # orchestrator shell script
+  ...13 plugins total...
+py/tools/conform/                         # conform CLI tool
+  src/conform/
+    cli.py                                # arg parsing + dispatch
+    config.py                             # TOML config loader
+    runner.py                             # legacy genkit CLI runner
+    test_model.py                         # native runner + ActionRunner Protocol
+    reflection.py                         # async HTTP client for reflection API
+    validators/                           # 10 validators (1:1 with JS)
+py/bin/conform                            # wrapper script
 ```
 
 ### Entry Point Template
@@ -352,29 +396,31 @@ streaming-tool-request, streaming-structured-output.
 
 Env: `OPENAI_API_KEY`
 
-### Test Runner Script
+### Conform CLI Tool
 
-**Location:** `py/bin/test-model-conformance`
+**Location:** `py/bin/conform` (wrapper) → `py/tools/conform/`
 
 ```bash
-#!/usr/bin/env bash
 # Usage:
-#   py/bin/test-model-conformance google-genai    # test one plugin
-#   py/bin/test-model-conformance --all            # test all plugins
+conform check-model                       # test all plugins, all runtimes
+conform check-model anthropic xai         # test specific plugins
+conform --runtime python go check-model   # matrix: python + go only
+conform check-model --use-cli             # legacy genkit CLI fallback
+conform list                              # show readiness table
+conform check-plugin                      # lint-time file check
 ```
 
-The script:
-- Accepts a plugin name (or `--all`) as argument
-- Validates the required env vars are set for that plugin
-- Runs: `genkit dev:test-model --from-file <spec> -- uv run <entry_point>`
+The tool:
+- Uses the native runner by default (in-process for Python, async HTTP for JS/Go)
+- Falls back to `genkit dev:test-model` subprocess with `--use-cli`
+- Runs across all configured runtimes by default (`--runtime` for matrix)
+- Shows a unified table with Runtime column across runtimes
+- Reports aggregate pass/fail and exits non-zero on failure
 
 > **Note:** [`uv`](https://docs.astral.sh/uv/) is the project's standard Python
 > package manager and task runner, already used throughout the repository (see
 > `py/pyproject.toml` workspace configuration and `py/bin/` scripts). It is
 > installed as part of the developer setup via `bin/setup`.
-- `dev:test-model` handles process lifecycle (start, wait for runtime, run
-  tests, shut down)
-- Reports aggregate pass/fail and exits non-zero on failure
 
 ### Built-in Test Capabilities
 

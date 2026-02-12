@@ -246,3 +246,34 @@ def load_config(
         additional_model_plugins=additional_model_plugins,
         runtime=runtime,
     )
+
+
+def load_all_runtime_names(
+    config_path: Path | None = None,
+) -> list[str]:
+    """Return the names of all configured runtimes.
+
+    Reads ``[tool.conform.runtimes.*]`` sections from the TOML config.
+    Falls back to ``['python']`` if no runtimes are configured.
+    """
+    if config_path is None:
+        config_path = TOOL_DIR / 'pyproject.toml'
+
+    if not config_path.is_file():
+        return ['python']
+
+    data = _load_pyproject(config_path)
+    tool: object = data.get('tool')
+    if not isinstance(tool, dict):
+        return ['python']
+
+    conform_section: object = tool.get('conform')  # type: ignore[call-overload]
+    if not isinstance(conform_section, dict):
+        return ['python']
+
+    runtimes_raw: object = conform_section.get('runtimes')
+    if not isinstance(runtimes_raw, dict):
+        return ['python']
+
+    names = [str(k) for k in runtimes_raw]
+    return names if names else ['python']
