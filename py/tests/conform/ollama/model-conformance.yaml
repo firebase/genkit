@@ -17,12 +17,12 @@
 # Ollama model conformance test spec.
 #
 # Ollama runs locally. Capabilities depend on the model pulled.
-# gemma3 supports text generation, tool use, and vision (image input).
+# gemma3 supports text generation and vision (image input).
+# Note: Ollama's gemma3 does not support tool calling.
 # See: https://ollama.com/library/gemma3
 
 - model: ollama/gemma3
   supports:
-    - tool-request
     - multiturn
     - system-role
     - input-image-base64

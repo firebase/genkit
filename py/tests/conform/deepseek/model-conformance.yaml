@@ -29,6 +29,7 @@
     - system-role
     - streaming-multiturn
     - streaming-tool-request
+    - streaming-structured-output
 
 - model: deepseek/deepseek-reasoner
   supports:

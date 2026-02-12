@@ -19,6 +19,7 @@
 
 import base64
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -34,6 +35,27 @@ from genkit.types import (
     ToolRequestPart,
     ToolResponsePart,
 )
+
+
+def strip_markdown_fences(text: str) -> str:
+    r"""Strip markdown code fences from a JSON response.
+
+    Models sometimes wrap JSON output in markdown fences like
+    ``\`\`\`json ... \`\`\``` even when instructed to output raw
+    JSON.  This helper removes the fences.
+
+    Args:
+        text: The response text, possibly wrapped in fences.
+
+    Returns:
+        The text with markdown fences removed, or the original
+        text if no fences are found.
+    """
+    stripped = text.strip()
+    match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text
 
 
 def _find_text(request: GenerateRequest) -> str | None:

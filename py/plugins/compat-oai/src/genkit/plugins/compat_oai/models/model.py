@@ -17,7 +17,6 @@
 """OpenAI Compatible Models for Genkit."""
 
 import json
-import re
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -27,7 +26,12 @@ from openai.lib._pydantic import _ensure_strict_json_schema
 from genkit.core.action._action import ActionRunContext
 from genkit.core.typing import GenerationCommonConfig as CoreGenerationCommonConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
-from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
+from genkit.plugins.compat_oai.models.utils import (
+    DictMessageAdapter,
+    MessageAdapter,
+    MessageConverter,
+    strip_markdown_fences,
+)
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.types import (
     GenerateRequest,
@@ -166,28 +170,6 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
-    @staticmethod
-    def _strip_markdown_fences(text: str) -> str:
-        r"""Strip markdown code fences from a JSON response.
-
-        Some models (e.g. DeepSeek) wrap JSON output in markdown fences
-        like ``\`\`\`json ... \`\`\`` even when ``json_object`` mode is
-        requested.  This helper removes the fences so downstream
-        consumers receive valid JSON.
-
-        Args:
-            text: The response text, possibly wrapped in fences.
-
-        Returns:
-            The text with markdown fences removed, or the original
-            text if no fences are found.
-        """
-        stripped = text.strip()
-        match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
-        if match:
-            return match.group(1).strip()
-        return text
-
     def _clean_json_response(self, response: 'GenerateResponse', request: 'GenerateRequest') -> 'GenerateResponse':
         """Strip markdown fences from JSON responses for json_object-mode models.
 
@@ -213,7 +195,7 @@ class OpenAIModel:
         changed = False
         for part in response.message.content:
             if isinstance(part.root, TextPart) and part.root.text:
-                cleaned_text = self._strip_markdown_fences(part.root.text)
+                cleaned_text = strip_markdown_fences(part.root.text)
                 if cleaned_text != part.root.text:
                     cleaned_parts.append(Part(root=TextPart(text=cleaned_text)))
                     changed = True

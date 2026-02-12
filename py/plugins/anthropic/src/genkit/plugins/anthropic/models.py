@@ -25,7 +25,6 @@ See:
 """
 
 import json
-import re
 from typing import Any
 
 from anthropic import AsyncAnthropic
@@ -37,6 +36,7 @@ from genkit.plugins.anthropic.model_info import get_model_info
 from genkit.plugins.anthropic.utils import (
     build_cache_usage,
     get_cache_control,
+    maybe_strip_fences,
     to_anthropic_media,
 )
 from genkit.types import (
@@ -126,7 +126,7 @@ class AnthropicModel:
             response = await self.client.messages.create(**params)
 
         content = self._to_genkit_content(response.content)
-        content = self._maybe_strip_fences(request, content)
+        content = maybe_strip_fences(request, content)
 
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -400,53 +400,6 @@ class AnthropicModel:
                 'content': str(part.tool_response.output),
             }
         return None
-
-    @staticmethod
-    def _strip_markdown_fences(text: str) -> str:
-        r"""Strip markdown code fences from a JSON response.
-
-        Anthropic models sometimes wrap JSON output in markdown fences
-        like ``\`\`\`json ... \`\`\``` even when instructed to output
-        valid JSON.  This helper removes the fences so downstream
-        consumers receive valid JSON.
-
-        Args:
-            text: The response text, possibly wrapped in fences.
-
-        Returns:
-            The text with markdown fences removed, or the original
-            text if no fences are found.
-        """
-        stripped = text.strip()
-        match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
-        if match:
-            return match.group(1).strip()
-        return text
-
-    def _maybe_strip_fences(self, request: GenerateRequest, parts: list[Part]) -> list[Part]:
-        """Strip markdown fences from text parts when JSON output is expected.
-
-        Args:
-            request: The original generate request.
-            parts: The response content parts.
-
-        Returns:
-            Parts with fences stripped from text if JSON was requested.
-        """
-        if not request.output or request.output.format != 'json':
-            return parts
-
-        cleaned: list[Part] = []
-        for part in parts:
-            if isinstance(part.root, TextPart) and part.root.text:
-                cleaned_text = self._strip_markdown_fences(part.root.text)
-                if cleaned_text != part.root.text:
-                    cleaned.append(Part(root=TextPart(text=cleaned_text)))
-                else:
-                    cleaned.append(part)
-            else:
-                cleaned.append(part)
-        return cleaned
 
     def _to_genkit_content(self, content_blocks: list[Any]) -> list[Part]:
         """Convert Anthropic response to Genkit format."""

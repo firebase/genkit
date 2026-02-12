@@ -68,7 +68,7 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
-from genkit.types import GenerateRequest, Message, Part, Role, TextPart, ToolRequest
+from genkit.types import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:
@@ -899,7 +899,13 @@ class TestStreamingToolUseParsing:
                         },
                     }
                 },
-                # 4. messageStop
+                # 4. contentBlockStop
+                {
+                    'contentBlockStop': {
+                        'contentBlockIndex': 1,
+                    }
+                },
+                # 5. messageStop
                 {
                     'messageStop': {
                         'stopReason': 'tool_use',
@@ -929,7 +935,7 @@ class TestStreamingToolUseParsing:
             tools=[],
         )
 
-        chunks: list[object] = []
+        chunks: list[GenerateResponseChunk] = []
         ctx = MagicMock(spec=ActionRunContext)
         ctx.send_chunk = MagicMock(side_effect=lambda c: chunks.append(c))
 
@@ -950,6 +956,14 @@ class TestStreamingToolUseParsing:
         assert tool_req.name == 'get_weather', f'Tool name should be "get_weather", got "{tool_req.name}"'
         assert tool_req.ref == 'call_abc123', f'Tool ref should be "call_abc123", got "{tool_req.ref}"'
         assert tool_req.input == {'location': 'London'}, f'Tool input should be parsed JSON, got {tool_req.input!r}'
+
+        # Verify a tool request chunk was emitted via ctx.send_chunk.
+        tool_chunks = [
+            c
+            for c in chunks
+            if any(hasattr(p.root, 'tool_request') and p.root.tool_request is not None for p in c.content)
+        ]
+        assert len(tool_chunks) == 1, f'Expected 1 tool request chunk, got {len(tool_chunks)}'
 
     @pytest.mark.asyncio
     async def test_multiple_tool_calls_in_stream(self, mock_client: MagicMock) -> None:

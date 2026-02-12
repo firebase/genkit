@@ -43,6 +43,7 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -490,10 +491,15 @@ async def _run_single_test(
     return result
 
 
+# Type alias for the optional per-test progress callback.
+OnTestDone = Callable[[TestResult], None] | None
+
+
 async def _run_suite(
     runner: ActionRunner,
     suite: dict[str, Any],
     default_supports: list[str],
+    on_test_done: OnTestDone = None,
 ) -> SuiteResult:
     """Run all tests for a single model suite."""
     model = suite['model']
@@ -509,6 +515,8 @@ async def _run_suite(
         if test_case:
             tr = await _run_single_test(runner, model, test_case)
             result.tests.append(tr)
+            if on_test_done:
+                on_test_done(tr)
         else:
             console.print(f'  [yellow]⚠ Unknown capability:[/yellow] {capability}')
 
@@ -522,6 +530,8 @@ async def _run_suite(
         }
         tr = await _run_single_test(runner, model, test_case)
         result.tests.append(tr)
+        if on_test_done:
+            on_test_done(tr)
 
     return result
 
@@ -531,6 +541,7 @@ async def run_test_model(
     config: ConformConfig,
     *,
     default_supports: list[str] | None = None,
+    on_test_done: OnTestDone = None,
 ) -> RunResult:
     """Run model conformance tests for a plugin.
 
@@ -544,6 +555,8 @@ async def run_test_model(
         config: Conform configuration.
         default_supports: Default capabilities to test if not specified
             in the suite.
+        on_test_done: Optional callback invoked after each individual
+            test completes, useful for incremental progress updates.
 
     Returns:
         Aggregate test results.
@@ -605,7 +618,7 @@ async def run_test_model(
             if not suite.get('model'):
                 console.print('[red]Error:[/red] Model name required in test suite.')
                 continue
-            sr = await _run_suite(runner, suite, default_supports)
+            sr = await _run_suite(runner, suite, default_supports, on_test_done)
             run_result.suites.append(sr)
 
         # Summary.

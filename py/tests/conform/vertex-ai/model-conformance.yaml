@@ -19,16 +19,29 @@
 # Source: https://cloud.google.com/vertex-ai/docs/model-garden
 #
 # Tests the Model Garden plugin path which proxies to third-party models
-# hosted on Vertex AI. Uses the Anthropic Claude path since it's the most
-# commonly used Model Garden integration.
+# hosted on Vertex AI.
+#
+# Two routing paths are tested:
+#   - anthropic/* → Anthropic SDK (AnthropicVertex)
+#   - meta/*      → OpenAI-compatible SDK (AsyncOpenAI via Vertex)
 #
 # Note: The plugin name is "modelgarden", not "vertex-ai".
 
-- model: modelgarden/anthropic/claude-sonnet-4
+# --- Anthropic path (AnthropicVertex SDK) ---
+- model: modelgarden/anthropic/claude-3-5-sonnet-v2@20241022
   supports:
     - tool-request
     - multiturn
     - system-role
     - input-image-base64
+    - streaming-multiturn
+    - streaming-tool-request
+
+# --- OpenAI-compatible path (Meta Llama via Vertex) ---
+- model: modelgarden/meta/llama-3.2-90b-vision-instruct-maas
+  supports:
+    - tool-request
+    - multiturn
+    - system-role
     - streaming-multiturn
     - streaming-tool-request
