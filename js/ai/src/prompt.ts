@@ -48,6 +48,7 @@ import {
 import { Message } from './message.js';
 import {
   GenerateActionOptionsSchema,
+  MiddlewareRef,
   type GenerateActionOptions,
   type GenerateRequest,
   type GenerateRequestSchema,
@@ -127,7 +128,7 @@ export interface PromptConfig<
   metadata?: Record<string, any>;
   tools?: ToolArgument[];
   toolChoice?: ToolChoice;
-  use?: ModelMiddleware[];
+  use?: (ModelMiddleware | MiddlewareRef)[];
   context?: ActionContext;
 }
 
@@ -861,6 +862,7 @@ function loadPrompt(
         maxTurns: promptMetadata.raw?.['maxTurns'],
         toolChoice: promptMetadata.raw?.['toolChoice'],
         returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
+        use: promptMetadata.raw?.['use'],
         messages: parsedPrompt.template,
       };
     })
