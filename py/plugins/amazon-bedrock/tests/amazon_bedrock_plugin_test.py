@@ -24,7 +24,9 @@ This module tests the AWS Bedrock plugin functionality including:
 - Model info registry
 """
 
-from unittest.mock import MagicMock
+from collections.abc import AsyncIterator
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -819,6 +821,22 @@ class TestAutoInferenceProfileConversion:
         assert model._get_effective_model_id() == 'unknown-provider.some-model-v1:0'
 
 
+class _AsyncIter(AsyncIterator[Any]):
+    """Wraps a list into an async iterator for mocking aioboto3 streams."""
+
+    def __init__(self, items: list[Any]) -> None:
+        self._items = iter(items)
+
+    def __aiter__(self) -> '_AsyncIter':
+        return self
+
+    async def __anext__(self) -> Any:  # noqa: ANN401
+        try:
+            return next(self._items)
+        except StopIteration:
+            raise StopAsyncIteration  # noqa: B904
+
+
 class TestStreamingToolUseParsing:
     """Regression tests for streaming tool use assembly.
 
@@ -835,15 +853,18 @@ class TestStreamingToolUseParsing:
 
     @pytest.fixture()
     def mock_client(self) -> MagicMock:
-        """Create a mock boto3 bedrock-runtime client."""
-        return MagicMock()
+        """Create a mock async bedrock-runtime client."""
+        client = MagicMock()
+        # converse_stream is async with aioboto3
+        client.converse_stream = AsyncMock()
+        return client
 
     @pytest.mark.asyncio
     async def test_tool_use_name_preserved_across_stream_events(self, mock_client: MagicMock) -> None:
         """Tool name and ref from contentBlockStart survive delta assembly."""
         # Simulate the ConverseStream event sequence for a tool call
         mock_client.converse_stream.return_value = {
-            'stream': [
+            'stream': _AsyncIter([
                 # 1. contentBlockStart: carries toolUseId and name
                 {
                     'contentBlockStart': {
@@ -894,7 +915,7 @@ class TestStreamingToolUseParsing:
                         }
                     }
                 },
-            ]
+            ])
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
@@ -934,7 +955,7 @@ class TestStreamingToolUseParsing:
     async def test_multiple_tool_calls_in_stream(self, mock_client: MagicMock) -> None:
         """Multiple tool calls in a single stream are assembled correctly."""
         mock_client.converse_stream.return_value = {
-            'stream': [
+            'stream': _AsyncIter([
                 # First tool call at block index 0
                 {
                     'contentBlockStart': {
@@ -981,7 +1002,7 @@ class TestStreamingToolUseParsing:
                         }
                     }
                 },
-            ]
+            ])
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)

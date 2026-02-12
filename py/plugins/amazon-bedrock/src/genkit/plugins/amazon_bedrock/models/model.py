@@ -295,8 +295,7 @@ class BedrockModel:
                 return await self._generate_streaming(params, ctx, request)
 
             # Non-streaming request using Converse API
-            # boto3 is synchronous, so we run it directly
-            response = self.client.converse(**params)
+            response = await self.client.converse(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock API call failed',
@@ -349,7 +348,7 @@ class BedrockModel:
         """
         try:
             # Use converse_stream for streaming
-            response = self.client.converse_stream(**params)
+            response = await self.client.converse_stream(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock streaming API call failed',
@@ -365,7 +364,7 @@ class BedrockModel:
 
         # Process the event stream
         stream = response.get('stream', [])
-        for event in stream:
+        async for event in stream:
             # Handle content block delta (text chunks)
             if 'contentBlockDelta' in event:
                 delta = event['contentBlockDelta'].get('delta', {})
