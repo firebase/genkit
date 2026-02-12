@@ -407,44 +407,42 @@ type ScoreDetails struct{ /* fields */ }
 ### Prompt
 
 ```go
-// CHANGED: concrete struct.
-type Prompt struct{ /* unexported */ }
+// CHANGED: unified generic type replacing both Prompt and DataPrompt.
+// In = input type, Out = typed output, Stream = streaming chunk type.
+// Users never specify Stream directly — constructors determine it.
+type Prompt[In, Out, Stream any] struct{ /* unexported */ }
 
-func DefinePrompt(r api.Registry, name string, opts ...PromptOption) *Prompt
-func LookupPrompt(r api.Registry, name string) *Prompt
+// DefinePrompt creates a text prompt with typed input.
+// Out = string, Stream = *ModelResponseChunk.
+// For fully untyped input, use DefinePrompt[any].
+func DefinePrompt[In any](r api.Registry, name string, opts ...PromptOption) *Prompt[In, string, *ModelResponseChunk]
 
-func (p *Prompt) Name() string
-func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error)
-func (p *Prompt) ExecuteStream(ctx context.Context, opts ...PromptExecuteOption) iter.Seq2[*ModelStreamValue, error]
-func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error)
+// DefineDataPrompt creates a structured output prompt with typed input and output.
+// Stream = Out (chunks are the same type as the final output).
+func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOption) *Prompt[In, Out, Out]
 
-// Prompt loading — unchanged
-func LoadPromptDir(r api.Registry, dir string, namespace string)
-func LoadPrompt(r api.Registry, dir, filename, namespace string) *Prompt
-func LoadPromptDirFromFS(r api.Registry, fsys fs.FS, dir, namespace string)
-func LoadPromptFromFS(r api.Registry, fsys fs.FS, dir, filename, namespace string) *Prompt
-func LoadPromptFromSource(r api.Registry, source, name, namespace string) (*Prompt, error)
+// LookupPrompt looks up a registered prompt by name and wraps it as a text prompt.
+func LookupPrompt[In any](r api.Registry, name string) *Prompt[In, string, *ModelResponseChunk]
+
+// LookupDataPrompt looks up a registered prompt by name and wraps it with structured output types.
+func LookupDataPrompt[In, Out any](r api.Registry, name string) *Prompt[In, Out, Out]
+
+func (p *Prompt[In, Out, Stream]) Name() string
+func (p *Prompt[In, Out, Stream]) Execute(ctx context.Context, input In, opts ...PromptExecuteOption) (Out, *ModelResponse, error)
+func (p *Prompt[In, Out, Stream]) ExecuteStream(ctx context.Context, input In, opts ...PromptExecuteOption) iter.Seq2[*StreamValue[Out, Stream], error]
+func (p *Prompt[In, Out, Stream]) Render(ctx context.Context, input In) (*GenerateActionOptions, error)
+
+// Prompt loading
+func LoadPromptDir(r api.Registry, dir string, namespace string)                          // unchanged
+func LoadPromptDirFromFS(r api.Registry, fsys fs.FS, dir, namespace string)               // unchanged
+func LoadPrompt[In any](r api.Registry, dir, filename, namespace string) *Prompt[In, string, *ModelResponseChunk]
+func LoadPromptFromFS[In any](r api.Registry, fsys fs.FS, dir, filename, namespace string) *Prompt[In, string, *ModelResponseChunk]
+func LoadPromptFromSource[In any](r api.Registry, source, name, namespace string) (*Prompt[In, string, *ModelResponseChunk], error)
 
 // Unchanged
 type PromptFn = func(context.Context) (string, error)
 type MessagesFn = func(context.Context) ([]*Message, error)
 type GenerateActionOptions struct{ /* fields */ }
-```
-
-#### DataPrompt
-
-```go
-// CHANGED: embeds *Prompt. Execute returns value not pointer.
-type DataPrompt[In, Out any] struct {
-    *Prompt
-}
-
-func DefineDataPrompt[In, Out any](r api.Registry, name string, opts ...PromptOption) *DataPrompt[In, Out]
-func LookupDataPrompt[In, Out any](r api.Registry, name string) *DataPrompt[In, Out]
-func AsDataPrompt[In, Out any](p *Prompt) *DataPrompt[In, Out]
-
-func (dp *DataPrompt[In, Out]) Execute(ctx context.Context, input In, opts ...PromptExecuteOption) (Out, *ModelResponse, error)
-func (dp *DataPrompt[In, Out]) ExecuteStream(ctx context.Context, input In, opts ...PromptExecuteOption) iter.Seq2[*StreamValue[Out, Out], error]
 ```
 
 ### Generate
@@ -506,10 +504,10 @@ func WithToolResponses(parts ...*Part) GenerateOption
 func WithToolRestarts(parts ...*Part) GenerateOption
 ```
 
-### Prompt Options (unchanged)
+### Prompt Options
 
 ```go
-// Prompt definition options
+// Prompt definition options — unchanged
 func WithDescription(description string) PromptOption
 func WithMetadata(metadata map[string]any) PromptOption
 // Also accepts: WithSystem, WithSystemFn, WithPrompt, WithPromptFn,
@@ -517,7 +515,7 @@ func WithMetadata(metadata map[string]any) PromptOption
 //   WithInputSchema, WithModel, WithModelName, etc.
 
 // Prompt execution options
-func WithInput(input any) PromptExecuteOption
+// CHANGED: WithInput removed — input is now a typed parameter on Execute/ExecuteStream.
 // Also accepts most GenerateOption values.
 ```
 
@@ -602,9 +600,20 @@ All `Define*` and `New*` functions place the function argument before options. R
 
 `RestartOptions` becomes generic (`RestartOptions[In, Meta]`) so both `ReplaceInput` and `ResumedMetadata` are strongly typed. The untyped `Restart`/`Respond` methods are removed — only `RestartWith`/`RespondWith` on `*Tool[In, Out]` remain.
 
+### Unified Prompt type
+
+v1 has two prompt concepts: `Prompt` (untyped, streams `*ModelResponseChunk`) and `DataPrompt[In, Out]` (typed input/output, streams `Out`). v2 unifies them into a single `Prompt[In, Out, Stream]` with three type parameters. The third parameter (`Stream`) is never specified by users — constructors determine it:
+
+- `DefinePrompt[In]` → `Prompt[In, string, *ModelResponseChunk]`. Text output, `*ModelResponseChunk` stream chunks (preserves chunk metadata like `Role`, `Custom`, `Index`). Input is validated against the `In` schema. For fully untyped input, use `DefinePrompt[any]`.
+- `DefineDataPrompt[In, Out]` → `Prompt[In, Out, Out]`. Structured output, typed stream chunks. Same behavior as v1 `DataPrompt`.
+
+Both share the same `Execute` signature: `(ctx, input In) → (Out, *ModelResponse, error)`. Both share the same `ExecuteStream` signature: `iter.Seq2[*StreamValue[Out, Stream], error]`. Lookup functions (`LookupPrompt[In]`, `LookupDataPrompt[In, Out]`) are generic and return the concrete `*Prompt` directly — no intermediate non-generic interface is needed since the registry already stores actions as untyped internally.
+
+This matches the `Generate`/`GenerateData` naming convention at the generate level.
+
 ### Remove WithOutputType / WithOutputSchema
 
-Structured output is handled exclusively by `GenerateData[Out]`, `GenerateDataStream[Out]`, and `DataPrompt[In, Out]`. Removing `WithOutputType` and `WithOutputSchema` eliminates a class of runtime type errors. `WithOutputFormat` and `WithInputSchema` are retained for format control and MCP definitions.
+Structured output is handled exclusively by `GenerateData[Out]`, `GenerateDataStream[Out]`, and `DefineDataPrompt[In, Out]`. Removing `WithOutputType` and `WithOutputSchema` eliminates a class of runtime type errors. `WithOutputFormat` and `WithInputSchema` are retained for format control and MCP definitions.
 
 ### Merge FormatHandler and StreamingFormatHandler
 
@@ -634,7 +643,9 @@ v1 had `RunJSON` (discards telemetry) and `RunJSONWithTelemetry` (returns `*api.
 | `RetrieverArg`, `RetrieverRef` | `Named`, `ActionRef` |
 | `Evaluator` interface | `*Evaluator` struct |
 | `EvaluatorArg`, `EvaluatorRef` | `Named`, `ActionRef` |
-| `Prompt` interface | `*Prompt` struct |
+| `Prompt` interface | `*Prompt[In, Out, Stream]` struct |
+| `DataPrompt[In, Out]` | `*Prompt[In, Out, Out]` via `DefineDataPrompt` |
+| `AsDataPrompt` | `LookupDataPrompt[In, Out]` |
 | `Register()` on public types | Unexported; `Define*` handles it |
 | `RunRawMultipart` | Consolidated into `RunRaw` (always returns `*MultipartToolResponse`) |
 | `Respond`, `Restart` (untyped) | `RespondWith`, `RestartWith` only |
@@ -642,7 +653,8 @@ v1 had `RunJSON` (discards telemetry) and `RunJSONWithTelemetry` (returns `*api.
 | `OriginalInput()` (untyped) | `OriginalInputAs[T]` (typed) |
 | `RunJSON` (discards telemetry) | `RunJSON` (always returns telemetry) |
 | `RunJSONWithTelemetry` | Renamed to `RunJSON` |
-| `WithOutputType`, `WithOutputSchema` | `GenerateData[Out]`, `DataPrompt[In, Out]` |
+| `WithOutputType`, `WithOutputSchema` | `GenerateData[Out]`, `DefineDataPrompt[In, Out]` |
+| `WithInput` (prompt execution) | Typed `input In` parameter on `Execute`/`ExecuteStream` |
 | `FormatHandler.ParseMessage` | Removed |
 | `StreamingFormatHandler` | Merged into `FormatHandler` |
 
