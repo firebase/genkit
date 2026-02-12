@@ -54,6 +54,7 @@ CLAUDE_3_5_SONNET = ModelInfo(
         media=True,
         tools=True,
         system_role=True,
+        output=['text', 'json'],
     ),
 )
 

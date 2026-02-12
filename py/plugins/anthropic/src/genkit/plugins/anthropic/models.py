@@ -103,7 +103,7 @@ class AnthropicModel:
             client: AsyncAnthropic client instance.
         """
         model_info = get_model_info(model_name)
-        self.model_info = model_info
+        self._model_info = model_info
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
@@ -234,7 +234,7 @@ class AnthropicModel:
 
         # Handle JSON output constraint
         if request.output and request.output.format == 'json':
-            supports_json = self.model_info.supports and 'json' in (self.model_info.supports.output or [])
+            supports_json = 'json' in (self._model_info.supports.output or []) if self._model_info.supports else False
             if request.output.schema and supports_json:
                 # Use native structured outputs via output_config.
                 params['output_config'] = {
