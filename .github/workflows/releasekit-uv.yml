@@ -43,6 +43,21 @@
 name: "ReleaseKit: Python (uv)"
 
 on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Publish target registry'
+        required: true
+        default: pypi
+        type: choice
+        options:
+          - testpypi
+          - pypi
+      dry_run:
+        description: 'Dry run — log what would happen without creating tags or publishing'
+        required: true
+        default: true
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -64,6 +79,15 @@ permissions:
 env:
   RELEASEKIT_DIR: py/tools/releasekit
   WORKSPACE_DIR: py
+  # Registry URLs resolved from the target input (defaults to prod PyPI).
+  PUBLISH_INDEX_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
+  PUBLISH_CHECK_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/simple/' || 'https://pypi.org/simple/' }}
+  PUBLISH_ENVIRONMENT: ${{ inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}
+  # Dry-run logic:
+  #   - PR merge (pull_request closed): dry_run=false (this is the one-button release flow)
+  #   - Manual dispatch: uses the checkbox value (default: true)
+  #   - Push to main: dry_run is not relevant (only runs prepare, which is always live)
+  DRY_RUN: ${{ github.event_name == 'pull_request' && 'false' || (inputs.dry_run == 'false' && 'false' || 'true') }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
@@ -75,13 +99,16 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   prepare:
     name: Prepare Release PR
-    if: github.event_name == 'push'
+    if: |
+      github.event_name == 'push' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):') &&
+      !contains(github.event.head_commit.message, 'releasekit--release')
     runs-on: ubuntu-latest
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history needed for conventional commit parsing
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -106,7 +133,7 @@ jobs:
         id: prepare
         run: |
           cd ${{ env.WORKSPACE_DIR }}
-          OUTPUT=$(uv run --directory ../tools/releasekit releasekit prepare 2>&1) || {
+          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py prepare 2>&1) || {
             echo "::warning::releasekit prepare exited with non-zero status"
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
             echo "$OUTPUT"
@@ -134,14 +161,15 @@ jobs:
   release:
     name: Tag and Release
     if: |
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true &&
-      contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -162,11 +190,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Preview execution plan
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          echo "::group::Execution Plan (ASCII)"
+          uv run --directory ../tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no tags or releases will be created"
+          else
+            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run releasekit release
         id: release
         run: |
           cd ${{ env.WORKSPACE_DIR }}
-          OUTPUT=$(uv run --directory ../tools/releasekit releasekit release 2>&1)
+          DRY_RUN_FLAG=""
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py release $DRY_RUN_FLAG 2>&1)
           echo "$OUTPUT"
 
           # Parse release URL
@@ -182,14 +228,14 @@ jobs:
   # topological order with retry and ephemeral version pinning.
   # ═══════════════════════════════════════════════════════════════════════
   publish:
-    name: Publish to PyPI
+    name: Publish to ${{ inputs.target || 'pypi' }}
     needs: release
     runs-on: ubuntu-latest
-    environment: pypi  # Requires manual approval if configured
+    environment: ${{ env.PUBLISH_ENVIRONMENT }}
     permissions:
       id-token: write  # Trusted publishing (OIDC)
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -211,16 +257,44 @@ jobs:
           cd tools/releasekit
           uv sync
 
+      - name: Preview execution plan
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          echo "::group::Execution Plan (ASCII)"
+          uv run --directory tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no packages will be published"
+          else
+            echo "::notice::LIVE RUN — packages will be published to ${{ inputs.target || 'pypi' }}"
+          fi
+
       - name: Run releasekit publish
         run: |
           cd ${{ env.WORKSPACE_DIR }}
-          uv run --directory tools/releasekit releasekit publish \
-            --force \
-            --check-url
+
+          cmd=(uv run --directory tools/releasekit releasekit --workspace py publish --force)
+
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            cmd+=(--dry-run)
+          fi
+
+          if [ -n "$PUBLISH_CHECK_URL" ]; then
+            cmd+=(--check-url "$PUBLISH_CHECK_URL")
+          fi
+          if [ -n "$PUBLISH_INDEX_URL" ]; then
+            cmd+=(--index-url "$PUBLISH_INDEX_URL")
+          fi
+
+          cmd+=(--max-retries 2)
+
+          echo "::group::Running: ${cmd[*]}"
+          "${cmd[@]}"
+          echo "::endgroup::"
         env:
           # For trusted publishing (OIDC), no token needed.
-          # For API token auth, set PYPI_TOKEN in repo secrets.
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
+          UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4
@@ -238,6 +312,7 @@ jobs:
   notify:
     name: Notify Downstream
     needs: publish
+    if: success()
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch release event
