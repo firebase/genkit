@@ -350,8 +350,8 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				h := middlewareHandlers[i]
 				inner := wrapped
 				wrapped = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-					return h.Model(ctx, &ModelState{Request: req, Callback: cb}, func(ctx context.Context, state *ModelState) (*ModelResponse, error) {
-						return inner(ctx, state.Request, state.Callback)
+					return h.WrapModel(ctx, &ModelParams{Request: req, Callback: cb}, func(ctx context.Context, params *ModelParams) (*ModelResponse, error) {
+						return inner(ctx, params.Request, params.Callback)
 					})
 				}
 			}
@@ -449,17 +449,17 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	if len(middlewareHandlers) > 0 {
 		innerGenerate := generate
 		generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
-			innerFn := func(ctx context.Context, state *GenerateState) (*ModelResponse, error) {
-				return innerGenerate(ctx, state.Request, currentTurn, messageIndex)
+			innerFn := func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
+				return innerGenerate(ctx, params.Request, currentTurn, messageIndex)
 			}
 			for i := len(middlewareHandlers) - 1; i >= 0; i-- {
 				h := middlewareHandlers[i]
 				next := innerFn
-				innerFn = func(ctx context.Context, state *GenerateState) (*ModelResponse, error) {
-					return h.Generate(ctx, state, next)
+				innerFn = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
+					return h.WrapGenerate(ctx, params, next)
 				}
 			}
-			return innerFn(ctx, &GenerateState{
+			return innerFn(ctx, &GenerateParams{
 				Options:   opts,
 				Request:   req,
 				Iteration: currentTurn,
@@ -968,19 +968,19 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 	return newReq, nil, nil
 }
 
-// runToolWithMiddleware runs a tool, wrapping the execution with Tool hooks from middleware.
+// runToolWithMiddleware runs a tool, wrapping the execution with WrapTool hooks from middleware.
 func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest, handlers []Middleware) (*MultipartToolResponse, error) {
 	if len(handlers) == 0 {
 		return tool.RunRawMultipart(ctx, toolReq.Input)
 	}
 
-	inner := func(ctx context.Context, state *ToolState) (*ToolResponse, error) {
-		resp, err := state.Tool.RunRawMultipart(ctx, state.Request.Input)
+	inner := func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
+		resp, err := params.Tool.RunRawMultipart(ctx, params.Request.Input)
 		if err != nil {
 			return nil, err
 		}
 		return &ToolResponse{
-			Name:    state.Request.Name,
+			Name:    params.Request.Name,
 			Output:  resp.Output,
 			Content: resp.Content,
 		}, nil
@@ -989,12 +989,12 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 	for i := len(handlers) - 1; i >= 0; i-- {
 		h := handlers[i]
 		next := inner
-		inner = func(ctx context.Context, state *ToolState) (*ToolResponse, error) {
-			return h.Tool(ctx, state, next)
+		inner = func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
+			return h.WrapTool(ctx, params, next)
 		}
 	}
 
-	toolResp, err := inner(ctx, &ToolState{Request: toolReq, Tool: tool})
+	toolResp, err := inner(ctx, &ToolParams{Request: toolReq, Tool: tool})
 	if err != nil {
 		return nil, err
 	}
