@@ -116,24 +116,6 @@ def decorate_path_with_subtype(path: str, subtype: str) -> str:
     return path[: last_brace_idx + 1] + decorated_content + path[closing_brace_idx:]
 
 
-def get_parent_path() -> str:
-    """Get the current parent path from context.
-
-    Returns:
-        Parent path string (empty string if no parent).
-    """
-    return _parent_path_context.get()
-
-
-def set_parent_path(path: str) -> None:
-    """Set the parent path in context for nested spans.
-
-    Args:
-        path: The path to set as parent.
-    """
-    _parent_path_context.set(path)
-
-
 @contextmanager
 def save_parent_path() -> Generator[None, None, None]:
     """Context manager to save and restore parent path.
@@ -176,7 +158,7 @@ def record_input_metadata(
         span.set_attribute('genkit:input', dump_json(input))
 
     # Build and set path attributes (qualified path with full annotations)
-    parent_path = get_parent_path()
+    parent_path = _parent_path_context.get()
     qualified_path = build_path(name, parent_path, 'action', kind)
 
     # IMPORTANT: Span attributes store the QUALIFIED path (full annotated)
@@ -185,7 +167,7 @@ def record_input_metadata(
     span.set_attribute('genkit:qualifiedPath', qualified_path)
 
     # Update context for nested spans
-    set_parent_path(qualified_path)
+    _parent_path_context.set(qualified_path)
 
     if span_metadata is not None:
         for meta_key in span_metadata:
