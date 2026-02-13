@@ -32,10 +32,11 @@ from opentelemetry.exporter.cloud_monitoring import CloudMonitoringMetricsExport
 from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudResourceDetector
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace.sampling import Sampler
 from opentelemetry.trace import get_current_span, span as trace_span
 
+from genkit.core import GENKIT_VERSION
 from genkit.core.environment import is_dev_environment
 from genkit.core.logging import get_logger
 from genkit.core.tracing import add_custom_exporter
@@ -237,6 +238,9 @@ class GcpTelemetry:
             return
 
         try:
+            # Create Firebase-compatible resource for consistent labeling
+            resource = self._create_firebase_resource()
+
             exporter_kwargs = self._build_exporter_kwargs()
             base_exporter = GenkitGCPExporter(**exporter_kwargs) if exporter_kwargs else GenkitGCPExporter()
 
@@ -245,35 +249,57 @@ class GcpTelemetry:
                 log_input_and_output=self.log_input_and_output,
                 project_id=self.project_id,
                 error_handler=handle_tracing_error,
+                resource=resource,  # Pass resource for consistent attribution
             )
 
             add_custom_exporter(trace_exporter, 'gcp_telemetry_server')
         except Exception as e:
             handle_tracing_error(e)
 
+    def _create_firebase_resource(self) -> Resource:
+        """Create resource with Firebase-compatible attributes for dashboard recognition.
+
+        This matches the resource configuration patterns used by JS and Go implementations
+        to ensure the Firebase Genkit monitoring dashboard can properly filter and display
+        telemetry data.
+        """
+        # Base resource with Firebase-required attributes
+        resource_attributes = {
+            SERVICE_NAME: 'genkit',
+            SERVICE_VERSION: GENKIT_VERSION,
+            SERVICE_INSTANCE_ID: str(uuid.uuid4()),
+            'type': 'global',
+            'source': 'py',
+            'sourceVersion': GENKIT_VERSION,
+        }
+
+        base_resource = Resource.create(resource_attributes)
+
+        # Merge with GCP resource detection (matches JS/Go pattern)
+        # Suppress detector warnings during GCP resource detection
+        detector_logger = logging.getLogger('opentelemetry.resourcedetector.gcp_resource_detector')
+        original_level = detector_logger.level
+        detector_logger.setLevel(logging.ERROR)
+
+        try:
+            gcp_resource = GoogleCloudResourceDetector(raise_on_error=True).detect()
+            merged_resource = base_resource.merge(gcp_resource)
+            logger.debug('Successfully merged Firebase base resource with GCP resource detection')
+            return merged_resource
+        except Exception as e:
+            # For detection failure, log and use the base resource
+            logger.warning('Google Cloud resource detection failed, using base resource', error=str(e))
+            return base_resource
+        finally:
+            detector_logger.setLevel(original_level)
+
     def _configure_metrics(self) -> None:
         if self.disable_metrics:
             return
 
         try:
-            resource = Resource.create({
-                SERVICE_NAME: 'genkit',
-                SERVICE_INSTANCE_ID: str(uuid.uuid4()),
-            })
-
-            # Suppress detector warnings during GCP resource detection
-            detector_logger = logging.getLogger('opentelemetry.resourcedetector.gcp_resource_detector')
-            original_level = detector_logger.level
-            detector_logger.setLevel(logging.ERROR)
-
-            try:
-                gcp_resource = GoogleCloudResourceDetector(raise_on_error=True).detect()
-                resource = resource.merge(gcp_resource)
-            except Exception as e:
-                # For detection failure log the exception and use the default resource
-                detector_logger.warning(f'Google Cloud resource detection failed: {e}')
-            finally:
-                detector_logger.setLevel(original_level)
+            # Use Firebase-compatible resource configuration
+            resource = self._create_firebase_resource()
 
             exporter_kwargs = self._build_exporter_kwargs()
             cloud_monitoring_exporter = CloudMonitoringMetricsExporter(**exporter_kwargs)

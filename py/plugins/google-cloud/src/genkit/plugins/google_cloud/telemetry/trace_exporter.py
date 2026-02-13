@@ -26,6 +26,7 @@ import structlog
 from google.api_core import exceptions as core_exceptions, retry as retries
 from google.cloud.trace_v2 import BatchWriteSpansRequest
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
@@ -154,6 +155,7 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
         log_input_and_output: bool = False,
         project_id: str | None = None,
         error_handler: Callable[[Exception], None] | None = None,
+        resource: 'Resource | None' = None,
     ) -> None:
         """Initialize the GCP adjusting trace exporter.
 
@@ -163,7 +165,9 @@ class GcpAdjustingTraceExporter(AdjustingTraceExporter):
                 Defaults to False (redact for privacy).
             project_id: Optional GCP project ID for log correlation.
             error_handler: Optional callback invoked when export errors occur.
+            resource: Optional OpenTelemetry resource for consistent attribution.
         """
+        self.resource = resource
         super().__init__(
             exporter=exporter,
             log_input_and_output=log_input_and_output,
