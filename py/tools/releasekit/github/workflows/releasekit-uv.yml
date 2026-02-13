@@ -14,39 +14,98 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# ReleaseKit: Automated Release Pipeline
+# ══════════════════════════════════════════════════════════════════════
+# ReleaseKit: Automated Release Pipeline — Python (uv)
+# ══════════════════════════════════════════════════════════════════════
+#
+# SAMPLE WORKFLOW — Copy to .github/workflows/releasekit-uv.yml to use.
 #
 # This workflow implements a release-please-style pipeline for the
 # genkit Python SDK. It uses releasekit to automate:
 #
-# 1. PREPARE: On push to main, compute version bumps, generate
-#    changelogs, and open/update a Release PR.
-# 2. RELEASE: When a Release PR is merged, tag the merge commit,
-#    create a GitHub Release, and trigger publishing.
-# 3. PUBLISH: Build and publish packages to PyPI in topological order.
+#   1. PREPARE  — compute version bumps, generate changelogs, open
+#                 or update a Release PR.
+#   2. RELEASE  — tag the merge commit, create a GitHub Release.
+#   3. PUBLISH  — build and publish packages to PyPI in topological
+#                 order with retry and ephemeral version pinning.
 #
-# Flow:
+# ── Automatic Flow ──────────────────────────────────────────────────
 #
 #   push to main ──► releasekit prepare ──► Release PR
-#                                                │
-#                                           merge PR
-#                                                │
-#                                                ▼
-#                                      releasekit release ──► tags + GitHub Release
-#                                                │
-#                                                ▼
-#                                      releasekit publish ──► PyPI
+#   (py/packages/**                          (autorelease: pending)
+#    py/plugins/**)                                │
+#                                             merge PR
+#                                                  │
+#                                                  ▼
+#                                        releasekit release ──► tags + GitHub Release
+#                                                  │
+#                                                  ▼
+#                                        releasekit publish ──► PyPI
+#                                                  │
+#                                                  ▼
+#                                        repository_dispatch ──► downstream repos
+#
+# ── Manual Dispatch Flow ────────────────────────────────────────────
+#
+#   ┌─────────────────────────────────────────────────────────────┐
+#   │  workflow_dispatch UI                                       │
+#   │                                                             │
+#   │  action:  [prepare ▼]  ──► runs PREPARE job only            │
+#   │           [release ▼]  ──► runs RELEASE + PUBLISH + NOTIFY  │
+#   │                                                             │
+#   │  target:         [pypi / testpypi]                          │
+#   │  dry_run:        [✓] simulate, no side effects              │
+#   │  force_prepare:  [✓] skip preflight, force PR creation      │
+#   │  group:          [________] target a release group           │
+#   │  bump_type:      [auto / patch / minor / major]             │
+#   │  prerelease:     [________] e.g. rc.1, beta.1               │
+#   │  skip_publish:   [✓] tag + release but don't publish        │
+#   │  concurrency:    [0] max parallel publish (0 = auto)        │
+#   └─────────────────────────────────────────────────────────────┘
+#
+# ── Trigger Matrix ──────────────────────────────────────────────────
+#
+#   Event              │ Jobs that run
+#   ───────────────────┼──────────────────────────────────
+#   push to main       │ prepare
+#   PR merged          │ release → publish → notify
+#   dispatch: prepare  │ prepare
+#   dispatch: release  │ release → publish → notify
+#
+# ── Inputs Reference ────────────────────────────────────────────────
+#
+#   Input          │ Type    │ Default │ Description
+#   ───────────────┼─────────┼─────────┼──────────────────────────────
+#   action         │ choice  │ release │ Pipeline stage: prepare or release
+#   target         │ choice  │ pypi    │ Registry: pypi or testpypi
+#   dry_run        │ boolean │ true    │ Simulate without side effects
+#   force_prepare  │ boolean │ false   │ Force PR creation (--force)
+#   group          │ string  │ (all)   │ Target a specific release group
+#   bump_type      │ choice  │ auto    │ Override semver bump detection
+#   prerelease     │ string  │ (none)  │ Prerelease suffix (e.g. rc.1)
+#   skip_publish   │ boolean │ false   │ Tag + release, skip registry
+#   concurrency    │ string  │ 0       │ Max parallel publish jobs
+#   max_retries    │ string  │ 2       │ Retry failed publishes (0 = off)
 #
 # The workflow is idempotent: re-running any step is safe because
 # releasekit skips already-created tags and already-published versions.
+# ══════════════════════════════════════════════════════════════════════
 
 name: "ReleaseKit: Python (uv)"
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Which pipeline stage to run'
+        required: true
+        default: release
+        type: choice
+        options:
+          - prepare
+          - release
       target:
-        description: 'Publish target registry'
+        description: 'Publish target registry (release only)'
         required: true
         default: pypi
         type: choice
@@ -58,6 +117,44 @@ on:
         required: true
         default: true
         type: boolean
+      force_prepare:
+        description: 'Force create/update the Release PR even if no new bumps are detected'
+        required: false
+        default: false
+        type: boolean
+      group:
+        description: 'Release group to target (leave empty for all)'
+        required: false
+        type: string
+      bump_type:
+        description: 'Override auto-detected bump type'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Publish as prerelease (e.g. rc.1, beta.1)'
+        required: false
+        type: string
+      skip_publish:
+        description: 'Tag and create GitHub Release but skip publishing to registry'
+        required: false
+        default: false
+        type: boolean
+      concurrency:
+        description: 'Max parallel publish jobs (0 = auto)'
+        required: false
+        default: '0'
+        type: string
+      max_retries:
+        description: 'Max retries for failed publish attempts (0 = no retries)'
+        required: false
+        default: '2'
+        type: string
   push:
     branches: [main]
     paths:
@@ -99,9 +196,10 @@ jobs:
   prepare:
     name: Prepare Release PR
     if: |
-      github.event_name == 'push' &&
-      !startsWith(github.event.head_commit.message, 'chore(release):') &&
-      !contains(github.event.head_commit.message, 'releasekit--release')
+      (github.event_name == 'push' &&
+       !startsWith(github.event.head_commit.message, 'chore(release):') &&
+       !contains(github.event.head_commit.message, 'releasekit--release')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
@@ -130,7 +228,20 @@ jobs:
       - name: Run releasekit prepare
         id: prepare
         run: |
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py prepare 2>&1) || {
+          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py prepare)
+          if [ "${{ inputs.force_prepare }}" = "true" ]; then
+            cmd+=(--force)
+          fi
+          if [ -n "${{ inputs.group }}" ]; then
+            cmd+=(--group "${{ inputs.group }}")
+          fi
+          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
+            cmd+=(--bump "${{ inputs.bump_type }}")
+          fi
+          if [ -n "${{ inputs.prerelease }}" ]; then
+            cmd+=(--prerelease "${{ inputs.prerelease }}")
+          fi
+          OUTPUT=$("${cmd[@]}" 2>&1) || {
             echo "::warning::releasekit prepare exited with non-zero status"
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
             echo "$OUTPUT"
@@ -161,7 +272,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
@@ -224,6 +335,7 @@ jobs:
   publish:
     name: Publish to ${{ inputs.target || 'pypi' }}
     needs: release
+    if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     environment: ${{ inputs.target || 'pypi' }}
     permissions:
@@ -278,7 +390,19 @@ jobs:
             cmd+=(--index-url "$PUBLISH_INDEX_URL")
           fi
 
-          cmd+=(--max-retries 2)
+          CONCURRENCY="${{ inputs.concurrency }}"
+          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
+            cmd+=(--concurrency "$CONCURRENCY")
+          fi
+
+          if [ -n "${{ inputs.group }}" ]; then
+            cmd+=(--group "${{ inputs.group }}")
+          fi
+
+          MAX_RETRIES="${{ inputs.max_retries }}"
+          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
+            cmd+=(--max-retries "$MAX_RETRIES")
+          fi
 
           echo "::group::Running: ${cmd[*]}"
           "${cmd[@]}"

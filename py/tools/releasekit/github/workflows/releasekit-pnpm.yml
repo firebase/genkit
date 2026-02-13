@@ -14,10 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# ══════════════════════════════════════════════════════════════════════
 # ReleaseKit: JS Release Pipeline (pnpm)
+# ══════════════════════════════════════════════════════════════════════
 #
-# NOT YET ACTIVE — This workflow lives in py/tools/releasekit/github/workflows/
-# and must be copied to .github/workflows/ to activate.
+# NOT YET ACTIVE — This workflow lives in py/tools/releasekit/github/
+# workflows/ and must be copied to .github/workflows/ to activate.
 #
 # Prerequisites before enabling:
 #   1. Uncomment [workspace.js] and [workspace.js-cli] in releasekit.toml
@@ -26,26 +28,87 @@
 #   4. Copy this file to .github/workflows/releasekit-pnpm.yml
 #   5. Archive scripts/release_main.sh and js/scripts/bump_*.sh
 #
-# This workflow implements the same 3-phase pipeline as releasekit-uv.yml
-# but for the JS ecosystem using pnpm:
+# This workflow manages TWO workspaces:
+#   - js      — core SDK + plugins (js/**)
+#   - js-cli  — CLI tools (genkit-tools/**)
 #
-#   push to main ──► releasekit prepare --workspace js ──► Release PR
-#                                                               │
-#                                                          merge PR
-#                                                               │
-#                                                               ▼
-#                                                     releasekit release ──► tags + GitHub Release
-#                                                               │
-#                                                               ▼
-#                                                     releasekit publish ──► npm (via Wombat)
+# ── Automatic Flow ──────────────────────────────────────────────────
+#
+#   push to main ──► releasekit prepare --workspace js     ──► Release PR (js)
+#   (js/**,          releasekit prepare --workspace js-cli ──► Release PR (js-cli)
+#    genkit-tools/**)                                            │
+#                                                           merge PR
+#                                                                │
+#                                                                ▼
+#                                                      releasekit release ──► tags + GitHub Release
+#                                                                │
+#                                                                ▼
+#                                                      releasekit publish ──► npm (via Wombat)
+#                                                                │
+#                                                                ▼
+#                                                      repository_dispatch ──► downstream repos
+#
+# ── Manual Dispatch Flow ────────────────────────────────────────────
+#
+#   ┌─────────────────────────────────────────────────────────────┐
+#   │  workflow_dispatch UI                                       │
+#   │                                                             │
+#   │  action:  [prepare ▼]  ──► runs PREPARE jobs (js + js-cli) │
+#   │           [release ▼]  ──► runs RELEASE + PUBLISH + NOTIFY  │
+#   │                                                             │
+#   │  target:         [npm]                                      │
+#   │  dry_run:        [✓] simulate, no side effects              │
+#   │  force_prepare:  [✓] skip preflight, force PR creation      │
+#   │  group:          [________] target a release group           │
+#   │  bump_type:      [auto / patch / minor / major]             │
+#   │  prerelease:     [________] e.g. rc.1, beta.1               │
+#   │  skip_publish:   [✓] tag + release but don't publish        │
+#   │  concurrency:    [0] max parallel publish (0 = auto)        │
+#   └─────────────────────────────────────────────────────────────┘
+#
+# ── Trigger Matrix ──────────────────────────────────────────────────
+#
+#   Event              │ Jobs that run
+#   ───────────────────┼──────────────────────────────────────────
+#   push to main       │ prepare-js, prepare-js-cli
+#   PR merged          │ release-js → publish-js → notify-js
+#   dispatch: prepare  │ prepare-js, prepare-js-cli
+#   dispatch: release  │ release-js → publish-js → notify-js
+#
+# ── Inputs Reference ────────────────────────────────────────────────
+#
+#   Input          │ Type    │ Default │ Description
+#   ───────────────┼─────────┼─────────┼──────────────────────────────
+#   action         │ choice  │ release │ Pipeline stage: prepare or release
+#   target         │ choice  │ npm     │ Registry: npm
+#   dry_run        │ boolean │ true    │ Simulate without side effects
+#   force_prepare  │ boolean │ false   │ Force PR creation (--force)
+#   group          │ string  │ (all)   │ Target a specific release group
+#   bump_type      │ choice  │ auto    │ Override semver bump detection
+#   prerelease     │ string  │ (none)  │ Prerelease suffix (e.g. rc.1)
+#   skip_publish   │ boolean │ false   │ Tag + release, skip registry
+#   concurrency    │ string  │ 0       │ Max parallel publish jobs
+#   max_retries    │ string  │ 2       │ Retry failed publishes (0 = off)
+#
+# The workflow is idempotent: re-running any step is safe because
+# releasekit skips already-created tags and already-published versions.
+# ══════════════════════════════════════════════════════════════════════
 
 name: "ReleaseKit: JS (pnpm)"
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Which pipeline stage to run'
+        required: true
+        default: release
+        type: choice
+        options:
+          - prepare
+          - release
       target:
-        description: 'Publish target registry'
+        description: 'Publish target registry (release only)'
         required: true
         default: npm
         type: choice
@@ -56,6 +119,44 @@ on:
         required: true
         default: true
         type: boolean
+      force_prepare:
+        description: 'Force create/update the Release PR even if no new bumps are detected'
+        required: false
+        default: false
+        type: boolean
+      group:
+        description: 'Release group to target (leave empty for all)'
+        required: false
+        type: string
+      bump_type:
+        description: 'Override auto-detected bump type'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: 'Publish as prerelease (e.g. rc.1, beta.1)'
+        required: false
+        type: string
+      skip_publish:
+        description: 'Tag and create GitHub Release but skip publishing to registry'
+        required: false
+        default: false
+        type: boolean
+      concurrency:
+        description: 'Max parallel publish jobs (0 = auto)'
+        required: false
+        default: '0'
+        type: string
+      max_retries:
+        description: 'Max retries for failed publish attempts (0 = no retries)'
+        required: false
+        default: '2'
+        type: string
   push:
     branches: [main]
     paths:
@@ -92,9 +193,10 @@ jobs:
   prepare-js:
     name: "Prepare Release PR (JS)"
     if: |
-      github.event_name == 'push' &&
-      !startsWith(github.event.head_commit.message, 'chore(release):') &&
-      !contains(github.event.head_commit.message, 'releasekit--release')
+      (github.event_name == 'push' &&
+       !startsWith(github.event.head_commit.message, 'chore(release):') &&
+       !contains(github.event.head_commit.message, 'releasekit--release')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
@@ -133,7 +235,20 @@ jobs:
       - name: Run releasekit prepare (JS workspace)
         id: prepare
         run: |
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js prepare 2>&1) || {
+          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js prepare)
+          if [ "${{ inputs.force_prepare }}" = "true" ]; then
+            cmd+=(--force)
+          fi
+          if [ -n "${{ inputs.group }}" ]; then
+            cmd+=(--group "${{ inputs.group }}")
+          fi
+          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
+            cmd+=(--bump "${{ inputs.bump_type }}")
+          fi
+          if [ -n "${{ inputs.prerelease }}" ]; then
+            cmd+=(--prerelease "${{ inputs.prerelease }}")
+          fi
+          OUTPUT=$("${cmd[@]}" 2>&1) || {
             echo "::warning::releasekit prepare (js) exited with non-zero status"
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
             echo "$OUTPUT"
@@ -154,9 +269,10 @@ jobs:
   prepare-js-cli:
     name: "Prepare Release PR (JS CLI)"
     if: |
-      github.event_name == 'push' &&
-      !startsWith(github.event.head_commit.message, 'chore(release):') &&
-      !contains(github.event.head_commit.message, 'releasekit--release')
+      (github.event_name == 'push' &&
+       !startsWith(github.event.head_commit.message, 'chore(release):') &&
+       !contains(github.event.head_commit.message, 'releasekit--release')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
@@ -195,7 +311,20 @@ jobs:
       - name: Run releasekit prepare (JS CLI workspace)
         id: prepare
         run: |
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js-cli prepare 2>&1) || {
+          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js-cli prepare)
+          if [ "${{ inputs.force_prepare }}" = "true" ]; then
+            cmd+=(--force)
+          fi
+          if [ -n "${{ inputs.group }}" ]; then
+            cmd+=(--group "${{ inputs.group }}")
+          fi
+          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
+            cmd+=(--bump "${{ inputs.bump_type }}")
+          fi
+          if [ -n "${{ inputs.prerelease }}" ]; then
+            cmd+=(--prerelease "${{ inputs.prerelease }}")
+          fi
+          OUTPUT=$("${cmd[@]}" 2>&1) || {
             echo "::warning::releasekit prepare (js-cli) exited with non-zero status"
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
             echo "$OUTPUT"
@@ -225,7 +354,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
@@ -287,6 +416,7 @@ jobs:
   publish-js:
     name: "Publish to npm"
     needs: release-js
+    if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -340,7 +470,19 @@ jobs:
             cmd+=(--dry-run)
           fi
 
-          cmd+=(--max-retries 2)
+          CONCURRENCY="${{ inputs.concurrency }}"
+          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
+            cmd+=(--concurrency "$CONCURRENCY")
+          fi
+
+          if [ -n "${{ inputs.group }}" ]; then
+            cmd+=(--group "${{ inputs.group }}")
+          fi
+
+          MAX_RETRIES="${{ inputs.max_retries }}"
+          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
+            cmd+=(--max-retries "$MAX_RETRIES")
+          fi
 
           echo "::group::Running: ${cmd[*]}"
           "${cmd[@]}"
