@@ -30,6 +30,13 @@ synchronize     = false                 # Lockstep versioning
 smoke_test      = true                  # Post-publish smoke test
 http_pool_size  = 10                    # HTTP connection pool
 
+# ── Versioning ────────────────────────────────────────
+major_on_zero     = false               # Allow 0.x → 1.0.0 on breaking
+pr_title_template = "chore(release): v{version}"  # Release PR title
+
+# ── Extra Files ───────────────────────────────────────
+extra_files       = []                  # Additional files to version-bump
+
 # ── Groups ───────────────────────────────────────────────
 [groups]
 core    = ["genkit"]
@@ -51,6 +58,9 @@ plugins = ["genkit-plugin-*"]
 | `synchronize` | `bool` | `true`, `false` |
 | `smoke_test` | `bool` | `true`, `false` |
 | `http_pool_size` | `int` | Positive integer |
+| `major_on_zero` | `bool` | `true`, `false` |
+| `pr_title_template` | `string` | Any string with `{version}` placeholder |
+| `extra_files` | `list[string]` | File paths or `"path:regex"` pairs |
 | `groups` | `table` | `{name: list[string]}` |
 
 ## Group Patterns

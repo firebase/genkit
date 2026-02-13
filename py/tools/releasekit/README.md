@@ -71,11 +71,11 @@ uvx releasekit check
 |---------|-------------|
 | `discover` | List all workspace packages with versions and metadata |
 | `graph` | Print the dependency graph (8 output formats) |
-| `plan` | Preview version bumps and publish order (dry run) |
+| `plan` | Preview version bumps and publish order (formats: table, json, csv, ascii, full) |
 | `publish` | Build and publish packages to PyPI in dependency order |
 | `prepare` | Bump versions, generate changelogs, open a Release PR |
 | `release` | Tag a merged Release PR and create a GitHub Release |
-| `check` | Run standalone workspace health checks |
+| `check` | Run standalone workspace health checks (`--fix` to auto-fix) |
 | `bump` | Bump version for one or all packages |
 | `init` | Scaffold `releasekit.toml` config with auto-detected groups |
 | `rollback` | Delete a git tag (local + remote) and its GitHub release |
@@ -190,17 +190,19 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 
 ### Health Checks
 
-`releasekit check` runs 19 checks split into two categories:
+`releasekit check` runs 33 checks split into two categories:
 
-**Universal checks** (always run):
+**Universal checks** (8 — always run):
 - `cycles` — circular dependency chains
 - `self_deps` — package depends on itself
 - `orphan_deps` — internal dep not in workspace
 - `missing_license` — no LICENSE file
 - `missing_readme` — no README.md
 - `stale_artifacts` — leftover .bak or dist/ files
+- `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
+- `lockfile_staleness` — `uv.lock` is in sync with `pyproject.toml`
 
-**Language-specific checks** (via `CheckBackend` protocol):
+**Language-specific checks** (25 — via `CheckBackend` protocol):
 - `type_markers` — py.typed PEP 561 marker
 - `version_consistency` — plugin version matches core
 - `naming_convention` — directory matches package name
@@ -212,11 +214,48 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `readme_field` — publishable packages declare `readme` in `[project]`
 - `changelog_url` — publishable packages have `Changelog` in `[project.urls]`
 - `publish_classifier_consistency` — `exclude_publish` agrees with `Private :: Do Not Upload`
-- `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
-- `lockfile_staleness` — `uv.lock` is in sync with `pyproject.toml`
+- `test_filename_collisions` — no duplicate test file paths across packages
+- `build_system` — `[build-system]` present with `build-backend`
+- `version_field` — `version` present or declared dynamic
+- `duplicate_dependencies` — no duplicate entries in `[project.dependencies]`
+- `pinned_deps_in_libraries` — libraries don't pin deps with `==`
+- `requires_python` — publishable packages declare `requires-python`
+- `readme_content_type` — readme file extension matches content-type
+- `version_pep440` — versions are PEP 440 compliant
+- `placeholder_urls` — no placeholder URLs in `[project.urls]`
+- `legacy_setup_files` — no leftover `setup.py` or `setup.cfg`
+- `deprecated_classifiers` — no deprecated trove classifiers
+- `license_classifier_mismatch` — license classifiers match LICENSE file
+- `unreachable_extras` — optional-dependencies reference valid packages
+- `self_dependencies` — no package lists itself in dependencies
 
 The `CheckBackend` protocol allows adding language-specific checks
 for other runtimes (Go, JS) without modifying the core check runner.
+
+### Auto-Fixers
+
+`releasekit check --fix` runs 17 auto-fixers:
+
+**Universal fixers** (3):
+- `fix_missing_readme` — create empty README.md
+- `fix_missing_license` — copy bundled Apache 2.0 LICENSE
+- `fix_stale_artifacts` — delete .bak files and dist/ directories
+
+**Python-specific fixers** (14 — via `PythonCheckBackend.run_fixes()`):
+- `fix_publish_classifiers` — sync `Private :: Do Not Upload` with `exclude_publish`
+- `fix_readme_field` — add `readme = "README.md"` to `[project]`
+- `fix_changelog_url` — add `Changelog` to `[project.urls]`
+- `fix_namespace_init` — delete `__init__.py` in namespace directories
+- `fix_type_markers` — create `py.typed` PEP 561 markers
+- `fix_deprecated_classifiers` — replace/remove deprecated classifiers
+- `fix_duplicate_dependencies` — deduplicate `[project.dependencies]`
+- `fix_requires_python` — add `requires-python` (inferred from classifiers)
+- `fix_build_system` — add `[build-system]` with hatchling
+- `fix_version_field` — add `"version"` to `dynamic` list
+- `fix_readme_content_type` — fix content-type to match file extension
+- `fix_placeholder_urls` — remove placeholder URLs
+- `fix_license_classifier_mismatch` — fix license classifier to match LICENSE file
+- `fix_self_dependencies` — remove self-referencing dependencies
 
 ### Preflight Checks
 
@@ -295,6 +334,9 @@ tag_format   = "{name}-v{version}"
 umbrella_tag = "v{version}"
 
 exclude_publish = ["group:samples"]
+major_on_zero    = false
+pr_title_template = "chore(release): v{version}"
+extra_files      = []
 
 [groups]
 core = ["genkit"]
@@ -316,6 +358,9 @@ samples = ["*-hello", "*-demo", "web-*"]
 | `exclude_bump` | `[]` | Glob patterns to skip during version bumps (still discovered + checked) |
 | `poll_timeout` | `300.0` | Seconds to wait for package availability |
 | `max_retries` | `0` | Retry count per package on transient failure |
+| `major_on_zero` | `false` | Allow `0.x → 1.0.0` on breaking changes (default: downgrade to minor) |
+| `pr_title_template` | `"chore(release): v{version}"` | Template for the Release PR title. Placeholder: `{version}` |
+| `extra_files` | `[]` | Extra files with version strings to bump (path or `path:regex` pairs) |
 
 ### Exclusion Hierarchy
 
@@ -380,7 +425,14 @@ releasekit
 │   ├── pin.py           ephemeral dep pinning with crash-safe restore
 │   ├── changelog.py     changelog generation from commits
 │   ├── preflight.py     pre-publish safety checks
-│   ├── checks.py        standalone workspace health checks
+│   ├── checks/          standalone workspace health checks (subpackage)
+│   │   ├── __init__.py    re-exports public API
+│   │   ├── _protocol.py   CheckBackend protocol
+│   │   ├── _constants.py  shared regex, classifiers, patterns
+│   │   ├── _universal.py  universal checks + universal fixers
+│   │   ├── _python.py     PythonCheckBackend (25 checks + run_fixes)
+│   │   ├── _python_fixers.py  14 Python-specific fixer functions
+│   │   └── _runner.py     run_checks() orchestrator
 │   ├── scheduler.py     dependency-triggered queue dispatcher
 │   ├── publisher.py     async publish orchestration
 │   ├── prepare.py       release preparation (bump + changelog + PR)
@@ -488,7 +540,7 @@ enables multi-ecosystem support:
 | `bump.py` | Rewrites `pyproject.toml` | → `Workspace.rewrite_version()` |
 | `pin.py` | Rewrites deps in `pyproject.toml` | → `Workspace.rewrite_dependency_version()` |
 | `config.py` | Reads `releasekit.toml` | ✅ Already standalone (ecosystem-agnostic) |
-| `checks.py` | `PythonCheckBackend` | ✅ Already protocol-based |
+| `checks/` | `PythonCheckBackend` | ✅ Already protocol-based (subpackage) |
 | `preflight.py` | `pip-audit`, metadata | ✅ Gated by `ecosystem=` param |
 
 ## Testing
@@ -527,4 +579,3 @@ uv run pytest tests/rk_publisher_test.py -v
 ## License
 
 Apache 2.0 — see [LICENSE](../../LICENSE) for details.
-

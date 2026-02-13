@@ -69,9 +69,24 @@ graph LR
 
 ### Bug Fixes
 
-* **google-genai**: Fix null pointer in response parser (#101)
+* **google-genai**: Fix null pointer in response parser (#101) (closes #42)
 * Handle edge case in version calculation (#102)
 ```
+
+## Linked Issues
+
+Changelog entries automatically extract issue references from commit
+messages. Keywords `Fixes`, `Closes`, `Resolves` (and their past-tense
+variants) followed by `#N` are parsed and rendered as `(closes #N)` in
+the output:
+
+```
+fix(auth): handle token expiry. Fixes #42, closes #99
+→  * **auth**: handle token expiry (#123) (closes #42, #99)
+```
+
+The `closes` keyword is used in the rendered output because it works as
+an auto-close keyword on both GitHub and GitLab.
 
 ## Filtering
 
@@ -129,6 +144,7 @@ class ChangelogEntry:
     scope: str
     description: str
     breaking: bool
+    linked_issues: list[int]  # Issue numbers from Fixes/Closes/Resolves
 
 @dataclass
 class Changelog:

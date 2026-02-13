@@ -761,8 +761,8 @@ Phase 4: Harden            ▼    ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
 │  observer.py ──► PublishStage, SchedulerState, Observer │
 │  ui.py ──► observer.py, logging.py                      │
-│  checks.py ──► graph.py, preflight.py, workspace.py     │
-│    + 10 standalone health checks (replaces check-cycles)│
+│  checks/ ──► graph.py, preflight.py, workspace.py       │
+│    + 33 health checks in subpackage (protocol-based)    │
 │  preflight.py (full) ──► + pip-audit,                   │
 │                            metadata validation          │
 │  publisher.py (full) ──► + staging, manifest, Test PyPI,│
@@ -1134,7 +1134,7 @@ publish → poll → verify) with zero failures.
 |--------|-------------|-----------|--------|
 | `observer.py` | **Observer protocol and enums** extracted from `ui.py`. `PublishStage` (11 stages incl. `RETRYING`, `BLOCKED`), `SchedulerState` (`RUNNING`/`PAUSED`/`CANCELLED`), `PublishObserver` ABC. Clean dependency graph — both `scheduler.py` and `ui.py` import from here. | ~110 | ✅ Done |
 | `ui.py` | **Rich Live progress table** with sliding window for large workspaces (>30 packages). Imports types from `observer.py`. `PAUSED`/`CANCELLED` banners with colored borders. Keyboard shortcut hints and ETA in footer. `LogProgressUI` emits `scheduler_state` events. | ~520 | ✅ Done |
-| `checks.py` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 6 universal checks + 4 language-specific via `PythonCheckBackend`. Found flask self-dep bug (#4562). | ~420 | ✅ Done (PR #4563) |
+| `checks/` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 8 universal checks + 25 language-specific via `PythonCheckBackend`. 17 auto-fixers. Refactored into subpackage. | ~2,900 | ✅ Done (PR #4563) |
 | `preflight.py` (full) | Added: `dist_clean` (stale dist/ detection, blocking), `trusted_publisher` (OIDC check, advisory). Remaining: `pip-audit` vulnerability scan, metadata validation. | +80 | 🔶 Partial |
 | `registry.py` (full) | Added: `verify_checksum()` — downloads SHA-256 from PyPI JSON API and compares against locally-computed checksums. `ChecksumResult` dataclass. | +100 | ✅ Done |
 | `publisher.py` (full) | Added: post-publish SHA-256 checksum verification, `verify_checksums` config flag. Remaining: `--stage` two-phase, manifest mode, rate limiting, attestation passthrough (D-8). | +30 | 🔶 Partial |

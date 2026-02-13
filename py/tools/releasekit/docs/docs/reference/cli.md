@@ -57,23 +57,28 @@ releasekit graph [--format FORMAT] [--ecosystem python|js|go]
 ## `plan` — Preview Version Bumps
 
 ```bash
-releasekit plan [--format table|json] [--group GROUP]
+releasekit plan [--format table|json|csv|ascii|full] [--group GROUP]
 ```
 
 Shows what `publish` would do without making changes.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format` | `table` | Output format |
+| `--format` | `table` | One of: `table`, `json`, `csv`, `ascii`, `full` |
+| `--force-unchanged` | `false` | Include packages with no changes |
 | `--group` | (all) | Only packages in named group |
 
 ## `check` — Run Health Checks
 
 ```bash
-releasekit check [--ecosystem python|js|go]
+releasekit check [--fix] [--ecosystem python|js|go]
 ```
 
 Runs all workspace validation checks. Returns exit code 1 if any check fails.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--fix` | `false` | Auto-fix issues that can be fixed (e.g. `Private :: Do Not Upload` classifiers) |
 
 **Checks performed:**
 

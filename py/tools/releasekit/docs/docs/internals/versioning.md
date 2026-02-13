@@ -125,16 +125,18 @@ The `_apply_bump()` function applies semver rules:
 │ 1.2.3     │ major   │ 2.0.0      │ Reset minor + patch          │
 │ 1.2.3     │ minor   │ 1.3.0      │ Reset patch                  │
 │ 1.2.3     │ patch   │ 1.2.4      │                              │
-│ 0.5.0     │ major   │ 0.6.0      │ 0.x: major bumps minor       │
+│ 0.5.0     │ major   │ 0.6.0      │ 0.x default (major_on_zero=false) │
+│ 0.5.0     │ major   │ 1.0.0      │ 0.x with major_on_zero=true  │
 │ 1.2.3     │ pre     │ 1.2.4-rc.1 │ Prerelease on next patch     │
 │ 1.2.3-rc.1│ pre     │ 1.2.3-rc.2 │ Increment prerelease counter │
 └───────────┴─────────┴────────────┴──────────────────────────────┘
 ```
 
 !!! note "0.x semver"
-    Packages with `0.x` versions treat `major` bumps as `minor` bumps
-    per semver conventions — breaking changes during initial development
-    don't jump to `1.0.0`.
+    By default (`major_on_zero = false`), packages with `0.x` versions
+    treat `major` bumps as `minor` bumps — breaking changes during
+    initial development don't jump to `1.0.0`. Set `major_on_zero = true`
+    in `releasekit.toml` to allow `0.x → 1.0.0`.
 
 ## Data Types
 
