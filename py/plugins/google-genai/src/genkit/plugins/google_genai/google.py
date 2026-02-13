@@ -105,13 +105,15 @@ from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.background_model import BackgroundAction
 from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.evaluator import evaluator_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
+from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
+    EvalFnResponse,
+    EvalRequest,
     RankedDocumentData,
     RankedDocumentMetadata,
     RerankerRequest,
@@ -779,12 +781,17 @@ class VertexAI(Plugin):
         # Deferred import to avoid circular dependency
         from genkit.ai._registry import GenkitRegistry
 
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
         registry = GenkitRegistry()
         actions.extend(
             create_vertex_evaluators(
                 registry,
                 list(VertexAIEvaluationMetricType),
-                project_id=self._project or '',
+                project_id=self._project,
                 location=self._location,
             )
         )
@@ -848,17 +855,21 @@ class VertexAI(Plugin):
         except ValueError:
             return None
 
-        # Deferred import to avoid circular dependency
         from genkit.ai._registry import GenkitRegistry
 
         registry = GenkitRegistry()
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
+
         actions = create_vertex_evaluators(
             registry,
             [metric_type],
-            project_id=self._project or '',
+            project_id=self._project,
             location=self._location,
         )
-
         return actions[0] if actions else None
 
     def _resolve_model(self, name: str) -> Action:
@@ -958,6 +969,8 @@ class VertexAI(Plugin):
             )
 
             query_text = query_doc.text()
+            if not query_text:
+                raise GenkitError(message='Reranker query cannot be empty.')
 
             rerank_request = RerankRequest(
                 model=clean_name,
@@ -1042,7 +1055,16 @@ class VertexAI(Plugin):
 
         for metric in VertexAIEvaluationMetricType:
             # create_vertex_evaluators handles namespacing but we only need metadata here.
-            actions_list.append(evaluator_action_metadata(vertexai_name(metric.lower())))
+            evaluator_name = vertexai_name(metric.lower())
+            actions_list.append(
+                ActionMetadata(
+                    name=evaluator_name,
+                    kind=ActionKind.EVALUATOR,
+                    input_json_schema=to_json_schema(EvalRequest),
+                    output_json_schema=to_json_schema(list[EvalFnResponse]),
+                    metadata={'type': 'evaluator'},
+                )
+            )
 
         return actions_list
 

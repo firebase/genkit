@@ -35,6 +35,9 @@ from httpx import ASGITransport, AsyncClient
 
 # The app import triggers module-level code in app_init.py (Genkit init, etc.),
 # so we must mock the Google AI plugin and GEMINI_API_KEY before importing.
+# By importing the module, we make sure it's available in the namespace
+# for the patcher.
+
 with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key", "GENKIT_ENV": "test"}):
     with patch("genkit.plugins.google_genai.GoogleAI", return_value=MagicMock()):
         with patch("genkit.ai.Genkit") as MockGenkit:
