@@ -455,6 +455,7 @@ root = [
   "samples/framework-evaluator-demo",      # For evaluator_demo package imports
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
   "samples/web-endpoints-hello",           # For src imports in tests
+  "samples/sample-test",                   # For internal imports in sample-test
   "plugins/mcp/tests",                     # For fakes module imports in tests
   # Tools
   "tools/releasekit/src", # For releasekit package imports
