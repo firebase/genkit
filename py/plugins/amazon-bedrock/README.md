@@ -1,6 +1,8 @@
 # Genkit Amazon Bedrock Plugin
 
 > **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official AWS product.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
 
 `genkit-plugin-amazon-bedrock` is a plugin for using Amazon Bedrock models with [Genkit](https://github.com/firebase/genkit). It provides access to foundation models AND AWS X-Ray telemetry in a single package.
 

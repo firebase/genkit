@@ -39,7 +39,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = [
   "genkit",
