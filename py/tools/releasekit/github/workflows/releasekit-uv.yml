@@ -228,6 +228,8 @@ jobs:
       - name: Run releasekit prepare
         id: prepare
         run: |
+          set -euo pipefail
+
           cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py prepare)
           if [ "${{ inputs.force_prepare }}" = "true" ]; then
             cmd+=(--force)
@@ -241,12 +243,9 @@ jobs:
           if [ -n "${{ inputs.prerelease }}" ]; then
             cmd+=(--prerelease "${{ inputs.prerelease }}")
           fi
-          OUTPUT=$("${cmd[@]}" 2>&1) || {
-            echo "::warning::releasekit prepare exited with non-zero status"
-            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
-            echo "$OUTPUT"
-            exit 0
-          }
+
+          # Run prepare — fail the job immediately on error.
+          OUTPUT=$("${cmd[@]}" 2>&1)
           echo "$OUTPUT"
 
           # Parse output for PR URL
@@ -313,10 +312,14 @@ jobs:
       - name: Run releasekit release
         id: release
         run: |
+          set -euo pipefail
+
           DRY_RUN_FLAG=""
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             DRY_RUN_FLAG="--dry-run"
           fi
+
+          # Run release — fail the job immediately on error.
           OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py release $DRY_RUN_FLAG 2>&1)
           echo "$OUTPUT"
 

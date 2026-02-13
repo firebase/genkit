@@ -176,6 +176,35 @@ class TestLog:
         with patch.object(git, '_git', return_value=_ok(stdout='')):
             assert await git.log() == []
 
+    @pytest.mark.asyncio()
+    async def test_changelog_format_no_literal_null_bytes(self, git: GitCLIBackend) -> None:
+        r"""Regression: changelog format %x00 must not put literal null bytes in argv.
+
+        A literal \\x00 in the --pretty=format: argument causes
+        ``ValueError: embedded null byte`` in subprocess.Popen on Linux
+        because execve(2) rejects null bytes in command arguments.
+        Git interprets ``%x00`` in the format and outputs actual null
+        bytes, so the command arg itself stays clean.
+        """
+        changelog_fmt = '%H%x00%an%x00%s'
+        with patch.object(git, '_git', return_value=_ok(stdout='')) as m:
+            await git.log(format=changelog_fmt)
+            args = m.call_args[0]
+            pretty_arg = [a for a in args if a.startswith('--pretty=format:')]
+            assert len(pretty_arg) == 1
+            # The argument string must not contain a literal null byte.
+            assert '\x00' not in pretty_arg[0], f'Literal null byte found in git arg: {pretty_arg[0]!r}'
+            # It should contain the %x00 escape for git to interpret.
+            assert '%x00' in pretty_arg[0]
+
+    @pytest.mark.asyncio()
+    async def test_max_commits(self, git: GitCLIBackend) -> None:
+        """max_commits passes -n flag."""
+        with patch.object(git, '_git', return_value=_ok(stdout='abc feat: x\n')) as m:
+            await git.log(max_commits=50)
+            args = m.call_args[0]
+            assert '-n50' in args
+
 
 class TestDiffFiles:
     """Tests for Diff Files."""

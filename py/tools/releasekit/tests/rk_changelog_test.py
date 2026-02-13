@@ -612,3 +612,110 @@ class TestLinkedIssues:
         )
         rendered = _render_entry(entry)
         assert 'closes' not in rendered
+
+
+class TestNullByteRegression:
+    r"""Regression tests for the embedded null byte fix.
+
+    The default log_format in generate_changelog must use git's ``%x00``
+    escape (which git interprets in output) rather than a literal Python
+    ``\\x00`` byte.  A literal null byte in the format string causes
+    ``ValueError: embedded null byte`` when passed to ``subprocess.Popen``
+    on Linux because ``execve(2)`` rejects null bytes in argv.
+
+    See: https://github.com/firebase/genkit/actions/runs/.../job/...
+    """
+
+    def test_default_log_format_has_no_literal_null_bytes(self) -> None:
+        """Default log_format must not contain literal null bytes.
+
+        Literal null bytes in command-line arguments cause ValueError on
+        Linux.  The format string should use git's ``%x00`` escape instead.
+        """
+        import inspect
+
+        sig = inspect.signature(generate_changelog)
+        default_fmt = sig.parameters['log_format'].default
+        if '\x00' in default_fmt:
+            raise AssertionError(
+                f'log_format default contains literal null byte: {default_fmt!r}. '
+                'Use git escape %x00 instead of Python \\x00.'
+            )
+        if '%x00' not in default_fmt:
+            raise AssertionError(f'log_format default should use %x00 escape: {default_fmt!r}')
+
+    @pytest.mark.asyncio
+    async def test_null_byte_separated_lines_parsed(self) -> None:
+        r"""Lines with \\x00 separators are parsed into SHA, author, subject."""
+        vcs = FakeVCS(
+            log_lines=[
+                'aaa1111\x00Alice\x00feat: add streaming',
+                'bbb2222\x00Bob\x00fix: race condition',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+
+        all_entries = [e for s in changelog.sections for e in s.entries]
+        assert len(all_entries) == 2
+        descriptions = {e.description for e in all_entries}
+        assert 'add streaming' in descriptions
+        assert 'race condition' in descriptions
+
+    @pytest.mark.asyncio
+    async def test_null_byte_author_extracted(self) -> None:
+        """Author field is extracted from null-byte-separated lines."""
+        vcs = FakeVCS(
+            log_lines=[
+                'aaa1111\x00Alice\x00feat: add streaming',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+
+        entry = changelog.sections[0].entries[0]
+        assert entry.author == 'Alice'
+
+    @pytest.mark.asyncio
+    async def test_space_separated_fallback(self) -> None:
+        """Legacy space-separated lines still work (no author)."""
+        vcs = FakeVCS(
+            log_lines=[
+                'aaa1111 feat: add streaming',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+
+        entry = changelog.sections[0].entries[0]
+        assert entry.author == ''
+        assert entry.description == 'add streaming'
+
+    @pytest.mark.asyncio
+    async def test_malformed_null_byte_line_skipped(self) -> None:
+        """Lines with only one null-byte field are skipped (< 3 parts)."""
+        vcs = FakeVCS(
+            log_lines=[
+                'aaa1111\x00incomplete',
+                'bbb2222\x00Bob\x00feat: valid commit',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+
+        all_entries = [e for s in changelog.sections for e in s.entries]
+        assert len(all_entries) == 1
+        assert all_entries[0].description == 'valid commit'
+
+    @pytest.mark.asyncio
+    async def test_mixed_formats(self) -> None:
+        """Mix of null-byte-separated and space-separated lines both parse."""
+        vcs = FakeVCS(
+            log_lines=[
+                'aaa1111\x00Alice\x00feat: from null format',
+                'bbb2222 fix: from space format',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+
+        all_entries = [e for s in changelog.sections for e in s.entries]
+        assert len(all_entries) == 2
+        authors = {e.author for e in all_entries}
+        assert 'Alice' in authors
+        assert '' in authors

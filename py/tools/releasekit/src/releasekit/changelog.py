@@ -303,7 +303,7 @@ async def generate_changelog(
     paths: list[str] | None = None,
     exclude_types: frozenset[str] | None = None,
     date: str = '',
-    log_format: str = '%H\x00%an\x00%s',
+    log_format: str = '%H%x00%an%x00%s',
     commit_parser: CommitParser | None = None,
 ) -> Changelog:
     r"""Generate a structured changelog from git history.
@@ -320,7 +320,8 @@ async def generate_changelog(
         exclude_types: Commit types to exclude. Defaults to
             ``_DEFAULT_EXCLUDE_TYPES`` (chore, style, ci, build, test).
         date: Optional date string for the heading.
-        log_format: Git log format. Default produces ``SHA\x00author\x00subject`` lines.
+        log_format: Git log format. Default uses ``%x00`` (git's null-byte
+            escape) to produce ``SHA\x00author\x00subject`` lines in output.
         commit_parser: Optional custom commit parser. Defaults to
             :class:`ConventionalCommitParser`.
 
