@@ -99,7 +99,12 @@ from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer
 
-from ._tracing import SpanAttributeValue, record_input_metadata, record_output_metadata
+from ._tracing import (
+    SpanAttributeValue,
+    record_input_metadata,
+    record_output_metadata,
+    save_parent_path,
+)
 from ._util import extract_action_args_and_types, noop_streaming_callback
 from .types import ActionKind, ActionMetadataKey, ActionResponse
 
@@ -588,42 +593,44 @@ def _make_tracing_wrappers(
         """
         afn = ensure_async(fn)
         start_time = time.perf_counter()
-        with tracer.start_as_current_span(name) as span:
-            # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
-            trace_id = format(span.get_span_context().trace_id, '032x')
-            span_id = format(span.get_span_context().span_id, '016x')
-            ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
-            record_input_metadata(
-                span=span,
-                kind=kind,
-                name=name,
-                span_metadata=span_metadata,
-                input=input,
-            )
 
-            try:
-                match n_action_args:
-                    case 0:
-                        output = await afn()
-                    case 1:
-                        output = await afn(input)
-                    case 2:
-                        output = await afn(input, ctx)
-                    case _:
-                        raise ValueError('action fn must have 0-2 args...')
-            except Exception as e:
-                # Re-raise existing GenkitError instances to avoid double-wrapping
-                if isinstance(e, GenkitError):
-                    raise
-                raise GenkitError(
-                    cause=e,
-                    message=f'Error while running action {name}',
-                    trace_id=trace_id,
-                ) from e
+        with save_parent_path():
+            with tracer.start_as_current_span(name) as span:
+                # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
+                trace_id = format(span.get_span_context().trace_id, '032x')
+                span_id = format(span.get_span_context().span_id, '016x')
+                ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
+                record_input_metadata(
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
 
-            output = _record_latency(output, start_time)
-            record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
+                try:
+                    match n_action_args:
+                        case 0:
+                            output = await afn()
+                        case 1:
+                            output = await afn(input)
+                        case 2:
+                            output = await afn(input, ctx)
+                        case _:
+                            raise ValueError('action fn must have 0-2 args...')
+                except Exception as e:
+                    # Re-raise existing GenkitError instances to avoid double-wrapping
+                    if isinstance(e, GenkitError):
+                        raise
+                    raise GenkitError(
+                        cause=e,
+                        message=f'Error while running action {name}',
+                        trace_id=trace_id,
+                    ) from e
+
+                output = _record_latency(output, start_time)
+                record_output_metadata(span, output=output)
+                return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
 
     def sync_tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse[Any]:
         """Wrap the function in a sync tracing wrapper.
@@ -636,41 +643,43 @@ def _make_tracing_wrappers(
             The action response.
         """
         start_time = time.perf_counter()
-        with tracer.start_as_current_span(name) as span:
-            # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
-            trace_id = format(span.get_span_context().trace_id, '032x')
-            span_id = format(span.get_span_context().span_id, '016x')
-            ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
-            record_input_metadata(
-                span=span,
-                kind=kind,
-                name=name,
-                span_metadata=span_metadata,
-                input=input,
-            )
 
-            try:
-                match n_action_args:
-                    case 0:
-                        output = fn()
-                    case 1:
-                        output = fn(input)
-                    case 2:
-                        output = fn(input, ctx)
-                    case _:
-                        raise ValueError('action fn must have 0-2 args...')
-            except Exception as e:
-                # Re-raise existing GenkitError instances to avoid double-wrapping
-                if isinstance(e, GenkitError):
-                    raise
-                raise GenkitError(
-                    cause=e,
-                    message=f'Error while running action {name}',
-                    trace_id=trace_id,
-                ) from e
+        with save_parent_path():
+            with tracer.start_as_current_span(name) as span:
+                # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
+                trace_id = format(span.get_span_context().trace_id, '032x')
+                span_id = format(span.get_span_context().span_id, '016x')
+                ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
+                record_input_metadata(
+                    span=span,
+                    kind=kind,
+                    name=name,
+                    span_metadata=span_metadata,
+                    input=input,
+                )
 
-            output = _record_latency(output, start_time)
-            record_output_metadata(span, output=output)
-            return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
+                try:
+                    match n_action_args:
+                        case 0:
+                            output = fn()
+                        case 1:
+                            output = fn(input)
+                        case 2:
+                            output = fn(input, ctx)
+                        case _:
+                            raise ValueError('action fn must have 0-2 args...')
+                except Exception as e:
+                    # Re-raise existing GenkitError instances to avoid double-wrapping
+                    if isinstance(e, GenkitError):
+                        raise
+                    raise GenkitError(
+                        cause=e,
+                        message=f'Error while running action {name}',
+                        trace_id=trace_id,
+                    ) from e
+
+                output = _record_latency(output, start_time)
+                record_output_metadata(span, output=output)
+                return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
 
     return sync_tracing_wrapper, async_tracing_wrapper
