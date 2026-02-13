@@ -134,9 +134,9 @@ $changelog
 """)
 
 
-def _format_tag(tag_format: str, name: str, version: str) -> str:
+def _format_tag(tag_format: str, name: str, version: str, label: str = '') -> str:
     """Format a git tag using the configured template."""
-    return tag_format.replace('{name}', name).replace('{version}', version)
+    return tag_format.replace('{name}', name).replace('{version}', version).replace('{label}', label)
 
 
 def render_release_notes(

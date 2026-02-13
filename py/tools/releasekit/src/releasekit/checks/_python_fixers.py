@@ -71,10 +71,10 @@ def fix_publish_classifiers(
             continue  # Already consistent.
 
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception as exc:
-            logger.warning('fix_classifier_parse_error', path=str(pkg.pyproject_path), error=str(exc))
+            logger.warning('fix_classifier_parse_error', path=str(pkg.manifest_path), error=str(exc))
             continue
 
         project = doc.get('project')
@@ -106,10 +106,10 @@ def fix_publish_classifiers(
 
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_classifier', action=action, path=str(pkg.pyproject_path))
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            logger.info('fix_classifier', action=action, path=str(pkg.manifest_path))
         else:
-            logger.info('fix_classifier_dry_run', action=action, path=str(pkg.pyproject_path))
+            logger.info('fix_classifier_dry_run', action=action, path=str(pkg.manifest_path))
 
     return changes
 
@@ -141,10 +141,10 @@ def fix_readme_field(
             continue
 
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception as exc:
-            logger.warning('fix_readme_field_parse_error', path=str(pkg.pyproject_path), error=str(exc))
+            logger.warning('fix_readme_field_parse_error', path=str(pkg.manifest_path), error=str(exc))
             continue
 
         project = doc.get('project')
@@ -158,8 +158,8 @@ def fix_readme_field(
         action = f'{pkg.name}: added readme = "README.md"'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_readme_field', action=action, path=str(pkg.pyproject_path))
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            logger.info('fix_readme_field', action=action, path=str(pkg.manifest_path))
 
     return changes
 
@@ -192,10 +192,10 @@ def fix_changelog_url(
             continue
 
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception as exc:
-            logger.warning('fix_changelog_url_parse_error', path=str(pkg.pyproject_path), error=str(exc))
+            logger.warning('fix_changelog_url_parse_error', path=str(pkg.manifest_path), error=str(exc))
             continue
 
         project = doc.get('project')
@@ -221,8 +221,8 @@ def fix_changelog_url(
         action = f'{pkg.name}: added Changelog URL to [project.urls]'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_changelog_url', action=action, path=str(pkg.pyproject_path))
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            logger.info('fix_changelog_url', action=action, path=str(pkg.manifest_path))
 
     return changes
 
@@ -352,7 +352,7 @@ def fix_deprecated_classifiers(
 
     for pkg in packages:
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -385,7 +385,7 @@ def fix_deprecated_classifiers(
             i += 1
 
         if modified and not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_deprecated_classifiers', package=pkg.name)
 
     return changes
@@ -412,7 +412,7 @@ def fix_duplicate_dependencies(
 
     for pkg in packages:
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -449,7 +449,7 @@ def fix_duplicate_dependencies(
         action = f'{pkg.name}: removed {len(to_remove)} duplicate dep(s): {", ".join(reversed(removed_names))}'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_duplicate_dependencies', package=pkg.name, removed=len(to_remove))
 
     return changes
@@ -481,7 +481,7 @@ def fix_requires_python(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -511,7 +511,7 @@ def fix_requires_python(
         action = f'{pkg.name}: added requires-python = "{inferred}"'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_requires_python', package=pkg.name, value=inferred)
 
     return changes
@@ -548,7 +548,7 @@ def fix_build_system(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -571,7 +571,7 @@ def fix_build_system(
 
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_build_system', package=pkg.name, backend=build_backend)
 
     return changes
@@ -600,7 +600,7 @@ def fix_version_field(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -627,7 +627,7 @@ def fix_version_field(
 
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_version_field', package=pkg.name)
 
     return changes
@@ -664,7 +664,7 @@ def fix_readme_content_type(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -691,7 +691,7 @@ def fix_readme_content_type(
         action = f'{pkg.name}: changed content-type from {ct_val!r} to {expected_ct!r}'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_readme_content_type', package=pkg.name, old=ct_val, new=expected_ct)
 
     return changes
@@ -720,7 +720,7 @@ def fix_placeholder_urls(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -754,7 +754,7 @@ def fix_placeholder_urls(
         action = f'{pkg.name}: removed {len(to_remove)} placeholder URL(s): {", ".join(to_remove)}'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_placeholder_urls', package=pkg.name, removed=to_remove)
 
     return changes
@@ -784,7 +784,7 @@ def fix_license_classifier_mismatch(
         if not pkg.is_publishable:
             continue
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -832,7 +832,7 @@ def fix_license_classifier_mismatch(
             break
 
         if modified and not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_license_classifier_mismatch', package=pkg.name)
 
     return changes
@@ -859,7 +859,7 @@ def fix_self_dependencies(
 
     for pkg in packages:
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception:  # noqa: S112 - intentional skip on parse failure
             continue
@@ -894,7 +894,7 @@ def fix_self_dependencies(
         action = f'{pkg.name}: removed self-dep(s): {", ".join(reversed(removed))}'
         changes.append(action)
         if not dry_run:
-            pkg.pyproject_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
             logger.info('fix_self_dependencies', package=pkg.name, removed=removed)
 
     return changes

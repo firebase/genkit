@@ -418,7 +418,7 @@ def _check_metadata_validation(
     for pkg in packages:
         if not pkg.is_publishable:
             continue
-        pyproject = pkg.pyproject_path
+        pyproject = pkg.manifest_path
         if not pyproject.is_file():
             continue
 
@@ -505,7 +505,6 @@ async def run_preflight(
     """
     result = PreflightResult()
 
-    # ── Universal checks (all ecosystems) ──
     await _check_clean_worktree(vcs, result, dry_run=dry_run)
     if not result.ok:
         raise ReleaseKitError(
@@ -524,7 +523,6 @@ async def run_preflight(
     if not skip_version_check:
         await _check_version_conflicts(registry, versions, result)
 
-    # ── Ecosystem-specific checks ──
     if ecosystem == 'python':
         _check_metadata_validation(packages, result)
         if run_audit:

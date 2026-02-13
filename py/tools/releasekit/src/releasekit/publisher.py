@@ -112,6 +112,15 @@ class PublishConfig:
         task_timeout: Timeout per publish attempt in seconds (600=10 min).
         force: Skip confirmation prompts.
         workspace_root: Workspace root directory.
+        workspace_label: Workspace label for scoping state files.
+        dist_tag: npm dist-tag (e.g. ``latest``, ``next``).
+            Maps to ``pnpm publish --tag``. Ignored by Python backends.
+        publish_branch: Allow publishing from a non-default branch.
+            Maps to ``pnpm publish --publish-branch``. Ignored by
+            Python backends.
+        provenance: Generate npm provenance attestation.
+            Maps to ``pnpm publish --provenance``. Ignored by
+            Python backends.
     """
 
     concurrency: int = 5
@@ -127,6 +136,10 @@ class PublishConfig:
     task_timeout: float = 600.0
     force: bool = False
     workspace_root: Path = field(default_factory=Path)
+    workspace_label: str = ''
+    dist_tag: str = ''
+    publish_branch: str = ''
+    provenance: bool = False
 
 
 @dataclass
@@ -226,7 +239,7 @@ async def _publish_one(
         state.set_status(name, PackageStatus.BUILDING)
         state.save(state_path)
 
-        with ephemeral_pin(pkg.pyproject_path, version_map):
+        with ephemeral_pin(pkg.manifest_path, version_map):
             observer.on_stage(name, PublishStage.BUILDING)
             with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
                 dist_dir = Path(tmp)
@@ -253,6 +266,9 @@ async def _publish_one(
                     dist_dir,
                     check_url=config.check_url,
                     index_url=config.index_url,
+                    dist_tag=config.dist_tag or None,
+                    publish_branch=config.publish_branch or None,
+                    provenance=config.provenance,
                     dry_run=config.dry_run,
                 )
 
@@ -383,7 +399,10 @@ async def publish_workspace(
 
     # Initialize or resume state.
     git_sha = await vcs.current_sha()
-    state_path = config.workspace_root / '.releasekit-state.json'
+    state_name = (
+        f'.releasekit-state--{config.workspace_label}.json' if config.workspace_label else '.releasekit-state.json'
+    )
+    state_path = config.workspace_root / state_name
 
     if state is None:
         state = RunState(git_sha=git_sha)

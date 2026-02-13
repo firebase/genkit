@@ -30,6 +30,26 @@ concurrency:
 
 jobs:
   # =============================================================================
+  # Detect which directories changed to skip unrelated test jobs
+  # =============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      releasekit: ${{ steps.filter.outputs.releasekit }}
+      conform: ${{ steps.filter.outputs.conform }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            releasekit:
+              - 'py/tools/releasekit/**'
+            conform:
+              - 'py/tools/conform/**'
+
+  # =============================================================================
   # Fast checks that run quickly and catch common issues early
   # =============================================================================
   lint-and-format:
@@ -251,13 +271,15 @@ jobs:
   # =============================================================================
   tool-tests:
     name: Tool Tests (${{ matrix.tool }}, Python ${{ matrix.python-version }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.releasekit == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         # Add new tools with tests here as they are created.
         tool: [releasekit]
-        python-version: ["3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v5
 
@@ -282,11 +304,13 @@ jobs:
   # =============================================================================
   conform-tests:
     name: Conform Tests (Python ${{ matrix.python-version }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.conform == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v5
 
@@ -316,6 +340,7 @@ jobs:
   build:
     name: Build Distributions
     runs-on: ubuntu-latest
+    if: ${{ always() && !failure() && !cancelled() }}
     needs: [lint-and-format, type-check, security-and-compliance, tests, sample-tests, tool-tests, conform-tests]
     steps:
       - uses: actions/checkout@v5

@@ -15,7 +15,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
-authors = [{ name = "Google" }]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -31,16 +34,17 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "aiofiles>=24.1.0",     # Non-blocking file I/O for async Workspace protocol
-  "packaging>=24.0",      # PEP 508 dependency specifier parsing
-  "tomlkit>=0.13.0",      # Style-preserving TOML manipulation
-  "structlog>=25.1.0",    # Structured logging
-  "rich>=13.0.0",         # Rich terminal UI + progress
-  "rich-argparse>=1.6.0", # Colorful CLI help
-  "argcomplete>=3.0.0",   # Shell tab completion
-  "jinja2>=3.1.0",        # Release notes templates
-  "diagnostic>=3.0.0",    # Rust-style error rendering
-  "httpx>=0.27.0",        # Async HTTP with connection pooling (PyPIBackend)
+  "aiofiles>=24.1.0",                         # Non-blocking file I/O for async Workspace protocol
+  "packaging>=24.0",                          # PEP 508 dependency specifier parsing
+  "tomlkit>=0.13.0",                          # Style-preserving TOML manipulation
+  "structlog>=25.1.0",                        # Structured logging
+  "rich>=13.0.0",                             # Rich terminal UI + progress
+  "rich-argparse>=1.6.0",                     # Colorful CLI help
+  "argcomplete>=3.0.0",                       # Shell tab completion
+  "jinja2>=3.1.0",                            # Release notes templates
+  "diagnostic>=3.0.0",                        # Rust-style error rendering
+  "httpx>=0.27.0",                            # Async HTTP with connection pooling (PyPIBackend)
+  "strenum>=0.4.15; python_version < '3.11'", # StrEnum backport for 3.10
 ]
 description = "Release orchestration for polyglot monorepos"
 license = "Apache-2.0"
@@ -48,6 +52,9 @@ name = "releasekit"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+tracing = ["opentelemetry-api>=1.20.0", "opentelemetry-sdk>=1.20.0"]
 
 [project.scripts]
 releasekit = "releasekit.cli:_main"
@@ -59,9 +66,30 @@ requires      = ["hatchling"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/releasekit"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"LICENSE" = "releasekit/LICENSE"
+
 [dependency-groups]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.25.0", "pytest-cov>=7.0.0"]
 
 [tool.pytest.ini_options]
+addopts    = "--cov=releasekit --cov-config=pyproject.toml --cov-report=term-missing"
 pythonpath = ["."]
 testpaths  = ["tests"]
+
+[tool.coverage.run]
+branch = true
+omit   = ["src/releasekit/cli.py", "src/releasekit/ui.py"]
+source = ["releasekit"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if __name__ == .__main__.",
+  "if TYPE_CHECKING:",
+  "pragma: no cover",
+  "@overload",
+  "raise NotImplementedError",
+]
+fail_under = 80
+show_missing = true
+skip_covered = false

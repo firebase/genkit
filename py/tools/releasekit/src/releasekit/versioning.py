@@ -63,12 +63,19 @@ Usage::
 
 from __future__ import annotations
 
-import re
+import asyncio
 from collections import deque
-from dataclasses import dataclass
-from enum import Enum
 
 from releasekit.backends.vcs import VCS
+from releasekit.commit_parsing import (
+    BumpType,
+    CommitParser,
+    ConventionalCommit,
+    ConventionalCommitParser,
+    ParsedCommit,
+    max_bump as _max_bump,
+    parse_conventional_commit,
+)
 from releasekit.errors import E, ReleaseKitError
 from releasekit.graph import DependencyGraph
 from releasekit.logging import get_logger
@@ -78,124 +85,13 @@ from releasekit.workspace import Package
 logger = get_logger(__name__)
 
 
-class BumpType(Enum):
-    """Semver bump types, ordered by precedence (highest first).
-
-    The "strongest" bump wins when multiple commits affect the same
-    package. For example, if a package has both a ``feat:`` and a
-    ``fix:`` commit, the bump is ``MINOR`` (not ``PATCH``).
-    """
-
-    MAJOR = 'major'
-    MINOR = 'minor'
-    PATCH = 'patch'
-    PRERELEASE = 'prerelease'
-    NONE = 'none'
+# Module-level singleton for convenience.
+_DEFAULT_PARSER = ConventionalCommitParser()
 
 
-# Bump precedence: lower index = higher precedence.
-_BUMP_PRECEDENCE: list[BumpType] = [
-    BumpType.MAJOR,
-    BumpType.MINOR,
-    BumpType.PATCH,
-    BumpType.PRERELEASE,
-    BumpType.NONE,
-]
-
-
-def _max_bump(a: BumpType, b: BumpType) -> BumpType:
-    """Return the higher-precedence bump type."""
-    a_idx = _BUMP_PRECEDENCE.index(a)
-    b_idx = _BUMP_PRECEDENCE.index(b)
-    return _BUMP_PRECEDENCE[min(a_idx, b_idx)]
-
-
-# Conventional Commit types that trigger each bump level.
-_MAJOR_TYPES: frozenset[str] = frozenset()  # Major is only via "!" or "BREAKING CHANGE"
-_MINOR_TYPES: frozenset[str] = frozenset({'feat'})
-_PATCH_TYPES: frozenset[str] = frozenset({'fix', 'perf'})
-
-# Regex for Conventional Commits: type(scope)!: description
-_CC_PATTERN: re.Pattern[str] = re.compile(
-    r'^(?P<type>[a-z]+)'  # type (e.g. feat, fix, chore)
-    r'(?:\((?P<scope>[^)]*)\))?'  # optional scope in parens
-    r'(?P<breaking>!)?'  # optional breaking change indicator
-    r':\s*'  # colon + space
-    r'(?P<description>.+)$',  # description
-)
-
-
-@dataclass(frozen=True)
-class ConventionalCommit:
-    """A parsed Conventional Commit message.
-
-    Attributes:
-        sha: The full commit SHA.
-        type: The commit type (e.g. ``"feat"``, ``"fix"``).
-        scope: The optional scope (e.g. ``"auth"``).
-        description: The commit description.
-        breaking: Whether this is a breaking change.
-        bump: The computed bump type for this commit.
-        raw: The original unparsed commit message.
-    """
-
-    sha: str
-    type: str
-    description: str
-    scope: str = ''
-    breaking: bool = False
-    bump: BumpType = BumpType.NONE
-    raw: str = ''
-
-
-def parse_conventional_commit(message: str, sha: str = '') -> ConventionalCommit | None:
-    """Parse a single commit message as a Conventional Commit.
-
-    Args:
-        message: The commit subject line.
-        sha: The commit SHA (for reference).
-
-    Returns:
-        A :class:`ConventionalCommit` if the message follows the
-        convention, otherwise ``None``.
-    """
-    match = _CC_PATTERN.match(message.strip())
-    if not match:
-        return None
-
-    cc_type = match.group('type')
-    scope = match.group('scope') or ''
-    breaking = bool(match.group('breaking'))
-    description = match.group('description')
-
-    # Check for "BREAKING CHANGE:" in the body (simplified: check subject).
-    if 'BREAKING CHANGE' in message or 'BREAKING-CHANGE' in message:
-        breaking = True
-
-    # Determine bump type.
-    if breaking:
-        bump = BumpType.MAJOR
-    elif cc_type in _MINOR_TYPES:
-        bump = BumpType.MINOR
-    elif cc_type in _PATCH_TYPES:
-        bump = BumpType.PATCH
-    else:
-        bump = BumpType.NONE
-
-    return ConventionalCommit(
-        sha=sha,
-        type=cc_type,
-        scope=scope,
-        description=description,
-        breaking=breaking,
-        bump=bump,
-        raw=message,
-    )
-
-
-def _format_tag(tag_format: str, name: str, version: str) -> str:
+def _format_tag(tag_format: str, name: str, version: str, label: str = '') -> str:
     """Format a git tag using the configured template."""
-    return tag_format.replace('{name}', name).replace('{version}', version)
+    return tag_format.replace('{name}', name).replace('{version}', version).replace('{label}', label)
 
 
 async def _last_tag(vcs: VCS, tag_format: str, name: str, version: str) -> str | None:
@@ -262,6 +158,10 @@ async def compute_bumps(
     graph: DependencyGraph | None = None,
     synchronize: bool = False,
     major_on_zero: bool = False,
+    ignore_unknown_tags: bool = False,
+    commit_parser: CommitParser | None = None,
+    max_commits: int = 0,
+    bootstrap_sha: str = '',
 ) -> list[PackageVersion]:
     """Compute version bumps for all packages based on Conventional Commits.
 
@@ -297,34 +197,81 @@ async def compute_bumps(
             the max bump).
         major_on_zero: If ``False`` (default), breaking changes on
             ``0.x`` versions produce MINOR instead of MAJOR.
+        ignore_unknown_tags: If ``True``, when a tag exists but
+            ``git log {tag}..HEAD`` fails (e.g. corrupt or unreachable
+            tag object), fall back to scanning all commits instead of
+            raising an error.
+        commit_parser: Optional custom commit parser. Defaults to
+            :class:`ConventionalCommitParser`.
+        max_commits: Maximum number of commits to scan per package.
+            0 means no limit. Useful for large repos where scanning
+            the entire history is expensive.
+        bootstrap_sha: Git SHA to use as the starting point when no
+            tag exists for a package. Useful for mid-stream adoption
+            of releasekit on repos that already have versions but no
+            releasekit tags. Only commits after this SHA are scanned.
+            Empty string means scan the entire history.
 
     Returns:
         A list of :class:`PackageVersion` records, one per package.
     """
-    # Phase 1: Compute direct bumps per package from commits.
+    parser = commit_parser or _DEFAULT_PARSER
+
+    # Phase 1: Compute direct bumps per package from commits (parallel).
     pkg_bumps: dict[str, BumpType] = {}
     pkg_reasons: dict[str, str] = {}
 
-    for pkg in packages:
+    async def _compute_pkg_bump(pkg: Package) -> tuple[str, BumpType, str]:
+        """Compute the bump for a single package (runs concurrently)."""
         last_tag = await _last_tag(vcs, tag_format, pkg.name, pkg.version)
+        # When no tag exists and bootstrap_sha is configured, use it
+        # as the starting point instead of scanning the entire history.
+        effective_since = last_tag if last_tag is not None else (bootstrap_sha or None)
 
-        # Fetch commits scoped to this package's directory since its tag.
-        log_lines = await vcs.log(
-            format='%H %s',
-            since_tag=last_tag,
-            paths=[str(pkg.path)],
-            first_parent=True,
-        )
+        try:
+            log_lines = await vcs.log(
+                format='%H %s',
+                since_tag=effective_since,
+                paths=[str(pkg.path)],
+                first_parent=True,
+                no_merges=True,
+                max_commits=max_commits,
+            )
+        except Exception:
+            if ignore_unknown_tags and last_tag is not None:
+                logger.warning(
+                    'tag_unreachable_fallback',
+                    package=pkg.name,
+                    tag=last_tag,
+                    hint='Falling back to full history scan (--ignore-unknown-tags)',
+                )
+                log_lines = await vcs.log(
+                    format='%H %s',
+                    since_tag=None,
+                    paths=[str(pkg.path)],
+                    first_parent=True,
+                    no_merges=True,
+                    max_commits=max_commits,
+                )
+            else:
+                raise
 
-        commits: list[ConventionalCommit] = []
+        commits: list[ParsedCommit] = []
         for line in log_lines:
             parts = line.split(' ', maxsplit=1)
             if len(parts) < 2:
                 continue
             sha, subject = parts
-            cc = parse_conventional_commit(subject, sha=sha)
+            cc = parser.parse(subject, sha=sha)
             if cc is not None:
                 commits.append(cc)
+            else:
+                logger.warning(
+                    'non_conventional_commit',
+                    package=pkg.name,
+                    sha=sha[:8],
+                    subject=subject,
+                )
 
         logger.debug(
             'commits_parsed_for_package',
@@ -333,16 +280,34 @@ async def compute_bumps(
             conventional=len(commits),
         )
 
-        # Compute max bump from scoped commits.
-        max_bump = BumpType.NONE
+        # Count bumps per level; reverts decrement the reverted level.
+        bump_counts: dict[BumpType, int] = {
+            BumpType.MAJOR: 0,
+            BumpType.MINOR: 0,
+            BumpType.PATCH: 0,
+        }
         reason_commit = ''
         for commit in commits:
-            if commit.bump != BumpType.NONE:
-                max_bump = _max_bump(max_bump, commit.bump)
+            if commit.is_revert and commit.reverted_bump in bump_counts:
+                bump_counts[commit.reverted_bump] -= 1
+                logger.debug(
+                    'revert_cancels_bump',
+                    package=pkg.name,
+                    reverted_bump=commit.reverted_bump.value,
+                    message=commit.raw,
+                )
+            elif commit.bump in bump_counts:
+                bump_counts[commit.bump] += 1
                 if not reason_commit:
                     reason_commit = commit.raw
 
-        # Downgrade MAJOR → MINOR for 0.x packages when major_on_zero is False.
+        # Effective bump is the highest level with a positive count.
+        max_bump = BumpType.NONE
+        for level in [BumpType.MAJOR, BumpType.MINOR, BumpType.PATCH]:
+            if bump_counts[level] > 0:
+                max_bump = level
+                break
+
         if max_bump == BumpType.MAJOR and not major_on_zero:
             major_version = pkg.version.split('.')[0]
             if major_version == '0':
@@ -354,12 +319,15 @@ async def compute_bumps(
                     hint='Set major_on_zero = true to allow 0.x → 1.0.0',
                 )
 
-        # Handle prerelease mode.
         if prerelease and max_bump != BumpType.NONE:
             max_bump = BumpType.PRERELEASE
 
-        pkg_bumps[pkg.name] = max_bump
-        pkg_reasons[pkg.name] = reason_commit
+        return pkg.name, max_bump, reason_commit
+
+    bump_results = await asyncio.gather(*[_compute_pkg_bump(pkg) for pkg in packages])
+    for name, bump, reason in bump_results:
+        pkg_bumps[name] = bump
+        pkg_reasons[name] = reason
 
     # Phase 2: Propagation.
     if synchronize:
@@ -443,7 +411,10 @@ async def compute_bumps(
 
 __all__ = [
     'BumpType',
+    'CommitParser',
     'ConventionalCommit',
+    'ConventionalCommitParser',
+    'ParsedCommit',
     'compute_bumps',
     'parse_conventional_commit',
 ]

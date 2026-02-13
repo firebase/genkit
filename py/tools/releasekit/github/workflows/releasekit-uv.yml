@@ -1,0 +1,324 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ReleaseKit: Automated Release Pipeline
+#
+# This workflow implements a release-please-style pipeline for the
+# genkit Python SDK. It uses releasekit to automate:
+#
+# 1. PREPARE: On push to main, compute version bumps, generate
+#    changelogs, and open/update a Release PR.
+# 2. RELEASE: When a Release PR is merged, tag the merge commit,
+#    create a GitHub Release, and trigger publishing.
+# 3. PUBLISH: Build and publish packages to PyPI in topological order.
+#
+# Flow:
+#
+#   push to main ──► releasekit prepare ──► Release PR
+#                                                │
+#                                           merge PR
+#                                                │
+#                                                ▼
+#                                      releasekit release ──► tags + GitHub Release
+#                                                │
+#                                                ▼
+#                                      releasekit publish ──► PyPI
+#
+# The workflow is idempotent: re-running any step is safe because
+# releasekit skips already-created tags and already-published versions.
+
+name: "ReleaseKit: Python (uv)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Publish target registry'
+        required: true
+        default: pypi
+        type: choice
+        options:
+          - testpypi
+          - pypi
+      dry_run:
+        description: 'Dry run — log what would happen without creating tags or publishing'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - "py/packages/**"
+      - "py/plugins/**"
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# Only one release pipeline runs at a time.
+concurrency:
+  group: releasekit-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # Create tags, releases, and push to release branch
+  pull-requests: write   # Open/update Release PRs, manage labels
+
+env:
+  RELEASEKIT_DIR: py/tools/releasekit
+  WORKSPACE_DIR: py
+  # Registry URLs resolved from the target input (defaults to prod PyPI).
+  PUBLISH_INDEX_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
+  PUBLISH_CHECK_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/simple/' || 'https://pypi.org/simple/' }}
+  PUBLISH_ENVIRONMENT: ${{ inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}
+  # Dry-run logic:
+  #   - PR merge (pull_request closed): dry_run=false (this is the one-button release flow)
+  #   - Manual dispatch: uses the checkbox value (default: true)
+  #   - Push to main: dry_run is not relevant (only runs prepare, which is always live)
+  DRY_RUN: ${{ github.event_name == 'pull_request' && 'false' || (inputs.dry_run == 'false' && 'false' || 'true') }}
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # PREPARE: Compute bumps and open/update Release PR
+  #
+  # Runs on every push to main that touches package or plugin code.
+  # Creates a Release PR with version bumps, changelogs, and an
+  # embedded JSON manifest.
+  # ═══════════════════════════════════════════════════════════════════════
+  prepare:
+    name: Prepare Release PR
+    if: |
+      github.event_name == 'push' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):') &&
+      !contains(github.event.head_commit.message, 'releasekit--release')
+    runs-on: ubuntu-latest
+    outputs:
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+      pr_url: ${{ steps.prepare.outputs.pr_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history needed for conventional commit parsing
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run releasekit prepare
+        id: prepare
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py prepare 2>&1) || {
+            echo "::warning::releasekit prepare exited with non-zero status"
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+            echo "$OUTPUT"
+            exit 0
+          }
+          echo "$OUTPUT"
+
+          # Parse output for PR URL
+          PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
+          if [ -n "$PR_URL" ]; then
+            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # RELEASE: Tag merge commit and create GitHub Release
+  #
+  # Runs when a Release PR (labeled "autorelease: pending") is merged,
+  # or on manual workflow_dispatch.
+  # ═══════════════════════════════════════════════════════════════════════
+  release:
+    name: Tag and Release
+    if: |
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      release_url: ${{ steps.release.outputs.release_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Preview execution plan
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          echo "::group::Execution Plan (ASCII)"
+          uv run --directory ../tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no tags or releases will be created"
+          else
+            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run releasekit release
+        id: release
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          DRY_RUN_FLAG=""
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py release $DRY_RUN_FLAG 2>&1)
+          echo "$OUTPUT"
+
+          # Parse release URL
+          RELEASE_URL=$(echo "$OUTPUT" | grep -oP 'release_url=\K.*' || echo "")
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PUBLISH: Build and publish packages to PyPI
+  #
+  # Runs after the release job completes. Publishes packages in
+  # topological order with retry and ephemeral version pinning.
+  # ═══════════════════════════════════════════════════════════════════════
+  publish:
+    name: Publish to ${{ inputs.target || 'pypi' }}
+    needs: release
+    runs-on: ubuntu-latest
+    environment: ${{ env.PUBLISH_ENVIRONMENT }}
+    permissions:
+      id-token: write  # Trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libffi-dev
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install workspace + releasekit
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          uv sync
+          cd tools/releasekit
+          uv sync
+
+      - name: Preview execution plan
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+          echo "::group::Execution Plan (ASCII)"
+          uv run --directory tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no packages will be published"
+          else
+            echo "::notice::LIVE RUN — packages will be published to ${{ inputs.target || 'pypi' }}"
+          fi
+
+      - name: Run releasekit publish
+        run: |
+          cd ${{ env.WORKSPACE_DIR }}
+
+          cmd=(uv run --directory tools/releasekit releasekit --workspace py publish --force)
+
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            cmd+=(--dry-run)
+          fi
+
+          if [ -n "$PUBLISH_CHECK_URL" ]; then
+            cmd+=(--check-url "$PUBLISH_CHECK_URL")
+          fi
+          if [ -n "$PUBLISH_INDEX_URL" ]; then
+            cmd+=(--index-url "$PUBLISH_INDEX_URL")
+          fi
+
+          cmd+=(--max-retries 2)
+
+          echo "::group::Running: ${cmd[*]}"
+          "${cmd[@]}"
+          echo "::endgroup::"
+        env:
+          # For trusted publishing (OIDC), no token needed.
+          # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
+          UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
+
+      - name: Upload manifest artifact
+        if: success() && env.DRY_RUN != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: ${{ env.WORKSPACE_DIR }}/.releasekit-state.json
+          retention-days: 90
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # NOTIFY: Post-release notifications
+  #
+  # Fires a repository_dispatch event so downstream repos (e.g.
+  # genkit-community-plugins) can update their dependencies.
+  # ═══════════════════════════════════════════════════════════════════════
+  notify:
+    name: Notify Downstream
+    needs: publish
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch release event
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: genkit-python-release
+          client-payload: '{"release_url": "${{ needs.release.outputs.release_url }}"}'

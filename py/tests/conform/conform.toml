@@ -31,6 +31,12 @@ max-retries      = 2
 retry-base-delay = 1.0
 test-concurrency = 3
 
+# Timeouts (seconds).  These are global defaults; override per-plugin
+# or per-model in the sections below.
+action-timeout  = 120.0 # Per LLM action call (model generate request)
+health-timeout  = 5.0   # Health-check request to reflection server
+startup-timeout = 30.0  # Wait for reflection server to start
+
 # Plugins that are model providers but lack ``model_info.py`` (they use
 # dynamic model registration).  The ``check-model`` subcommand verifies
 # that these have conformance specs too.
@@ -60,7 +66,18 @@ xai                   = ["XAI_API_KEY"]
 #   test-concurrency — max parallel tests for this plugin (overrides global).
 
 [conform.plugin-overrides.cloudflare-workers-ai]
+action-timeout   = 180.0 # Cloudflare can be slow
 test-concurrency = 1
+
+# ---------------------------------------------------------------------------
+# Per-model overrides
+# ---------------------------------------------------------------------------
+# Override settings for specific models.  Currently supports:
+#   action-timeout — timeout for this model (overrides plugin and global).
+# Model names use the format "provider/model-name".
+
+# [conform.model-overrides."googleai/gemini-2.5-flash"]
+# action-timeout = 60.0
 
 # ---------------------------------------------------------------------------
 # Runtime configurations

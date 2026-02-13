@@ -203,13 +203,15 @@ def detect_ecosystems(
                 )
             )
 
-    # Deduplicate by root path (a directory could match multiple patterns,
-    # but in practice each root maps to exactly one ecosystem).
-    seen_roots: set[Path] = set()
+    # Deduplicate by (root, ecosystem) pair.  Two different ecosystems
+    # at the same root are valid (e.g. pyproject.toml + pnpm-workspace.yaml
+    # both at the monorepo root).
+    seen: set[tuple[Path, Ecosystem]] = set()
     unique: list[DetectedEcosystem] = []
     for eco in detected:
-        if eco.root not in seen_roots:
-            seen_roots.add(eco.root)
+        key = (eco.root, eco.ecosystem)
+        if key not in seen:
+            seen.add(key)
             unique.append(eco)
 
     result = sorted(unique, key=lambda e: e.ecosystem.value)

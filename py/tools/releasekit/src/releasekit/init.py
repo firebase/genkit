@@ -52,7 +52,7 @@ try:
 except ImportError:
     _HAS_RICH = False
 
-from releasekit.config import CONFIG_FILENAME
+from releasekit.config import CONFIG_FILENAME, DEFAULT_TOOLS
 from releasekit.logging import get_logger
 from releasekit.workspace import Package, discover_packages
 
@@ -106,14 +106,21 @@ def detect_groups(packages: list[Package]) -> dict[str, list[str]]:
 def generate_config_toml(
     groups: dict[str, list[str]],
     *,
+    workspace_label: str = 'py',
+    ecosystem: str = 'python',
     exclude: list[str] | None = None,
     tag_format: str = '{name}-v{version}',
     umbrella_tag: str = 'v{version}',
 ) -> str:
     """Generate a ``releasekit.toml`` config file.
 
+    Produces a config with global settings at the top level and
+    per-workspace settings under ``[workspace.<label>]``.
+
     Args:
         groups: Package groups from :func:`detect_groups`.
+        workspace_label: User-chosen label for the workspace section.
+        ecosystem: Ecosystem identifier (e.g. ``"python"``, ``"js"``).
         exclude: Glob patterns for packages to exclude.
         tag_format: Per-package tag format.
         umbrella_tag: Umbrella tag format.
@@ -123,22 +130,87 @@ def generate_config_toml(
     """
     doc = tomlkit.document()
 
-    doc.add('tag_format', tomlkit.item(tag_format))
-    doc.add('umbrella_tag', tomlkit.item(umbrella_tag))
+    # Global settings.
+    doc.add('forge', tomlkit.item('github'))
+    doc.add(tomlkit.nl())
+
+    # Workspace section.
+    ws_table = tomlkit.table(is_super_table=True)
+    ws_inner = tomlkit.table()
+    ws_inner.add('ecosystem', tomlkit.item(ecosystem))
+
+    # Only add tool if it differs from the ecosystem default.
+    default_tool = DEFAULT_TOOLS.get(ecosystem, '')
+    if default_tool:
+        ws_inner.comment(f'tool defaults to "{default_tool}" for {ecosystem}')
+
+    ws_inner.add('tag_format', tomlkit.item(tag_format))
+    ws_inner.add('umbrella_tag', tomlkit.item(umbrella_tag))
 
     if exclude:
-        doc.add('exclude', tomlkit.item(exclude))
+        ws_inner.add('exclude', tomlkit.item(exclude))
+
+    ws_inner.add('changelog', tomlkit.item(True))
+    ws_inner.add('smoke_test', tomlkit.item(True))
 
     if groups:
+        ws_inner.add(tomlkit.nl())
         groups_table = tomlkit.table()
         for group_name, patterns in sorted(groups.items()):
             groups_table.add(group_name, tomlkit.item(patterns))
-        doc.add('groups', groups_table)
+        ws_inner.add('groups', groups_table)
 
-    doc.add('changelog', tomlkit.item(True))
-    doc.add('smoke_test', tomlkit.item(True))
+    ws_table.add(workspace_label, ws_inner)
+    doc.add('workspace', ws_table)
 
     return tomlkit.dumps(doc)
+
+
+def _detect_ecosystem(workspace_root: Path) -> tuple[str, str]:
+    """Detect the ecosystem and suggest a workspace label.
+
+    Checks for common workspace marker files to determine the
+    ecosystem. Returns ``(ecosystem, label)`` where label is a
+    short name suitable for ``[workspace.<label>]``.
+
+    Falls back to ``("python", "py")`` if nothing is detected.
+
+    Args:
+        workspace_root: Path to the workspace root.
+
+    Returns:
+        A ``(ecosystem, label)`` tuple.
+    """
+    # Check for JS/TS workspace markers.
+    if (workspace_root / 'pnpm-workspace.yaml').exists() or (workspace_root / 'package.json').exists():
+        return ('js', 'js')
+
+    # Check for Rust workspace markers.
+    cargo_toml = workspace_root / 'Cargo.toml'
+    if cargo_toml.exists():
+        try:
+            content = cargo_toml.read_text(encoding='utf-8')
+            if '[workspace]' in content:
+                return ('rust', 'rust')
+        except OSError:
+            pass
+
+    # Check for Go workspace markers.
+    if (workspace_root / 'go.work').exists() or (workspace_root / 'go.mod').exists():
+        return ('go', 'go')
+
+    # Check for JVM workspace markers.
+    if (workspace_root / 'build.gradle.kts').exists() or (workspace_root / 'build.gradle').exists():
+        return ('jvm', 'jvm')
+    if (workspace_root / 'pom.xml').exists():
+        return ('jvm', 'jvm')
+
+    # Check for Dart workspace markers.
+    if (workspace_root / 'pubspec.yaml').exists():
+        return ('dart', 'dart')
+
+    # Default to Python (uv workspace).
+    return ('python', 'py')
 
 
 def _has_releasekit_config(workspace_root: Path) -> bool:
@@ -194,7 +266,15 @@ def scaffold_config(
         if len(prefixes) == 1 and len(sample_patterns) > 2:
             exclude.append(prefixes.pop())
 
-    toml_content = generate_config_toml(groups, exclude=exclude or None)
+    # Detect ecosystem from workspace structure.
+    ecosystem, workspace_label = _detect_ecosystem(workspace_root)
+
+    toml_content = generate_config_toml(
+        groups,
+        workspace_label=workspace_label,
+        ecosystem=ecosystem,
+        exclude=exclude or None,
+    )
 
     if dry_run:
         return toml_content

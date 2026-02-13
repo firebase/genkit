@@ -335,11 +335,18 @@ class ReflectionRunner:
         entry_cmd: list[str],
         cwd: str,
         required_keys: set[str],
+        *,
+        action_timeout: float = 120.0,
+        health_timeout: float = 5.0,
+        startup_timeout: float = 30.0,
     ) -> None:
         """Initialize with the entry command, working directory, and required keys."""
         self._entry_cmd = entry_cmd
         self._cwd = cwd
         self._required_keys = required_keys
+        self._action_timeout = action_timeout
+        self._health_timeout = health_timeout
+        self._startup_timeout = startup_timeout
         self._proc: asyncio.subprocess.Process | None = None
         self._client: ReflectionClient | None = None
 
@@ -367,14 +374,18 @@ class ReflectionRunner:
         )
 
         # Discover the reflection server URL.
-        url = await _find_runtime_url(Path(self._cwd))
+        url = await _find_runtime_url(Path(self._cwd), timeout=self._startup_timeout)
         if not url:
-            raise RuntimeError('Runtime file not found after 30s.')
+            raise RuntimeError(f'Runtime file not found after {self._startup_timeout}s.')
 
-        self._client = ReflectionClient(url)
+        self._client = ReflectionClient(
+            url,
+            action_timeout=self._action_timeout,
+            health_timeout=self._health_timeout,
+        )
 
         if not await self._client.wait_for_health():
-            raise RuntimeError('Reflection server not healthy after 30s.')
+            raise RuntimeError(f'Reflection server not healthy after {self._startup_timeout}s.')
 
         if not await self._client.wait_for_actions(self._required_keys):
             console.print('[yellow]Warning:[/yellow] Not all model actions registered. Proceeding anyway.')
@@ -469,10 +480,10 @@ def _model_to_action_key(model: str) -> str:
     return model if model.startswith('/') else f'/model/{model}'
 
 
-async def _find_runtime_url(project_root: Path) -> str | None:
+async def _find_runtime_url(project_root: Path, *, timeout: float = _RUNTIME_FILE_TIMEOUT) -> str | None:
     """Poll for a runtime file and return the reflection server URL."""
     runtimes_dir = project_root / '.genkit' / 'runtimes'
-    deadline = time.monotonic() + _RUNTIME_FILE_TIMEOUT
+    deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
         if runtimes_dir.exists():
@@ -745,7 +756,14 @@ async def run_test_model(
                 f"Set 'cwd' in the [conform.runtimes.{runtime.name}] section."
             )
         cwd = str(runtime.cwd)
-        runner = ReflectionRunner(entry_cmd, cwd, required_keys)
+        runner = ReflectionRunner(
+            entry_cmd,
+            cwd,
+            required_keys,
+            action_timeout=config.action_timeout_for(plugin),
+            health_timeout=config.health_timeout,
+            startup_timeout=config.startup_timeout,
+        )
         await runner.start()
 
     run_result = RunResult()

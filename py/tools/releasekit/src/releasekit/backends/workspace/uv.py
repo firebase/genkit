@@ -314,13 +314,13 @@ class UvWorkspace:
         """
         found: set[Path] = set()
         for pattern in members:
-            for candidate in sorted(self._root.glob(pattern)):
+            for candidate in sorted(self._root.glob(str(pattern))):
                 if candidate.is_dir() and (candidate / 'pyproject.toml').is_file():
                     found.add(candidate.resolve())
 
         excluded: set[Path] = set()
         for pattern in excludes:
-            for candidate in sorted(self._root.glob(pattern)):
+            for candidate in sorted(self._root.glob(str(pattern))):
                 excluded.add(candidate.resolve())
 
         result = sorted(found - excluded)

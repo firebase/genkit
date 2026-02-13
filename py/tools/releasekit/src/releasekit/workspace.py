@@ -92,6 +92,7 @@ Usage::
 
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import re
 from dataclasses import dataclass, field
@@ -113,21 +114,24 @@ class Package:
     """A single package discovered in the workspace.
 
     Attributes:
-        name: The package name from ``[project].name`` (e.g. ``"genkit"``).
-        version: The version string from ``[project].version``.
+        name: The package name (e.g. ``"genkit"``).
+        version: The version string (e.g. ``"0.5.0"``).
         path: Absolute path to the package directory.
-        pyproject_path: Absolute path to the package's ``pyproject.toml``.
+        manifest_path: Absolute path to the package's manifest file
+            (``pyproject.toml`` for Python, ``package.json`` for JS,
+            ``Cargo.toml`` for Rust, etc.).
         internal_deps: Names of workspace packages this package depends on.
-        external_deps: Names of external (PyPI) packages this package depends on.
+        external_deps: Names of external (registry) packages this package
+            depends on.
         all_deps: All dependency specifiers as raw strings.
-        is_publishable: Whether this package should be published to PyPI.
-            Packages with ``Private :: Do Not Upload`` classifier are not.
+        is_publishable: Whether this package should be published.
+            Packages marked private are excluded.
     """
 
     name: str
     version: str
     path: Path
-    pyproject_path: Path
+    manifest_path: Path
     internal_deps: list[str] = field(default_factory=list)
     external_deps: list[str] = field(default_factory=list)
     all_deps: list[str] = field(default_factory=list)
@@ -177,14 +181,14 @@ def _expand_member_globs(
     """
     found: set[Path] = set()
     for pattern in members:
-        for candidate in sorted(workspace_root.glob(pattern)):
+        for candidate in sorted(workspace_root.glob(str(pattern))):
             if candidate.is_dir() and (candidate / 'pyproject.toml').is_file():
                 found.add(candidate.resolve())
 
     # Apply exclusions.
     excluded: set[Path] = set()
     for pattern in excludes:
-        for candidate in sorted(workspace_root.glob(pattern)):
+        for candidate in sorted(workspace_root.glob(str(pattern))):
             excluded.add(candidate.resolve())
 
     result = sorted(found - excluded)
@@ -223,13 +227,13 @@ def _parse_package(
     Raises:
         ReleaseKitError: If the pyproject.toml is malformed.
     """
-    pyproject_path = pkg_dir / 'pyproject.toml'
+    manifest_path = pkg_dir / 'pyproject.toml'
     try:
-        text = pyproject_path.read_text(encoding='utf-8')
+        text = manifest_path.read_text(encoding='utf-8')
     except OSError as exc:
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to read {pyproject_path}: {exc}',
+            message=f'Failed to read {manifest_path}: {exc}',
         ) from exc
 
     try:
@@ -237,7 +241,7 @@ def _parse_package(
     except tomlkit.exceptions.TOMLKitError as exc:
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to parse {pyproject_path}: {exc}',
+            message=f'Failed to parse {manifest_path}: {exc}',
         ) from exc
 
     project: dict[str, Any] = dict(doc.get('project', {}))  # noqa: ANN401
@@ -245,7 +249,7 @@ def _parse_package(
     if not name:
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
-            message=f'No [project].name in {pyproject_path}',
+            message=f'No [project].name in {manifest_path}',
             hint='Every workspace member must have a [project] section with a name.',
         )
 
@@ -278,7 +282,7 @@ def _parse_package(
         name=_normalize_name(name),
         version=version,
         path=pkg_dir.resolve(),
-        pyproject_path=pyproject_path.resolve(),
+        manifest_path=manifest_path.resolve(),
         internal_deps=sorted(internal_deps),
         external_deps=sorted(external_deps),
         all_deps=[spec.strip() for spec in dep_specs],
@@ -286,22 +290,76 @@ def _parse_package(
     )
 
 
-def discover_packages(
+def _discover_js_packages(
     workspace_root: Path,
     *,
     exclude_patterns: list[str] | None = None,
 ) -> list[Package]:
-    """Discover all packages in a uv workspace.
+    """Discover JS packages via :class:`PnpmWorkspace` (sync wrapper).
 
-    Reads ``[tool.uv.workspace]`` from the root ``pyproject.toml``,
-    expands member globs, parses each member, and classifies dependencies
-    as internal (within workspace) or external (PyPI).
+    Bridges the async ``PnpmWorkspace.discover()`` into the sync
+    ``discover_packages()`` API by running it in a fresh event loop.
+    The returned ``_types.Package`` objects are converted to the
+    canonical :class:`Package` used throughout releasekit.
+    """
+    from releasekit.backends.workspace.pnpm import PnpmWorkspace
+
+    ws = PnpmWorkspace(workspace_root)
+
+    async def _run() -> list[Package]:
+        ws_pkgs = await ws.discover(exclude_patterns=exclude_patterns)
+        return [
+            Package(
+                name=p.name,
+                version=p.version,
+                path=p.path,
+                manifest_path=p.manifest_path,
+                internal_deps=list(p.internal_deps),
+                external_deps=list(p.external_deps),
+                all_deps=list(p.all_deps),
+                is_publishable=p.is_publishable,
+            )
+            for p in ws_pkgs
+        ]
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        # Already inside an event loop — use a helper thread.
+        # The Future.result() type is generic; we know _run() returns
+        # list[Package] so the cast is safe.
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result: list[Package] = pool.submit(asyncio.run, _run()).result()  # type: ignore[arg-type]
+            return result
+    return asyncio.run(_run())
+
+
+def discover_packages(
+    workspace_root: Path,
+    *,
+    exclude_patterns: list[str] | None = None,
+    ecosystem: str = 'python',
+) -> list[Package]:
+    """Discover all packages in a workspace.
+
+    Dispatches to the appropriate workspace backend based on
+    ``ecosystem``:
+
+    - ``"python"`` (default): reads ``[tool.uv.workspace]`` from the
+      root ``pyproject.toml``.
+    - ``"js"``: reads ``pnpm-workspace.yaml`` and ``package.json``
+      files via :class:`~releasekit.backends.workspace.pnpm.PnpmWorkspace`.
 
     Args:
-        workspace_root: Path to the workspace root directory (containing
-            the root ``pyproject.toml``).
+        workspace_root: Path to the workspace root directory.
         exclude_patterns: Additional glob patterns to exclude packages
-            (on top of those in ``[tool.uv.workspace].exclude``).
+            (on top of those in the workspace config).
+        ecosystem: Ecosystem identifier (``"python"`` or ``"js"``).
 
     Returns:
         List of :class:`Package` objects, sorted by name.
@@ -309,6 +367,9 @@ def discover_packages(
     Raises:
         ReleaseKitError: If the workspace structure is invalid.
     """
+    if ecosystem == 'js':
+        return _discover_js_packages(workspace_root, exclude_patterns=exclude_patterns)
+
     root_pyproject = workspace_root / 'pyproject.toml'
     if not root_pyproject.is_file():
         raise ReleaseKitError(
@@ -361,9 +422,9 @@ def discover_packages(
     # We do a quick parse to get names before the full parse.
     all_names: set[str] = set()
     for pkg_dir in pkg_dirs:
-        pyproject_path = pkg_dir / 'pyproject.toml'
+        manifest_path = pkg_dir / 'pyproject.toml'
         try:
-            quick_doc = tomlkit.parse(pyproject_path.read_text(encoding='utf-8'))
+            quick_doc = tomlkit.parse(manifest_path.read_text(encoding='utf-8'))
             name = quick_doc.get('project', {}).get('name', '')
             if name:
                 all_names.add(_normalize_name(name))

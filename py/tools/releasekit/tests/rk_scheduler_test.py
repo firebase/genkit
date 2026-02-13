@@ -43,7 +43,7 @@ def _make_pkg(name: str, internal_deps: list[str] | None = None) -> Package:
         name=name,
         version='0.1.0',
         path=Path(f'/fake/{name}'),
-        pyproject_path=Path(f'/fake/{name}/pyproject.toml'),
+        manifest_path=Path(f'/fake/{name}/pyproject.toml'),
         internal_deps=internal_deps or [],
         is_publishable=True,
     )
@@ -739,6 +739,7 @@ class TestAddPackage:
         published: list[str] = []
 
         async def publish_fn(name: str) -> None:
+            """Publish fn."""
             published.append(name)
             # When 'a' completes, dynamically add 'dynamic' with no deps.
             if name == 'a':
@@ -810,6 +811,7 @@ class TestRemovePackage:
         published: list[str] = []
 
         async def publish_fn(name: str) -> None:
+            """Publish fn."""
             published.append(name)
 
         a = _make_pkg('a')
@@ -835,6 +837,7 @@ class TestRemovePackage:
         published: list[str] = []
 
         async def publish_fn(name: str) -> None:
+            """Publish fn."""
             published.append(name)
 
         a = _make_pkg('a')

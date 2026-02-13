@@ -340,6 +340,18 @@ class CheckBackend(Protocol):
         """Check that no package lists itself in ``[project].dependencies``."""
         ...
 
+    def check_distro_deps(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check that distro packaging deps are in sync with ``pyproject.toml``.
+
+        Compares Debian/Ubuntu ``control`` and Fedora/RHEL ``.spec``
+        dependency lists against ``[project].dependencies``.
+        """
+        ...
+
     def run_fixes(
         self,
         packages: list[Package],

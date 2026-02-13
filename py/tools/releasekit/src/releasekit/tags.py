@@ -96,6 +96,7 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -105,6 +106,9 @@ from releasekit.logging import get_logger
 from releasekit.versions import ReleaseManifest
 
 logger = get_logger(__name__)
+
+# Semver-ish pattern: digits.digits.digits with optional pre-release/build.
+_SEMVER_RE = re.compile(r'(\d+\.\d+\.\d+(?:[-+].+)?)')
 
 
 @dataclass(frozen=True)
@@ -136,19 +140,85 @@ def format_tag(
     *,
     name: str = '',
     version: str = '',
+    label: str = '',
 ) -> str:
     """Format a tag string from a template.
 
     Args:
-        tag_format: Format string with ``{name}`` and ``{version}``
-            placeholders.
+        tag_format: Format string with ``{name}``, ``{version}``, and
+            ``{label}`` placeholders.  ``{label}`` is the workspace
+            label (e.g. ``py``, ``js``) and is useful in monorepos
+            where multiple ecosystems share a single repository.
         name: Package name (for per-package tags).
         version: Version string.
+        label: Workspace label.
 
     Returns:
         The formatted tag string.
+
+    Examples::
+
+        >>> format_tag('{name}-v{version}', name='genkit', version='0.5.0')
+        'genkit-v0.5.0'
+        >>> format_tag('{name}@{version}', name='@genkit-ai/core', version='1.2.3')
+        '@genkit-ai/core@1.2.3'
     """
-    return tag_format.format(name=name, version=version)
+    return tag_format.format(name=name, version=version, label=label)
+
+
+def parse_tag(
+    tag: str,
+    tag_format: str = '{name}-v{version}',
+) -> tuple[str, str] | None:
+    """Reverse-parse a tag string into (name, version).
+
+    Handles both simple formats (``genkit-v0.5.0``) and scoped npm
+    formats (``@genkit-ai/core@1.2.3``).
+
+    The function converts the ``tag_format`` into a regex by replacing
+    ``{name}`` and ``{version}`` with capture groups, then matches
+    against the tag string.
+
+    Args:
+        tag: The tag string to parse.
+        tag_format: The format template used to create the tag.
+
+    Returns:
+        A ``(name, version)`` tuple, or ``None`` if the tag does not
+        match the format.
+
+    Examples::
+
+        >>> parse_tag('genkit-v0.5.0', '{name}-v{version}')
+        ('genkit', '0.5.0')
+        >>> parse_tag('@genkit-ai/core@1.2.3', '{name}@{version}')
+        ('@genkit-ai/core', '1.2.3')
+        >>> parse_tag('v0.5.0', '{name}-v{version}') is None
+        True
+    """
+    # Build a regex from the format string.
+    # Escape everything except our placeholders.
+    escaped = re.escape(tag_format)
+    # Replace escaped placeholders with capture groups.
+    # {version} matches semver; {name} matches everything else greedily.
+    pattern = escaped.replace(r'\{version\}', r'(' + _SEMVER_RE.pattern + r')')
+    pattern = pattern.replace(r'\{name\}', r'(.+?)')
+    pattern = pattern.replace(r'\{label\}', r'(?:.+?)')
+    pattern = f'^{pattern}$'
+
+    m = re.match(pattern, tag)
+    if m is None:
+        return None
+
+    groups = m.groups()
+    # The regex produces: (name_group, version_outer, version_inner) or
+    # just (version_outer, version_inner) if no {name} placeholder.
+    # We need to figure out which groups are name vs version.
+    if '{name}' in tag_format:
+        # First group is name, second is version (outer capture).
+        return (groups[0], groups[1])
+    # No name in format — return empty name.
+    return ('', groups[0])
 
 
 async def create_tags(
@@ -157,7 +227,9 @@ async def create_tags(
     vcs: VCS,
     forge: Forge | None = None,
     tag_format: str = '{name}-v{version}',
+    secondary_tag_format: str = '',
     umbrella_tag_format: str = 'v{version}',
+    label: str = '',
     release_body: str = '',
     release_title: str | None = None,
     manifest_path: Path | None = None,
@@ -168,6 +240,8 @@ async def create_tags(
     """Create per-package tags, an umbrella tag, and optionally a platform release.
 
     Per-package tags use ``tag_format`` (e.g. ``genkit-v0.5.0``).
+    If ``secondary_tag_format`` is set, a second tag is also created
+    per package (e.g. ``@genkit-ai/core@1.2.3`` for npm-style scoped tags).
     The umbrella tag uses ``umbrella_tag_format`` (e.g. ``v0.5.0``).
 
     If a tag already exists, it is skipped with a warning (not
@@ -186,7 +260,11 @@ async def create_tags(
             or ``forge.is_available()`` returns ``False``, release
             creation is silently skipped.
         tag_format: Per-package tag format string.
+        secondary_tag_format: Optional second per-package tag format.
+            Useful for dual-tagging (e.g. ``{name}-v{version}`` and
+            ``{name}@{version}`` simultaneously). Empty string to disable.
         umbrella_tag_format: Umbrella tag format string.
+        label: Workspace label for the ``{label}`` placeholder.
         release_body: Markdown body for the platform release.
         release_title: Release title. Defaults to the umbrella tag.
         manifest_path: Path to the manifest JSON file. Attached as a
@@ -213,6 +291,7 @@ async def create_tags(
     umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
 
     for pkg in bumped:
+        # Primary tag.
         tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
         tag_message = f'Release {pkg.name} v{pkg.new_version}'
 
@@ -223,25 +302,40 @@ async def create_tags(
                 tag=tag_name,
                 package=pkg.name,
             )
-            continue
+        else:
+            try:
+                await vcs.tag(tag_name, message=tag_message, dry_run=dry_run)
+                result.created.append(tag_name)
+                logger.info(
+                    'tag_created',
+                    tag=tag_name,
+                    package=pkg.name,
+                    version=pkg.new_version,
+                )
+            except Exception as exc:
+                result.failed[tag_name] = str(exc)
+                logger.error(
+                    'tag_create_failed',
+                    tag=tag_name,
+                    package=pkg.name,
+                    error=str(exc),
+                )
 
-        try:
-            await vcs.tag(tag_name, message=tag_message, dry_run=dry_run)
-            result.created.append(tag_name)
-            logger.info(
-                'tag_created',
-                tag=tag_name,
-                package=pkg.name,
-                version=pkg.new_version,
-            )
-        except Exception as exc:
-            result.failed[tag_name] = str(exc)
-            logger.error(
-                'tag_create_failed',
-                tag=tag_name,
-                package=pkg.name,
-                error=str(exc),
-            )
+        # Secondary tag (dual-tagging for scoped npm tags, etc.).
+        if secondary_tag_format:
+            sec_tag = format_tag(secondary_tag_format, name=pkg.name, version=pkg.new_version)
+            if sec_tag != tag_name:  # Avoid duplicate if formats resolve identically.
+                if await vcs.tag_exists(sec_tag):
+                    result.skipped.append(sec_tag)
+                    logger.warning('secondary_tag_exists_skip', tag=sec_tag, package=pkg.name)
+                else:
+                    try:
+                        await vcs.tag(sec_tag, message=tag_message, dry_run=dry_run)
+                        result.created.append(sec_tag)
+                        logger.info('secondary_tag_created', tag=sec_tag, package=pkg.name)
+                    except Exception as exc:
+                        result.failed[sec_tag] = str(exc)
+                        logger.error('secondary_tag_create_failed', tag=sec_tag, error=str(exc))
 
     umbrella_message = f'Release v{umbrella_version} ({len(bumped)} packages)'
 
@@ -405,6 +499,7 @@ async def delete_tags(
     forge: Forge | None = None,
     tag_format: str = '{name}-v{version}',
     umbrella_tag_format: str = 'v{version}',
+    label: str = '',
     remote: bool = True,
     dry_run: bool = False,
 ) -> TagResult:
@@ -420,6 +515,7 @@ async def delete_tags(
         forge: Optional forge backend for release deletion.
         tag_format: Per-package tag format string.
         umbrella_tag_format: Umbrella tag format string.
+        label: Workspace label for the ``{label}`` placeholder.
         remote: Also delete from the remote.
         dry_run: Preview mode — log actions without executing.
 
@@ -435,10 +531,10 @@ async def delete_tags(
         return result
 
     umbrella_version = bumped[0].new_version
-    umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
+    umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version, label=label)
 
     for pkg in bumped:
-        tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
+        tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version, label=label)
 
         if not await vcs.tag_exists(tag_name):
             result.skipped.append(tag_name)
@@ -483,4 +579,5 @@ __all__ = [
     'create_tags',
     'delete_tags',
     'format_tag',
+    'parse_tag',
 ]

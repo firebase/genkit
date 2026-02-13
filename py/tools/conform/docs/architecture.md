@@ -157,6 +157,52 @@ rate-limit pressure.  The user sees a note:
 (`--max-retries`, `--retry-base-delay`).  Set `--max-retries 0` to
 disable retries entirely.
 
+### Timeout configuration
+
+Timeouts are configurable at three levels in `conform.toml`.  The most
+specific value wins (model → plugin → global):
+
+```text
+Resolution order (most specific wins):
+
+  1. [conform.model-overrides."provider/model-name"]
+     action-timeout = 60.0
+
+  2. [conform.plugin-overrides.<plugin>]
+     action-timeout = 180.0
+
+  3. [conform]
+     action-timeout  = 120.0   # per LLM action call
+     health-timeout  = 5.0     # reflection server health check
+     startup-timeout = 30.0    # wait for reflection server to start
+```
+
+| Timeout | Default | Scope | Description |
+|---------|---------|-------|-------------|
+| `action-timeout` | 120s | global, plugin, model | Single LLM generate request |
+| `health-timeout` | 5s | global | Reflection server health-check poll |
+| `startup-timeout` | 30s | global | Wait for reflection server + runtime file |
+
+**Example `conform.toml`:**
+
+```toml
+[conform]
+action-timeout  = 120.0
+health-timeout  = 5.0
+startup-timeout = 30.0
+
+[conform.plugin-overrides.cloudflare-workers-ai]
+action-timeout = 180.0   # slow provider
+
+[conform.model-overrides."googleai/gemini-2.5-flash"]
+action-timeout = 60.0    # fast model, fail quickly
+```
+
+The `action_timeout_for(plugin, model)` method on `ConformConfig`
+implements the resolution chain.  `health-timeout` and
+`startup-timeout` are global-only (no per-plugin/model override) since
+they apply to the reflection server, not individual LLM calls.
+
 ### CLI flag architecture
 
 All shared flags (`--config`, `--runtime`, `--specs-dir`, `--plugins-dir`)

@@ -107,7 +107,7 @@ from pathlib import Path
 
 from releasekit.backends.forge import Forge
 from releasekit.backends.vcs import VCS
-from releasekit.config import ReleaseConfig
+from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.logging import get_logger
 from releasekit.release_notes import generate_release_notes, render_release_notes
 from releasekit.tags import TagResult, create_tags
@@ -117,7 +117,7 @@ logger = get_logger(__name__)
 
 _AUTORELEASE_PENDING = 'autorelease: pending'
 _AUTORELEASE_TAGGED = 'autorelease: tagged'
-_RELEASE_BRANCH = 'releasekit--release'
+_RELEASE_BRANCH_PREFIX = 'releasekit--release'
 _MANIFEST_START = '<!-- releasekit:manifest:start -->'
 _MANIFEST_END = '<!-- releasekit:manifest:end -->'
 
@@ -196,6 +196,7 @@ async def tag_release(
     vcs: VCS,
     forge: Forge | None,
     config: ReleaseConfig,
+    ws_config: WorkspaceConfig,
     manifest_path: Path | None = None,
     dry_run: bool = False,
 ) -> ReleaseResult:
@@ -214,7 +215,8 @@ async def tag_release(
         vcs: Version control backend.
         forge: Code forge backend. Pass None to skip PR lookup and
             label management.
-        config: Release configuration.
+        config: Global release configuration.
+        ws_config: Per-workspace configuration.
         manifest_path: Optional path to a manifest JSON file. If
             provided, skips PR lookup.
         dry_run: If True, skip all side effects.
@@ -223,6 +225,7 @@ async def tag_release(
         A :class:`ReleaseResult` with tag creation outcomes.
     """
     result = ReleaseResult()
+    release_branch = f'{_RELEASE_BRANCH_PREFIX}--{ws_config.label}' if ws_config.label else _RELEASE_BRANCH_PREFIX
 
     # 1. Get the manifest.
     manifest: ReleaseManifest | None = None
@@ -237,7 +240,7 @@ async def tag_release(
         prs = await forge.list_prs(
             label=_AUTORELEASE_PENDING,
             state='merged',
-            head=_RELEASE_BRANCH,
+            head=release_branch,
             limit=1,
         )
         if not prs:
@@ -272,7 +275,7 @@ async def tag_release(
     release_notes = await generate_release_notes(
         manifest=manifest,
         vcs=vcs,
-        tag_format=config.tag_format,
+        tag_format=ws_config.tag_format,
     )
     release_body = render_release_notes(release_notes)
 
@@ -281,15 +284,17 @@ async def tag_release(
     manifest_file = manifest_path
     if manifest_file is None and not dry_run:
         # Save manifest to temp file for the release asset.
-        manifest_file = Path('release-manifest.json')
+        manifest_name = f'release-manifest--{ws_config.label}.json' if ws_config.label else 'release-manifest.json'
+        manifest_file = Path(manifest_name)
         manifest.save(manifest_file)
 
     tag_result = await create_tags(
         manifest=manifest,
         vcs=vcs,
         forge=forge,
-        tag_format=config.tag_format,
-        umbrella_tag_format=config.umbrella_tag,
+        tag_format=ws_config.tag_format,
+        umbrella_tag_format=ws_config.umbrella_tag,
+        label=ws_config.label,
         release_body=release_body,
         release_title=f'Release v{umbrella_version}',
         manifest_path=manifest_file,

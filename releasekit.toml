@@ -1,0 +1,198 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+forge      = "github"
+repo_name  = "genkit"
+repo_owner = "firebase"
+
+# ---------------------------------------------------------------------------
+# Python workspace
+# ---------------------------------------------------------------------------
+[workspace.py]
+changelog      = true
+core_package   = "genkit"
+ecosystem      = "python"
+library_dirs   = ["packages", "plugins"]
+namespace_dirs = ["genkit", "genkit/plugins"]
+plugin_dirs    = ["plugins"]
+plugin_prefix  = "genkit-plugin-"
+root           = "py"
+smoke_test     = true
+tag_format     = "{label}/{name}-v{version}"
+tool           = "uv"
+umbrella_tag   = "{label}/v{version}"
+
+# Packages listed here are discovered, checked, and version-bumped
+# but skipped during publish. Use "group:<name>" to reference a group.
+exclude_publish = [
+  "group:samples",
+  "group:unreleased_plugins",
+  "group:internal_tools",
+]
+
+[workspace.py.groups]
+community_plugins = [
+  "genkit-plugin-amazon-bedrock",
+  "genkit-plugin-anthropic",
+  "genkit-plugin-cloudflare-workers-ai",
+  "genkit-plugin-cohere",
+  "genkit-plugin-compat-oai",
+  "genkit-plugin-deepseek",
+  "genkit-plugin-evaluators",
+  "genkit-plugin-fastapi",
+  "genkit-plugin-flask",
+  "genkit-plugin-huggingface",
+  "genkit-plugin-mcp",
+  "genkit-plugin-microsoft-foundry",
+  "genkit-plugin-mistral",
+  "genkit-plugin-observability",
+  "genkit-plugin-ollama",
+  "genkit-plugin-xai",
+]
+core = ["genkit"]
+google_plugins = [
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-vertex-ai",
+]
+internal_tools = ["conform", "genkit-plugin-dev-local-vectorstore"]
+samples = [
+  "dev-local-vectorstore-hello",
+  "framework-context-demo",
+  "framework-dynamic-tools-demo",
+  "framework-evaluator-demo",
+  "framework-format-demo",
+  "framework-middleware-demo",
+  "framework-prompt-demo",
+  "framework-realtime-tracing-demo",
+  "framework-restaurant-demo",
+  "framework-tool-interrupts",
+  "provider-amazon-bedrock-hello",
+  "provider-anthropic-hello",
+  "provider-checks-hello",
+  "provider-cloudflare-workers-ai-hello",
+  "provider-cohere-hello",
+  "provider-compat-oai-hello",
+  "provider-deepseek-hello",
+  "provider-firestore-retriever",
+  "provider-google-genai-code-execution",
+  "provider-google-genai-context-caching",
+  "provider-google-genai-hello",
+  "provider-google-genai-media-models-demo",
+  "provider-google-genai-vertexai-hello",
+  "provider-google-genai-vertexai-image",
+  "provider-huggingface-hello",
+  "provider-microsoft-foundry-hello",
+  "provider-mistral-hello",
+  "provider-observability-hello",
+  "provider-ollama-hello",
+  "provider-vertex-ai-model-garden",
+  "provider-vertex-ai-rerank-eval",
+  "provider-vertex-ai-vector-search-bigquery",
+  "provider-vertex-ai-vector-search-firestore",
+  "provider-xai-hello",
+  "web-endpoints-hello",
+  "web-fastapi-bugbot",
+  "web-flask-hello",
+  "web-multi-server",
+  "web-short-n-long",
+]
+unreleased_plugins = ["genkit-plugin-checks"]
+
+# ---------------------------------------------------------------------------
+# JS workspace (ready — uncomment to activate)
+#
+# All backends are implemented (PnpmBackend, PnpmWorkspace, NpmRegistry).
+# Before enabling:
+#   1. Pick a bootstrap_sha (last commit before releasekit adoption).
+#   2. Run `releasekit plan --workspace js --dry-run` to validate.
+#   3. Run 1–2 dry-run cycles alongside existing scripts.
+#   4. Switch release_js_main.yml to call `releasekit publish`.
+# ---------------------------------------------------------------------------
+
+# [workspace.js]
+# ecosystem            = "js"
+# tool                 = "pnpm"
+# root                 = "js"
+# core_package         = "genkit"
+# tag_format           = "{name}@{version}"
+# secondary_tag_format = "{label}/{name}-v{version}"
+# umbrella_tag         = "js/v{version}"
+# synchronize          = true
+# changelog            = true
+# smoke_test           = true
+# propagate_bumps      = true
+# dist_tag             = "latest"
+# bootstrap_sha        = ""                    # TODO: set to last pre-releasekit commit
+#
+# exclude_publish = [
+#   "group:testapps",
+#   "group:internal",
+# ]
+#
+# [workspace.js.groups]
+# core = [
+#   "@genkit-ai/ai",
+#   "@genkit-ai/core",
+#   "genkit",
+# ]
+# google_plugins = [
+#   "@genkit-ai/firebase",
+#   "@genkit-ai/google-cloud",
+#   "@genkit-ai/google-genai",
+#   "@genkit-ai/googleai",
+#   "@genkit-ai/vertexai",
+# ]
+# community_plugins = [
+#   "@genkit-ai/anthropic",
+#   "@genkit-ai/checks",
+#   "@genkit-ai/compat-oai",
+#   "@genkit-ai/dev-local-vectorstore",
+#   "@genkit-ai/evaluator",
+#   "@genkit-ai/express",
+#   "@genkit-ai/mcp",
+#   "@genkit-ai/next",
+#   "genkitx-chromadb",
+#   "genkitx-cloud-sql-pg",
+#   "genkitx-langchain",
+#   "genkitx-ollama",
+#   "genkitx-pinecone",
+# ]
+# testapps = [
+#   "doc-snippets",
+# ]
+# internal = []
+
+# [workspace.js-cli]
+# ecosystem            = "js"
+# tool                 = "pnpm"
+# root                 = "genkit-tools"
+# tag_format           = "{name}@{version}"
+# secondary_tag_format = "{label}/{name}-v{version}"
+# umbrella_tag         = "js-cli/v{version}"
+# synchronize          = true
+# changelog            = true
+# smoke_test           = true
+# dist_tag             = "latest"
+# bootstrap_sha        = ""                    # TODO: set to last pre-releasekit commit
+#
+# [workspace.js-cli.groups]
+# cli = [
+#   "@genkit-ai/tools-common",
+#   "@genkit-ai/telemetry-server",
+#   "genkit-cli",
+# ]

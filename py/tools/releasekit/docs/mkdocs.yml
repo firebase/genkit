@@ -129,6 +129,7 @@ nav:
       - Multi-Ecosystem: guides/multi-ecosystem.md
       - CI/CD Integration: guides/ci-cd.md
       - Error Codes: guides/error-codes.md
+      - FAQ: guides/faq.md
   - Reference:
       - reference/index.md
       - CLI Commands: reference/cli.md

@@ -110,13 +110,13 @@ def _make_packages(tmp_path: Path) -> list[Package]:
             name='genkit',
             version='0.5.0',
             path=core_dir,
-            pyproject_path=core_dir / 'pyproject.toml',
+            manifest_path=core_dir / 'pyproject.toml',
         ),
         Package(
             name='genkit-plugin-foo',
             version='0.5.0',
             path=plugin_dir,
-            pyproject_path=plugin_dir / 'pyproject.toml',
+            manifest_path=plugin_dir / 'pyproject.toml',
             internal_deps=['genkit'],
         ),
     ]
@@ -147,13 +147,13 @@ def _make_versioned_packages(
             name='pkg-a',
             version='1.0',
             path=pkg_a,
-            pyproject_path=pkg_a / 'pyproject.toml',
+            manifest_path=pkg_a / 'pyproject.toml',
         ),
         Package(
             name='pkg-b',
             version='1.0',
             path=pkg_b,
-            pyproject_path=pkg_b / 'pyproject.toml',
+            manifest_path=pkg_b / 'pyproject.toml',
         ),
     ]
 
@@ -190,14 +190,14 @@ class TestRunChecks:
                 name='a',
                 version='1.0.0',
                 path=dir_a,
-                pyproject_path=dir_a / 'pyproject.toml',
+                manifest_path=dir_a / 'pyproject.toml',
                 internal_deps=['b'],
             ),
             Package(
                 name='b',
                 version='1.0.0',
                 path=dir_b,
-                pyproject_path=dir_b / 'pyproject.toml',
+                manifest_path=dir_b / 'pyproject.toml',
                 internal_deps=['a'],
             ),
         ]
@@ -224,7 +224,7 @@ class TestRunChecks:
                 name='x',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
                 internal_deps=['x'],
             ),
         ]
@@ -251,7 +251,7 @@ class TestRunChecks:
                 name='nolicense',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
         graph = build_graph(packages)
@@ -279,7 +279,7 @@ class TestRunChecks:
                 name='noreadme',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
         graph = build_graph(packages)
@@ -308,7 +308,7 @@ class TestRunChecks:
                 name='stale',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
         graph = build_graph(packages)
@@ -347,13 +347,13 @@ class TestPythonCheckBackend:
                 name='genkit',
                 version='0.5.0',
                 path=core_dir,
-                pyproject_path=core_dir / 'pyproject.toml',
+                manifest_path=core_dir / 'pyproject.toml',
             ),
             Package(
                 name='genkit-plugin-bar',
                 version='0.4.0',
                 path=plugin_dir,
-                pyproject_path=plugin_dir / 'pyproject.toml',
+                manifest_path=plugin_dir / 'pyproject.toml',
                 internal_deps=['genkit'],
             ),
         ]
@@ -414,7 +414,7 @@ class TestPythonCheckBackend:
                 name='good',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend()
@@ -442,7 +442,7 @@ class TestPythonCheckBackend:
                 name='incomplete',
                 version='1.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend()
@@ -466,6 +466,7 @@ class TestPythonCheckBackend:
         """Successful uv pip check passes."""
 
         def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+            """Fake run."""
             return subprocess.CompletedProcess(args=[], returncode=0, stdout='', stderr='')
 
         monkeypatch.setattr(subprocess, 'run', fake_run)
@@ -484,6 +485,7 @@ class TestPythonCheckBackend:
         """Failed uv pip check triggers warning."""
 
         def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+            """Fake run."""
             return subprocess.CompletedProcess(
                 args=[],
                 returncode=1,
@@ -510,6 +512,7 @@ class TestPythonCheckBackend:
         """Missing uv binary triggers a graceful warning, not a crash."""
 
         def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+            """Fake run."""
             raise FileNotFoundError('uv')
 
         monkeypatch.setattr(subprocess, 'run', fake_run)
@@ -538,7 +541,7 @@ class TestPythonCheckBackend:
                 name='genkit-plugin-clean',
                 version='1.0',
                 path=plugin_dir,
-                pyproject_path=plugin_dir / 'pyproject.toml',
+                manifest_path=plugin_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend()
@@ -561,7 +564,7 @@ class TestPythonCheckBackend:
                 name='genkit-plugin-broken',
                 version='1.0',
                 path=plugin_dir,
-                pyproject_path=plugin_dir / 'pyproject.toml',
+                manifest_path=plugin_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend(namespace_dirs=['genkit', 'genkit/plugins'])
@@ -591,7 +594,7 @@ class TestPythonCheckBackend:
                 name='genkit-plugin-bad2',
                 version='1.0',
                 path=plugin_dir,
-                pyproject_path=plugin_dir / 'pyproject.toml',
+                manifest_path=plugin_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend(namespace_dirs=['genkit', 'genkit/plugins'])
@@ -614,7 +617,7 @@ class TestPythonCheckBackend:
                 name='genkit',
                 version='1.0',
                 path=core_dir,
-                pyproject_path=core_dir / 'pyproject.toml',
+                manifest_path=core_dir / 'pyproject.toml',
             ),
         ]
         backend = PythonCheckBackend(
@@ -634,8 +637,8 @@ class TestUngroupedPackages:
     def test_all_grouped_passes(self) -> None:
         """When all packages match a group pattern, check passes."""
         packages = [
-            Package(name='genkit', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
-            Package(name='genkit-plugin-foo', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
+            Package(name='genkit', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
+            Package(name='genkit-plugin-foo', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
         ]
         groups = {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}
         graph = build_graph(packages)
@@ -646,8 +649,8 @@ class TestUngroupedPackages:
     def test_ungrouped_warns(self) -> None:
         """A package not matched by any group pattern triggers a warning."""
         packages = [
-            Package(name='genkit', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
-            Package(name='new-pkg', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
+            Package(name='genkit', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
+            Package(name='new-pkg', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
         ]
         groups = {'core': ['genkit']}
         graph = build_graph(packages)
@@ -662,7 +665,7 @@ class TestUngroupedPackages:
     def test_empty_groups_passes(self) -> None:
         """When no groups are configured, check passes (nothing to validate)."""
         packages = [
-            Package(name='genkit', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
+            Package(name='genkit', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
         ]
         graph = build_graph(packages)
         result = run_checks(packages, graph, backend=None, groups={})
@@ -672,8 +675,8 @@ class TestUngroupedPackages:
     def test_wildcard_matches(self) -> None:
         """Wildcard patterns in groups match correctly."""
         packages = [
-            Package(name='sample-hello', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
-            Package(name='sample-world', version='1.0', path=Path('/x'), pyproject_path=Path('/x/p.toml')),
+            Package(name='sample-hello', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
+            Package(name='sample-world', version='1.0', path=Path('/x'), manifest_path=Path('/x/p.toml')),
         ]
         groups = {'samples': ['sample-*']}
         graph = build_graph(packages)
@@ -722,7 +725,7 @@ class TestFixPublishClassifiers:
             name=name,
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pyproject,
+            manifest_path=pyproject,
             is_publishable=is_publishable,
         )
 
@@ -733,7 +736,7 @@ class TestFixPublishClassifiers:
 
         assert len(changes) == 1
         assert 'added' in changes[0]
-        content = pkg.pyproject_path.read_text(encoding='utf-8')
+        content = pkg.manifest_path.read_text(encoding='utf-8')
         assert 'Private :: Do Not Upload' in content
 
     def test_remove_classifier_when_not_excluded(self, tmp_path: Path) -> None:
@@ -743,7 +746,7 @@ class TestFixPublishClassifiers:
 
         assert len(changes) == 1
         assert 'removed' in changes[0]
-        content = pkg.pyproject_path.read_text(encoding='utf-8')
+        content = pkg.manifest_path.read_text(encoding='utf-8')
         assert 'Private :: Do Not Upload' not in content
 
     def test_no_change_when_consistent(self, tmp_path: Path) -> None:
@@ -767,13 +770,13 @@ class TestFixPublishClassifiers:
     def test_dry_run_does_not_write(self, tmp_path: Path) -> None:
         """Dry run reports changes but does not modify files."""
         pkg = self._make_pkg(tmp_path, 'pkg-b', self._TOML_WITHOUT_PRIVATE, is_publishable=True)
-        original = pkg.pyproject_path.read_text(encoding='utf-8')
+        original = pkg.manifest_path.read_text(encoding='utf-8')
 
         changes = fix_publish_classifiers([pkg], ['pkg-b'], dry_run=True)
 
         assert len(changes) == 1
         assert 'added' in changes[0]
-        after = pkg.pyproject_path.read_text(encoding='utf-8')
+        after = pkg.manifest_path.read_text(encoding='utf-8')
         assert after == original
 
     def test_glob_pattern_matching(self, tmp_path: Path) -> None:
@@ -798,7 +801,7 @@ class TestFixPublishClassifiers:
         pkg = self._make_pkg(tmp_path, 'pkg-c', toml_with_comment, is_publishable=True)
         fix_publish_classifiers([pkg], ['pkg-c'])
 
-        content = pkg.pyproject_path.read_text(encoding='utf-8')
+        content = pkg.manifest_path.read_text(encoding='utf-8')
         assert '# My package config' in content
         assert 'Private :: Do Not Upload' in content
 
@@ -848,7 +851,7 @@ class TestFixReadmeField:
             name='foo',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_readme_field([pkg])
         assert len(changes) == 1
@@ -868,7 +871,7 @@ class TestFixReadmeField:
             name='bar',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_readme_field([pkg])
         assert len(changes) == 0
@@ -884,7 +887,7 @@ class TestFixReadmeField:
             name='baz',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_readme_field([pkg])
         assert len(changes) == 0
@@ -901,7 +904,7 @@ class TestFixReadmeField:
             name='dry',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_readme_field([pkg], dry_run=True)
         assert len(changes) == 1
@@ -923,7 +926,7 @@ class TestFixChangelogUrl:
             name='foo',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_changelog_url([pkg], repo_owner='myorg', repo_name='myrepo')
         assert len(changes) == 1
@@ -945,7 +948,7 @@ class TestFixChangelogUrl:
             name='bar',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_changelog_url([pkg], repo_owner='myorg', repo_name='myrepo')
         assert len(changes) == 0
@@ -961,7 +964,7 @@ class TestFixChangelogUrl:
             name='new',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_changelog_url([pkg], repo_owner='org', repo_name='repo')
         assert len(changes) == 1
@@ -984,7 +987,7 @@ class TestFixNamespaceInit:
             name='myplugin',
             version='1.0',
             path=plugin_dir,
-            pyproject_path=plugin_dir / 'pyproject.toml',
+            manifest_path=plugin_dir / 'pyproject.toml',
         )
         changes = fix_namespace_init([pkg], ['myns'], plugin_dirs=['plugins'])
         assert len(changes) == 1
@@ -1002,7 +1005,7 @@ class TestFixNamespaceInit:
             name='core',
             version='1.0',
             path=core_dir,
-            pyproject_path=core_dir / 'pyproject.toml',
+            manifest_path=core_dir / 'pyproject.toml',
         )
         changes = fix_namespace_init([pkg], ['myns'], plugin_dirs=['plugins'])
         assert len(changes) == 0
@@ -1025,7 +1028,7 @@ class TestFixNamespaceInit:
             name='dry',
             version='1.0',
             path=plugin_dir,
-            pyproject_path=plugin_dir / 'pyproject.toml',
+            manifest_path=plugin_dir / 'pyproject.toml',
         )
         changes = fix_namespace_init([pkg], ['myns'], plugin_dirs=['plugins'], dry_run=True)
         assert len(changes) == 1
@@ -1049,7 +1052,7 @@ class TestFixTypeMarkers:
             name='mylib',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_type_markers([pkg], library_dirs=['packages', 'plugins'])
         assert len(changes) == 1
@@ -1070,7 +1073,7 @@ class TestFixTypeMarkers:
             name='typed',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_type_markers([pkg], library_dirs=['packages', 'plugins'])
         assert len(changes) == 0
@@ -1089,7 +1092,7 @@ class TestFixTypeMarkers:
             name='demo',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_type_markers([pkg], library_dirs=['packages', 'plugins'])
         assert len(changes) == 0
@@ -1108,7 +1111,7 @@ class TestFixTypeMarkers:
             name='drylib',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_type_markers([pkg], dry_run=True)
         assert len(changes) == 1
@@ -1129,7 +1132,7 @@ class TestFixStaleArtifacts:
             name='pkg',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_stale_artifacts([pkg])
         assert len(changes) == 1
@@ -1146,7 +1149,7 @@ class TestFixStaleArtifacts:
             name='pkg',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_stale_artifacts([pkg])
         assert len(changes) == 1
@@ -1161,7 +1164,7 @@ class TestFixStaleArtifacts:
             name='clean',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_stale_artifacts([pkg])
         assert len(changes) == 0
@@ -1177,7 +1180,7 @@ class TestFixStaleArtifacts:
             name='dry',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_stale_artifacts([pkg], dry_run=True)
         assert len(changes) == 1
@@ -1196,7 +1199,7 @@ class TestFixMissingReadme:
             name='noreadme',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_readme([pkg])
         assert len(changes) == 1
@@ -1214,7 +1217,7 @@ class TestFixMissingReadme:
             name='hasreadme',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_readme([pkg])
         assert len(changes) == 0
@@ -1228,7 +1231,7 @@ class TestFixMissingReadme:
             name='dry',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_readme([pkg], dry_run=True)
         assert len(changes) == 1
@@ -1247,7 +1250,7 @@ class TestFixMissingLicense:
             name='nolicense',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_license([pkg])
         assert len(changes) == 1
@@ -1265,7 +1268,7 @@ class TestFixMissingLicense:
             name='haslicense',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_license([pkg])
         assert len(changes) == 0
@@ -1279,7 +1282,7 @@ class TestFixMissingLicense:
             name='dry',
             version='1.0',
             path=pkg_dir,
-            pyproject_path=pkg_dir / 'pyproject.toml',
+            manifest_path=pkg_dir / 'pyproject.toml',
         )
         changes = fix_missing_license([pkg], dry_run=True)
         assert len(changes) == 1
@@ -1300,8 +1303,8 @@ class TestTestFilenameCollisions:
         (pkg_b / 'tests' / 'beta_test.py').write_text('', encoding='utf-8')
 
         packages = [
-            Package(name='alpha', version='1.0', path=pkg_a, pyproject_path=pkg_a / 'pyproject.toml'),
-            Package(name='beta', version='1.0', path=pkg_b, pyproject_path=pkg_b / 'pyproject.toml'),
+            Package(name='alpha', version='1.0', path=pkg_a, manifest_path=pkg_a / 'pyproject.toml'),
+            Package(name='beta', version='1.0', path=pkg_b, manifest_path=pkg_b / 'pyproject.toml'),
         ]
         backend = PythonCheckBackend()
         result = PreflightResult()
@@ -1319,8 +1322,8 @@ class TestTestFilenameCollisions:
         (pkg_b / 'tests' / 'utils_test.py').write_text('', encoding='utf-8')
 
         packages = [
-            Package(name='alpha', version='1.0', path=pkg_a, pyproject_path=pkg_a / 'pyproject.toml'),
-            Package(name='beta', version='1.0', path=pkg_b, pyproject_path=pkg_b / 'pyproject.toml'),
+            Package(name='alpha', version='1.0', path=pkg_a, manifest_path=pkg_a / 'pyproject.toml'),
+            Package(name='beta', version='1.0', path=pkg_b, manifest_path=pkg_b / 'pyproject.toml'),
         ]
         backend = PythonCheckBackend()
         result = PreflightResult()
@@ -1337,7 +1340,7 @@ class TestTestFilenameCollisions:
         pkg_a.mkdir(parents=True)
 
         packages = [
-            Package(name='alpha', version='1.0', path=pkg_a, pyproject_path=pkg_a / 'pyproject.toml'),
+            Package(name='alpha', version='1.0', path=pkg_a, manifest_path=pkg_a / 'pyproject.toml'),
         ]
         backend = PythonCheckBackend()
         result = PreflightResult()
@@ -1355,8 +1358,8 @@ class TestTestFilenameCollisions:
         (pkg_b / 'tests' / 'test_helpers.py').write_text('', encoding='utf-8')
 
         packages = [
-            Package(name='alpha', version='1.0', path=pkg_a, pyproject_path=pkg_a / 'pyproject.toml'),
-            Package(name='beta', version='1.0', path=pkg_b, pyproject_path=pkg_b / 'pyproject.toml'),
+            Package(name='alpha', version='1.0', path=pkg_a, manifest_path=pkg_a / 'pyproject.toml'),
+            Package(name='beta', version='1.0', path=pkg_b, manifest_path=pkg_b / 'pyproject.toml'),
         ]
         backend = PythonCheckBackend()
         result = PreflightResult()
@@ -1404,7 +1407,7 @@ def _pub_pkg(
         name=name,
         version=version,
         path=pkg_dir,
-        pyproject_path=pkg_dir / 'pyproject.toml',
+        manifest_path=pkg_dir / 'pyproject.toml',
     )
 
 
@@ -1428,7 +1431,7 @@ class TestBuildSystem:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='bad', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='bad', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_build_system([pkg], result)
@@ -1443,7 +1446,7 @@ class TestBuildSystem:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='nobackend', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nobackend', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_build_system([pkg], result)
@@ -1471,7 +1474,7 @@ class TestVersionField:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='noversion', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='noversion', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_version_field([pkg], result)
@@ -1487,7 +1490,7 @@ class TestVersionField:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='dynver', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dynver', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_version_field([pkg], result)
@@ -1563,7 +1566,7 @@ class TestRequiresPython:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='nopyver', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nopyver', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_requires_python([pkg], result)
@@ -1592,7 +1595,7 @@ class TestReadmeContentType:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='mismatch', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='mismatch', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_readme_content_type([pkg], result)
@@ -1717,7 +1720,7 @@ class TestDeprecatedClassifiers:
             f'[project]\nname = "depr"\nversion = "1.0"\nclassifiers = ["{deprecated_clf}"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='depr', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='depr', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_deprecated_classifiers([pkg], result)
@@ -1733,7 +1736,7 @@ class TestDeprecatedClassifiers:
             f'[project]\nname = "fixme"\nversion = "1.0"\nclassifiers = ["{deprecated_clf}"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='fixme', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='fixme', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_deprecated_classifiers([pkg])
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1749,7 +1752,7 @@ class TestDeprecatedClassifiers:
             f'[project]\nname = "drydepr"\nversion = "1.0"\nclassifiers = ["{deprecated_clf}"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='drydepr', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='drydepr', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_deprecated_classifiers([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1778,7 +1781,7 @@ class TestLicenseClassifierMismatch:
         # LICENSE says Apache but classifier says MIT.
         (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='licmis', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='licmis', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_license_classifier_mismatch([pkg], result)
@@ -1820,7 +1823,7 @@ class TestFixDuplicateDependencies:
             '[project]\nname = "dupes"\nversion = "1.0"\ndependencies = ["requests>=2.0", "requests<3.0"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dupes', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dupes', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_duplicate_dependencies([pkg])
         assert len(changes) == 1
 
@@ -1836,7 +1839,7 @@ class TestFixDuplicateDependencies:
             '[project]\nname = "norm"\nversion = "1.0"\ndependencies = ["my-pkg>=1", "my_pkg<2"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='norm', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='norm', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_duplicate_dependencies([pkg])
         assert len(changes) == 1
 
@@ -1858,7 +1861,7 @@ class TestFixDuplicateDependencies:
             '[project]\nname = "drydupes"\nversion = "1.0"\ndependencies = ["requests>=2", "requests<3"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='drydupes', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='drydupes', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_duplicate_dependencies([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1876,7 +1879,7 @@ class TestFixRequiresPython:
             '[project]\nname = "nopyver"\nversion = "1.0"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='nopyver', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nopyver', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_requires_python([pkg])
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1894,7 +1897,7 @@ class TestFixRequiresPython:
             ']\n',
             encoding='utf-8',
         )
-        pkg = Package(name='infer', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='infer', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_requires_python([pkg])
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1914,7 +1917,7 @@ class TestFixRequiresPython:
             '[project]\nname = "drypyver"\nversion = "1.0"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='drypyver', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='drypyver', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_requires_python([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1932,7 +1935,7 @@ class TestFixBuildSystem:
             '[project]\nname = "nobs"\nversion = "1.0"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='nobs', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nobs', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_build_system([pkg])
         assert len(changes) == 1
 
@@ -1948,7 +1951,7 @@ class TestFixBuildSystem:
             '[build-system]\nrequires = ["hatchling"]\n\n[project]\nname = "nobackend"\nversion = "1.0"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='nobackend', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nobackend', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_build_system([pkg])
         assert len(changes) == 1
 
@@ -1969,7 +1972,7 @@ class TestFixBuildSystem:
             '[project]\nname = "drybs"\nversion = "1.0"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='drybs', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='drybs', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_build_system([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -1987,7 +1990,7 @@ class TestFixVersionField:
             '[project]\nname = "nover"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='nover', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nover', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_version_field([pkg])
         assert len(changes) == 1
 
@@ -2002,7 +2005,7 @@ class TestFixVersionField:
             '[project]\nname = "dynexist"\ndynamic = ["readme"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dynexist', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dynexist', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_version_field([pkg])
         assert len(changes) == 1
 
@@ -2024,7 +2027,7 @@ class TestFixVersionField:
             '[project]\nname = "alreadydyn"\ndynamic = ["version"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='alreadydyn', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='alreadydyn', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_version_field([pkg])
         assert changes == []
 
@@ -2036,7 +2039,7 @@ class TestFixVersionField:
             '[project]\nname = "dryvf"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dryvf', version='', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dryvf', version='', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_version_field([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -2056,7 +2059,7 @@ class TestFixReadmeContentType:
             encoding='utf-8',
         )
         (pkg_dir / 'README.md').write_text('', encoding='utf-8')
-        pkg = Package(name='fixct', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='fixct', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_readme_content_type([pkg])
         assert len(changes) == 1
 
@@ -2073,7 +2076,7 @@ class TestFixReadmeContentType:
             encoding='utf-8',
         )
         (pkg_dir / 'README.rst').write_text('', encoding='utf-8')
-        pkg = Package(name='fixrst', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='fixrst', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_readme_content_type([pkg])
         assert len(changes) == 1
 
@@ -2089,7 +2092,7 @@ class TestFixReadmeContentType:
             '[project.readme]\nfile = "README.md"\ncontent-type = "text/markdown"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='correct', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='correct', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_readme_content_type([pkg])
         assert changes == []
 
@@ -2108,7 +2111,7 @@ class TestFixReadmeContentType:
             '[project.readme]\nfile = "README.md"\ncontent-type = "text/x-rst"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dryct', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dryct', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_readme_content_type([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -2128,7 +2131,7 @@ class TestFixPlaceholderUrls:
             'Source = "https://github.com/org/repo"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='phurl', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='phurl', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_placeholder_urls([pkg])
         assert len(changes) == 1
 
@@ -2144,7 +2147,7 @@ class TestFixPlaceholderUrls:
             '[project]\nname = "emptyurl"\nversion = "1.0"\n\n[project.urls]\nHomepage = ""\n',
             encoding='utf-8',
         )
-        pkg = Package(name='emptyurl', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='emptyurl', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_placeholder_urls([pkg])
         assert len(changes) == 1
 
@@ -2156,7 +2159,7 @@ class TestFixPlaceholderUrls:
             '[project]\nname = "todourl"\nversion = "1.0"\n\n[project.urls]\nHomepage = "TODO"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='todourl', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='todourl', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_placeholder_urls([pkg])
         assert len(changes) == 1
 
@@ -2178,7 +2181,7 @@ class TestFixPlaceholderUrls:
             '[project]\nname = "dryph"\nversion = "1.0"\n\n[project.urls]\nHomepage = "https://example.com"\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dryph', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dryph', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_placeholder_urls([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -2197,7 +2200,7 @@ class TestFixLicenseClassifierMismatch:
             encoding='utf-8',
         )
         (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
-        pkg = Package(name='licfix', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='licfix', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_license_classifier_mismatch([pkg])
         assert len(changes) == 1
 
@@ -2219,7 +2222,7 @@ class TestFixLicenseClassifierMismatch:
             '[project]\nname = "nolic"\nversion = "1.0"\nclassifiers = ["License :: OSI Approved :: MIT License"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='nolic', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='nolic', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_license_classifier_mismatch([pkg])
         assert changes == []
 
@@ -2233,7 +2236,7 @@ class TestFixLicenseClassifierMismatch:
             encoding='utf-8',
         )
         (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
-        pkg = Package(name='drylicfix', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='drylicfix', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_license_classifier_mismatch([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -2267,7 +2270,7 @@ class TestCheckSelfDependencies:
             '[project]\nname = "my-pkg"\nversion = "1.0"\ndependencies = ["my_pkg>=1.0"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='my-pkg', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='my-pkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         result = PreflightResult()
         backend.check_self_dependencies([pkg], result)
@@ -2285,7 +2288,7 @@ class TestFixSelfDependencies:
             '[project]\nname = "selffix"\nversion = "1.0"\ndependencies = ["selffix>=1.0", "requests"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='selffix', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='selffix', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_self_dependencies([pkg])
         assert len(changes) == 1
 
@@ -2301,7 +2304,7 @@ class TestFixSelfDependencies:
             '[project]\nname = "my-lib"\nversion = "1.0"\ndependencies = ["my_lib>=1.0", "httpx"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='my-lib', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='my-lib', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_self_dependencies([pkg])
         assert len(changes) == 1
 
@@ -2323,7 +2326,7 @@ class TestFixSelfDependencies:
             '[project]\nname = "dryself"\nversion = "1.0"\ndependencies = ["dryself>=1.0"]\n',
             encoding='utf-8',
         )
-        pkg = Package(name='dryself', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dryself', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         changes = fix_self_dependencies([pkg], dry_run=True)
         assert len(changes) == 1
         content = (pkg_dir / 'pyproject.toml').read_text(encoding='utf-8')
@@ -2346,7 +2349,7 @@ class TestRunFixes:
         )
         (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
         (pkg_dir / 'README.md').write_text('# selfdep', encoding='utf-8')
-        pkg = Package(name='selfdep', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='selfdep', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         changes = backend.run_fixes([pkg])
         assert any('self-dep' in c for c in changes)
@@ -2361,7 +2364,7 @@ class TestRunFixes:
         )
         (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
         (pkg_dir / 'README.md').write_text('# dryall', encoding='utf-8')
-        pkg = Package(name='dryall', version='1.0', path=pkg_dir, pyproject_path=pkg_dir / 'pyproject.toml')
+        pkg = Package(name='dryall', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
         backend = PythonCheckBackend()
         changes = backend.run_fixes([pkg], dry_run=True)
         # Should report changes but not modify.

@@ -47,6 +47,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return canned log lines."""
         return self._log_lines
@@ -62,6 +64,18 @@ class FakeVCS:
     async def is_shallow(self) -> bool:
         """Never shallow."""
         return False
+
+    async def default_branch(self) -> str:
+        """Always main."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all fake tags."""
+        return sorted(self._tags)
+
+    async def current_branch(self) -> str:
+        """Always main."""
+        return 'main'
 
     async def current_sha(self) -> str:
         """Return a fake SHA."""

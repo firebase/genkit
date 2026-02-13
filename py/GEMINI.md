@@ -639,6 +639,18 @@ Python-specific development and release scripts:
 * **Format**: Write comprehensive Google-style docstrings for modules, classes,
   and functions.
 
+* **Test Files**: All public classes, methods, and functions in test files MUST
+  have docstrings. This includes:
+  * **Test classes** (`class TestFoo:`) — describe what is being tested
+  * **Test methods** (`def test_bar(self):`) — describe what the test verifies
+  * **Fixtures** (`@pytest.fixture def bb():`) — describe what the fixture provides
+  * **Helper functions** (`def make_packages():`) — describe what the helper does
+
+  Ruff enforces D101 (missing class docstring), D102 (missing method docstring),
+  and D103 (missing function docstring) on all public names. A name is public if
+  it does not start with an underscore. Prefix helpers with `_` if they are
+  internal to the test module and don't need a docstring.
+
 * **Content**:
   * **Explain Concepts**: Explain the terminology and concepts used in the
     code to someone unfamiliar with the code so that first timers can easily
@@ -1311,7 +1323,7 @@ both paths, including the same files twice. This creates wheels with duplicate
 entries that PyPI rejects with:
 
 ```
-400 Invalid distribution file. ZIP archive not accepted: 
+400 Invalid distribution file. ZIP archive not accepted:
 Duplicate filename in local headers.
 ```
 
@@ -1869,10 +1881,10 @@ When splitting a feature branch with multiple commits into independent PRs:
    ```bash
    # From main, create a new branch
    git checkout main && git checkout -b feature/part-1
-   
+
    # Selectively checkout files from the squashed branch
    git checkout squashed-branch -- path/to/files
-   
+
    # Commit and push
    git commit -m "feat: description of part 1"
    git push -u origin HEAD
@@ -2398,7 +2410,7 @@ inside the list are the expected type:
 if not isinstance(value, list): raise ...
 # A list of ints would pass silently
 
-# GOOD — also checks item types  
+# GOOD — also checks item types
 if not isinstance(value, list): raise ...
 for item in value:
     if not isinstance(item, str):
@@ -3015,9 +3027,9 @@ cd py && grep -rE \
   'Firebase Genkit|genkit-plugin-aim|response\.text\(\)|DAP factory|output_schema=' \
   engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md
 
-# List all plugin references and verify they exist  
+# List all plugin references and verify they exist
 for p in $(grep -ohE 'genkit-plugin-[a-z-]+' CHANGELOG.md | sort -u); do
-    d=$(echo $p | sed 's/genkit-plugin-//'); 
+    d=$(echo $p | sed 's/genkit-plugin-//');
     [ -d "plugins/$d" ] && echo "✓ $p" || echo "✗ $p (not found)";
 done
 ```
@@ -3609,7 +3621,7 @@ All shell scripts must follow these standards:
 set -euo pipefail
 ```
 - `-e`: Exit immediately on command failure
-- `-u`: Exit on undefined variable usage  
+- `-u`: Exit on undefined variable usage
 - `-o pipefail`: Exit on pipe failures
 
 **3. Verification Script:**

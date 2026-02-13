@@ -187,6 +187,7 @@ class TestRequestWithRetry:
             nonlocal call_count
 
             def handler(request: httpx.Request) -> httpx.Response:
+                """Handler."""
                 nonlocal call_count
                 call_count += 1
                 if call_count < 2:
@@ -217,6 +218,7 @@ class TestRequestWithRetry:
             nonlocal call_count
 
             def handler(request: httpx.Request) -> httpx.Response:
+                """Handler."""
                 nonlocal call_count
                 call_count += 1
                 if call_count < 2:
@@ -242,6 +244,7 @@ class TestRequestWithRetry:
 
         async def _test() -> None:
             def handler(request: httpx.Request) -> httpx.Response:
+                """Handler."""
                 raise httpx.ConnectError('connection refused')
 
             transport = httpx.MockTransport(handler)

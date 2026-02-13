@@ -124,12 +124,22 @@ class ConformConfig:
             with full jitter.  The actual delay for attempt *k* is
             ``random() * min(base * 2**k, 60)``.
             Defaults to 1.0.
+        action_timeout: Timeout in seconds for a single LLM action call
+            (model generate request).  Defaults to 120.0.
+        health_timeout: Timeout in seconds for a single health-check
+            request to the reflection server.  Defaults to 5.0.
+        startup_timeout: Maximum seconds to wait for the reflection
+            server to become healthy after starting the entry point
+            subprocess.  Defaults to 30.0.
         env: Mapping of plugin name → list of required environment variables.
         additional_model_plugins: Plugins that should have conformance specs
             but lack ``model_info.py`` (they use dynamic model registration).
         plugin_overrides: Per-plugin configuration overrides.  Keyed by
             plugin name, each value is a dict that may contain
-            ``test-concurrency``.
+            ``test-concurrency`` and ``action-timeout``.
+        model_overrides: Per-model configuration overrides.  Keyed by
+            model name (e.g. ``googleai/gemini-2.5-flash``), each value
+            is a dict that may contain ``action-timeout``.
         runtime: The active runtime configuration.
     """
 
@@ -137,9 +147,13 @@ class ConformConfig:
     test_concurrency: int = 3
     max_retries: int = 2
     retry_base_delay: float = 1.0
+    action_timeout: float = 120.0
+    health_timeout: float = 5.0
+    startup_timeout: float = 30.0
     env: dict[str, list[str]] = field(default_factory=dict)
     additional_model_plugins: list[str] = field(default_factory=list)
     plugin_overrides: dict[str, dict[str, object]] = field(default_factory=dict)
+    model_overrides: dict[str, dict[str, object]] = field(default_factory=dict)
     runtime: RuntimeConfig = field(
         default_factory=lambda: RuntimeConfig(
             name='python',
@@ -160,6 +174,25 @@ class ConformConfig:
         if isinstance(tc, int) and tc >= 1:
             return tc
         return self.test_concurrency
+
+    def action_timeout_for(self, plugin: str, model: str = '') -> float:
+        """Return the effective action timeout for *plugin* and *model*.
+
+        Resolution order (most specific wins):
+        1. ``model_overrides[model]['action-timeout']``
+        2. ``plugin_overrides[plugin]['action-timeout']``
+        3. Global ``action_timeout``
+        """
+        if model:
+            mo = self.model_overrides.get(model, {})
+            mt = mo.get('action-timeout')
+            if isinstance(mt, (int, float)) and mt > 0:
+                return float(mt)
+        po = self.plugin_overrides.get(plugin, {})
+        pt = po.get('action-timeout')
+        if isinstance(pt, (int, float)) and pt > 0:
+            return float(pt)
+        return self.action_timeout
 
 
 def _load_toml(path: Path) -> dict[str, object]:
@@ -322,6 +355,26 @@ def load_config(
         toml_retry_base_delay = 1.0
     retry_base_delay = retry_base_delay_override if retry_base_delay_override >= 0 else float(toml_retry_base_delay)
 
+    # Parse timeout settings.
+    toml_action_timeout = raw.get('action-timeout', 120.0)
+    action_timeout = (
+        float(toml_action_timeout)
+        if isinstance(toml_action_timeout, (int, float)) and toml_action_timeout > 0
+        else 120.0
+    )
+
+    toml_health_timeout = raw.get('health-timeout', 5.0)
+    health_timeout = (
+        float(toml_health_timeout) if isinstance(toml_health_timeout, (int, float)) and toml_health_timeout > 0 else 5.0
+    )
+
+    toml_startup_timeout = raw.get('startup-timeout', 30.0)
+    startup_timeout = (
+        float(toml_startup_timeout)
+        if isinstance(toml_startup_timeout, (int, float)) and toml_startup_timeout > 0
+        else 30.0
+    )
+
     # Parse env vars.
     env_raw = raw.get('env', {})
     env: dict[str, list[str]] = {}
@@ -336,13 +389,21 @@ def load_config(
     if isinstance(amp_raw, list):
         additional_model_plugins = [v for v in amp_raw if isinstance(v, str)]
 
-    # Parse per-plugin overrides (e.g. test-concurrency).
+    # Parse per-plugin overrides (e.g. test-concurrency, action-timeout).
     po_raw = raw.get('plugin-overrides', {})
     plugin_overrides: dict[str, dict[str, object]] = {}
     if isinstance(po_raw, dict):
         for plugin_name, overrides in po_raw.items():
             if isinstance(plugin_name, str) and isinstance(overrides, dict):
                 plugin_overrides[plugin_name] = {str(k): v for k, v in overrides.items()}
+
+    # Parse per-model overrides (e.g. action-timeout).
+    mo_raw = raw.get('model-overrides', {})
+    model_overrides: dict[str, dict[str, object]] = {}
+    if isinstance(mo_raw, dict):
+        for model_name, overrides in mo_raw.items():
+            if isinstance(model_name, str) and isinstance(overrides, dict):
+                model_overrides[model_name] = {str(k): v for k, v in overrides.items()}
 
     # Parse runtime config.
     base_dir = config_path.resolve().parent
@@ -367,9 +428,13 @@ def load_config(
         test_concurrency=test_concurrency,
         max_retries=max_retries,
         retry_base_delay=retry_base_delay,
+        action_timeout=action_timeout,
+        health_timeout=health_timeout,
+        startup_timeout=startup_timeout,
         env=env,
         additional_model_plugins=additional_model_plugins,
         plugin_overrides=plugin_overrides,
+        model_overrides=model_overrides,
         runtime=runtime,
     )
 

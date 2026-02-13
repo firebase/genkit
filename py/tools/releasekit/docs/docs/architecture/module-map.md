@@ -23,9 +23,9 @@ and dependencies.
 
 | | |
 |---|---|
-| **Lines** | ~454 |
+| **Lines** | ~490 |
 | **Purpose** | Parse and validate `releasekit.toml` |
-| **Key types** | `ReleaseConfig` (frozen dataclass) |
+| **Key types** | `ReleaseConfig`, `WorkspaceConfig` (frozen dataclasses) |
 | **Key functions** | `load_config()`, `resolve_group_refs()` |
 | **Validation** | Typo detection (Levenshtein), type checking, enum validation |
 
@@ -141,7 +141,8 @@ and dependencies.
 | `tags.py` | ~487 | Create/delete per-package + umbrella git tags |
 | `ui.py` | ~100 | Rich progress UI for publish operations |
 | `versions.py` | ~160 | `PackageVersion` and `ReleaseManifest` types |
-| `workspace.py` | ~200 | `Package` type and `discover_packages()` |
+| `distro.py` | ~820 | Distro packaging dep sync (Debian, Fedora, Homebrew) |
+| `workspace.py` | ~490 | `Package` type, `discover_packages()` (ecosystem-aware: Python/JS) |
 
 ## Backends
 

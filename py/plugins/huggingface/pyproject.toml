@@ -57,16 +57,16 @@ keywords = [
 ]
 license = "Apache-2.0"
 name = "genkit-plugin-huggingface"
+readme = "README.md"
 requires-python = ">=3.10"
 version = "0.5.0"
-readme = "README.md"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/huggingface/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"
-Changelog = "https://github.com/firebase/genkit/blob/main/huggingface/CHANGELOG.md"
 
 [build-system]
 build-backend = "hatchling.build"

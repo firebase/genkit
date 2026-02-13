@@ -265,3 +265,14 @@ class TestDetectEcosystems:
         # Both should be detected — they're different workspace roots.
         if len(python_results) != 2:
             pytest.fail(f'Expected 2 python ecosystems, got {len(python_results)}')
+
+    def test_two_ecosystems_same_root(self, tmp_path: Path) -> None:
+        """Two different ecosystems at the same root are both detected."""
+        _create_git_repo(tmp_path)
+        _create_uv_workspace(tmp_path)
+        _create_pnpm_workspace(tmp_path)
+        result = detect_ecosystems(tmp_path)
+        types = {e.ecosystem for e in result}
+        expected = {Ecosystem.PYTHON, Ecosystem.JS}
+        if types != expected:
+            pytest.fail(f'Expected {expected}, got {types}')

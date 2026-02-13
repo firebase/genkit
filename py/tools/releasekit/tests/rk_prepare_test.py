@@ -24,7 +24,7 @@ from typing import Any
 
 from releasekit.backends._run import CommandResult
 from releasekit.backends.registry import ChecksumResult
-from releasekit.config import ReleaseConfig
+from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.prepare import PrepareResult, _build_pr_body, _embed_manifest, _package_paths, prepare_release
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
@@ -138,7 +138,7 @@ class TestPackagePaths:
             name='genkit',
             version='0.1.0',
             path=pkg_path,
-            pyproject_path=pkg_path / 'pyproject.toml',
+            manifest_path=pkg_path / 'pyproject.toml',
         )
         paths = _package_paths([pkg])
         if paths.get('genkit') != str(pkg_path):
@@ -157,12 +157,27 @@ class _FakeVCS:
         self._log_lines = log_lines or ['aaa1111 feat: initial']
 
     async def is_clean(self, *, dry_run: bool = False) -> bool:
+        """Is clean."""
         return True
 
     async def is_shallow(self) -> bool:
+        """Is shallow."""
         return False
 
+    async def default_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return empty list."""
+        return []
+
+    async def current_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
     async def current_sha(self) -> str:
+        """Current sha."""
         return 'abc123'
 
     async def log(
@@ -172,28 +187,38 @@ class _FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
+        """Log."""
         return self._log_lines
 
     async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
+        """Diff files."""
         return ['packages/genkit/src/main.py']
 
     async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
+        """Commit."""
         return _OK
 
     async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+        """Tag."""
         return _OK
 
     async def tag_exists(self, tag_name: str) -> bool:
+        """Tag exists."""
         return False
 
     async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+        """Delete tag."""
         return _OK
 
     async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+        """Push."""
         return _OK
 
     async def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
+        """Checkout branch."""
         return _OK
 
 
@@ -208,6 +233,7 @@ class _FakePM:
         no_sources: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Build."""
         return _OK
 
     async def publish(
@@ -216,8 +242,12 @@ class _FakePM:
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Publish."""
         return _OK
 
     async def lock(
@@ -228,6 +258,7 @@ class _FakePM:
         cwd: Path | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Lock."""
         return _OK
 
     async def version_bump(
@@ -237,6 +268,7 @@ class _FakePM:
         *,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Version bump."""
         return _OK
 
     async def resolve_check(
@@ -247,6 +279,7 @@ class _FakePM:
         index_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Resolve check."""
         return _OK
 
     async def smoke_test(
@@ -256,6 +289,7 @@ class _FakePM:
         *,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Smoke test."""
         return _OK
 
 
@@ -268,6 +302,7 @@ class _FakeForge:
         self.labels_added: list[tuple[int, list[str]]] = []
 
     async def is_available(self) -> bool:
+        """Is available."""
         return True
 
     async def create_release(
@@ -281,15 +316,19 @@ class _FakeForge:
         assets: list[Path] | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Create release."""
         return _OK
 
     async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+        """Delete release."""
         return _OK
 
     async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+        """Promote release."""
         return _OK
 
     async def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
+        """List releases."""
         return []
 
     async def create_pr(
@@ -301,9 +340,11 @@ class _FakeForge:
         base: str = 'main',
         dry_run: bool = False,
     ) -> CommandResult:
+        """Create pr."""
         return CommandResult(command=[], returncode=0, stdout=self._create_pr_url, stderr='')
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
+        """Pr data."""
         return {}
 
     async def list_prs(
@@ -314,13 +355,16 @@ class _FakeForge:
         head: str = '',
         limit: int = 10,
     ) -> list[dict[str, Any]]:
+        """List prs."""
         return self._existing_prs
 
     async def add_labels(self, pr_number: int, labels: list[str], *, dry_run: bool = False) -> CommandResult:
+        """Add labels."""
         self.labels_added.append((pr_number, labels))
         return _OK
 
     async def remove_labels(self, pr_number: int, labels: list[str], *, dry_run: bool = False) -> CommandResult:
+        """Remove labels."""
         return _OK
 
     async def update_pr(
@@ -331,6 +375,7 @@ class _FakeForge:
         body: str = '',
         dry_run: bool = False,
     ) -> CommandResult:
+        """Update pr."""
         return _OK
 
     async def merge_pr(
@@ -342,6 +387,7 @@ class _FakeForge:
         delete_branch: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Merge pr."""
         return _OK
 
 
@@ -349,6 +395,7 @@ class _FakeRegistry:
     """Minimal registry for prepare tests."""
 
     async def check_published(self, package_name: str, version: str) -> bool:
+        """Check published."""
         return False
 
     async def poll_available(
@@ -359,12 +406,15 @@ class _FakeRegistry:
         timeout: float = 300.0,
         interval: float = 5.0,
     ) -> bool:
+        """Poll available."""
         return True
 
     async def project_exists(self, package_name: str) -> bool:
+        """Project exists."""
         return False
 
     async def latest_version(self, package_name: str) -> str | None:
+        """Latest version."""
         return None
 
     async def verify_checksum(
@@ -373,6 +423,7 @@ class _FakeRegistry:
         version: str,
         local_checksums: dict[str, str],
     ) -> ChecksumResult:
+        """Verify checksum."""
         return ChecksumResult()
 
 
@@ -399,7 +450,7 @@ class TestPrepareLabelOnNewPR:
         # Minimal releasekit config.
         config_file = ws / 'releasekit.toml'
         config_file.write_text(
-            '[releasekit]\ntag_format = "{name}-v{version}"\numbrella_tag = "v{version}"\n',
+            '[workspace.uv]\ntag_format = "{name}-v{version}"\numbrella_tag = "v{version}"\n',
             encoding='utf-8',
         )
         # uv.lock stub.
@@ -411,6 +462,7 @@ class TestPrepareLabelOnNewPR:
         forge = _FakeForge(existing_prs=[{'number': 99, 'url': 'https://github.com/test/pr/99'}])
         vcs = _FakeVCS()
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
 
         asyncio.run(
             prepare_release(
@@ -419,6 +471,7 @@ class TestPrepareLabelOnNewPR:
                 forge=forge,
                 registry=_FakeRegistry(),
                 config=config,
+                ws_config=ws_config,
                 workspace_root=self._make_workspace(tmp_path),
                 dry_run=False,
                 force=True,
@@ -438,6 +491,7 @@ class TestPrepareLabelOnNewPR:
         )
         vcs = _FakeVCS()
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
 
         asyncio.run(
             prepare_release(
@@ -446,6 +500,7 @@ class TestPrepareLabelOnNewPR:
                 forge=forge,
                 registry=_FakeRegistry(),
                 config=config,
+                ws_config=ws_config,
                 workspace_root=self._make_workspace(tmp_path),
                 dry_run=False,
                 force=True,

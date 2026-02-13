@@ -48,6 +48,10 @@ from releasekit.checks._python_fixers import (
     fix_type_markers,
     fix_version_field,
 )
+from releasekit.distro import (
+    check_distro_deps as _check_distro_deps_for_package,
+    fix_distro_deps as _fix_distro_deps_for_package,
+)
 from releasekit.logging import get_logger
 from releasekit.preflight import PreflightResult
 from releasekit.workspace import Package
@@ -67,12 +71,12 @@ def _refresh_publishable(packages: list[Package]) -> None:
     """
     for pkg in packages:
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             doc = tomlkit.parse(content)
         except Exception as exc:
             logger.warning(
                 'refresh_publishable_failed',
-                path=str(pkg.pyproject_path),
+                path=str(pkg.manifest_path),
                 error=str(exc),
             )
             continue
@@ -253,12 +257,12 @@ class PythonCheckBackend:
             if not pkg.is_publishable:
                 continue
             try:
-                content = pkg.pyproject_path.read_text(encoding='utf-8')
+                content = pkg.manifest_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
             except Exception as exc:
                 logger.warning(
                     'metadata_parse_failed',
-                    path=str(pkg.pyproject_path),
+                    path=str(pkg.manifest_path),
                     error=str(exc),
                 )
                 issues.append(f'{pkg.name}: cannot parse pyproject.toml')
@@ -301,10 +305,10 @@ class PythonCheckBackend:
             if not pkg.is_publishable:
                 continue
             try:
-                content = pkg.pyproject_path.read_text(encoding='utf-8')
+                content = pkg.manifest_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
             except Exception:
-                logger.debug('parse_failed', path=str(pkg.pyproject_path))
+                logger.debug('parse_failed', path=str(pkg.manifest_path))
                 continue
 
             project: dict[str, object] = data.get('project', {})
@@ -346,10 +350,10 @@ class PythonCheckBackend:
             if not pkg.is_publishable:
                 continue
             try:
-                content = pkg.pyproject_path.read_text(encoding='utf-8')
+                content = pkg.manifest_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
             except Exception:
-                logger.debug('parse_failed', path=str(pkg.pyproject_path))
+                logger.debug('parse_failed', path=str(pkg.manifest_path))
                 continue
 
             project: dict[str, object] = data.get('project', {})
@@ -484,7 +488,7 @@ class PythonCheckBackend:
             if not pkg.is_publishable:
                 continue
             try:
-                content = pkg.pyproject_path.read_text(encoding='utf-8')
+                content = pkg.manifest_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
             except Exception:
                 missing.append(f'{pkg.name}: cannot parse pyproject.toml')
@@ -521,7 +525,7 @@ class PythonCheckBackend:
             if not pkg.is_publishable:
                 continue
             try:
-                content = pkg.pyproject_path.read_text(encoding='utf-8')
+                content = pkg.manifest_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
             except Exception:
                 missing.append(f'{pkg.name}: cannot parse pyproject.toml')
@@ -635,7 +639,7 @@ class PythonCheckBackend:
     def _parse_pyproject(pkg: Package) -> tomlkit.TOMLDocument | None:
         """Parse a package's pyproject.toml, returning the full doc or None."""
         try:
-            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            content = pkg.manifest_path.read_text(encoding='utf-8')
             return tomlkit.parse(content)
         except Exception:
             return None
@@ -1141,6 +1145,43 @@ class PythonCheckBackend:
         else:
             result.add_pass(check_name)
 
+    def check_distro_deps(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check that distro packaging deps match ``pyproject.toml``."""
+        check_name = 'distro_deps'
+        issues: list[str] = []
+
+        for pkg in packages:
+            if not pkg.is_publishable:
+                continue
+            packaging_dir = pkg.path / 'packaging'
+            if not packaging_dir.is_dir():
+                continue
+
+            diffs = _check_distro_deps_for_package(packaging_dir, pkg.manifest_path)
+            for diff in diffs:
+                if not diff.ok:
+                    parts: list[str] = []
+                    if diff.missing:
+                        parts.append(f'missing: {", ".join(diff.missing)}')
+                    if diff.extra:
+                        parts.append(f'extra: {", ".join(diff.extra)}')
+                    if diff.version_mismatch:
+                        parts.append(f'version mismatch: {", ".join(diff.version_mismatch)}')
+                    issues.append(f'{pkg.name} ({diff.distro}): {"; ".join(parts)}')
+
+        if issues:
+            result.add_warning(
+                check_name,
+                f'Distro packaging deps out of sync: {"; ".join(issues)}',
+                hint='Run "releasekit check --fix" to update distro packaging files.',
+            )
+        else:
+            result.add_pass(check_name)
+
     @staticmethod
     def _refresh_publishable(packages: list[Package]) -> None:
         """Re-read classifiers from disk and update ``is_publishable``."""
@@ -1207,5 +1248,20 @@ class PythonCheckBackend:
         changes.extend(fix_placeholder_urls(packages, dry_run=dry_run))
         changes.extend(fix_license_classifier_mismatch(packages, dry_run=dry_run))
         changes.extend(fix_self_dependencies(packages, dry_run=dry_run))
+
+        # Distro packaging fixers.
+        for pkg in packages:
+            if not pkg.is_publishable:
+                continue
+            packaging_dir = pkg.path / 'packaging'
+            if not packaging_dir.is_dir():
+                continue
+            pkg_changes = _fix_distro_deps_for_package(
+                packaging_dir,
+                pkg.manifest_path,
+                dry_run=dry_run,
+            )
+            for c in pkg_changes:
+                changes.append(f'{pkg.name}: {c}')
 
         return changes

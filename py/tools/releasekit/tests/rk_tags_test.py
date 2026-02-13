@@ -107,6 +107,18 @@ class FakeVCS:
         """Stub — not shallow."""
         return False
 
+    async def default_branch(self) -> str:
+        """Stub — main."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all existing tags."""
+        return sorted(self.existing_tags)
+
+    async def current_branch(self) -> str:
+        """Stub — main."""
+        return 'main'
+
     async def current_sha(self) -> str:
         """Stub SHA."""
         return 'abc123'
@@ -118,6 +130,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Stub log."""
         return []

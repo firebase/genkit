@@ -169,4 +169,9 @@ class PublishConfig:
     retry_base_delay: float = 1.0  # Base delay for backoff
     task_timeout: float = 600.0    # Per-package timeout
     force: bool = False            # Skip preflight
+    workspace_root: Path = ...     # Workspace root directory
+    workspace_label: str = ''      # Label for scoping state files
+    dist_tag: str = ''             # npm dist-tag (JS only)
+    publish_branch: str = ''       # pnpm --publish-branch (JS only)
+    provenance: bool = False       # pnpm --provenance (JS only)
 ```

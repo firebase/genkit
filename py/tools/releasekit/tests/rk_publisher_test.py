@@ -58,6 +58,18 @@ class FakeVCS:
         """Is shallow."""
         return False
 
+    async def default_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return empty list."""
+        return []
+
+    async def current_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
     async def current_sha(self) -> str:
         """Current sha."""
         return self._sha
@@ -69,6 +81,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Log."""
         return []
@@ -159,6 +173,9 @@ class FakePM:
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Publish."""
@@ -394,7 +411,7 @@ def _make_pkg(name: str, workspace_root: Path, *, version: str = '0.1.0') -> Pac
     pkg_dir.mkdir(parents=True, exist_ok=True)
     pyproject = pkg_dir / 'pyproject.toml'
     pyproject.write_text(f'[project]\nname = "{name}"\nversion = "{version}"\n', encoding='utf-8')
-    return Package(name=name, version=version, path=pkg_dir, pyproject_path=pyproject)
+    return Package(name=name, version=version, path=pkg_dir, manifest_path=pyproject)
 
 
 # ── Tests: PublishConfig ──
@@ -602,7 +619,7 @@ class TestPublishWorkspaceDryRun:
             name='plugin',
             version='0.1.0',
             path=plugin.path,
-            pyproject_path=plugin.pyproject_path,
+            manifest_path=plugin.manifest_path,
             internal_deps=['core'],
         )
         graph = build_graph([core, plugin_pkg])

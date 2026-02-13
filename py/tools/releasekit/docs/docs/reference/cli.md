@@ -118,6 +118,9 @@ releasekit publish [options]
 | `--max-retries` | `0` | Retry count with backoff |
 | `--check-url` | `""` | URL for `uv publish --check-url` |
 | `--index-url` | `""` | Custom registry URL |
+| `--dist-tag` | `""` | npm dist-tag (`latest`, `next`) — JS only |
+| `--force-unchanged` | `false` | Force PATCH bump for unchanged packages |
+| `--ignore-unknown-tags` | `false` | Fall back to full history on bad tags |
 | `--forge-backend` | `cli` | `cli` or `api` |
 
 **Publish pipeline per package:**
@@ -212,3 +215,4 @@ All commands accept:
 | `--verbose` / `-v` | Increase log verbosity |
 | `--quiet` / `-q` | Suppress output |
 | `--no-color` | Disable colored output |
+| `--workspace` / `-w` | Target a specific workspace label |
