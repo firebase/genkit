@@ -1,15 +1,18 @@
 # releasekit
 
-Release orchestration for uv workspaces — publish Python packages in
+Release orchestration for polyglot monorepos — publish packages in
 topological order with dependency-triggered scheduling, ephemeral version
 pinning, retry with jitter, crash-safe file restoration, and post-publish
-checksum verification.
+checksum verification. Supports Python (uv), JavaScript (pnpm), and Go
+workspaces today, with Bazel, Rust (Cargo), Java (Maven/Gradle), and
+Dart (Pub) on the roadmap — all through protocol-based backends.
 
 ## Why This Tool Exists
 
-The Genkit Python SDK is a uv workspace with 60+ packages that have
-inter-dependencies. Publishing them to PyPI requires dependency-ordered
-builds with ephemeral version pinning — and no existing tool does this.
+Modern polyglot monorepos contain dozens (or hundreds) of packages with
+inter-dependencies. Publishing them to a registry requires dependency-ordered
+builds with ephemeral version pinning — and no existing tool does this well
+across ecosystems.
 
 `uv publish` is a **single-package** command. It publishes one wheel or
 sdist to PyPI. It does not understand workspaces, dependency graphs, or
@@ -37,6 +40,42 @@ that calls it per-package at the right time in the right order.
 
 See [roadmap.md](roadmap.md) for the full design rationale and
 implementation plan.
+
+## How Does releasekit Compare?
+
+| Feature | releasekit | release-please | semantic-release | changesets | nx release | knope | goreleaser |
+|---------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| 🏗️ Monorepo | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| 🌐 Polyglot (Py/JS/Go/Bazel/Rust/Java/Dart) | ✅ | ✅ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
+| 📝 Conventional Commits | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| 📦 Changeset files | 🔜 | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 🩺 Health checks (33) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
+| 🏷️ Pre-release | 🔜 | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 🧪 Dry-run | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| ⏪ Rollback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔮 Version preview | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 📈 Graph visualization | ✅ 8 formats | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 🐚 Shell completions | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 🔍 Error explainer | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔄 Retry with backoff | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ✍️ Signing / provenance | 🔜 | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
+| 📋 SBOM | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📢 Announcements | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📊 Plan profiling | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔭 OpenTelemetry tracing | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔄 Migrate from alternatives | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Legend:** ✅ = supported, ⚠️ = partial, ❌ = not supported, 🔜 = planned
+
+See [docs/competitive-gap-analysis.md](docs/competitive-gap-analysis.md) for
+the full analysis with issue tracker references, and
+[docs/roadmap-execution-plan.md](docs/roadmap-execution-plan.md) for the
+dependency-graphed, topo-sorted execution plan.
 
 ## Getting Started
 
@@ -81,6 +120,7 @@ uvx releasekit check
 | `rollback` | Delete a git tag (local + remote) and its GitHub release |
 | `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
 | `version` | Show the releasekit version |
+| `migrate` | Migrate from another release tool (release-please, semantic-release, changesets, etc.) |
 | `completion` | Generate shell completion scripts (bash/zsh/fish) |
 
 ## Features
@@ -151,6 +191,37 @@ releasekit init --force      # Overwrite existing config
 Scaffolds `releasekit.toml` in the workspace root with auto-detected
 package groups (plugins, samples, core). Also adds `.releasekit-state/`
 to `.gitignore`.
+
+### Migrate from Other Tools
+
+```bash
+# Auto-detect and migrate from release-please
+releasekit migrate --from release-please
+
+# Migrate from semantic-release
+releasekit migrate --from semantic-release --dry-run
+
+# Migrate from changesets
+releasekit migrate --from changesets
+
+# Migrate from a custom shell-script release process
+releasekit migrate --from scripts --scan-dir scripts/
+```
+
+The `migrate` command uses a `MigrationSource` protocol to read configuration
+and state from each alternative tool:
+
+| Source | What it reads | What it generates |
+|--------|---------------|-------------------|
+| `release-please` | `.release-please-manifest.json`, `release-please-config.json` | `releasekit.toml` with groups, tag format, changelog settings |
+| `semantic-release` | `.releaserc`, `package.json[release]` | `releasekit.toml` with branch config, plugin equivalents |
+| `python-semantic-release` | `pyproject.toml[tool.semantic_release]` | `releasekit.toml` with version variables, commit parsing |
+| `changesets` | `.changeset/config.json` | `releasekit.toml` with linked/fixed packages, changelog |
+| `scripts` | Shell scripts with `npm version`, `pnpm publish` | `releasekit.toml` with discovered package list, publish order |
+
+Each `MigrationSource` implementation converts the alternative tool's config into
+releasekit's native format, preserving tag history and version state so
+there's no gap in the release timeline.
 
 ### Rollback
 
@@ -576,6 +647,39 @@ uv run pytest tests/rk_publisher_test.py -v
   backup/restore with `.bak` files.
 - **State file integrity** — resume refuses if HEAD SHA differs.
 
+## Standalone Repository
+
+releasekit is designed to live in its own repository. The core is fully
+agnostic — all external interactions go through 6 injectable Protocol
+interfaces:
+
+| Protocol | Abstraction | Default Backend | Alternatives |
+|----------|-------------|-----------------|-------------|
+| 🔀 `VCS` | Version control (commit, tag, push) | `GitCLIBackend` | `MercurialCLIBackend` |
+| 📦 `PackageManager` | Build, publish, lock | `UvBackend` | `PnpmBackend` |
+| 🔍 `Workspace` | Package discovery, version rewrite | `UvWorkspace` | `PnpmWorkspace` |
+| 🌐 `Registry` | Package registry queries | `PyPIBackend` | `NpmRegistry` |
+| 🏭 `Forge` | Releases, PRs, labels | `GitHubCLIBackend` | `GitHubAPIBackend`, `GitLabCLIBackend`, `BitbucketAPIBackend` |
+| 🔭 `Telemetry` | Tracing spans, metrics | `NullTelemetry` | `OTelTelemetry` (OpenTelemetry) |
+
+No module in `releasekit` imports from any parent package. The tool
+discovers its workspace root by locating `releasekit.toml` at runtime.
+To move to a standalone repo:
+
+```bash
+# 1. Copy the releasekit directory
+cp -r py/tools/releasekit /path/to/new/repo
+
+# 2. It already has its own:
+#    - pyproject.toml (with build system + entry point)
+#    - tests/ (full test suite)
+#    - docs/ (mkdocs site)
+#    - LICENSE
+#    - README.md
+
+# 3. Add CI workflows and publish to PyPI
+```
+
 ## License
 
-Apache 2.0 — see [LICENSE](../../LICENSE) for details.
+Apache 2.0 — see [LICENSE](LICENSE) for details.

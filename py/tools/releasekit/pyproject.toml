@@ -42,7 +42,7 @@ dependencies = [
   "diagnostic>=3.0.0",    # Rust-style error rendering
   "httpx>=0.27.0",        # Async HTTP with connection pooling (PyPIBackend)
 ]
-description = "Release orchestration for uv workspaces"
+description = "Release orchestration for polyglot monorepos"
 license = "Apache-2.0"
 name = "releasekit"
 readme = "README.md"
