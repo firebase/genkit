@@ -49,7 +49,14 @@ class FakeVCS:
         self.commits.append(message)
         return _OK
 
-    async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+    async def push(
+        self,
+        *,
+        tags: bool = False,
+        remote: str = 'origin',
+        set_upstream: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
         """Record push call."""
         self.pushes += 1
         return _OK

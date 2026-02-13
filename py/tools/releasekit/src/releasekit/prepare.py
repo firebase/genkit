@@ -350,7 +350,9 @@ async def prepare_release(
     if not dry_run:
         await vcs.checkout_branch(release_branch, create=True)
         await vcs.commit(commit_msg, paths=['.'])
-        await vcs.push()
+        push_result = await vcs.push()
+        if not push_result.ok:
+            raise RuntimeError(f'Failed to push release branch {release_branch!r}: {push_result.stderr.strip()}')
     logger.info('release_branch_pushed', branch=release_branch, sha=git_sha)
 
     # 9. Create or update Release PR.
@@ -380,7 +382,12 @@ async def prepare_release(
                     head=release_branch,
                     base=base,
                 )
-                result.pr_url = pr_result.stdout.strip() if pr_result.ok else ''
+                if pr_result.ok:
+                    result.pr_url = pr_result.stdout.strip()
+                else:
+                    raise RuntimeError(
+                        f'Failed to create Release PR for branch {release_branch!r}: {pr_result.stderr[:500].strip()}'
+                    )
             logger.info('release_pr_created', branch=release_branch)
 
         # Add "autorelease: pending" label to both new and existing PRs.

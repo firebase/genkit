@@ -130,6 +130,7 @@ class FakeVCS:
         *,
         tags: bool = False,
         remote: str = 'origin',
+        set_upstream: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push."""
