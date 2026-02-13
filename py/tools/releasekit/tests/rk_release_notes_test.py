@@ -97,7 +97,14 @@ class FakeVCS:
         """No-op delete_tag."""
         return _OK
 
-    async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+    async def push(
+        self,
+        *,
+        tags: bool = False,
+        remote: str = 'origin',
+        set_upstream: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
         """No-op push."""
         return _OK
 

@@ -170,6 +170,7 @@ class VCS(Protocol):
         *,
         tags: bool = False,
         remote: str = 'origin',
+        set_upstream: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags.
@@ -177,6 +178,7 @@ class VCS(Protocol):
         Args:
             tags: Also push tags.
             remote: Remote name.
+            set_upstream: Set upstream tracking for new branches.
             dry_run: Log the command without executing.
         """
         ...

@@ -261,18 +261,24 @@ class MercurialCLIBackend:
         *,
         tags: bool = False,
         remote: str = 'origin',
+        set_upstream: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push changesets to a remote path.
 
         Mercurial pushes all new changesets by default (tags are
         changesets, so they're included automatically).
+
+        Note:
+            ``set_upstream`` is accepted for protocol compatibility but
+            ignored — Mercurial does not have Git-style upstream tracking
+            branches.
         """
         # Mercurial uses "default" as the default remote, not "origin".
         hg_remote = 'default' if remote == 'origin' else remote
         cmd_parts = ['push', hg_remote]
 
-        log.info('push', remote=hg_remote, tags=tags)
+        log.info('push', remote=hg_remote, tags=tags, set_upstream=set_upstream)
         return await asyncio.to_thread(self._hg, *cmd_parts, dry_run=dry_run)
 
     async def list_tags(self, *, pattern: str = '') -> list[str]:

@@ -213,7 +213,14 @@ class _FakeVCS:
         """Delete tag."""
         return _OK
 
-    async def push(self, *, tags: bool = False, remote: str = 'origin', dry_run: bool = False) -> CommandResult:
+    async def push(
+        self,
+        *,
+        tags: bool = False,
+        remote: str = 'origin',
+        set_upstream: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
         """Push."""
         return _OK
 

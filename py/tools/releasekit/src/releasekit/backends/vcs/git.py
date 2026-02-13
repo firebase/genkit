@@ -223,13 +223,16 @@ class GitCLIBackend:
         *,
         tags: bool = False,
         remote: str = 'origin',
+        set_upstream: bool = True,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags."""
         cmd_parts = ['push', remote]
+        if set_upstream:
+            cmd_parts.append('--set-upstream')
         if tags:
             cmd_parts.append('--tags')
-        log.info('push', remote=remote, tags=tags)
+        log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)
         return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
 
     async def list_tags(self, *, pattern: str = '') -> list[str]:
