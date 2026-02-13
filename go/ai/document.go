@@ -298,11 +298,12 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	default:
 		p.Kind = PartText
 		p.Text = s.Text
-		p.ContentType = ""
+		p.ContentType = "plain/text"
 		if s.Data != "" {
 			// Note: if part is completely empty, we use text by default.
 			p.Kind = PartData
 			p.Text = s.Data
+			p.ContentType = ""
 		}
 	}
 	p.Metadata = s.Metadata
