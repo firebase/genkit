@@ -126,25 +126,15 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
         sys.exit(1)
 
     # Assume the main entry point is at src/main.py or main.py
-    is_package_structured = False
     main_py_path = sample_path / 'src' / 'main.py'
     if not main_py_path.exists():
         main_py_path = sample_path / 'main.py'
         if not main_py_path.exists():
             sys.exit(1)
-    else:
-        is_package_structured = True
 
     # Add the source directory to sys.path so imports work
-    if is_package_structured:
-        # For src/main.py, we want top-level imports to be relative to the sample dir
-        # and relative imports inside src to work via 'src.main' package context.
-        sys.path.insert(0, str(sample_path))
-        module_name = 'src.main'
-    else:
-        src_dir = main_py_path.parent
-        sys.path.insert(0, str(src_dir))
-        module_name = 'sample_main'
+    src_dir = main_py_path.parent
+    sys.path.insert(0, str(src_dir))
 
     # Add the py/ root directory to sys.path so 'samples.shared' imports work
     # sample_path is .../py/samples/sample-name
@@ -152,29 +142,19 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
     # sample_path.parent.parent is .../py
     sys.path.insert(0, str(sample_path.parent.parent))
 
-    # Clear existing modules with the same name if they exist.
-    # This happens in a monorepo because multiple samples might use 'src.main'
-    # as their entry point, or have a 'src' package.
-    for m in list(sys.modules.keys()):
-        if m == module_name or m.startswith(module_name + '.') or m == 'src' or m.startswith('src.'):
-            sys.modules.pop(m, None)
+    # Import the module dynamically
+    spec = importlib.util.spec_from_file_location('sample_main', main_py_path)
+    if spec is None or spec.loader is None:
+        sys.exit(1)
 
-    # Import the module
+    # Type narrowing: spec and spec.loader are guaranteed non-None after the check above
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules['sample_main'] = module
+
     try:
-        if is_package_structured:
-            # Use import_module for package-structured samples to correctly handle relative imports
-            module = importlib.import_module(module_name)
-        else:
-            # Fallback to spec-based loading for simple samples
-            spec = importlib.util.spec_from_file_location(module_name, main_py_path)
-            if spec is None or spec.loader is None:
-                sys.exit(1)
-            # Add explicit assertions for type narrowing if needed by some checkers
-            assert spec is not None
-            assert spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
+        spec.loader.exec_module(module)
     except Exception:
         traceback.print_exc()
         sys.exit(1)
@@ -187,15 +167,6 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
         if hasattr(attr, 'registry') and hasattr(attr, 'generate'):
             ai_instance = attr
             break
-
-    if ai_instance:
-        # Manually load prompts from the sample's prompts directory if it exists.
-        # This is needed because the current working directory isn't the sample dir.
-        prompts_dir = sample_path / 'prompts'
-        if prompts_dir.exists() and prompts_dir.is_dir():
-            from genkit.blocks.prompt import load_prompt_folder
-
-            load_prompt_folder(ai_instance.registry, prompts_dir)
 
     if ai_instance is None:
         sys.exit(1)  # pyrefly: ignore[unbound-name] - sys is imported at top of file

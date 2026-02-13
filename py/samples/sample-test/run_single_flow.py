@@ -135,37 +135,22 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
         # Add the sample's src/ directory to sys.path for relative imports
         # (e.g., 'from case_01 import prompts' in framework-restaurant-demo)
         if main_py.parent.name == 'src':
-            # Add the sample root so 'from src import ...' works
-            sys.path.insert(0, str(sample_path))
-            module_name = 'src.main'
-        else:
             sys.path.insert(0, str(main_py.parent))
-            module_name = 'sample_main'
-
-        # Clear existing modules with the same name if they exist.
-        # This happens in a monorepo because multiple samples might use 'src.main'
-        # as their entry point, or have a 'src' package.
-        for m in list(sys.modules.keys()):
-            if m == module_name or m.startswith(module_name + '.') or m == 'src' or m.startswith('src.'):
-                sys.modules.pop(m, None)
 
         # Load the module
-        try:
-            if module_name == 'src.main':
-                # Use import_module for package-structured samples to correctly handle relative imports
-                module = importlib.import_module(module_name)
-            else:
-                # Fallback to spec-based loading for simple samples
-                spec = importlib.util.spec_from_file_location(module_name, main_py)
-                if not spec or not spec.loader:
-                    result['error'] = 'Failed to load sample module'
-                    return result
 
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
+        spec = importlib.util.spec_from_file_location('sample_main', main_py)
+        if not spec or not spec.loader:
+            result['error'] = 'Failed to load sample module'
+            return result
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules['sample_main'] = module
+
+        try:
+            spec.loader.exec_module(module)
         except Exception as e:
-            result['error'] = f'Failed to import sample: {e}\n{traceback.format_exc()}'
+            result['error'] = f'Failed to import sample: {e}'
             return result
 
         # Find the Genkit instance
@@ -179,14 +164,6 @@ async def run_flow(sample_dir: str, flow_name: str, input_data: Any) -> dict[str
         if not ai_instance:
             result['error'] = 'No Genkit instance found in sample'
             return result
-
-        # Manually load prompts from the sample's prompts directory if it exists.
-        # This is needed because the current working directory isn't the sample dir.
-        prompts_dir = sample_path / 'prompts'
-        if prompts_dir.exists() and prompts_dir.is_dir():
-            from genkit.blocks.prompt import load_prompt_folder
-
-            load_prompt_folder(ai_instance.registry, prompts_dir)
 
         # Get the flow action from registry
         try:

@@ -15,13 +15,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Import tool logic
-from model_performance_test import (
-    discover_models,
-    discover_models_for_sample,
-    generate_config_variations,
-    parse_config_schema,
-    run_model_test,
-)
+from model_performance_test import run_model_test
 from pydantic import BaseModel
 
 app = FastAPI(title='Model Performance Tool')
@@ -161,11 +155,18 @@ async def get_models(sample: str | None = None) -> list[dict[str, Any]]:
         List of models with numbering, info, and parsed parameters
     """
     try:
+        # Import the discovery function
+        from model_performance_test import (
+            discover_models_for_sample,
+            parse_config_schema,
+        )
+
         if sample:
             logging.info(f'Discovering models for sample: {sample}')
             models = await discover_models_for_sample(sample)
         else:
             logging.info('Discovering all models')
+            from model_performance_test import discover_models
 
             models = await discover_models()
 
@@ -259,6 +260,13 @@ async def run_comprehensive_test(
     2. Then vary one parameter at a time
     """
     try:
+        from model_performance_test import (
+            discover_models_for_sample,
+            generate_config_variations,
+            parse_config_schema,
+            run_model_test,
+        )
+
         # Get model info
         models = await discover_models_for_sample(request.sample)
         if request.model not in models:
