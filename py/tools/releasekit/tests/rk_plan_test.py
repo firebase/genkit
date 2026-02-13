@@ -277,3 +277,99 @@ class TestBuildPlan:
         plan = build_plan([], [], git_sha='sha256abc')
         if plan.git_sha != 'sha256abc':
             raise AssertionError(f'Wrong SHA: {plan.git_sha}')
+
+
+class TestFormatAsciiFlow:
+    """Tests for ExecutionPlan.format_ascii_flow."""
+
+    def test_empty_plan(self) -> None:
+        """Empty plan returns a message."""
+        plan = ExecutionPlan()
+        output = plan.format_ascii_flow()
+        assert 'No packages' in output
+
+    def test_no_included_packages(self) -> None:
+        """Plan with only skipped packages returns a message."""
+        plan = ExecutionPlan(
+            entries=[
+                PlanEntry(name='genkit', status=PlanStatus.SKIPPED, bump='none'),
+            ]
+        )
+        output = plan.format_ascii_flow()
+        assert 'No packages to publish' in output
+
+    def test_single_level(self) -> None:
+        """Single level renders a box with package info."""
+        plan = ExecutionPlan(
+            entries=[
+                PlanEntry(
+                    name='genkit',
+                    level=0,
+                    current_version='0.5.0',
+                    next_version='0.6.0',
+                    status=PlanStatus.INCLUDED,
+                    bump='minor',
+                ),
+            ]
+        )
+        output = plan.format_ascii_flow()
+        assert 'Level 0' in output
+        assert 'genkit' in output
+        assert '0.5.0' in output
+        assert '0.6.0' in output
+        assert '1 package(s)' in output
+
+    def test_multi_level_has_arrows(self) -> None:
+        """Multiple levels show arrows between them."""
+        plan = ExecutionPlan(
+            entries=[
+                PlanEntry(
+                    name='genkit',
+                    level=0,
+                    current_version='0.5.0',
+                    next_version='0.6.0',
+                    status=PlanStatus.INCLUDED,
+                    bump='minor',
+                ),
+                PlanEntry(
+                    name='genkit-plugin-foo',
+                    level=1,
+                    current_version='0.5.0',
+                    next_version='0.6.0',
+                    status=PlanStatus.INCLUDED,
+                    bump='minor',
+                ),
+            ]
+        )
+        output = plan.format_ascii_flow()
+        assert 'Level 0' in output
+        assert 'Level 1' in output
+        assert '▼' in output
+        assert '2 package(s) across 2 level(s)' in output
+
+    def test_parallel_packages_in_same_level(self) -> None:
+        """Multiple packages in the same level are shown together."""
+        plan = ExecutionPlan(
+            entries=[
+                PlanEntry(
+                    name='genkit-plugin-a',
+                    level=1,
+                    current_version='0.1.0',
+                    next_version='0.2.0',
+                    status=PlanStatus.INCLUDED,
+                    bump='minor',
+                ),
+                PlanEntry(
+                    name='genkit-plugin-b',
+                    level=1,
+                    current_version='0.1.0',
+                    next_version='0.2.0',
+                    status=PlanStatus.INCLUDED,
+                    bump='minor',
+                ),
+            ]
+        )
+        output = plan.format_ascii_flow()
+        assert 'parallel' in output
+        assert 'genkit-plugin-a' in output
+        assert 'genkit-plugin-b' in output

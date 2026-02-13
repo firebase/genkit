@@ -112,13 +112,24 @@ CONFIG_FILENAME = 'releasekit.toml'
 # All recognized top-level keys in releasekit.toml.
 VALID_KEYS: frozenset[str] = frozenset({
     'changelog',
+    'core_package',
     'exclude',
     'exclude_bump',
     'exclude_publish',
+    'extra_files',
+    'forge',
     'groups',
     'http_pool_size',
+    'library_dirs',
+    'major_on_zero',
+    'namespace_dirs',
+    'plugin_dirs',
+    'plugin_prefix',
+    'pr_title_template',
     'prerelease_mode',
     'publish_from',
+    'repo_name',
+    'repo_owner',
     'smoke_test',
     'synchronize',
     'tag_format',
@@ -127,6 +138,7 @@ VALID_KEYS: frozenset[str] = frozenset({
 
 # Allowed values for enum-like config fields.
 ALLOWED_PUBLISH_FROM: frozenset[str] = frozenset({'local', 'ci'})
+ALLOWED_FORGES: frozenset[str] = frozenset({'github', 'gitlab', 'bitbucket', 'none'})
 ALLOWED_PRERELEASE_MODES: frozenset[str] = frozenset({'rollup', 'separate'})
 
 
@@ -162,9 +174,49 @@ class ReleaseConfig:
         synchronize: If ``True``, all packages share the same version
             (lockstep mode). If ``False`` (default), packages are versioned
             independently with transitive PATCH propagation.
+        major_on_zero: If ``False`` (default), breaking changes on
+            ``0.x`` versions produce a MINOR bump instead of MAJOR.
+            Set to ``True`` to allow ``0.x → 1.0.0`` on breaking changes.
+        pr_title_template: Template for the Release PR title.
+            Placeholders: ``{version}``. Default:
+            ``"chore(release): v{version}"``.
+        forge: Code forge platform: ``"github"``, ``"gitlab"``,
+            ``"bitbucket"``, or ``"none"``. Determines which backend
+            is used for releases, PRs, and labels.
+        repo_owner: Repository owner or organization (e.g. ``"firebase"``).
+        repo_name: Repository name (e.g. ``"genkit"``).
+        core_package: Name of the core package for version consistency
+            checks (e.g. ``"genkit"``). If empty, the check is skipped.
+        plugin_prefix: Expected prefix for plugin package names
+            (e.g. ``"genkit-plugin-"``). If empty, naming convention
+            check is skipped.
+        namespace_dirs: Namespace directories (relative to ``src/``)
+            that must NOT contain ``__init__.py`` (PEP 420). If empty,
+            the check is skipped.
+        library_dirs: Parent directory names whose children are
+            publishable library packages requiring ``py.typed`` markers
+            (e.g. ``["packages", "plugins"]``). If empty, the
+            ``py.typed`` check applies to all publishable packages.
+        plugin_dirs: Parent directory names whose children follow the
+            ``plugin_prefix`` naming convention and need PEP 420
+            namespace init checks (e.g. ``["plugins"]``). If empty,
+            naming convention and namespace init checks apply to all
+            packages.
+        extra_files: List of extra file paths (relative to workspace root)
+            containing version strings to bump. Each entry is a path or
+            a ``{path}:{pattern}`` pair. Default pattern matches
+            ``__version__ = '...'``.
         config_path: Path to the releasekit.toml that was loaded.
     """
 
+    forge: str = 'github'
+    repo_owner: str = ''
+    repo_name: str = ''
+    core_package: str = ''
+    plugin_prefix: str = ''
+    namespace_dirs: list[str] = field(default_factory=list)
+    library_dirs: list[str] = field(default_factory=list)
+    plugin_dirs: list[str] = field(default_factory=list)
     tag_format: str = '{name}-v{version}'
     umbrella_tag: str = 'v{version}'
     publish_from: str = 'local'
@@ -177,6 +229,9 @@ class ReleaseConfig:
     http_pool_size: int = 10
     smoke_test: bool = True
     synchronize: bool = False
+    major_on_zero: bool = False
+    pr_title_template: str = 'chore(release): v{version}'
+    extra_files: list[str] = field(default_factory=list)
     config_path: Path | None = None
 
 
@@ -199,7 +254,18 @@ def _validate_value_type(key: str, value: Any) -> None:  # noqa: ANN401 — dyna
         'changelog': bool,
         'prerelease_mode': str,
         'http_pool_size': int,
+        'forge': str,
+        'repo_owner': str,
+        'repo_name': str,
+        'core_package': str,
+        'plugin_prefix': str,
+        'namespace_dirs': list,
         'smoke_test': bool,
+        'major_on_zero': bool,
+        'pr_title_template': str,
+        'extra_files': list,
+        'library_dirs': list,
+        'plugin_dirs': list,
     }
     expected = expected_types.get(key)
     if expected is None:
@@ -213,13 +279,23 @@ def _validate_value_type(key: str, value: Any) -> None:  # noqa: ANN401 — dyna
         )
 
 
+def _validate_forge(value: str) -> None:
+    """Raise if forge is not a recognized value."""
+    if value not in ALLOWED_FORGES:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f"forge must be one of {sorted(ALLOWED_FORGES)}, got '{value}'",
+            hint="Use 'github', 'gitlab', 'bitbucket', or 'none'.",
+        )
+
+
 def _validate_publish_from(value: str) -> None:
     """Raise if publish_from is not a recognized value."""
     if value not in ALLOWED_PUBLISH_FROM:
         raise ReleaseKitError(
             code=E.CONFIG_INVALID_VALUE,
             message=f"publish_from must be one of {sorted(ALLOWED_PUBLISH_FROM)}, got '{value}'",
-            hint="Use 'local' for publishing from your machine, 'ci' for GitHub Actions.",
+            hint="Use 'local' for publishing from your machine, 'ci' for CI pipelines.",
         )
 
 
@@ -314,6 +390,8 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
         _validate_value_type(key, value)
 
     # Validate specific values.
+    if 'forge' in raw:
+        _validate_forge(raw['forge'])
     if 'publish_from' in raw:
         _validate_publish_from(raw['publish_from'])
     if 'prerelease_mode' in raw:
@@ -443,6 +521,7 @@ def _resolve_group(
 
 
 __all__ = [
+    'ALLOWED_FORGES',
     'ALLOWED_PRERELEASE_MODES',
     'ALLOWED_PUBLISH_FROM',
     'CONFIG_FILENAME',

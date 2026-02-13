@@ -18,14 +18,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.changelog import (
     Changelog,
     ChangelogEntry,
     ChangelogSection,
+    _render_entry,
     generate_changelog,
     render_changelog,
+    write_changelog,
 )
 
 _OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
@@ -44,8 +48,10 @@ class FakeVCS:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return canned log lines."""
+        self.last_first_parent = first_parent
         return self._log_lines
 
     async def tag_exists(self, tag_name: str) -> bool:
@@ -400,3 +406,195 @@ class TestGenerateChangelog:
             raise AssertionError(f'Missing features section:\n{md}')
         if '### Bug Fixes' not in md:
             raise AssertionError(f'Missing fixes section:\n{md}')
+
+    @pytest.mark.asyncio
+    async def test_first_parent_passed_to_vcs(self) -> None:
+        """generate_changelog passes first_parent=True to vcs.log()."""
+        vcs = FakeVCS(log_lines=['aaa1111 feat: something'])
+        await generate_changelog(vcs=vcs, version='0.5.0')
+
+        if not vcs.last_first_parent:
+            raise AssertionError('Expected first_parent=True to be passed to vcs.log()')
+
+
+class TestWriteChangelog:
+    """Tests for write_changelog — writing CHANGELOG.md to disk."""
+
+    def test_creates_new_file(self, tmp_path: Path) -> None:
+        """Creates a new CHANGELOG.md when none exists."""
+        changelog_path = tmp_path / 'CHANGELOG.md'
+        rendered = '## 0.5.0 (2026-02-10)\n\n### Features\n\n- add streaming (abc1234)\n'
+
+        result = write_changelog(changelog_path, rendered)
+
+        if not result:
+            raise AssertionError('Should return True for new file')
+        content = changelog_path.read_text(encoding='utf-8')
+        if '# Changelog' not in content:
+            raise AssertionError(f'Missing heading:\n{content}')
+        if '## 0.5.0' not in content:
+            raise AssertionError(f'Missing version section:\n{content}')
+
+    def test_prepends_to_existing(self, tmp_path: Path) -> None:
+        """Prepends new section below # Changelog heading in existing file."""
+        changelog_path = tmp_path / 'CHANGELOG.md'
+        existing = '# Changelog\n\n## 0.4.0 (2026-01-01)\n\n### Bug Fixes\n\n- old fix\n'
+        changelog_path.write_text(existing, encoding='utf-8')
+
+        rendered = '## 0.5.0 (2026-02-10)\n\n### Features\n\n- new feature\n'
+        result = write_changelog(changelog_path, rendered)
+
+        if not result:
+            raise AssertionError('Should return True')
+        content = changelog_path.read_text(encoding='utf-8')
+        # New version should appear before old version.
+        idx_new = content.index('## 0.5.0')
+        idx_old = content.index('## 0.4.0')
+        if idx_new > idx_old:
+            raise AssertionError(f'New version should come before old:\n{content}')
+        # Old content should still be present.
+        if '- old fix' not in content:
+            raise AssertionError(f'Old content missing:\n{content}')
+
+    def test_skips_duplicate_version(self, tmp_path: Path) -> None:
+        """Skips writing if version heading already exists in file."""
+        changelog_path = tmp_path / 'CHANGELOG.md'
+        existing = '# Changelog\n\n## 0.5.0 (2026-02-10)\n\n### Features\n\n- existing\n'
+        changelog_path.write_text(existing, encoding='utf-8')
+
+        rendered = '## 0.5.0 (2026-02-10)\n\n### Features\n\n- duplicate\n'
+        result = write_changelog(changelog_path, rendered)
+
+        if result:
+            raise AssertionError('Should return False for duplicate')
+        content = changelog_path.read_text(encoding='utf-8')
+        if '- duplicate' in content:
+            raise AssertionError(f'Duplicate content should not be written:\n{content}')
+
+    def test_dry_run_does_not_write(self, tmp_path: Path) -> None:
+        """Dry run returns True but does not create the file."""
+        changelog_path = tmp_path / 'CHANGELOG.md'
+        rendered = '## 0.5.0\n\n### Features\n\n- something\n'
+
+        result = write_changelog(changelog_path, rendered, dry_run=True)
+
+        if not result:
+            raise AssertionError('Dry run should return True')
+        if changelog_path.exists():
+            raise AssertionError('Dry run should not create file')
+
+    def test_prepends_without_heading(self, tmp_path: Path) -> None:
+        """Prepends with heading when existing file has no # Changelog heading."""
+        changelog_path = tmp_path / 'CHANGELOG.md'
+        existing = '## 0.4.0\n\n- old stuff\n'
+        changelog_path.write_text(existing, encoding='utf-8')
+
+        rendered = '## 0.5.0\n\n### Features\n\n- new stuff\n'
+        result = write_changelog(changelog_path, rendered)
+
+        if not result:
+            raise AssertionError('Should return True')
+        content = changelog_path.read_text(encoding='utf-8')
+        if not content.startswith('# Changelog'):
+            raise AssertionError(f'Should start with heading:\n{content}')
+        if '- old stuff' not in content:
+            raise AssertionError(f'Old content missing:\n{content}')
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        """Creates parent directories if they don't exist."""
+        changelog_path = tmp_path / 'nested' / 'pkg' / 'CHANGELOG.md'
+        rendered = '## 0.1.0\n\n### Features\n\n- init\n'
+
+        result = write_changelog(changelog_path, rendered)
+
+        if not result:
+            raise AssertionError('Should return True')
+        if not changelog_path.exists():
+            raise AssertionError('File should exist')
+
+
+class TestLinkedIssues:
+    """Tests for linked issue extraction and rendering in changelog entries."""
+
+    @pytest.mark.asyncio
+    async def test_fixes_extracted(self) -> None:
+        """Fixes #N is extracted from commit messages."""
+        vcs = FakeVCS(
+            log_lines=[
+                'abc1234 fix(auth): resolve login bug (#42) Fixes #100',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+        assert len(changelog.sections) == 1
+        entry = changelog.sections[0].entries[0]
+        assert '100' in entry.issues
+
+    @pytest.mark.asyncio
+    async def test_closes_extracted(self) -> None:
+        """Closes #N is extracted from commit messages."""
+        vcs = FakeVCS(
+            log_lines=[
+                'abc1234 feat: add feature Closes #200',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+        entry = changelog.sections[0].entries[0]
+        assert '200' in entry.issues
+
+    @pytest.mark.asyncio
+    async def test_resolves_extracted(self) -> None:
+        """Resolves #N is extracted from commit messages."""
+        vcs = FakeVCS(
+            log_lines=[
+                'abc1234 fix: patch thing Resolves #300',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+        entry = changelog.sections[0].entries[0]
+        assert '300' in entry.issues
+
+    @pytest.mark.asyncio
+    async def test_multiple_issues(self) -> None:
+        """Multiple issue refs are all extracted."""
+        vcs = FakeVCS(
+            log_lines=[
+                'abc1234 feat: big change Fixes #10 Closes #20',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+        entry = changelog.sections[0].entries[0]
+        assert '10' in entry.issues
+        assert '20' in entry.issues
+
+    @pytest.mark.asyncio
+    async def test_no_issues(self) -> None:
+        """Commits without issue refs have empty issues tuple."""
+        vcs = FakeVCS(
+            log_lines=[
+                'abc1234 feat: plain feature',
+            ]
+        )
+        changelog = await generate_changelog(vcs=vcs, version='0.5.0')
+        entry = changelog.sections[0].entries[0]
+        assert entry.issues == ()
+
+    def test_render_entry_with_issues(self) -> None:
+        """Rendered entry includes 'closes #N' suffix."""
+        entry = ChangelogEntry(
+            type='fix',
+            description='resolve bug',
+            sha='abc1234',
+            issues=('100', '200'),
+        )
+        rendered = _render_entry(entry)
+        assert 'closes #100, #200' in rendered
+
+    def test_render_entry_without_issues(self) -> None:
+        """Rendered entry without issues has no closes suffix."""
+        entry = ChangelogEntry(
+            type='feat',
+            description='add thing',
+            sha='abc1234',
+        )
+        rendered = _render_entry(entry)
+        assert 'closes' not in rendered

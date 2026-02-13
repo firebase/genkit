@@ -205,6 +205,68 @@ class ExecutionPlan:
 
         return '\n'.join(lines)
 
+    def format_ascii_flow(self) -> str:
+        """Format the plan as an ASCII flow diagram showing publish order.
+
+        Groups packages by topological level with box-drawing characters
+        and arrows showing the publish sequence.
+
+        Returns:
+            An ASCII art string showing the publish flow.
+        """
+        if not self.entries:
+            return 'No packages in the execution plan.'
+
+        included = [e for e in self.entries if e.status == PlanStatus.INCLUDED]
+        if not included:
+            return 'No packages to publish.'
+
+        # Group by level.
+        levels: dict[int, list[PlanEntry]] = {}
+        for entry in included:
+            levels.setdefault(entry.level, []).append(entry)
+
+        # Compute box width from longest package line.
+        max_line_len = 0
+        for level_entries in levels.values():
+            for e in level_entries:
+                line = f'  {e.name} {e.current_version} -> {e.next_version} ({e.bump})'
+                max_line_len = max(max_line_len, len(line))
+        width = max(50, max_line_len + 4)
+
+        lines: list[str] = []
+        sorted_levels = sorted(levels.keys())
+
+        for i, level_idx in enumerate(sorted_levels):
+            level_entries = levels[level_idx]
+
+            if i == 0:
+                lines.append(f'┌{"─" * width}┐')
+            else:
+                # Arrow between levels.
+                arrow_pad = (width - 1) // 2
+                lines.append(f'│{" " * width}│')
+                lines.append(f'│{" " * arrow_pad}│{" " * (width - arrow_pad - 1)}│')
+                lines.append(f'│{" " * arrow_pad}▼{" " * (width - arrow_pad - 1)}│')
+                lines.append(f'├{"─" * width}┤')
+
+            header = f'│ Level {level_idx} (parallel)'
+            lines.append(f'{header}{" " * (width - len(header) + 1)}│')
+
+            for e in level_entries:
+                emoji = _STATUS_EMOJI.get(e.status, '❓')
+                content = f'│   {emoji} {e.name} {e.current_version} → {e.next_version} ({e.bump})'
+                lines.append(f'{content}{" " * (width - len(content) + 1)}│')
+
+        lines.append(f'└{"─" * width}┘')
+
+        # Summary line.
+        total = len(included)
+        level_count = len(sorted_levels)
+        lines.append(f'\n{total} package(s) across {level_count} level(s)')
+
+        return '\n'.join(lines)
+
     def format_json(self) -> str:
         """Format the plan as machine-readable JSON.
 

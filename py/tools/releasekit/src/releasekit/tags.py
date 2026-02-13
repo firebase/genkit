@@ -14,16 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-r"""Git tag creation and GitHub Release management for publish pipelines.
+r"""Git tag creation and platform release management for publish pipelines.
 
 Creates per-package tags and an umbrella release tag after a successful
 publish run. Supports two modes:
 
 - **Local mode** (default): Creates tags and pushes them after all
-  packages are published. Optionally creates a GitHub Release if
-  the ``gh`` CLI is available.
+  packages are published. Optionally creates a platform release if
+  the forge backend is available.
 
-- **CI mode** (``--publish-from=ci``): Creates a *draft* GitHub Release
+- **CI mode** (``--publish-from=ci``): Creates a *draft* platform release
   with the release manifest as an asset. A downstream CI workflow
   downloads the manifest, publishes packages, then promotes the
   draft to published.
@@ -70,11 +70,11 @@ Dual-mode release creation::
     Local mode (publish_from=local):
        1. Tags created AFTER all packages published
        2. Push tags
-       3. Create GitHub Release (published, not draft)
+       3. Create platform release (published, not draft)
 
     CI mode (publish_from=ci):
        1. Tags created BEFORE publishing (version job)
-       2. Draft GitHub Release with manifest.json asset
+       2. Draft platform release with manifest.json asset
        3. CI workflow downloads manifest, publishes, promotes
 
 Usage::
@@ -84,7 +84,7 @@ Usage::
     result = create_tags(
         manifest=manifest,
         vcs=git_backend,
-        forge=github_backend,
+        forge=forge_backend,
         tag_format='{name}-v{version}',
         umbrella_tag_format='v{version}',
         release_body='## Changes\\n...',
@@ -116,7 +116,7 @@ class TagResult:
         skipped: Tag names that already existed (not overwritten).
         failed: Mapping of tag name to error message for failures.
         pushed: Whether tags were pushed to the remote.
-        release_url: URL of the GitHub Release, if created.
+        release_url: URL of the platform release, if created.
     """
 
     created: list[str] = field(default_factory=list)
@@ -165,7 +165,7 @@ async def create_tags(
     prerelease: bool = False,
     dry_run: bool = False,
 ) -> TagResult:
-    """Create per-package tags, an umbrella tag, and optionally a GitHub Release.
+    """Create per-package tags, an umbrella tag, and optionally a platform release.
 
     Per-package tags use ``tag_format`` (e.g. ``genkit-v0.5.0``).
     The umbrella tag uses ``umbrella_tag_format`` (e.g. ``v0.5.0``).
@@ -174,7 +174,7 @@ async def create_tags(
     overwritten). This makes the function idempotent for resume
     scenarios.
 
-    If ``forge`` is provided and available, a GitHub Release is created:
+    If ``forge`` is provided and available, a platform release is created:
 
     - **Local mode**: Published release with ``release_body``.
     - **CI mode**: Draft release with ``manifest_path`` as an asset.
@@ -182,12 +182,12 @@ async def create_tags(
     Args:
         manifest: Release manifest with per-package version records.
         vcs: VCS backend for tag operations.
-        forge: Optional forge backend for GitHub Releases. If ``None``
+        forge: Optional forge backend for platform releases. If ``None``
             or ``forge.is_available()`` returns ``False``, release
             creation is silently skipped.
         tag_format: Per-package tag format string.
         umbrella_tag_format: Umbrella tag format string.
-        release_body: Markdown body for the GitHub Release.
+        release_body: Markdown body for the platform release.
         release_title: Release title. Defaults to the umbrella tag.
         manifest_path: Path to the manifest JSON file. Attached as a
             release asset in CI mode.
@@ -327,7 +327,7 @@ async def _create_release_if_available(
     dry_run: bool,
     result: TagResult,
 ) -> None:
-    """Create a GitHub Release if the forge is available.
+    """Create a platform release if the forge is available.
 
     Separated from :func:`create_tags` for testability and clarity.
 
@@ -412,7 +412,7 @@ async def delete_tags(
 
     Used for rollback scenarios when a release needs to be undone.
     Deletes tags locally and optionally from the remote. Also deletes
-    the associated GitHub Release if the forge is available.
+    the associated platform release if the forge is available.
 
     Args:
         manifest: Release manifest with per-package version records.

@@ -60,6 +60,7 @@ class FakeVCS:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Log."""
         return self._log_lines
@@ -195,6 +196,8 @@ class FakeForge:
         limit: int = 10,
     ) -> list[dict[str, str | int | list[str]]]:
         """List prs."""
+        self.last_list_prs_head = head
+        self.last_list_prs_label = label
         return self._prs
 
     async def add_labels(
@@ -499,3 +502,22 @@ class TestTagRelease:
             raise AssertionError(f'Should be OK: {result.errors}')
         if result.pr_number != 42:
             raise AssertionError(f'Expected PR #42, got {result.pr_number}')
+
+    def test_list_prs_filters_by_head_branch(self) -> None:
+        """tag_release passes head='releasekit--release' to list_prs."""
+        forge = FakeForge(prs=[])  # No PRs — we just want to check the call args.
+
+        config = ReleaseConfig()
+        asyncio.run(
+            tag_release(
+                vcs=FakeVCS(),
+                forge=forge,
+                config=config,
+                dry_run=True,
+            ),
+        )
+
+        if forge.last_list_prs_head != 'releasekit--release':
+            raise AssertionError(f'Expected head=releasekit--release, got {forge.last_list_prs_head!r}')
+        if forge.last_list_prs_label != 'autorelease: pending':
+            raise AssertionError(f'Expected label=autorelease: pending, got {forge.last_list_prs_label!r}')

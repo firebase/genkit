@@ -261,6 +261,7 @@ async def compute_bumps(
     force_unchanged: bool = False,
     graph: DependencyGraph | None = None,
     synchronize: bool = False,
+    major_on_zero: bool = False,
 ) -> list[PackageVersion]:
     """Compute version bumps for all packages based on Conventional Commits.
 
@@ -294,6 +295,8 @@ async def compute_bumps(
             no propagation is performed.
         synchronize: If ``True``, use lockstep mode (all packages share
             the max bump).
+        major_on_zero: If ``False`` (default), breaking changes on
+            ``0.x`` versions produce MINOR instead of MAJOR.
 
     Returns:
         A list of :class:`PackageVersion` records, one per package.
@@ -310,6 +313,7 @@ async def compute_bumps(
             format='%H %s',
             since_tag=last_tag,
             paths=[str(pkg.path)],
+            first_parent=True,
         )
 
         commits: list[ConventionalCommit] = []
@@ -337,6 +341,18 @@ async def compute_bumps(
                 max_bump = _max_bump(max_bump, commit.bump)
                 if not reason_commit:
                     reason_commit = commit.raw
+
+        # Downgrade MAJOR → MINOR for 0.x packages when major_on_zero is False.
+        if max_bump == BumpType.MAJOR and not major_on_zero:
+            major_version = pkg.version.split('.')[0]
+            if major_version == '0':
+                max_bump = BumpType.MINOR
+                logger.info(
+                    'major_downgraded_on_zero',
+                    package=pkg.name,
+                    version=pkg.version,
+                    hint='Set major_on_zero = true to allow 0.x → 1.0.0',
+                )
 
         # Handle prerelease mode.
         if prerelease and max_bump != BumpType.NONE:

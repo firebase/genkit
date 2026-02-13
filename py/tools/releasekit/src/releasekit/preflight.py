@@ -237,7 +237,7 @@ async def _check_forge(
     else:
         result.add_warning(
             check_name,
-            "'gh' CLI not installed or not authenticated. GitHub Releases will be skipped.",
+            'Forge CLI not installed or not authenticated. Platform releases will be skipped.',
         )
 
 
@@ -321,8 +321,16 @@ def _check_trusted_publisher(
     check_name = 'trusted_publisher'
 
     # OIDC token presence is the signal that trusted publishing is active.
-    # GitHub Actions sets ACTIONS_ID_TOKEN_REQUEST_URL when OIDC is enabled.
-    has_oidc = bool(os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL'))
+    # Different CI platforms set different env vars for OIDC:
+    #   GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_URL
+    #   GitLab CI:      CI_JOB_JWT / CI_JOB_JWT_V2
+    #   CircleCI:       CIRCLE_OIDC_TOKEN_V2
+    has_oidc = bool(
+        os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL')
+        or os.environ.get('CI_JOB_JWT_V2')
+        or os.environ.get('CI_JOB_JWT')
+        or os.environ.get('CIRCLE_OIDC_TOKEN_V2')
+    )
     is_ci = bool(os.environ.get('CI'))
 
     if is_ci and not has_oidc:

@@ -16,7 +16,7 @@
 
 """Release preparation: version bumps, changelog, and Release PR.
 
-Orchestrates the "prepare" step of the release-please model. On every
+Orchestrates the "prepare" step of the releasekit model. On every
 push to the default branch, this module:
 
 1. Runs preflight checks (clean tree, lock file, forge auth, etc.).
@@ -108,8 +108,8 @@ from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import Registry
 from releasekit.backends.vcs import VCS
-from releasekit.bump import bump_pyproject
-from releasekit.changelog import generate_changelog, render_changelog
+from releasekit.bump import BumpTarget, bump_file, bump_pyproject
+from releasekit.changelog import generate_changelog, render_changelog, write_changelog
 from releasekit.config import ReleaseConfig
 from releasekit.graph import build_graph, topo_sort
 from releasekit.logging import get_logger
@@ -121,7 +121,7 @@ from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
 
-_RELEASE_BRANCH = 'release-please--packages--default'
+_RELEASE_BRANCH = 'releasekit--release'
 _AUTORELEASE_PENDING = 'autorelease: pending'
 _MANIFEST_START = '<!-- releasekit:manifest:start -->'
 _MANIFEST_END = '<!-- releasekit:manifest:end -->'
@@ -228,6 +228,7 @@ async def prepare_release(
         tag_format=config.tag_format,
         graph=graph if not config.synchronize else None,
         synchronize=config.synchronize,
+        major_on_zero=config.major_on_zero,
     )
 
     bumped = [v for v in versions if not v.skipped]
@@ -268,6 +269,26 @@ async def prepare_release(
             bump_pyproject(pkg.pyproject_path, ver.new_version)
         logger.info('bumped', package=ver.name, old=ver.old_version, new=ver.new_version)
 
+    # 4b. Bump extra files (e.g. __init__.py with __version__).
+    if config.extra_files and not dry_run:
+        for entry in config.extra_files:
+            if ':' in entry:
+                file_path_str, pattern = entry.split(':', 1)
+            else:
+                file_path_str = entry
+                pattern = ''
+            extra_path = workspace_root / file_path_str
+            if extra_path.exists():
+                target = BumpTarget(path=extra_path, pattern=pattern) if pattern else BumpTarget(path=extra_path)
+                for ver in bumped:
+                    try:
+                        bump_file(target, ver.new_version)
+                        logger.info('extra_file_bumped', path=file_path_str, version=ver.new_version)
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug('extra_file_skip', path=file_path_str, package=ver.name, error=str(exc))
+                        continue
+
     # 5. Update lock file.
     if not dry_run:
         for ver in bumped:
@@ -289,6 +310,16 @@ async def prepare_release(
         result.changelogs[ver.name] = rendered
         logger.info('changelog_generated', package=ver.name, sections=len(changelog.sections))
 
+    # 6b. Write per-package CHANGELOG.md files.
+    for ver in bumped:
+        pkg = pkg_by_name.get(ver.name)
+        if pkg is None:
+            continue
+        rendered = result.changelogs.get(ver.name, '')
+        if rendered and not dry_run:
+            changelog_path = pkg.path / 'CHANGELOG.md'
+            write_changelog(changelog_path, rendered)
+
     # 7. Build and save manifest.
     git_sha = await vcs.current_sha()
     umbrella_version = bumped[0].new_version if bumped else '0.0.0'
@@ -306,7 +337,7 @@ async def prepare_release(
         manifest.save(manifest_path)
 
     # 8. Commit and push on release branch.
-    commit_msg = f'chore: release v{umbrella_version}'
+    commit_msg = config.pr_title_template.replace('{version}', umbrella_version)
     if not dry_run:
         await vcs.checkout_branch(_RELEASE_BRANCH, create=True)
         await vcs.commit(commit_msg, paths=['.'])
@@ -320,7 +351,7 @@ async def prepare_release(
         manifest_json = manifest_path.read_text(encoding='utf-8')
 
     pr_body = _build_pr_body(result.changelogs, manifest_json, umbrella_version)
-    pr_title = f'chore: release v{umbrella_version}'
+    pr_title = config.pr_title_template.replace('{version}', umbrella_version)
 
     if forge is not None and await forge.is_available():
         # Check if a Release PR already exists for this branch.
@@ -342,11 +373,21 @@ async def prepare_release(
                 result.pr_url = pr_result.stdout.strip() if pr_result.ok else ''
             logger.info('release_pr_created', branch=_RELEASE_BRANCH)
 
-        # Add "autorelease: pending" label (no-op on forges without labels).
-        if not dry_run and existing_prs:
-            pr_number = existing_prs[0].get('number', 0)
-            if pr_number:
-                await forge.add_labels(pr_number, [_AUTORELEASE_PENDING])
+        # Add "autorelease: pending" label to both new and existing PRs.
+        if not dry_run:
+            # For existing PRs, use the known number. For new PRs,
+            # extract the number from the PR URL returned by create_pr.
+            label_pr_number = 0
+            if existing_prs:
+                label_pr_number = existing_prs[0].get('number', 0)
+            elif result.pr_url:
+                # PR URL typically ends with the PR number.
+                try:
+                    label_pr_number = int(result.pr_url.rstrip('/').rsplit('/', 1)[-1])
+                except (ValueError, IndexError):
+                    logger.warning('cannot_parse_pr_number', url=result.pr_url)
+            if label_pr_number:
+                await forge.add_labels(label_pr_number, [_AUTORELEASE_PENDING])
 
     logger.info(
         'prepare_complete',

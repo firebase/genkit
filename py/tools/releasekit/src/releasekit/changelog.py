@@ -74,6 +74,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from releasekit.backends.vcs import VCS
 from releasekit.logging import get_logger
@@ -113,6 +114,12 @@ _DEFAULT_EXCLUDE_TYPES: frozenset[str] = frozenset({
 # Regex to extract PR references like (#1234) from commit messages.
 _PR_REF_PATTERN: re.Pattern[str] = re.compile(r'\(#(\d+)\)')
 
+# Regex to extract linked issue references (Fixes #123, Closes #456, Resolves #789).
+_ISSUE_REF_PATTERN: re.Pattern[str] = re.compile(
+    r'(?:(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s+#(\d+))',
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class ChangelogEntry:
@@ -124,6 +131,7 @@ class ChangelogEntry:
         description: Commit description.
         sha: Short commit SHA (first 7 characters).
         pr_number: PR number extracted from description, if any.
+        issues: Issue numbers linked via Fixes/Closes/Resolves.
         breaking: Whether this is a breaking change.
     """
 
@@ -132,6 +140,7 @@ class ChangelogEntry:
     sha: str = ''
     scope: str = ''
     pr_number: str = ''
+    issues: tuple[str, ...] = ()
     breaking: bool = False
 
 
@@ -171,6 +180,9 @@ def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
     pr_match = _PR_REF_PATTERN.search(cc.description)
     pr_number = pr_match.group(1) if pr_match else ''
 
+    # Extract linked issue references (Fixes #123, Closes #456, etc.).
+    issues = tuple(_ISSUE_REF_PATTERN.findall(cc.raw))
+
     # Clean description: remove trailing PR reference for cleaner display.
     description = cc.description
     if pr_match:
@@ -182,6 +194,7 @@ def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
         sha=short_sha,
         scope=cc.scope,
         pr_number=pr_number,
+        issues=issues,
         breaking=cc.breaking,
     )
 
@@ -236,6 +249,10 @@ def _render_entry(entry: ChangelogEntry) -> str:
 
     if refs:
         parts.append(f' ({", ".join(refs)})')
+
+    if entry.issues:
+        issue_refs = ', '.join(f'#{n}' for n in entry.issues)
+        parts.append(f', closes {issue_refs}')
 
     return ''.join(parts)
 
@@ -300,7 +317,7 @@ async def generate_changelog(
     if exclude_types is None:
         exclude_types = _DEFAULT_EXCLUDE_TYPES
 
-    log_lines = await vcs.log(since_tag=since_tag, paths=paths, format=log_format)
+    log_lines = await vcs.log(since_tag=since_tag, paths=paths, format=log_format, first_parent=True)
     logger.info(
         'changelog_commits_found',
         count=len(log_lines),
@@ -372,6 +389,70 @@ async def generate_umbrella_changelog(
     )
 
 
+_CHANGELOG_HEADING = '# Changelog\n'
+
+
+def write_changelog(
+    changelog_path: Path,
+    rendered: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """Write a rendered changelog section to a CHANGELOG.md file.
+
+    If the file exists, the new section is prepended below the
+    ``# Changelog`` heading. If the file doesn't exist, it is created
+    with the heading followed by the new section.
+
+    Duplicate detection: if the version heading (e.g. ``## 0.6.0``)
+    already appears in the file, the write is skipped to avoid
+    duplicate entries on re-runs.
+
+    Args:
+        changelog_path: Path to the CHANGELOG.md file.
+        rendered: Rendered markdown section from :func:`render_changelog`.
+        dry_run: If True, log what would happen without writing.
+
+    Returns:
+        True if the file was written (or would be in dry-run), False
+        if skipped (duplicate version).
+    """
+    # Extract the version heading line for duplicate detection.
+    first_line = rendered.split('\n', 1)[0].strip()
+
+    if changelog_path.exists():
+        existing = changelog_path.read_text(encoding='utf-8')
+
+        # Skip if this version is already in the file.
+        if first_line in existing:
+            logger.info(
+                'changelog_skip_duplicate',
+                path=str(changelog_path),
+                version_heading=first_line,
+            )
+            return False
+
+        # Insert after the # Changelog heading, or prepend if no heading.
+        heading_line = _CHANGELOG_HEADING.strip()
+        if existing.lstrip().startswith(heading_line):
+            # Split at the heading and insert after it.
+            parts = existing.split(heading_line, 1)
+            new_content = parts[0] + heading_line + '\n\n' + rendered + '\n' + parts[1].lstrip('\n')
+        else:
+            new_content = _CHANGELOG_HEADING + '\n' + rendered + '\n' + existing
+    else:
+        new_content = _CHANGELOG_HEADING + '\n' + rendered + '\n'
+
+    if dry_run:
+        logger.info('changelog_dry_run', path=str(changelog_path), version_heading=first_line)
+        return True
+
+    changelog_path.parent.mkdir(parents=True, exist_ok=True)
+    changelog_path.write_text(new_content, encoding='utf-8')
+    logger.info('changelog_written', path=str(changelog_path), version_heading=first_line)
+    return True
+
+
 __all__ = [
     'Changelog',
     'ChangelogEntry',
@@ -379,4 +460,5 @@ __all__ = [
     'generate_changelog',
     'generate_umbrella_changelog',
     'render_changelog',
+    'write_changelog',
 ]
