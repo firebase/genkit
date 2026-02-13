@@ -38,20 +38,20 @@ def _make_packages() -> list[Package]:
             name='genkit',
             version='0.5.0',
             path=Path('/ws/packages/genkit'),
-            pyproject_path=Path('/ws/packages/genkit/pyproject.toml'),
+            manifest_path=Path('/ws/packages/genkit/pyproject.toml'),
         ),
         Package(
             name='genkit-plugin-foo',
             version='0.5.0',
             path=Path('/ws/plugins/foo'),
-            pyproject_path=Path('/ws/plugins/foo/pyproject.toml'),
+            manifest_path=Path('/ws/plugins/foo/pyproject.toml'),
             internal_deps=['genkit'],
         ),
         Package(
             name='sample-hello',
             version='0.1.0',
             path=Path('/ws/samples/hello'),
-            pyproject_path=Path('/ws/samples/hello/pyproject.toml'),
+            manifest_path=Path('/ws/samples/hello/pyproject.toml'),
             internal_deps=['genkit', 'genkit-plugin-foo'],
         ),
     ]

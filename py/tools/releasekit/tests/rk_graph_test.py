@@ -40,7 +40,7 @@ def _pkg(name: str, internal_deps: list[str] | None = None, *, tmp_path: Path | 
         name=name,
         version='1.0.0',
         path=base / name,
-        pyproject_path=base / name / 'pyproject.toml',
+        manifest_path=base / name / 'pyproject.toml',
         internal_deps=internal_deps or [],
     )
 

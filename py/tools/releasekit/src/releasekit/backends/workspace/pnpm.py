@@ -342,8 +342,6 @@ class PnpmWorkspace:
             new_text = json.dumps(data, indent=2, ensure_ascii=False) + '\n'
             await _write_file(manifest_path, new_text)
 
-    # ── Private helpers ──────────────────────────────────────────────
-
     def _expand_member_globs(
         self,
         include: list[str],
@@ -394,7 +392,7 @@ class PnpmWorkspace:
         if not pattern:
             return [self._root]
 
-        return sorted(self._root.glob(pattern))
+        return sorted(self._root.glob(str(pattern)))
 
     async def _parse_package(
         self,

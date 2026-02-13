@@ -64,6 +64,52 @@ class GitCLIBackend:
         result = await asyncio.to_thread(self._git, 'rev-parse', '--is-shallow-repository')
         return result.stdout.strip() == 'true'
 
+    async def default_branch(self) -> str:
+        """Auto-detect the default branch name.
+
+        Tries, in order:
+
+        1. ``git symbolic-ref refs/remotes/origin/HEAD`` — set by
+           ``git clone`` or ``git remote set-head origin --auto``.
+        2. Check if common branch names (``main``, ``master``, ``trunk``,
+           ``develop``) exist as local refs.
+        3. Fall back to ``"main"``.
+        """
+        # Method 1: symbolic-ref (most reliable after clone).
+        result = await asyncio.to_thread(
+            self._git,
+            'symbolic-ref',
+            '--short',
+            'refs/remotes/origin/HEAD',
+        )
+        if result.ok and result.stdout.strip():
+            ref = result.stdout.strip()
+            # Strip "origin/" prefix if present.
+            if ref.startswith('origin/'):
+                ref = ref[len('origin/') :]
+            return ref
+
+        # Method 2: probe common branch names.
+        for candidate in ('main', 'master', 'trunk', 'develop'):
+            probe = await asyncio.to_thread(
+                self._git,
+                'rev-parse',
+                '--verify',
+                '--quiet',
+                f'refs/heads/{candidate}',
+            )
+            if probe.ok:
+                return candidate
+
+        # Method 3: fall back.
+        log.warning(
+            'default_branch_fallback',
+            hint='Could not detect default branch; falling back to "main". '
+            'Set default_branch in releasekit.toml or run '
+            '"git remote set-head origin --auto".',
+        )
+        return 'main'
+
     async def current_sha(self) -> str:
         """Return the current HEAD commit SHA."""
         result = await asyncio.to_thread(self._git, 'rev-parse', 'HEAD', check=True)
@@ -76,11 +122,17 @@ class GitCLIBackend:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return git log lines."""
         cmd_parts = ['log', f'--pretty=format:{format}']
+        if max_commits > 0:
+            cmd_parts.append(f'-n{max_commits}')
         if first_parent:
             cmd_parts.append('--first-parent')
+        if no_merges:
+            cmd_parts.append('--no-merges')
         if since_tag:
             cmd_parts.append(f'{since_tag}..HEAD')
         if paths:
@@ -180,6 +232,21 @@ class GitCLIBackend:
         log.info('push', remote=remote, tags=tags)
         return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
 
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all tags, optionally filtered by a glob pattern."""
+        cmd_parts = ['tag', '--list', '--sort=version:refname']
+        if pattern:
+            cmd_parts.append(pattern)
+        result = await asyncio.to_thread(self._git, *cmd_parts)
+        if not result.ok or not result.stdout.strip():
+            return []
+        return result.stdout.strip().splitlines()
+
+    async def current_branch(self) -> str:
+        """Return the name of the currently checked-out branch."""
+        result = await asyncio.to_thread(self._git, 'branch', '--show-current')
+        return result.stdout.strip() if result.ok else ''
+
     async def checkout_branch(
         self,
         branch: str,
@@ -190,7 +257,7 @@ class GitCLIBackend:
         """Switch to a branch, optionally creating it."""
         if create:
             log.info('checkout_branch_create', branch=branch)
-            return await asyncio.to_thread(self._git, 'checkout', '-b', branch, dry_run=dry_run)
+            return await asyncio.to_thread(self._git, 'checkout', '-B', branch, dry_run=dry_run)
         log.info('checkout_branch', branch=branch)
         return await asyncio.to_thread(self._git, 'checkout', branch, dry_run=dry_run)
 

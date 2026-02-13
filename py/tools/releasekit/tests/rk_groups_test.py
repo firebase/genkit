@@ -37,7 +37,7 @@ def _pkg(name: str) -> Package:
         name=name,
         version='0.1.0',
         path=Path(f'/workspace/{name}'),
-        pyproject_path=Path(f'/workspace/{name}/pyproject.toml'),
+        manifest_path=Path(f'/workspace/{name}/pyproject.toml'),
     )
 
 

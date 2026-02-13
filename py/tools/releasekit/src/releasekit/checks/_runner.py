@@ -137,6 +137,7 @@ def run_checks(
         backend.check_license_classifier_mismatch(packages, result)
         backend.check_unreachable_extras(packages, result)
         backend.check_self_dependencies(packages, result)
+        backend.check_distro_deps(packages, result)
 
     logger.info('checks_complete', summary=result.summary())
     return result

@@ -125,6 +125,7 @@ from releasekit.checks._universal import (
     fix_missing_readme,
     fix_stale_artifacts,
 )
+from releasekit.distro import fix_distro_deps
 
 __all__ = [
     'CheckBackend',
@@ -132,6 +133,7 @@ __all__ = [
     'PythonCheckBackend',
     'fix_build_system',
     'fix_changelog_url',
+    'fix_distro_deps',
     'fix_deprecated_classifiers',
     'fix_duplicate_dependencies',
     'fix_license_classifier_mismatch',

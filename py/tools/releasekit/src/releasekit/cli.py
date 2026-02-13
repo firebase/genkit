@@ -21,13 +21,14 @@ Provides subcommands for the full release workflow.
 
 Subcommands::
 
-    releasekit publish    Publish all changed packages to PyPI
+    releasekit publish    Publish all changed packages to their registry
     releasekit plan       Preview the execution plan (no publish)
     releasekit changelog  Generate per-package CHANGELOG.md files
     releasekit discover   List all workspace packages
     releasekit graph      Show the dependency graph
     releasekit version    Show computed version bumps
     releasekit explain    Explain an error code
+    releasekit doctor    Diagnose release state consistency
 
 Usage::
 
@@ -61,8 +62,8 @@ from releasekit.backends._run import CommandResult
 from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.forge.bitbucket import BitbucketAPIBackend
 from releasekit.backends.forge.gitlab import GitLabCLIBackend
-from releasekit.backends.pm import UvBackend
-from releasekit.backends.registry import PyPIBackend
+from releasekit.backends.pm import PackageManager, PnpmBackend, UvBackend
+from releasekit.backends.registry import NpmRegistry, PyPIBackend, Registry
 from releasekit.backends.vcs import GitCLIBackend
 from releasekit.checks import (
     PythonCheckBackend,
@@ -71,13 +72,14 @@ from releasekit.checks import (
     fix_stale_artifacts,
     run_checks,
 )
-from releasekit.config import ReleaseConfig, load_config, resolve_group_refs
+from releasekit.config import ReleaseConfig, WorkspaceConfig, load_config, resolve_group_refs
 from releasekit.detection import (
     DetectedEcosystem,
     Ecosystem,
     detect_ecosystems,
     find_monorepo_root,
 )
+from releasekit.doctor import Severity, run_doctor
 from releasekit.errors import E, ReleaseKitError, explain, render_error
 from releasekit.formatters import FORMATTERS, format_graph
 from releasekit.graph import build_graph, topo_sort
@@ -101,11 +103,9 @@ logger = get_logger(__name__)
 def _find_workspace_root() -> Path:
     """Find the workspace root by walking up from CWD.
 
-    Backward-compatible helper for commands that still use the legacy
-    ``discover_packages()`` function (which is uv-only). Walks up
-    from CWD looking for ``pyproject.toml`` with ``[tool.uv.workspace]``.
-
-    For multi-ecosystem discovery, use :func:`_resolve_ecosystems` instead.
+    Walks up from CWD looking for ``releasekit.toml``.  Falls back to
+    ``pyproject.toml`` with ``[tool.uv.workspace]`` for legacy
+    uv-only setups.
 
     Returns:
         Absolute path to the workspace root.
@@ -114,6 +114,11 @@ def _find_workspace_root() -> Path:
         ReleaseKitError: If no workspace root is found.
     """
     cwd = Path.cwd().resolve()
+    # Primary: look for releasekit.toml (polyglot config).
+    for parent in [cwd, *cwd.parents]:
+        if (parent / 'releasekit.toml').is_file():
+            return parent
+    # Fallback: legacy uv-only workspace.
     for parent in [cwd, *cwd.parents]:
         pyproject = parent / 'pyproject.toml'
         if pyproject.exists():
@@ -122,9 +127,23 @@ def _find_workspace_root() -> Path:
                 return parent
     raise ReleaseKitError(
         E.WORKSPACE_NOT_FOUND,
-        'Could not find a pyproject.toml with [tool.uv.workspace].',
-        hint='Run this command from within a uv workspace.',
+        'Could not find releasekit.toml or a pyproject.toml with [tool.uv.workspace].',
+        hint='Run "releasekit init" or place releasekit.toml at the repo root.',
     )
+
+
+def _effective_workspace_root(config_root: Path, ws_config: WorkspaceConfig) -> Path:
+    """Resolve the effective workspace root from the config root and workspace config.
+
+    The ``root`` field in ``[workspace.<label>]`` is relative to the
+    directory containing ``releasekit.toml``.  For example, if the config
+    lives at ``/repo/releasekit.toml`` and ``root = "py"``, the effective
+    workspace root is ``/repo/py``.
+
+    Returns:
+        Absolute path to the ecosystem-specific workspace root.
+    """
+    return (config_root / ws_config.root).resolve()
 
 
 def _get_ecosystem_filter(args: argparse.Namespace) -> Ecosystem | None:
@@ -259,11 +278,13 @@ class _NullForge:
 
 
 def _create_backends(
-    workspace_root: Path,
+    config_root: Path,
     config: ReleaseConfig,
     *,
+    ws_root: Path | None = None,
+    ws_config: WorkspaceConfig | None = None,
     forge_backend: str = 'cli',
-) -> tuple[GitCLIBackend, UvBackend, Forge, PyPIBackend]:
+) -> tuple[GitCLIBackend, PackageManager, Forge, Registry]:
     """Create real backend instances for production use.
 
     The forge backend is determined by ``config.forge`` (github, gitlab,
@@ -271,17 +292,36 @@ def _create_backends(
     Repository coordinates come from ``config.repo_owner`` and
     ``config.repo_name``.
 
+    The package manager and registry backends are selected based on
+    ``ws_config.tool``:
+
+    - ``"uv"`` → :class:`UvBackend` + :class:`PyPIBackend`
+    - ``"pnpm"`` → :class:`PnpmBackend` + :class:`NpmRegistry`
+
     Args:
-        workspace_root: Workspace root directory.
+        config_root: Directory containing ``releasekit.toml`` (repo root).
         config: Release configuration.
+        ws_root: Ecosystem-specific workspace root (e.g. ``repo/py``).
+            Defaults to *config_root* if not provided.
+        ws_config: Per-workspace config (used to select PM/registry).
         forge_backend: Transport hint: ``"cli"`` for CLI-based backends,
             ``"api"`` for REST API-based backends (where available).
 
     Returns:
         Tuple of (VCS, PackageManager, Forge, Registry) backends.
     """
-    vcs = GitCLIBackend(workspace_root)
-    pm = UvBackend(workspace_root)
+    effective_root = ws_root or config_root
+    vcs = GitCLIBackend(config_root)
+
+    tool = ws_config.tool if ws_config else 'uv'
+    pm: PackageManager
+    registry: Registry
+    if tool == 'pnpm':
+        pm = PnpmBackend(effective_root)
+        registry = NpmRegistry(pool_size=config.http_pool_size)
+    else:
+        pm = UvBackend(effective_root)
+        registry = PyPIBackend(pool_size=config.http_pool_size)
 
     owner = config.repo_owner
     repo = config.repo_name
@@ -293,21 +333,47 @@ def _create_backends(
     if forge_type == 'none':
         forge = _NullForge()
     elif forge_type == 'gitlab':
-        forge = GitLabCLIBackend(project=repo_slug, cwd=workspace_root)
+        forge = GitLabCLIBackend(project=repo_slug, cwd=config_root)
     elif forge_type == 'bitbucket':
         forge = BitbucketAPIBackend(workspace=owner, repo_slug=repo)
     elif forge_backend == 'api':
         forge = GitHubAPIBackend(owner=owner, repo=repo)
     else:
-        forge = GitHubCLIBackend(repo=repo_slug, cwd=workspace_root)
+        forge = GitHubCLIBackend(repo=repo_slug, cwd=config_root)
 
-    registry = PyPIBackend(pool_size=config.http_pool_size)
     return vcs, pm, forge, registry
+
+
+def _resolve_ws_config(
+    config: ReleaseConfig,
+    label: str | None = None,
+) -> WorkspaceConfig:
+    """Pick the workspace config for the current CLI context.
+
+    When ``label`` is given (via ``--workspace``), returns that specific
+    workspace config.  Otherwise returns the first (and typically only)
+    workspace, or a default ``WorkspaceConfig()`` if none are configured.
+
+    Raises:
+        ReleaseKitError: If the requested workspace label does not exist.
+    """
+    if label and label in config.workspaces:
+        return config.workspaces[label]
+    if label:
+        available = ', '.join(config.workspaces) or '(none)'
+        raise ReleaseKitError(
+            E.WORKSPACE_NOT_FOUND,
+            f'Workspace {label!r} not found. Available: {available}',
+            hint='Check the [workspace.<label>] sections in releasekit.toml.',
+        )
+    if config.workspaces:
+        return next(iter(config.workspaces.values()))
+    return WorkspaceConfig()
 
 
 def _maybe_filter_group(
     packages: list[Package],
-    config: ReleaseConfig,
+    ws_config: WorkspaceConfig,
     group: str | None,
 ) -> list[Package]:
     """Optionally filter packages by release group.
@@ -318,7 +384,7 @@ def _maybe_filter_group(
     if group is None:
         return packages
 
-    return filter_by_group(packages, groups=config.groups, group=group)
+    return filter_by_group(packages, groups=ws_config.groups, group=group)
 
 
 def _match_exclude_patterns(name: str, patterns: list[str]) -> bool:
@@ -326,36 +392,48 @@ def _match_exclude_patterns(name: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(name, pat) for pat in patterns)
 
 
-# ── Subcommand handlers ──────────────────────────────────────────────
-
-
 async def _cmd_publish(args: argparse.Namespace) -> int:
     """Handle the ``publish`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
     forge_backend = getattr(args, 'forge_backend', 'cli')
     vcs, pm, forge, registry = _create_backends(
-        workspace_root,
+        config_root,
         config,
+        ws_root=ws_root,
+        ws_config=ws_config,
         forge_backend=forge_backend,
     )
 
     # Discover and analyze — all packages participate in checks + version bumps.
-    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    all_packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
     group = getattr(args, 'group', None)
-    packages = _maybe_filter_group(all_packages, config, group)
+    packages = _maybe_filter_group(all_packages, ws_config, group)
     graph = build_graph(packages)
     levels = topo_sort(graph)
+    propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
     versions = await compute_bumps(
         packages,
         vcs,
-        tag_format=config.tag_format,
+        tag_format=ws_config.tag_format,
         prerelease='',
         force_unchanged=args.force_unchanged,
+        ignore_unknown_tags=getattr(args, 'ignore_unknown_tags', False),
+        graph=propagate_graph,
+        synchronize=ws_config.synchronize,
+        major_on_zero=ws_config.major_on_zero,
+        max_commits=ws_config.max_commits,
+        bootstrap_sha=ws_config.bootstrap_sha,
     )
 
     # Filter out exclude_bump packages — they are discovered + checked but not bumped.
-    resolved_exclude_bump = resolve_group_refs(config.exclude_bump, config.groups)
+    resolved_exclude_bump = resolve_group_refs(ws_config.exclude_bump, ws_config.groups)
     if resolved_exclude_bump:
         bump_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_bump)}
         if bump_excluded:
@@ -366,7 +444,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         levels = topo_sort(graph)
 
     # Filter out exclude_publish packages — they get version bumps but not published.
-    resolved_exclude_publish = resolve_group_refs(config.exclude_publish, config.groups)
+    resolved_exclude_publish = resolve_group_refs(ws_config.exclude_publish, ws_config.groups)
     if resolved_exclude_publish:
         pub_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_publish)}
         if pub_excluded:
@@ -383,7 +461,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         return 0
 
     # Build execution plan for preview.
-    plan = build_plan(versions, levels, exclude_names=config.exclude, git_sha=await vcs.current_sha())
+    plan = build_plan(versions, levels, exclude_names=ws_config.exclude, git_sha=await vcs.current_sha())
 
     if not args.force and not args.dry_run:
         print(plan.format_table())  # noqa: T201 - CLI output
@@ -395,7 +473,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
                 return 1
 
     # Preflight.
-    with release_lock(workspace_root):
+    with release_lock(ws_root):
         preflight = await run_preflight(
             vcs=vcs,
             pm=pm,
@@ -404,7 +482,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             packages=packages,
             graph=graph,
             versions=versions,
-            workspace_root=workspace_root,
+            workspace_root=ws_root,
             dry_run=args.dry_run,
             skip_version_check=args.force,
         )
@@ -419,12 +497,16 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             check_url=args.check_url,
             index_url=args.index_url,
-            smoke_test=config.smoke_test,
+            smoke_test=ws_config.smoke_test,
             max_retries=args.max_retries,
             retry_base_delay=args.retry_base_delay,
             task_timeout=args.task_timeout,
             force=args.force,
-            workspace_root=workspace_root,
+            workspace_root=ws_root,
+            workspace_label=ws_config.label,
+            dist_tag=getattr(args, 'dist_tag', '') or ws_config.dist_tag,
+            publish_branch=ws_config.publish_branch,
+            provenance=ws_config.provenance,
         )
 
         # Create progress UI (Rich table for TTY, log lines for CI).
@@ -460,7 +542,8 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         git_sha=await vcs.current_sha(),
         packages=versions,
     )
-    manifest_path = workspace_root / 'release-manifest.json'
+    manifest_name = f'release-manifest--{ws_config.label}.json' if ws_config.label else 'release-manifest.json'
+    manifest_path = ws_root / manifest_name
     manifest.save(manifest_path)
     logger.info('manifest_saved', path=str(manifest_path))
 
@@ -469,20 +552,33 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
 
 async def _cmd_plan(args: argparse.Namespace) -> int:
     """Handle the ``plan`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, _pm, _forge, registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, _pm, _forge, registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
 
-    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    all_packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
     group = getattr(args, 'group', None)
-    packages = _maybe_filter_group(all_packages, config, group)
+    packages = _maybe_filter_group(all_packages, ws_config, group)
     graph = build_graph(packages)
     levels = topo_sort(graph)
+    propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
     versions = await compute_bumps(
         packages,
         vcs,
-        tag_format=config.tag_format,
+        tag_format=ws_config.tag_format,
         force_unchanged=args.force_unchanged,
+        ignore_unknown_tags=getattr(args, 'ignore_unknown_tags', False),
+        graph=propagate_graph,
+        synchronize=ws_config.synchronize,
+        major_on_zero=ws_config.major_on_zero,
+        max_commits=ws_config.max_commits,
+        bootstrap_sha=ws_config.bootstrap_sha,
     )
 
     # Check which versions are already published.
@@ -494,7 +590,7 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
     plan = build_plan(
         versions,
         levels,
-        exclude_names=config.exclude,
+        exclude_names=ws_config.exclude,
         already_published=already_published,
         git_sha=await vcs.current_sha(),
     )
@@ -526,14 +622,20 @@ def _cmd_discover(args: argparse.Namespace) -> int:
     """
     monorepo_root, ecosystems = _resolve_ecosystems(args)
     config = load_config(monorepo_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
     group = getattr(args, 'group', None)
     fmt = getattr(args, 'format', 'table')
 
     if not ecosystems:
         # Fall back to legacy uv-only discovery.
-        workspace_root = _find_workspace_root()
-        all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
-        packages = _maybe_filter_group(all_packages, config, group)
+        config_root = _find_workspace_root()
+        ws_root = _effective_workspace_root(config_root, ws_config)
+        all_packages = discover_packages(
+            ws_root,
+            exclude_patterns=ws_config.exclude,
+            ecosystem=ws_config.ecosystem or 'python',
+        )
+        packages = _maybe_filter_group(all_packages, ws_config, group)
         _print_packages(packages, fmt, ecosystem_label=None)
         return 0
 
@@ -549,7 +651,7 @@ def _cmd_discover(args: argparse.Namespace) -> int:
             continue
 
         try:
-            eco_packages = asyncio.run(eco.workspace.discover(exclude_patterns=config.exclude))
+            eco_packages = asyncio.run(eco.workspace.discover(exclude_patterns=ws_config.exclude))
         except ReleaseKitError as exc:
             # Don't let one ecosystem's error block discovery of others.
             logger.warning(
@@ -566,7 +668,7 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                 name=p.name,
                 version=p.version,
                 path=p.path,
-                pyproject_path=p.manifest_path,
+                manifest_path=p.manifest_path,
                 internal_deps=list(p.internal_deps),
                 external_deps=list(p.external_deps),
                 all_deps=list(p.all_deps),
@@ -574,7 +676,7 @@ def _cmd_discover(args: argparse.Namespace) -> int:
             )
             for p in eco_packages
         ]
-        filtered = _maybe_filter_group(legacy, config, group)
+        filtered = _maybe_filter_group(legacy, ws_config, group)
         _print_packages(filtered, fmt, ecosystem_label=eco.ecosystem.value, data_acc=all_data)
 
     if fmt == 'json' and all_data:
@@ -623,9 +725,15 @@ def _print_packages(
 
 def _cmd_graph(args: argparse.Namespace) -> int:
     """Handle the ``graph`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
     graph = build_graph(packages)
 
     fmt = getattr(args, 'format', 'levels')
@@ -637,12 +745,18 @@ def _cmd_graph(args: argparse.Namespace) -> int:
 
 def _cmd_check(args: argparse.Namespace) -> int:
     """Handle the ``check`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
     graph = build_graph(packages)
 
-    resolved_exclude_publish = resolve_group_refs(config.exclude_publish, config.groups)
+    resolved_exclude_publish = resolve_group_refs(ws_config.exclude_publish, ws_config.groups)
 
     # --fix: auto-fix issues before running checks.
     if getattr(args, 'fix', False):
@@ -655,11 +769,11 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
         # Language-specific fixers (via backend).
         backend = PythonCheckBackend(
-            core_package=config.core_package,
-            plugin_prefix=config.plugin_prefix,
-            namespace_dirs=config.namespace_dirs,
-            library_dirs=config.library_dirs,
-            plugin_dirs=config.plugin_dirs,
+            core_package=ws_config.core_package,
+            plugin_prefix=ws_config.plugin_prefix,
+            namespace_dirs=ws_config.namespace_dirs,
+            library_dirs=ws_config.library_dirs,
+            plugin_dirs=ws_config.plugin_dirs,
         )
         all_changes.extend(
             backend.run_fixes(
@@ -667,9 +781,9 @@ def _cmd_check(args: argparse.Namespace) -> int:
                 exclude_publish=resolved_exclude_publish,
                 repo_owner=config.repo_owner,
                 repo_name=config.repo_name,
-                namespace_dirs=config.namespace_dirs,
-                library_dirs=config.library_dirs,
-                plugin_dirs=config.plugin_dirs,
+                namespace_dirs=ws_config.namespace_dirs,
+                library_dirs=ws_config.library_dirs,
+                plugin_dirs=ws_config.plugin_dirs,
             )
         )
 
@@ -678,20 +792,24 @@ def _cmd_check(args: argparse.Namespace) -> int:
                 print(f'  🔧 {change}')  # noqa: T201 - CLI output
             print()  # noqa: T201 - CLI output
             # Re-discover packages so checks see the updated state.
-            packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+            packages = discover_packages(
+                ws_root,
+                exclude_patterns=ws_config.exclude,
+                ecosystem=ws_config.ecosystem or 'python',
+            )
             graph = build_graph(packages)
 
     result = run_checks(
         packages,
         graph,
         exclude_publish=resolved_exclude_publish,
-        groups=config.groups,
-        workspace_root=workspace_root,
-        core_package=config.core_package,
-        plugin_prefix=config.plugin_prefix,
-        namespace_dirs=config.namespace_dirs,
-        library_dirs=config.library_dirs,
-        plugin_dirs=config.plugin_dirs,
+        groups=ws_config.groups,
+        workspace_root=ws_root,
+        core_package=ws_config.core_package,
+        plugin_prefix=ws_config.plugin_prefix,
+        namespace_dirs=ws_config.namespace_dirs,
+        library_dirs=ws_config.library_dirs,
+        plugin_dirs=ws_config.plugin_dirs,
     )
 
     # Print detailed results.
@@ -721,25 +839,39 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
 async def _cmd_version(args: argparse.Namespace) -> int:
     """Handle the ``version`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, _pm, _forge, _registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, _pm, _forge, _registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
 
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
 
     # Filter out exclude_bump packages before computing bumps.
-    resolved_exclude_bump = resolve_group_refs(config.exclude_bump, config.groups)
+    resolved_exclude_bump = resolve_group_refs(ws_config.exclude_bump, ws_config.groups)
     if resolved_exclude_bump:
         bump_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_bump)}
         if bump_excluded:
             logger.info('exclude_bump', count=len(bump_excluded), names=sorted(bump_excluded))
         packages = [p for p in packages if p.name not in bump_excluded]
 
+    graph = build_graph(packages)
+    propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
     versions = await compute_bumps(
         packages,
         vcs,
-        tag_format=config.tag_format,
+        tag_format=ws_config.tag_format,
         force_unchanged=args.force_unchanged,
+        ignore_unknown_tags=getattr(args, 'ignore_unknown_tags', False),
+        graph=propagate_graph,
+        synchronize=ws_config.synchronize,
+        major_on_zero=ws_config.major_on_zero,
+        max_commits=ws_config.max_commits,
+        bootstrap_sha=ws_config.bootstrap_sha,
     )
 
     fmt = getattr(args, 'format', 'table')
@@ -778,13 +910,19 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
     from releasekit.changelog import generate_changelog, render_changelog, write_changelog
     from releasekit.tags import format_tag
 
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, _pm, _forge, _registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, _pm, _forge, _registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
 
-    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    all_packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
     group = getattr(args, 'group', None)
-    packages = _maybe_filter_group(all_packages, config, group)
+    packages = _maybe_filter_group(all_packages, ws_config, group)
 
     dry_run = getattr(args, 'dry_run', False)
     today = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')
@@ -794,7 +932,7 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
 
     for pkg in packages:
         # Find the last tag for this package to scope the log.
-        tag = format_tag(config.tag_format, name=pkg.name, version=pkg.version)
+        tag = format_tag(ws_config.tag_format, name=pkg.name, version=pkg.version, label=ws_config.label)
         tag_exists = await vcs.tag_exists(tag)
         since_tag = tag if tag_exists else None
 
@@ -874,9 +1012,9 @@ def _cmd_init(args: argparse.Namespace) -> int:
 
 async def _cmd_rollback(args: argparse.Namespace) -> int:
     """Handle the ``rollback`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, _pm, forge, _registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    vcs, _pm, forge, _registry = _create_backends(config_root, config)
     dry_run = getattr(args, 'dry_run', False)
     tag = args.tag
 
@@ -1066,17 +1204,20 @@ complete -c {prog} -n '__fish_seen_subcommand_from publish' -l version-only -d '
 
 async def _cmd_prepare(args: argparse.Namespace) -> int:
     """Handle the ``prepare`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, pm, forge, registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, pm, forge, registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
 
     result = await prepare_release(
         vcs=vcs,
         pm=pm,
         forge=forge,
         registry=registry,
-        workspace_root=workspace_root,
+        workspace_root=ws_root,
         config=config,
+        ws_config=ws_config,
         dry_run=args.dry_run,
         force=args.force,
     )
@@ -1102,9 +1243,10 @@ async def _cmd_prepare(args: argparse.Namespace) -> int:
 
 async def _cmd_release(args: argparse.Namespace) -> int:
     """Handle the ``release`` subcommand."""
-    workspace_root = _find_workspace_root()
-    config = load_config(workspace_root)
-    vcs, _pm, forge, _registry = _create_backends(workspace_root, config)
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    vcs, _pm, forge, _registry = _create_backends(config_root, config, ws_config=ws_config)
 
     manifest_path = Path(args.manifest) if args.manifest else None
 
@@ -1112,6 +1254,7 @@ async def _cmd_release(args: argparse.Namespace) -> int:
         vcs=vcs,
         forge=forge,
         config=config,
+        ws_config=ws_config,
         manifest_path=manifest_path,
         dry_run=args.dry_run,
     )
@@ -1129,7 +1272,50 @@ async def _cmd_release(args: argparse.Namespace) -> int:
     return 0
 
 
-# ── Argument parser ──────────────────────────────────────────────────
+async def _cmd_doctor(args: argparse.Namespace) -> int:
+    """Handle the ``doctor`` subcommand."""
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    forge_backend = getattr(args, 'forge_backend', 'cli')
+    vcs, _pm, forge, _registry = _create_backends(
+        config_root,
+        config,
+        ws_root=ws_root,
+        ws_config=ws_config,
+        forge_backend=forge_backend,
+    )
+
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
+
+    report = await run_doctor(
+        packages=packages,
+        vcs=vcs,
+        forge=forge,
+        config=config,
+        ws_config=ws_config,
+    )
+
+    # Render report.
+    severity_icons = {Severity.PASS: '\u2705', Severity.WARN: '\u26a0\ufe0f ', Severity.FAIL: '\u274c'}
+    for diag in report.results:
+        icon = severity_icons.get(diag.severity, '?')
+        print(f'{icon} {diag.name}: {diag.message}')  # noqa: T201
+        if diag.hint:
+            print(f'   \u2192 {diag.hint}')  # noqa: T201
+
+    passed = len(report.passed)
+    warns = len(report.warnings)
+    fails = len(report.failures)
+    print()  # noqa: T201
+    print(f'{passed} passed, {warns} warnings, {fails} failures')  # noqa: T201
+
+    return 0 if report.ok else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1141,7 +1327,7 @@ def build_parser() -> argparse.ArgumentParser:
     RichHelpFormatter.styles['argparse.groups'] = 'bold yellow'
     parser = argparse.ArgumentParser(
         prog='releasekit',
-        description='Release orchestration for polyglot monorepos (uv, pnpm, Go).',
+        description='Release orchestration for polyglot monorepos.',
         formatter_class=RichHelpFormatter,
     )
     parser.add_argument(
@@ -1149,13 +1335,19 @@ def build_parser() -> argparse.ArgumentParser:
         action='version',
         version=f'%(prog)s {__version__}',
     )
+    parser.add_argument(
+        '--workspace',
+        '-w',
+        metavar='LABEL',
+        default=None,
+        help='Workspace label from releasekit.toml (e.g. py, js). Defaults to the first workspace.',
+    )
 
     subparsers = parser.add_subparsers(dest='command')
 
-    # ── publish ──
     publish_parser = subparsers.add_parser(
         'publish',
-        help='Publish all changed packages to PyPI.',
+        help='Publish all changed packages to their registry.',
     )
     publish_parser.add_argument(
         '--dry-run',
@@ -1174,6 +1366,11 @@ def build_parser() -> argparse.ArgumentParser:
         help='Include packages with no changes.',
     )
     publish_parser.add_argument(
+        '--ignore-unknown-tags',
+        action='store_true',
+        help='Fall back to full history if a tag is unreachable.',
+    )
+    publish_parser.add_argument(
         '--concurrency',
         type=int,
         default=5,
@@ -1181,11 +1378,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_parser.add_argument(
         '--check-url',
-        help='URL to check for existing files (uv publish --check-url).',
+        help='URL to check for already-published versions.',
     )
     publish_parser.add_argument(
         '--index-url',
-        help='Custom index URL (e.g., Test PyPI).',
+        help='Custom registry index URL.',
+    )
+    publish_parser.add_argument(
+        '--dist-tag',
+        dest='dist_tag',
+        default='',
+        help='npm dist-tag for pnpm publish --tag (e.g. latest, next).',
     )
     publish_parser.add_argument(
         '--max-retries',
@@ -1238,7 +1441,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
-    # ── plan ──
     plan_parser = subparsers.add_parser(
         'plan',
         help='Preview the execution plan without publishing.',
@@ -1255,13 +1457,17 @@ def build_parser() -> argparse.ArgumentParser:
         help='Include packages with no changes.',
     )
     plan_parser.add_argument(
+        '--ignore-unknown-tags',
+        action='store_true',
+        help='Fall back to full history if a tag is unreachable.',
+    )
+    plan_parser.add_argument(
         '--group',
         '-g',
         metavar='NAME',
         help='Only show packages in this release group.',
     )
 
-    # ── discover ──
     discover_parser = subparsers.add_parser(
         'discover',
         help='List all workspace packages (across all detected ecosystems).',
@@ -1283,10 +1489,9 @@ def build_parser() -> argparse.ArgumentParser:
         '-e',
         choices=[e.value for e in list(Ecosystem)],
         metavar='ECO',
-        help='Only discover packages in this ecosystem (python, js, go).',
+        help='Only discover packages in this ecosystem.',
     )
 
-    # ── graph ──
     graph_parser = subparsers.add_parser(
         'graph',
         help='Show the dependency graph.',
@@ -1308,7 +1513,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Show only reverse dependencies of PKG.',
     )
 
-    # ── check ──
     check_parser = subparsers.add_parser(
         'check',
         help='Run workspace health checks (cycles, deps, files, metadata).',
@@ -1320,7 +1524,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Auto-fix issues that can be fixed (e.g. Private :: Do Not Upload classifiers).',
     )
 
-    # ── version ──
     version_parser = subparsers.add_parser(
         'version',
         help='Show computed version bumps.',
@@ -1337,13 +1540,17 @@ def build_parser() -> argparse.ArgumentParser:
         help='Include packages with no changes.',
     )
     version_parser.add_argument(
+        '--ignore-unknown-tags',
+        action='store_true',
+        help='Fall back to full history if a tag is unreachable.',
+    )
+    version_parser.add_argument(
         '--group',
         '-g',
         metavar='NAME',
         help='Only show versions for packages in this release group.',
     )
 
-    # ── changelog ──
     changelog_parser = subparsers.add_parser(
         'changelog',
         help='Generate per-package CHANGELOG.md files from Conventional Commits.',
@@ -1360,7 +1567,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Only generate changelogs for packages in this release group.',
     )
 
-    # ── explain ──
     explain_parser = subparsers.add_parser(
         'explain',
         help='Explain an error code.',
@@ -1370,7 +1576,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Error code to explain (e.g., RK-PREFLIGHT-DIRTY-WORKTREE).',
     )
 
-    # ── init ──
     init_parser = subparsers.add_parser(
         'init',
         help='Scaffold releasekit.toml config for the workspace.',
@@ -1390,10 +1595,9 @@ def build_parser() -> argparse.ArgumentParser:
         '-e',
         choices=[e.value for e in list(Ecosystem)],
         metavar='ECO',
-        help='Only init for this ecosystem (python, js, go).',
+        help='Only init for this ecosystem.',
     )
 
-    # ── rollback ──
     rollback_parser = subparsers.add_parser(
         'rollback',
         help='Delete a tag and its platform release.',
@@ -1408,7 +1612,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Preview mode: log commands without executing.',
     )
 
-    # ── prepare ──
     prepare_parser = subparsers.add_parser(
         'prepare',
         help='Prepare a release: bump versions, generate changelogs, open Release PR.',
@@ -1436,7 +1639,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
-    # ── release ──
     release_parser = subparsers.add_parser(
         'release',
         help='Tag a merged Release PR and create platform Release.',
@@ -1452,7 +1654,6 @@ def build_parser() -> argparse.ArgumentParser:
         help='Path to a manifest JSON file (skips PR lookup).',
     )
 
-    # ── completion ──
     completion_parser = subparsers.add_parser(
         'completion',
         help='Generate shell completion script.',
@@ -1461,6 +1662,17 @@ def build_parser() -> argparse.ArgumentParser:
         'shell',
         choices=['bash', 'zsh', 'fish'],
         help='Shell to generate completions for.',
+    )
+
+    doctor_parser = subparsers.add_parser(
+        'doctor',
+        help='Diagnose release state: config, tags, VCS, forge connectivity.',
+    )
+    doctor_parser.add_argument(
+        '--forge-backend',
+        choices=['cli', 'api'],
+        default='cli',
+        help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
     return parser
@@ -1503,6 +1715,8 @@ def main() -> int:
             return asyncio.run(_cmd_release(args))
         if command == 'completion':
             return _cmd_completion(args)
+        if command == 'doctor':
+            return asyncio.run(_cmd_doctor(args))
 
         parser.print_help()  # noqa: T201 - CLI output
         print(  # noqa: T201 - CLI output

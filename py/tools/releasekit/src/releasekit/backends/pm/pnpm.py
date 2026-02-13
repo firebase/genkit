@@ -98,6 +98,9 @@ class PnpmBackend:
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Publish a package using ``pnpm publish``.
@@ -108,6 +111,11 @@ class PnpmBackend:
                 the package directory, not a dist directory.
             check_url: Unused for npm (accepted for protocol compat).
             index_url: Custom registry URL (maps to ``--registry``).
+            dist_tag: npm dist-tag (maps to ``--tag``).
+            publish_branch: Allow publishing from a non-default branch
+                (maps to ``--publish-branch``).
+            provenance: Generate provenance attestation
+                (maps to ``--provenance``).
             dry_run: Perform a dry run without uploading.
 
         See: https://pnpm.io/cli/publish
@@ -115,6 +123,12 @@ class PnpmBackend:
         cmd = ['pnpm', 'publish', '--no-git-checks', '--access', 'public']
         if index_url:
             cmd.extend(['--registry', index_url])
+        if dist_tag:
+            cmd.extend(['--tag', dist_tag])
+        if publish_branch:
+            cmd.extend(['--publish-branch', publish_branch])
+        if provenance:
+            cmd.append('--provenance')
         if dry_run:
             cmd.append('--dry-run')
 

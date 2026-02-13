@@ -364,10 +364,29 @@ def fix_missing_readme(
 
 
 def _get_bundled_license() -> str:
-    """Read the Apache 2.0 LICENSE bundled with the releasekit package."""
-    # releasekit's own LICENSE lives at the package root, two levels
-    # above src/releasekit/.  Use __file__ to locate it portably so
-    # releasekit stays self-contained across repos.
+    """Read the Apache 2.0 LICENSE bundled with the releasekit package.
+
+    Searches two locations:
+
+    1. **Installed package** — ``importlib.resources`` finds the LICENSE
+       file force-included inside the ``releasekit`` package directory
+       in the wheel.  This works in tox venvs and pip installs.
+    2. **Development tree** — Walk up from ``__file__`` to the project
+       root (``tools/releasekit/LICENSE``).  This works when running
+       from the source checkout without installing.
+    """
+    # 1. Try importlib.resources (works in installed environments).
+    try:
+        import importlib.resources as _resources  # noqa: PLC0415
+
+        ref = _resources.files('releasekit').joinpath('LICENSE')
+        license_text = ref.read_text(encoding='utf-8')
+        if license_text:
+            return license_text
+    except (FileNotFoundError, ModuleNotFoundError, TypeError):
+        pass
+
+    # 2. Fall back to walking up from __file__ (dev tree).
     pkg_root = Path(__file__).resolve().parent.parent.parent.parent
     license_path = pkg_root / 'LICENSE'
     if license_path.is_file():

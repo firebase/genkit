@@ -37,34 +37,34 @@ def _make_packages() -> list[Package]:
             name='genkit',
             version='0.5.0',
             path=Path('/ws/packages/genkit'),
-            pyproject_path=Path('/ws/packages/genkit/pyproject.toml'),
+            manifest_path=Path('/ws/packages/genkit/pyproject.toml'),
         ),
         Package(
             name='genkit-plugin-google-genai',
             version='0.5.0',
             path=Path('/ws/plugins/google-genai'),
-            pyproject_path=Path('/ws/plugins/google-genai/pyproject.toml'),
+            manifest_path=Path('/ws/plugins/google-genai/pyproject.toml'),
             internal_deps=['genkit'],
         ),
         Package(
             name='genkit-plugin-vertex-ai',
             version='0.5.0',
             path=Path('/ws/plugins/vertex-ai'),
-            pyproject_path=Path('/ws/plugins/vertex-ai/pyproject.toml'),
+            manifest_path=Path('/ws/plugins/vertex-ai/pyproject.toml'),
             internal_deps=['genkit'],
         ),
         Package(
             name='genkit-plugin-ollama',
             version='0.5.0',
             path=Path('/ws/plugins/ollama'),
-            pyproject_path=Path('/ws/plugins/ollama/pyproject.toml'),
+            manifest_path=Path('/ws/plugins/ollama/pyproject.toml'),
             internal_deps=['genkit'],
         ),
         Package(
             name='provider-google-genai-hello',
             version='0.1.0',
             path=Path('/ws/samples/provider-google-genai-hello'),
-            pyproject_path=Path('/ws/samples/provider-google-genai-hello/pyproject.toml'),
+            manifest_path=Path('/ws/samples/provider-google-genai-hello/pyproject.toml'),
             internal_deps=['genkit', 'genkit-plugin-google-genai'],
         ),
     ]
@@ -123,17 +123,28 @@ class TestGenerateConfigToml:
     """Tests for generate_config_toml()."""
 
     def test_produces_valid_toml(self) -> None:
-        """Generated output is valid TOML with top-level keys."""
+        """Generated output is valid TOML with workspace section."""
         groups = {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}
         output = generate_config_toml(groups)
 
         doc = tomlkit.parse(output)
-        # Flat top-level keys (no [tool.releasekit] nesting).
-        if 'tag_format' not in doc:
-            raise AssertionError('Missing tag_format at top level')
+        if 'workspace' not in doc:
+            raise AssertionError('Missing workspace section')
+
+    def test_contains_workspace_section(self) -> None:
+        """Generated TOML includes [workspace.<label>] section."""
+        output = generate_config_toml({}, workspace_label='py', ecosystem='python')
+        if '[workspace.py]' not in output:
+            raise AssertionError('Missing [workspace.py] section')
+
+    def test_contains_ecosystem(self) -> None:
+        """Generated TOML includes ecosystem field in workspace."""
+        output = generate_config_toml({}, ecosystem='python')
+        if 'ecosystem = "python"' not in output:
+            raise AssertionError('Missing ecosystem field')
 
     def test_contains_tag_format(self) -> None:
-        """Generated TOML includes tag_format."""
+        """Generated TOML includes tag_format in workspace section."""
         output = generate_config_toml({})
         if 'tag_format' not in output:
             raise AssertionError('Missing tag_format')
@@ -155,7 +166,46 @@ class TestGenerateConfigToml:
         """Generated TOML does NOT have [tool.releasekit] nesting."""
         output = generate_config_toml({})
         if '[tool]' in output:
-            raise AssertionError('Should not have [tool] section — flat TOML only')
+            raise AssertionError('Should not have [tool] section')
+
+    def test_js_ecosystem(self) -> None:
+        """Generated TOML for JS ecosystem."""
+        output = generate_config_toml({}, workspace_label='js', ecosystem='js')
+        doc = tomlkit.parse(output)
+        workspace_table = doc.unwrap()['workspace']
+        ws = workspace_table['js']
+        if ws['ecosystem'] != 'js':
+            raise AssertionError(f'Expected js ecosystem, got {ws["ecosystem"]}')
+
+    def test_global_forge_present(self) -> None:
+        """Generated TOML includes forge at top level."""
+        output = generate_config_toml({})
+        doc = tomlkit.parse(output)
+        if 'forge' not in doc:
+            raise AssertionError('Missing forge at top level')
+
+    def test_roundtrip_through_load_config(self, tmp_path: Path) -> None:
+        """Generated TOML can be loaded by load_config."""
+        from releasekit.config import load_config
+
+        groups = {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}
+        output = generate_config_toml(
+            groups,
+            workspace_label='py',
+            ecosystem='python',
+            exclude=['sample-*'],
+        )
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(output, encoding='utf-8')
+
+        cfg = load_config(tmp_path)
+        if 'py' not in cfg.workspaces:
+            raise AssertionError('Missing py workspace after load')
+        ws = cfg.workspaces['py']
+        if ws.ecosystem != 'python':
+            raise AssertionError(f'Expected python, got {ws.ecosystem}')
+        if ws.groups != groups:
+            raise AssertionError(f'Groups mismatch: {ws.groups}')
 
 
 def _create_minimal_workspace(ws: Path) -> None:
@@ -193,7 +243,7 @@ class TestScaffoldConfig:
             raise AssertionError('Dry run should not write releasekit.toml')
 
     def test_writes_releasekit_toml(self, tmp_path: Path) -> None:
-        """Non-dry-run creates releasekit.toml."""
+        """Non-dry-run creates releasekit.toml with workspace section."""
         ws = tmp_path / 'ws'
         _create_minimal_workspace(ws)
 
@@ -203,8 +253,10 @@ class TestScaffoldConfig:
         if not config_file.exists():
             raise AssertionError('Expected releasekit.toml to be created')
         content = config_file.read_text(encoding='utf-8')
-        if 'tag_format' not in content:
-            raise AssertionError('Expected tag_format in releasekit.toml')
+        if 'workspace' not in content:
+            raise AssertionError('Expected workspace section in releasekit.toml')
+        if 'ecosystem' not in content:
+            raise AssertionError('Expected ecosystem field in releasekit.toml')
 
     def test_does_not_modify_pyproject(self, tmp_path: Path) -> None:
         """scaffold_config does NOT modify pyproject.toml."""

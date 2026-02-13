@@ -1,0 +1,379 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ReleaseKit: JS Release Pipeline (pnpm)
+#
+# NOT YET ACTIVE — This workflow lives in py/tools/releasekit/github/workflows/
+# and must be copied to .github/workflows/ to activate.
+#
+# Prerequisites before enabling:
+#   1. Uncomment [workspace.js] and [workspace.js-cli] in releasekit.toml
+#   2. Set bootstrap_sha to the last commit before releasekit adoption
+#   3. Run 1–2 dry-run cycles alongside existing scripts
+#   4. Copy this file to .github/workflows/releasekit-pnpm.yml
+#   5. Archive scripts/release_main.sh and js/scripts/bump_*.sh
+#
+# This workflow implements the same 3-phase pipeline as releasekit-uv.yml
+# but for the JS ecosystem using pnpm:
+#
+#   push to main ──► releasekit prepare --workspace js ──► Release PR
+#                                                               │
+#                                                          merge PR
+#                                                               │
+#                                                               ▼
+#                                                     releasekit release ──► tags + GitHub Release
+#                                                               │
+#                                                               ▼
+#                                                     releasekit publish ──► npm (via Wombat)
+
+name: "ReleaseKit: JS (pnpm)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Publish target registry'
+        required: true
+        default: npm
+        type: choice
+        options:
+          - npm
+      dry_run:
+        description: 'Dry run — log what would happen without creating tags or publishing'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - "js/**"
+      - "genkit-tools/**"
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: releasekit-js-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  RELEASEKIT_DIR: py/tools/releasekit
+  NODE_VERSION: "20"
+  # Dry-run logic:
+  #   - PR merge (pull_request closed): dry_run=false (one-button release flow)
+  #   - Manual dispatch: uses the checkbox value (default: true)
+  #   - Push to main: only runs prepare, which is always live
+  DRY_RUN: ${{ github.event_name == 'pull_request' && 'false' || (inputs.dry_run == 'false' && 'false' || 'true') }}
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # PREPARE: Compute bumps and open/update Release PRs
+  #
+  # Runs on every push to main that touches JS code.
+  # Creates separate Release PRs for js and js-cli workspaces.
+  # ═══════════════════════════════════════════════════════════════════════
+  prepare-js:
+    name: "Prepare Release PR (JS)"
+    if: |
+      github.event_name == 'push' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):') &&
+      !contains(github.event.head_commit.message, 'releasekit--release')
+    runs-on: ubuntu-latest
+    outputs:
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+      pr_url: ${{ steps.prepare.outputs.pr_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run releasekit prepare (JS workspace)
+        id: prepare
+        run: |
+          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js prepare 2>&1) || {
+            echo "::warning::releasekit prepare (js) exited with non-zero status"
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+            echo "$OUTPUT"
+            exit 0
+          }
+          echo "$OUTPUT"
+
+          PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
+          if [ -n "$PR_URL" ]; then
+            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  prepare-js-cli:
+    name: "Prepare Release PR (JS CLI)"
+    if: |
+      github.event_name == 'push' &&
+      !startsWith(github.event.head_commit.message, 'chore(release):') &&
+      !contains(github.event.head_commit.message, 'releasekit--release')
+    runs-on: ubuntu-latest
+    outputs:
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+      pr_url: ${{ steps.prepare.outputs.pr_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: genkit-tools/pnpm-lock.yaml
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run releasekit prepare (JS CLI workspace)
+        id: prepare
+        run: |
+          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js-cli prepare 2>&1) || {
+            echo "::warning::releasekit prepare (js-cli) exited with non-zero status"
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+            echo "$OUTPUT"
+            exit 0
+          }
+          echo "$OUTPUT"
+
+          PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
+          if [ -n "$PR_URL" ]; then
+            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
+            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # RELEASE: Tag merge commit and create GitHub Release
+  #
+  # Runs when a Release PR (labeled "autorelease: pending") is merged,
+  # or on manual workflow_dispatch.
+  # ═══════════════════════════════════════════════════════════════════════
+  release-js:
+    name: "Tag and Release (JS)"
+    if: |
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      release_url: ${{ steps.release.outputs.release_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Preview execution plan
+        run: |
+          echo "::group::Execution Plan (JS)"
+          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no tags or releases will be created"
+          else
+            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run releasekit release
+        id: release
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js release $DRY_RUN_FLAG 2>&1)
+          echo "$OUTPUT"
+
+          RELEASE_URL=$(echo "$OUTPUT" | grep -oP 'release_url=\K.*' || echo "")
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PUBLISH: Build and publish packages to npm
+  #
+  # Runs after the release job completes. Publishes packages in
+  # topological order via Wombat Dressing Room.
+  # ═══════════════════════════════════════════════════════════════════════
+  publish-js:
+    name: "Publish to npm"
+    needs: release-js
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install uv and setup Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+
+      - name: Install JS dependencies
+        run: |
+          cd js
+          pnpm install --frozen-lockfile
+
+      - name: Build JS packages
+        run: |
+          cd js
+          pnpm build
+
+      - name: Install releasekit
+        run: |
+          cd ${{ env.RELEASEKIT_DIR }}
+          uv sync
+
+      - name: Preview execution plan
+        run: |
+          echo "::group::Execution Plan (JS)"
+          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js plan --format full 2>&1 || true
+          echo "::endgroup::"
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "::notice::DRY RUN — no packages will be published"
+          else
+            echo "::notice::LIVE RUN — packages will be published to npm"
+          fi
+
+      - name: Run releasekit publish (JS)
+        run: |
+          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js publish --force)
+
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            cmd+=(--dry-run)
+          fi
+
+          cmd+=(--max-retries 2)
+
+          echo "::group::Running: ${cmd[*]}"
+          "${cmd[@]}"
+          echo "::endgroup::"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload manifest artifact
+        if: success() && env.DRY_RUN != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-js
+          path: .releasekit-state.json
+          retention-days: 90
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # NOTIFY: Post-release notifications
+  # ═══════════════════════════════════════════════════════════════════════
+  notify-js:
+    name: "Notify Downstream (JS)"
+    needs: publish-js
+    if: success() && needs.publish-js.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch release event
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: genkit-js-release
+          client-payload: '{"release_url": "${{ needs.release-js.outputs.release_url }}"}'

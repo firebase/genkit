@@ -59,6 +59,18 @@ class FakeVCS:
         """Return configured shallow state."""
         return self._shallow
 
+    async def default_branch(self) -> str:
+        """Return main."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return empty list."""
+        return []
+
+    async def current_branch(self) -> str:
+        """Return main."""
+        return 'main'
+
     async def current_sha(self) -> str:
         """Return configured SHA."""
         return self._sha
@@ -70,6 +82,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return empty log."""
         return []
@@ -157,6 +171,9 @@ class FakePackageManager:
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Return success result."""
@@ -447,7 +464,7 @@ class TestRunPreflight:
                 name='genkit',
                 version='0.5.0',
                 path=pkg_dir,
-                pyproject_path=pkg_dir / 'pyproject.toml',
+                manifest_path=pkg_dir / 'pyproject.toml',
             ),
         ]
 
@@ -587,7 +604,7 @@ class TestEcosystemSpecificChecks:
                 name='genkit',
                 version='0.5.0',
                 path=pkg_dir,
-                pyproject_path=pyproject,
+                manifest_path=pyproject,
             ),
         ]
 
@@ -631,7 +648,7 @@ class TestEcosystemSpecificChecks:
                 name='genkit',
                 version='0.5.0',
                 path=pkg_dir,
-                pyproject_path=pyproject,
+                manifest_path=pyproject,
             ),
         ]
         graph = build_graph(packages)
@@ -721,7 +738,7 @@ class TestEcosystemSpecificChecks:
                 name='sample',
                 version='0.1.0',
                 path=pkg_dir,
-                pyproject_path=pyproject,
+                manifest_path=pyproject,
                 is_publishable=False,
             ),
         ]

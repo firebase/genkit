@@ -72,6 +72,9 @@ class UvBackend:
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Publish distributions using ``uv publish``.
@@ -82,6 +85,9 @@ class UvBackend:
             index_url: Upload endpoint URL. Mapped to ``uv publish --publish-url``
                 (``uv publish`` has no ``--index-url`` flag). Defaults to PyPI
                 if not specified.
+            dist_tag: Ignored (npm-only, accepted for protocol compat).
+            publish_branch: Ignored (npm-only, accepted for protocol compat).
+            provenance: Ignored (npm-only, accepted for protocol compat).
             dry_run: Perform a dry run without uploading.
         """
         cmd = ['uv', 'publish']

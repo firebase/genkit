@@ -1,6 +1,6 @@
 # Releasekit Competitive Gap Analysis
 
-**Date:** 2026-02-12
+**Date:** 2026-02-13
 **Sources:** Issue trackers and documentation of:
 - [release-please](https://github.com/googleapis/release-please) (Google)
 - [semantic-release](https://github.com/semantic-release/semantic-release) (JS ecosystem)
@@ -53,14 +53,11 @@ collapsing pre-release entries into a final release.
 | release-please [#296](https://github.com/googleapis/release-please/issues/296) | Open since 2019, many 👍 |
 | python-semantic-release [#402](https://github.com/python-semantic-release/python-semantic-release/issues/402) | Confirmed bug, open |
 
-**Current releasekit state:** The changelog module has a `revert` section type
-but there is no logic to **cancel out** a reverted commit's version bump. If
-`feat: X` is reverted, the version still gets a minor bump.
-
-**Recommendation:**
-- Parse `Revert "..."` and `revert:` commit messages.
-- Match reverted commits by SHA or title and exclude them from bump calculation.
-- Exclude reverted commits from changelog (or show them in a "Reverted" section).
+**Current releasekit state:** ✅ **Done (2026-02-12).** `parse_conventional_commit`
+handles `Revert "feat: ..."` (GitHub format) and `revert: feat: ...`
+(conventional format). Bump computation uses per-level counters where reverts
+decrement, so a reverted `feat:` cancels the MINOR bump. Reverted commits
+appear in a "Reverted" changelog section.
 
 ### 1.3 Hotfix / Maintenance Branch Releases
 | Alternative tool issue | Votes/Comments |
@@ -79,6 +76,8 @@ produce a patch release off an older version.
 - Support `--base-branch` or branch-to-channel configuration in `releasekit.toml`.
 - Allow version computation relative to a specific tag (e.g. `--since-tag genkit-v1.2.0`).
 - Prevent accidental double-bumps when hotfix branches merge back to main.
+- Add `releasekit cherry-pick` command (R38) to selectively backport commits
+  to release/maintenance branches with conflict detection and changelog updates.
 
 ---
 
@@ -89,16 +88,9 @@ produce a patch release off an older version.
 |---|---|
 | release-please [#1032](https://github.com/googleapis/release-please/issues/1032) | Major pain point for OpenTelemetry |
 
-**Current releasekit state:** The dependency graph is built and used for
-topological publish ordering, but when package A bumps, packages that depend
-on A do **not** automatically get their dependency specifier updated in
-`pyproject.toml`. The `versioning.py` module computes bumps per-package but
-doesn't propagate version constraints to dependents.
-
-**Recommendation:**
-- Add a `fix_internal_dep_versions` fixer that updates `>=X.Y.Z` constraints
-  in dependent packages when a dependency is bumped.
-- Make this configurable: `propagate_deps = true` in `releasekit.toml`.
+**Current releasekit state:** ✅ **Done (2026-02-12).** `versioning.py:386-400`
+implements BFS propagation via `graph.reverse_edges`. When package A bumps,
+all dependents automatically get their dependency specifiers updated.
 
 ### 2.2 Contributor Attribution in Changelogs
 | Alternative tool issue | Votes/Comments |
@@ -148,31 +140,25 @@ output. This is a **competitive advantage** — document it prominently.
 | release-please [#2592](https://github.com/googleapis/release-please/issues/2592) | 502 on merge commit fetch |
 | semantic-release [#2204](https://github.com/semantic-release/semantic-release/issues/2204) | Secondary rate limit exceeded |
 
-**Current releasekit state:** ✅ **Partially addressed.** The `net.py` module
-has retry/backoff logic, `github_api.py` has rate-limit handling, and the
-publisher has configurable `max_retries` and `retry_base_delay`. However:
-
-**Recommendation:**
-- Add configurable pagination limits for git log queries (avoid fetching
-  entire history for large repos).
-- Add `--commit-depth` flag to bound how far back commit scanning goes.
-- Ensure all forge API calls use exponential backoff with jitter.
+**Current releasekit state:** ✅ **Done.** The `net.py` module has
+retry/backoff logic, `github_api.py` has rate-limit handling, and the
+publisher has configurable `max_retries` and `retry_base_delay`.
+`--max-commits` (R25, done 2026-02-13) bounds commit scanning depth.
+All forge API calls use exponential backoff with jitter.
 
 ### 2.6 Performance on Large Repositories
 | Alternative tool issue | Votes/Comments |
 |---|---|
 | python-semantic-release [#722](https://github.com/python-semantic-release/python-semantic-release/issues/722) | 40 min for 3K commits |
 
-**Current releasekit state:** Version computation uses `git log` with
-`--since-tag` scoping, which should be efficient. But changelog generation
-for initial runs (no prior tags) could be slow on large repos.
+**Current releasekit state:** ✅ **Mostly done.** Version computation uses
+`git log` with `--since-tag` scoping. `--max-commits` (R25, done 2026-02-13)
+bounds changelog generation for large repos. `compute_bumps` Phase 1 uses
+`asyncio.gather` for ~10× speedup on 60+ packages (R32, done 2026-02-12).
 
-**Recommendation:**
-- Add `--max-commits` or `--since-date` to bound changelog generation.
-- Support incremental changelog updates (append new entries rather than
-  regenerating from scratch).
-- Add `bootstrap-sha` config option (like release-please) to set a starting
-  point for repos with long histories.
+**Remaining:**
+- `bootstrap-sha` config option (R26) for repos with long histories.
+- Incremental changelog updates (append new entries rather than regenerating).
 
 ### 2.7 Stale State / "Stuck" Release Recovery
 | Alternative tool issue | Votes/Comments |
@@ -180,15 +166,14 @@ for initial runs (no prior tags) could be slow on large repos.
 | release-please [#1946](https://github.com/googleapis/release-please/issues/1946) | "Untagged merged release PRs — aborting" |
 | release-please [#2172](https://github.com/googleapis/release-please/issues/2172) | Manifest not updating |
 
-**Current releasekit state:** ✅ **Partially addressed.** The `rollback`
-subcommand can delete tags and releases. But there's no equivalent of a
-"reset" or "force-resync" command to recover from inconsistent state.
+**Current releasekit state:** ⚠️ **Mostly done.** The `rollback` subcommand
+can delete tags and releases. `run_doctor()` in `doctor.py` implements 7
+diagnostic checks (config, VCS, forge, registry, orphaned tags, branch,
+packages). `list_tags` and `current_branch` added to VCS protocol
+(2026-02-13). CLI wiring for `releasekit doctor` still pending.
 
-**Recommendation:**
-- Add `releasekit doctor` subcommand that:
-  - Validates tag ↔ manifest ↔ PyPI version consistency.
-  - Identifies orphaned tags, missing releases, or stale PRs.
-  - Suggests corrective actions.
+**Remaining:**
+- Wire `releasekit doctor` into CLI.
 - Add `--bootstrap-sha` to `init` for repos adopting releasekit mid-stream.
 
 ---
@@ -228,11 +213,11 @@ there's no auto-merge configuration.
 | release-please [#2634](https://github.com/googleapis/release-please/issues/2634) | changelog-path has no effect |
 | python-semantic-release [#1132](https://github.com/python-semantic-release/python-semantic-release/issues/1132) | Custom changelog ignores update mode |
 
-**Current releasekit state:** Changelog generation exists but customization
-is limited. No way to disable it per-package or customize the template.
+**Current releasekit state:** ✅ **Partially done.** The `changelog = false`
+config option exists per-workspace in `WorkspaceConfig`. Customization via
+Jinja2 templates is not yet implemented.
 
 **Recommendation:**
-- Add `changelog = false` per-package config.
 - Support custom Jinja2 templates for changelog rendering.
 - Add `changelog_path` config for non-standard locations.
 
@@ -267,13 +252,11 @@ competitive advantage.
 |---|---|
 | python-semantic-release [#633](https://github.com/python-semantic-release/python-semantic-release/issues/633) | NotImplementedError on unconventional tags |
 
-**Current releasekit state:** The `tags.py` module uses configurable
-`tag_format` patterns. Should be resilient to pre-existing non-conforming
-tags.
-
-**Recommendation:**
-- Add a `--ignore-unknown-tags` flag or config option.
-- Ensure `compute_bumps` gracefully skips tags that don't match the format.
+**Current releasekit state:** ✅ **Done (2026-02-12).** The `tags.py` module
+uses configurable `tag_format` patterns with `{label}` placeholder support
+(2026-02-13). `--ignore-unknown-tags` flag added to `publish`, `plan`,
+`version` commands. `compute_bumps(ignore_unknown_tags=True)` falls back to
+full history on bad tags with a warning.
 
 ---
 
@@ -288,13 +271,15 @@ These are pain points in alternatives that releasekit **already solves**:
 | **uv workspace support** | release-please [#2561](https://github.com/googleapis/release-please/issues/2561) (feature request) | ✅ Native uv workspace discovery |
 | **Version preview** | semantic-release [#753](https://github.com/semantic-release/semantic-release/issues/753), [#1647](https://github.com/semantic-release/semantic-release/issues/1647) | ✅ `releasekit version` and `releasekit plan` |
 | **Multi-forge support** | release-please (GitHub only), python-semantic-release [#666](https://github.com/python-semantic-release/python-semantic-release/issues/666) (GitLab guide needed) | ✅ GitHub, GitLab, Bitbucket, none |
-| **Workspace health checks** | No equivalent in any alternative | ✅ 33 automated checks with `--fix` |
+| **Workspace health checks** | No equivalent in any alternative | ✅ 34 automated checks with `--fix` |
 | **Shell completions** | Not available in alternatives | ✅ bash, zsh, fish |
 | **Error explainer** | Not available in alternatives | ✅ `releasekit explain <code>` |
 | **Rollback** | No built-in rollback in alternatives | ✅ `releasekit rollback <tag>` |
 | **Retry with backoff** | semantic-release [#2204](https://github.com/semantic-release/semantic-release/issues/2204) (rate limit crashes) | ✅ Configurable retries + exponential backoff |
 | **Release locking** | No equivalent | ✅ File-based release lock prevents concurrent publishes |
 | **Dependency graph visualization** | No equivalent | ✅ `releasekit graph` with dot, mermaid, d2, levels formats |
+| **Distro packaging sync** | No equivalent in any alternative | ✅ Auto-syncs Debian, Fedora, Homebrew deps from `pyproject.toml` via `releasekit check --fix` |
+| **Revert cancellation** | release-please [#296](https://github.com/googleapis/release-please/issues/296) (open since 2019) | ✅ Per-level bump counters with revert decrement |
 
 ---
 
@@ -362,10 +347,10 @@ intended to replace it.
 | **No dependency ordering** — Packages published in hardcoded order, not topological | High | ✅ Topo-sorted publish via `graph.py` |
 | **No error recovery** — If `pnpm publish` fails mid-way, no rollback or retry | High | ✅ Retry with backoff, rollback command |
 | **No changelog generation** — Version bumps have no associated changelogs | High | ✅ `releasekit changelog` from conventional commits |
-| **No preflight checks** — Dirty worktree, unpushed commits, etc. not validated | High | ✅ 33 preflight checks |
+| **No preflight checks** — Dirty worktree, unpushed commits, etc. not validated | High | ✅ 34 preflight checks |
 | **No dry-run for publish** — Can only test by actually publishing | High | ✅ `--dry-run` on all commands |
 | **Sequential publishing** — No parallelism within dependency levels | Medium | ✅ Concurrent publish with configurable parallelism |
-| **No provenance** — `--provenance=false` hardcoded | Medium | Partial (see gap 3.1) |
+| **No provenance** — `--provenance=false` hardcoded | Medium | ✅ `--provenance` flag on `PnpmBackend.publish()` + `WorkspaceConfig` |
 | **Manual dispatch only** — No automated release on merge | Medium | ✅ `prepare` + `release` workflow |
 | **Wombat proxy coupling** — Hardcoded to Google's internal npm proxy | Low | ✅ Configurable registry URL |
 | **No version preview** — Can't see what would be bumped before bumping | Medium | ✅ `releasekit version` / `plan` |
@@ -377,13 +362,15 @@ The JS release process is the **strongest argument for releasekit's existence**.
 Every single pain point listed above is already addressed by releasekit's
 architecture. The main remaining work is:
 
-1. **JS/pnpm workspace backend** — `backends/workspace/pnpm.py` exists but
-   needs the full publish pipeline wired up.
-2. **npm registry backend** — `backends/registry/npm.py` exists.
-3. **Wombat proxy support** — May need special auth handling for Google's
-   internal npm proxy.
-4. **Tag format compatibility** — JS uses `@scope/name@version` tags;
-   releasekit's `tag_format` config should support this.
+1. ✅ **JS/pnpm workspace backend** — `PnpmBackend` fully implemented with
+   `build()`, `publish()`, `lock()`, `version_bump()`, `resolve_check()`,
+   `smoke_test()`. Ecosystem-aware `_create_backends()` selects it for JS.
+2. ✅ **npm registry backend** — `NpmRegistry` fully implemented with
+   `is_published()` and `latest_version()` via npm registry API.
+3. ✅ **Wombat proxy support** — `PnpmBackend.publish(index_url=...)` maps
+   to `--registry`. Works with any custom registry URL.
+4. ✅ **Tag format compatibility** — `tag_format` with `{label}` placeholder
+   supports `{name}@{version}` and any custom format per workspace.
 
 ---
 
@@ -536,7 +523,7 @@ signing, and publishing.
 | **Changesets** | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ (version plans) | ✅ | ❌ |
 | **Dep graph** | ✅ | Partial | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Topo publish** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Health checks** | ✅ (33) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Health checks** | ✅ (34) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Auto-fix** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Multi-forge** | ✅ GH/GL/BB | GitHub only | GH/GL/BB | GH/GL/BB | GitHub only | ❌ | GH/Gitea | GitHub only |
 | **Pre-release** | Partial | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -548,6 +535,8 @@ signing, and publishing.
 | **Error explainer** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Retry/backoff** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Release lock** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Distro pkg sync** | ✅ Deb/RPM/Brew | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Cherry-pick** | Planned (R38) | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Signing** | Partial | ❌ | npm provenance | ❌ | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | **SBOM** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **Announcements** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -556,42 +545,55 @@ signing, and publishing.
 
 ## 9. REVISED PRIORITIZED ROADMAP
 
-### Phase 1 — Immediate (unblock Genkit JS migration)
+### Phase 1 — Immediate (finalize JS migration readiness)
 
-1. **Wire up pnpm workspace publish pipeline** — The JS backend exists but
-   needs end-to-end integration so `releasekit publish` works for JS packages.
-2. **Pre-release workflow** (`--prerelease rc` flag + PEP 440 / SemVer
-   pre-release suffixes).
-3. **Revert commit handling** (cancel out reverted bumps in version calc).
-4. **`releasekit doctor`** (state consistency checker for stuck releases).
+1. ✅ ~~**Wire up pnpm workspace publish pipeline**~~ — Done. `PnpmBackend`
+   and `NpmRegistry` fully implemented. Ecosystem-aware `_create_backends()`.
+2. ✅ ~~**Revert commit handling**~~ — Done. Per-level bump counters with
+   revert cancellation.
+3. ⚠️ **`releasekit doctor`** — `run_doctor()` implemented with 7 checks.
+   CLI wiring pending.
+4. **Pre-release workflow** (`--prerelease rc` flag + PEP 440 / SemVer
+   pre-release suffixes). Basic `prerelease` param exists in `compute_bumps`.
+5. ✅ ~~**npm dist-tag support**~~ — Done. `--dist-tag` CLI flag wired through
+   `WorkspaceConfig` → `PublishConfig` → `PnpmBackend.publish(--tag)`.
+6. ✅ ~~**`--publish-branch` + `--provenance`**~~ — Done. Both params added to
+   `PnpmBackend.publish()`, `PublishConfig`, `WorkspaceConfig`, and CLI.
 
 ### Phase 2 — High value
 
-5. **Internal dependency version propagation** (`fix_internal_dep_versions`).
-6. **Contributor attribution in changelogs**.
-7. **Incremental changelog generation** (performance for large repos).
-8. **Hotfix / maintenance branch support** (`--base-branch`).
-9. **Snapshot releases** (`--snapshot` for CI testing).
+7. ✅ ~~**Internal dependency version propagation**~~ — Done. BFS via
+   `graph.reverse_edges`.
+8. ✅ ~~**Contributor attribution in changelogs**~~ — Done. `ChangelogEntry.author`
+   field, git log format `%H\x00%an\x00%s`, rendered as `— @author` (2026-02-13).
+9. **Incremental changelog generation** (performance for large repos).
+10. **Hotfix / maintenance branch support** (`--base-branch`).
+11. **Cherry-pick for release branches** (`releasekit cherry-pick`).
+12. **Snapshot releases** (`--snapshot` for CI testing).
+13. ✅ ~~**`bootstrap-sha` config**~~ (R26) — Done. `bootstrap_sha` on
+   `WorkspaceConfig`, threaded through `compute_bumps` and all CLI call sites (2026-02-13).
 
 ### Phase 3 — Differentiation
 
-10. **Sigstore / GPG signing + provenance**.
-11. **SBOM generation** (CycloneDX / SPDX).
-12. **Auto-merge release PRs**.
-13. **Custom changelog templates** (Jinja2).
-14. **Announcement integrations** (Slack, Discord).
-15. **Optional changeset file support** (hybrid with conventional commits).
+14. **Sigstore / GPG signing + provenance**.
+15. **SBOM generation** (CycloneDX / SPDX).
+16. ✅ ~~**Auto-merge release PRs**~~ — Done. `auto_merge` config on
+   `WorkspaceConfig`, `prepare.py` calls `forge.merge_pr()` after labeling (2026-02-13).
+17. **Custom changelog templates** (Jinja2).
+18. **Announcement integrations** (Slack, Discord).
+19. **Optional changeset file support** (hybrid with conventional commits).
 
 ### Phase 4 — Future
 
-16. **Plugin system for custom steps**.
-17. **Programmatic Python API** (like Nx Release's Node.js API).
-18. **Cross-compilation orchestration** (for CLI binaries).
-19. **`releasekit migrate`** — Protocol-based migration from alternatives.
-20. **Bazel workspace backend** (BUILD files, `bazel run //pkg:publish`).
-21. **Rust/Cargo workspace backend** (`Cargo.toml`, `cargo publish`).
-22. **Java backend** (Maven `pom.xml` / Gradle `build.gradle`, `mvn deploy`).
-23. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
+20. **Plugin system for custom steps**.
+21. **Programmatic Python API** (like Nx Release's Node.js API).
+22. **Cross-compilation orchestration** (for CLI binaries).
+23. **`releasekit migrate`** — Protocol-based migration from alternatives.
+24. **Bazel workspace backend** (BUILD files, `bazel run //pkg:publish`).
+25. **Rust/Cargo workspace backend** (`Cargo.toml`, `cargo publish`).
+26. **Java backend** (Maven `pom.xml` / Gradle `build.gradle`, `mvn deploy`).
+27. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
+28. **Rustification** — Rewrite core in Rust with PyO3/maturin (see roadmap §12).
 
 > **See [roadmap-execution-plan.md](roadmap-execution-plan.md)** for the
 > dependency-graphed, topo-sorted parallel execution plan with Gantt chart

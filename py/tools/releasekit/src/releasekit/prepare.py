@@ -64,7 +64,7 @@ Prepare flow::
          │
          ▼
     for each bumped package:
-        bump_pyproject(pkg.pyproject_path, new_version)
+        bump_pyproject(pkg.manifest_path, new_version)
         pm.lock(upgrade_package=pkg.name)
         generate_changelog(vcs, version, since_tag, paths)
          │
@@ -108,9 +108,10 @@ from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import Registry
 from releasekit.backends.vcs import VCS
+from releasekit.branch import resolve_default_branch
 from releasekit.bump import BumpTarget, bump_file, bump_pyproject
 from releasekit.changelog import generate_changelog, render_changelog, write_changelog
-from releasekit.config import ReleaseConfig
+from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.graph import build_graph, topo_sort
 from releasekit.logging import get_logger
 from releasekit.preflight import run_preflight
@@ -121,7 +122,7 @@ from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
 
-_RELEASE_BRANCH = 'releasekit--release'
+_RELEASE_BRANCH_PREFIX = 'releasekit--release'
 _AUTORELEASE_PENDING = 'autorelease: pending'
 _MANIFEST_START = '<!-- releasekit:manifest:start -->'
 _MANIFEST_END = '<!-- releasekit:manifest:end -->'
@@ -192,6 +193,7 @@ async def prepare_release(
     registry: Registry,
     workspace_root: Path,
     config: ReleaseConfig,
+    ws_config: WorkspaceConfig,
     dry_run: bool = False,
     force: bool = False,
 ) -> PrepareResult:
@@ -207,7 +209,8 @@ async def prepare_release(
         forge: Code forge backend (GitHub/GitLab/Bitbucket). None to skip PR.
         registry: Package registry backend (PyPI).
         workspace_root: Workspace root directory.
-        config: Release configuration.
+        config: Global release configuration.
+        ws_config: Per-workspace configuration.
         dry_run: If True, skip all side effects.
         force: If True, skip preflight and force bumps.
 
@@ -217,18 +220,22 @@ async def prepare_release(
     result = PrepareResult()
 
     # 1. Discover packages and build dependency graph.
-    packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    packages = discover_packages(workspace_root, exclude_patterns=ws_config.exclude)
     graph = build_graph(packages)
     topo_sort(graph)  # Validate DAG (raises on cycles).
 
     # 2. Compute version bumps.
+    # Pass the graph only when propagation is enabled and not in synchronized mode.
+    propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
     versions = await compute_bumps(
         packages,
         vcs,
-        tag_format=config.tag_format,
-        graph=graph if not config.synchronize else None,
-        synchronize=config.synchronize,
-        major_on_zero=config.major_on_zero,
+        tag_format=ws_config.tag_format,
+        graph=propagate_graph,
+        synchronize=ws_config.synchronize,
+        major_on_zero=ws_config.major_on_zero,
+        max_commits=ws_config.max_commits,
+        bootstrap_sha=ws_config.bootstrap_sha,
     )
 
     bumped = [v for v in versions if not v.skipped]
@@ -266,12 +273,12 @@ async def prepare_release(
             result.errors[f'bump:{ver.name}'] = f'Package {ver.name!r} not found in workspace'
             continue
         if not dry_run:
-            bump_pyproject(pkg.pyproject_path, ver.new_version)
+            bump_pyproject(pkg.manifest_path, ver.new_version)
         logger.info('bumped', package=ver.name, old=ver.old_version, new=ver.new_version)
 
     # 4b. Bump extra files (e.g. __init__.py with __version__).
-    if config.extra_files and not dry_run:
-        for entry in config.extra_files:
+    if ws_config.extra_files and not dry_run:
+        for entry in ws_config.extra_files:
             if ':' in entry:
                 file_path_str, pattern = entry.split(':', 1)
             else:
@@ -298,7 +305,7 @@ async def prepare_release(
     today = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')
     pkg_paths = _package_paths(packages)
     for ver in bumped:
-        since_tag = format_tag(config.tag_format, name=ver.name, version=ver.old_version)
+        since_tag = format_tag(ws_config.tag_format, name=ver.name, version=ver.old_version, label=ws_config.label)
         changelog = await generate_changelog(
             vcs=vcs,
             version=ver.new_version,
@@ -323,7 +330,7 @@ async def prepare_release(
     # 7. Build and save manifest.
     git_sha = await vcs.current_sha()
     umbrella_version = bumped[0].new_version if bumped else '0.0.0'
-    umbrella_tag = format_tag(config.umbrella_tag, version=umbrella_version)
+    umbrella_tag = format_tag(ws_config.umbrella_tag, version=umbrella_version, label=ws_config.label)
     manifest = ReleaseManifest(
         git_sha=git_sha,
         umbrella_tag=umbrella_tag,
@@ -332,17 +339,19 @@ async def prepare_release(
     )
     result.manifest = manifest
 
-    manifest_path = workspace_root / 'release-manifest.json'
+    release_branch = f'{_RELEASE_BRANCH_PREFIX}--{ws_config.label}' if ws_config.label else _RELEASE_BRANCH_PREFIX
+    manifest_name = f'release-manifest--{ws_config.label}.json' if ws_config.label else 'release-manifest.json'
+    manifest_path = workspace_root / manifest_name
     if not dry_run:
         manifest.save(manifest_path)
 
     # 8. Commit and push on release branch.
     commit_msg = config.pr_title_template.replace('{version}', umbrella_version)
     if not dry_run:
-        await vcs.checkout_branch(_RELEASE_BRANCH, create=True)
+        await vcs.checkout_branch(release_branch, create=True)
         await vcs.commit(commit_msg, paths=['.'])
         await vcs.push()
-    logger.info('release_branch_pushed', branch=_RELEASE_BRANCH, sha=git_sha)
+    logger.info('release_branch_pushed', branch=release_branch, sha=git_sha)
 
     # 9. Create or update Release PR.
     if dry_run:
@@ -355,7 +364,7 @@ async def prepare_release(
 
     if forge is not None and await forge.is_available():
         # Check if a Release PR already exists for this branch.
-        existing_prs = await forge.list_prs(head=_RELEASE_BRANCH, state='open', limit=1)
+        existing_prs = await forge.list_prs(head=release_branch, state='open', limit=1)
         if existing_prs:
             pr_number = existing_prs[0].get('number', 0)
             if not dry_run:
@@ -364,14 +373,15 @@ async def prepare_release(
             logger.info('release_pr_updated', pr=pr_number)
         else:
             if not dry_run:
+                base = await resolve_default_branch(vcs, config.default_branch)
                 pr_result = await forge.create_pr(
                     title=pr_title,
                     body=pr_body,
-                    head=_RELEASE_BRANCH,
-                    base='main',
+                    head=release_branch,
+                    base=base,
                 )
                 result.pr_url = pr_result.stdout.strip() if pr_result.ok else ''
-            logger.info('release_pr_created', branch=_RELEASE_BRANCH)
+            logger.info('release_pr_created', branch=release_branch)
 
         # Add "autorelease: pending" label to both new and existing PRs.
         if not dry_run:
@@ -388,6 +398,20 @@ async def prepare_release(
                     logger.warning('cannot_parse_pr_number', url=result.pr_url)
             if label_pr_number:
                 await forge.add_labels(label_pr_number, [_AUTORELEASE_PENDING])
+
+            # 10. Auto-merge the Release PR if configured.
+            if ws_config.auto_merge and label_pr_number:
+                merge_result = await forge.merge_pr(
+                    label_pr_number,
+                    method='squash',
+                    commit_message=commit_msg,
+                    delete_branch=True,
+                    dry_run=dry_run,
+                )
+                if merge_result.ok:
+                    logger.info('release_pr_auto_merged', pr=label_pr_number)
+                else:
+                    logger.warning('release_pr_auto_merge_failed', pr=label_pr_number, stderr=merge_result.stderr)
 
     logger.info(
         'prepare_complete',

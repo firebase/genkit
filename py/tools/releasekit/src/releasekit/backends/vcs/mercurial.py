@@ -89,6 +89,15 @@ class MercurialCLIBackend:
         """Return ``False`` — Mercurial does not support shallow clones."""
         return False
 
+    async def default_branch(self) -> str:
+        """Return the default branch name.
+
+        In Mercurial, the default named branch is always ``"default"``.
+        This is a fixed convention, unlike Git where the default branch
+        name is configurable.
+        """
+        return 'default'
+
     async def current_sha(self) -> str:
         """Return the current working directory's changeset hash."""
         result = await asyncio.to_thread(
@@ -109,6 +118,8 @@ class MercurialCLIBackend:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return hg log lines.
 
@@ -124,8 +135,12 @@ class MercurialCLIBackend:
         template += '\\n'
 
         cmd_parts = ['log', '--template', template]
+        if max_commits > 0:
+            cmd_parts.extend(['--limit', str(max_commits)])
         if first_parent:
             cmd_parts.append('--follow-first')
+        if no_merges:
+            cmd_parts.append('--no-merges')
 
         if since_tag:
             # Mercurial revset: all changesets from tag to tip.
@@ -259,6 +274,39 @@ class MercurialCLIBackend:
 
         log.info('push', remote=hg_remote, tags=tags)
         return await asyncio.to_thread(self._hg, *cmd_parts, dry_run=dry_run)
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all tags, optionally filtered by a glob pattern.
+
+        Uses ``hg tags --quiet`` which lists tag names one per line.
+        Filters out the special ``tip`` tag.
+        """
+        result = await asyncio.to_thread(self._hg, 'tags', '--quiet')
+        if not result.ok or not result.stdout.strip():
+            return []
+        tags = [t for t in result.stdout.strip().splitlines() if t != 'tip']
+        if pattern:
+            import fnmatch
+
+            tags = [t for t in tags if fnmatch.fnmatch(t, pattern)]
+        return sorted(tags)
+
+    async def current_branch(self) -> str:
+        """Return the current bookmark name.
+
+        In Mercurial, the active bookmark is the closest equivalent to
+        Git's current branch. Returns an empty string if no bookmark
+        is active.
+        """
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            '.',
+            '--template',
+            '{activebookmark}',
+        )
+        return result.stdout.strip() if result.ok else ''
 
     async def checkout_branch(
         self,

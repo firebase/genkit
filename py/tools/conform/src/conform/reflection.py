@@ -45,12 +45,22 @@ class ReflectionClient:
 
     Args:
         base_url: The reflection server URL (e.g. ``http://localhost:3100``).
+        action_timeout: Timeout in seconds for action calls.
+        health_timeout: Timeout in seconds for health checks.
     """
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        action_timeout: float = _ACTION_TIMEOUT,
+        health_timeout: float = _HEALTH_TIMEOUT,
+    ) -> None:
         """Initialize the client with the given base URL."""
         self._base_url = base_url.rstrip('/')
-        self._client = httpx.AsyncClient(timeout=_ACTION_TIMEOUT)
+        self._action_timeout = action_timeout
+        self._health_timeout = health_timeout
+        self._client = httpx.AsyncClient(timeout=action_timeout)
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
@@ -61,7 +71,7 @@ class ReflectionClient:
         try:
             resp = await self._client.get(
                 f'{self._base_url}/api/__health',
-                timeout=_HEALTH_TIMEOUT,
+                timeout=self._health_timeout,
             )
             return resp.status_code == 200
         except (httpx.HTTPError, OSError):
@@ -110,7 +120,7 @@ class ReflectionClient:
                 f'{self._base_url}/api/runAction',
                 json=payload,
                 params={'stream': 'true'},
-                timeout=_ACTION_TIMEOUT,
+                timeout=self._action_timeout,
             )
             resp.raise_for_status()
             # The streaming response is newline-delimited JSON.
@@ -124,7 +134,7 @@ class ReflectionClient:
             resp = await self._client.post(
                 f'{self._base_url}/api/runAction',
                 json=payload,
-                timeout=_ACTION_TIMEOUT,
+                timeout=self._action_timeout,
             )
             resp.raise_for_status()
             final = resp.json()

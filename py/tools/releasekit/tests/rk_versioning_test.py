@@ -56,6 +56,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return log lines, optionally filtered by path."""
         if paths:
@@ -79,6 +81,18 @@ class FakeVCS:
     async def is_shallow(self) -> bool:
         """Always returns False."""
         return False
+
+    async def default_branch(self) -> str:
+        """Always main."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all fake tags."""
+        return sorted(self._tags)
+
+    async def current_branch(self) -> str:
+        """Always main."""
+        return 'main'
 
     async def current_sha(self) -> str:
         """Return a fake SHA."""
@@ -305,7 +319,7 @@ class TestComputeBumps:
             name=name,
             version=version,
             path=Path(path),
-            pyproject_path=Path(path) / 'pyproject.toml',
+            manifest_path=Path(path) / 'pyproject.toml',
         )
 
     @pytest.mark.asyncio
@@ -450,7 +464,7 @@ class TestTransitivePropagation:
             name=name,
             version=version,
             path=Path(path),
-            pyproject_path=Path(path) / 'pyproject.toml',
+            manifest_path=Path(path) / 'pyproject.toml',
             internal_deps=internal_deps or [],
         )
 
@@ -572,6 +586,162 @@ class TestTransitivePropagation:
         assert results[1].new_version == '0.6.0'
 
 
+class TestPropagateBumpsDisabled:
+    """Tests for propagate_bumps=False (no transitive dependency bumps).
+
+    When ``propagate_bumps`` is ``False`` in the workspace config, bumping
+    a library should NOT trigger PATCH bumps in its dependents. Only
+    packages with direct commits get bumped. This is useful when apps
+    depend on libraries but should not be released just because the
+    library changed.
+    """
+
+    def _make_pkg(
+        self,
+        name: str,
+        version: str,
+        path: str,
+        internal_deps: list[str] | None = None,
+    ) -> Package:
+        """Helper to create a Package with optional internal deps."""
+        return Package(
+            name=name,
+            version=version,
+            path=Path(path),
+            manifest_path=Path(path) / 'pyproject.toml',
+            internal_deps=internal_deps or [],
+        )
+
+    @pytest.mark.asyncio
+    async def test_dependent_not_bumped_when_propagation_disabled(self) -> None:
+        """With propagation off, a dependent is NOT bumped when its dep changes."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+        ]
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        # No graph passed → simulates propagate_bumps=False.
+        results = await compute_bumps(packages, vcs)
+
+        assert results[0].name == 'genkit'
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.6.0'
+        # foo has no commits and no propagation → skipped.
+        assert results[1].name == 'genkit-plugin-foo'
+        assert results[1].skipped is True
+        assert results[1].bump == 'none'
+
+    @pytest.mark.asyncio
+    async def test_multi_level_chain_not_propagated(self) -> None:
+        """With propagation off, A→B→C chain does not cascade bumps."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+            self._make_pkg(
+                'sample-app',
+                '0.1.0',
+                '/ws/samples/app',
+                internal_deps=['genkit-plugin-foo'],
+            ),
+        ]
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        # No graph → no propagation.
+        results = await compute_bumps(packages, vcs)
+
+        assert results[0].bump == 'minor'  # genkit: direct
+        assert results[1].skipped is True  # foo: no propagation
+        assert results[2].skipped is True  # sample: no propagation
+
+    @pytest.mark.asyncio
+    async def test_direct_commits_still_bumped(self) -> None:
+        """With propagation off, packages with their own commits still bump."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+            self._make_pkg(
+                'sample-app',
+                '0.1.0',
+                '/ws/samples/app',
+                internal_deps=['genkit-plugin-foo'],
+            ),
+        ]
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+                '/ws/samples/app': ['bbb fix: fix sample bug'],
+            },
+        )
+
+        # No graph → no propagation.
+        results = await compute_bumps(packages, vcs)
+
+        assert results[0].bump == 'minor'  # genkit: direct feat
+        assert results[1].skipped is True  # foo: no commits, no propagation
+        assert results[2].bump == 'patch'  # sample: direct fix commit
+        assert results[2].new_version == '0.1.1'
+
+    @pytest.mark.asyncio
+    async def test_contrast_with_propagation_enabled(self) -> None:
+        """Same scenario with propagation ON bumps the dependent."""
+        packages = [
+            self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit'),
+            self._make_pkg(
+                'genkit-plugin-foo',
+                '0.5.0',
+                '/ws/plugins/foo',
+                internal_deps=['genkit'],
+            ),
+            self._make_pkg(
+                'sample-app',
+                '0.1.0',
+                '/ws/samples/app',
+                internal_deps=['genkit-plugin-foo'],
+            ),
+        ]
+        graph = build_graph(packages)
+
+        vcs = FakeVCS(
+            log_by_path={
+                '/ws/packages/genkit': ['aaa feat: core update'],
+            },
+        )
+
+        # With graph → propagation ON.
+        results = await compute_bumps(packages, vcs, graph=graph)
+
+        assert results[0].bump == 'minor'  # genkit: direct
+        assert results[1].bump == 'patch'  # foo: transitive
+        assert results[2].bump == 'patch'  # sample: transitive from foo
+
+
 class TestSynchronizedMode:
     """Tests for synchronized (lockstep) versioning."""
 
@@ -581,7 +751,7 @@ class TestSynchronizedMode:
             name=name,
             version=version,
             path=Path(path),
-            pyproject_path=Path(path) / 'pyproject.toml',
+            manifest_path=Path(path) / 'pyproject.toml',
         )
 
     @pytest.mark.asyncio
@@ -649,7 +819,7 @@ class TestMajorOnZero:
     @staticmethod
     def _make_pkg(name: str, version: str, path: str) -> Package:
         p = Path(path)
-        return Package(name=name, version=version, path=p, pyproject_path=p / 'pyproject.toml')
+        return Package(name=name, version=version, path=p, manifest_path=p / 'pyproject.toml')
 
     @pytest.mark.asyncio
     async def test_breaking_downgraded_to_minor_on_zero(self) -> None:

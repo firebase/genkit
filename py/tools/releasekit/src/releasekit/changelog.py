@@ -77,8 +77,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from releasekit.backends.vcs import VCS
+from releasekit.commit_parsing import (
+    CommitParser,
+    ConventionalCommitParser,
+    ParsedCommit,
+)
 from releasekit.logging import get_logger
-from releasekit.versioning import ConventionalCommit, parse_conventional_commit
 
 logger = get_logger(__name__)
 
@@ -133,6 +137,7 @@ class ChangelogEntry:
         pr_number: PR number extracted from description, if any.
         issues: Issue numbers linked via Fixes/Closes/Resolves.
         breaking: Whether this is a breaking change.
+        author: Commit author name (for contributor attribution).
     """
 
     type: str
@@ -142,6 +147,7 @@ class ChangelogEntry:
     pr_number: str = ''
     issues: tuple[str, ...] = ()
     breaking: bool = False
+    author: str = ''
 
 
 @dataclass
@@ -172,7 +178,7 @@ class Changelog:
     date: str = ''
 
 
-def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
+def _commit_to_entry(cc: ParsedCommit, *, author: str = '') -> ChangelogEntry:
     """Convert a parsed Conventional Commit to a ChangelogEntry."""
     short_sha = cc.sha[:7] if cc.sha else ''
 
@@ -196,6 +202,7 @@ def _commit_to_entry(cc: ConventionalCommit) -> ChangelogEntry:
         pr_number=pr_number,
         issues=issues,
         breaking=cc.breaking,
+        author=author,
     )
 
 
@@ -254,6 +261,9 @@ def _render_entry(entry: ChangelogEntry) -> str:
         issue_refs = ', '.join(f'#{n}' for n in entry.issues)
         parts.append(f', closes {issue_refs}')
 
+    if entry.author:
+        parts.append(f' — @{entry.author}')
+
     return ''.join(parts)
 
 
@@ -293,9 +303,10 @@ async def generate_changelog(
     paths: list[str] | None = None,
     exclude_types: frozenset[str] | None = None,
     date: str = '',
-    log_format: str = '%H %s',
+    log_format: str = '%H\x00%an\x00%s',
+    commit_parser: CommitParser | None = None,
 ) -> Changelog:
-    """Generate a structured changelog from git history.
+    r"""Generate a structured changelog from git history.
 
     Reads the git log since ``since_tag``, parses Conventional Commits,
     groups them by type, and returns a :class:`Changelog`.
@@ -309,15 +320,19 @@ async def generate_changelog(
         exclude_types: Commit types to exclude. Defaults to
             ``_DEFAULT_EXCLUDE_TYPES`` (chore, style, ci, build, test).
         date: Optional date string for the heading.
-        log_format: Git log format. Must produce ``SHA subject`` lines.
+        log_format: Git log format. Default produces ``SHA\x00author\x00subject`` lines.
+        commit_parser: Optional custom commit parser. Defaults to
+            :class:`ConventionalCommitParser`.
 
     Returns:
         A :class:`Changelog` with grouped sections.
     """
+    parser = commit_parser or ConventionalCommitParser()
+
     if exclude_types is None:
         exclude_types = _DEFAULT_EXCLUDE_TYPES
 
-    log_lines = await vcs.log(since_tag=since_tag, paths=paths, format=log_format, first_parent=True)
+    log_lines = await vcs.log(since_tag=since_tag, paths=paths, format=log_format, first_parent=True, no_merges=True)
     logger.info(
         'changelog_commits_found',
         count=len(log_lines),
@@ -327,22 +342,34 @@ async def generate_changelog(
 
     entries: list[ChangelogEntry] = []
     for line in log_lines:
-        # Format: "SHA subject" — split on first space.
-        parts = line.split(' ', 1)
-        if len(parts) < 2:
-            continue
-        sha, message = parts
+        # Format: "SHA\x00author\x00subject" or legacy "SHA subject".
+        if '\x00' in line:
+            parts = line.split('\x00', 2)
+            if len(parts) < 3:
+                continue
+            sha, author, message = parts
+        else:
+            parts = line.split(' ', 1)
+            if len(parts) < 2:
+                continue
+            sha, message = parts
+            author = ''
 
-        cc = parse_conventional_commit(message, sha=sha)
+        cc = parser.parse(message, sha=sha)
         if cc is None:
-            # Non-conventional commit — skip.
+            # Non-conventional commit — warn and skip.
+            logger.warning(
+                'non_conventional_commit',
+                sha=sha[:8],
+                subject=message,
+            )
             continue
 
         if cc.type in exclude_types and not cc.breaking:
             # Excluded type (unless it's breaking — breaking always shows).
             continue
 
-        entries.append(_commit_to_entry(cc))
+        entries.append(_commit_to_entry(cc, author=author))
 
     sections = _group_entries(entries)
 

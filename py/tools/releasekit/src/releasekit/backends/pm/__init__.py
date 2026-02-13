@@ -77,6 +77,9 @@ class PackageManager(Protocol):
         *,
         check_url: str | None = None,
         index_url: str | None = None,
+        dist_tag: str | None = None,
+        publish_branch: str | None = None,
+        provenance: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Publish distributions to a package index.
@@ -85,6 +88,14 @@ class PackageManager(Protocol):
             dist_dir: Directory containing .tar.gz and .whl files.
             check_url: URL to check for existing versions (D-7).
             index_url: Custom index URL (e.g., Test PyPI).
+            dist_tag: npm dist-tag (e.g. ``latest``, ``next``).
+                Maps to ``pnpm publish --tag``. Ignored by Python backends.
+            publish_branch: Allow publishing from a non-default branch.
+                Maps to ``pnpm publish --publish-branch``. Ignored by
+                Python backends.
+            provenance: Generate npm provenance attestation.
+                Maps to ``pnpm publish --provenance``. Ignored by
+                Python backends.
             dry_run: Log the command without executing.
         """
         ...

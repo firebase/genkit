@@ -25,7 +25,7 @@ from typing import Any
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.config import ReleaseConfig
+from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.release import ReleaseResult, extract_manifest, tag_release
 from releasekit.versions import PackageVersion, ReleaseManifest
 
@@ -50,6 +50,18 @@ class FakeVCS:
         """Is shallow."""
         return False
 
+    async def default_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return empty list."""
+        return []
+
+    async def current_branch(self) -> str:
+        """Default branch."""
+        return 'main'
+
     async def current_sha(self) -> str:
         """Current sha."""
         return self._sha
@@ -61,6 +73,8 @@ class FakeVCS:
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Log."""
         return self._log_lines
@@ -366,11 +380,13 @@ class TestTagRelease:
         manifest.save(manifest_path)
 
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         result = asyncio.run(
             tag_release(
                 vcs=FakeVCS(),
                 forge=FakeForge(),
                 config=config,
+                ws_config=ws_config,
                 manifest_path=manifest_path,
                 dry_run=True,
             ),
@@ -384,11 +400,13 @@ class TestTagRelease:
     def test_no_forge_no_manifest_errors(self) -> None:
         """No forge and no manifest_path produces error."""
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         result = asyncio.run(
             tag_release(
                 vcs=FakeVCS(),
                 forge=None,
                 config=config,
+                ws_config=ws_config,
                 dry_run=True,
             ),
         )
@@ -401,6 +419,7 @@ class TestTagRelease:
     def test_no_merged_pr_errors(self) -> None:
         """No merged PR with pending label produces error."""
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         forge = FakeForge(prs=[])  # No PRs found.
 
         result = asyncio.run(
@@ -408,6 +427,7 @@ class TestTagRelease:
                 vcs=FakeVCS(),
                 forge=forge,
                 config=config,
+                ws_config=ws_config,
                 dry_run=True,
             ),
         )
@@ -420,6 +440,7 @@ class TestTagRelease:
     def test_manifest_not_extractable_errors(self) -> None:
         """PR body without manifest markers produces error."""
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         forge = FakeForge(
             prs=[{'number': 42, 'url': 'https://github.com/test/pr/42'}],
             pr_body='# No manifest here',
@@ -430,6 +451,7 @@ class TestTagRelease:
                 vcs=FakeVCS(),
                 forge=forge,
                 config=config,
+                ws_config=ws_config,
                 dry_run=True,
             ),
         )
@@ -453,11 +475,13 @@ class TestTagRelease:
         manifest.save(manifest_path)
 
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         result = asyncio.run(
             tag_release(
                 vcs=FakeVCS(),
                 forge=FakeForge(),
                 config=config,
+                ws_config=ws_config,
                 manifest_path=manifest_path,
                 dry_run=True,
             ),
@@ -489,11 +513,13 @@ class TestTagRelease:
         )
 
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         result = asyncio.run(
             tag_release(
                 vcs=FakeVCS(),
                 forge=forge,
                 config=config,
+                ws_config=ws_config,
                 dry_run=False,
             ),
         )
@@ -508,11 +534,13 @@ class TestTagRelease:
         forge = FakeForge(prs=[])  # No PRs — we just want to check the call args.
 
         config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
         asyncio.run(
             tag_release(
                 vcs=FakeVCS(),
                 forge=forge,
                 config=config,
+                ws_config=ws_config,
                 dry_run=True,
             ),
         )

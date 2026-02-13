@@ -15,6 +15,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
+authors = [
+  { name = "Google" },
+  { name = "Yesudeep Mangalapilly", email = "yesudeep@google.com" },
+]
 classifiers = [
   "Private :: Do Not Upload",
   "Development Status :: 4 - Beta",

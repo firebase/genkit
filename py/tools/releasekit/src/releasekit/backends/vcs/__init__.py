@@ -56,6 +56,18 @@ class VCS(Protocol):
         """Return ``True`` if the repository is a shallow clone."""
         ...
 
+    async def default_branch(self) -> str:
+        """Return the name of the default (trunk) branch.
+
+        Auto-detects the default branch from the VCS configuration.
+        For Git, this queries ``refs/remotes/origin/HEAD``. For
+        Mercurial, the default branch is typically ``"default"``.
+
+        Returns:
+            The branch name (e.g. ``"main"``, ``"master"``, ``"develop"``).
+        """
+        ...
+
     async def current_sha(self) -> str:
         """Return the current HEAD commit SHA."""
         ...
@@ -67,6 +79,8 @@ class VCS(Protocol):
         paths: list[str] | None = None,
         format: str = '%H %s',
         first_parent: bool = False,
+        no_merges: bool = False,
+        max_commits: int = 0,
     ) -> list[str]:
         """Return log entry lines.
 
@@ -77,6 +91,12 @@ class VCS(Protocol):
             first_parent: If True, follow only the first parent of
                 merge commits. Prevents duplicate entries when merge
                 commits repeat the squashed commit message.
+            no_merges: If True, exclude merge commits entirely.
+                Prevents accidental merge commits in trunk-based
+                workflows from being parsed as conventional commits.
+            max_commits: Maximum number of commits to return. 0 means
+                no limit. Useful for large repos where scanning the
+                entire history is expensive.
         """
         ...
 
@@ -158,6 +178,27 @@ class VCS(Protocol):
             tags: Also push tags.
             remote: Remote name.
             dry_run: Log the command without executing.
+        """
+        ...
+
+    async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """Return all tags, optionally filtered by a glob pattern.
+
+        Args:
+            pattern: Optional glob pattern to filter tags
+                (e.g. ``"py/v*"``). Empty string means all tags.
+
+        Returns:
+            Sorted list of tag names.
+        """
+        ...
+
+    async def current_branch(self) -> str:
+        """Return the name of the currently checked-out branch.
+
+        Returns:
+            Branch name (e.g. ``"main"``), or an empty string if
+            in detached HEAD state.
         """
         ...
 

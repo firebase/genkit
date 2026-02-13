@@ -237,7 +237,7 @@ class TestPackageDataclass:
             name='test',
             version='1.0.0',
             path=tmp_path,
-            pyproject_path=tmp_path / 'pyproject.toml',
+            manifest_path=tmp_path / 'pyproject.toml',
         )
         with pytest.raises(AttributeError):
             pkg.name = 'oops'  # type: ignore[misc]
@@ -248,6 +248,6 @@ class TestPackageDataclass:
             name='test',
             version='1.0.0',
             path=tmp_path,
-            pyproject_path=tmp_path / 'pyproject.toml',
+            manifest_path=tmp_path / 'pyproject.toml',
         )
         assert pkg.is_publishable is True, f'Expected is_publishable=True, got {pkg.is_publishable}'
