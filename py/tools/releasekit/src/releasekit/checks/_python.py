@@ -29,6 +29,7 @@ from releasekit.checks._constants import (
     _LICENSE_PATTERNS,
     _PEP440_RE,
     _PLACEHOLDER_URL_PATTERNS,
+    _PRIVATE_CLASSIFIER,
     DEPRECATED_CLASSIFIERS,
 )
 from releasekit.checks._python_fixers import (
@@ -52,6 +53,37 @@ from releasekit.preflight import PreflightResult
 from releasekit.workspace import Package
 
 logger = get_logger(__name__)
+
+
+def _refresh_publishable(packages: list[Package]) -> None:
+    """Re-read classifiers from disk and update ``is_publishable`` in-place.
+
+    After ``fix_publish_classifiers`` modifies the ``Private :: Do Not
+    Upload`` classifier on disk, the in-memory ``Package.is_publishable``
+    field is stale.  This function re-reads each package's
+    ``pyproject.toml`` and updates the field so that subsequent fixers
+    (``fix_readme_field``, ``fix_changelog_url``, etc.) that gate on
+    ``is_publishable`` see the correct value.
+    """
+    for pkg in packages:
+        try:
+            content = pkg.pyproject_path.read_text(encoding='utf-8')
+            doc = tomlkit.parse(content)
+        except Exception as exc:
+            logger.warning(
+                'refresh_publishable_failed',
+                path=str(pkg.pyproject_path),
+                error=str(exc),
+            )
+            continue
+        project = doc.get('project')
+        if not isinstance(project, dict):
+            continue
+        classifiers = project.get('classifiers', [])
+        if not isinstance(classifiers, list):
+            continue
+        new_value = not any(isinstance(c, str) and _PRIVATE_CLASSIFIER in c for c in classifiers)
+        object.__setattr__(pkg, 'is_publishable', new_value)
 
 
 class PythonCheckBackend:
@@ -223,7 +255,12 @@ class PythonCheckBackend:
             try:
                 content = pkg.pyproject_path.read_text(encoding='utf-8')
                 data = tomlkit.parse(content)
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    'metadata_parse_failed',
+                    path=str(pkg.pyproject_path),
+                    error=str(exc),
+                )
                 issues.append(f'{pkg.name}: cannot parse pyproject.toml')
                 continue
 
@@ -1104,6 +1141,11 @@ class PythonCheckBackend:
         else:
             result.add_pass(check_name)
 
+    @staticmethod
+    def _refresh_publishable(packages: list[Package]) -> None:
+        """Re-read classifiers from disk and update ``is_publishable``."""
+        _refresh_publishable(packages)
+
     def run_fixes(
         self,
         packages: list[Package],
@@ -1125,6 +1167,14 @@ class PythonCheckBackend:
         # Metadata fixers.
         if exclude_publish:
             changes.extend(fix_publish_classifiers(packages, exclude_publish, dry_run=dry_run))
+            # Refresh in-memory is_publishable after classifier changes.
+            # fix_publish_classifiers modifies classifiers on disk but
+            # the Package objects still hold the stale value. Without
+            # this refresh, subsequent fixers that gate on is_publishable
+            # (fix_readme_field, fix_changelog_url, etc.) would skip
+            # packages that just became publishable.
+            if not dry_run:
+                _refresh_publishable(packages)
         changes.extend(fix_readme_field(packages, dry_run=dry_run))
         changes.extend(
             fix_changelog_url(
