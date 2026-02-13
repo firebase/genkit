@@ -745,3 +745,37 @@ async function downloadVideo(video: MediaPart, path: string) {
 
   Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
 }
+
+// Test external URL with Gemini 2.0 (should download and inline)
+ai.defineFlow('external-url-gemini-2.0', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: [
+      { text: 'Describe this image.' },
+      {
+        media: {
+          url: 'https://storage.googleapis.com/generativeai-downloads/images/scones.jpg',
+          contentType: 'image/jpeg',
+        },
+      },
+    ],
+  });
+  return text;
+});
+
+// Test external URL with Gemini 3.0 (should pass as fileUri)
+ai.defineFlow('external-url-gemini-3.0', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-flash-preview'),
+    prompt: [
+      { text: 'Describe this image.' },
+      {
+        media: {
+          url: 'https://storage.googleapis.com/generativeai-downloads/images/scones.jpg',
+          contentType: 'image/jpeg',
+        },
+      },
+    ],
+  });
+  return text;
+});

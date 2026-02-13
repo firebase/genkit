@@ -576,10 +576,14 @@ export function defineModel(
 
   const middleware: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
+    // For Gemini 2.0, external URLs are not supported, so we must download.
+    // For other models (e.g. 2.5, 3.0), we can pass the URL directly.
+    const isGemini20 = name.startsWith('gemini-2.0');
+
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
       downloadRequestMedia({
-        maxBytes: 1024 * 1024 * 10,
+        maxBytes: 1024 * 1024 * 100,
         // don't downlaod files that have been uploaded using the Files API
         filter: (part) => {
           try {
@@ -594,6 +598,14 @@ export function defineModel(
               ].includes(url.hostname)
             )
               return false;
+
+            // If not Gemini 2.0, allow http/https URLs to pass through
+            if (
+              !isGemini20 &&
+              (url.protocol === 'https:' || url.protocol === 'http:')
+            ) {
+              return false;
+            }
           } catch {}
           return true;
         },
