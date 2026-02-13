@@ -29,7 +29,7 @@ graph TB
         SCHED["scheduler.py"]
         VER["versioning.py"]
         STATE["state.py"]
-        CHECK["checks.py"]
+        CHECK["checks/ (subpackage)"]
         PRE["preflight.py"]
     end
 

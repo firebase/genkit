@@ -107,11 +107,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Preview execution plan
+        run: |
+          cd py
+          uv run releasekit plan --format full
+
       - uses: ./py/tools/releasekit
         with:
           command: release
           working-directory: py
           forge-backend: api
+
+      - name: Preview execution plan
+        run: |
+          cd py
+          uv run releasekit plan --format full
 
       - uses: ./py/tools/releasekit
         with:

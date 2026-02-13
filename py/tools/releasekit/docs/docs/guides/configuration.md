@@ -117,6 +117,15 @@ smoke_test = true
 
 # Synchronize versions across all packages (lockstep versioning)
 synchronize = false
+
+# Allow breaking changes on 0.x to produce major bumps (0.x → 1.0.0)
+major_on_zero = false
+
+# Template for the Release PR title
+pr_title_template = "chore(release): v{version}"
+
+# Extra files containing version strings to bump
+extra_files = []
 ```
 
 ### Synchronize Mode
@@ -161,6 +170,9 @@ If `releasekit.toml` doesn't exist, sensible defaults are used:
 | `http_pool_size` | `10` |
 | `smoke_test` | `true` |
 | `synchronize` | `false` |
+| `major_on_zero` | `false` |
+| `pr_title_template` | `"chore(release): v{version}"` |
+| `extra_files` | `[]` |
 
 ## Example: Full Config
 
@@ -172,6 +184,9 @@ changelog       = true
 synchronize     = true
 smoke_test      = true
 http_pool_size  = 20
+major_on_zero   = false
+pr_title_template = "chore(release): v{version}"
+extra_files     = ["packages/genkit/src/genkit/_version.py"]
 
 exclude         = ["internal-*"]
 exclude_publish = ["sample-*", "group:experimental"]

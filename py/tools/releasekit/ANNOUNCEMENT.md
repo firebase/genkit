@@ -132,7 +132,7 @@ releasekit
 │   ├── scheduler.py     dependency-triggered queue dispatcher
 │   ├── publisher.py     async publish orchestration
 │   ├── preflight.py     pre-publish safety checks
-│   └── checks.py        standalone workspace health checks
+│   └── checks/          standalone workspace health checks (subpackage)
 │
 ├── Formatters           8 output formats (ASCII, CSV, DOT, Mermaid, ...)
 ├── UX                   Rust-style errors, structured logging, CLI

@@ -127,7 +127,7 @@ and dependencies.
 |--------|-------|---------|
 | `bump.py` | ~200 | Rewrite `version = "..."` in `pyproject.toml` |
 | `changelog.py` | ~300 | Generate per-package changelogs from commits |
-| `checks.py` | ~1,054 | Workspace health checks (`CheckBackend` protocol) |
+| `checks/` | ~2,900 | Workspace health checks subpackage: `_protocol.py` (CheckBackend), `_constants.py`, `_universal.py` (8 checks + 3 fixers), `_python.py` (PythonCheckBackend, 25 checks), `_python_fixers.py` (14 fixers), `_runner.py` (run_checks orchestrator) |
 | `commitback.py` | ~230 | Commit and push changes back to the repo |
 | `groups.py` | ~190 | Package group filtering from config |
 | `init.py` | ~200 | Scaffold `releasekit.toml` with auto-detected groups |
