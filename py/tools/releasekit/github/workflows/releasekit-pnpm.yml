@@ -122,9 +122,8 @@ jobs:
           cache-dependency-path: js/pnpm-lock.yaml
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Configure git identity
         run: |
@@ -185,9 +184,8 @@ jobs:
           cache-dependency-path: genkit-tools/pnpm-lock.yaml
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Configure git identity
         run: |
@@ -244,9 +242,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Configure git identity
         run: |
@@ -313,19 +310,16 @@ jobs:
           cache-dependency-path: js/pnpm-lock.yaml
 
       - name: Install JS dependencies
-        run: |
-          cd js
-          pnpm install --frozen-lockfile
+        working-directory: js
+        run: pnpm install --frozen-lockfile
 
       - name: Build JS packages
-        run: |
-          cd js
-          pnpm build
+        working-directory: js
+        run: pnpm build
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Preview execution plan
         run: |
