@@ -41,7 +41,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = [
   "genkit",
@@ -76,6 +75,7 @@ version = "0.5.0"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"
+Changelog = "https://github.com/firebase/genkit/blob/main/cloudflare-workers-ai/CHANGELOG.md"
 
 [build-system]
 build-backend = "hatchling.build"
