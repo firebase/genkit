@@ -237,6 +237,13 @@ async def generate_action(
     if raw_request.docs and not supports_context:
         middleware.append(augment_with_context())
 
+    # Build the combined middleware chain: call-time middleware first,
+    # then model-level middleware (from define_model(use=[...])).
+    # This matches JS SDK execution order:
+    # call-time[0..N] → model-level[0..M] → runner
+    model_middleware: list[ModelMiddleware] = cast(list[ModelMiddleware], model.middleware)
+    combined_middleware: list[ModelMiddleware] = list(middleware) + model_middleware
+
     async def dispatch(index: int, req: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Dispatches model request, passing it through middleware if present.
 
@@ -248,7 +255,7 @@ async def generate_action(
         Returns:
             The generated response.
         """
-        if not middleware or index == len(middleware):
+        if index == len(combined_middleware):
             # end of the chain, call the original model action
             return (
                 await model.arun(
@@ -258,7 +265,7 @@ async def generate_action(
                 )
             ).response
 
-        current_middleware = middleware[index]
+        current_middleware = combined_middleware[index]
 
         async def next_fn(
             modified_req: GenerateRequest | None = None,
