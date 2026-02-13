@@ -220,7 +220,7 @@ All samples except `provider-checks-hello` had `LICENSE` ✅ (now fixed).
 | `defineStreamingFlow` | ✅ (via options) | ✅ `DefineStreamingFlow` | ✅ (via streaming param) | ✅ |
 | `defineTool` | ✅ | ✅ `DefineTool` | ✅ `.tool()` decorator | ✅ |
 | `defineToolWithInputSchema` | — | ✅ `DefineToolWithInputSchema` | — | Go-only |
-| `defineTool({multipart: true})` | ✅ | ✅ `DefineMultipartTool` | ❌ | ❌ Python missing (G18) |
+| `defineTool({multipart: true})` | ✅ | ✅ `DefineMultipartTool` | ✅ `.tool(multipart=True)` | ✅ (PR #4513) |
 | `defineModel` | ✅ | ✅ `DefineModel` | ✅ `define_model` | ✅ |
 | `defineBackgroundModel` | ✅ | ✅ `DefineBackgroundModel` | ✅ `define_background_model` | ✅ |
 | `definePrompt` | ✅ | ✅ `DefinePrompt` | ✅ `define_prompt` | ✅ |
@@ -330,7 +330,7 @@ Python users typically use `httpx` or `requests` directly.
 | Feature | JS | Go | Python | Gap Owner | Priority |
 |---------|:--:|:--:|:------:|-----------|:--------:|
 | `runFlow` / `streamFlow` client | ✅ (beta/client) | ❌ | ❌ | Go + Python | P2 |
-| `defineTool({multipart: true})` | ✅ | ✅ | ❌ | Python | P1 |
+| `defineTool({multipart: true})` | ✅ | ✅ | ✅ | — | ✅ Done (PR #4513) |
 | Model API V2 (`apiVersion: 'v2'`) | ✅ | ❌ | ❌ | Go + Python | P1 |
 | `defineDynamicActionProvider` | ✅ | ❌ | ✅ | Go | P2 |
 | `defineIndexer` | ✅ | ❌ | ✅ | Go | P2 |
@@ -490,11 +490,11 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G14 | Python | Implement `validate_support` middleware | §8f | ⬜ |
 | G15 | Python | Implement `download_request_media` middleware | §8f | ⬜ |
 | G16 | Python | Implement `simulate_system_prompt` middleware | §8f | ⬜ |
-| G18 | Python | Add multipart tool support (`defineTool({multipart: true})`) | §8h | ⬜ |
+| G18 | Python | Add multipart tool support (`defineTool({multipart: true})`) | §8h | ✅ PR #4513 |
 | G19 | Python | Add Model API V2 (`defineModel({apiVersion: 'v2'})`) | §8i | ⬜ |
-| G20 | Python | Add `context` parameter to `Genkit()` constructor | §8j | ⬜ |
-| G21 | Python | Add `clientHeader` parameter to `Genkit()` constructor | §8j | ⬜ |
-| G22 | Python | Add `name` parameter to `Genkit()` constructor | §8j | ⬜ |
+| G20 | Python | Add `context` parameter to `Genkit()` constructor | §8j | ✅ PR #4512 |
+| G21 | Python | Add `clientHeader` parameter to `Genkit()` constructor | §8j | ✅ PR #4512 |
+| G22 | Python | Add `name` parameter to `Genkit()` constructor | §8j | ✅ PR #4512 |
 | G4 | Python | Move `augment_with_context` to define-model time | §8b.2 | ⬜ |
 | G9 | Python | Add Pinecone vector store plugin | §5g | ⬜ |
 | G10 | Python | Add ChromaDB vector store plugin | §5g | ⬜ |
@@ -908,10 +908,10 @@ export function apiKey(
 
 | Feature | JS | Python | Gap |
 |---------|:--:|:------:|:---:|
-| `defineTool({multipart: true})` | ✅ Supported. Creates a `MultipartToolAction` of type `tool.v2`. | ❌ Not supported. `define_tool` has no `multipart` parameter. | **G18** |
-| `MultipartToolAction` type | ✅ `tool.ts:107-122` — Action with `tool.v2` type, returns `{output?, content?}`. | ❌ Does not exist. | **G18** |
-| `MultipartToolResponse` type | ✅ `parts.ts` — Schema with `output` and `content` fields. | ⚠️ Type exists in `typing.py:933` but unused in tool definition. | Partial |
-| Auto-registration of `tool.v2` | ✅ Non-multipart tools are also registered as `tool.v2` with wrapped output. | ❌ No dual registration. | **G18** |
+| `defineTool({multipart: true})` | ✅ Supported. Creates a `MultipartToolAction` of type `tool.v2`. | ✅ `.tool(multipart=True)` registers as `tool.v2` with metadata `tool.multipart=True`. | ✅ PR #4513 |
+| `MultipartToolAction` type | ✅ `tool.ts:107-122` — Action with `tool.v2` type, returns `{output?, content?}`. | ✅ Registered under `ActionKind.TOOL_V2` with appropriate metadata. | ✅ PR #4513 |
+| `MultipartToolResponse` type | ✅ `parts.ts` — Schema with `output` and `content` fields. | ✅ Multipart tool functions return `{output?, content?}` dict. | ✅ PR #4513 |
+| Auto-registration of `tool.v2` | ✅ Non-multipart tools are also registered as `tool.v2` with wrapped output. | ✅ Non-multipart tools register both `tool` and `tool.v2` (v2 wraps output in `{output: result}`). | ✅ PR #4513 |
 
 **JS** (`js/ai/src/tool.ts:306-335`):
 ```ts
@@ -1040,11 +1040,11 @@ export interface GenkitOptions {
 | G15 | Python | `download_request_media` middleware missing | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | URL media transformed to data URI |
 | G16 | Python | `simulate_system_prompt` missing | P2 | `py/packages/genkit/src/genkit/blocks/middleware.py` | system message rewritten for unsupported model |
 | G17 | Python | `api_key()` context provider missing | P3 | `py/packages/genkit/src/genkit/core/context.py` | auth header extraction + policy callback tests |
-| G18 | Python | multipart tool (`tool.v2`) missing | P1 | `py/packages/genkit/src/genkit/blocks/tools.py`, `.../blocks/generate.py` | tool call returns `output` + `content` parity |
+| G18 | Python | ~~multipart tool (`tool.v2`) missing~~ | P1 | `ai/_registry.py`, `core/action/types.py`, `blocks/generate.py` | ✅ **Done** (PR #4513) |
 | G19 | Python | Model API V2 runner interface missing | P1 | `py/packages/genkit/src/genkit/ai/_registry.py`, `.../blocks/model.py` | v2 model receives unified options struct |
-| G20 | Python | `Genkit(context=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py` | context propagates to action executions |
-| G21 | Python | `Genkit(clientHeader=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/http_client.py` | outbound header includes custom token |
-| G22 | Python | `Genkit(name=...)` missing | P2 | `py/packages/genkit/src/genkit/ai/_aio.py`, `.../core/reflection.py` | Dev UI/reflection shows custom name |
+| G20 | Python | ~~`Genkit(context=...)` missing~~ | P2 | `ai/_aio.py`, `core/registry.py` | ✅ **Done** (PR #4512) |
+| G21 | Python | ~~`Genkit(clientHeader=...)` missing~~ | P2 | `ai/_aio.py`, `core/constants.py` | ✅ **Done** (PR #4512) |
+| G22 | Python | ~~`Genkit(name=...)` missing~~ | P2 | `ai/_aio.py`, `ai/_runtime.py`, `core/registry.py` | ✅ **Done** (PR #4512) |
 | G23 | Go | `defineDynamicActionProvider` parity missing | P2 | `go/genkit/genkit.go`, `go/core/registry.go` | DAP action discovery + resolve test |
 | G24 | Go | `defineIndexer` parity missing | P2 | `go/genkit/genkit.go`, `go/ai` indexing action | indexer registration + invoke test |
 | G25 | Go | `defineReranker` + `rerank` runtime missing | P1 | `go/genkit/genkit.go`, `go/ai` reranker block | reranker registration + scoring call |
@@ -1198,9 +1198,9 @@ Reverse topological sort of the gap DAG yields the following dependency levels. 
 |----|-----|-----------|----------------|:------:|----------|
 | **P1.1** | **G2** | Add `middleware` storage to `Action` class; implement `action_with_middleware()` wrapper that chains model-level middleware around `action.run()` | `core/action/_action.py` | L | G1, G12, G13, G15, G19 |
 | **P1.2** | **G6** | Update `on_trace_start` callback signature to `(trace_id: str, span_id: str)` throughout action system | `core/action/_action.py`, `core/reflection.py`, `core/trace/` | S | G5 |
-| **P1.3** | **G18** | Add multipart tool support: `define_tool(multipart=True)`, `MultipartToolAction` type `tool.v2`, dual registration for non-multipart tools | `blocks/tools.py`, `blocks/generate.py` | M | — |
-| **P1.4** | **G20** | Add `context` parameter to `Genkit()` that sets `registry.context` for default action context | `ai/_aio.py` | XS | — |
-| **P1.5** | **G21** | Add `clientHeader` parameter to `Genkit()` that appends to `GENKIT_CLIENT_HEADER` via `set_client_header()` | `ai/_aio.py`, `core/http_client.py` | XS | G8 |
+| **P1.3** | **G18** | ~~Add multipart tool support: `define_tool(multipart=True)`, `MultipartToolAction` type `tool.v2`, dual registration for non-multipart tools~~ | `ai/_registry.py`, `core/action/types.py`, `blocks/generate.py` | M | ✅ **Done** (PR #4513) |
+| **P1.4** | **G20** | ~~Add `context` parameter to `Genkit()` that sets `registry.context` for default action context~~ | `ai/_aio.py`, `core/registry.py` | XS | ✅ **Done** (PR #4512) |
+| **P1.5** | **G21** | ~~Add `clientHeader` parameter to `Genkit()` that appends to `GENKIT_CLIENT_HEADER` via `set_client_header()`~~ | `ai/_aio.py`, `core/constants.py` | XS | ✅ **Done** (PR #4512) |
 
 **Exit criteria**: All unit tests green for action middleware dispatch, span_id propagation, tool.v2 registration, and constructor parameter propagation.
 
@@ -1439,8 +1439,8 @@ Milestone     ▲ P1 infra    ▲ Middleware     ▲ Full P1    ▲ Client
 |----|:-----:|------|----------|:----------:|
 | **PR-1a** | Core | G2 | Add `middleware` list to `Action.__init__()`, implement `action_with_middleware()` dispatch wrapper, unit tests for middleware chaining | — |
 | **PR-1b** | Core | G6 | Update `on_trace_start` callback signature to `(trace_id, span_id)` across action system + tracing, update all call sites | — |
-| **PR-1c** | Core | G18 | Multipart tool support: `define_tool(multipart=True)`, `tool.v2` action type, dual registration for non-multipart tools, unit tests | — |
-| **PR-1d** | Core | G20, G21 | `Genkit(context=..., client_header=...)` constructor params — small additive changes, can combine in one PR | — |
+| **PR-1c** | Core | G18 | ~~Multipart tool support: `define_tool(multipart=True)`, `tool.v2` action type, dual registration for non-multipart tools, unit tests~~ | ✅ PR #4513 |
+| **PR-1d** | Core | G20, G21, G22 | ~~`Genkit(context=..., client_header=..., name=...)` constructor params~~ | ✅ PR #4512 |
 
 *PR-1a is the critical-path item. Land it first to unblock Phase 2.*
 
