@@ -14,10 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-changelog    = true
-smoke_test   = true
-tag_format   = "{name}-v{version}"
-umbrella_tag = "v{version}"
+forge          = "github"
+repo_owner     = "firebase"
+repo_name      = "genkit"
+core_package   = "genkit"
+plugin_prefix  = "genkit-plugin-"
+namespace_dirs = ["genkit", "genkit/plugins"]
+library_dirs   = ["packages", "plugins"]
+plugin_dirs    = ["plugins"]
+changelog      = true
+smoke_test     = true
+tag_format     = "{name}-v{version}"
+umbrella_tag   = "v{version}"
 
 # Packages listed here are discovered, checked, and version-bumped
 # but skipped during publish. Use "group:<name>" to reference a group.
@@ -29,16 +37,22 @@ exclude_publish = [
 
 [groups]
 community_plugins = [
+  "genkit-plugin-amazon-bedrock",
   "genkit-plugin-anthropic",
-  "genkit-plugin-checks",
+  "genkit-plugin-cloudflare-workers-ai",
+  "genkit-plugin-cohere",
   "genkit-plugin-compat-oai",
-  "genkit-plugin-dev-local-vectorstore",
+  "genkit-plugin-deepseek",
   "genkit-plugin-evaluators",
   "genkit-plugin-fastapi",
   "genkit-plugin-flask",
+  "genkit-plugin-huggingface",
   "genkit-plugin-mcp",
+  "genkit-plugin-microsoft-foundry",
+  "genkit-plugin-mistral",
   "genkit-plugin-observability",
   "genkit-plugin-ollama",
+  "genkit-plugin-xai",
 ]
 core = ["genkit"]
 google_plugins = [
@@ -47,7 +61,10 @@ google_plugins = [
   "genkit-plugin-google-genai",
   "genkit-plugin-vertex-ai",
 ]
-internal_tools = ["conform"]
+internal_tools = [
+  "conform",
+  "genkit-plugin-dev-local-vectorstore",
+]
 samples = [
   "dev-local-vectorstore-hello",
   "framework-context-demo",
@@ -90,12 +107,5 @@ samples = [
   "web-short-n-long",
 ]
 unreleased_plugins = [
-  "genkit-plugin-amazon-bedrock",
-  "genkit-plugin-cloudflare-workers-ai",
-  "genkit-plugin-cohere",
-  "genkit-plugin-deepseek",
-  "genkit-plugin-huggingface",
-  "genkit-plugin-microsoft-foundry",
-  "genkit-plugin-mistral",
-  "genkit-plugin-xai",
+  "genkit-plugin-checks",
 ]
