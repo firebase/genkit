@@ -595,9 +595,8 @@ signing, and publishing.
 27. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
 28. **Rustification** — Rewrite core in Rust with PyO3/maturin (see roadmap §12).
 
-> **See [roadmap-execution-plan.md](roadmap-execution-plan.md)** for the
-> dependency-graphed, topo-sorted parallel execution plan with Gantt chart
-> and critical path analysis.
+> **See [../roadmap.md](../roadmap.md)** for the detailed roadmap with
+> dependency graphs and execution phases.
 
 ---
 

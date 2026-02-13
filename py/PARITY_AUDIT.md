@@ -1,7 +1,7 @@
 # Genkit Feature Parity Audit — JS / Go / Python
 
-> Generated: 2025-02-08. Updated: 2026-02-09. Baseline: `firebase/genkit` JS implementation, with explicit JS vs Go vs Python parity tracking.
-> Last verified: 2026-02-09 against genkit-ai org (14 repos) and BloomLabsInc/genkit-plugins.
+> Generated: 2025-02-08. Updated: 2026-02-13. Baseline: `firebase/genkit` JS implementation, with explicit JS vs Go vs Python parity tracking.
+> Last verified: 2026-02-13 against genkit-ai org (14 repos) and BloomLabsInc/genkit-plugins.
 
 ## 1. Plugin Parity Matrix
 
@@ -23,6 +23,7 @@
 | Microsoft Foundry | `microsoft-foundry` | — | — | ✅ | Python-only |
 | Mistral | `mistral` | — | — | ✅ | Python-only |
 | xAI (Grok) | `xai` | — | — | ✅ | Python-only |
+| Cohere | `cohere` | — | — | ✅ | Python-only |
 | **Vector Stores** | | | | | |
 | Dev Local Vectorstore | `dev-local-vectorstore` / `localvec` | ✅ | ✅ | ✅ | |
 | Pinecone | `pinecone` | ✅ | ✅ | ❌ | Missing in Python |
@@ -44,6 +45,7 @@
 | Express | `express` | ✅ | — | — | JS-only |
 | Next.js | `next` | ✅ | — | — | JS-only |
 | Flask | `flask` | — | — | ✅ | Python-only |
+| FastAPI | `fastapi` | — | — | ✅ | Python-only |
 | Server plugin | `server` | — | ✅ | — | Go-only |
 | **Other** | | | | | |
 | LangChain | `langchain` | ✅ | — | — | JS-only |
@@ -53,11 +55,11 @@
 
 | Metric | JS | Go | Python |
 |--------|:--:|:--:|:------:|
-| Total in-tree plugins | 18 | 16 | 20 |
+| Total in-tree plugins | 18 | 16 | 22 |
 | Shared (JS+Go+Python) | 11 | 11 | 11 |
-| Model provider plugins | 6 | 4 | 12 |
+| Model provider plugins | 6 | 4 | 13 |
 | Vector store plugins | 4 | 4 | 1 |
-| Unique to this SDK | 7 | 5 | 9 |
+| Unique to this SDK | 7 | 5 | 11 |
 
 ### 1c. Plugin Gap Table (Parity Focus)
 
@@ -81,7 +83,7 @@
 | `genkitx-anthropic` | `BloomLabsInc/genkit-plugins` | JS | `anthropic` (in-tree) | ✅ |
 | `genkitx-mistral` | `BloomLabsInc/genkit-plugins` | JS | `mistral` (in-tree) | ✅ |
 | `genkitx-groq` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
-| `genkitx-cohere` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
+| `genkitx-cohere` | `BloomLabsInc/genkit-plugins` | JS | ✅ `cohere` (in-tree) | ✅ |
 | `genkitx-azure-openai` | `BloomLabsInc/genkit-plugins` | JS | `microsoft-foundry` (partial) | ⚠️ |
 | `genkitx-convex` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
 | `genkitx-hnsw` | `BloomLabsInc/genkit-plugins` | JS | ❌ Not available | ❌ |
@@ -96,9 +98,9 @@
 
 | Sample Set | JS | Go | Python | Notes |
 |------------|:--:|:--:|:------:|-------|
-| Canonical internal sample/testapp set | 32 (`js/testapps`) | 37 (`go/samples`) | 37 runnable (`py/samples`, excluding `shared`, `sample-test`) | Primary parity baseline |
+| Canonical internal sample/testapp set | 32 (`js/testapps`) | 37 (`go/samples`) | 39 runnable (`py/samples`, excluding `shared`, `sample-test`) | Primary parity baseline |
 | Public showcase samples | 9 (`samples/js-*`) | — | — | Public docs/demo set |
-| Total directories under samples root | — | 37 | 39 | Python includes utility dirs (`shared`, `sample-test`) |
+| Total directories under samples root | — | 37 | 41 | Python includes utility dirs (`shared`, `sample-test`) |
 
 ### 2b. Sample Area Parity (JS vs Go vs Python)
 
@@ -132,36 +134,39 @@ Per Google OSS guidelines:
 
 | Plugin | LICENSE | README | pyproject | CHANGELOG | py.typed | tests/ | Status |
 |--------|:------:|:------:|:---------:|:---------:|:--------:|:------:|:------:|
-| amazon-bedrock | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| anthropic | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| checks | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| cloudflare-workers-ai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| compat-oai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (7) | ⚠️ |
-| deepseek | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| dev-local-vectorstore | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
-| evaluators | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| firebase | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| flask | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (1) | ⚠️ |
-| google-cloud | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| google-genai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| huggingface | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| mcp | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (5) | ⚠️ |
-| microsoft-foundry | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| mistral | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (3) | ⚠️ |
-| observability | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
-| ollama | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
-| vertex-ai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (4) | ⚠️ |
-| xai | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ (2) | ⚠️ |
+| amazon-bedrock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| anthropic | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| checks | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (1) | ✅ |
+| cloudflare-workers-ai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| compat-oai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (7) | ✅ |
+| deepseek | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| dev-local-vectorstore | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| evaluators | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| firebase | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| flask | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| google-cloud | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| google-genai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (9) | ✅ |
+| huggingface | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| mcp | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (5) | ✅ |
+| microsoft-foundry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| mistral | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| observability | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (3) | ✅ |
+| ollama | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (5) | ✅ |
+| vertex-ai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| xai | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (4) | ✅ |
+| cohere | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (5) | ✅ |
+| fastapi | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ (0) | ⚠️ |
 
-**Legend**: ✅ = present, ❌ = missing, ⚠️ = mostly OK (only CHANGELOG missing)
+**Legend**: ✅ = present, ❌ = missing, ⚠️ = mostly OK
 
 ### 3c. Missing Files Summary
 
 | Issue | Count | Affected |
 |-------|:-----:|----------|
 | Missing `py.typed` | ~~9~~ **0** | All fixed ✅ |
-| Missing `CHANGELOG.md` | 21 | ALL plugins + core package |
+| Missing `CHANGELOG.md` | ~~21~~ **0** | All fixed ✅ (G11) |
 | Missing sample `LICENSE` | ~~1~~ **0** | `provider-checks-hello` fixed ✅ |
+| Missing tests | 1 | `fastapi` plugin (0 test files) |
 
 ### 3d. Core Package (`packages/genkit`)
 
@@ -170,14 +175,13 @@ Per Google OSS guidelines:
 | LICENSE | ✅ |
 | README.md | ✅ |
 | pyproject.toml | ✅ |
-| CHANGELOG.md | ❌ |
+| CHANGELOG.md | ✅ |
 | py.typed | ✅ |
 | tests/ | ✅ (44 test files) |
 
 ### 3e. Sample Compliance
 
-All 37 samples have: `README.md` ✅, `run.sh` ✅, `pyproject.toml` ✅
-All samples except `provider-checks-hello` had `LICENSE` ✅ (now fixed).
+All 39 samples have: `README.md` ✅, `run.sh` ✅, `pyproject.toml` ✅, `LICENSE` ✅.
 
 ---
 
@@ -186,27 +190,30 @@ All samples except `provider-checks-hello` had `LICENSE` ✅ (now fixed).
 | Component | Test Files | Notes |
 |-----------|:----------:|-------|
 | **Core** (`packages/genkit`) | 44 | Comprehensive |
-| **compat-oai** | 7 | Best-covered plugin |
-| **google-genai** | 7 | Best-covered plugin |
+| **google-genai** | 9 | Best-covered plugin |
+| **compat-oai** | 7 | Well-covered |
+| **cohere** | 5 | Well-covered |
 | **mcp** | 5 | Well-covered |
+| **ollama** | 5 | Well-covered |
+| **amazon-bedrock** | 4 | Good |
+| **cloudflare-workers-ai** | 4 | Good |
 | **dev-local-vectorstore** | 4 | Good |
-| **ollama** | 4 | Good |
+| **microsoft-foundry** | 4 | Good |
+| **mistral** | 4 | Good |
 | **vertex-ai** | 4 | Good |
-| **amazon-bedrock** | 3 | Good |
+| **xai** | 4 | Good |
 | **anthropic** | 3 | Good |
-| **cloudflare-workers-ai** | 3 | Good |
 | **deepseek** | 3 | Good |
 | **evaluators** | 3 | Good |
 | **firebase** | 3 | Good |
 | **flask** | 3 | Good |
 | **google-cloud** | 3 | Good |
 | **huggingface** | 3 | Good |
-| **microsoft-foundry** | 3 | Good |
-| **mistral** | 3 | Good |
 | **observability** | 3 | Good |
-| **xai** | 3 | Good |
-| **Total (plugins)** | 70 | All plugins ≥ 3 |
-| **Total (workspace)** | 136 | Including core + samples |
+| **checks** | 1 | Minimal |
+| **fastapi** | 0 | ❌ No tests |
+| **Total (plugins)** | 84 | 20 of 22 plugins have tests |
+| **Total (workspace)** | 128+ | Including core + samples |
 
 ---
 
@@ -359,7 +366,7 @@ Python users typically use `httpx` or `requests` directly.
 | LangChain integration plugin | ✅ | — | ❌ | Go + Python | P3 |
 | **Community Ecosystem** (BloomLabs etc.) | | | | | |
 | Groq provider (`genkitx-groq`) | ✅ (community) | — | ❌ | Python | P3 |
-| Cohere provider (`genkitx-cohere`) | ✅ (community) | — | ❌ | Python | P3 |
+| Cohere provider (`genkitx-cohere`) | ✅ (community) | — | ✅ `cohere` (in-tree) | Python | ✅ |
 | Azure OpenAI (`genkitx-azure-openai`) | ✅ (community) | — | ✅ `microsoft-foundry` (superset) | Python | ✅ |
 | Convex vector store (`genkitx-convex`) | ✅ (community) | — | ❌ | Python | P3 |
 | HNSW vector store (`genkitx-hnsw`) | ✅ (community) | — | ❌ | Python | P3 |
@@ -370,8 +377,8 @@ Python users typically use `httpx` or `requests` directly.
 
 | Feature | Notes |
 |---------|-------|
-| 8 unique model providers | Bedrock, Cloudflare Workers AI, DeepSeek, HuggingFace, MS Foundry, Mistral, xAI, Observability |
-| Flask plugin | Python web framework integration |
+| 9 unique model providers | Bedrock, Cloudflare Workers AI, Cohere, DeepSeek, HuggingFace, MS Foundry, Mistral, xAI, Observability |
+| Flask + FastAPI plugins | Python web framework integrations |
 | ASGI/gRPC production sample | `web-endpoints-hello` — production-ready template with security, resilience, multi-server |
 | `check_consistency` tooling | Automated 25-check workspace hygiene script |
 | `release_check` tooling | Automated 15-check pre-release validation |
@@ -434,7 +441,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | `genkitx-anthropic` | Provider (Anthropic) | Covered via `anthropic` | ✅ |
 | `genkitx-mistral` | Provider (Mistral) | Covered via `mistral` | ✅ |
 | `genkitx-groq` | Provider (Groq) | ❌ Not available | ❌ |
-| `genkitx-cohere` | Provider (Cohere) | ❌ Not available | ❌ |
+| `genkitx-cohere` | Provider (Cohere) | ✅ `cohere` (in-tree) | ✅ |
 | `genkitx-azure-openai` | Provider (Azure OpenAI) | `microsoft-foundry` (partial) | ⚠️ |
 
 **Vector Store Plugins:**
@@ -455,13 +462,13 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 
 | External Category | Current Python Coverage | Gap Level |
 |-------------------|-------------------------|:---------:|
-| Community model providers (6) | 3 of 6 covered | ⚠️ |
+| Community model providers (6) | 4 of 6 covered | ⚠️ |
 | Community vector stores (3) | 0 of 3 covered | ❌ |
 | Community other plugins (1) | 0 of 1 covered | ❌ |
 | genkit-ai org plugins (5) | All covered via in-tree equivalents | ✅ |
 | Priority relative to JS-canonical parity | Secondary | ⚠️ |
 
-**Note on community provider gaps**: The missing community providers (`genkitx-groq`, `genkitx-cohere`) could potentially be addressed via `compat-oai` since both Groq and Cohere offer OpenAI-compatible API endpoints. However, dedicated plugins would provide optimal model capability declarations and embedder support.
+**Note on community provider gaps**: The missing community provider `genkitx-groq` could potentially be addressed via `compat-oai` since Groq offers an OpenAI-compatible API endpoint. However, a dedicated plugin would provide optimal model capability declarations and embedder support. Cohere is now covered by the in-tree `cohere` plugin ([#4518](https://github.com/firebase/genkit/pull/4518)).
 
 ---
 
@@ -486,26 +493,26 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 
 ### 7a. Python Roadmap (JS-Canonical Parity)
 
-> Updated: 2026-02-09. Status legend: ⬜ = not started, 🔄 = PR open, ✅ = merged, ⏳ = deferred, ⏸️ = paused (blocked on upstream), ~~struck~~ = superseded.
+> Updated: 2026-02-13. Status legend: ⬜ = not started, 🔄 = PR open, ✅ = merged, ⏳ = deferred, ⏸️ = paused (blocked on upstream), ~~struck~~ = superseded.
 
 | Gap ID | SDK | Work Item | Reference | Status | PR |
 |--------|-----|-----------|-----------|:------:|:---|
 | **G38** | Python | **Generate-level middleware V2** — 3-tier hooks (`generate`/`model`/`tool`), `define_middleware`, registry | §8l | ⬜ Blocked | Upstream: JS [#4515](https://github.com/firebase/genkit/pull/4515), Go [#4422](https://github.com/firebase/genkit/pull/4422) |
-| G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ⏸️ Paused | [#4516](https://github.com/firebase/genkit/pull/4516) — paused pending G38 |
-| G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ✅ Done | [#4459](https://github.com/firebase/genkit/pull/4459) |
+| G2 → G1 | Python | Add `middleware` storage to `Action`, then add `use=` to `define_model` | §8b.1 | ⏸️ Superseded | [#4516](https://github.com/firebase/genkit/pull/4516) — open but superseded, pending G38 |
+| G7 | Python | Wire DAP action discovery into `GET /api/actions` | §8a, §8c.5 | ⬜ Reverted | [#4459](https://github.com/firebase/genkit/pull/4459) merged then reverted by [#4469](https://github.com/firebase/genkit/pull/4469) — needs re-land |
 | G6 → G5 | Python | Pass `span_id` in `on_trace_start`, send `X-Genkit-Span-Id` | §8c.3, §8c.4 | ✅ Done | [#4511](https://github.com/firebase/genkit/pull/4511) |
-| G3 | Python | Implement `simulate_constrained_generation` middleware | §8b.3, §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
-| G12 | Python | Implement `retry` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
-| G13 | Python | Implement `fallback` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
-| G14 | Python | Implement `validate_support` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
-| G15 | Python | Implement `download_request_media` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
-| G16 | Python | Implement `simulate_system_prompt` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) — paused pending G38 |
+| G3 | Python | Implement `simulate_constrained_generation` middleware | §8b.3, §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
+| G12 | Python | Implement `retry` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
+| G13 | Python | Implement `fallback` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
+| G14 | Python | Implement `validate_support` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
+| G15 | Python | Implement `download_request_media` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
+| G16 | Python | Implement `simulate_system_prompt` middleware | §8f | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — needs new PR after G38 |
 | G18 | Python | Add multipart tool support (`defineTool({multipart: true})`) | §8h | 🔄 | [#4513](https://github.com/firebase/genkit/pull/4513) |
 | ~~G19~~ | ~~Python~~ | ~~Add Model API V2 (`defineModel({apiVersion: 'v2'})`)~~ | ~~§8i~~ | ~~Superseded~~ | Replaced by G38 (middleware V2) + G41 (bidi models) |
 | G20 | Python | Add `context` parameter to `Genkit()` constructor | §8j | 🔄 | [#4512](https://github.com/firebase/genkit/pull/4512) |
 | G21 | Python | Add `clientHeader` parameter to `Genkit()` constructor | §8j | 🔄 | [#4512](https://github.com/firebase/genkit/pull/4512) |
 | G22 | Python | Add `name` parameter to `Genkit()` constructor | §8j | 🔄 | [#4512](https://github.com/firebase/genkit/pull/4512) |
-| G4 | Python | Move `augment_with_context` to define-model time | §8b.2 | 🔄 | [#4510](https://github.com/firebase/genkit/pull/4510) — logic valid, needs G38 interface |
+| G4 | Python | Move `augment_with_context` to define-model time | §8b.2 | ⏸️ Paused | [#4510](https://github.com/firebase/genkit/pull/4510) (closed) — logic valid, needs new PR after G38 |
 | **G39** | Python | **Bidirectional Action** primitive (`define_bidi_action`) | §8m | ⬜ Blocked | Upstream: JS [#4288](https://github.com/firebase/genkit/pull/4288) |
 | **G40** | Python | **Bidirectional Flow** primitive (`define_bidi_flow`) | §8m | ⬜ Blocked | Upstream: JS [#4288](https://github.com/firebase/genkit/pull/4288) |
 | **G41** | Python | **Bidirectional Model** (`define_bidi_model`, `generate_bidi`) for real-time LLM APIs | §8m | ⬜ Blocked | Upstream: JS [#4210](https://github.com/firebase/genkit/pull/4210) |
@@ -517,7 +524,7 @@ Full plugin list from the repository README (10 plugins, 33 contributors, 54 rel
 | G30 | Python | Add Cloud SQL PG vector store parity | §5g | ⏳ Deferred | — |
 | G31 | Python | Add dedicated Python MCP parity sample | §2b/§9 | 🔄 | [#4248](https://github.com/firebase/genkit/pull/4248) |
 | G8 | Python | Implement `genkit.client` (`run_flow` / `stream_flow`) | §5c/§9 | ⏳ Deferred | — |
-| G17 | Python | Add built-in `api_key()` context provider | §8g | 🔄 | [#4521](https://github.com/firebase/genkit/pull/4521) (draft) |
+| G17 | Python | Add built-in `api_key()` context provider | §8g | ⬜ | [#4521](https://github.com/firebase/genkit/pull/4521) (closed) — needs new PR |
 | G11 | Python | Add `CHANGELOG.md` to plugins + core | §3c | ✅ Done | [#4507](https://github.com/firebase/genkit/pull/4507), [#4508](https://github.com/firebase/genkit/pull/4508) |
 | G33 | Python | Consider LangChain integration parity | §1c/§9 | ⏳ Deferred | — |
 | G34 | Python | Track BloomLabs vector stores (Convex, HNSW, Milvus) | §6b/§9 | ⏳ Deferred | — |
@@ -721,7 +728,7 @@ Both JS and Python use the **same core protocol**: Newline-delimited JSON (NDJSO
 | Header | JS | Python | Gap |
 |--------|-----|--------|-----|
 | `X-Genkit-Trace-Id` | ✅ Set in `onTraceStart` callback. Both streaming and non-streaming. | ✅ Set when trace ID is available. Both streaming and non-streaming. | ✅ Identical |
-| **`X-Genkit-Span-Id`** | ✅ Set in `onTraceStart` callback (`reflection.ts:247`). | ❌ **Not sent**. Only listed in CORS `expose_headers`. | **Gap**: Python never sends this header. |
+| **`X-Genkit-Span-Id`** | ✅ Set in `onTraceStart` callback (`reflection.ts:247`). | ✅ Set in `wrapped_on_trace_start` callback. Both streaming and non-streaming. | ✅ Fixed by [#4511](https://github.com/firebase/genkit/pull/4511) |
 | `X-Genkit-Version` / `x-genkit-version` | ✅ Set as `X-Genkit-Version` in `onTraceStart` callback AND as `x-genkit-version` in non-streaming list endpoints. | ✅ Set as `x-genkit-version` in all responses. | ✅ Functionally equivalent (case-insensitive HTTP headers). |
 | CORS `expose_headers` | Not explicitly shown (uses express CORS). | `['X-Genkit-Trace-Id', 'X-Genkit-Span-Id', 'x-genkit-version']` | ✅ Python is more explicit. |
 
@@ -729,7 +736,7 @@ Both JS and Python use the **same core protocol**: Newline-delimited JSON (NDJSO
 
 | Aspect | JS | Python | Gap |
 |--------|-----|--------|-----|
-| Callback arguments | `({traceId, spanId})` — receives **both** trace ID and span ID as a destructured object. | `(tid: str)` — receives **only** trace ID as a string. | **Gap**: Python cannot send `X-Genkit-Span-Id` because it doesn't receive the span ID. |
+| Callback arguments | `({traceId, spanId})` — receives **both** trace ID and span ID as a destructured object. | `(tid: str, sid: str)` — receives **both** trace ID and span ID. | ✅ Fixed by [#4511](https://github.com/firebase/genkit/pull/4511) |
 
 **JS** (`js/core/src/reflection.ts:234-258`):
 ```js
@@ -743,16 +750,17 @@ const onTraceStartCallback = ({ traceId: tid, spanId }) => {
 };
 ```
 
-**Python** (`py/.../core/reflection.py:395-399`):
+**Python** (`py/.../core/reflection.py`):
 ```python
-def wrapped_on_trace_start(tid: str) -> None:
-    nonlocal run_trace_id
+def wrapped_on_trace_start(tid: str, sid: str) -> None:
+    nonlocal run_trace_id, run_span_id
     run_trace_id = tid
-    on_trace_start(tid)
+    run_span_id = sid
+    on_trace_start(tid, sid)
     trace_id_event.set()
 ```
 
-**Fix required**: Update `on_trace_start` callback signature throughout the Python action system to pass both `trace_id` and `span_id`, then include `X-Genkit-Span-Id` in reflection response headers.
+**Fixed**: `on_trace_start` now receives both `trace_id` and `span_id`, and `X-Genkit-Span-Id` is included in reflection response headers ([#4511](https://github.com/firebase/genkit/pull/4511)).
 
 #### 8c.5 Action Discovery Endpoint (`GET /api/actions`)
 

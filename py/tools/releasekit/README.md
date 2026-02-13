@@ -64,18 +64,18 @@ implementation plan.
 | 🔄 Retry with backoff | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | ✍️ Signing / provenance | 🔜 | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
-| 📋 SBOM | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📋 SBOM | ✅ CycloneDX+SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | 📢 Announcements | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 📊 Plan profiling | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔭 OpenTelemetry tracing | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 📊 Plan profiling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔭 OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔄 Migrate from alternatives | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Legend:** ✅ = supported, ⚠️ = partial, ❌ = not supported, 🔜 = planned
 
 See [docs/competitive-gap-analysis.md](docs/competitive-gap-analysis.md) for
 the full analysis with issue tracker references, and
-[docs/roadmap-execution-plan.md](docs/roadmap-execution-plan.md) for the
-dependency-graphed, topo-sorted execution plan.
+[roadmap.md](roadmap.md) for the detailed roadmap with dependency graphs
+and execution phases.
 
 ## Getting Started
 
@@ -121,6 +121,7 @@ uvx releasekit check
 | `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
 | `version` | Show the releasekit version |
 | `migrate` | Migrate from another release tool (release-please, semantic-release, changesets, etc.) |
+| `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
 | `completion` | Generate shell completion scripts (bash/zsh/fish) |
 
 ## Features
@@ -399,17 +400,27 @@ in the workspace root. Use `releasekit init` to scaffold one:
 
 ```toml
 # releasekit.toml
-changelog    = true
-smoke_test   = true
-tag_format   = "{name}-v{version}"
-umbrella_tag = "v{version}"
+forge            = "github"
+repo_owner       = "firebase"
+repo_name        = "genkit"
+default_branch   = "main"
+pr_title_template = "chore(release): v{version}"
+
+[workspace.py]
+ecosystem      = "python"
+tool           = "uv"              # defaults from ecosystem if omitted
+root           = "py"
+tag_format     = "{name}@{version}"
+umbrella_tag   = "py/v{version}"
+changelog      = true
+smoke_test     = true
+major_on_zero  = false
+max_commits    = 500              # limit git log depth for large repos
+extra_files    = []
 
 exclude_publish = ["group:samples"]
-major_on_zero    = false
-pr_title_template = "chore(release): v{version}"
-extra_files      = []
 
-[groups]
+[workspace.py.groups]
 core = ["genkit"]
 samples = ["*-hello", "*-demo", "web-*"]
 ```
@@ -432,6 +443,7 @@ samples = ["*-hello", "*-demo", "web-*"]
 | `major_on_zero` | `false` | Allow `0.x → 1.0.0` on breaking changes (default: downgrade to minor) |
 | `pr_title_template` | `"chore(release): v{version}"` | Template for the Release PR title. Placeholder: `{version}` |
 | `extra_files` | `[]` | Extra files with version strings to bump (path or `path:regex` pairs) |
+| `max_commits` | `0` | Limit git log depth (0 = unlimited; useful for large repos) |
 
 ### Exclusion Hierarchy
 
@@ -516,7 +528,14 @@ releasekit
 │   ├── release_notes.py release notes generation
 │   ├── commitback.py    commit-back version bumps
 │   ├── detection.py     multi-ecosystem auto-detection
-│   └── groups.py        release group filtering
+│   ├── groups.py        release group filtering
+│   ├── sbom.py          CycloneDX + SPDX SBOM generation
+│   ├── profiling.py     pipeline step timing + bottleneck analysis
+│   ├── tracing.py       optional OpenTelemetry tracing (graceful no-op)
+│   ├── doctor.py        release state consistency checker
+│   ├── distro.py        distro packaging dep sync (Debian/Fedora/Homebrew)
+│   ├── branch.py        default branch resolution
+│   └── commit_parsing/  conventional commit parser (subpackage)
 │
 ├── Formatters
 │   ├── ascii_art.py     box-drawing terminal art
@@ -532,7 +551,7 @@ releasekit
 ├── UX
 │   ├── errors.py        error catalog + Rust-style render_error/render_warning
 │   ├── logging.py       structured logging setup
-│   ├── config.py        TOML config loading + validation
+│   ├── config.py        TOML config loading + validation (workspace-aware)
 │   ├── init.py          workspace config scaffolding
 │   └── cli.py           argparse + rich-argparse + shell completion
 │
@@ -615,6 +634,8 @@ enables multi-ecosystem support:
 | `preflight.py` | `pip-audit`, metadata | ✅ Gated by `ecosystem=` param |
 
 ## Testing
+
+The test suite has **1,274 tests** across 19k+ lines:
 
 ```bash
 # Run all tests

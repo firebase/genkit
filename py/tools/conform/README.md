@@ -329,8 +329,9 @@ py/
 │   ├── pyproject.toml              ← Private package + [tool.conform] config
 │   ├── README.md
 │   └── src/conform/
+│       ├── __main__.py             ← Entry point for `python -m conform`
 │       ├── cli.py                  ← Argument parsing + subcommand dispatch
-│       ├── config.py               ← TOML config loader
+│       ├── config.py               ← TOML config loader (auto-discovers conform.toml)
 │       ├── checker.py              ← check-plugin: verify conformance files exist
 │       ├── display.py              ← Rich tables, inline progress bars, Rust-style errors
 │       ├── log_redact.py           ← Structlog processor to truncate data URIs in logs
@@ -338,8 +339,8 @@ py/
 │       ├── plugins.py              ← Plugin discovery and env-var checking
 │       ├── reflection.py           ← Async HTTP client for reflection API (httpx)
 │       ├── runner.py               ← Legacy parallel runner (genkit CLI subprocess)
-│       ├── test_cases.py           ← 12 built-in test cases (1:1 parity with JS)
-│       ├── test_model.py           ← Native test runner with ActionRunner Protocol
+│       ├── util_test_cases.py      ← 12 built-in test cases (1:1 parity with JS)
+│       ├── util_test_model.py      ← Native test runner with ActionRunner Protocol
 │       ├── types.py                ← Shared types (PluginResult, Status, Runtime)
 │       └── validators/             ← Protocol-based validator registry
 │           ├── __init__.py         ← Validator Protocol + @register decorator
@@ -488,6 +489,9 @@ The wrapper script `py/bin/conform` passes `--config` automatically.
 [conform]
 concurrency = 8
 test-concurrency = 3
+action-timeout = 120        # seconds per LLM action call
+health-timeout = 5          # seconds per health check
+startup-timeout = 30        # seconds to wait for reflection server
 additional-model-plugins = ["google-genai", "vertex-ai", "ollama"]
 
 [conform.env]
@@ -498,6 +502,11 @@ google-genai = ["GEMINI_API_KEY"]
 # Per-plugin overrides (e.g. lower concurrency for rate-limited APIs).
 [conform.plugin-overrides.cloudflare-workers-ai]
 test-concurrency = 1
+
+# Per-model overrides (e.g. longer timeout for slow models).
+# 3-level resolution: model → plugin → global.
+[conform.model-overrides."gemini-2.0-flash"]
+action-timeout = 180
 
 # Paths are relative to the conform.toml file.
 [conform.runtimes.python]
@@ -530,6 +539,9 @@ CLI flags override TOML values:
 | `-j N` | `concurrency` | Max concurrent plugins |
 | `-t N` | `test-concurrency` | Max concurrent tests per model spec |
 | `--verbose` | — | Print full output for failures |
+| — | `action-timeout` | Timeout in seconds for a single LLM action call (default: 120) |
+| — | `health-timeout` | Timeout in seconds for health checks (default: 5) |
+| — | `startup-timeout` | Timeout in seconds for reflection server startup (default: 30) |
 
 ## Adding a New Plugin
 

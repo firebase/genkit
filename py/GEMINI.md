@@ -1812,10 +1812,6 @@ plugin categorization guides.
 
 ## Changes
 
-### New Planning Documents (engdoc/planning/)
-- **FILE_NAME.md** - Description of integration plan
-- **ROADMAP.md** - Status and effort metrics
-
 ### Updated Documentation
 - **py/plugins/README.md** - Updated categorization guide
 
@@ -2909,7 +2905,7 @@ Use this checklist when drafting a release PR:
 | 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
 | 12 | **Include PR numbers** | Add (#1234) for each major contribution |
 | 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
-| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` |
+| 14 | **Create blog article** | Optional: draft in PR description or external blog |
 | 15 | **Verify code examples** | Test all code snippets match actual API patterns |
 | 16 | **Run release validation** | `./bin/validate_release_docs` (see below) |
 | 17 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
@@ -2989,17 +2985,7 @@ else
     echo "OK"
 fi
 
-# 7. Check blog article exists for version in CHANGELOG
-echo -n "Checking blog article exists... "
-VERSION=$(grep -m1 '## \[' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-if [ -f "engdoc/blog-genkit-python-$VERSION.md" ]; then
-    echo "OK (found blog-genkit-python-$VERSION.md)"
-else
-    echo "FAIL: Missing engdoc/blog-genkit-python-$VERSION.md"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 8. Verify imports work
+# 7. Verify imports work
 echo -n "Checking Python imports... "
 if python -c "from genkit.ai import Genkit, Output; print('OK')" 2>/dev/null; then
     :
@@ -3044,12 +3030,12 @@ done
 6. **Match table formats**: External repo tables should have same columns as main table
 7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
 8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
-9. **Always include blog article**: Every release needs a blog article in `py/engdoc/`
+9. **Consider a blog article**: Major releases may warrant a blog article
 10. **Branding**: Use "Genkit" not "Firebase Genkit" (rebranded as of 2025)
 
 #### Blog Article Guidelines
 
-Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md`.
+Major releases may include a blog article (e.g. in the PR description or an external blog).
 
 **Branding Note**: The project is called **"Genkit"** (not "Firebase Genkit"). While the
 repository is hosted at `github.com/firebase/genkit` and some blog posts may be published
@@ -3098,20 +3084,12 @@ CRITICAL: Before publishing any blog article, extract and validate ALL code snip
 against the actual codebase to ensure they would compile/run correctly.
 
 ```bash
-# Extract Python code blocks from a blog article and check for common errors
-grep -A 50 '```python' py/engdoc/blog-genkit-python-*.md | grep -E \
-  'response\.text\(\)|output_schema=|asyncio\.run\(|from genkit import Genkit'
-
 # Verify import statements match actual module structure
 python -c "from genkit.ai import Genkit, Output; print('Imports OK')"
 
 # Check that decorator patterns exist in codebase
 grep -r "@ai.flow()" py/samples/*/src/main.py | head -3
 grep -r "@ai.tool()" py/samples/*/src/main.py | head -3
-
-# Validate a blog article's code examples by syntax checking
-python -m py_compile <(grep -A 20 '```python' py/engdoc/blog-genkit-python-*.md | \
-  grep -v '```' | head -50) 2>&1 || echo "Syntax errors found!"
 ```
 
 **Blog Article Code Review Checklist:**
@@ -3558,7 +3536,6 @@ For the v0.5.0 release specifically:
 #### Full Release Guide
 
 For detailed release instructions, see:
-- `py/engdoc/release-publishing-guide.md` - Complete step-by-step guide
 - `py/.github/PR_DESCRIPTION_0.5.0.md` - v0.5.0 PR description template
 - `py/CHANGELOG.md` - Full changelog format
 

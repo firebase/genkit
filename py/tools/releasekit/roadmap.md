@@ -144,20 +144,34 @@ Flat top-level keys, no `[tool.*]` nesting:
 ```toml
 # releasekit.toml (at the monorepo root)
 
-synchronize = true          # all packages share one version number
-tag_format = "v{version}"
-publish_from = "ci"
+forge            = "github"
+repo_owner       = "firebase"
+repo_name        = "genkit"
+default_branch   = "main"
+pr_title_template = "chore(release): v{version}"
 
-# Ecosystems: declare which workspace roots to scan.
-# Each ecosystem maps to a (Workspace, PackageManager, Registry) triple.
-[ecosystems.python]
-workspace_root = "py/"             # contains pyproject.toml with [tool.uv.workspace]
+[workspace.py]
+ecosystem      = "python"
+tool           = "uv"
+root           = "py"
+tag_format     = "{name}@{version}"
+umbrella_tag   = "py/v{version}"
+changelog      = true
+smoke_test     = true
+max_commits    = 500
 
-[ecosystems.js]
-workspace_root = "js/"             # contains pnpm-workspace.yaml
+[workspace.js]
+ecosystem      = "js"
+tool           = "pnpm"
+root           = "."
+tag_format     = "{name}@{version}"
+umbrella_tag   = "js/v{version}"
+synchronize    = true
 
-[ecosystems.go]
-workspace_root = "go/"             # contains go.work
+# Go workspace (future)
+# [workspace.go]
+# ecosystem    = "go"
+# root         = "go"
 ```
 
 ##### Per-package config (`releasekit.toml`)
@@ -422,9 +436,9 @@ own the transport and format details.
 |---|----------|---------------|---------|--------|
 | 1 | **`VCS`** | Commit, tag, push, log, branch operations | `GitCLIBackend`, `MercurialBackend` | — |
 | 2 | **`Forge`** | PRs, releases, labels, availability check | `GitHubCLIBackend`, `GitLabBackend`, `BitbucketAPIBackend` | — |
-| 3 | **`Workspace`** | Discover members, classify deps, rewrite versions | `UvWorkspace`, `PnpmWorkspace` | `GoWorkspace`, `CargoWorkspace`, `PubWorkspace`, `MavenWorkspace`, `GradleWorkspace` |
-| 4 | **`PackageManager`** | Lock, build, publish | `UvBackend`, `PnpmBackend` | `GoBackend`, `CargoBackend`, `PubBackend`, `MavenBackend`, `GradleBackend` |
-| 5 | **`Registry`** | Check published versions, checksums | `PyPIBackend`, `NpmRegistry` | `GolangProxy`, `CratesIoRegistry`, `PubDevRegistry`, `MavenCentralRegistry` |
+| 3 | **`Workspace`** | Discover members, classify deps, rewrite versions | ✅ `UvWorkspace`, ✅ `PnpmWorkspace` | `GoWorkspace`, `CargoWorkspace`, `PubWorkspace`, `MavenWorkspace`, `GradleWorkspace` |
+| 4 | **`PackageManager`** | Lock, build, publish | ✅ `UvBackend`, ✅ `PnpmBackend` | `GoBackend`, `CargoBackend`, `PubBackend`, `MavenBackend`, `GradleBackend` |
+| 5 | **`Registry`** | Check published versions, checksums | ✅ `PyPIBackend`, ✅ `NpmRegistry` | `GolangProxy`, `CratesIoRegistry`, `PubDevRegistry`, `MavenCentralRegistry` |
 
 > **Design note:** `ManifestParser` and `VersionRewriter` were folded
 > into the `Workspace` protocol as `rewrite_version()` and
@@ -436,7 +450,7 @@ own the transport and format details.
 | Ecosystem | Workspace Config | Source Mechanism | Manifest File | Registry | Status |
 |-----------|-----------------|-----------------|---------------|----------|--------|
 | **Python (uv)** | `[tool.uv.workspace]` | `[tool.uv.sources]` `workspace = true` | `pyproject.toml` | PyPI | ✅ Implemented |
-| **TypeScript (pnpm)** | `pnpm-workspace.yaml` | `"workspace:*"` protocol in `package.json` | `package.json` | npm | 🔧 Backend done |
+| **TypeScript (pnpm)** | `pnpm-workspace.yaml` | `"workspace:*"` protocol in `package.json` | `package.json` | npm | ✅ Implemented |
 | **Go** | `go.work` | `use ./pkg` directives | `go.mod` | proxy.golang.org | ⬜ Designed (see §7) |
 | **Java (Maven)** | reactor POM `<modules>` | `<version>${project.version}</version>` | `pom.xml` | Maven Central | ⬜ Future |
 | **Java (Gradle)** | `settings.gradle` `include` | `project(':sub')` deps | `build.gradle(.kts)` | Maven Central | ⬜ Future |
@@ -480,7 +494,7 @@ Remaining migration steps:
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Release-Please | ✅ Complete | Orchestrators, CI workflow, workspace-sourced deps |
 | 6: UX Polish | ✅ Complete | init, formatters (9), rollback, completion, diagnostics, granular flags, TOML config migration |
-| 7: Quality + Ship | 🔶 In progress | 706 tests pass, 16.8K src lines, 12.1K test lines |
+| 7: Quality + Ship | 🔶 In progress | 1,293 tests pass, 76 source modules, 51 test files (~19.3K test LOC) |
 
 ### Phase 5 completion status
 
@@ -865,10 +879,17 @@ Phase 6: UX Polish         ▼    ✅ COMPLETE
                            │
 Phase 7: Quality + Ship    ▼    🔶 IN PROGRESS
 ┌─────────────────────────────────────────────────────────┐
-│  tests (706 tests, 12.1K lines)                         │
+│  tests (1,293 tests, 51 files, ~19.3K lines)            │
 │  type checking (ty, pyright, pyrefly -- zero errors)    │
 │  README.md (21 sections, mermaid diagrams)              │
 │  workspace config (releasekit init on genkit repo)     │
+│  sbom.py (CycloneDX + SPDX SBOM generation)             │
+│  profiling.py (pipeline step timing + bottleneck)       │
+│  tracing.py (optional OpenTelemetry, graceful no-op)    │
+│  doctor.py (release state consistency checker)          │
+│  distro.py (Debian/Fedora/Homebrew dep sync)            │
+│  branch.py (default branch resolution)                  │
+│  commit_parsing/ (conventional commit parser)           │
 │                                                         │
 │  ✓ Ship v0.1.0 to PyPI                                  │
 └─────────────────────────────────────────────────────────┘
@@ -1374,11 +1395,85 @@ deletion. Shell completion works in bash/zsh/fish.
 | Type checking | Zero errors from `ty`, `pyright`, and `pyrefly` in strict mode. | config |
 | `README.md` | 21 sections with Mermaid workflow diagrams, CLI reference, config reference, testing workflow, vulnerability scanning, migration guide. | ~800 |
 | Workspace config | Run `releasekit init` on the genkit repo. Review auto-detected groups. Commit generated config. | config |
+| `migrate.py` | `releasekit migrate` subcommand for mid-stream adoption. See details below. | ~200 |
 
 **Done when**: `pytest --cov-fail-under=90` passes, all three type checkers
 report zero errors, README is complete.
 
 **Milestone**: Ship `releasekit` v0.1.0 to PyPI.
+
+#### `releasekit migrate` — Automatic Tag Detection and Bootstrap
+
+When adopting releasekit on a repo that already has releases, the user
+currently needs to manually find the last release tag and set
+`bootstrap_sha` in `releasekit.toml`. The `migrate` subcommand automates
+this entirely.
+
+**What it does:**
+
+1. **Scan all git tags** in the repo (`git tag -l`).
+2. **Classify each tag** by matching against known tag patterns:
+   - Umbrella tags: `py/v0.5.0`, `js/v1.2.3`, `go/v0.1.0`
+   - Per-package tags: `py/genkit-v0.5.0`, `@genkit-ai/core@1.2.3`
+   - Legacy tags: `genkit-python@0.4.0`, `genkit@1.0.0-rc.5`
+   - Unrecognized tags are reported but not associated.
+3. **Associate tags with workspaces** by matching the tag prefix/format
+   against each `[workspace.*]` section's `tag_format`, `umbrella_tag`,
+   and `root` fields in `releasekit.toml`.
+4. **Associate tags with packages** by matching the `{name}` component
+   of the tag against discovered workspace members (from
+   `Workspace.discover()`).
+5. **Determine the latest release per workspace** by sorting associated
+   tags by semver and picking the highest.
+6. **Auto-set `bootstrap_sha`** to the commit the latest tag points to
+   (via `git rev-list -1 <tag>`).
+7. **Generate a migration report** showing:
+   - Tags found per workspace (with version, commit SHA, date).
+   - Tags that could not be associated (orphaned/legacy).
+   - The `bootstrap_sha` that will be written.
+   - Per-package tag status (present / missing / legacy format).
+8. **Write `bootstrap_sha`** into `releasekit.toml` (using tomlkit for
+   comment-preserving edits), or print the diff in `--dry-run` mode.
+
+**CLI interface:**
+
+```
+releasekit migrate [--dry-run] [--workspace LABEL]
+
+Options:
+  --dry-run       Show what would be written without modifying files.
+  --workspace     Migrate a specific workspace (default: all).
+```
+
+**Example output:**
+
+```
+Scanning tags...
+  Found 4 tags:
+    py/v0.5.0              → workspace: py  (commit b71a3d20c, 2026-02-05)
+    genkit-python@0.4.0    → workspace: py  (legacy format, commit a1b2c3d)
+    genkit-python@0.3.2    → workspace: py  (legacy format, commit e4f5g6h)
+    genkit-python@0.3.1    → workspace: py  (legacy format, commit i7j8k9l)
+
+  Latest release for workspace 'py': py/v0.5.0 (0.5.0)
+
+  Per-package tag status (workspace: py):
+    genkit                          — no per-package tag (will use bootstrap_sha)
+    genkit-plugin-google-genai      — no per-package tag (will use bootstrap_sha)
+    genkit-plugin-vertex-ai         — no per-package tag (will use bootstrap_sha)
+    ... (22 packages total)
+
+Writing bootstrap_sha = "b71a3d20c74b71583edbc652e5b26117caad43f4" to releasekit.toml
+  ✅ Migration complete. Run 'releasekit plan' to preview the next release.
+```
+
+**Why this matters:**
+
+- Eliminates manual SHA lookup when adopting releasekit.
+- Handles repos with mixed tag formats (legacy + new) gracefully.
+- Works across multiple workspaces (e.g. `py` + `js` in the same repo).
+- The classification logic reuses `tag_format` parsing from
+  `versioning.py`, ensuring consistency with how releasekit creates tags.
 
 ---
 
@@ -1552,6 +1647,7 @@ py/tools/releasekit/
         mermaid.py                    ← Mermaid syntax
         d2.py                         ← D2 syntax
       init.py                         ← workspace config scaffolding
+      migrate.py                      ← mid-stream adoption: tag detection + bootstrap_sha
       versioning.py                   ← Conventional Commits -> semver
       pin.py                          ← ephemeral version pinning
       bump.py                         ← version string rewriting
