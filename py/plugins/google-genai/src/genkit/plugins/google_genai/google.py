@@ -863,13 +863,13 @@ class VertexAI(Plugin):
                 'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
             )
 
-        registry = GenkitRegistry()
-        create_vertex_evaluators(
+        actions = create_vertex_evaluators(
             registry,
             [metric_type],
             project_id=self._project,
             location=self._location,
         )
+        return actions[0] if actions else None
 
     def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Vertex AI model.
