@@ -90,7 +90,7 @@ class VertexAIEvaluationMetricType(StrEnum):
 
     BLEU = 'BLEU'
     ROUGE = 'ROUGE'
-    FLUENCY = 'FLUENCY'  # Note: JS has typo 'FLEUNCY' but we use correct spelling
+    FLUENCY = 'FLUENCY'
     SAFETY = 'SAFETY'
     GROUNDEDNESS = 'GROUNDEDNESS'
     SUMMARIZATION_QUALITY = 'SUMMARIZATION_QUALITY'
