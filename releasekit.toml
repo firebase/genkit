@@ -175,7 +175,7 @@ samples = [
   "web-multi-server",
   "web-short-n-long",
 ]
-unreleased_plugins = ["genkit-plugin-checks"]
+unreleased_plugins = []
 
 # ---------------------------------------------------------------------------
 # JS workspace (ready — uncomment to activate)

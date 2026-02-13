@@ -2,6 +2,8 @@
 
 > **Community Plugin** — This plugin is community-maintained and is not an
 > official Google or DeepSeek product. It is provided on an "as-is" basis.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
 
 This Genkit plugin provides integration with DeepSeek's AI models, including
 their powerful reasoning model (R1) and general-purpose chat model (V3).

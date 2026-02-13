@@ -2,6 +2,8 @@
 
 > **Community Plugin** — This plugin is community-maintained and is not an
 > official Google or Hugging Face product. It is provided on an "as-is" basis.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
 
 This Genkit plugin provides integration with Hugging Face's Inference API and
 Inference Providers, giving access to 1,000,000+ models through a unified interface.
