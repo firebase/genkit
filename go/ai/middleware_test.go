@@ -37,19 +37,19 @@ func (m *testMiddleware) New() Middleware {
 	return &testMiddleware{Label: m.Label}
 }
 
-func (m *testMiddleware) Generate(ctx context.Context, state *GenerateState, next GenerateNext) (*ModelResponse, error) {
+func (m *testMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
 	m.generateCalls++
-	return next(ctx, state)
+	return next(ctx, params)
 }
 
-func (m *testMiddleware) Model(ctx context.Context, state *ModelState, next ModelNext) (*ModelResponse, error) {
+func (m *testMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
 	m.modelCalls++
-	return next(ctx, state)
+	return next(ctx, params)
 }
 
-func (m *testMiddleware) Tool(ctx context.Context, state *ToolState, next ToolNext) (*ToolResponse, error) {
+func (m *testMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
 	atomic.AddInt32(&m.toolCalls, 1)
-	return next(ctx, state)
+	return next(ctx, params)
 }
 
 func TestNewMiddleware(t *testing.T) {
@@ -214,7 +214,7 @@ func (m *stableStateMiddleware) New() Middleware {
 	return &stableStateMiddleware{apiKey: m.apiKey}
 }
 
-// orderMiddleware tracks the order of Model hook invocations.
+// orderMiddleware tracks the order of WrapModel hook invocations.
 type orderMiddleware struct {
 	BaseMiddleware
 	label string
@@ -227,9 +227,9 @@ func (m *orderMiddleware) New() Middleware {
 	return &orderMiddleware{label: m.label, order: m.order}
 }
 
-func (m *orderMiddleware) Model(ctx context.Context, state *ModelState, next ModelNext) (*ModelResponse, error) {
+func (m *orderMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
 	*m.order = append(*m.order, m.label+"-model-before")
-	resp, err := next(ctx, state)
+	resp, err := next(ctx, params)
 	*m.order = append(*m.order, m.label+"-model-after")
 	return resp, err
 }

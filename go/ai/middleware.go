@@ -34,19 +34,19 @@ type Middleware interface {
 	Name() string
 	// New returns a fresh instance for each ai.Generate() call, enabling per-invocation state.
 	New() Middleware
-	// Generate wraps each iteration of the tool loop.
-	Generate(ctx context.Context, state *GenerateState, next GenerateNext) (*ModelResponse, error)
-	// Model wraps each model API call.
-	Model(ctx context.Context, state *ModelState, next ModelNext) (*ModelResponse, error)
-	// Tool wraps each tool execution.
-	Tool(ctx context.Context, state *ToolState, next ToolNext) (*ToolResponse, error)
+	// WrapGenerate wraps each iteration of the tool loop.
+	WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error)
+	// WrapModel wraps each model API call.
+	WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error)
+	// WrapTool wraps each tool execution.
+	WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error)
 	// Tools returns additional tools to make available during generation.
 	// These tools are dynamically registered when the middleware is used via [WithUse].
 	Tools() []Tool
 }
 
-// GenerateState holds state for the Generate hook.
-type GenerateState struct {
+// GenerateParams holds params for the WrapGenerate hook.
+type GenerateParams struct {
 	// Options is the original options passed to [Generate].
 	Options *GenerateActionOptions
 	// Request is the current model request for this iteration, with accumulated messages.
@@ -55,45 +55,45 @@ type GenerateState struct {
 	Iteration int
 }
 
-// ModelState holds state for the Model hook.
-type ModelState struct {
+// ModelParams holds params for the WrapModel hook.
+type ModelParams struct {
 	// Request is the model request about to be sent.
 	Request *ModelRequest
 	// Callback is the streaming callback, or nil if not streaming.
 	Callback ModelStreamCallback
 }
 
-// ToolState holds state for the Tool hook.
-type ToolState struct {
+// ToolParams holds params for the WrapTool hook.
+type ToolParams struct {
 	// Request is the tool request about to be executed.
 	Request *ToolRequest
 	// Tool is the resolved tool being called.
 	Tool Tool
 }
 
-// GenerateNext is the next function in the Generate hook chain.
-type GenerateNext = func(ctx context.Context, state *GenerateState) (*ModelResponse, error)
+// GenerateNext is the next function in the WrapGenerate hook chain.
+type GenerateNext = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error)
 
-// ModelNext is the next function in the Model hook chain.
-type ModelNext = func(ctx context.Context, state *ModelState) (*ModelResponse, error)
+// ModelNext is the next function in the WrapModel hook chain.
+type ModelNext = func(ctx context.Context, params *ModelParams) (*ModelResponse, error)
 
-// ToolNext is the next function in the Tool hook chain.
-type ToolNext = func(ctx context.Context, state *ToolState) (*ToolResponse, error)
+// ToolNext is the next function in the WrapTool hook chain.
+type ToolNext = func(ctx context.Context, params *ToolParams) (*ToolResponse, error)
 
 // BaseMiddleware provides default pass-through for the three hooks.
 // Embed this so you only need to implement Name() and New().
 type BaseMiddleware struct{}
 
-func (b *BaseMiddleware) Generate(ctx context.Context, state *GenerateState, next GenerateNext) (*ModelResponse, error) {
-	return next(ctx, state)
+func (b *BaseMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+	return next(ctx, params)
 }
 
-func (b *BaseMiddleware) Model(ctx context.Context, state *ModelState, next ModelNext) (*ModelResponse, error) {
-	return next(ctx, state)
+func (b *BaseMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
+	return next(ctx, params)
 }
 
-func (b *BaseMiddleware) Tool(ctx context.Context, state *ToolState, next ToolNext) (*ToolResponse, error) {
-	return next(ctx, state)
+func (b *BaseMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
+	return next(ctx, params)
 }
 
 func (b *BaseMiddleware) Tools() []Tool { return nil }
