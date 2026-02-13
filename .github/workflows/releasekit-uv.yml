@@ -119,9 +119,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Configure git identity
         run: |
@@ -131,8 +130,7 @@ jobs:
       - name: Run releasekit prepare
         id: prepare
         run: |
-          cd ${{ env.WORKSPACE_DIR }}
-          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py prepare 2>&1) || {
+          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py prepare 2>&1) || {
             echo "::warning::releasekit prepare exited with non-zero status"
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
             echo "$OUTPUT"
@@ -180,9 +178,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install releasekit
-        run: |
-          cd ${{ env.RELEASEKIT_DIR }}
-          uv sync
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Configure git identity
         run: |
@@ -191,9 +188,8 @@ jobs:
 
       - name: Preview execution plan
         run: |
-          cd ${{ env.WORKSPACE_DIR }}
           echo "::group::Execution Plan (ASCII)"
-          uv run --directory ../tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py plan --format full 2>&1 || true
           echo "::endgroup::"
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             echo "::notice::DRY RUN — no tags or releases will be created"
@@ -206,12 +202,11 @@ jobs:
       - name: Run releasekit release
         id: release
         run: |
-          cd ${{ env.WORKSPACE_DIR }}
           DRY_RUN_FLAG=""
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             DRY_RUN_FLAG="--dry-run"
           fi
-          OUTPUT=$(uv run --directory ../tools/releasekit releasekit --workspace py release $DRY_RUN_FLAG 2>&1)
+          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py release $DRY_RUN_FLAG 2>&1)
           echo "$OUTPUT"
 
           # Parse release URL
@@ -249,18 +244,18 @@ jobs:
           enable-cache: true
           python-version: "3.12"
 
-      - name: Install workspace + releasekit
-        run: |
-          cd ${{ env.WORKSPACE_DIR }}
-          uv sync
-          cd tools/releasekit
-          uv sync
+      - name: Install workspace
+        working-directory: ${{ env.WORKSPACE_DIR }}
+        run: uv sync
+
+      - name: Install releasekit
+        working-directory: ${{ env.RELEASEKIT_DIR }}
+        run: uv sync
 
       - name: Preview execution plan
         run: |
-          cd ${{ env.WORKSPACE_DIR }}
           echo "::group::Execution Plan (ASCII)"
-          uv run --directory tools/releasekit releasekit --workspace py plan --format full 2>&1 || true
+          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py plan --format full 2>&1 || true
           echo "::endgroup::"
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             echo "::notice::DRY RUN — no packages will be published"
@@ -270,9 +265,7 @@ jobs:
 
       - name: Run releasekit publish
         run: |
-          cd ${{ env.WORKSPACE_DIR }}
-
-          cmd=(uv run --directory tools/releasekit releasekit --workspace py publish --force)
+          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py publish --force)
 
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             cmd+=(--dry-run)
