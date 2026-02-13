@@ -82,7 +82,6 @@ env:
   # Registry URLs resolved from the target input (defaults to prod PyPI).
   PUBLISH_INDEX_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
   PUBLISH_CHECK_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/simple/' || 'https://pypi.org/simple/' }}
-  PUBLISH_ENVIRONMENT: ${{ inputs.target == 'testpypi' && 'testpypi' || 'pypi' }}
   # Dry-run logic:
   #   - PR merge (pull_request closed): dry_run=false (this is the one-button release flow)
   #   - Manual dispatch: uses the checkbox value (default: true)
@@ -231,7 +230,7 @@ jobs:
     name: Publish to ${{ inputs.target || 'pypi' }}
     needs: release
     runs-on: ubuntu-latest
-    environment: ${{ env.PUBLISH_ENVIRONMENT }}
+    environment: ${{ inputs.target || 'pypi' }}
     permissions:
       id-token: write  # Trusted publishing (OIDC)
     steps:
