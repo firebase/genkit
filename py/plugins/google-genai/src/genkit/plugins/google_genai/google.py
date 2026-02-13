@@ -109,6 +109,7 @@ from genkit.blocks.evaluator import evaluator_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
+from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -779,12 +780,17 @@ class VertexAI(Plugin):
         # Deferred import to avoid circular dependency
         from genkit.ai._registry import GenkitRegistry
 
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
         registry = GenkitRegistry()
         actions.extend(
             create_vertex_evaluators(
                 registry,
                 list(VertexAIEvaluationMetricType),
-                project_id=self._project or '',
+                project_id=self._project,
                 location=self._location,
             )
         )
@@ -848,18 +854,22 @@ class VertexAI(Plugin):
         except ValueError:
             return None
 
-        # Deferred import to avoid circular dependency
         from genkit.ai._registry import GenkitRegistry
 
         registry = GenkitRegistry()
-        actions = create_vertex_evaluators(
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
+
+        registry = GenkitRegistry()
+        create_vertex_evaluators(
             registry,
             [metric_type],
-            project_id=self._project or '',
+            project_id=self._project,
             location=self._location,
         )
-
-        return actions[0] if actions else None
 
     def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Vertex AI model.
@@ -958,6 +968,8 @@ class VertexAI(Plugin):
             )
 
             query_text = query_doc.text()
+            if not query_text:
+                raise GenkitError(message='Reranker query cannot be empty.')
 
             rerank_request = RerankRequest(
                 model=clean_name,

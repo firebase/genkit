@@ -144,7 +144,9 @@ class Document(DocumentData):
         """
         texts = []
         for p in self.content:
-            part = getattr(p, 'root', p)
+            # Handle both TextPart objects and potential dict representations
+            # p.root is the underlying TextPart or MediaPart
+            part = p.root if hasattr(p, 'root') else p
             text_val = getattr(part, 'text', None)
             if isinstance(text_val, str):
                 texts.append(text_val)
