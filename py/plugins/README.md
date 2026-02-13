@@ -664,6 +664,4 @@ model provider diversity.
 
 ## Further Reading
 
-- [Plugin Planning & Roadmap](../engdoc/planning/)
-- [Feature Matrix](../engdoc/planning/FEATURE_MATRIX.md)
 - [Contributing Guide](../engdoc/contributing/)

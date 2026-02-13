@@ -18,12 +18,6 @@ Version bump and release documentation for Genkit Python SDK v0.5.0.
   - Contributor acknowledgments with PR links
 - `PR_DESCRIPTION_0.5.0.md` - Release notes for GitHub
 
-### Blog Article
-- `py/engdoc/blog-genkit-python-0.5.0.md` - Release announcement with:
-  - Feature highlights
-  - Code examples
-  - Getting started guide
-
 ### Contributor Acknowledgments
 13 contributors recognized with 188 total pull requests:
 - @pavelgj (34 PRs) - Technical lead
