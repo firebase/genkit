@@ -390,6 +390,10 @@ def _inject_trace_context(event_dict: MutableMapping[str, Any]) -> MutableMappin
     Returns:
         The event dictionary with trace context added.
     """
+    # Only inject if event_dict is a dict or mapping
+    if not isinstance(event_dict, dict) and not hasattr(event_dict, '__setitem__'):
+        return event_dict
+
     span = trace.get_current_span()
     if span == trace.INVALID_SPAN:
         return event_dict
