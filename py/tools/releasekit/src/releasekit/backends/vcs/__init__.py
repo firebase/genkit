@@ -66,6 +66,7 @@ class VCS(Protocol):
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return log entry lines.
 
@@ -73,6 +74,9 @@ class VCS(Protocol):
             since_tag: Only include commits after this tag.
             paths: Restrict to commits touching these paths.
             format: Log format string (git ``--pretty=format:``).
+            first_parent: If True, follow only the first parent of
+                merge commits. Prevents duplicate entries when merge
+                commits repeat the squashed commit message.
         """
         ...
 

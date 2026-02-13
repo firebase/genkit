@@ -67,12 +67,14 @@ GITIGNORE_PATTERNS: list[str] = [
 
 
 def detect_groups(packages: list[Package]) -> dict[str, list[str]]:
-    """Auto-detect release groups from package naming conventions.
+    """Auto-detect release groups from workspace directory structure.
 
-    Groups are detected by:
-    - ``core``: Packages matching the workspace name (e.g., ``genkit``)
-    - ``plugins``: Packages with ``-plugin-`` in the name
-    - ``samples``: Packages in ``samples/`` directories
+    Groups are detected by the parent directory name of each package.
+    For example, packages under ``packages/`` go into a ``"packages"``
+    group, packages under ``plugins/`` go into ``"plugins"``, etc.
+
+    If all packages in a group share a common prefix, a glob pattern
+    is used instead of listing every name.
 
     Args:
         packages: Discovered workspace packages.
@@ -80,32 +82,23 @@ def detect_groups(packages: list[Package]) -> dict[str, list[str]]:
     Returns:
         A dict mapping group name to a list of glob patterns.
     """
-    groups: dict[str, list[str]] = {}
-    plugin_names: list[str] = []
-    sample_names: list[str] = []
-    core_names: list[str] = []
+    by_parent: dict[str, list[str]] = {}
 
     for pkg in packages:
-        if '-plugin-' in pkg.name:
-            plugin_names.append(pkg.name)
-        elif 'sample' in str(pkg.path).lower() or 'sample' in pkg.name:
-            sample_names.append(pkg.name)
+        parent_name = pkg.path.parent.name
+        by_parent.setdefault(parent_name, []).append(pkg.name)
+
+    groups: dict[str, list[str]] = {}
+    for parent_name, names in sorted(by_parent.items()):
+        if not names:
+            continue
+
+        # If all names share a common prefix, use a glob pattern.
+        prefixes = {n.rsplit('-', 1)[0] + '-*' for n in names if '-' in n}
+        if len(prefixes) == 1 and len(names) > 1:
+            groups[parent_name] = [prefixes.pop()]
         else:
-            core_names.append(pkg.name)
-
-    if core_names:
-        groups['core'] = core_names
-
-    # If all plugins share a prefix, use a glob pattern.
-    if plugin_names:
-        prefixes = {n.rsplit('-', 1)[0] + '-*' for n in plugin_names if '-' in n}
-        if len(prefixes) == 1:
-            groups['plugins'] = [prefixes.pop()]
-        else:
-            groups['plugins'] = sorted(plugin_names)
-
-    if sample_names:
-        groups['samples'] = sorted(sample_names)
+            groups[parent_name] = sorted(names)
 
     return groups
 

@@ -108,6 +108,7 @@ class MercurialCLIBackend:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return hg log lines.
 
@@ -123,6 +124,8 @@ class MercurialCLIBackend:
         template += '\\n'
 
         cmd_parts = ['log', '--template', template]
+        if first_parent:
+            cmd_parts.append('--follow-first')
 
         if since_tag:
             # Mercurial revset: all changesets from tag to tip.

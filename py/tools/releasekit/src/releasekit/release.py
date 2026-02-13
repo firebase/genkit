@@ -16,7 +16,7 @@
 
 """Release tagging: tag merge commit and create platform Release.
 
-Orchestrates the "tag" step of the release-please model. When a Release
+Orchestrates the "tag" step of the releasekit model. When a Release
 PR is merged, this module:
 
 1. Finds the merged PR by label (``autorelease: pending``).
@@ -117,6 +117,7 @@ logger = get_logger(__name__)
 
 _AUTORELEASE_PENDING = 'autorelease: pending'
 _AUTORELEASE_TAGGED = 'autorelease: tagged'
+_RELEASE_BRANCH = 'releasekit--release'
 _MANIFEST_START = '<!-- releasekit:manifest:start -->'
 _MANIFEST_END = '<!-- releasekit:manifest:end -->'
 
@@ -232,10 +233,11 @@ async def tag_release(
         manifest = ReleaseManifest.load(manifest_path)
         logger.info('manifest_loaded_from_file', path=str(manifest_path))
     elif forge is not None and await forge.is_available():
-        # Find merged PR with pending label.
+        # Find merged PR with pending label on the release branch.
         prs = await forge.list_prs(
             label=_AUTORELEASE_PENDING,
             state='merged',
+            head=_RELEASE_BRANCH,
             limit=1,
         )
         if not prs:

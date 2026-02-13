@@ -297,3 +297,81 @@ class TestResolveGroupRefs:
         """Patterns without group: refs pass through even when groups is empty."""
         result = resolve_group_refs(['genkit', 'genkit-plugin-*'], {})
         assert result == ['genkit', 'genkit-plugin-*']
+
+
+class TestNewConfigFields:
+    """Tests for major_on_zero, pr_title_template, and extra_files config fields."""
+
+    def test_default_major_on_zero_false(self) -> None:
+        """Default major_on_zero is False."""
+        cfg = ReleaseConfig()
+        assert cfg.major_on_zero is False
+
+    def test_default_pr_title_template(self) -> None:
+        """Default pr_title_template uses chore(release): v{version}."""
+        cfg = ReleaseConfig()
+        assert cfg.pr_title_template == 'chore(release): v{version}'
+
+    def test_default_extra_files_empty(self) -> None:
+        """Default extra_files is an empty list."""
+        cfg = ReleaseConfig()
+        assert cfg.extra_files == []
+
+    def test_load_major_on_zero_true(self, tmp_path: Path) -> None:
+        """major_on_zero = true is loaded from config."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text('major_on_zero = true\n', encoding='utf-8')
+        cfg = load_config(tmp_path)
+        assert cfg.major_on_zero is True
+
+    def test_load_pr_title_template(self, tmp_path: Path) -> None:
+        """pr_title_template is loaded from config."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            'pr_title_template = "release: {version}"\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert cfg.pr_title_template == 'release: {version}'
+
+    def test_load_extra_files(self, tmp_path: Path) -> None:
+        """extra_files list is loaded from config."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            'extra_files = ["src/mypackage/__init__.py"]\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert cfg.extra_files == ['src/mypackage/__init__.py']
+
+    def test_load_extra_files_with_pattern(self, tmp_path: Path) -> None:
+        """extra_files with path:pattern format is loaded."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            'extra_files = ["src/version.h:^#define VERSION \\"([^\\"]+)\\"$"]\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert len(cfg.extra_files) == 1
+        assert ':' in cfg.extra_files[0]
+
+    def test_major_on_zero_wrong_type_raises(self, tmp_path: Path) -> None:
+        """major_on_zero with wrong type raises ReleaseKitError."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text('major_on_zero = "yes"\n', encoding='utf-8')
+        with pytest.raises(ReleaseKitError):
+            load_config(tmp_path)
+
+    def test_pr_title_template_wrong_type_raises(self, tmp_path: Path) -> None:
+        """pr_title_template with wrong type raises ReleaseKitError."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text('pr_title_template = 42\n', encoding='utf-8')
+        with pytest.raises(ReleaseKitError):
+            load_config(tmp_path)
+
+    def test_extra_files_wrong_type_raises(self, tmp_path: Path) -> None:
+        """extra_files with wrong type raises ReleaseKitError."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text('extra_files = "not-a-list"\n', encoding='utf-8')
+        with pytest.raises(ReleaseKitError):
+            load_config(tmp_path)

@@ -73,15 +73,15 @@ def _make_packages() -> list[Package]:
 class TestDetectGroups:
     """Tests for detect_groups()."""
 
-    def test_detects_core(self) -> None:
-        """Packages without plugin/sample markers are 'core'."""
+    def test_detects_packages(self) -> None:
+        """Packages under packages/ are grouped as 'packages'."""
         pkgs = _make_packages()
         groups = detect_groups(pkgs)
 
-        if 'core' not in groups:
-            raise AssertionError('Missing core group')
-        if 'genkit' not in groups['core']:
-            raise AssertionError('genkit should be in core group')
+        if 'packages' not in groups:
+            raise AssertionError('Missing packages group')
+        if 'genkit' not in groups['packages']:
+            raise AssertionError('genkit should be in packages group')
 
     def test_detects_plugins(self) -> None:
         """Packages with '-plugin-' are 'plugins'."""

@@ -55,6 +55,7 @@ class FakeVCS:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return log lines, optionally filtered by path."""
         if paths:
@@ -640,3 +641,78 @@ class TestSynchronizedMode:
         for result in results:
             assert result.skipped is True
             assert result.bump == 'none'
+
+
+class TestMajorOnZero:
+    """Tests for major_on_zero behavior in compute_bumps."""
+
+    @staticmethod
+    def _make_pkg(name: str, version: str, path: str) -> Package:
+        p = Path(path)
+        return Package(name=name, version=version, path=p, pyproject_path=p / 'pyproject.toml')
+
+    @pytest.mark.asyncio
+    async def test_breaking_downgraded_to_minor_on_zero(self) -> None:
+        """Breaking change on 0.x produces MINOR when major_on_zero=False."""
+        vcs = FakeVCS(
+            log_by_path={'/ws/packages/genkit': ['aaa feat!: breaking API change']},
+        )
+        packages = [self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit')]
+
+        results = await compute_bumps(packages, vcs, major_on_zero=False)
+
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.6.0'
+
+    @pytest.mark.asyncio
+    async def test_breaking_allowed_on_zero_when_enabled(self) -> None:
+        """Breaking change on 0.x produces MAJOR when major_on_zero=True."""
+        vcs = FakeVCS(
+            log_by_path={'/ws/packages/genkit': ['aaa feat!: breaking API change']},
+        )
+        packages = [self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit')]
+
+        results = await compute_bumps(packages, vcs, major_on_zero=True)
+
+        assert results[0].bump == 'major'
+        assert results[0].new_version == '1.0.0'
+
+    @pytest.mark.asyncio
+    async def test_breaking_on_1x_always_major(self) -> None:
+        """Breaking change on 1.x always produces MAJOR regardless of flag."""
+        vcs = FakeVCS(
+            log_by_path={'/ws/packages/genkit': ['aaa feat!: breaking change']},
+        )
+        packages = [self._make_pkg('genkit', '1.2.0', '/ws/packages/genkit')]
+
+        results = await compute_bumps(packages, vcs, major_on_zero=False)
+
+        assert results[0].bump == 'major'
+        assert results[0].new_version == '2.0.0'
+
+    @pytest.mark.asyncio
+    async def test_default_is_false(self) -> None:
+        """Default major_on_zero=False prevents 0.x -> 1.0.0."""
+        vcs = FakeVCS(
+            log_by_path={'/ws/packages/genkit': ['aaa feat!: break everything']},
+        )
+        packages = [self._make_pkg('genkit', '0.9.0', '/ws/packages/genkit')]
+
+        # No major_on_zero argument — should default to False.
+        results = await compute_bumps(packages, vcs)
+
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.10.0'
+
+    @pytest.mark.asyncio
+    async def test_non_breaking_unaffected(self) -> None:
+        """Non-breaking commits are unaffected by major_on_zero."""
+        vcs = FakeVCS(
+            log_by_path={'/ws/packages/genkit': ['aaa feat: new feature']},
+        )
+        packages = [self._make_pkg('genkit', '0.5.0', '/ws/packages/genkit')]
+
+        results = await compute_bumps(packages, vcs, major_on_zero=False)
+
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.6.0'

@@ -23,6 +23,7 @@ Subcommands::
 
     releasekit publish    Publish all changed packages to PyPI
     releasekit plan       Preview the execution plan (no publish)
+    releasekit changelog  Generate per-package CHANGELOG.md files
     releasekit discover   List all workspace packages
     releasekit graph      Show the dependency graph
     releasekit version    Show computed version bumps
@@ -56,11 +57,20 @@ from pathlib import Path
 from rich_argparse import RichHelpFormatter
 
 from releasekit import __version__
-from releasekit.backends.forge import GitHubAPIBackend, GitHubCLIBackend
+from releasekit.backends._run import CommandResult
+from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
+from releasekit.backends.forge.bitbucket import BitbucketAPIBackend
+from releasekit.backends.forge.gitlab import GitLabCLIBackend
 from releasekit.backends.pm import UvBackend
 from releasekit.backends.registry import PyPIBackend
 from releasekit.backends.vcs import GitCLIBackend
-from releasekit.checks import run_checks
+from releasekit.checks import (
+    PythonCheckBackend,
+    fix_missing_license,
+    fix_missing_readme,
+    fix_stale_artifacts,
+    run_checks,
+)
 from releasekit.config import ReleaseConfig, load_config, resolve_group_refs
 from releasekit.detection import (
     DetectedEcosystem,
@@ -149,19 +159,123 @@ def _resolve_ecosystems(
     return monorepo_root, ecosystems
 
 
+class _NullForge:
+    """No-op forge backend for ``forge = "none"`` configuration.
+
+    All methods return empty/successful results so the pipeline can
+    run without a code forge (e.g. for local-only or registry-only
+    workflows).
+    """
+
+    _NOOP = CommandResult(command=[], returncode=0, stdout='', stderr='')
+
+    async def is_available(self) -> bool:
+        return False
+
+    async def create_release(
+        self,
+        tag: str,
+        *,
+        title: str | None = None,
+        body: str = '',
+        draft: bool = False,
+        prerelease: bool = False,
+        assets: list[Path] | None = None,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+    async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+        return self._NOOP
+
+    async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
+        return self._NOOP
+
+    async def list_releases(self, *, limit: int = 10) -> list[dict[str, object]]:
+        return []
+
+    async def create_pr(
+        self,
+        *,
+        title: str,
+        body: str = '',
+        head: str,
+        base: str = 'main',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+    async def pr_data(self, pr_number: int) -> dict[str, object]:
+        return {}
+
+    async def list_prs(
+        self,
+        *,
+        label: str = '',
+        state: str = 'open',
+        head: str = '',
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        return []
+
+    async def add_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+    async def remove_labels(
+        self,
+        pr_number: int,
+        labels: list[str],
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+    async def update_pr(
+        self,
+        pr_number: int,
+        *,
+        title: str = '',
+        body: str = '',
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+    async def merge_pr(
+        self,
+        pr_number: int,
+        *,
+        method: str = 'squash',
+        commit_message: str = '',
+        delete_branch: bool = True,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        return self._NOOP
+
+
 def _create_backends(
     workspace_root: Path,
     config: ReleaseConfig,
     *,
     forge_backend: str = 'cli',
-) -> tuple[GitCLIBackend, UvBackend, GitHubCLIBackend | GitHubAPIBackend, PyPIBackend]:
+) -> tuple[GitCLIBackend, UvBackend, Forge, PyPIBackend]:
     """Create real backend instances for production use.
+
+    The forge backend is determined by ``config.forge`` (github, gitlab,
+    bitbucket, none) and the ``forge_backend`` transport hint (cli vs api).
+    Repository coordinates come from ``config.repo_owner`` and
+    ``config.repo_name``.
 
     Args:
         workspace_root: Workspace root directory.
         config: Release configuration.
-        forge_backend: Forge implementation to use: ``"cli"`` for
-            ``gh``-based, ``"api"`` for REST API-based.
+        forge_backend: Transport hint: ``"cli"`` for CLI-based backends,
+            ``"api"`` for REST API-based backends (where available).
 
     Returns:
         Tuple of (VCS, PackageManager, Forge, Registry) backends.
@@ -169,17 +283,23 @@ def _create_backends(
     vcs = GitCLIBackend(workspace_root)
     pm = UvBackend(workspace_root)
 
-    forge: GitHubCLIBackend | GitHubAPIBackend
-    if forge_backend == 'api':
-        forge = GitHubAPIBackend(
-            owner='firebase',
-            repo='genkit',
-        )
+    owner = config.repo_owner
+    repo = config.repo_name
+    repo_slug = f'{owner}/{repo}' if owner and repo else ''
+
+    forge: Forge
+    forge_type = config.forge
+
+    if forge_type == 'none':
+        forge = _NullForge()
+    elif forge_type == 'gitlab':
+        forge = GitLabCLIBackend(project=repo_slug, cwd=workspace_root)
+    elif forge_type == 'bitbucket':
+        forge = BitbucketAPIBackend(workspace=owner, repo_slug=repo)
+    elif forge_backend == 'api':
+        forge = GitHubAPIBackend(owner=owner, repo=repo)
     else:
-        forge = GitHubCLIBackend(
-            repo='firebase/genkit',
-            cwd=workspace_root,
-        )
+        forge = GitHubCLIBackend(repo=repo_slug, cwd=workspace_root)
 
     registry = PyPIBackend(pool_size=config.http_pool_size)
     return vcs, pm, forge, registry
@@ -384,6 +504,12 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
         print(plan.format_json())  # noqa: T201 - CLI output
     elif fmt == 'csv':
         print(plan.format_csv())  # noqa: T201 - CLI output
+    elif fmt == 'ascii':
+        print(plan.format_ascii_flow())  # noqa: T201 - CLI output
+    elif fmt == 'full':
+        print(plan.format_ascii_flow())  # noqa: T201 - CLI output
+        print()  # noqa: T201 - CLI output
+        print(plan.format_table())  # noqa: T201 - CLI output
     else:
         print(plan.format_table())  # noqa: T201 - CLI output
 
@@ -517,12 +643,55 @@ def _cmd_check(args: argparse.Namespace) -> int:
     graph = build_graph(packages)
 
     resolved_exclude_publish = resolve_group_refs(config.exclude_publish, config.groups)
+
+    # --fix: auto-fix issues before running checks.
+    if getattr(args, 'fix', False):
+        all_changes: list[str] = []
+
+        # Universal fixers (ecosystem-agnostic).
+        all_changes.extend(fix_missing_readme(packages))
+        all_changes.extend(fix_missing_license(packages))
+        all_changes.extend(fix_stale_artifacts(packages))
+
+        # Language-specific fixers (via backend).
+        backend = PythonCheckBackend(
+            core_package=config.core_package,
+            plugin_prefix=config.plugin_prefix,
+            namespace_dirs=config.namespace_dirs,
+            library_dirs=config.library_dirs,
+            plugin_dirs=config.plugin_dirs,
+        )
+        all_changes.extend(
+            backend.run_fixes(
+                packages,
+                exclude_publish=resolved_exclude_publish,
+                repo_owner=config.repo_owner,
+                repo_name=config.repo_name,
+                namespace_dirs=config.namespace_dirs,
+                library_dirs=config.library_dirs,
+                plugin_dirs=config.plugin_dirs,
+            )
+        )
+
+        if all_changes:
+            for change in all_changes:
+                print(f'  🔧 {change}')  # noqa: T201 - CLI output
+            print()  # noqa: T201 - CLI output
+            # Re-discover packages so checks see the updated state.
+            packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+            graph = build_graph(packages)
+
     result = run_checks(
         packages,
         graph,
         exclude_publish=resolved_exclude_publish,
         groups=config.groups,
         workspace_root=workspace_root,
+        core_package=config.core_package,
+        plugin_prefix=config.plugin_prefix,
+        namespace_dirs=config.namespace_dirs,
+        library_dirs=config.library_dirs,
+        plugin_dirs=config.plugin_dirs,
     )
 
     # Print detailed results.
@@ -598,6 +767,64 @@ async def _cmd_version(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _cmd_changelog(args: argparse.Namespace) -> int:
+    """Handle the ``changelog`` subcommand.
+
+    Generates per-package changelogs from Conventional Commits and
+    writes them to ``CHANGELOG.md`` in each package directory.
+    """
+    from datetime import datetime, timezone
+
+    from releasekit.changelog import generate_changelog, render_changelog, write_changelog
+    from releasekit.tags import format_tag
+
+    workspace_root = _find_workspace_root()
+    config = load_config(workspace_root)
+    vcs, _pm, _forge, _registry = _create_backends(workspace_root, config)
+
+    all_packages = discover_packages(workspace_root, exclude_patterns=config.exclude)
+    group = getattr(args, 'group', None)
+    packages = _maybe_filter_group(all_packages, config, group)
+
+    dry_run = getattr(args, 'dry_run', False)
+    today = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')
+
+    written = 0
+    skipped = 0
+
+    for pkg in packages:
+        # Find the last tag for this package to scope the log.
+        tag = format_tag(config.tag_format, name=pkg.name, version=pkg.version)
+        tag_exists = await vcs.tag_exists(tag)
+        since_tag = tag if tag_exists else None
+
+        changelog = await generate_changelog(
+            vcs=vcs,
+            version=pkg.version,
+            since_tag=since_tag,
+            paths=[str(pkg.path)],
+            date=today,
+        )
+
+        if not changelog.sections:
+            skipped += 1
+            continue
+
+        rendered = render_changelog(changelog)
+        changelog_path = pkg.path / 'CHANGELOG.md'
+
+        if write_changelog(changelog_path, rendered, dry_run=dry_run):
+            written += 1
+            print(f'  📝 {pkg.name}: {changelog_path}')  # noqa: T201 - CLI output
+        else:
+            skipped += 1
+            print(f'  ⏭️  {pkg.name}: already up to date')  # noqa: T201 - CLI output
+
+    print()  # noqa: T201 - CLI output
+    print(f'  {written} written, {skipped} skipped')  # noqa: T201 - CLI output
+    return 0
+
+
 def _cmd_explain(args: argparse.Namespace) -> int:
     """Handle the ``explain`` subcommand."""
     result = explain(args.code)
@@ -663,9 +890,9 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     else:
         logger.info('Tag %s does not exist locally', tag)
 
-    # Delete the GitHub release if forge is available.
+    # Delete the platform release if forge is available.
     if forge is not None and await forge.is_available():
-        logger.info('Deleting GitHub release for %s', tag)
+        logger.info('Deleting platform release for %s', tag)
         try:
             await forge.delete_release(tag, dry_run=dry_run)
         except Exception as exc:
@@ -692,6 +919,7 @@ def _cmd_completion(args: argparse.Namespace) -> int:
     prog = 'releasekit'
 
     subcommands = [
+        'changelog',
         'check',
         'completion',
         'discover',
@@ -990,7 +1218,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish_parser.add_argument(
         '--no-release',
         action='store_true',
-        help='Skip creating GitHub releases.',
+        help='Skip creating platform releases.',
     )
     publish_parser.add_argument(
         '--version-only',
@@ -1007,7 +1235,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--forge-backend',
         choices=['cli', 'api'],
         default='cli',
-        help="Forge backend: 'cli' (gh CLI) or 'api' (REST API via GITHUB_TOKEN).",
+        help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
     # ── plan ──
@@ -1017,7 +1245,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_parser.add_argument(
         '--format',
-        choices=['table', 'json', 'csv'],
+        choices=['table', 'json', 'csv', 'ascii', 'full'],
         default='table',
         help='Output format (default: table).',
     )
@@ -1081,9 +1309,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # ── check ──
-    subparsers.add_parser(
+    check_parser = subparsers.add_parser(
         'check',
         help='Run workspace health checks (cycles, deps, files, metadata).',
+    )
+    check_parser.add_argument(
+        '--fix',
+        action='store_true',
+        default=False,
+        help='Auto-fix issues that can be fixed (e.g. Private :: Do Not Upload classifiers).',
     )
 
     # ── version ──
@@ -1107,6 +1341,23 @@ def build_parser() -> argparse.ArgumentParser:
         '-g',
         metavar='NAME',
         help='Only show versions for packages in this release group.',
+    )
+
+    # ── changelog ──
+    changelog_parser = subparsers.add_parser(
+        'changelog',
+        help='Generate per-package CHANGELOG.md files from Conventional Commits.',
+    )
+    changelog_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview mode: show what would be written without modifying files.',
+    )
+    changelog_parser.add_argument(
+        '--group',
+        '-g',
+        metavar='NAME',
+        help='Only generate changelogs for packages in this release group.',
     )
 
     # ── explain ──
@@ -1145,7 +1396,7 @@ def build_parser() -> argparse.ArgumentParser:
     # ── rollback ──
     rollback_parser = subparsers.add_parser(
         'rollback',
-        help='Delete a tag and its GitHub release.',
+        help='Delete a tag and its platform release.',
     )
     rollback_parser.add_argument(
         'tag',
@@ -1182,7 +1433,7 @@ def build_parser() -> argparse.ArgumentParser:
         '--forge-backend',
         choices=['cli', 'api'],
         default='cli',
-        help="Forge backend: 'cli' (gh CLI) or 'api' (REST API via GITHUB_TOKEN).",
+        help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
     # ── release ──
@@ -1238,6 +1489,8 @@ def main() -> int:
             return _cmd_check(args)
         if command == 'version':
             return asyncio.run(_cmd_version(args))
+        if command == 'changelog':
+            return asyncio.run(_cmd_changelog(args))
         if command == 'explain':
             return _cmd_explain(args)
         if command == 'init':

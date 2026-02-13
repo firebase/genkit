@@ -69,6 +69,7 @@ class FakeVCS:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return empty log."""
         return []

@@ -75,9 +75,12 @@ class GitCLIBackend:
         since_tag: str | None = None,
         paths: list[str] | None = None,
         format: str = '%H %s',
+        first_parent: bool = False,
     ) -> list[str]:
         """Return git log lines."""
         cmd_parts = ['log', f'--pretty=format:{format}']
+        if first_parent:
+            cmd_parts.append('--first-parent')
         if since_tag:
             cmd_parts.append(f'{since_tag}..HEAD')
         if paths:

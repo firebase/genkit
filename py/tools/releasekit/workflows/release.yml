@@ -81,6 +81,12 @@ on:
         required: false
         type: string
 
+  # Auto-prepare: update the Release PR on every push to main.
+  push:
+    branches: [main]
+    paths:
+      - 'py/**'
+
   # Auto-release: trigger publish after a Release PR is merged.
   pull_request:
     types: [closed]
@@ -111,10 +117,11 @@ jobs:
   # Compute version bumps, generate changelogs, open/update Release PR.
   prepare:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.mode == 'prepare' ||
-       github.event.inputs.mode == 'full' ||
-       github.event.inputs.mode == 'dry-run')
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.mode == 'prepare' ||
+        github.event.inputs.mode == 'full' ||
+        github.event.inputs.mode == 'dry-run'))
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.prepare.outputs.pr_number }}
@@ -181,7 +188,7 @@ jobs:
       - name: Wait for CI checks
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
-          ref: release-please--packages--default
+          ref: releasekit--release
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 30
           allowed-conclusions: success,skipped
