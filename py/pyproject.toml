@@ -175,6 +175,7 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 dev-local-vectorstore-hello                = { workspace = true }
 framework-context-demo                     = { workspace = true }
+framework-custom-evaluators                = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
 framework-evaluator-demo                   = { workspace = true }
 framework-format-demo                      = { workspace = true }

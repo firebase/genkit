@@ -1,0 +1,11 @@
+---
+model: staticResponseModel
+input:
+  schema:
+    name: string
+output:
+  schema:
+    bar: string
+---
+
+Hi {{ name }}
