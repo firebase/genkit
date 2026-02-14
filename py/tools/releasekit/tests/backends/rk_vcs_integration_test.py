@@ -61,11 +61,6 @@ def _init_repo_with_remote(tmp_path: Path) -> tuple[GitCLIBackend, Path, Path]:
     return GitCLIBackend(repo_root=work), work, bare
 
 
-# ---------------------------------------------------------------------------
-# Push: branch with --set-upstream
-# ---------------------------------------------------------------------------
-
-
 class TestPushBranchSetUpstream:
     """Test git push --set-upstream for new branches."""
 
@@ -103,11 +98,6 @@ class TestPushBranchSetUpstream:
         assert result.ok, f'push failed: {result.stderr}'
 
 
-# ---------------------------------------------------------------------------
-# Push: tags
-# ---------------------------------------------------------------------------
-
-
 class TestPushTags:
     """Test git push --tags."""
 
@@ -136,11 +126,6 @@ class TestPushTags:
         # This should succeed — --set-upstream is skipped for tag pushes.
         result = await backend.push(tags=True, set_upstream=True)
         assert result.ok, f'tag push failed: {result.stderr}'
-
-
-# ---------------------------------------------------------------------------
-# Branch operations
-# ---------------------------------------------------------------------------
 
 
 class TestBranchOperations:
@@ -173,11 +158,6 @@ class TestBranchOperations:
         backend, _, _ = _init_repo_with_remote(tmp_path)
         branch = await backend.current_branch()
         assert branch == 'main'
-
-
-# ---------------------------------------------------------------------------
-# Tag operations
-# ---------------------------------------------------------------------------
 
 
 class TestTagOperations:
@@ -244,11 +224,6 @@ class TestTagOperations:
         assert 'v1.0.0' not in ls.stdout
 
 
-# ---------------------------------------------------------------------------
-# Log and diff_files
-# ---------------------------------------------------------------------------
-
-
 class TestLogAndDiff:
     """Test log() and diff_files() with since_tag."""
 
@@ -309,11 +284,6 @@ class TestLogAndDiff:
         assert 'new.txt' in files
 
 
-# ---------------------------------------------------------------------------
-# Commit edge cases
-# ---------------------------------------------------------------------------
-
-
 class TestCommitEdgeCases:
     """Test commit() with various path/dry_run combinations."""
 
@@ -355,11 +325,6 @@ class TestCommitEdgeCases:
 
         # File should still be untracked.
         assert not await backend.is_clean()
-
-
-# ---------------------------------------------------------------------------
-# is_shallow, default_branch
-# ---------------------------------------------------------------------------
 
 
 class TestRepoMetadata:
