@@ -85,6 +85,7 @@ repo_owner = "firebase"
 # Python workspace
 # ---------------------------------------------------------------------------
 [workspace.py]
+bootstrap_sha  = "b71a3d20c74b71583edbc652e5b26117caad43f4" # py/v0.5.0
 changelog      = true
 core_package   = "genkit"
 ecosystem      = "python"
@@ -94,7 +95,6 @@ plugin_dirs    = ["plugins"]
 plugin_prefix  = "genkit-plugin-"
 root           = "py"
 smoke_test     = true
-bootstrap_sha  = "b71a3d20c74b71583edbc652e5b26117caad43f4"  # py/v0.5.0
 tag_format     = "{label}/{name}-v{version}"
 tool           = "uv"
 umbrella_tag   = "{label}/v{version}"

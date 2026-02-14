@@ -252,9 +252,17 @@ jobs:
             cmd+=(--prerelease "${{ inputs.prerelease }}")
           fi
 
-          # Run prepare — fail the job immediately on error.
+          # Run prepare — capture output even on failure so CI logs
+          # show diagnostics (set -e would exit before echo).
+          set +e
           OUTPUT=$("${cmd[@]}" 2>&1)
+          EXIT_CODE=$?
+          set -e
           echo "$OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
           PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
           if [ -n "$PR_URL" ]; then
@@ -328,9 +336,17 @@ jobs:
             cmd+=(--prerelease "${{ inputs.prerelease }}")
           fi
 
-          # Run prepare — fail the job immediately on error.
+          # Run prepare — capture output even on failure so CI logs
+          # show diagnostics (set -e would exit before echo).
+          set +e
           OUTPUT=$("${cmd[@]}" 2>&1)
+          EXIT_CODE=$?
+          set -e
           echo "$OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
           PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
           if [ -n "$PR_URL" ]; then
@@ -403,9 +419,17 @@ jobs:
             DRY_RUN_FLAG="--dry-run"
           fi
 
-          # Run release — fail the job immediately on error.
+          # Run release — capture output even on failure so CI logs
+          # show diagnostics (set -e would exit before echo).
+          set +e
           OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js release $DRY_RUN_FLAG 2>&1)
+          EXIT_CODE=$?
+          set -e
           echo "$OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::releasekit release failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
           RELEASE_URL=$(echo "$OUTPUT" | grep -oP 'release_url=\K.*' || echo "")
           echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
