@@ -306,6 +306,10 @@ async def prepare_release(
     pkg_paths = _package_paths(packages)
     for ver in bumped:
         since_tag = format_tag(ws_config.tag_format, name=ver.name, version=ver.old_version, label=ws_config.label)
+        # Fall back to bootstrap_sha (or None for full history) when the
+        # per-package tag doesn't exist yet — e.g. on the very first release.
+        if not await vcs.tag_exists(since_tag):
+            since_tag = ws_config.bootstrap_sha or None
         changelog = await generate_changelog(
             vcs=vcs,
             version=ver.new_version,

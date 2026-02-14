@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -181,10 +182,21 @@ class GitHubCLIBackend:
     ) -> CommandResult:
         """Create a GitHub Pull Request."""
         cmd_parts = ['pr', 'create', '--title', title, '--head', head, '--base', base]
-        if body:
-            cmd_parts.extend(['--body', body])
 
         log.info('create_pr', title=title, head=head, base=base)
+        if body:
+            # Use --body-file to avoid shell argument size limits with large
+            # PR bodies (e.g. 60+ package changelogs + embedded manifest).
+            with tempfile.NamedTemporaryFile(
+                mode='w', suffix='.md', delete=False, encoding='utf-8',
+            ) as f:
+                f.write(body)
+                body_file = f.name
+            try:
+                cmd_parts.extend(['--body-file', body_file])
+                return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+            finally:
+                Path(body_file).unlink(missing_ok=True)
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
@@ -223,7 +235,7 @@ class GitHubCLIBackend:
             '--limit',
             str(limit),
             '--json',
-            'number,title,state,labels,headRefName,mergeCommit',
+            'number,title,state,labels,headRefName,mergeCommit,url',
         ]
         if label:
             cmd_parts.extend(['--label', label])

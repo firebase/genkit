@@ -96,7 +96,12 @@ class FakeVCS:
     ) -> CommandResult:
         """Push tags (records for assertion)."""
         if self.push_error:
-            raise RuntimeError(self.push_error)
+            return CommandResult(
+                command=['git', 'push'],
+                returncode=128,
+                stdout='',
+                stderr=self.push_error,
+            )
         self.push_calls.append({'tags': tags, 'remote': remote})
         return _OK
 
@@ -476,17 +481,13 @@ class TestCreateTags:
             raise AssertionError(f'Expected genkit-v0.5.0 in failed: {result.failed}')
 
     @pytest.mark.asyncio
-    async def test_push_error_non_fatal(self) -> None:
-        """Push failure is non-fatal — tags exist locally."""
+    async def test_push_error_is_fatal(self) -> None:
+        """Push failure raises RuntimeError — fail fast."""
         manifest = _make_manifest('genkit')
         vcs = FakeVCS(push_error='Network error')
 
-        result = await create_tags(manifest=manifest, vcs=vcs)
-
-        if 'genkit-v0.5.0' not in result.created:
-            raise AssertionError(f'Expected genkit-v0.5.0 created: {result.created}')
-        if result.pushed:
-            raise AssertionError('Expected pushed=False after push error')
+        with pytest.raises(RuntimeError, match='Failed to push tags'):
+            await create_tags(manifest=manifest, vcs=vcs)
 
     @pytest.mark.asyncio
     async def test_no_push_when_failures_exist(self) -> None:

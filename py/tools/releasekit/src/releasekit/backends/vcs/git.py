@@ -228,14 +228,15 @@ class GitCLIBackend:
     ) -> CommandResult:
         """Push commits and/or tags."""
         cmd_parts = ['push']
-        if set_upstream:
+        # --set-upstream is only meaningful for branch pushes, not tag-only pushes.
+        branch_refspec: str = ''
+        if set_upstream and not tags:
             cmd_parts.append('--set-upstream')
-        cmd_parts.append(remote)
-        if set_upstream:
             # --set-upstream requires an explicit refspec (branch name).
-            branch = await self.current_branch()
-            if branch:
-                cmd_parts.append(branch)
+            branch_refspec = await self.current_branch()
+        cmd_parts.append(remote)
+        if branch_refspec:
+            cmd_parts.append(branch_refspec)
         if tags:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)

@@ -185,7 +185,7 @@ class TestCreatePR:
             args = m.call_args[0]
             assert 'pr' in args
             assert 'create' in args
-            assert '--body' in args
+            assert '--body-file' in args
 
 
 class TestPRData:

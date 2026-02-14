@@ -348,10 +348,19 @@ class GitHubAPIBackend:
             response = await request_with_retry(client, 'POST', url, json=payload)
 
         log.info('create_pr', title=title, status=response.status_code)
+        # Extract html_url from response so stdout matches gh CLI behavior
+        # (prepare.py expects stdout to be the PR URL).
+        stdout = response.text
+        if response.is_success:
+            try:
+                pr_data = response.json()
+                stdout = pr_data.get('html_url', response.text)
+            except (ValueError, json.JSONDecodeError):
+                pass
         return CommandResult(
             command=['POST', url],
             returncode=0 if response.is_success else response.status_code,
-            stdout=response.text,
+            stdout=stdout,
             stderr='' if response.is_success else response.text,
         )
 
@@ -447,6 +456,7 @@ class GitHubAPIBackend:
                 'number': pr.get('number', 0),
                 'title': pr.get('title', ''),
                 'state': pr.get('state', ''),
+                'url': pr.get('html_url', ''),
                 'labels': pr_labels,
                 'headRefName': pr.get('head', {}).get('ref', ''),
                 'mergeCommit': {
