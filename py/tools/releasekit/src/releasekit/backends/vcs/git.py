@@ -227,9 +227,15 @@ class GitCLIBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags."""
-        cmd_parts = ['push', remote]
+        cmd_parts = ['push']
         if set_upstream:
             cmd_parts.append('--set-upstream')
+        cmd_parts.append(remote)
+        if set_upstream:
+            # --set-upstream requires an explicit refspec (branch name).
+            branch = await self.current_branch()
+            if branch:
+                cmd_parts.append(branch)
         if tags:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)
