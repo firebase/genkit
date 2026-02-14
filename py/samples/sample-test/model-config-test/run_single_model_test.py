@@ -185,7 +185,7 @@ def main() -> None:
         # Run test in async context
         import asyncio
 
-        asyncio.run(
+        result = asyncio.run(
             run_model_test(
                 args.model_name,
                 config,
@@ -195,6 +195,7 @@ def main() -> None:
         )
 
         # Output JSON result with markers
+        print(f'---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---')
 
     except Exception:  # noqa: S110 - intentionally silent, error handled by returning result dict
         pass

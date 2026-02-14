@@ -1,4 +1,4 @@
-# Model Performance Testing Tool
+# Model Config Testing Tool
 
 A tool to test model performance across different models and configuration variations.
 

@@ -72,7 +72,7 @@ class TestResult(BaseModel):
 
 async def discover_scenarios() -> list[Scenario]:
     """Discover test scenarios from samples directory."""
-    samples_dir = Path(__file__).parent.parent
+    samples_dir = Path(__file__).parent.parent.parent
     scenarios = []
 
     if not samples_dir.exists():

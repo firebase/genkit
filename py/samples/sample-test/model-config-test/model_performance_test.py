@@ -114,7 +114,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
     logger = logging.getLogger(__name__)
 
     # Find the sample directory
-    samples_dir = Path(__file__).parent.parent
+    samples_dir = Path(__file__).parent.parent.parent
     sample_dir = samples_dir / sample_name
 
     if not sample_dir.exists():

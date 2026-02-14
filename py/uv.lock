@@ -70,6 +70,7 @@ members = [
     "provider-vertex-ai-vector-search-bigquery",
     "provider-vertex-ai-vector-search-firestore",
     "provider-xai-hello",
+    "sample-test",
     "web-endpoints-hello",
     "web-fastapi-bugbot",
     "web-flask-hello",
@@ -8429,6 +8430,79 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/62/74/8d69dcb7a9efe8baa2046891735e5dfe433ad558ae23d9e3c14c633d1d58/s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125", size = 151547, upload-time = "2025-09-09T19:23:31.089Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/48/f0/ae7ca09223a81a1d890b2557186ea015f6e0502e9b8cb8e1813f1d8cfa4e/s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456", size = 85712, upload-time = "2025-09-09T19:23:30.041Z" },
+]
+
+[[package]]
+name = "sample-test"
+version = "0.1.0"
+source = { editable = "samples/sample-test/model-config-test" }
+dependencies = [
+    { name = "datamodel-code-generator" },
+    { name = "fastapi" },
+    { name = "genkit" },
+    { name = "genkit-plugin-amazon-bedrock" },
+    { name = "genkit-plugin-anthropic" },
+    { name = "genkit-plugin-deepseek" },
+    { name = "genkit-plugin-evaluators" },
+    { name = "genkit-plugin-google-cloud" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-mistral" },
+    { name = "genkit-plugin-ollama" },
+    { name = "genkit-plugin-vertex-ai" },
+    { name = "genkit-plugin-xai" },
+    { name = "grpcio" },
+    { name = "grpcio-reflection" },
+    { name = "gunicorn" },
+    { name = "hypercorn" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-asgi" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-sdk" },
+    { name = "pydantic-settings" },
+    { name = "quart" },
+    { name = "secure" },
+    { name = "structlog" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "uvicorn" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "datamodel-code-generator" },
+    { name = "fastapi" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
+    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
+    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
+    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-mistral", editable = "plugins/mistral" },
+    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "genkit-plugin-xai", editable = "plugins/xai" },
+    { name = "grpcio" },
+    { name = "grpcio-reflection" },
+    { name = "gunicorn" },
+    { name = "hypercorn" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-asgi" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-sdk" },
+    { name = "pydantic-settings" },
+    { name = "quart" },
+    { name = "secure" },
+    { name = "structlog" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
+    { name = "uvicorn" },
+    { name = "uvloop" },
 ]
 
 [[package]]

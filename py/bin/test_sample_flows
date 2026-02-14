@@ -118,7 +118,7 @@ if [[ $# -lt 1 ]]; then
         # Run the flow testing tool
         cd "$PY_DIR"
         # Don't trap SIGINT here - allow user to interrupt
-        if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+        if uv run samples/sample-test/flow-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
             TEST_SUCCESS=true
         else
             TEST_SUCCESS=false
@@ -162,7 +162,7 @@ else
     # Run the flow testing tool
     cd "$PY_DIR"
     # Allow Ctrl+C to interrupt
-    if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+    if uv run samples/sample-test/flow-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
         echo "Flow testing completed for $SAMPLE_NAME"
     else
         echo ""

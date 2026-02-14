@@ -212,6 +212,7 @@ web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
 web-short-n-long                           = { workspace = true }
+sample-test                        = { workspace = true }
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
@@ -242,7 +243,7 @@ conform = { workspace = true }
 
 [tool.uv.workspace]
 exclude = ["*/shared", "samples/sample-test", "testapps/*"]
-members = ["packages/*", "plugins/*", "samples/*", "tools/conform"]
+members = ["packages/*", "plugins/*", "samples/*", "samples/sample-test/model-config-test", "tools/conform"]
 
 
 # Ruff checks and formatting.
