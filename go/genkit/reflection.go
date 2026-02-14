@@ -37,6 +37,8 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	tracepkg "go.opentelemetry.io/otel/trace"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -54,6 +56,7 @@ type runtimeFileData struct {
 // reflectionServer encapsulates everything needed to serve the Reflection API.
 type reflectionServer struct {
 	*http.Server
+	TracerProvider  tracepkg.TracerProvider
 	RuntimeFilePath string            // Path to the runtime file that was written at startup.
 	activeActions   *activeActionsMap // Tracks active actions for cancellation support.
 }
@@ -139,13 +142,17 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 		}
 	}
 
+	// Create an isolated tracer provider for the reflection server so it doesn't conflict with the global provider.
+	tp := sdktrace.NewTracerProvider()
+
 	s := &reflectionServer{
 		Server: &http.Server{
 			Addr: addr,
 		},
-		activeActions: newActiveActionsMap(),
+		TracerProvider: tp,
+		activeActions:  newActiveActionsMap(),
 	}
-	s.Handler = serveMux(g, s)
+	s.Handler = serveMux(g, s, tp)
 
 	slog.Debug("starting reflection server", "addr", s.Addr)
 
@@ -289,7 +296,7 @@ func findProjectRoot() (string, error) {
 }
 
 // serveMux returns a new ServeMux configured for the required Reflection API endpoints.
-func serveMux(g *Genkit, s *reflectionServer) *http.ServeMux {
+func serveMux(g *Genkit, s *reflectionServer, tp tracepkg.TracerProvider) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
 	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, r *http.Request) {
@@ -299,17 +306,21 @@ func serveMux(g *Genkit, s *reflectionServer) *http.ServeMux {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
-	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g, s.activeActions)))
-	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify()))
-	mux.HandleFunc("POST /api/cancelAction", wrapReflectionHandler(handleCancelAction(s.activeActions)))
+	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(tp, handleListActions(g)))
+	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(tp, handleRunAction(g, s.activeActions)))
+	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(tp, handleNotify(tp)))
+	mux.HandleFunc("POST /api/cancelAction", wrapReflectionHandler(tp, handleCancelAction(s.activeActions)))
+
 	return mux
 }
 
 // wrapReflectionHandler wraps an HTTP handler function with common logging and error handling.
-func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
+func wrapReflectionHandler(tp tracepkg.TracerProvider, h func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		// Inject the reflection tracer provider into the request context so spans use the isolated provider.
+		ctx = tracing.ContextWithTracerProvider(ctx, tp)
+		r = r.WithContext(ctx)
 		logger.FromContext(ctx).Debug("request start", "method", r.Method, "path", r.URL.Path)
 
 		var err error
@@ -558,7 +569,7 @@ func handleCancelAction(activeActions *activeActionsMap) func(w http.ResponseWri
 }
 
 // handleNotify configures the telemetry server URL from the request.
-func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
+func handleNotify(tp tracepkg.TracerProvider) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var body struct {
 			TelemetryServerURL       string `json:"telemetryServerUrl"`
@@ -571,7 +582,8 @@ func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
-			tracing.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
+			// Attach telemetry exporter to the reflection tracer provider only.
+			tracing.WriteTelemetryImmediateOn(tp, tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
 			slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
 		}
 

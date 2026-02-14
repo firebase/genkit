@@ -95,7 +95,7 @@ func TestServeMux(t *testing.T) {
 		Server:        &http.Server{},
 		activeActions: newActiveActionsMap(),
 	}
-	ts := httptest.NewServer(serveMux(g, s))
+	ts := httptest.NewServer(serveMux(g, s, tracing.TracerProvider()))
 	s.Addr = strings.TrimPrefix(ts.URL, "http://")
 	defer ts.Close()
 
@@ -314,7 +314,7 @@ func TestEarlyTraceIDTransmission(t *testing.T) {
 		})
 
 	s := &reflectionServer{Server: &http.Server{}, activeActions: newActiveActionsMap()}
-	ts := httptest.NewServer(serveMux(g, s))
+	ts := httptest.NewServer(serveMux(g, s, tracing.TracerProvider()))
 	defer ts.Close()
 
 	t.Run("headers arrive before body completes", func(t *testing.T) {
@@ -470,7 +470,7 @@ func TestActionCancellation(t *testing.T) {
 		})
 
 	s := &reflectionServer{Server: &http.Server{}, activeActions: newActiveActionsMap()}
-	ts := httptest.NewServer(serveMux(g, s))
+	ts := httptest.NewServer(serveMux(g, s, tracing.TracerProvider()))
 	defer ts.Close()
 
 	// Start action in background
@@ -527,7 +527,7 @@ func TestCancelActionEndpoint(t *testing.T) {
 		Server:        &http.Server{},
 		activeActions: newActiveActionsMap(),
 	}
-	ts := httptest.NewServer(serveMux(g, s))
+	ts := httptest.NewServer(serveMux(g, s, tracing.TracerProvider()))
 	defer ts.Close()
 
 	t.Run("cancel non-existent action", func(t *testing.T) {
