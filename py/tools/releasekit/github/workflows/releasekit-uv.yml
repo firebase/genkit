@@ -201,6 +201,7 @@ jobs:
        !contains(github.event.head_commit.message, 'releasekit--release')) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
@@ -254,8 +255,8 @@ jobs:
             exit $EXIT_CODE
           fi
 
-          # Parse output for PR URL
-          PR_URL=$(echo "$OUTPUT" | grep -oP 'Release PR: \K.*' || echo "")
+          # Parse output for PR URL (sed is portable; grep -oP needs GNU grep).
+          PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
           if [ -n "$PR_URL" ]; then
             echo "has_bumps=true" >> "$GITHUB_OUTPUT"
             echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
@@ -279,6 +280,7 @@ jobs:
        contains(github.event.pull_request.labels.*.name, 'autorelease: pending')) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     steps:
@@ -335,8 +337,8 @@ jobs:
             exit $EXIT_CODE
           fi
 
-          # Parse release URL
-          RELEASE_URL=$(echo "$OUTPUT" | grep -oP 'release_url=\K.*' || echo "")
+          # Parse release URL (sed is portable; grep -oP needs GNU grep).
+          RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
           echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -350,8 +352,11 @@ jobs:
   publish:
     name: Publish to ${{ inputs.target || 'pypi' }}
     needs: release
+    # On PR-merge events, inputs.skip_publish is undefined (empty string),
+    # which is != 'true', so publish runs. This is intentional.
     if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: ${{ inputs.target || 'pypi' }}
     permissions:
       id-token: write  # Trusted publishing (OIDC)
@@ -374,7 +379,7 @@ jobs:
 
       - name: Install workspace
         working-directory: ${{ env.WORKSPACE_DIR }}
-        run: uv sync
+        run: uv sync --no-dev
 
       - name: Install releasekit
         working-directory: ${{ env.RELEASEKIT_DIR }}
@@ -393,6 +398,8 @@ jobs:
 
       - name: Run releasekit publish
         run: |
+          set -euo pipefail
+
           cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py publish --force)
 
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
@@ -420,9 +427,15 @@ jobs:
             cmd+=(--max-retries "$MAX_RETRIES")
           fi
 
+          # Capture output even on failure so CI logs show diagnostics.
           echo "::group::Running: ${cmd[*]}"
-          "${cmd[@]}"
+          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
+          echo "$OUTPUT"
           echo "::endgroup::"
+          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
+            echo "::error::releasekit publish failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
         env:
           # For trusted publishing (OIDC), no token needed.
           # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
@@ -447,10 +460,14 @@ jobs:
     needs: publish
     if: success()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Dispatch release event
         uses: peter-evans/repository-dispatch@v3
         with:
+          # NOTE: GITHUB_TOKEN is scoped to this repo only. For cross-repo
+          # dispatch (e.g. genkit-community-plugins), replace with a PAT
+          # or GitHub App token stored in secrets.
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: genkit-python-release
           client-payload: '{"release_url": "${{ needs.release.outputs.release_url }}"}'
