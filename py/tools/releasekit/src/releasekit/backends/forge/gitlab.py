@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -210,7 +211,10 @@ class GitLabCLIBackend:
             # Use a temp file to avoid shell argument size limits with large
             # MR descriptions (e.g. 60+ package changelogs + embedded manifest).
             with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.md', delete=False, encoding='utf-8',
+                mode='w',
+                suffix='.md',
+                delete=False,
+                encoding='utf-8',
             ) as f:
                 f.write(body)
                 body_file = f.name
@@ -218,7 +222,7 @@ class GitLabCLIBackend:
                 cmd_parts.extend(['--description', f'@{body_file}'])
                 return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
             finally:
-                Path(body_file).unlink(missing_ok=True)
+                os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:

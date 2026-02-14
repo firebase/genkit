@@ -363,9 +363,7 @@ async def create_tags(
     if result.created and not result.failed:
         push_result = await vcs.push(tags=True, dry_run=dry_run)
         if not push_result.ok:
-            raise RuntimeError(
-                f'Failed to push tags to remote: {push_result.stderr.strip()}'
-            )
+            raise RuntimeError(f'Failed to push tags to remote: {push_result.stderr.strip()}')
         # Mutate the frozen dataclass via object.__setattr__ for
         # the pushed flag — TagResult is frozen for safety but we
         # need to set this after the push succeeds.

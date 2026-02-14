@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -188,7 +189,10 @@ class GitHubCLIBackend:
             # Use --body-file to avoid shell argument size limits with large
             # PR bodies (e.g. 60+ package changelogs + embedded manifest).
             with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.md', delete=False, encoding='utf-8',
+                mode='w',
+                suffix='.md',
+                delete=False,
+                encoding='utf-8',
             ) as f:
                 f.write(body)
                 body_file = f.name
@@ -196,7 +200,7 @@ class GitHubCLIBackend:
                 cmd_parts.extend(['--body-file', body_file])
                 return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
             finally:
-                Path(body_file).unlink(missing_ok=True)
+                os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
@@ -300,7 +304,10 @@ class GitHubCLIBackend:
             # Use --body-file to avoid shell argument size limits with large
             # PR bodies (e.g. 60+ package changelogs + embedded manifest).
             with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.md', delete=False, encoding='utf-8',
+                mode='w',
+                suffix='.md',
+                delete=False,
+                encoding='utf-8',
             ) as f:
                 f.write(body)
                 body_file = f.name
@@ -308,7 +315,7 @@ class GitHubCLIBackend:
                 cmd_parts.extend(['--body-file', body_file])
                 return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
             finally:
-                Path(body_file).unlink(missing_ok=True)
+                os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def merge_pr(

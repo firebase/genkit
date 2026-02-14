@@ -216,10 +216,7 @@ async def create_commitback_pr(
     await vcs.commit(commit_msg, dry_run=dry_run)
     push_result = await vcs.push(remote='origin', dry_run=dry_run)
     if not push_result.ok:
-        raise RuntimeError(
-            f'Failed to push commit-back branch {branch_name!r}: '
-            f'{push_result.stderr.strip()}'
-        )
+        raise RuntimeError(f'Failed to push commit-back branch {branch_name!r}: {push_result.stderr.strip()}')
     logger.info('commitback_pushed', branch=branch_name)
 
     if forge is not None and hasattr(forge, 'is_available') and await forge.is_available():
