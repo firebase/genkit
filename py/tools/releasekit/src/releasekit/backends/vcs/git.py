@@ -166,10 +166,11 @@ class GitCLIBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Create a commit, staging specified paths first."""
-        if paths and not dry_run:
-            await asyncio.to_thread(self._git, 'add', *paths)
-        else:
-            await asyncio.to_thread(self._git, 'add', '-A', dry_run=dry_run)
+        if paths:
+            if not dry_run:
+                await asyncio.to_thread(self._git, 'add', *paths)
+        elif not dry_run:
+            await asyncio.to_thread(self._git, 'add', '-A')
 
         log.info('commit', message=message[:80])
         return await asyncio.to_thread(self._git, 'commit', '-m', message, dry_run=dry_run)
@@ -209,13 +210,15 @@ class GitCLIBackend:
         """Delete a tag locally and optionally on the remote."""
         result = await asyncio.to_thread(self._git, 'tag', '-d', tag_name, dry_run=dry_run)
         if remote and result.ok:
-            await asyncio.to_thread(
+            remote_result = await asyncio.to_thread(
                 self._git,
                 'push',
                 'origin',
                 f':refs/tags/{tag_name}',
                 dry_run=dry_run,
             )
+            if not remote_result.ok:
+                return remote_result
         return result
 
     async def push(

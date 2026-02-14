@@ -294,10 +294,21 @@ class GitHubCLIBackend:
         cmd_parts = ['pr', 'edit', str(pr_number)]
         if title:
             cmd_parts.extend(['--title', title])
-        if body:
-            cmd_parts.extend(['--body', body])
 
         log.info('update_pr', pr=pr_number, has_title=bool(title), has_body=bool(body))
+        if body:
+            # Use --body-file to avoid shell argument size limits with large
+            # PR bodies (e.g. 60+ package changelogs + embedded manifest).
+            with tempfile.NamedTemporaryFile(
+                mode='w', suffix='.md', delete=False, encoding='utf-8',
+            ) as f:
+                f.write(body)
+                body_file = f.name
+            try:
+                cmd_parts.extend(['--body-file', body_file])
+                return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+            finally:
+                Path(body_file).unlink(missing_ok=True)
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def merge_pr(

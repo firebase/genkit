@@ -272,7 +272,7 @@ class TestUpdatePR:
             await gh.update_pr(42, title='New title', body='New body')
             args = m.call_args[0]
             assert '--title' in args
-            assert '--body' in args
+            assert '--body-file' in args
 
 
 class TestMergePR:

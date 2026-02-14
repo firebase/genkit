@@ -433,6 +433,7 @@ class BitbucketAPIBackend:
                     'number': pr.get('id', 0),
                     'title': pr_title,
                     'state': pr.get('state', '').lower(),
+                    'url': pr.get('links', {}).get('html', {}).get('href', ''),
                     'labels': [],  # Bitbucket PRs don't have labels.
                     'headRefName': source_branch,
                     'mergeCommit': {

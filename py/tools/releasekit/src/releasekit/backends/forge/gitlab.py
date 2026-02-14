@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -204,10 +205,20 @@ class GitLabCLIBackend:
             base,
             '--remove-source-branch',
         ]
-        if body:
-            cmd_parts.extend(['--description', body])
-
         log.info('create_mr', title=title, head=head, base=base)
+        if body:
+            # Use a temp file to avoid shell argument size limits with large
+            # MR descriptions (e.g. 60+ package changelogs + embedded manifest).
+            with tempfile.NamedTemporaryFile(
+                mode='w', suffix='.md', delete=False, encoding='utf-8',
+            ) as f:
+                f.write(body)
+                body_file = f.name
+            try:
+                cmd_parts.extend(['--description', f'@{body_file}'])
+                return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
+            finally:
+                Path(body_file).unlink(missing_ok=True)
         return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
@@ -292,6 +303,7 @@ class GitLabCLIBackend:
                     'number': mr.get('iid', 0),
                     'title': mr.get('title', ''),
                     'state': mr.get('state', ''),
+                    'url': mr.get('web_url', ''),
                     'labels': mr.get('labels', []),
                     'headRefName': mr.get('source_branch', ''),
                     'mergeCommit': {'oid': mr.get('merge_commit_sha', '')},
