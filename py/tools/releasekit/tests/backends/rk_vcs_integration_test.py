@@ -25,6 +25,7 @@ The tests do NOT touch the network — the "remote" is a local bare repo.
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,11 @@ from releasekit.backends.vcs.git import GitCLIBackend
 from releasekit.logging import configure_logging
 
 configure_logging(quiet=True)
+
+pytestmark = pytest.mark.skipif(
+    shutil.which('git') is None,
+    reason='git not found on PATH. Install git: https://git-scm.com/',
+)
 
 
 def _init_repo_with_remote(tmp_path: Path) -> tuple[GitCLIBackend, Path, Path]:
