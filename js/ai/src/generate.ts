@@ -200,7 +200,7 @@ export async function toGenerateRequest(
   if (options.messages) {
     messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
-  if (options.prompt) {
+  if (options.prompt && !options.resume) {
     messages.push({
       role: 'user',
       content: Message.parseContent(options.prompt),
@@ -343,7 +343,7 @@ function messagesFromOptions(options: GenerateOptions): MessageData[] {
   if (options.messages) {
     messages.push(...options.messages);
   }
-  if (options.prompt) {
+  if (options.prompt && !options.resume) {
     messages.push({
       role: 'user',
       content: Message.parseContent(options.prompt),
