@@ -190,6 +190,13 @@ export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
+  if (options.prompt && options.resume) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'prompt is not supported when resume is set. The message history in messages is used instead.',
+    });
+  }
   const messages: MessageData[] = [];
   if (options.system) {
     messages.push({
@@ -333,6 +340,13 @@ async function resourcesToActionRefs(
 }
 
 function messagesFromOptions(options: GenerateOptions): MessageData[] {
+  if (options.prompt && options.resume) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'prompt is not supported when resume is set. The message history in messages is used instead.',
+    });
+  }
   const messages: MessageData[] = [];
   if (options.system) {
     messages.push({

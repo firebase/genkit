@@ -297,7 +297,7 @@ describe('toGenerateRequest', () => {
       throws: 'FAILED_PRECONDITION',
     },
     {
-      should: 'do not append prompt when resume is set',
+      should: 'throw INVALID_ARGUMENT when both prompt and resume are set',
       prompt: {
         messages: [
           { role: 'user', content: [{ text: 'hi' }] },
@@ -309,30 +309,14 @@ describe('toGenerateRequest', () => {
             ],
           },
         ],
-        prompt: 'extra user message',
+        prompt: 'count to 10',
         resume: {
           respond: {
             toolResponse: { name: 'test', output: { done: true } },
           },
         },
       },
-      expectedOutput: {
-        messages: [
-          { role: 'user', content: [{ text: 'hi' }] },
-          {
-            role: 'model',
-            content: [
-              { text: 'there' },
-              { toolRequest: { name: 'test', input: { x: 1 } } },
-            ],
-          },
-        ],
-        config: undefined,
-        docs: undefined,
-        resources: [],
-        tools: [],
-        output: {},
-      },
+      throws: 'INVALID_ARGUMENT',
     },
     {
       should: 'passes through output options',
