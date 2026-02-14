@@ -297,6 +297,44 @@ describe('toGenerateRequest', () => {
       throws: 'FAILED_PRECONDITION',
     },
     {
+      should: 'do not append prompt when resume is set',
+      prompt: {
+        messages: [
+          { role: 'user', content: [{ text: 'hi' }] },
+          {
+            role: 'model',
+            content: [
+              { text: 'there' },
+              { toolRequest: { name: 'test', input: { x: 1 } } },
+            ],
+          },
+        ],
+        prompt: 'extra user message',
+        resume: {
+          respond: {
+            toolResponse: { name: 'test', output: { done: true } },
+          },
+        },
+      },
+      expectedOutput: {
+        messages: [
+          { role: 'user', content: [{ text: 'hi' }] },
+          {
+            role: 'model',
+            content: [
+              { text: 'there' },
+              { toolRequest: { name: 'test', input: { x: 1 } } },
+            ],
+          },
+        ],
+        config: undefined,
+        docs: undefined,
+        resources: [],
+        tools: [],
+        output: {},
+      },
+    },
+    {
       should: 'passes through output options',
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
