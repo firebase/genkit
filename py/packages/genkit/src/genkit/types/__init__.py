@@ -104,7 +104,6 @@ from genkit.core.typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    GenerationCommonConfig,
     GenerationUsage,
     Media,
     MediaPart,
@@ -132,6 +131,7 @@ from genkit.core.typing import (
     ToolResponse,
     ToolResponsePart,
 )
+from genkit.model_types import GenerationCommonConfig, get_effective_api_key, get_request_api_key
 
 __all__ = [
     # Errors
@@ -162,6 +162,8 @@ __all__ = [
     'GenerateResponse',
     'GenerateResponseChunk',
     'GenerationCommonConfig',
+    'get_request_api_key',
+    'get_effective_api_key',
     'GenerationUsage',
     'OutputConfig',
     'ToolChoice',

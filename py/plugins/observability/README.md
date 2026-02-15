@@ -1,5 +1,10 @@
 # Genkit Observability Plugin
 
+> **Community Plugin** — This plugin is community-maintained and is not an
+> official Google product. It is provided on an "as-is" basis.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
+
 This plugin provides a unified way to export Genkit telemetry to any
 OTLP-compatible backend with simple presets for popular services.
 

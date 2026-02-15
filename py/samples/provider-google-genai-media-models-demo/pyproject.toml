@@ -21,8 +21,24 @@ authors = [
   { name = "Elisa Shen", email = "mengqin@google.com" },
   { name = "Niraj Nepal", email = "nnepal@google.com" },
 ]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Private :: Do Not Upload",
+]
 dependencies = ["genkit", "genkit-plugin-google-genai", "rich>=13.0.0"]
 description = "Demo of media generation models: Veo, TTS, Lyria, Gemini Image"
+license = "Apache-2.0"
 name = "provider-google-genai-media-models-demo"
 readme = "README.md"
 requires-python = ">=3.10"

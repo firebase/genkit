@@ -1,5 +1,16 @@
 # Hugging Face Sample
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with Llama 3.1 |
+| Streaming | `streaming_flow` | Token-by-token streaming response |
+| Generation Config | `custom_config_flow` | Custom temperature and config |
+| Multi-model | `llama_flow` / `qwen_flow` / `gemma_flow` | Different model providers |
+| Multi-turn Chat | `chat_flow` | Context-preserving conversations |
+| Inference Providers | `provider='auto'` | Auto-select best provider per model |
+
 ## How to Get Your Hugging Face Token
 
 A Hugging Face token is required to access the Inference API.
@@ -50,7 +61,7 @@ genkit start -- uv run src/main.py
 1. **Open DevUI** at http://localhost:4000
 
 2. **Test basic flows**:
-   - [ ] `say_hi` - Simple generation with Mistral 7B
+   - [ ] `say_hi` - Simple generation with Llama 3.1
    - [ ] `streaming_flow` - Streaming response
    - [ ] `custom_config_flow` - Custom temperature/config
 
@@ -75,23 +86,27 @@ You can use ANY model from huggingface.co! Here are some popular ones:
 |----------|-------------|
 | `meta-llama/Llama-3.3-70B-Instruct` | Meta's latest Llama |
 | `meta-llama/Llama-3.1-8B-Instruct` | Smaller, faster Llama |
-| `mistralai/Mistral-7B-Instruct-v0.3` | Efficient Mistral |
 | `Qwen/Qwen2.5-72B-Instruct` | Alibaba's powerful model |
 | `google/gemma-2-27b-it` | Google's open Gemma |
 | `deepseek-ai/DeepSeek-R1` | DeepSeek reasoning model |
 
 ## Using Inference Providers
 
-For faster inference, you can use Hugging Face's Inference Providers:
+HuggingFace routes model requests through third-party inference providers.
+**A provider is required for most models** — without one, you may get a
+`400 Bad Request: not a chat model` error.
 
 ```python
 ai = Genkit(
-    plugins=[HuggingFace(provider='groq')],  # Use Groq for speed
-    model='huggingface/meta-llama/Llama-3.3-70B-Instruct',
+    plugins=[HuggingFace(provider='auto')],  # Auto-select best provider per model
+    model='huggingface/meta-llama/Llama-3.1-8B-Instruct',
 )
 ```
 
-Available providers include: `cerebras`, `groq`, `together`, `fireworks`, and more.
+Using `provider='auto'` lets HuggingFace's routing infrastructure automatically
+select a compatible provider for each model. You can also pin a specific provider
+(e.g., `'novita'`, `'cerebras'`, `'groq'`, `'together'`, `'fireworks-ai'`), but
+note that not all models are available on every provider.
 
 ## Rate Limits
 

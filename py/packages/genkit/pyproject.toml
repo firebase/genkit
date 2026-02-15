@@ -20,6 +20,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -48,7 +51,7 @@ dependencies = [
   "starlette>=0.46.1",
   "python-multipart>=0.0.22",
   "sse-starlette>=2.2.1",
-  "pillow",
+  "pillow>=12.1.1",
   "typing_extensions>=4.0",
   "strenum>=0.4.15; python_version < '3.11'",
   "dotpromptz>=0.1.5",
@@ -85,6 +88,7 @@ vertex-ai             = ["genkit-plugin-vertex-ai"]
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+"Changelog"     = "https://github.com/firebase/genkit/blob/main/py/packages/genkit/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

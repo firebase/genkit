@@ -25,6 +25,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -44,6 +47,7 @@ dependencies = [
   "openai>=1.0.0",
   "azure-identity>=1.15.0",
   "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+  "opentelemetry-exporter-otlp-proto-http>=1.20.0",
 ]
 description = "Genkit Microsoft Foundry Plugin - Models and Azure Observability (Community)"
 keywords = [
@@ -68,6 +72,7 @@ version = "0.5.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/microsoft-foundry/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

@@ -16,6 +16,12 @@
 
 """Tests for evaluator helper functions and schema types."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from genkit.ai import Genkit
+from genkit.blocks.model import ModelReference
 from genkit.core.typing import BaseDataPoint, EvalStatusEnum, Score
 from genkit.plugins.evaluators.constant import (
     AnswerRelevancyResponseSchema,
@@ -253,3 +259,57 @@ class TestResponseSchemas:
         assert score_val == 0.0
         status = EvalStatusEnum.PASS_ if score_val > 0.5 else EvalStatusEnum.FAIL
         assert status == EvalStatusEnum.FAIL
+
+
+class TestEvaluatorConfiguration:
+    """Tests for evaluator configuration logic."""
+
+    @pytest.mark.asyncio
+    async def test_answer_relevancy_loads_correct_prompt(self) -> None:
+        """ANSWER_RELEVANCY metric should load 'answer_relevancy.prompt'."""
+        # Mock AI and Model
+        mock_ai = MagicMock(spec=Genkit)
+        mock_ai.define_evaluator = MagicMock()
+        mock_ai.generate = AsyncMock()
+
+        # Configuration for ANSWER_RELEVANCY
+        config = MetricConfig(
+            metric_type=GenkitMetricType.ANSWER_RELEVANCY, judge=ModelReference(name='test-judge'), judge_config={}
+        )
+
+        # Patch load_prompt_file AND render_text to verify arguments
+        with (
+            patch('genkit.plugins.evaluators.helpers.load_prompt_file', new_callable=AsyncMock) as mock_load_prompt,
+            patch('genkit.plugins.evaluators.helpers.render_text', new_callable=AsyncMock) as mock_render_text,
+        ):
+            # We need to configure the evaluator, which defines the function
+            from genkit.plugins.evaluators.helpers import _configure_evaluator
+
+            _configure_evaluator(mock_ai, config)
+
+            # Get the defined evaluator function
+            evaluator_fn = mock_ai.define_evaluator.call_args.kwargs['fn']
+
+            # Call the evaluator function
+            datapoint = BaseDataPoint(input='test_question', output='test_answer', context=['test_context'])
+
+            try:
+                await evaluator_fn(datapoint, None)
+            except Exception:  # noqa: S110 - intentionally silent, we only check mock calls
+                pass
+
+            # Check prompt file
+            assert mock_load_prompt.called
+            file_path = mock_load_prompt.call_args[0][0]
+            assert 'answer_relevancy.prompt' in file_path
+
+            # Check render_text arguments are correct (question/answer, NOT input/output)
+            assert mock_render_text.called
+            call_args = mock_render_text.call_args
+            # render_text(prompt, variables)
+            render_variables = call_args[0][1]
+
+            assert 'question' in render_variables
+            assert render_variables['question'] == 'test_question'
+            assert 'answer' in render_variables
+            assert render_variables['answer'] == 'test_answer'

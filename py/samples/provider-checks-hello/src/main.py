@@ -64,10 +64,12 @@ See Also:
 """
 
 import asyncio
-import logging
 import os
 
+from pydantic import BaseModel, Field
+
 from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.core.typing import FinishReason
 from genkit.plugins.checks import (
     ChecksEvaluationMetricType,
@@ -76,7 +78,7 @@ from genkit.plugins.checks import (
 )
 from genkit.plugins.google_genai import GoogleAI
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 PROJECT_ID = os.environ.get('GCLOUD_PROJECT', '')
 
@@ -104,8 +106,17 @@ safety_middleware = checks_middleware(
 )
 
 
+class SafeGenerateInput(BaseModel):
+    """Input for safe_generate flow."""
+
+    prompt: str = Field(
+        default='Tell me a fun fact about dolphins.',
+        description='The text prompt to send to the model.',
+    )
+
+
 @ai.flow()
-async def safe_generate(prompt: str = 'Tell me a fun fact about dolphins.') -> str:
+async def safe_generate(input: SafeGenerateInput) -> str:
     """Generate text with Checks AI Safety middleware.
 
     The middleware checks both the input prompt and the model's output
@@ -113,7 +124,7 @@ async def safe_generate(prompt: str = 'Tell me a fun fact about dolphins.') -> s
     the response will have ``finish_reason=FinishReason.BLOCKED``.
 
     Args:
-        prompt: The text prompt to send to the model.
+        input: The input containing the text prompt.
 
     Returns:
         The model's response text, or a blocked message if safety
@@ -121,7 +132,7 @@ async def safe_generate(prompt: str = 'Tell me a fun fact about dolphins.') -> s
     """
     response = await ai.generate(
         model='googleai/gemini-2.0-flash',
-        prompt=prompt,
+        prompt=input.prompt,
         use=[safety_middleware],
     )
     if response.finish_reason == FinishReason.BLOCKED:

@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
 from genkit.types import (
     GenerateRequest,
     GenerateResponseChunk,
@@ -230,9 +231,9 @@ async def test_streaming_generation() -> None:
     mock_client = MagicMock()
 
     chunks = [
-        MagicMock(type='content_block_delta', delta=MagicMock(text='Hello')),
-        MagicMock(type='content_block_delta', delta=MagicMock(text=' world')),
-        MagicMock(type='content_block_delta', delta=MagicMock(text='!')),
+        MagicMock(type='content_block_delta', delta=MagicMock(type='text_delta', text='Hello')),
+        MagicMock(type='content_block_delta', delta=MagicMock(type='text_delta', text=' world')),
+        MagicMock(type='content_block_delta', delta=MagicMock(type='text_delta', text='!')),
     ]
 
     final_content = [MagicMock(type='text', text='Hello world!')]
@@ -278,9 +279,147 @@ async def test_streaming_generation() -> None:
     assert final_part.root.text == 'Hello world!'
 
 
-# ---------------------------------------------------------------------------
-# Cache control tests
-# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_streaming_tool_request() -> None:
+    """Test streaming generation with tool use blocks."""
+    sample_request = _create_sample_request()
+
+    mock_client = MagicMock()
+
+    # Simulate: text chunk, then tool_use block (start + json deltas + stop).
+    tool_block = MagicMock(type='tool_use', id='tool_abc')
+    tool_block.name = 'get_weather'
+    chunks = [
+        MagicMock(type='content_block_delta', delta=MagicMock(type='text_delta', text='Let me check.')),
+        MagicMock(type='content_block_start', index=1, content_block=tool_block),
+        MagicMock(
+            type='content_block_delta',
+            index=1,
+            delta=MagicMock(type='input_json_delta', partial_json='{"location"'),
+        ),
+        MagicMock(
+            type='content_block_delta',
+            index=1,
+            delta=MagicMock(type='input_json_delta', partial_json=': "Paris"}'),
+        ),
+        MagicMock(type='content_block_stop', index=1),
+    ]
+
+    final_tool = MagicMock(type='tool_use', id='tool_abc', input={'location': 'Paris'})
+    final_tool.name = 'get_weather'
+    final_content = [
+        MagicMock(type='text', text='Let me check.'),
+        final_tool,
+    ]
+    mock_stream = MockStreamManager(chunks, final_content=final_content)
+    mock_client.messages.stream.return_value = mock_stream
+
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    ctx = MagicMock()
+    ctx.is_streaming = True
+    collected_chunks: list[GenerateResponseChunk] = []
+    ctx.send_chunk = lambda chunk: collected_chunks.append(chunk)
+
+    response = await model.generate(sample_request, ctx)
+
+    # Should have 2 chunks: one text, one tool request.
+    assert len(collected_chunks) == 2
+
+    text_part = collected_chunks[0].content[0].root
+    assert isinstance(text_part, TextPart)
+    assert text_part.text == 'Let me check.'
+
+    tool_part = collected_chunks[1].content[0].root
+    assert isinstance(tool_part, ToolRequestPart)
+    assert tool_part.tool_request.name == 'get_weather'
+    assert tool_part.tool_request.ref == 'tool_abc'
+    assert tool_part.tool_request.input == {'location': 'Paris'}
+
+    # Final response should also contain the tool request.
+    assert response.message is not None
+    assert len(response.message.content) == 2
+
+
+class TestStripMarkdownFences:
+    """Tests for strip_markdown_fences."""
+
+    def test_strips_json_fences(self) -> None:
+        """Strips ```json ... ``` fences."""
+        text = '```json\n{"name": "John", "age": 30}\n```'
+        assert strip_markdown_fences(text) == '{"name": "John", "age": 30}'
+
+    def test_strips_plain_fences(self) -> None:
+        """Strips ``` ... ``` fences without language tag."""
+        text = '```\n{"name": "John"}\n```'
+        assert strip_markdown_fences(text) == '{"name": "John"}'
+
+    def test_strips_fences_with_surrounding_whitespace(self) -> None:
+        """Strips fences even with leading/trailing whitespace."""
+        text = '  \n```json\n{"a": 1}\n```\n  '
+        assert strip_markdown_fences(text) == '{"a": 1}'
+
+    def test_preserves_plain_json(self) -> None:
+        """Does not alter valid JSON without fences."""
+        text = '{"name": "John", "age": 30}'
+        assert strip_markdown_fences(text) == text
+
+    def test_preserves_non_json_text(self) -> None:
+        """Does not alter plain text."""
+        text = 'Hello, world!'
+        assert strip_markdown_fences(text) == text
+
+    def test_strips_multiline_json_in_fences(self) -> None:
+        """Strips fences around multiline JSON."""
+        text = '```json\n{\n  "name": "John",\n  "age": 30\n}\n```'
+        result = strip_markdown_fences(text)
+        assert result == '{\n  "name": "John",\n  "age": 30\n}'
+
+
+class TestMaybeStripFences:
+    """Tests for maybe_strip_fences."""
+
+    def test_strips_fences_for_json_output(self) -> None:
+        """Strips markdown fences when JSON output is requested."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema={'type': 'object'}),
+        )
+        parts = [Part(root=TextPart(text='```json\n{"a": 1}\n```'))]
+        result = maybe_strip_fences(request, parts)
+        assert result[0].root.text == '{"a": 1}'
+
+    def test_no_op_for_text_output(self) -> None:
+        """Does not modify responses when output format is not json."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='text'),
+        )
+        fenced = '```json\n{"a": 1}\n```'
+        parts = [Part(root=TextPart(text=fenced))]
+        result = maybe_strip_fences(request, parts)
+        assert result[0].root.text == fenced
+
+    def test_no_op_for_no_output(self) -> None:
+        """Does not modify responses when no output config is set."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+        )
+        fenced = '```json\n{"a": 1}\n```'
+        parts = [Part(root=TextPart(text=fenced))]
+        result = maybe_strip_fences(request, parts)
+        assert result[0].root.text == fenced
+
+    def test_no_op_when_no_fences(self) -> None:
+        """Does not modify clean JSON responses."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema={'type': 'object'}),
+        )
+        text = '{"name": "John"}'
+        parts = [Part(root=TextPart(text=text))]
+        result = maybe_strip_fences(request, parts)
+        assert result is parts
 
 
 def test_cache_control_on_text_block() -> None:
@@ -384,11 +523,6 @@ async def test_no_cache_tokens_when_caching_not_used() -> None:
     response = await model.generate(request)
     assert response.usage is not None
     assert response.usage.custom is None
-
-
-# ---------------------------------------------------------------------------
-# PDF / Document support tests
-# ---------------------------------------------------------------------------
 
 
 def test_pdf_base64_becomes_document_block() -> None:
@@ -496,10 +630,10 @@ def test_pdf_with_cache_control() -> None:
     assert blocks[0]['cache_control'] == {'type': 'ephemeral'}
 
 
-def test_structured_output_injects_json_instruction() -> None:
-    """Test that JSON schema is injected into system prompt when output format is JSON."""
+def test_structured_output_uses_native_output_config() -> None:
+    """Test that JSON schema uses native output_config when model supports it."""
     mock_client = MagicMock()
-    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+    model = AnthropicModel(model_name='claude-opus-4-6', client=mock_client)
 
     request = GenerateRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
@@ -511,6 +645,46 @@ def test_structured_output_injects_json_instruction() -> None:
 
     params = model._build_params(request)
 
+    assert 'output_config' in params
+    assert params['output_config']['format']['type'] == 'json_schema'
+    assert params['output_config']['format']['schema']['additionalProperties'] is False
+
+
+def test_structured_output_falls_back_to_system_prompt() -> None:
+    """Test that JSON without schema falls back to system prompt instruction."""
+    mock_client = MagicMock()
+    model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
+
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate JSON'))])],
+        output=OutputConfig(format='json'),
+    )
+
+    params = model._build_params(request)
+
+    assert 'output_config' not in params
     assert 'system' in params
-    assert 'Output valid JSON matching this schema' in params['system']
-    assert '"name":' in params['system']
+    assert 'Output valid JSON' in params['system']
+
+
+def test_structured_output_falls_back_for_unsupported_models() -> None:
+    """Test that JSON with schema falls back to system prompt for unsupported models."""
+    mock_client = MagicMock()
+    # Claude 3.5 Haiku is marked as not supporting JSON natively in model_info.py
+    model = AnthropicModel(model_name='claude-3-5-haiku', client=mock_client)
+
+    request = GenerateRequest(
+        messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
+        output=OutputConfig(
+            format='json',
+            schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
+        ),
+    )
+
+    params = model._build_params(request)
+
+    assert 'output_config' not in params
+    assert 'system' in params
+    assert 'Output valid JSON' in params['system']
+    assert 'Follow this JSON schema' in params['system']
+    assert '"name"' in params['system']

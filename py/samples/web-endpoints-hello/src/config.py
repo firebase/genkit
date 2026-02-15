@@ -277,4 +277,8 @@ def parse_args() -> argparse.Namespace:
         metavar="RATE",
         help="Rate limit string, e.g. '60/minute' (default from settings: 60/minute)",
     )
-    return parser.parse_args()
+    # Use parse_known_args so extra arguments injected by wrapper tools
+    # (e.g. `genkit start` injects "start" into the subprocess argv)
+    # are silently ignored instead of causing an error.
+    args, _unknown = parser.parse_known_args()
+    return args

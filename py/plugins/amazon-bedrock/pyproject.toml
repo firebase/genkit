@@ -25,6 +25,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -41,6 +44,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
+  "aioboto3>=13.0.0",
   "boto3>=1.35.0",
   "botocore>=1.35.0",
   "opentelemetry-sdk-extension-aws>=2.1.0",
@@ -71,6 +75,7 @@ version = "0.5.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/amazon-bedrock/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

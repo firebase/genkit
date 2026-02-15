@@ -369,6 +369,18 @@ func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.St
 	return core.DefineStreamingFlow(g.reg, name, fn)
 }
 
+// NewFlow creates a [core.Flow] without registering it as an action.
+// To register the flow later, call [RegisterAction].
+func NewFlow[In, Out any](name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}] {
+	return core.NewFlow(name, fn)
+}
+
+// NewStreamingFlow creates a streaming [core.Flow] without registering it as an action.
+// To register the flow later, call [RegisterAction].
+func NewStreamingFlow[In, Out, Stream any](name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream] {
+	return core.NewStreamingFlow(name, fn)
+}
+
 // Run executes the given function `fn` within the context of the current flow run,
 // creating a distinct trace span for this step. It's used to add observability
 // to specific sub-operations within a flow defined by [DefineFlow] or [DefineStreamingFlow].

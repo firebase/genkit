@@ -14,187 +14,158 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Manual Python Publish Workflow
+#
+# This workflow provides a manual trigger for publishing Python packages
+# to PyPI using releasekit. It replaces the old per-package matrix build
+# with a single releasekit invocation that handles:
+#
+#   - Topological ordering of packages by dependency
+#   - Ephemeral version pinning (workspace → PyPI-published versions)
+#   - Parallel publishing with dependency ordering
+#   - Retry with exponential backoff
+#   - Post-publish smoke tests and checksum verification
+#
+# For automated releases (on push to main), see releasekit-uv.yml.
+
 name: Publish Python Package
 
 on:
   workflow_dispatch:
     inputs:
       publish_scope:
-        description: 'Publish scope (all = release all packages, single = one package)'
+        description: 'Publish scope'
         type: choice
-        default: single
+        default: all
         required: true
         options:
           - all
-          - single
-      project_type:
-        description: 'Type of project (packages for genkit core, plugins for all others). Ignored when publish_scope=all.'
+          - group
+      group:
+        description: 'Release group to publish (ignored when scope=all). Groups are defined in py/releasekit.toml.'
         type: choice
-        default: packages
+        default: core
         required: false
         options:
-          - packages
-          - plugins
-      project_name:
-        description: 'Project name to publish. Ignored when publish_scope=all.'
+          - core
+          - google_plugins
+          - community_plugins
+      dry_run:
+        description: 'Dry run — preview what would be published without uploading'
+        type: boolean
+        default: false
+      force:
+        description: 'Skip preflight checks (e.g. dirty worktree, version conflicts)'
+        type: boolean
+        default: false
+      target:
+        description: 'Publish target registry'
         type: choice
-        default: genkit
-        required: false
+        default: pypi
+        required: true
         options:
-          # Core package
-          - genkit
-          # Model provider plugins
-          - anthropic
-          - amazon-bedrock
-          - cloudflare-workers-ai
-          - deepseek
-          - google-genai
-          - huggingface
-          - mistral
-          - msfoundry
-          - ollama
-          - vertex-ai
-          - xai
-          # Telemetry plugins
-          - aws
-          - azure
-          - google-cloud
-          - observability
-          # Framework integration plugins
-          - flask
-          # Data and retrieval plugins
-          - dev-local-vectorstore
-          - evaluators
-          - firebase
-          # OpenAI compatibility
-          - compat-oai
-          # MCP (Model Context Protocol)
-          - mcp
+          - testpypi
+          - pypi
+
+# Only one publish pipeline runs at a time.
+concurrency:
+  group: publish-python-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  RELEASEKIT_DIR: py/tools/releasekit
+  WORKSPACE_DIR: py
+  # Registry URLs resolved from the target input (defaults to prod PyPI).
+  PUBLISH_INDEX_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
+  PUBLISH_CHECK_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/simple/' || 'https://pypi.org/simple/' }}
 
 jobs:
-  # Generate the matrix of packages to build
-  generate_matrix:
-    name: Generate build matrix
+  publish:
+    name: Publish to PyPI
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    environment:
+      name: ${{ inputs.target == 'testpypi' && 'testpypi' || 'pypi_github_publishing' }}
+    permissions:
+      contents: write  # For git tags and GitHub releases
+      id-token: write  # Trusted publishing (OIDC)
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Generate matrix
-        id: set-matrix
-        run: |
-          if [ "${{ github.event.inputs.publish_scope }}" == "all" ]; then
-            # Dynamically discover all plugins from py/plugins/ directory
-            echo "Discovering plugins from py/plugins/..."
-            
-            # Start with core package
-            MATRIX='{"include":[{"project_type":"packages","project_name":"genkit"}'
-            
-            # Add all plugins dynamically
-            for plugin_dir in py/plugins/*/; do
-              if [ -d "$plugin_dir" ]; then
-                plugin_name=$(basename "$plugin_dir")
-                # Skip README.md and other non-directory entries
-                if [ -f "$plugin_dir/pyproject.toml" ]; then
-                  echo "  Found plugin: $plugin_name"
-                  MATRIX="$MATRIX,{\"project_type\":\"plugins\",\"project_name\":\"$plugin_name\"}"
-                fi
-              fi
-            done
-            
-            MATRIX="$MATRIX]}"
-            echo "Generated matrix with $(echo "$MATRIX" | jq '.include | length') packages"
-          else
-            # Build matrix for single package
-            MATRIX='{"include":[{"project_type":"${{ github.event.inputs.project_type }}","project_name":"${{ github.event.inputs.project_name }}"}]}'
-          fi
-          echo "matrix=$(echo $MATRIX | jq -c .)" >> $GITHUB_OUTPUT
-
-  python_build:
-    name: Build ${{ matrix.project_name }}
-    needs: [generate_matrix]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
-      fail-fast: false
-    env:
-      PATH: ${{ github.workspace }}/.cargo/bin:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
-
-    steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for version bump computation
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl libffi-dev
+          sudo apt-get install -y --no-install-recommends build-essential libffi-dev
 
-      # Install rust for packages that requires it
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Install toml-cli
-        run: cargo install toml-cli
-
-      - name: Install uv and setup Python version
+      - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           python-version: "3.12"
 
-      - name: Install Python dependencies
+      - name: Install workspace + releasekit
         run: |
-          cd py/${{ matrix.project_type }}/${{ matrix.project_name }}
-          uv pip install -e .[dev,test,docs] || uv pip install -e .
-          uv pip install twine toml
+          cd ${{ env.WORKSPACE_DIR }}
+          uv sync
+          cd tools/releasekit
+          uv sync
 
-      - name: Build package and validate pypi
+      - name: Build and publish packages
         run: |
-          cd py
-          PROJECT_NAME=${{ matrix.project_name }} PROJECT_TYPE=${{ matrix.project_type }} ./bin/publish_pypi.sh
+          cd ${{ env.WORKSPACE_DIR }}
 
-      - name: Upload build packages
+          # Build command as an array to prevent injection.
+          cmd_array=(uv run --directory tools/releasekit releasekit --workspace py publish)
+
+          # Add group filter if scope is 'group'.
+          if [[ "${{ inputs.publish_scope }}" == "group" ]]; then
+            cmd_array+=(--group "${{ inputs.group }}")
+          fi
+
+          # Add optional flags.
+          if [[ "${{ inputs.force }}" == "true" ]]; then
+            cmd_array+=(--force)
+          fi
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            cmd_array+=(--dry-run)
+          fi
+
+          # Verify checksums against target registry and retry on transient failures.
+          if [ -n "$PUBLISH_CHECK_URL" ]; then
+            cmd_array+=(--check-url "$PUBLISH_CHECK_URL")
+          fi
+          if [ -n "$PUBLISH_INDEX_URL" ]; then
+            cmd_array+=(--index-url "$PUBLISH_INDEX_URL")
+          fi
+          cmd_array+=(--max-retries 2)
+
+          echo "::group::Running: ${cmd_array[*]}"
+          "${cmd_array[@]}"
+          echo "::endgroup::"
+        env:
+          # For trusted publishing (OIDC), no token is needed.
+          # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
+          UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
+
+      - name: Upload release manifest
+        if: success() && inputs.dry_run != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.project_name }}
-          path: py/dist/
+          name: release-manifest
+          path: ${{ env.WORKSPACE_DIR }}/.releasekit-state.json
+          retention-days: 90
 
-  pypi_publish:
-    name: Publish ${{ matrix.project_name }} to PyPI
-    needs: [generate_matrix, python_build]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
-      fail-fast: false
-    environment:
-      name: pypi_github_publishing
-    permissions:
-      id-token: write
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v5
-        with:
-          name: dist-${{ matrix.project_name }}
-          path: py/dist/
-
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          verbose: true
-          packages-dir: py/dist/
-
-  # Post-publish verification: confirm packages are installable and functional
-  verify_publish:
+  verify:
     name: Verify published packages
-    needs: [generate_matrix, pypi_publish]
+    needs: publish
+    if: success() && inputs.dry_run != 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
-      fail-fast: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -206,98 +177,70 @@ jobs:
           echo "Waiting 60 seconds for PyPI CDN propagation..."
           sleep 60
 
-      - name: Get expected version
-        id: get_version
+      - name: Get core version and verify installation
         run: |
-          VERSION=$(grep '^version' py/${{ matrix.project_type }}/${{ matrix.project_name }}/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Expected version: $VERSION"
+          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+          echo "Core version: $VERSION"
 
-      - name: Determine package name
-        id: package_name
-        run: |
-          if [ "${{ matrix.project_type }}" == "packages" ]; then
-            PACKAGE="${{ matrix.project_name }}"
-          else
-            PACKAGE="genkit-plugin-${{ matrix.project_name }}"
-          fi
-          echo "name=$PACKAGE" >> $GITHUB_OUTPUT
-          echo "Package name: $PACKAGE"
+          pip install --upgrade pip
 
-      - name: Install from PyPI
-        run: |
-          python -m pip install --upgrade pip
-          pip install "${{ steps.package_name.outputs.name }}==${{ steps.get_version.outputs.version }}"
+          # Verify core package.
+          pip install "genkit==$VERSION"
+          python -c "from genkit.ai import Genkit; print('✅ genkit imports successfully')"
 
-      - name: Verify installation
-        run: |
-          PACKAGE="${{ steps.package_name.outputs.name }}"
-          VERSION="${{ steps.get_version.outputs.version }}"
-          
-          # Check installed version
-          INSTALLED=$(pip show "$PACKAGE" | grep "^Version:" | cut -d' ' -f2)
-          echo "Installed version: $INSTALLED"
-          
-          if [ "$INSTALLED" != "$VERSION" ]; then
-            echo "❌ Version mismatch: expected $VERSION, got $INSTALLED"
-            exit 1
-          fi
-          echo "✅ Version match: $VERSION"
+          # Verify all plugins are installable (each may have its own version).
+          for pyproject in py/plugins/*/pyproject.toml; do
+            plugin_dir=$(dirname "$pyproject")
+            plugin_name=$(basename "$plugin_dir")
+            pkg_name="genkit-plugin-${plugin_name}"
+            plugin_version=$(grep '^version' "$pyproject" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+            echo "Verifying $pkg_name==$plugin_version..."
+            if pip install "$pkg_name==$plugin_version" 2>/dev/null; then
+              echo "✅ $pkg_name installed"
+            else
+              echo "⚠️  $pkg_name==$plugin_version not found on PyPI (may not have been published)"
+            fi
+          done
 
-      - name: Smoke test imports
-        run: |
-          PACKAGE="${{ steps.package_name.outputs.name }}"
-          
-          if [ "$PACKAGE" == "genkit" ]; then
-            python -c "from genkit.ai import Genkit; print('✅ genkit imports successfully')"
-          else
-            # For plugins, just verify the package is importable
-            # Plugin module names use underscores, not hyphens
-            MODULE_NAME=$(echo "$PACKAGE" | sed 's/-/_/g')
-            python -c "import $MODULE_NAME; print('✅ $PACKAGE imports successfully')" || \
-              echo "⚠️ Import test skipped (plugin may require extra deps)"
-          fi
-
-  # Summary job to report overall status
-  publish_summary:
+  summary:
     name: Publish Summary
-    needs: [generate_matrix, pypi_publish, verify_publish]
+    needs: [publish, verify]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Get version
-        id: get_version
-        run: |
-          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v6
 
       - name: Create summary
         run: |
+          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+
           echo "## 📦 Python Package Publish Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Scope:** ${{ github.event.inputs.publish_scope }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "**Scope:** ${{ inputs.publish_scope }}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ inputs.publish_scope }}" == "group" ]]; then
+            echo "**Group:** ${{ inputs.group }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.pypi_publish.result }}" == "success" ]; then
+
+          if [ "${{ needs.publish.result }}" == "success" ]; then
             echo "### ✅ Publish Status: Success" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Publish Status: Failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.verify_publish.result }}" == "success" ]; then
+
+          if [ "${{ needs.verify.result }}" == "success" ]; then
             echo "### ✅ Verification: Passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.verify_publish.result }}" == "failure" ]; then
+          elif [ "${{ needs.verify.result }}" == "failure" ]; then
             echo "### ⚠️ Verification: Some packages failed" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ⏭️ Verification: Skipped" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify on PyPI: https://pypi.org/project/genkit/${{ steps.get_version.outputs.version }}/" >> $GITHUB_STEP_SUMMARY
-          echo "2. Test installation: \`pip install genkit==${{ steps.get_version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify on PyPI: https://pypi.org/project/genkit/$VERSION/" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test installation: \`pip install genkit==$VERSION\`" >> $GITHUB_STEP_SUMMARY
           echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY

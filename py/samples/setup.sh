@@ -544,6 +544,33 @@ _install_ollama() {
 _install_gcloud() {
     if _is_installed gcloud; then
         echo -e "  ${GREEN}✓${NC} gcloud ${DIM}($(command -v gcloud))${NC}"
+        # If gcloud was NOT installed via a package manager, offer to update components.
+        if ! $CHECK_ONLY; then
+            local gcloud_path
+            gcloud_path="$(command -v gcloud)"
+            local is_pkg_managed=false
+            case "$PKG_MGR" in
+                brew)
+                    # Homebrew installs to /opt/homebrew or /usr/local/Cellar
+                    if [[ "$gcloud_path" == */Cellar/* || "$gcloud_path" == */homebrew/* || "$gcloud_path" == */Caskroom/* ]]; then
+                        is_pkg_managed=true
+                    fi
+                    ;;
+                apt|dnf)
+                    # System package installs to /usr/bin or /usr/lib
+                    if [[ "$gcloud_path" == /usr/bin/* || "$gcloud_path" == /usr/lib/* || "$gcloud_path" == /snap/* ]]; then
+                        is_pkg_managed=true
+                    fi
+                    ;;
+            esac
+            if ! $is_pkg_managed; then
+                if _confirm "  Update gcloud components?"; then
+                    echo -e "  ${BLUE}→${NC} Running gcloud components update..."
+                    gcloud components update --quiet 2>/dev/null || true
+                    echo -e "  ${GREEN}✓${NC} gcloud components updated"
+                fi
+            fi
+        fi
         return 0
     fi
     if $CHECK_ONLY; then
@@ -1024,7 +1051,8 @@ _prompt_key() {
     fi
 
     if [[ -n "$display_val" ]]; then
-        echo -en "  Enter value [${YELLOW}${display_val}${NC}] (Enter=keep, 'skip'=skip): "
+        echo -e "  ${GREEN}✓${NC} Current: ${YELLOW}${display_val}${NC}"
+        echo -en "  New value (Enter=keep current, 'skip'=clear): "
     else
         echo -en "  Enter value (or 'skip' to skip): "
     fi
@@ -1355,11 +1383,18 @@ if ! $KEYS_ONLY && ! $CHECK_ONLY; then
     _section "Python Dependencies"
 
     if _is_installed uv; then
-        echo "Installing workspace dependencies..."
-        echo ""
         # We're in py/samples/ — sync the workspace root.
-        if [[ -f "${SCRIPT_DIR}/../../pyproject.toml" ]]; then
-            (cd "${SCRIPT_DIR}/../.." && uv sync)
+        _py_root="${SCRIPT_DIR}/.."
+        if [[ -f "${_py_root}/pyproject.toml" ]]; then
+            _venv_dir="${_py_root}/.venv"
+            if [[ -d "$_venv_dir" ]]; then
+                echo -e "Removing stale virtual environment..."
+                rm -rf "$_venv_dir"
+                echo -e "  ${GREEN}✓${NC} Removed ${DIM}${_venv_dir}${NC}"
+            fi
+            echo "Installing workspace dependencies (fresh .venv)..."
+            echo ""
+            (cd "$_py_root" && uv sync)
             echo -e "  ${GREEN}✓${NC} Workspace dependencies installed"
         else
             echo -e "  ${DIM}Not in monorepo — skipping workspace sync${NC}"

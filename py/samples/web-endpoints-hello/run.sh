@@ -12,13 +12,14 @@
 #   - GEMINI_API_KEY environment variable set
 #
 # Usage:
-#   ./run.sh                          # Start with FastAPI + gRPC (default)
-#   ./run.sh --framework litestar     # Start with Litestar + gRPC
-#   ./run.sh --framework quart        # Start with Quart + gRPC
-#   ./run.sh --server granian          # Use granian instead of uvicorn
-#   ./run.sh --no-grpc                # REST only, no gRPC server
-#   ./run.sh --grpc-port 50052        # Custom gRPC port
-#   ./run.sh --help                   # Show this help message
+#   ./run.sh                          # Start everything (default)
+#   ./run.sh start                    # Same — start all services
+#   ./run.sh start --framework litestar  # Start with Litestar + gRPC
+#   ./run.sh start --framework quart     # Start with Quart + gRPC
+#   ./run.sh start --server granian      # Use granian instead of uvicorn
+#   ./run.sh start --no-grpc             # REST only, no gRPC server
+#   ./run.sh start --grpc-port 50052     # Custom gRPC port
+#   ./run.sh --help                      # Show this help message
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -28,7 +29,10 @@ source "$(dirname "$0")/scripts/_common.sh"
 
 print_help() {
     print_banner "Genkit Endpoints Demo" "⚡"
-    echo "Usage: ./run.sh [options]"
+    echo "Usage: ./run.sh [start] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  start                         Start all services (default)"
     echo ""
     echo "Options:"
     echo "  --framework fastapi|litestar|quart  ASGI framework (default: fastapi)"
@@ -40,11 +44,13 @@ print_help() {
     echo "  --no-telemetry                Disable Jaeger + OTLP tracing"
     echo "  --help                        Show this help message"
     echo ""
-    echo "Servers started:"
-    echo "  REST  (ASGI)   http://localhost:8080  (Swagger UI at /docs)"
-    echo "  gRPC           localhost:50051        (reflection enabled)"
-    echo "  Jaeger UI      http://localhost:16686 (trace viewer)"
-    echo "  Genkit DevUI   http://localhost:4000  (dev mode only)"
+    echo "Services started:"
+    echo "  Swagger UI     http://localhost:8080/docs  (REST API explorer)"
+    echo "  grpcui         http://localhost:...        (gRPC web UI, if installed)"
+    echo "  Jaeger UI      http://localhost:16686      (trace viewer)"
+    echo "  Genkit DevUI   http://localhost:4000       (flow/trace inspector)"
+    echo "  REST  (ASGI)   http://localhost:8080       (app server)"
+    echo "  gRPC           localhost:50051             (reflection enabled)"
     echo ""
     echo "Test gRPC endpoints:"
     echo "  grpcui -plaintext localhost:50051      # Web UI"
@@ -57,21 +63,51 @@ print_help() {
     print_help_footer
 }
 
-# Check for --no-telemetry flag (before parsing with case, since we
-# also forward all args to the app).
-NO_TELEMETRY=false
-for arg in "$@"; do
-    case "$arg" in
-        --no-telemetry) NO_TELEMETRY=true ;;
-    esac
-done
-
+# Handle --help before anything else.
 case "${1:-}" in
     --help|-h)
         print_help
         exit 0
         ;;
 esac
+
+# Consume the optional "start" subcommand.  If the first argument is
+# "start", shift it off so it isn't forwarded to the Python app.
+# Bare `./run.sh` (no args) behaves the same as `./run.sh start`.
+case "${1:-}" in
+    start) shift ;;
+esac
+
+# Parse flags we need to act on in run.sh (before forwarding to app).
+NO_TELEMETRY=false
+NO_GRPC=false
+GRPC_PORT=50051
+REST_PORT=8080
+_next_is_grpc_port=false
+_next_is_rest_port=false
+for arg in "$@"; do
+    if $_next_is_grpc_port; then
+        _next_is_grpc_port=false
+        # Only consume the value if it doesn't look like another flag.
+        if [[ "$arg" != --* ]]; then
+            GRPC_PORT="$arg"
+            continue
+        fi
+    fi
+    if $_next_is_rest_port; then
+        _next_is_rest_port=false
+        if [[ "$arg" != --* ]]; then
+            REST_PORT="$arg"
+            continue
+        fi
+    fi
+    case "$arg" in
+        --no-telemetry) NO_TELEMETRY=true ;;
+        --no-grpc)      NO_GRPC=true ;;
+        --grpc-port)    _next_is_grpc_port=true ;;
+        --port)         _next_is_rest_port=true ;;
+    esac
+done
 
 print_banner "Genkit Endpoints Demo" "⚡"
 
@@ -104,13 +140,29 @@ if [[ "$NO_TELEMETRY" == "false" ]]; then
     fi
 fi
 
-# Auto-open Swagger UI once the server is ready.
+# ── Auto-open browser tabs ──────────────────────────────────────────
+# Open Swagger UI once the REST server is ready.
 (
     sleep 3
     echo -e "${GREEN}Opening Swagger UI...${NC}"
-    open_browser_for_url "http://localhost:8080/docs"
+    open_browser_for_url "http://localhost:${REST_PORT}/docs"
 ) &
 
+# Open grpcui if gRPC is enabled and grpcui is installed.
+if [[ "$NO_GRPC" == "false" ]]; then
+    if command -v grpcui &>/dev/null; then
+        (
+            # Wait for gRPC server to be ready (slightly longer than REST).
+            sleep 5
+            echo -e "${GREEN}Opening grpcui on port ${GRPC_PORT}...${NC}"
+            grpcui -open-browser -plaintext "localhost:${GRPC_PORT}"
+        ) &
+    else
+        echo -e "${YELLOW}grpcui not found — install with: go install github.com/fullstorydev/grpcui/cmd/grpcui@latest${NC}"
+    fi
+fi
+
+# ── Start the app ───────────────────────────────────────────────────
 # Build watchmedo args. Always watch src/; also watch monorepo core
 # libraries when running inside the genkit repo (enables hot reload on
 # framework/plugin changes). When copied as a standalone template, the
@@ -121,9 +173,10 @@ WATCH_DIRS=(-d src)
 
 # Pass --debug by default for local development (enables Swagger UI
 # and relaxes the CSP so the docs pages can load CDN resources).
+# genkit_start_with_browser also opens the Genkit DevUI in a browser.
 genkit_start_with_browser -- \
     uv tool run --from watchdog watchmedo auto-restart \
-        "${WATCH_DIRS[@]}" \
+        ${WATCH_DIRS[@]+"${WATCH_DIRS[@]}"} \
         -p '*.py;*.prompt;*.json' \
         -R \
-        -- uv run python -m src --debug "${OTEL_ARGS[@]}" "$@"
+        -- uv run python -m src --debug ${OTEL_ARGS[@]+"${OTEL_ARGS[@]}"} "$@"

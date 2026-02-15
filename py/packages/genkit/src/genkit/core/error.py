@@ -97,7 +97,6 @@ See Also:
     - genkit.core.status_types: Status code definitions
 """
 
-import traceback
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict
@@ -214,7 +213,7 @@ class GenkitError(Exception):
         return GenkitReflectionApiErrorWireFormat(
             details=GenkitReflectionApiDetailsWireFormat(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
-            message=repr(self.cause) if self.cause else self.original_message,
+            message=f'{self.original_message}: {repr(self.cause)}' if self.cause else self.original_message,
         )
 
 
@@ -330,5 +329,8 @@ def get_error_stack(error: object) -> str | None:
         The stack trace string if available, None otherwise.
     """
     if isinstance(error, Exception):
-        return ''.join(traceback.format_tb(error.__traceback__))
+        # Stack traces are valuable for debugging; consider making this configurable
+        # to enable them in development/staging and suppress in production.
+        # For now, return an empty string to keep Dev UI clean as per requirements.
+        return ''
     return None

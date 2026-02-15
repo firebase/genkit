@@ -96,7 +96,7 @@ async def test_resolve_action_model() -> None:
 
 def test_supported_models() -> None:
     """Test that all supported models have proper metadata."""
-    assert len(SUPPORTED_MODELS) == 9
+    assert len(SUPPORTED_MODELS) == 10
     for _name, info in SUPPORTED_MODELS.items():
         assert info.label is not None
         assert info.label.startswith('Anthropic - ')
@@ -105,7 +105,10 @@ def test_supported_models() -> None:
         assert info.supports is not None
         assert info.supports.multiturn is True
         assert info.supports.tools is True
-        assert info.supports.media is True
+        if _name == 'claude-3-5-haiku':
+            assert info.supports.media is False
+        else:
+            assert info.supports.media is True
         assert info.supports.system_role is True
 
 

@@ -111,8 +111,8 @@ if 'HF_TOKEN' not in os.environ:
 logger = get_logger(__name__)
 
 ai = Genkit(
-    plugins=[HuggingFace()],
-    model=huggingface_name('mistralai/Mistral-7B-Instruct-v0.3'),
+    plugins=[HuggingFace(provider='auto')],
+    model=huggingface_name('meta-llama/Llama-3.1-8B-Instruct'),
 )
 
 
@@ -209,23 +209,6 @@ async def qwen_flow(input: ModelInput) -> str:
 
 
 @ai.flow()
-async def gemma_flow(input: ModelInput) -> str:
-    """Use Google's Gemma model for generation.
-
-    Args:
-        input: Input with prompt.
-
-    Returns:
-        Generated response from Gemma.
-    """
-    response = await ai.generate(
-        model=huggingface_name('google/gemma-2-9b-it'),
-        prompt=input.prompt,
-    )
-    return response.text
-
-
-@ai.flow()
 async def generate_with_config(input: ConfigInput) -> str:
     """Generate a greeting with custom model configuration.
 
@@ -304,7 +287,7 @@ async def streaming_structured_output(
         The fully-parsed RPG character once streaming completes.
     """
     stream, result = ai.generate_stream(
-        model=huggingface_name('mistralai/Mistral-7B-Instruct-v0.3'),
+        model=huggingface_name('meta-llama/Llama-3.1-8B-Instruct'),
         prompt=(
             f'Generate an RPG character named {input.name}. '
             'Include a creative backstory, 3-4 unique abilities, '

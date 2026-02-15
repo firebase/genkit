@@ -108,13 +108,20 @@ from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_
 from genkit.blocks.model import model_action_metadata
 from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
+from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
+    EvalFnResponse,
+    EvalRequest,
     RankedDocumentData,
     RankedDocumentMetadata,
     RerankerRequest,
     RerankerResponse,
+)
+from genkit.plugins.google_genai.evaluators import (
+    VertexAIEvaluationMetricType,
+    create_vertex_evaluators,
 )
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -270,6 +277,44 @@ def vertexai_name(name: str) -> str:
     return f'{VERTEXAI_PLUGIN_NAME}/{name}'
 
 
+def _create_embedder_action(name: str, client: genai.Client, plugin_name: str) -> Action:
+    """Create an Action object for an embedder.
+
+    Args:
+        name: The namespaced name of the embedder.
+        client: The Google GenAI client instance.
+        plugin_name: The name of the plugin (googleai or vertexai).
+
+    Returns:
+        Action object for the embedder.
+    """
+    clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
+    embedder = Embedder(version=clean_name, client=client)
+    embedder_info = default_embedder_info(clean_name)
+
+    action_metadata = embedder_action_metadata(
+        name=name,
+        options=EmbedderOptions(
+            label=embedder_info.get('label'),
+            supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
+            dimensions=embedder_info.get('dimensions'),
+        ),
+    )
+
+    action = Action(
+        kind=ActionKind.EMBEDDER,
+        name=name,
+        fn=embedder.generate,
+        metadata=action_metadata.metadata,
+    )
+
+    # Explicitly set schemas (no 'if' needed as they are always present in metadata)
+    action.input_schema = action_metadata.input_json_schema  # type: ignore[invalid-assignment]
+    action.output_schema = action_metadata.output_json_schema  # type: ignore[invalid-assignment]
+
+    return action
+
+
 class GoogleAI(Plugin):
     """GoogleAI plugin for Genkit with dynamic model discovery.
 
@@ -283,7 +328,7 @@ class GoogleAI(Plugin):
         +------------------+-------------------+--------------------------------+
         | Gemini/Gemma     | MODEL             | googleai/gemini-2.0-flash-001  |
         | Imagen           | MODEL             | googleai/imagen-3.0-generate   |
-        | Embedders        | EMBEDDER          | googleai/text-embedding-004    |
+        | Embedders        | EMBEDDER          | googleai/gemini-embedding-001  |
         | Veo (video)      | BACKGROUND_MODEL  | googleai/veo-2.0-generate-001  |
         +------------------+-------------------+--------------------------------+
 
@@ -551,25 +596,7 @@ class GoogleAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=clean_name, client=self._client)
-
-        embedder_info = default_embedder_info(clean_name)
-
-        return Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embedder.generate,
-            metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info.get('label'),
-                    supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
-            ).metadata,
-        )
+        return _create_embedder_action(name, self._client, GOOGLEAI_PLUGIN_NAME)
 
     async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
@@ -750,6 +777,25 @@ class VertexAI(Plugin):
         for name in RERANKER_MODELS:
             actions.append(self._resolve_reranker(vertexai_name(name)))
 
+        # Register Vertex AI evaluators
+        # Deferred import to avoid circular dependency
+        from genkit.ai._registry import GenkitRegistry
+
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
+        registry = GenkitRegistry()
+        actions.extend(
+            create_vertex_evaluators(
+                registry,
+                list(VertexAIEvaluationMetricType),
+                project_id=self._project,
+                location=self._location,
+            )
+        )
+
         return actions
 
     def _list_known_models(self) -> list[Action]:
@@ -788,7 +834,43 @@ class VertexAI(Plugin):
             return self._resolve_embedder(name)
         elif action_type == ActionKind.RERANKER:
             return self._resolve_reranker(name)
+        elif action_type == ActionKind.EVALUATOR:
+            return self._resolve_evaluator(name)
         return None
+
+    def _resolve_evaluator(self, name: str) -> Action | None:
+        """Create an Action object for a Vertex AI evaluator.
+
+        Args:
+            name: The namespaced name of the evaluator.
+
+        Returns:
+            Action object for the evaluator.
+        """
+        # Extract local name (remove plugin prefix)
+        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+
+        try:
+            metric_type = VertexAIEvaluationMetricType(clean_name.upper())
+        except ValueError:
+            return None
+
+        from genkit.ai._registry import GenkitRegistry
+
+        registry = GenkitRegistry()
+        if not self._project:
+            raise ValueError(
+                'VertexAI plugin requires a project ID to use evaluators. '
+                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
+            )
+
+        actions = create_vertex_evaluators(
+            registry,
+            [metric_type],
+            project_id=self._project,
+            location=self._location,
+        )
+        return actions[0] if actions else None
 
     def _resolve_model(self, name: str) -> Action:
         """Create an Action object for a Vertex AI model.
@@ -838,25 +920,7 @@ class VertexAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-        embedder = Embedder(version=clean_name, client=self._client)
-
-        embedder_info = default_embedder_info(clean_name)
-
-        return Action(
-            kind=ActionKind.EMBEDDER,
-            name=name,
-            fn=embedder.generate,
-            metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info.get('label'),
-                    supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
-            ).metadata,
-        )
+        return _create_embedder_action(name, self._client, VERTEXAI_PLUGIN_NAME)
 
     def _resolve_reranker(self, name: str) -> Action:
         """Create an Action object for a Vertex AI reranker.
@@ -904,9 +968,13 @@ class VertexAI(Plugin):
                 location=config.location or client_options.location,
             )
 
+            query_text = query_doc.text()
+            if not query_text:
+                raise GenkitError(message='Reranker query cannot be empty.')
+
             rerank_request = RerankRequest(
                 model=clean_name,
-                query=query_doc.text(),
+                query=query_text,
                 records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
                 top_n=config.top_n,
                 ignore_record_details_in_response=config.ignore_record_details_in_response,
@@ -982,6 +1050,19 @@ class VertexAI(Plugin):
                         supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
                         dimensions=embed_info.get('dimensions'),
                     ),
+                )
+            )
+
+        for metric in VertexAIEvaluationMetricType:
+            # create_vertex_evaluators handles namespacing but we only need metadata here.
+            evaluator_name = vertexai_name(metric.lower())
+            actions_list.append(
+                ActionMetadata(
+                    name=evaluator_name,
+                    kind=ActionKind.EVALUATOR,
+                    input_json_schema=to_json_schema(EvalRequest),
+                    output_json_schema=to_json_schema(list[EvalFnResponse]),
+                    metadata={'type': 'evaluator'},
                 )
             )
 

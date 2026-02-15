@@ -26,6 +26,7 @@ dependencies = [
   "genkit-plugin-deepseek",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-evaluators",
+  "genkit-plugin-fastapi",
   "genkit-plugin-firebase",
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
@@ -41,7 +42,10 @@ dependencies = [
   "genkit-plugin-mistral",
   "genkit-plugin-huggingface",
   "genkit-plugin-observability",
+  # Internal tools (private, not published)
+  "conform",
   "liccheck>=0.9.2",
+  "setuptools>=75.0.0,<82",                   # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
   "mcp>=1.25.0",
   "python-multipart>=0.0.22",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -78,7 +82,7 @@ lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
   "granian>=1.0.0",           # For web-endpoints-hello type resolution
-  "litestar>=2.0.0",          # For web/typing.py type resolution
+  "litestar>=2.20.0",         # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
   "pydantic-settings>=2.0.0", # For web-endpoints-hello type resolution
@@ -108,6 +112,17 @@ lint = [
   "secure>=1.0.0",
   "sentry-sdk>=2.0.0",
   "structlog>=24.0.0",
+  # ── releasekit type resolution ──
+  # These are needed so workspace-level type checkers can resolve all
+  # imports in tools/releasekit/. The tool has its own venv but the
+  # type checkers run at workspace scope.
+  "diagnostic>=3.0.0",
+  "opentelemetry-api>=1.20.0",
+  "opentelemetry-sdk>=1.20.0",
+  "packaging>=24.0",
+  "rich-argparse>=1.6.0",
+  "sigstore>=3.0.0",
+  "tomlkit>=0.13.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -129,11 +144,17 @@ addopts = [
   # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
   # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
   "--ignore=samples/web-endpoints-hello/tests",
+  # releasekit is a standalone tool with its own venv. Run its tests from
+  # tools/releasekit/ (e.g. 'cd tools/releasekit && uv run pytest tests/').
+  "--ignore=tools/releasekit/tests",
+  "--ignore=tools/conform/tests",
+  "--import-mode=importlib",
 ]
+pythonpath = ["."]  # For samples.shared imports
 asyncio_default_fixture_loop_scope = "session"
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
-testpaths = ["packages", "plugins", "samples", "tests"]
+testpaths = ["packages", "plugins", "samples", "tests", "tools"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
 
@@ -158,6 +179,7 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 dev-local-vectorstore-hello                = { workspace = true }
 framework-context-demo                     = { workspace = true }
+framework-custom-evaluators                = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
 framework-evaluator-demo                   = { workspace = true }
 framework-format-demo                      = { workspace = true }
@@ -191,9 +213,11 @@ provider-vertex-ai-vector-search-bigquery  = { workspace = true }
 provider-vertex-ai-vector-search-firestore = { workspace = true }
 provider-xai-hello                         = { workspace = true }
 web-endpoints-hello                        = { workspace = true }
+web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
 web-short-n-long                           = { workspace = true }
+
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
@@ -206,6 +230,7 @@ genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-deepseek              = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-evaluators            = { workspace = true }
+genkit-plugin-fastapi               = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
@@ -218,10 +243,14 @@ genkit-plugin-observability         = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
+# Internal tools (private, not published)
+conform                        = { workspace = true }
+genkit-tools-model-config-test = { workspace = true }
+genkit-tools-sample-flows      = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared", "samples/sample-test", "testapps/*"]
-members = ["packages/*", "plugins/*", "samples/*"]
+exclude = ["*/shared", "testapps/*"]
+members = ["packages/*", "plugins/*", "samples/*", "tools/*"]
 
 
 # Ruff checks and formatting.
@@ -401,7 +430,7 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 [tool.ty.src]
 # Auto-generated protobuf stubs use grpc.experimental implicit submodule
 # access that ty warns about. We can't modify generated code.
-exclude = ["**/generated"]
+exclude = ["**/generated", "samples/web-endpoints-hello"]
 
 [tool.ty.environment]
 root = [
@@ -433,8 +462,12 @@ root = [
   ".",                                     # For samples.shared imports
   "samples/framework-evaluator-demo",      # For evaluator_demo package imports
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
-  "samples/web-endpoints-hello",           # For src imports in tests
+  "samples/framework-custom-evaluators",   # For custom evaluators sample imports
   "plugins/mcp/tests",                     # For fakes module imports in tests
+  # Tools
+  "tools/releasekit/src", # For releasekit package imports
+  "tools/releasekit",     # For test imports (pythonpath = ["."])
+  "tools/conform/src",    # For conform package imports
 ]
 
 # Pyright type checking configuration.
@@ -451,13 +484,47 @@ exclude = [
   "dist",
 ]
 
-# Use the venv where packages are installed as editable installs
-pythonVersion          = "3.10"
-reportMissingImports   = true
+# Use the venv where packages are installed as editable installs.
+# extraPaths lists all source roots so pyright can resolve PEP 420
+# namespace packages (genkit.plugins.*) across the workspace without
+# relying solely on the venv's editable install paths.
+extraPaths = [
+  "packages/genkit/src",
+  "plugins/amazon-bedrock/src",
+  "plugins/anthropic/src",
+  "plugins/checks/src",
+  "plugins/cloudflare-workers-ai/src",
+  "plugins/cohere/src",
+  "plugins/compat-oai/src",
+  "plugins/deepseek/src",
+  "plugins/dev-local-vectorstore/src",
+  "plugins/evaluators/src",
+  "plugins/fastapi/src",
+  "plugins/firebase/src",
+  "plugins/flask/src",
+  "plugins/google-cloud/src",
+  "plugins/google-genai/src",
+  "plugins/huggingface/src",
+  "plugins/mcp/src",
+  "plugins/microsoft-foundry/src",
+  "plugins/mistral/src",
+  "plugins/observability/src",
+  "plugins/ollama/src",
+  "plugins/vertex-ai/src",
+  "plugins/xai/src",
+  "samples/framework-custom-evaluators",
+  # Tools
+  "tools/releasekit/src",
+  "tools/conform/src",
+  "tools/model-config-test",
+  "tools/sample-flows",
+]
+pythonVersion = "3.10"
+reportMissingImports = true
 reportMissingTypeStubs = false
-typeCheckingMode       = "basic"
-venv                   = ".venv"
-venvPath               = "."
+typeCheckingMode = "basic"
+venv = ".venv"
+venvPath = "."
 
 # Pyrefly type checking configuration (Meta's new type checker).
 #
@@ -483,7 +550,8 @@ project_excludes = [
   "build",
   "dist",
   "testapps",
-  "samples/sample-test/**/*.py",
+  "testapps",
+  "tools/model-config-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)
@@ -496,6 +564,11 @@ project_includes = [
   "samples/*/src/**/*.py",
   "samples/*/tests/**/*.py",
   "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
+  # Tools
+  "tools/releasekit/src/**/*.py",
+  "tools/releasekit/tests/**/*.py",
+  "tools/conform/src/**/*.py",
+  "tools/sample-flows/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
@@ -503,15 +576,25 @@ project_includes = [
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
 # - samples/framework-evaluator-demo: has `evaluator_demo` package with internal imports
 # - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
+# - tools/model-config-test: has `model_performance_test` module for imports
 search-path = [
   ".",
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
+  "samples/framework-custom-evaluators",
   "samples/framework-restaurant-demo/src",
+
   "samples/web-endpoints-hello",
+  # Tools
+  "tools/releasekit/src",
+  "tools/releasekit",
+  "tools/conform/src",
+  "tools/sample-flows",
+  "tools/model-config-test",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
-# namespace packages but these imports work at runtime
+# namespace packages but these imports work at runtime.
+# model_performance_test is local to sample-test (excluded from workspace).
 ignore-missing-imports = ["genkit.plugins.*"]
 python_version         = "3.10"
 

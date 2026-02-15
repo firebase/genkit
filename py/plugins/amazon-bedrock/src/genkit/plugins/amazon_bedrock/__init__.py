@@ -171,6 +171,7 @@ from .plugin import (
     claude_haiku_4_5,
     claude_opus_4_1,
     claude_opus_4_5,
+    claude_opus_4_6,
     claude_sonnet_4,
     claude_sonnet_4_5,
     # Pre-defined model references - Cohere
@@ -270,6 +271,7 @@ __all__ = [
     'claude_haiku_4_5',
     'claude_opus_4_1',
     'claude_opus_4_5',
+    'claude_opus_4_6',
     'claude_sonnet_4',
     # Pre-defined model references - Anthropic Claude
     'claude_sonnet_4_5',

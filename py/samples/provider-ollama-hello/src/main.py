@@ -39,6 +39,9 @@ Key Concepts (ELI5)::
     │ Mistral             │ Another open-source model. Good at reasoning      │
     │                     │ and supports tool calling.                        │
     ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Fathom-R1           │ Fractal AI's reasoning model (14B). Excels at    │
+    │                     │ math & chain-of-thought. Based on DeepSeek-R1.   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
     │ LLaVA               │ A vision model that understands images locally.   │
     │                     │ Describe photos without uploading them anywhere.  │
     ├─────────────────────┼────────────────────────────────────────────────────┤
@@ -70,6 +73,7 @@ Key Features
 | Tool Calling (Weather)                                   | ``generate_weather``             |
 | Multimodal Vision (Image Input)                          | ``describe_image``           |
 | Object Detection (Bounding Boxes)                        | ``detect_objects``           |
+| Chain-of-Thought Math Reasoning                          | ``solve_math_problem``       |
 | Code Generation                                          | ``generate_code``                |
 | Local Embeddings                                         | ``embed_pokemons``           |
 | Vector Similarity Search                                 | ``pokedex``                  |
@@ -128,6 +132,10 @@ MISTRAL_MODEL = 'mistral-nemo:latest'
 LLAVA_MODEL = 'llava:latest'
 MOONDREAM_MODEL = 'moondream:v2'
 
+# Reasoning model: Fractal AI's Fathom-R1-14B for math & chain-of-thought.
+# Pulled from HuggingFace via: ollama pull hf.co/Mungert/Fathom-R1-14B-GGUF
+FATHOM_MODEL = 'hf.co/Mungert/Fathom-R1-14B-GGUF'
+
 # Embedding model for RAG.
 EMBEDDER_MODEL = 'nomic-embed-text'
 
@@ -139,6 +147,7 @@ ai = Genkit(
                 ModelDefinition(name=MISTRAL_MODEL),
                 ModelDefinition(name=LLAVA_MODEL),
                 ModelDefinition(name=MOONDREAM_MODEL),
+                ModelDefinition(name=FATHOM_MODEL),
             ],
             embedders=[
                 EmbeddingDefinition(name=EMBEDDER_MODEL, dimensions=512),
@@ -433,6 +442,45 @@ async def detect_objects(input: ObjectDetectionInput) -> str:
             Part(root=TextPart(text=input.prompt)),
             Part(root=MediaPart(media=Media(url=input.image_url, content_type='image/png'))),
         ],
+    )
+    return response.text
+
+
+class ReasoningInput(BaseModel):
+    """Input for the math reasoning flow.
+
+    Attributes:
+        problem: A math problem to solve with chain-of-thought reasoning.
+    """
+
+    problem: str = Field(
+        default='What is the sum of the first 50 prime numbers?',
+        description='A math problem to solve step-by-step',
+    )
+
+
+@ai.flow()
+async def solve_math_problem(input: ReasoningInput) -> str:
+    """Solve a math problem using Fathom-R1-14B with chain-of-thought reasoning.
+
+    Uses Fractal AI's Fathom-R1-14B model, a 14B-parameter reasoning model
+    fine-tuned from DeepSeek-R1-Distilled-Qwen-14B. It excels at olympiad-level
+    mathematical reasoning and shows its work through chain-of-thought.
+
+    Requires: ``ollama pull hf.co/Mungert/Fathom-R1-14B-GGUF``
+
+    See: https://huggingface.co/FractalAIResearch/Fathom-R1-14B
+
+    Args:
+        input: Input with a math problem to solve.
+
+    Returns:
+        The model's step-by-step solution.
+    """
+    response = await ai.generate(
+        model=ollama_name(FATHOM_MODEL),
+        system='You are a math tutor. Show your reasoning step by step before giving the final answer.',
+        prompt=input.problem,
     )
     return response.text
 

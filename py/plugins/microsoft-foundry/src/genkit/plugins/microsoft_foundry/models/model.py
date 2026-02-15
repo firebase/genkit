@@ -36,9 +36,11 @@ Key features:
 from typing import Any
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from openai.lib._pydantic import _ensure_strict_json_schema
 from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 
 from genkit.ai import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.microsoft_foundry.models.converters import (
     build_usage,
     from_openai_tool_calls,
@@ -62,6 +64,8 @@ from genkit.types import (
     ToolRequest,
     ToolRequestPart,
 )
+
+logger = get_logger(__name__)
 
 
 class MicrosoftFoundryModel:
@@ -111,11 +115,23 @@ class MicrosoftFoundryModel:
         params = self._build_request_body(request, config)
         streaming = ctx is not None and ctx.is_streaming
 
+        logger.debug(
+            'Microsoft Foundry generate request',
+            model=self.model_name,
+            streaming=streaming,
+        )
+
         if streaming and ctx is not None:
             return await self._generate_streaming(params, ctx, request)
 
         # Non-streaming request
         response: ChatCompletion = await self.client.chat.completions.create(**params)
+        logger.debug(
+            'Microsoft Foundry raw API response',
+            model=self.model_name,
+            choices=len(response.choices),
+            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+        )
         choice = response.choices[0]
         message = choice.message
 
@@ -208,19 +224,25 @@ class MicrosoftFoundryModel:
                     )
                 )
 
-        # Add accumulated tool calls to content
+        # Add accumulated tool calls to content and emit as chunks.
         for tc_data in accumulated_tool_calls.values():
             args = parse_tool_call_args(tc_data['arguments'])
 
-            accumulated_content.append(
-                Part(
-                    root=ToolRequestPart(
-                        tool_request=ToolRequest(
-                            ref=tc_data['id'],
-                            name=tc_data['name'],
-                            input=args,
-                        )
+            tool_part = Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        ref=tc_data['id'],
+                        name=tc_data['name'],
+                        input=args,
                     )
+                )
+            )
+            accumulated_content.append(tool_part)
+            ctx.send_chunk(
+                GenerateResponseChunk(
+                    role=Role.MODEL,
+                    content=[tool_part],
+                    index=0,
                 )
             )
 
@@ -319,7 +341,24 @@ class MicrosoftFoundryModel:
                 output_modes = (model_info.supports.output or []) if model_info.supports else []
 
                 if request.output.format == 'json' and 'json' in output_modes:
-                    body['response_format'] = {'type': 'json_object'}
+                    if request.output.schema:
+                        # Use Structured Outputs (json_schema) when a schema
+                        # is provided — the API constrains the model to emit
+                        # JSON that conforms exactly to the schema.
+                        body['response_format'] = {
+                            'type': 'json_schema',
+                            'json_schema': {
+                                'name': request.output.schema.get('title', 'Response'),
+                                'schema': _ensure_strict_json_schema(
+                                    request.output.schema,
+                                    path=(),
+                                    root=request.output.schema,
+                                ),
+                                'strict': True,
+                            },
+                        }
+                    else:
+                        body['response_format'] = {'type': 'json_object'}
                 elif request.output.format == 'text' and 'text' in output_modes:
                     body['response_format'] = {'type': 'text'}
 

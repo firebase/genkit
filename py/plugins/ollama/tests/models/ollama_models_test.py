@@ -103,7 +103,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         cast(MagicMock, ollama_model._build_multimodal_chat_response).assert_called_once_with(
             chat_response=mock_chat_response
         )
-        cast(MagicMock, ollama_model.is_streaming_request).assert_called_once_with(ctx=self.ctx)
+        cast(MagicMock, ollama_model.is_streaming_request).assert_called_with(ctx=self.ctx)
         cast(MagicMock, ollama_model.get_usage_info).assert_called_once()
 
         self.assertIsNotNone(response.message)
@@ -157,7 +157,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             request=self.request, ctx=self.ctx
         )
         cast(AsyncMock, ollama_model._chat_with_ollama).assert_not_called()
-        cast(MagicMock, ollama_model.is_streaming_request).assert_called_once_with(ctx=self.ctx)
+        cast(MagicMock, ollama_model.is_streaming_request).assert_called_with(ctx=self.ctx)
         cast(MagicMock, ollama_model.get_usage_info).assert_called_once()
 
         self.assertIsNotNone(response.message)
@@ -208,7 +208,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             request=self.request,
             ctx=streaming_ctx,
         )
-        cast(MagicMock, ollama_model.is_streaming_request).assert_called_once_with(
+        cast(MagicMock, ollama_model.is_streaming_request).assert_called_with(
             ctx=streaming_ctx,
         )
         self.assertIsNotNone(response.message)
@@ -250,7 +250,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             request=self.request,
             ctx=streaming_ctx,
         )
-        cast(MagicMock, ollama_model.is_streaming_request).assert_called_once_with(
+        cast(MagicMock, ollama_model.is_streaming_request).assert_called_with(
             ctx=streaming_ctx,
         )
         self.assertIsNotNone(response.message)
@@ -725,6 +725,7 @@ class TestResolveImage(unittest.IsolatedAsyncioTestCase):
             headers={
                 'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
             },
+            follow_redirects=True,
         )
         mock_client.get.assert_awaited_once_with('https://example.com/cat.jpg')
         mock_response.raise_for_status.assert_called_once()

@@ -24,12 +24,13 @@ See:
     - Document input: https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
 """
 
-import logging
+import re
 from typing import Any
 
-from genkit.types import GenerationUsage, MediaPart
+from genkit.core.logging import get_logger
+from genkit.types import GenerateRequest, GenerationUsage, MediaPart, Part, TextPart
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # PDF MIME type for document handling.
 PDF_MIME_TYPE = 'application/pdf'
@@ -46,10 +47,61 @@ __all__ = [
     'TEXT_MIME_TYPE',
     'build_cache_usage',
     'get_cache_control',
+    'maybe_strip_fences',
+    'strip_markdown_fences',
     'to_anthropic_document',
     'to_anthropic_image',
     'to_anthropic_media',
 ]
+
+
+def strip_markdown_fences(text: str) -> str:
+    r"""Strip markdown code fences from a JSON response.
+
+    Models sometimes wrap JSON output in markdown fences like
+    ``\`\`\`json ... \`\`\``` even when instructed to output raw
+    JSON.  This helper removes the fences.
+
+    Args:
+        text: The response text, possibly wrapped in fences.
+
+    Returns:
+        The text with markdown fences removed, or the original
+        text if no fences are found.
+    """
+    stripped = text.strip()
+    match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text
+
+
+def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+    """Strip markdown fences from text parts when JSON output is expected.
+
+    Args:
+        request: The original generate request.
+        parts: The response content parts.
+
+    Returns:
+        Parts with fences stripped from text if JSON was requested.
+    """
+    if not request.output or request.output.format != 'json':
+        return parts
+
+    cleaned: list[Part] = []
+    changed = False
+    for part in parts:
+        if isinstance(part.root, TextPart) and part.root.text:
+            cleaned_text = strip_markdown_fences(part.root.text)
+            if cleaned_text != part.root.text:
+                cleaned.append(Part(root=TextPart(text=cleaned_text)))
+                changed = True
+            else:
+                cleaned.append(part)
+        else:
+            cleaned.append(part)
+    return cleaned if changed else parts
 
 
 def get_cache_control(part: Any) -> dict[str, str] | None:  # noqa: ANN401

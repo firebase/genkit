@@ -36,13 +36,14 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
+  "Private :: Do Not Upload",
 ]
 dependencies = [
   "rich>=13.0.0",
   "fastapi>=0.115.0",
   "granian>=1.0.0",
   "hypercorn>=0.17.0",
-  "litestar>=2.0.0",
+  "litestar>=2.20.0",
   "quart>=0.19.0",
   "pydantic-settings>=2.0.0",
   "structlog>=24.0.0",

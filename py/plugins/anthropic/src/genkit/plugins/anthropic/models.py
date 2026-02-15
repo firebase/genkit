@@ -25,17 +25,18 @@ See:
 """
 
 import json
-import logging
 from typing import Any
 
 from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
+from genkit.core.logging import get_logger
 from genkit.plugins.anthropic.model_info import get_model_info
 from genkit.plugins.anthropic.utils import (
     build_cache_usage,
     get_cache_control,
+    maybe_strip_fences,
     to_anthropic_media,
 )
 from genkit.types import (
@@ -54,9 +55,28 @@ from genkit.types import (
     ToolResponsePart,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
+
+
+def _to_anthropic_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Transform a JSON schema for Anthropic structured output.
+
+    Anthropic requires ``additionalProperties: false`` on all object
+    types.  This recursively adds it.
+
+    See:
+        https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs#json-schema-limitations
+    """
+    out = dict(schema)
+    out.pop('$schema', None)
+    if out.get('type') == 'object':
+        out['additionalProperties'] = False
+    for key, value in out.items():
+        if isinstance(value, dict):
+            out[key] = _to_anthropic_schema(value)
+    return out
 
 
 class AnthropicModel:
@@ -83,6 +103,7 @@ class AnthropicModel:
             client: AsyncAnthropic client instance.
         """
         model_info = get_model_info(model_name)
+        self._model_info = model_info
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
@@ -99,13 +120,25 @@ class AnthropicModel:
         params = self._build_params(request)
         streaming = ctx and ctx.is_streaming
 
+        logger.debug('Anthropic generate request', model=self.model_name, streaming=bool(streaming))
+
         if streaming:
             assert ctx is not None  # streaming requires ctx
             response = await self._generate_streaming(params, ctx)
         else:
             response = await self.client.messages.create(**params)
 
+        logger.debug(
+            'Anthropic raw API response',
+            model=self.model_name,
+            stop_reason=str(response.stop_reason),
+            content_blocks=len(response.content),
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+
         content = self._to_genkit_content(response.content)
+        content = maybe_strip_fences(request, content)
 
         response_message = Message(role=Role.MODEL, content=content)
         basic_usage = get_basic_usage_stats(input_=request.messages, response=response_message)
@@ -201,11 +234,22 @@ class AnthropicModel:
 
         # Handle JSON output constraint
         if request.output and request.output.format == 'json':
-            schema_str = json.dumps(request.output.schema, indent=2) if request.output.schema else ''
-            instruction = (
-                f'\n\nOutput valid JSON matching this schema:\n{schema_str}' if schema_str else '\n\nOutput valid JSON.'
-            )
-            system = (system or '') + instruction
+            supports_json = 'json' in (self._model_info.supports.output or []) if self._model_info.supports else False
+            if request.output.schema and supports_json:
+                # Use native structured outputs via output_config.
+                params['output_config'] = {
+                    'format': {
+                        'type': 'json_schema',
+                        'schema': _to_anthropic_schema(request.output.schema),
+                    }
+                }
+            else:
+                # Fall back to system prompt instruction.
+                instruction = '\n\nOutput valid JSON. Do not wrap the JSON in markdown code fences.'
+                if request.output.schema:
+                    schema_str = json.dumps(request.output.schema, indent=2)
+                    instruction += f'\n\nFollow this JSON schema:\n{schema_str}'
+                system = (system or '') + instruction
 
         if system:
             params['system'] = system
@@ -231,17 +275,78 @@ class AnthropicModel:
         return params
 
     async def _generate_streaming(self, params: dict[str, Any], ctx: ActionRunContext) -> AnthropicMessage:
-        """Handle streaming generation."""
+        """Handle streaming generation.
+
+        Processes Anthropic streaming events including text deltas and
+        tool-use blocks.  Tool-use blocks arrive as:
+
+        1. ``content_block_start`` with ``content_block.type == 'tool_use'``
+        2. Zero or more ``content_block_delta`` with ``delta.type == 'input_json_delta'``
+        3. ``content_block_stop``
+
+        We track in-progress tool calls and emit a
+        :class:`GenerateResponseChunk` containing the tool request when
+        the block finishes.
+        """
+        # Track in-progress tool-use blocks by index.
+        pending_tools: dict[int, dict[str, Any]] = {}
+
         async with self.client.messages.stream(**params) as stream:
             async for chunk in stream:
-                if chunk.type == 'content_block_delta' and hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            index=0,
-                            content=[Part(root=TextPart(text=str(chunk.delta.text)))],
+                if chunk.type == 'content_block_start' and hasattr(chunk, 'content_block'):
+                    block = chunk.content_block
+                    if getattr(block, 'type', None) == 'tool_use':
+                        idx = getattr(chunk, 'index', None)
+                        if idx is not None:
+                            pending_tools[idx] = {
+                                'id': getattr(block, 'id', ''),
+                                'name': getattr(block, 'name', ''),
+                                'input_json': '',
+                            }
+
+                elif chunk.type == 'content_block_delta' and hasattr(chunk, 'delta'):
+                    delta = chunk.delta
+                    if getattr(delta, 'type', None) == 'text_delta' and hasattr(delta, 'text'):
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                index=0,
+                                content=[Part(root=TextPart(text=str(delta.text)))],
+                            )
                         )
-                    )
+                    elif getattr(delta, 'type', None) == 'input_json_delta' and hasattr(delta, 'partial_json'):
+                        idx = getattr(chunk, 'index', None)
+                        if idx is not None and idx in pending_tools:
+                            pending_tools[idx]['input_json'] += delta.partial_json
+
+                elif chunk.type == 'content_block_stop':
+                    idx = getattr(chunk, 'index', None)
+                    if idx is not None and idx in pending_tools:
+                        tool_info = pending_tools.pop(idx)
+                        tool_input: object = {}
+                        if tool_info['input_json']:
+                            try:
+                                tool_input = json.loads(tool_info['input_json'])
+                            except (json.JSONDecodeError, TypeError):
+                                tool_input = tool_info['input_json']
+                        ctx.send_chunk(
+                            GenerateResponseChunk(
+                                role=Role.MODEL,
+                                index=0,
+                                content=[
+                                    Part(
+                                        root=ToolRequestPart(
+                                            tool_request=ToolRequest(
+                                                ref=tool_info['id'],
+                                                name=tool_info['name'],
+                                                input=tool_input,
+                                            )
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+
             return await stream.get_final_message()
 
     def _extract_system(self, messages: list[Message]) -> str | None:

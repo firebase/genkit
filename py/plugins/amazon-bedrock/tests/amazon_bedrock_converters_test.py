@@ -28,6 +28,7 @@ from genkit.plugins.amazon_bedrock.models.converters import (
     FINISH_REASON_MAP,
     INFERENCE_PROFILE_PREFIXES,
     INFERENCE_PROFILE_SUPPORTED_PROVIDERS,
+    StreamingFenceStripper,
     build_json_instruction,
     build_media_block,
     build_usage,
@@ -36,9 +37,11 @@ from genkit.plugins.amazon_bedrock.models.converters import (
     get_effective_model_id,
     is_image_media,
     map_finish_reason,
+    maybe_strip_fences,
     normalize_config,
     parse_tool_call_args,
     separate_system_messages,
+    strip_markdown_fences,
     to_bedrock_content,
     to_bedrock_role,
     to_bedrock_tool,
@@ -626,3 +629,114 @@ class TestGetEffectiveModelId:
     def test_supported_providers_includes_anthropic(self) -> None:
         """Test Supported providers includes anthropic."""
         assert 'anthropic.' in INFERENCE_PROFILE_SUPPORTED_PROVIDERS
+
+
+class TestStripMarkdownFences:
+    """Tests for strip_markdown_fences."""
+
+    def test_strips_json_fences(self) -> None:
+        """Strips ```json ... ``` fences."""
+        text = '```json\n{"name": "John"}\n```'
+        assert strip_markdown_fences(text) == '{"name": "John"}'
+
+    def test_strips_plain_fences(self) -> None:
+        """Strips ``` ... ``` fences without language tag."""
+        text = '```\n{"a": 1}\n```'
+        assert strip_markdown_fences(text) == '{"a": 1}'
+
+    def test_preserves_plain_json(self) -> None:
+        """Does not alter valid JSON without fences."""
+        text = '{"name": "John"}'
+        assert strip_markdown_fences(text) == text
+
+    def test_preserves_non_json_text(self) -> None:
+        """Does not alter plain text."""
+        text = 'Hello, world!'
+        assert strip_markdown_fences(text) == text
+
+    def test_strips_multiline_json(self) -> None:
+        """Strips fences around multiline JSON."""
+        text = '```json\n{\n  "a": 1\n}\n```'
+        assert strip_markdown_fences(text) == '{\n  "a": 1\n}'
+
+
+class TestMaybeStripFences:
+    """Tests for maybe_strip_fences."""
+
+    def test_strips_fences_for_json_output(self) -> None:
+        """Strips markdown fences when JSON output is requested."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema={'type': 'object'}),
+        )
+        parts = [Part(root=TextPart(text='```json\n{"a": 1}\n```'))]
+        result = maybe_strip_fences(request, parts)
+        assert result[0].root.text == '{"a": 1}'
+
+    def test_no_op_for_text_output(self) -> None:
+        """Does not modify responses when output format is not json."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='text'),
+        )
+        fenced = '```json\n{"a": 1}\n```'
+        parts = [Part(root=TextPart(text=fenced))]
+        result = maybe_strip_fences(request, parts)
+        assert result[0].root.text == fenced
+
+    def test_no_op_when_no_fences(self) -> None:
+        """Does not modify clean JSON responses."""
+        request = GenerateRequest(
+            messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
+            output=OutputConfig(format='json', schema={'type': 'object'}),
+        )
+        text = '{"name": "John"}'
+        parts = [Part(root=TextPart(text=text))]
+        result = maybe_strip_fences(request, parts)
+        assert result is parts
+
+
+class TestStreamingFenceStripper:
+    """Tests for StreamingFenceStripper."""
+
+    def test_strips_fences_across_chunks(self) -> None:
+        """Strips opening and closing fences split across chunks."""
+        stripper = StreamingFenceStripper(json_mode=True)
+        chunks = ['```json\n', '{"name":', ' "John"}\n', '```']
+        out = [stripper.process(c) for c in chunks]
+        out.append(stripper.flush())
+        combined = ''.join(out)
+        assert combined == '{"name": "John"}'
+
+    def test_strips_fence_in_single_chunk(self) -> None:
+        """Strips fences when entire response is one chunk."""
+        stripper = StreamingFenceStripper(json_mode=True)
+        out = stripper.process('```json\n{"a": 1}\n```')
+        out += stripper.flush()
+        assert out == '{"a": 1}'
+
+    def test_no_op_when_not_json_mode(self) -> None:
+        """Passes text through unchanged when json_mode is False."""
+        stripper = StreamingFenceStripper(json_mode=False)
+        text = '```json\n{"a": 1}\n```'
+        assert stripper.process(text) == text
+        assert stripper.flush() == ''
+
+    def test_no_fence_passes_through(self) -> None:
+        """Passes text through when no fence is detected."""
+        stripper = StreamingFenceStripper(json_mode=True)
+        chunks = ['{"name":', ' "John"}']
+        out = [stripper.process(c) for c in chunks]
+        out.append(stripper.flush())
+        combined = ''.join(out)
+        assert combined == '{"name": "John"}'
+
+    def test_buffers_small_prefix(self) -> None:
+        """Buffers small initial chunks until fence can be detected."""
+        stripper = StreamingFenceStripper(json_mode=True)
+        # First chunk is small — should be buffered.
+        assert stripper.process('```') == ''
+        # Second chunk triggers flush with fence detection.
+        assert stripper.process('json\n{"a":') == '{"a":'
+        assert stripper.process(' 1}\n```') == ' 1}'
+        assert stripper.flush() == ''

@@ -15,6 +15,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+# Checks Plugin Hello World Demo
+# ================================
+#
+# Demonstrates using the Checks API with Genkit for AI safety evaluation.
+#
+# Prerequisites:
+#   - GEMINI_API_KEY environment variable set
+#   - GCLOUD_PROJECT environment variable set
+#   - Checks API enabled on your GCP project
+#
+# Usage:
+#   ./run.sh          # Start the demo with Dev UI
+#   ./run.sh --help   # Show this help message
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +36,32 @@ cd "${SCRIPT_DIR}"
 
 # Source shared helper utilities.
 source "$(dirname "${SCRIPT_DIR}")/_common.sh"
+
+print_help() {
+    print_banner "Checks Plugin Hello World" "🛡️"
+    echo "Usage: ./run.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  --help     Show this help message"
+    echo ""
+    echo "Environment Variables:"
+    echo "  GEMINI_API_KEY    Required. Your Gemini API key"
+    echo "  GCLOUD_PROJECT    Required. Your GCP project ID"
+    echo ""
+    echo "Get a Gemini API key from: https://aistudio.google.com/app/apikey"
+    print_help_footer
+}
+
+# Parse arguments
+case "${1:-}" in
+    --help|-h)
+        print_help
+        exit 0
+        ;;
+esac
+
+# Main execution
+print_banner "Checks Plugin Hello World" "🛡️"
 
 # Prompt for required env vars if not set.
 check_env_var "GCLOUD_PROJECT" "" || true
@@ -67,41 +107,22 @@ ensure_checks_api_enabled() {
 }
 
 # Ensure ADC credentials include the Checks OAuth scope.
+# Always re-authenticates because there is no reliable way to inspect
+# which scopes an existing ADC token was minted with.
 ensure_checks_adc() {
-    echo -e "${BLUE}Checking ADC credentials for Checks API scopes...${NC}"
-
-    # Try to get an access token; if it fails, we need to login.
-    if ! gcloud auth application-default print-access-token &> /dev/null; then
-        echo -e "${YELLOW}No Application Default Credentials found.${NC}"
-        echo -e "The Checks API requires ADC with specific scopes."
-        echo ""
-        if [[ -t 0 ]] && [ -c /dev/tty ]; then
-            echo -en "Run ${GREEN}gcloud auth application-default login --scopes=${CHECKS_SCOPES}${NC} now? [Y/n]: "
-            local response
-            read -r response < /dev/tty
-            if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-                echo ""
-                gcloud auth application-default login --scopes="${CHECKS_SCOPES}"
-                echo ""
-            else
-                echo -e "${YELLOW}Skipping. You may get a 403 scope error.${NC}"
-            fi
-        else
-            echo "Run: gcloud auth application-default login --scopes=${CHECKS_SCOPES}"
-        fi
-    else
-        echo -e "${GREEN}✓ Application Default Credentials found${NC}"
-        echo -e "${YELLOW}If you see ACCESS_TOKEN_SCOPE_INSUFFICIENT errors, re-run:${NC}"
-        echo -e "${YELLOW}  gcloud auth application-default login --scopes=${CHECKS_SCOPES}${NC}"
-    fi
+    echo -e "${BLUE}Authenticating with Checks API scopes...${NC}"
+    echo -e "Running: ${GREEN}gcloud auth application-default login --scopes=${CHECKS_SCOPES}${NC}"
+    echo ""
+    gcloud auth application-default login --scopes="${CHECKS_SCOPES}"
     echo ""
 }
 
 ensure_checks_api_enabled
 ensure_checks_adc
 
+install_deps
 
-genkit start -- \
+genkit_start_with_browser -- \
   uv tool run --from watchdog watchmedo auto-restart \
     -d src \
     -d ../../packages \

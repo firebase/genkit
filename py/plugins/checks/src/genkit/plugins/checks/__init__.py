@@ -120,7 +120,7 @@ Example (Middleware)::
         prompt='Tell me a story',
         use=[
             checks_middleware(
-                project_id='my-gcp-project',
+                project_id='your-gcp-project-id',
                 metrics=[
                     ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                     ChecksEvaluationMetricType.HARASSMENT,

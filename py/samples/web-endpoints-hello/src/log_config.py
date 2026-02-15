@@ -187,3 +187,18 @@ def setup_logging(log_level: int = logging.DEBUG) -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
     root_logger.setLevel(log_level)
+
+    # Suppress noisy OTel exporter / urllib3 loggers.  When Jaeger or
+    # another OTLP collector is not running, these libraries emit
+    # enormous multi-page tracebacks (ConnectionRefusedError) at
+    # WARNING/ERROR level on every export attempt, drowning out actual
+    # application output.  Raising their level to CRITICAL keeps the
+    # console clean while still surfacing truly fatal issues.
+    for noisy_logger in (
+        "urllib3.connectionpool",
+        "opentelemetry.exporter.otlp.proto.http",
+        "opentelemetry.exporter.otlp.proto.http.trace_exporter",
+        "opentelemetry.exporter.otlp.proto.grpc",
+        "opentelemetry.sdk.trace.export",
+    ):
+        logging.getLogger(noisy_logger).setLevel(logging.CRITICAL)

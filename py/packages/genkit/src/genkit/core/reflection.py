@@ -243,11 +243,11 @@ def create_reflection_asgi_app(
         """
         kind = request.query_params.get('type')
         if not kind:
-            return JSONResponse(content='Query parameter "type" is required.', status_code=400)
+            return JSONResponse(content={'error': 'Query parameter "type" is required.'}, status_code=400)
 
         if kind != 'defaultModel':
             return JSONResponse(
-                content=f"'type' {kind} is not supported. Only 'defaultModel' is supported", status_code=400
+                content={'error': f"'type' {kind} is not supported. Only 'defaultModel' is supported"}, status_code=400
             )
 
         values = registry.list_values(kind)
@@ -426,7 +426,8 @@ def create_reflection_asgi_app(
                 # Log with exc_info for pretty exception output via rich/structlog
                 logger.exception('Error streaming action', exc_info=e)
                 # Error response also should not have trailing newline (final message)
-                chunk_queue.put_nowait(json.dumps(error_response))
+                # Wrap error in an 'error' field to match JS SDK format
+                chunk_queue.put_nowait(json.dumps({'error': error_response}))
                 # Ensure trace_id_event is set even on error
                 trace_id_event.set()
 
@@ -546,7 +547,8 @@ def create_reflection_asgi_app(
                 error_response = get_reflection_json(action_error).model_dump(by_alias=True)
                 # Log with exc_info for pretty exception output via rich/structlog
                 logger.exception('Error executing action', exc_info=action_error)
-                yield json.dumps(error_response).encode('utf-8')
+                # Wrap error in an 'error' field to match JS SDK format
+                yield json.dumps({'error': error_response}).encode('utf-8')
             else:
                 yield json.dumps(action_result).encode('utf-8')
 

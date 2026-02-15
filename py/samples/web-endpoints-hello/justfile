@@ -35,17 +35,17 @@ JAEGER_OTLP_PORT := "4318"
 default:
     @just --list
 
-# Start dev server (auto-starts Jaeger for tracing).
-dev *ARGS:
-    ./run.sh {{ ARGS }}
+# Start all services: Jaeger, REST (Swagger UI), gRPC (grpcui), Genkit DevUI.
+start *ARGS:
+    ./run.sh start {{ ARGS }}
 
 # Start with Litestar and hot reload.
-dev-litestar *ARGS:
-    just dev --framework litestar {{ ARGS }}
+start-litestar *ARGS:
+    ./run.sh start --framework litestar {{ ARGS }}
 
 # Start with Quart and hot reload.
-dev-quart *ARGS:
-    just dev --framework quart {{ ARGS }}
+start-quart *ARGS:
+    ./run.sh start --framework quart {{ ARGS }}
 
 # Start production multi-worker server via gunicorn (REST only).
 

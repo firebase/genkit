@@ -129,7 +129,12 @@ from typing import Any
 import httpx
 
 from genkit.ai import ActionRunContext
+from genkit.core.http_client import get_cached_client
 from genkit.core.logging import get_logger
+from genkit.plugins.amazon_bedrock.models.converters import (
+    StreamingFenceStripper,
+    maybe_strip_fences,
+)
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit.types import (
     FinishReason,
@@ -294,8 +299,7 @@ class BedrockModel:
                 return await self._generate_streaming(params, ctx, request)
 
             # Non-streaming request using Converse API
-            # boto3 is synchronous, so we run it directly
-            response = self.client.converse(**params)
+            response = await self.client.converse(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock API call failed',
@@ -310,6 +314,7 @@ class BedrockModel:
 
         # Convert response to Genkit format
         content = self._from_bedrock_content(message_data.get('content', []))
+        content = maybe_strip_fences(request, content)
         response_message = Message(role=Role.MODEL, content=content)
 
         # Build usage statistics
@@ -348,7 +353,7 @@ class BedrockModel:
         """
         try:
             # Use converse_stream for streaming
-            response = self.client.converse_stream(**params)
+            response = await self.client.converse_stream(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock streaming API call failed',
@@ -362,28 +367,35 @@ class BedrockModel:
         final_usage: GenerationUsage | None = None
         stop_reason: str = ''
 
+        json_mode = bool(request.output and request.output.format == 'json')
+        fence_stripper = StreamingFenceStripper(json_mode=json_mode)
+
+        def _send_text(text: str) -> None:
+            """Send a text chunk and accumulate it."""
+            if not text:
+                return
+            part = Part(root=TextPart(text=text))
+            accumulated_content.append(part)
+            ctx.send_chunk(GenerateResponseChunk(role=Role.MODEL, content=[part], index=0))
+
         # Process the event stream
         stream = response.get('stream', [])
-        for event in stream:
+        async for event in stream:
             # Handle content block delta (text chunks)
             if 'contentBlockDelta' in event:
                 delta = event['contentBlockDelta'].get('delta', {})
                 if 'text' in delta:
-                    text_part = Part(root=TextPart(text=delta['text']))
-                    accumulated_content.append(text_part)
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            content=[text_part],
-                            index=0,
-                        )
-                    )
-                # Handle tool use delta
+                    _send_text(fence_stripper.process(delta['text']))
+                # Handle tool use delta (input fragments only).
+                # contentBlockStart always fires first with name/toolUseId,
+                # so by the time we get here the entry should already exist.
                 if 'toolUse' in delta:
                     tool_use = delta['toolUse']
-                    tool_use_id = event['contentBlockDelta'].get('contentBlockIndex', 0)
-                    if tool_use_id not in accumulated_tool_uses:
-                        accumulated_tool_uses[str(tool_use_id)] = {
+                    block_idx = str(event['contentBlockDelta'].get('contentBlockIndex', 0))
+                    if block_idx not in accumulated_tool_uses:
+                        # Defensive fallback — should not happen in practice
+                        # because contentBlockStart always precedes deltas.
+                        accumulated_tool_uses[block_idx] = {
                             'toolUseId': tool_use.get('toolUseId', ''),
                             'name': tool_use.get('name', ''),
                             'input': '',
@@ -391,7 +403,7 @@ class BedrockModel:
                     if 'input' in tool_use:
                         tool_input = tool_use['input']
                         if isinstance(tool_input, str):
-                            accumulated_tool_uses[str(tool_use_id)]['input'] += tool_input
+                            accumulated_tool_uses[block_idx]['input'] += tool_input
 
             # Handle content block start (for tool use)
             if 'contentBlockStart' in event:
@@ -415,9 +427,39 @@ class BedrockModel:
                     total_tokens=usage_data.get('totalTokens', 0),
                 )
 
+            # Handle content block stop — emit tool request chunks
+            if 'contentBlockStop' in event:
+                block_idx = str(event['contentBlockStop'].get('contentBlockIndex', 0))
+                if block_idx in accumulated_tool_uses:
+                    tool_data = accumulated_tool_uses[block_idx]
+                    try:
+                        tool_input = json.loads(tool_data['input']) if tool_data['input'] else {}
+                    except json.JSONDecodeError:
+                        tool_input = tool_data['input']
+                    ctx.send_chunk(
+                        GenerateResponseChunk(
+                            role=Role.MODEL,
+                            content=[
+                                Part(
+                                    root=ToolRequestPart(
+                                        tool_request=ToolRequest(
+                                            ref=tool_data['toolUseId'],
+                                            name=tool_data['name'],
+                                            input=tool_input,
+                                        )
+                                    )
+                                )
+                            ],
+                            index=0,
+                        )
+                    )
+
             # Handle message stop
             if 'messageStop' in event:
                 stop_reason = event['messageStop'].get('stopReason', '')
+
+        # Flush any remaining fence buffer (short streams).
+        _send_text(fence_stripper.flush())
 
         # Add accumulated tool uses to content
         for tool_data in accumulated_tool_uses.values():
@@ -768,11 +810,16 @@ class BedrockModel:
                 },
             }
 
+    # TODO(#4360): Replace with downloadRequestMedia middleware (G15 parity).
+    # User-Agent is required because many servers (e.g. Wikipedia) return
+    # 403 Forbidden for the default httpx user-agent string.
+    _DOWNLOAD_HEADERS: dict[str, str] = {
+        'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
+        'Accept': 'image/*,video/*,*/*',
+    }
+
     async def _fetch_media_from_url(self, url: str, default_format: str) -> tuple[bytes, str]:
         """Fetch media content from a URL asynchronously.
-
-        Uses httpx.AsyncClient for true async HTTP requests without blocking
-        the event loop.
 
         Args:
             url: The URL to fetch media from.
@@ -783,35 +830,28 @@ class BedrockModel:
 
         Raises:
             ValueError: If the URL cannot be fetched.
-
-        Note:
-            Some servers (e.g., Wikipedia) require a User-Agent header and will
-            return 403 Forbidden without one. We include a standard User-Agent
-            to ensure compatibility with such servers.
         """
         logger.debug('Fetching media from URL', url=url[:100])
 
-        # Headers required for compatibility with servers that block bot-like requests
-        # (e.g., Wikipedia returns 403 without a User-Agent)
-        headers = {
-            'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; Python httpx)',
-            'Accept': 'image/*,video/*,*/*',
-        }
-
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
-                response = await client.get(url)
-                response.raise_for_status()
+            client = get_cached_client(
+                cache_key='amazon-bedrock/media-fetch',
+                headers=self._DOWNLOAD_HEADERS,
+                timeout=30.0,
+                follow_redirects=True,
+            )
+            response = await client.get(url)
+            response.raise_for_status()
 
-                media_bytes = response.content
-                format_str = default_format
+            media_bytes = response.content
+            format_str = default_format
 
-                # Update format from response content-type if available
-                resp_content_type = response.headers.get('content-type', '')
-                if resp_content_type and '/' in resp_content_type:
-                    format_str = resp_content_type.split('/')[-1].split(';')[0]
-                    if format_str == 'jpg':
-                        format_str = 'jpeg'
+            # Update format from response content-type if available
+            resp_content_type = response.headers.get('content-type', '')
+            if resp_content_type and '/' in resp_content_type:
+                format_str = resp_content_type.split('/')[-1].split(';')[0]
+                if format_str == 'jpg':
+                    format_str = 'jpeg'
 
             logger.debug('Fetched media', size=len(media_bytes), format=format_str)
             return media_bytes, format_str

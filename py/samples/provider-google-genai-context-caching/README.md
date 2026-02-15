@@ -1,5 +1,25 @@
-# Context Caching example.
- 
+# Context Caching
+
+Cache large documents (books, codebases) so subsequent queries are faster and
+cheaper — the model doesn't re-process the same content each time.
+
+## Features Demonstrated
+
+| Feature | Flow / API | Description |
+|---------|-----------|-------------|
+| Context Caching | `text_context_flow` | Cache a book for repeated queries |
+| URL Document Loading | `httpx.get(url)` | Download text from a URL |
+| Cache TTL | `ttl_seconds=300` | Cache expires after 5 minutes |
+| Cached Content Config | `cached_content` | Pass cached content to generation |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Context Caching** | Pre-load a big document so the AI remembers it — like giving a student a textbook before the exam |
+| **TTL** | How long the cache lasts — after 5 minutes, the AI "forgets" and needs to re-read |
+| **Cached Content** | The pre-processed document — saves time and money on repeated queries |
+
 ### How to Get Your Gemini API Key
 
 To use the Google GenAI plugin, you need a Gemini API key.

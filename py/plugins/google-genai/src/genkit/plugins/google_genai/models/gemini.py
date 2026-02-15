@@ -1136,7 +1136,12 @@ class GeminiModel:
             schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(cast(str, input_schema['type']))
+            raw_type = input_schema['type']
+            if isinstance(raw_type, list):
+                non_null = [t for t in raw_type if t != 'null']
+                schema.nullable = True
+                raw_type = non_null[0] if non_null else 'string'
+            schema_type = genai_types.Type(cast(str, raw_type))
             schema.type = schema_type
 
             if 'enum' in input_schema:
@@ -1614,7 +1619,15 @@ class GeminiModel:
         return content if content else []
 
     async def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
-        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig."""
+        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig.
+
+        The conversion follows a linear pipeline:
+        1. Extract system instructions from messages
+        2. Normalize request.config into a dict (regardless of input type)
+        3. Extract tool-related fields from the dict
+        4. Clean Genkit-specific / unsupported keys from the dict
+        5. Build the final GenerateContentConfig
+        """
         system_instruction: list[genai.types.Part] = []
 
         # 1. System messages
@@ -1629,82 +1642,20 @@ class GeminiModel:
                         system_instruction.append(converted)
 
         cfg = None
-        tools = []
+        tools: list[genai_types.Tool] = []
 
         if request.config:
-            request_config = request.config
-            if isinstance(request_config, GeminiConfigSchema):
-                cfg = request_config
-            elif isinstance(request_config, GenerationCommonConfig):
-                dumped = request_config.model_dump(exclude_none=True)
-                if dumped:
-                    cfg = genai_types.GenerateContentConfig(**dumped)
-                else:
-                    cfg = None
-            elif isinstance(request_config, dict):
-                if 'image_config' in request_config:
-                    cfg = GeminiImageConfigSchema(**request_config)
-                elif 'speech_config' in request_config:
-                    cfg = GeminiTtsConfigSchema(**request_config)
-                else:
-                    cfg = GeminiConfigSchema(**request_config)
+            # 2. Normalize config into a dict
+            dumped_config = self._normalize_config_to_dict(request.config)
 
-            if isinstance(cfg, GeminiConfigSchema):
-                if cfg.code_execution:
-                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
+            if dumped_config is not None:
+                # 3. Extract tool-related fields
+                self._extract_tools_from_config(dumped_config, tools)
 
-                dumped_config = cfg.model_dump(exclude_none=True)
+                # 4. Clean Genkit-specific and unsupported keys
+                self._clean_unsupported_keys(dumped_config)
 
-                if 'code_execution' in dumped_config:
-                    dumped_config.pop('code_execution')
-
-                if 'safety_settings' in dumped_config:
-                    dumped_config['safety_settings'] = [
-                        s
-                        for s in dumped_config['safety_settings']
-                        if s['category'] != HarmCategory.HARM_CATEGORY_UNSPECIFIED
-                    ]
-
-                if 'google_search_retrieval' in dumped_config:
-                    val = dumped_config.pop('google_search_retrieval')
-                    if val is not None:
-                        val = {} if val is True else val
-                        tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))  # type: ignore[arg-type]
-
-                if 'file_search' in dumped_config:
-                    val = dumped_config.pop('file_search')
-                    # File search requires a store name to be valid.
-                    if val and val.get('file_search_store_names'):
-                        # Filter out empty strings from store names
-                        valid_stores = [s for s in val['file_search_store_names'] if s]
-                        if valid_stores:
-                            val['file_search_store_names'] = valid_stores
-                            tools.append(genai_types.Tool(file_search=genai_types.FileSearch(**val)))
-
-                if 'url_context' in dumped_config:
-                    val = dumped_config.pop('url_context')
-                    if val is not None:
-                        val = {} if val is True else val
-                        tools.append(genai_types.Tool(url_context=genai_types.UrlContext(**val)))
-
-                # Map Function Calling Config to ToolConfig
-                if 'function_calling_config' in dumped_config:
-                    dumped_config['tool_config'] = genai_types.ToolConfig(
-                        function_calling_config=genai_types.FunctionCallingConfig(
-                            **dumped_config.pop('function_calling_config')
-                        )
-                    )
-
-                # Clean up fields not supported by GenerateContentConfig
-                for key in ['api_version', 'api_key', 'base_url', 'context_cache']:
-                    if key in dumped_config:
-                        del dumped_config[key]
-
-                # Check for SDK support of newer fields
-                for key in ['image_config', 'thinking_config', 'response_modalities']:
-                    if key in dumped_config and key not in genai_types.GenerateContentConfig.model_fields:
-                        del dumped_config[key]
-
+                # 5. Build GenerateContentConfig
                 if dumped_config:
                     cfg = genai_types.GenerateContentConfig(**dumped_config)
                 else:
@@ -1727,12 +1678,111 @@ class GeminiModel:
                     cfg.response_schema = self._convert_schema_property(request.output.schema)
 
             if tools:
-                cfg.tools = tools
+                cfg.tools = cast(genai_types.ToolListUnion, tools)
 
             cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
             return cfg
 
         return None
+
+    # -- Config conversion helpers (called by _genkit_to_googleai_cfg) --
+
+    # Keys that are Genkit-specific and must not be forwarded to the API.
+    # 'version' overrides the model name, others are client-level settings.
+    _GENKIT_ONLY_KEYS = frozenset(['version', 'api_version', 'api_key', 'base_url', 'context_cache'])
+
+    # Keys that may not be supported by older google-genai SDK versions.
+    _SDK_GATED_KEYS = frozenset(['image_config', 'thinking_config', 'response_modalities'])
+
+    def _normalize_config_to_dict(
+        self,
+        config: GeminiConfigSchema | GenerationCommonConfig | dict,
+    ) -> dict[str, Any] | None:
+        """Normalize any config type into a plain dict for uniform processing.
+
+        Handles three input shapes:
+        - GeminiConfigSchema (and subclasses like TTS/Image): model_dump
+        - GenerationCommonConfig: model_dump
+        - dict: route to the appropriate schema first, then model_dump
+
+        Returns:
+            A mutable dict ready for tool extraction and key cleanup,
+            or None if the config is empty after dumping.
+        """
+        if isinstance(config, GeminiConfigSchema):
+            schema = config
+        elif isinstance(config, GenerationCommonConfig):
+            schema = config
+        elif isinstance(config, dict):
+            if 'image_config' in config:
+                schema = GeminiImageConfigSchema(**config)
+            elif 'speech_config' in config:
+                schema = GeminiTtsConfigSchema(**config)
+            else:
+                schema = GeminiConfigSchema(**config)
+        else:
+            return None
+
+        dumped = schema.model_dump(exclude_none=True)
+        return dumped or None
+
+    def _extract_tools_from_config(
+        self,
+        config: dict[str, Any],
+        tools: list[genai_types.Tool],
+    ) -> None:
+        """Extract tool-related fields from config dict into the tools list.
+
+        Mutates *config* by popping consumed keys and appends to *tools*.
+        """
+        # Code execution
+        if config.pop('code_execution', None):
+            tools.append(genai_types.Tool(code_execution=genai_types.ToolCodeExecution()))
+
+        # Safety settings — filter out unspecified categories
+        if 'safety_settings' in config:
+            config['safety_settings'] = [
+                s for s in config['safety_settings'] if s['category'] != HarmCategory.HARM_CATEGORY_UNSPECIFIED
+            ]
+
+        # Google Search
+        val = config.pop('google_search_retrieval', None)
+        if val is not None:
+            val = {} if val is True else val
+            tools.append(genai_types.Tool(google_search=genai_types.GoogleSearch(**val)))
+
+        # File Search
+        val = config.pop('file_search', None)
+        if val and val.get('file_search_store_names'):
+            valid_stores = [s for s in val['file_search_store_names'] if s]
+            if valid_stores:
+                val['file_search_store_names'] = valid_stores
+                tools.append(genai_types.Tool(file_search=genai_types.FileSearch(**val)))
+
+        # URL Context
+        val = config.pop('url_context', None)
+        if val is not None:
+            val = {} if val is True else val
+            tools.append(genai_types.Tool(url_context=genai_types.UrlContext(**val)))
+
+        # Function Calling Config → ToolConfig
+        fcc = config.pop('function_calling_config', None)
+        if fcc:
+            config['tool_config'] = genai_types.ToolConfig(
+                function_calling_config=genai_types.FunctionCallingConfig(**fcc)
+            )
+
+    def _clean_unsupported_keys(self, config: dict[str, Any]) -> None:
+        """Remove Genkit-specific and SDK-gated keys from the config dict.
+
+        Mutates *config* in place.
+        """
+        for key in self._GENKIT_ONLY_KEYS:
+            config.pop(key, None)
+
+        for key in self._SDK_GATED_KEYS:
+            if key in config and key not in genai_types.GenerateContentConfig.model_fields:
+                del config[key]
 
     def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
         """Create usage statistics.

@@ -24,10 +24,13 @@ This module tests the AWS Bedrock plugin functionality including:
 - Model info registry
 """
 
-from unittest.mock import MagicMock
+from collections.abc import AsyncIterator
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from genkit.core.action import ActionRunContext
 from genkit.plugins.amazon_bedrock import (
     AMAZON_BEDROCK_PLUGIN_NAME,
     AnthropicConfig,
@@ -54,6 +57,7 @@ from genkit.plugins.amazon_bedrock.models.model_info import (
     SUPPORTED_EMBEDDING_MODELS,
     get_model_info,
 )
+from genkit.plugins.amazon_bedrock.plugin import _strip_inference_profile_prefix
 from genkit.plugins.amazon_bedrock.typing import (
     AI21JambaConfig,
     AmazonNovaConfig,
@@ -64,6 +68,7 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
+from genkit.types import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:
@@ -484,6 +489,55 @@ class TestInferenceProfileHelpers:
             get_inference_profile_prefix()
 
 
+class TestStripInferenceProfilePrefix:
+    """Tests for _strip_inference_profile_prefix.
+
+    The InvokeModel API (used for embeddings) does NOT support inference
+    profile IDs. This helper strips regional prefixes so we always pass
+    base model IDs to InvokeModel.
+    """
+
+    def test_strip_us_prefix(self) -> None:
+        """Test stripping 'us.' prefix from model ID."""
+        assert _strip_inference_profile_prefix('us.amazon.titan-embed-text-v2:0') == 'amazon.titan-embed-text-v2:0'
+
+    def test_strip_eu_prefix(self) -> None:
+        """Test stripping 'eu.' prefix from model ID."""
+        assert _strip_inference_profile_prefix('eu.cohere.embed-english-v3') == 'cohere.embed-english-v3'
+
+    def test_strip_apac_prefix(self) -> None:
+        """Test stripping 'apac.' prefix from model ID."""
+        assert _strip_inference_profile_prefix('apac.amazon.titan-embed-text-v1') == 'amazon.titan-embed-text-v1'
+
+    def test_no_prefix_unchanged(self) -> None:
+        """Test model IDs without prefix are returned unchanged."""
+        assert _strip_inference_profile_prefix('amazon.titan-embed-text-v2:0') == 'amazon.titan-embed-text-v2:0'
+
+    def test_no_prefix_cohere(self) -> None:
+        """Test Cohere model ID without prefix is unchanged."""
+        assert _strip_inference_profile_prefix('cohere.embed-english-v3') == 'cohere.embed-english-v3'
+
+    def test_no_prefix_nova(self) -> None:
+        """Test Nova embed model ID without prefix is unchanged."""
+        assert _strip_inference_profile_prefix('amazon.nova-embed-text-v1:0') == 'amazon.nova-embed-text-v1:0'
+
+    def test_round_trip_with_inference_profile(self) -> None:
+        """Test that inference_profile + strip recovers the original model ID.
+
+        This verifies the round-trip property: a base model ID passed through
+        inference_profile() and then _strip_inference_profile_prefix() should
+        yield the original base model ID (without the plugin prefix).
+        """
+        base_id = 'amazon.titan-embed-text-v2:0'
+        # inference_profile adds 'amazon-bedrock/{prefix}.' prefixed name
+        full_ref = inference_profile(base_id, 'us-east-1')
+        # Strip 'amazon-bedrock/' prefix (as the plugin does)
+        model_id = full_ref.split('/', 1)[1]  # 'us.amazon.titan-embed-text-v2:0'
+        # Strip inference profile prefix
+        stripped = _strip_inference_profile_prefix(model_id)
+        assert stripped == base_id
+
+
 class TestAutoInferenceProfileConversion:
     """Tests for automatic inference profile conversion in BedrockModel.
 
@@ -765,3 +819,241 @@ class TestAutoInferenceProfileConversion:
         model = BedrockModel('unknown-provider.some-model-v1:0', mock_client)
         # Unknown provider - should not add prefix
         assert model._get_effective_model_id() == 'unknown-provider.some-model-v1:0'
+
+
+class _AsyncIter(AsyncIterator[Any]):
+    """Wraps a list into an async iterator for mocking aioboto3 streams."""
+
+    def __init__(self, items: list[Any]) -> None:
+        self._items = iter(items)
+
+    def __aiter__(self) -> '_AsyncIter':
+        return self
+
+    async def __anext__(self) -> Any:  # noqa: ANN401
+        try:
+            return next(self._items)
+        except StopIteration:
+            raise StopAsyncIteration  # noqa: B904
+
+
+class TestStreamingToolUseParsing:
+    """Regression tests for streaming tool use assembly.
+
+    Bedrock ConverseStream sends tool calls across multiple events:
+    1. contentBlockStart — contains toolUseId and name
+    2. contentBlockDelta(s) — contains input JSON fragments
+    3. contentBlockStop
+
+    A previous bug compared contentBlockIndex as int (from delta) vs
+    string key (from start), causing the delta handler to create a
+    *new* entry with empty name/ref instead of appending to the
+    existing one. This resulted in RuntimeError: 'failed  not found'.
+    """
+
+    @pytest.fixture()
+    def mock_client(self) -> MagicMock:
+        """Create a mock async bedrock-runtime client."""
+        client = MagicMock()
+        # converse_stream is async with aioboto3
+        client.converse_stream = AsyncMock()
+        return client
+
+    @pytest.mark.asyncio
+    async def test_tool_use_name_preserved_across_stream_events(self, mock_client: MagicMock) -> None:
+        """Tool name and ref from contentBlockStart survive delta assembly."""
+        # Simulate the ConverseStream event sequence for a tool call
+        mock_client.converse_stream.return_value = {
+            'stream': _AsyncIter([
+                # 1. contentBlockStart: carries toolUseId and name
+                {
+                    'contentBlockStart': {
+                        'contentBlockIndex': 1,
+                        'start': {
+                            'toolUse': {
+                                'toolUseId': 'call_abc123',
+                                'name': 'get_weather',
+                            }
+                        },
+                    }
+                },
+                # 2. contentBlockDelta: carries input JSON fragment
+                {
+                    'contentBlockDelta': {
+                        'contentBlockIndex': 1,
+                        'delta': {
+                            'toolUse': {
+                                'input': '{"location"',
+                            }
+                        },
+                    }
+                },
+                # 3. Another delta with more input
+                {
+                    'contentBlockDelta': {
+                        'contentBlockIndex': 1,
+                        'delta': {
+                            'toolUse': {
+                                'input': ': "London"}',
+                            }
+                        },
+                    }
+                },
+                # 4. contentBlockStop
+                {
+                    'contentBlockStop': {
+                        'contentBlockIndex': 1,
+                    }
+                },
+                # 5. messageStop
+                {
+                    'messageStop': {
+                        'stopReason': 'tool_use',
+                    }
+                },
+                # 5. metadata
+                {
+                    'metadata': {
+                        'usage': {
+                            'inputTokens': 100,
+                            'outputTokens': 50,
+                            'totalTokens': 150,
+                        }
+                    }
+                },
+            ])
+        }
+
+        model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='What is the weather in London?'))],
+                )
+            ],
+            tools=[],
+        )
+
+        chunks: list[GenerateResponseChunk] = []
+        ctx = MagicMock(spec=ActionRunContext)
+        ctx.send_chunk = MagicMock(side_effect=lambda c: chunks.append(c))
+
+        response = await model._generate_streaming(
+            {'modelId': 'anthropic.claude-sonnet-4-5-20250929-v1:0', 'messages': []},
+            ctx,
+            request,
+        )
+
+        # Find the tool request part in the response
+        assert response.message is not None
+        tool_parts = [p for p in response.message.content if p.root.tool_request is not None]
+        assert len(tool_parts) == 1, f'Expected 1 tool request, got {len(tool_parts)}'
+
+        tool_req = tool_parts[0].root.tool_request
+        assert tool_req is not None
+        assert isinstance(tool_req, ToolRequest)
+        assert tool_req.name == 'get_weather', f'Tool name should be "get_weather", got "{tool_req.name}"'
+        assert tool_req.ref == 'call_abc123', f'Tool ref should be "call_abc123", got "{tool_req.ref}"'
+        assert tool_req.input == {'location': 'London'}, f'Tool input should be parsed JSON, got {tool_req.input!r}'
+
+        # Verify a tool request chunk was emitted via ctx.send_chunk.
+        tool_chunks = [
+            c
+            for c in chunks
+            if any(hasattr(p.root, 'tool_request') and p.root.tool_request is not None for p in c.content)
+        ]
+        assert len(tool_chunks) == 1, f'Expected 1 tool request chunk, got {len(tool_chunks)}'
+
+    @pytest.mark.asyncio
+    async def test_multiple_tool_calls_in_stream(self, mock_client: MagicMock) -> None:
+        """Multiple tool calls in a single stream are assembled correctly."""
+        mock_client.converse_stream.return_value = {
+            'stream': _AsyncIter([
+                # First tool call at block index 0
+                {
+                    'contentBlockStart': {
+                        'contentBlockIndex': 0,
+                        'start': {
+                            'toolUse': {
+                                'toolUseId': 'call_001',
+                                'name': 'get_weather',
+                            }
+                        },
+                    }
+                },
+                {
+                    'contentBlockDelta': {
+                        'contentBlockIndex': 0,
+                        'delta': {'toolUse': {'input': '{"location": "London"}'}},
+                    }
+                },
+                # Second tool call at block index 1
+                {
+                    'contentBlockStart': {
+                        'contentBlockIndex': 1,
+                        'start': {
+                            'toolUse': {
+                                'toolUseId': 'call_002',
+                                'name': 'get_time',
+                            }
+                        },
+                    }
+                },
+                {
+                    'contentBlockDelta': {
+                        'contentBlockIndex': 1,
+                        'delta': {'toolUse': {'input': '{"timezone": "UTC"}'}},
+                    }
+                },
+                {'messageStop': {'stopReason': 'tool_use'}},
+                {
+                    'metadata': {
+                        'usage': {
+                            'inputTokens': 200,
+                            'outputTokens': 80,
+                            'totalTokens': 280,
+                        }
+                    }
+                },
+            ])
+        }
+
+        model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Weather and time?'))],
+                )
+            ],
+            tools=[],
+        )
+        ctx = MagicMock(spec=ActionRunContext)
+        ctx.send_chunk = MagicMock()
+
+        response = await model._generate_streaming(
+            {'modelId': 'anthropic.claude-sonnet-4-5-20250929-v1:0', 'messages': []},
+            ctx,
+            request,
+        )
+
+        assert response.message is not None
+        tool_parts = [p for p in response.message.content if p.root.tool_request is not None]
+        assert len(tool_parts) == 2, f'Expected 2 tool requests, got {len(tool_parts)}'
+
+        # Verify first tool
+        tool_req_0 = tool_parts[0].root.tool_request
+        assert tool_req_0 is not None
+        assert isinstance(tool_req_0, ToolRequest)
+        assert tool_req_0.name == 'get_weather'
+        assert tool_req_0.ref == 'call_001'
+        assert tool_req_0.input == {'location': 'London'}
+
+        # Verify second tool
+        tool_req_1 = tool_parts[1].root.tool_request
+        assert tool_req_1 is not None
+        assert isinstance(tool_req_1, ToolRequest)
+        assert tool_req_1.name == 'get_time'
+        assert tool_req_1.ref == 'call_002'
+        assert tool_req_1.input == {'timezone': 'UTC'}

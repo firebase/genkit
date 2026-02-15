@@ -455,7 +455,14 @@ class AzureTelemetry:
                 new_processors = list(processors)
                 # Insert before the last processor (usually the renderer)
                 new_processors.insert(max(0, len(new_processors) - 1), inject_azure_trace_context)
-                structlog.configure(processors=new_processors)
+                cfg = structlog.get_config()
+                structlog.configure(
+                    processors=new_processors,
+                    wrapper_class=cfg.get('wrapper_class'),
+                    context_class=cfg.get('context_class'),
+                    logger_factory=cfg.get('logger_factory'),
+                    cache_logger_on_first_use=cfg.get('cache_logger_on_first_use'),
+                )
                 logger.debug('Configured structlog for Azure trace correlation')
 
         except Exception as e:

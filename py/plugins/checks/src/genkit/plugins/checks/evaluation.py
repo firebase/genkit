@@ -31,9 +31,9 @@ See Also:
 from __future__ import annotations
 
 import json
-import logging
 from typing import TYPE_CHECKING
 
+from genkit.core.logging import get_logger
 from genkit.core.typing import BaseDataPoint, EvalFnResponse, EvalStatusEnum, Score
 from genkit.plugins.checks.guardrails import GuardrailsClient
 from genkit.plugins.checks.metrics import (
@@ -45,7 +45,7 @@ from genkit.plugins.checks.metrics import (
 if TYPE_CHECKING:
     from genkit.ai._registry import GenkitRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 CHECKS_EVALUATOR_NAME = 'checks/guardrails'
 

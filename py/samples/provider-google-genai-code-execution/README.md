@@ -1,6 +1,24 @@
-# Hello Google GenAI
+# Google GenAI Code Execution
 
-An example demonstrating running flows using the Google GenAI plugin.
+Demonstrates Gemini's code execution capability — the model writes and runs
+Python code on Google's servers to solve computational problems.
+
+## Features Demonstrated
+
+| Feature | Flow / API | Description |
+|---------|-----------|-------------|
+| Code Execution | `code_execution_config` | Model writes and executes Python code |
+| Executable Code Part | `ExecutableCodePart` | Generated code in the response |
+| Code Execution Result | `CodeExecutionResultPart` | Execution output in the response |
+| CustomPart Handling | `CustomPart` | Non-standard response parts |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Code Execution** | AI writes Python code and runs it on Google's servers — like giving the AI a calculator |
+| **ExecutableCodePart** | The code the AI wrote — you can see exactly what it ran |
+| **CodeExecutionResultPart** | The output from running the code — the actual answer |
 
 ## Setup environment
 

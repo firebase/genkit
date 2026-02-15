@@ -1,5 +1,7 @@
 # genkit-plugin-checks
 
+> **Preview** — This plugin is in preview and may have API changes in future releases.
+
 Google Checks AI Safety plugin for [Genkit](https://genkit.dev/).
 
 This plugin integrates [Google Checks](https://checks.google.com/ai-safety)
@@ -43,7 +45,7 @@ ai = Genkit(...)
 # Register Checks evaluators
 define_checks_evaluators(
     ai,
-    project_id='my-gcp-project',
+    project_id='your-gcp-project-id',
     metrics=[
         ChecksEvaluationMetricType.DANGEROUS_CONTENT,
         ChecksEvaluationMetricType.HARASSMENT,
@@ -67,7 +69,7 @@ response = await ai.generate(
     prompt='Tell me a story',
     use=[
         checks_middleware(
-            project_id='my-gcp-project',
+            project_id='your-gcp-project-id',
             metrics=[
                 ChecksEvaluationMetricType.DANGEROUS_CONTENT,
                 ChecksEvaluationMetricType.HARASSMENT,
@@ -95,7 +97,7 @@ from genkit.plugins.checks import (
 
 define_checks_evaluators(
     ai,
-    project_id='my-gcp-project',
+    project_id='your-gcp-project-id',
     metrics=[
         # Use default threshold
         ChecksEvaluationMetricType.DANGEROUS_CONTENT,

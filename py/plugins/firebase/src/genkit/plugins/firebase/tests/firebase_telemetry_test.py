@@ -57,11 +57,35 @@ def _create_model_span(
     return mock_span
 
 
-@patch('genkit.plugins.firebase.add_gcp_telemetry')
-def test_firebase_telemetry_delegates_to_gcp(mock_add_gcp_telemetry: MagicMock) -> None:
-    """Test that Firebase telemetry delegates to GCP telemetry."""
+@patch('genkit.plugins.firebase.telemetry.GcpTelemetry')
+def test_firebase_telemetry_initializes_gcp_telemetry(mock_gcp_telemetry_cls: MagicMock) -> None:
+    """Test that Firebase telemetry initializes GcpTelemetry with correct defaults."""
+    mock_manager = MagicMock()
+    mock_gcp_telemetry_cls.return_value = mock_manager
+
     add_firebase_telemetry()
-    mock_add_gcp_telemetry.assert_called_once_with(force_export=False)
+
+    mock_gcp_telemetry_cls.assert_called_once()
+    kwargs = mock_gcp_telemetry_cls.call_args.kwargs
+    assert kwargs['force_dev_export'] is False
+    mock_manager.initialize.assert_called_once()
+
+
+def test_firebase_telemetry_passes_configuration() -> None:
+    """Test that configuration options are passed to GcpTelemetry."""
+    with patch('genkit.plugins.firebase.telemetry.GcpTelemetry') as mock_gcp_telemetry_cls:
+        add_firebase_telemetry(
+            project_id='test-project',
+            log_input_and_output=True,
+            force_dev_export=True,
+            disable_metrics=True,
+        )
+
+        kwargs = mock_gcp_telemetry_cls.call_args.kwargs
+        assert kwargs['project_id'] == 'test-project'
+        assert kwargs['log_input_and_output'] is True
+        assert kwargs['force_dev_export'] is True
+        assert kwargs['disable_metrics'] is True
 
 
 @patch('genkit.plugins.google_cloud.telemetry.metrics._output_tokens')

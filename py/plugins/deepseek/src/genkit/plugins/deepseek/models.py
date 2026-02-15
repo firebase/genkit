@@ -22,13 +22,13 @@ reasoning models (R1, deepseek-reasoner) which silently ignore
 temperature, top_p, and tools parameters.
 """
 
-import logging
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from genkit.core.action._action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.deepseek.client import DeepSeekClient
 from genkit.plugins.deepseek.model_info import (
@@ -40,7 +40,7 @@ from genkit.types import GenerateRequest, GenerateResponse
 
 DEEPSEEK_PLUGIN_NAME = 'deepseek'
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Parameters that reasoning models silently ignore.
 _REASONING_IGNORED_PARAMS: frozenset[str] = frozenset({
@@ -93,10 +93,10 @@ def _warn_reasoning_params(model_name: str, config: dict[str, Any] | object | No
     for param in _REASONING_IGNORED_PARAMS:
         if _get_config_value(config, param) is not None:
             logger.warning(
-                "DeepSeek reasoning model '%s' silently ignores '%s'; "
-                'removing it from your config will silence this warning.',
-                model_name,
-                param,
+                'DeepSeek reasoning model silently ignores parameter;'
+                ' removing it from your config will silence this warning.',
+                model_name=model_name,
+                parameter=param,
             )
 
 
@@ -127,7 +127,7 @@ class DeepSeekModel:
         """
         self.name = model
         client_params = {'api_key': api_key, **deepseek_params}
-        self.client: OpenAI = DeepSeekClient(**client_params)
+        self.client: AsyncOpenAI = DeepSeekClient(**client_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieve metadata and supported features for the specified model.

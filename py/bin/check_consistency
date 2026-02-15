@@ -38,6 +38,8 @@
 #  17. Python version classifiers (3.10-3.14)
 #  18. Namespace package __init__.py (plugins must not have __init__.py in genkit/ or genkit/plugins/)
 #  19. Test file basename uniqueness (no duplicate basenames across test directories)
+#  20. CHANGELOG.md files exist
+#  21. Model conformance spec coverage (model plugins → conformance spec + entry point)
 
 set -euo pipefail
 
@@ -59,7 +61,7 @@ PY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$PY_DIR"
 
 # Total number of checks
-TOTAL_CHECKS=19
+TOTAL_CHECKS=21
 
 echo -e "${BLUE}=== Genkit Python Consistency Checks ===${NC}"
 echo ""
@@ -547,13 +549,13 @@ for pkg in packages/genkit plugins/*/; do
   if [ -d "$pkg" ] && [ -f "$pkg/pyproject.toml" ]; then
     pkg_name=$(grep '^name' "$pkg/pyproject.toml" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
     missing_versions=""
-    
+
     for ver in "${REQUIRED_VERSIONS[@]}"; do
       if ! grep -q "Programming Language :: Python :: $ver" "$pkg/pyproject.toml" 2>/dev/null; then
         missing_versions="$missing_versions $ver"
       fi
     done
-    
+
     if [ -n "$missing_versions" ]; then
       echo -e "  ${RED}MISSING${NC}: $pkg_name missing Python classifiers:$missing_versions"
       classifier_errors=$((classifier_errors + 1))
@@ -580,13 +582,13 @@ namespace_errors=0
 for plugin in plugins/*/; do
   if [ -d "$plugin" ]; then
     plugin_name=$(basename "$plugin")
-    
+
     # Check for __init__.py in genkit/ namespace directory
     if [ -f "$plugin/src/genkit/__init__.py" ]; then
       echo -e "  ${RED}ERROR${NC}: $plugin_name has src/genkit/__init__.py (breaks namespace package)"
       namespace_errors=$((namespace_errors + 1))
     fi
-    
+
     # Check for __init__.py in genkit/plugins/ namespace directory
     if [ -f "$plugin/src/genkit/plugins/__init__.py" ]; then
       echo -e "  ${RED}ERROR${NC}: $plugin_name has src/genkit/plugins/__init__.py (breaks namespace package)"
@@ -645,6 +647,49 @@ else
 fi
 echo ""
 
+# -----------------------------------------------------------------------------
+# Check 20: CHANGELOG.md Files Exist
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[20/$TOTAL_CHECKS] Checking CHANGELOG.md files exist...${NC}"
+changelog_missing=0
+
+
+# Check core package
+if [ ! -f "packages/genkit/CHANGELOG.md" ]; then
+  echo -e "  ${YELLOW}WARNING${NC}: packages/genkit/ is missing CHANGELOG.md"
+  WARNINGS=$((WARNINGS + 1))
+  changelog_missing=$((changelog_missing + 1))
+fi
+
+# Check plugins
+for d in plugins/*/; do
+  if [ -d "$d" ] && [ ! -f "$d/CHANGELOG.md" ]; then
+    pkg_name=$(basename "$d")
+    echo -e "  ${YELLOW}WARNING${NC}: plugins/$pkg_name/ is missing CHANGELOG.md"
+    WARNINGS=$((WARNINGS + 1))
+    changelog_missing=$((changelog_missing + 1))
+  fi
+done
+
+if [ $changelog_missing -eq 0 ]; then
+  echo -e "  ${GREEN}✓${NC} All publishable packages have CHANGELOG.md files"
+else
+  echo -e "  ${YELLOW}!${NC} Some packages are missing CHANGELOG.md files (warnings only)"
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Check 21: Model Conformance Spec Coverage
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}[21/$TOTAL_CHECKS] Checking model conformance spec coverage...${NC}"
+# Delegated to the Python-based ``conform check-model`` tool which performs
+# the same checks (model_info.py scanning + additional-model-plugins from
+# TOML config) and prints output in the same colored format.
+CONFORM_CONFIG="${PY_DIR}/tests/conform/conform.toml"
+if ! uv run --active conform check-plugin --config "${CONFORM_CONFIG}"; then
+  ERRORS=$((ERRORS + 1))
+fi
+echo ""
 # -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------

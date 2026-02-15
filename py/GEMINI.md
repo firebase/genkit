@@ -34,6 +34,7 @@
   | Broad type ignores | No `# type: ignore` without codes | ✅ Automated |
   | Python classifiers | All packages have 3.10-3.14 classifiers | ✅ Automated |
   | Namespace `__init__.py` | Plugins must not have `__init__.py` in `genkit/` or `genkit/plugins/` | ✅ Automated |
+  | Model conformance specs | Model plugins have `model-conformance.yaml` + `conformance_entry.py` | ✅ Automated |
 
   **Release Checks** (`py/bin/release_check`):
 
@@ -96,21 +97,6 @@
   * Plugins: `plugins/{name}/` → package name `genkit-plugin-{name}`
   * Samples: `samples/{name}/` → package name `{name}`
   * Use hyphens (`-`) not underscores (`_`) in package names
-  * Manual verification:
-    ```bash
-    # Check plugins
-    for d in plugins/*/; do
-      name=$(basename "$d")
-      pkg=$(grep '^name = ' "$d/pyproject.toml" | cut -d'"' -f2)
-      [ "$pkg" != "genkit-plugin-$name" ] && echo "MISMATCH: $d -> $pkg"
-    done
-    # Check samples
-    for d in samples/*/; do
-      name=$(basename "$d")
-      pkg=$(grep '^name = ' "$d/pyproject.toml" | cut -d'"' -f2)
-      [ "$pkg" != "$name" ] && echo "MISMATCH: $d -> $pkg"
-    done
-    ```
 * **Dependency Verification**: All dependencies must resolve correctly. Run these
   checks before submitting PRs:
   ```bash
@@ -123,54 +109,175 @@
   # Verify license compliance
   ./bin/check_license
   ```
+  **Import-to-Dependency Completeness** *(common error)*:
+
+  Every non-optional `from genkit.plugins.<name> import ...` statement in a
+  package's source code **MUST** have a corresponding `genkit-plugin-<name>`
+  entry in that package's `pyproject.toml` `dependencies` list. This is the
+  most common dependency error — the code imports a plugin but the
+  `pyproject.toml` doesn't declare it, causing `ModuleNotFoundError` at
+  runtime when the package is installed standalone.
+
+  **Example of the bug** (real case from `provider-vertex-ai-model-garden`):
+  ```python
+  # src/main.py imports VertexAI from google_genai plugin
+  from genkit.plugins.google_genai import VertexAI  # ← needs genkit-plugin-google-genai
+  from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin  # ← needs genkit-plugin-vertex-ai
+  ```
+  ```toml
+  # pyproject.toml was MISSING genkit-plugin-google-genai
+  dependencies = [
+    "genkit",
+    "genkit-plugin-vertex-ai",  # ✅ present
+    # "genkit-plugin-google-genai",  # ❌ MISSING — causes ModuleNotFoundError
+  ]
+  ```
+
+  **Note**: Imports inside `try/except ImportError` blocks (for optional
+  platform auto-detection) are exempt from this rule.
+
   **Dependency Best Practices**:
   * Add dependencies directly to the package that uses them, not transitively
   * Each plugin's `pyproject.toml` should list all packages it imports
   * Use version constraints (e.g., `>=1.0.0`) to allow flexibility
   * Pin exact versions only when necessary for compatibility
   * Remove unused dependencies to keep packages lean
-* **Python Version Consistency**: All packages MUST use the same `requires-python`
-  version. Currently, all packages should specify `requires-python = ">=3.10"`.
+* **Python Version Consistency**: All packages MUST specify `requires-python = ">=3.10"`.
   **This is automatically checked by `py/bin/check_consistency`.**
-  Manual verification:
-  ```bash
-  # Check all pyproject.toml files have consistent Python version
-  expected=">=3.10"
-  for f in packages/*/pyproject.toml plugins/*/pyproject.toml samples/*/pyproject.toml; do
-    version=$(grep 'requires-python' "$f" | cut -d'"' -f2)
-    if [ "$version" != "$expected" ]; then
-      echo "MISMATCH: $f has '$version' (expected '$expected')"
-    fi
-  done
-  ```
-  **Note**: The `.python-version` file specifies `3.12` for local development, but
-  CI tests against Python 3.10, 3.11, 3.12, 3.13, and 3.14. Scripts using `uv run`
-  should use `--active` flag to respect the CI matrix Python version.
-* **Plugin Version Sync**: All plugin versions should stay in sync with the core
-  framework version. When releasing, update all plugin versions together.
-  **This is automatically checked by `py/bin/check_consistency`.**
-  Manual verification:
-  ```bash
-  # Get core framework version
-  core_version=$(grep '^version = ' packages/genkit/pyproject.toml | cut -d'"' -f2)
-  echo "Core version: $core_version"
-
-  # Check all plugins have the same version
-  for f in plugins/*/pyproject.toml; do
-    plugin_version=$(grep '^version = ' "$f" | cut -d'"' -f2)
-    plugin_name=$(grep '^name = ' "$f" | cut -d'"' -f2)
-    if [ "$plugin_version" != "$core_version" ]; then
-      echo "MISMATCH: $plugin_name has version '$plugin_version' (expected '$core_version')"
-    fi
-  done
-  ```
-  **Version Policy**:
+  The `.python-version` file specifies `3.12` for local development, but CI tests
+  against Python 3.10–3.14. Scripts using `uv run` should use `--active` flag to
+  respect the CI matrix Python version.
+* **Plugin Version Sync**: All plugin versions stay in sync with the core framework
+  version. **This is automatically checked by `py/bin/check_consistency`.**
   * Core framework and all plugins share the same version number
   * Samples can have independent versions (typically `0.1.0`)
   * Use semantic versioning (MAJOR.MINOR.PATCH)
   * Bump versions together during releases
 * **Production Ready**: The objective is to produce production-grade code.
 * **Shift Left**: Employ a "shift left" strategy—catch errors early.
+* **Configurability Over Hardcoding**: All tools, scripts, and libraries MUST be
+  configurable rather than hardcoded. This is a hard design requirement that applies
+  to URLs, registry endpoints, file paths, tool names, thresholds, timeouts, and
+  any other value that a user or CI environment might need to override.
+
+  **Rules**:
+  * **Never hardcode URLs** — use constructor parameters, config fields, environment
+    variables, or CLI flags. Every URL that appears as a string literal must also be
+    overridable (e.g. `base_url` parameter with a sensible default).
+  * **Expose constants as class attributes** — use `DEFAULT_BASE_URL` / `TEST_BASE_URL`
+    patterns so users can reference well-known values without string literals.
+  * **CLI flags override config files** — when both a config file field and a CLI flag
+    exist for the same setting, the CLI flag takes precedence.
+  * **Config files override defaults** — dataclass/struct defaults are the last
+    fallback. Config file values override them. CLI flags override config files.
+  * **Environment variables for CI** — settings that CI pipelines commonly override
+    (registry URLs, tokens, pool sizes, timeouts) should be readable from environment
+    variables when a CLI flag is impractical.
+  * **No magic constants in business logic** — extract thresholds, retry counts,
+    pool sizes, and timeouts into named constants or config fields with docstrings
+    explaining the default value.
+
+  **Priority order** (highest wins):
+  ```
+  CLI flag  >  environment variable  >  config file  >  class/struct default
+  ```
+
+  **Examples**:
+  ```python
+  # WRONG — hardcoded registry URL, not overridable
+  class MyRegistry:
+      def check(self, pkg: str) -> bool:
+          url = f"https://registry.example.com/api/{pkg}"  # ❌ Hardcoded
+          ...
+
+  # CORRECT — configurable with sensible default + well-known constant
+  class MyRegistry:
+      DEFAULT_BASE_URL: str = "https://registry.example.com"
+      TEST_BASE_URL: str = "http://localhost:8080"
+
+      def __init__(self, *, base_url: str = DEFAULT_BASE_URL) -> None:
+          self._base_url = base_url.rstrip("/")
+
+      def check(self, pkg: str) -> bool:
+          url = f"{self._base_url}/api/{pkg}"  # ✅ Configurable
+          ...
+  ```
+
+  This principle ensures that every tool can be tested against staging/local
+  registries, used in air-gapped environments, and adapted to non-standard
+  infrastructure without code changes.
+* **Fixer Scripts Over Shell Eval**: When fixing lint errors, formatting issues,
+  or performing bulk code transformations, **always write a dedicated fixer script**
+  instead of evaluating code snippets or one-liners at the shell. This is a hard
+  requirement.
+
+  **Rules**:
+  * **Never `eval` or `exec` strings at the command line** to fix code. Shell
+    one-liners with `sed`, `awk`, `perl -pi -e`, or `python -c` are fragile,
+    unreviewable, and unreproducible. They also bypass linting and type checking.
+  * **Write a Python fixer script** (e.g. `py/bin/fix_*.py`) that uses the `ast`
+    module or `libcst` for syntax-aware transformations. Text-based regex fixes
+    are acceptable only for non-Python files (TOML, YAML, Markdown).
+  * **Prefer AST-based transforms** over regex for Python code. The `ast` module
+    can parse, inspect, and rewrite Python source without breaking syntax. Use
+    `ast.parse()` + `ast.NodeVisitor`/`ast.NodeTransformer` for structural changes.
+    Use `libcst` when you need to preserve comments and whitespace.
+  * **Use `ruff check --fix`** for auto-fixable lint rules before writing custom
+    fixers. Ruff can auto-fix many categories (unused imports, formatting, simple
+    refactors). Only write a custom fixer for issues Ruff cannot auto-fix.
+  * **Fixer scripts must be idempotent** — running them twice produces the same
+    result. This allows safe re-runs and CI integration.
+  * **Commit fixer scripts** to the repo (in `py/bin/`) so the team can re-run
+    them and review the transformation logic.
+
+  **Example — adding missing docstrings to test methods**:
+  ```python
+  #!/usr/bin/env python3
+  """Add missing docstrings to test methods (fixes D102)."""
+  import ast
+  import sys
+  from pathlib import Path
+
+  def fix_file(path: Path) -> int:
+      source = path.read_text(encoding='utf-8')
+      tree = ast.parse(source)
+      # ... walk tree, find methods without docstrings, insert them ...
+      path.write_text(new_source, encoding='utf-8')
+      return count
+
+  for p in Path(sys.argv[1]).rglob('*_test.py'):
+      fix_file(p)
+  ```
+
+  **Why this matters**: Shell one-liners are invisible to code review, cannot be
+  tested, and often introduce subtle bugs (wrong quoting, partial matches, broken
+  indentation). A committed fixer script is reviewable, testable, and documents
+  the transformation for future maintainers.
+
+* **Rust-Style Errors with Hints**: Every user-facing error MUST follow the Rust
+  compiler's diagnostic style: a **machine-readable error code**, a **human-readable
+  message**, and an actionable **hint** that tells the user (or an AI agent) exactly
+  how to fix the problem.
+
+  **Rules**:
+  * Every custom exception raise MUST include a non-empty `hint` (or equivalent
+    guidance field). A raise site without a hint is a bug.
+  * The `hint` must be **actionable** — it tells the reader what to do, not just
+    what went wrong. Good: `"Run 'git fetch --unshallow' to fetch full history."`
+    Bad: `"The repository is shallow."` (that's the message, not a hint).
+  * Error codes should use a `PREFIX-NAMED-KEY` format (e.g. `RK-CONFIG-NOT-FOUND`,
+    `GK-PLUGIN-NOT-FOUND`). Define codes as enums, not raw strings.
+  * For CLI tools, render errors in Rust-style format:
+    ```
+    error[RK-CONFIG-NOT-FOUND]: No releasekit.toml found in /repo.
+      |
+      = hint: Run 'releasekit init' to generate a default configuration.
+    ```
+
+  **Why hints matter**: Hints are the single most important part of an error for
+  both humans and AI agents. An AI reading a hint can self-correct without
+  needing to understand the full codebase. A human reading a hint can fix the
+  issue without searching docs. Treat a missing hint as a P1 bug.
 * **Strict Typing**: Strict type checking is required. Do not use `Any` unless
   absolutely necessary and documented.
 * **Security & Async Best Practices**: Ruff is configured with security (S), async (ASYNC),
@@ -216,6 +323,53 @@
       async with aiofiles.open(path, encoding='utf-8') as f:
           return await f.read()
   ```
+
+  **Blocking I/O Audit Checklist**:
+
+  When writing or reviewing async code, check for these common sources of
+  event-loop blocking. Each pattern looks innocent but can stall the event
+  loop for 50-500ms:
+
+  | Pattern | Where it hides | Fix |
+  |---------|---------------|-----|
+  | `credentials.refresh(Request())` | Google Cloud auth, plugin init | `await asyncio.to_thread(credentials.refresh, req)` |
+  | `boto3.client(...)` / `client.invoke(...)` | AWS SDK calls | Use `aioboto3` with `async with session.client(...)` |
+  | `requests.get(url)` | Third-party HTTP in async code | Use `httpx.AsyncClient` or `get_cached_client()` |
+  | `pathlib.Path.open()` / `open()` | File reads/writes in async methods | Use `aiofiles.open()` |
+  | `json.load(open(...))` | Loading config/data in async code | `aiofiles.open()` + `json.loads(await f.read())` |
+  | `os.scandir()` / `os.listdir()` | Directory scanning | `await asyncio.to_thread(os.scandir, path)` |
+  | `subprocess.run()` | Shelling out from async code | `asyncio.create_subprocess_exec()` |
+  | `time.sleep(n)` | Delays in async code | `await asyncio.sleep(n)` |
+
+  **Detection strategy**: Search for these patterns in `async def` functions:
+
+  ```bash
+  # Find sync file I/O in async functions
+  rg -n 'open\(' --glob '*.py' | rg -v 'aiofiles'
+
+  # Find sync HTTP in async code
+  rg -n 'requests\.(get|post|put)' --glob '*.py'
+  rg -n 'httpx\.Client\(\)' --glob '*.py'
+
+  # Find blocking credential refresh
+  rg -n 'credentials\.refresh' --glob '*.py'
+
+  # Find sync subprocess calls
+  rg -n 'subprocess\.(run|call|check_output)' --glob '*.py'
+  ```
+
+  **When blocking I/O is acceptable**:
+
+  * **Startup-only code** (e.g., `load_prompt_folder()` reading small `.prompt`
+    files): If the I/O happens once during initialization with small files,
+    the latency is negligible (~1ms for a few KB). Document the choice.
+  * **OpenTelemetry exporters**: The OTEL SDK calls `export()` from its own
+    background thread via `BatchSpanProcessor`, so sync HTTP there is by design.
+  * **`atexit` handlers**: These run during interpreter shutdown when the event
+    loop is already closed. Sync I/O is the only option.
+  * **Sync tool functions**: Genkit's `@ai.tool()` can wrap sync functions.
+    The framework handles thread offloading. However, prefer async tools for
+    network-bound operations.
 
   **CRITICAL: Per-Event-Loop HTTP Client Caching**:
 
@@ -282,6 +436,51 @@
     don't expire, include auth headers in `get_cached_client()`
   * **WeakKeyDictionary cleanup**: The cache automatically cleans up clients
     when their event loop is garbage collected
+  * **Testing**: Mock `get_cached_client` instead of `httpx.AsyncClient`:
+    ```python
+    @patch('my_module.get_cached_client')
+    async def test_api_call(mock_get_client):
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_get_client.return_value = mock_client
+        result = await my_api_call()
+    ```
+  * **Related**: [#4420](https://github.com/firebase/genkit/issues/4420)
+* **Security Vulnerability Checks**: Beyond Ruff's S rules, the codebase enforces
+  additional security invariants. ReleaseKit has an automated security test suite
+  (`py/tools/releasekit/tests/rk_security_test.py`) that demonstrates the pattern.
+  Apply these checks to all Python code in the repository:
+
+  **Automated Checks (enforced in CI via test suites)**:
+
+  | # | Check | What It Catches | Severity |
+  |---|-------|-----------------|----------|
+  | 1 | No `shell=True` | Command injection via subprocess | Critical |
+  | 2 | No `pickle`/`yaml.load`/`eval`/`exec` | Arbitrary code execution via deserialization | Critical |
+  | 3 | No hardcoded secrets | Literal tokens, AWS keys, GitHub PATs in source | Critical |
+  | 4 | No `verify=False` / `CERT_NONE` | TLS certificate verification bypass | Critical |
+  | 5 | `NamedTemporaryFile(delete=False)` in `try/finally` | Temp file leak on exception | High |
+  | 6 | No bare `except:` | Swallows `KeyboardInterrupt`/`SystemExit` | Medium |
+  | 7 | API backends define `__repr__` | Credential leak in tracebacks/logs | High |
+  | 8 | Lock files use `O_CREAT\|O_EXCL` | TOCTOU race condition | High |
+  | 9 | No `http://` URLs in runtime code | Plaintext traffic (no TLS) | Medium |
+  | 10 | State files use `mkstemp` + `os.replace` | Crash corruption on partial writes | High |
+  | 11 | `resolve()` on discovered paths | Symlink traversal attacks | Medium |
+
+  **Manual Review Checklist** (for PR reviews):
+
+  | Category | What to Look For | Fix |
+  |----------|-----------------|-----|
+  | TOCTOU races | Check-then-act on files without atomic ops | `O_CREAT\|O_EXCL`, `mkstemp` + `os.replace` |
+  | Log injection | User data in structlog event names | Literals for event names; user data in kwargs |
+  | Path traversal | `Path(user_input)` without validation | `.resolve()` + verify under expected root |
+  | Credential logging | Objects with tokens in `log.*()` calls | `__repr__` that redacts sensitive fields |
+  | Subprocess args | User input in command lists | Validate inputs; never `shell=True` |
+  | Temp file cleanup | `NamedTemporaryFile(delete=False)` | Wrap in `try/finally` with `os.unlink` |
+  | Atomic writes | `write_text()` for state/config files | `mkstemp` + `os.write` + `os.replace` |
+  | Exception swallowing | `except Exception` hiding real errors | Log exception; re-raise if not recoverable |
+  | ReDoS | Regex with nested quantifiers on untrusted input | Avoid catastrophic backtracking patterns |
+
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is
   a compelling, documented reason.
@@ -299,6 +498,23 @@
   * **Always add a comment**: Explain why the suppression is needed.
   * **Be specific**: Use the exact error code (e.g., `# noqa: S105 - enum value, not a password`
     not just `# noqa`).
+  * **Place `# noqa` on the exact line Ruff flags**: Ruff reports errors on the
+    specific line containing the violation, not the statement's opening line. For
+    multi-line calls, a `# noqa` comment on the wrong line is silently ignored.
+
+    ```python
+    # WRONG — S607 fires on line 2 (the list literal), noqa on line 1 is ignored
+    proc = subprocess.run(  # noqa: S603, S607
+        ['uv', 'lock', '--check'],  # ← Ruff flags THIS line for S607
+        ...
+    )
+
+    # CORRECT — each noqa on the line Ruff actually flags
+    proc = subprocess.run(  # noqa: S603 - intentional subprocess call
+        ['uv', 'lock', '--check'],  # noqa: S607 - uv is a known tool
+        ...
+    )
+    ```
   * **Examples**:
     ```python
     # Type checker suppression
@@ -383,6 +599,28 @@
   * Circular imports should be resolved through proper module design
   * All dependencies in this codebase are mandatory
   * Standard library imports are negligible cost
+
+* **No Kitchen-Sink `utils.py`**: Do not dump unrelated helpers into a single
+  `utils.py` file. Instead, organise shared utilities into focused modules
+  grouped by domain:
+
+  ```
+  utils/
+  ├── __init__.py
+  ├── date.py        # UTC date/time helpers
+  ├── packaging.py   # PEP 503/508 name normalisation
+  └── text.py        # String formatting helpers
+  ```
+
+  **Rules**:
+  * Each module in `utils/` must have a single, clear responsibility described
+    in its module docstring.
+  * If a helper is only used by one module, keep it private in that module
+    (prefixed with `_`). Only promote to `utils/` when a second consumer appears.
+  * Never create a bare `utils.py` at the package root — always use a `utils/`
+    package with sub-modules.
+  * Name the sub-module after the *domain* it serves (e.g. `date`, `packaging`,
+    `text`), not after the caller (e.g. ~~`prepare_helpers`~~).
 
 
 ## Shell Scripts Reference
@@ -531,6 +769,18 @@ Python-specific development and release scripts:
 * **Format**: Write comprehensive Google-style docstrings for modules, classes,
   and functions.
 
+* **Test Files**: All public classes, methods, and functions in test files MUST
+  have docstrings. This includes:
+  * **Test classes** (`class TestFoo:`) — describe what is being tested
+  * **Test methods** (`def test_bar(self):`) — describe what the test verifies
+  * **Fixtures** (`@pytest.fixture def bb():`) — describe what the fixture provides
+  * **Helper functions** (`def make_packages():`) — describe what the helper does
+
+  Ruff enforces D101 (missing class docstring), D102 (missing method docstring),
+  and D103 (missing function docstring) on all public names. A name is public if
+  it does not start with an underscore. Prefix helpers with `_` if they are
+  internal to the test module and don't need a docstring.
+
 * **Content**:
   * **Explain Concepts**: Explain the terminology and concepts used in the
     code to someone unfamiliar with the code so that first timers can easily
@@ -626,6 +876,33 @@ Python-specific development and release scripts:
 
 * Add links to relevant documentation on the Web or elsewhere
   in the relevent places in docstrings.
+
+### Core Framework Patterns
+
+**Action Input Validation (Gotcha)**
+
+When implementing low-level action execution (like `arun_raw`), **always check if `raw_input` is `None`** before passing it to Pydantic's `validate_python()`.
+
+* **The Problem**: `validate_python(None)` raises a generic, cryptic `ValidationError` ("Input should be a valid dictionary") instead of telling you the input is missing.
+* **The Fix**: Explicitly check for `None` and raise `GenkitError(status='INVALID_ARGUMENT')`.
+
+```python
+# WRONG - raises cryptic ValidationError on None
+input_action = self._input_type.validate_python(raw_input)
+
+# CORRECT - raises clear GenkitError
+if self._input_type is not None:
+    if raw_input is None:
+        raise GenkitError(
+            message=f"Action '{self.name}' requires input.",
+            status='INVALID_ARGUMENT'
+        )
+    input_action = self._input_type.validate_python(raw_input)
+```
+
+* This is critical for the Dev UI, which sends `None` payload when the user clicks "Run" without providing JSON input.
+
+### Documentation Best Practices
 
 * Add ASCII diagrams to illustrate relationships, flows, and concepts.
 
@@ -1176,7 +1453,7 @@ both paths, including the same files twice. This creates wheels with duplicate
 entries that PyPI rejects with:
 
 ```
-400 Invalid distribution file. ZIP archive not accepted: 
+400 Invalid distribution file. ZIP archive not accepted:
 Duplicate filename in local headers.
 ```
 
@@ -1329,9 +1606,54 @@ Some code may be excluded from coverage requirements:
 
 ### Logging
 
-* **Library**: Use `structlog` for structured logging.
-* **Async**: Use `await logger.ainfo(...)` within coroutines.
-* **Format**: Avoid f-strings for async logging; use structured key-values.
+* **Library**: Use `structlog` exclusively for all logging. **Do NOT use the
+  standard library `logging` module** (`import logging`) in any new code.
+  Existing code using stdlib `logging` should be migrated to structlog when
+  touched.
+
+* **Helper**: Use `genkit.core.logging.get_logger(__name__)` to obtain a
+  properly typed structlog logger. This is a thin wrapper around
+  `structlog.get_logger()` that returns a typed `Logger` instance:
+
+  ```python
+  from genkit.core.logging import get_logger
+
+  logger = get_logger(__name__)
+
+  # Sync logging
+  logger.info('Model registered', model_name=name, plugin='anthropic')
+  logger.debug('Request payload', payload=payload)
+  logger.warning('Deprecated config', key=key)
+
+  # Async logging (inside coroutines)
+  await logger.ainfo('Generation complete', tokens=usage.total_tokens)
+  await logger.adebug('Streaming chunk', index=i)
+  ```
+
+* **Async**: Use `await logger.ainfo(...)`, `await logger.adebug(...)`, etc.
+  within coroutines. Never use the sync variants (`logger.info(...)`) inside
+  `async def` functions — structlog's async methods ensure proper event loop
+  integration.
+
+* **Format**: Use structured key-value pairs, not f-strings:
+
+  ```python
+  # WRONG - f-string logging
+  logger.info(f'Processing model {model_name} with {num_tokens} tokens')
+
+  # CORRECT - structured key-value logging
+  logger.info('Processing model', model_name=model_name, num_tokens=num_tokens)
+  ```
+
+* **Known Violations**: The following plugins still use stdlib `logging` and
+  should be migrated to `genkit.core.logging.get_logger()` when next modified:
+
+  | Plugin | Files |
+  |--------|-------|
+  | `anthropic` | `models.py`, `utils.py` |
+  | `checks` | `plugin.py`, `middleware.py`, `guardrails.py`, `evaluation.py` |
+  | `deepseek` | `models.py`, tests |
+  | `google-cloud` | `telemetry/tracing.py` |
 
 ### Licensing
 
@@ -1521,25 +1843,9 @@ For PRs that add new plugins or modify system architecture, include ASCII diagra
 
 ### Data Flow Diagrams
 
-For PRs involving data processing or multi-step operations:
-
-```
-Data Flow::
-
-    User Request
-         │
-         ▼
-    ┌─────────┐     ┌─────────┐     ┌─────────┐
-    │ Flow    │ ──▶ │ Model   │ ──▶ │ Tool    │
-    │ (span)  │     │ (span)  │     │ (span)  │
-    └─────────┘     └─────────┘     └─────────┘
-         │               │               │
-         └───────────────┼───────────────┘
-                         ▼
-                  ┌─────────────┐
-                  │  Exporter   │  ──▶  Cloud Backend
-                  └─────────────┘
-```
+For PRs involving data processing or multi-step operations, include ASCII data
+flow diagrams. See the "Docstrings > Data Flow Diagram" section above for the
+standard format and examples.
 
 ### PR Template Examples
 
@@ -1620,10 +1926,6 @@ plugin categorization guides.
 
 ## Changes
 
-### New Planning Documents (engdoc/planning/)
-- **FILE_NAME.md** - Description of integration plan
-- **ROADMAP.md** - Status and effort metrics
-
 ### Updated Documentation
 - **py/plugins/README.md** - Updated categorization guide
 
@@ -1689,10 +1991,10 @@ When splitting a feature branch with multiple commits into independent PRs:
    ```bash
    # From main, create a new branch
    git checkout main && git checkout -b feature/part-1
-   
+
    # Selectively checkout files from the squashed branch
    git checkout squashed-branch -- path/to/files
-   
+
    # Commit and push
    git commit -m "feat: description of part 1"
    git push -u origin HEAD
@@ -1855,30 +2157,6 @@ When implementing model provider plugins:
 4. **Support all provider-specific parameters** (reasoning\_effort, thinking, etc.)
 5. **Handle model-specific restrictions** (e.g., grok-4 doesn't support frequency\_penalty)
 
-### Verification Workflow
-
-When reviewing or updating a plugin:
-
-```
-1. Read the plugin's current implementation
-   └── Focus on: env vars, model names, API params, auth
-
-2. Search provider's official documentation
-   └── Find: current model list, env var names, API reference
-
-3. Compare and document differences
-   └── Create: table of inconsistencies found
-
-4. Fix issues and update documentation
-   └── Update: code, docstrings, README, GEMINI.md
-
-5. Run linter and type checkers
-   └── Verify: bin/lint passes with 0 errors
-
-6. Update PR description with verification status
-   └── Include: table showing what was verified
-```
-
 ### Python Version Compatibility
 
 When using features from newer Python versions:
@@ -1902,53 +2180,9 @@ When using features from newer Python versions:
 
 ## Session Learning Documentation
 
-**IMPORTANT**: At the end of each development session, document new learnings,
-patterns, and insights discovered during the session into this file (`py/GEMINI.md`).
-
-This creates a feedback loop where:
-
-1. Future sessions benefit from past learnings
-2. Patterns and best practices are captured permanently
-3. Common issues and their solutions are documented
-4. The guidelines evolve based on real-world experience
-
-### What to Document
-
-After completing tasks in a session, add relevant learnings to appropriate sections:
-
-| Learning Type | Where to Add | Example |
-|---------------|--------------|---------|
-| **New provider env vars** | "Official Environment Variables by Provider" table | `MISTRAL_API_KEY` for Mistral AI |
-| **Plugin verification findings** | "Provider Documentation Links" table | New provider docs URLs |
-| **Authentication patterns** | "Telemetry Plugin Authentication Patterns" | New auth header formats |
-| **Common issues** | "Common Issues Found During Verification" | Model prefix mistakes |
-| **Python compatibility** | "Python Version Compatibility" | New conditional imports |
-| **New coding patterns** | Appropriate section or create new | Reusable patterns discovered |
-
-### Session Documentation Workflow
-
-```
-1. Complete development tasks
-   └── Implement features, fix bugs, verify plugins
-
-2. Identify learnings worth preserving
-   └── New patterns, gotchas, best practices, provider details
-
-3. Update py/GEMINI.md with learnings
-   └── Add to existing sections or create new ones
-
-4. Commit changes
-   └── Include GEMINI.md updates in the commit
-```
-
-### Example Learnings to Document
-
-* Added Mistral AI and Hugging Face to provider documentation table
-* Documented that `@hf/` prefix is used for Hugging Face-hosted models on Cloudflare
-* Added OpenRouter as a viable option via `compat-oai` plugin
-* Sentry uses `x-sentry-auth` header format, not standard Bearer token
-* Grafana Cloud requires Base64 encoding of `user_id:api_key`
-* Added structured logging pattern for trace correlation
+Document new learnings, patterns, and gotchas at the end of each development
+session. Add to existing sections when possible; create new subsections only
+when the topic is genuinely new.
 
 ### Session Learnings (2026-02-01): Mistral AI and Hugging Face Plugins
 
@@ -2148,6 +2382,301 @@ single test function to reduce duplication (per code review feedback).
 
 **Reference:** PR #4494, Issue #4493.
 
+### Session Learnings (2026-02-10): Code Review Patterns from releasekit PR #4550
+
+Code review feedback from PR #4550 surfaced several reusable patterns:
+
+#### 1. Never Duplicate Defaults
+
+When a dataclass defines field defaults, the factory function that constructs
+it should **not** re-specify them. Use `**kwargs` unpacking to let the
+dataclass own its defaults:
+
+```python
+# BAD — defaults duplicated between dataclass and factory
+@dataclass(frozen=True)
+class Config:
+    tag_format: str = '{name}-v{version}'
+
+def load_config(raw: dict) -> Config:
+    return Config(tag_format=raw.get('tag_format', '{name}-v{version}'))  # duplicated!
+
+# GOOD — dataclass is the single source of truth
+def load_config(raw: dict) -> Config:
+    return Config(**raw)  # dataclass handles missing keys with its own defaults
+```
+
+#### 2. Extract Allowed Values as Module-Level Constants
+
+Enum-like validation values should be `frozenset` constants at module level,
+not inline literals inside validation functions:
+
+```python
+# BAD — allowed values hidden inside function
+def _validate_publish_from(value: str) -> None:
+    allowed = {'local', 'ci'}  # not discoverable
+    if value not in allowed: ...
+
+# GOOD — discoverable, reusable, testable
+ALLOWED_PUBLISH_FROM: frozenset[str] = frozenset({'local', 'ci'})
+
+def _validate_publish_from(value: str) -> None:
+    if value not in ALLOWED_PUBLISH_FROM: ...
+```
+
+#### 3. Wrap All File I/O in try/except
+
+Every `read_text()`, `write_text()`, or `open()` call should be wrapped
+with `try/except OSError` to produce a structured error instead of an
+unhandled traceback:
+
+```python
+# BAD — unprotected I/O
+text = path.read_text(encoding='utf-8')
+
+# GOOD — consistent error handling
+try:
+    text = path.read_text(encoding='utf-8')
+except OSError as exc:
+    raise ValueError(f'Failed to read {path}: {exc}') from exc
+    # In releasekit: raise ReleaseKitError(code=E.PARSE_ERROR, ...) from exc
+```
+
+#### 4. Validate Collection Item Types
+
+When validating a config value is a `list`, also validate that the items
+inside the list are the expected type:
+
+```python
+# BAD — only checks container type
+if not isinstance(value, list): raise ...
+# A list of ints would pass silently
+
+# GOOD — also checks item types
+if not isinstance(value, list): raise ...
+for item in value:
+    if not isinstance(item, str):
+        raise TypeError(f"items must be strings, got {type(item).__name__}")
+```
+
+#### 5. Separate Path Globs from Name Globs
+
+Workspace excludes (path globs like `samples/*`) and config excludes (name
+globs like `sample-*`) operate in different namespaces and must never be mixed
+into a single list. Apply them in independent filter stages.
+
+#### 6. Test File Basename Uniqueness
+
+The `check_consistency` script (check 19/20) enforces unique test file
+basenames across the entire workspace. When adding tests to tools or samples,
+prefix with a unique identifier:
+
+```
+# BAD — collides with samples/web-endpoints-hello/tests/config_test.py
+tools/releasekit/tests/config_test.py
+
+# GOOD — unique basename
+tools/releasekit/tests/rk_config_test.py
+```
+
+#### 7. Use Named Error Codes
+
+Prefer human-readable error codes (`RK-CONFIG-NOT-FOUND`) over numeric
+ones (`RK-0001`). Named codes are self-documenting in logs and error
+messages without requiring a lookup table.
+
+#### 8. Use `packaging` for PEP 508 Parsing
+
+Never manually parse dependency specifiers by splitting on operators.
+Use `packaging.requirements.Requirement` which handles all valid PEP 508
+strings correctly (extras, markers, version constraints). For a fallback,
+use `re.split(r'[<>=!~,;\[]', spec, maxsplit=1)` — always pass `maxsplit`
+as a keyword argument (Ruff B034 requires this to avoid positional
+argument confusion).
+
+#### 9. Use `assert` Over `if/pytest.fail` in Tests
+
+Tests should use idiomatic `assert` statements, not `if/pytest.fail()`:
+
+```python
+# BAD — verbose and non-standard
+if len(graph) != 0:
+    pytest.fail(f'Expected empty graph, got {len(graph)}')
+
+# GOOD — idiomatic pytest
+assert len(graph) == 0, f'Expected empty graph, got {len(graph)}'
+```
+
+**Caution**: When batch-converting `pytest.fail` to `assert` via sed/regex,
+the closing `)` from `pytest.fail(...)` can corrupt f-string expressions.
+Always re-run lint and tests after automated refactors.
+
+#### 10. Check Dict Key Existence, Not Value Truthiness
+
+When validating whether a config key exists, check `key not in dict`
+rather than `not dict.get(key)`. An empty value (e.g., `[]`) is valid
+config and should not be treated as missing:
+
+```python
+# BAD — empty list raises "unknown group" error
+patterns = groups.get(name, [])
+if not patterns:
+    raise Error("Unknown group")
+
+# GOOD — distinguishes missing from empty
+if name not in groups:
+    raise Error("Unknown group")
+patterns = groups[name]  # may be [], which is valid
+```
+
+#### 11. Keyword Arguments for Ambiguous Positional Parameters
+
+Ruff B034 flags `re.split`, `re.sub`, etc. when positional arguments
+could be confused (e.g., `maxsplit` vs `flags`). Always use keyword
+arguments for clarity:
+
+```python
+# BAD — Ruff B034 error
+re.split(r'[<>=]', spec, 1)
+
+# GOOD
+re.split(r'[<>=]', spec, maxsplit=1)
+```
+
+#### 12. Automated Refactors Need Manual Verification
+
+Batch find-and-replace (sed, regex scripts) can introduce subtle bugs:
+
+- **Broken f-strings**: `pytest.fail(f'got {len(x)}')` → the closing `)`
+  can end up inside the f-string expression as `{len(x}')`.
+- **Missing variable assignments**: removing a multi-line `if/pytest.fail`
+  block can accidentally delete the variable assignment above it.
+- **Always re-run** `ruff check`, `ruff format`, and `pytest` after any
+  automated refactor. Never trust the script output alone.
+
+**Reference:** PR #4550.
+
+### Session Learnings (2026-02-10): Code Review Patterns from releasekit PR #4555
+
+#### 13. Signal Handlers Must Use SIG_DFL + os.kill, Not default_int_handler
+
+`signal.default_int_handler` is only valid for SIGINT (raises
+`KeyboardInterrupt`) and doesn't accept the expected arguments. For
+general signal cleanup (SIGTERM/SIGINT):
+
+```python
+# BAD — only works for SIGINT, wrong argument types
+signal.default_int_handler(signum, frame)
+
+# GOOD — works for any signal
+signal.signal(signum, signal.SIG_DFL)
+os.kill(os.getpid(), signum)
+```
+
+#### 14. Extract Shared Parsing Logic into Helper Functions (DRY)
+
+When the same parsing logic appears for both regular and optional
+dependencies (or any parallel structures), extract it into a helper:
+
+```python
+# BAD — duplicated dep name extraction in two loops
+for i, dep in enumerate(deps):
+    bare_name = dep.split('[')[0].split('>')[0]...  # fragile, duplicated
+
+# GOOD — helper + packaging.Requirement
+def _extract_dep_name(dep_spec: str) -> str:
+    try:
+        return Requirement(dep_spec).name
+    except InvalidRequirement:
+        return re.split(r'[<>=!~,;\[]', dep_spec, maxsplit=1)[0].strip()
+
+def _pin_dep_list(deps, version_map) -> int:
+    ...  # single implementation, called for both dep lists
+```
+
+#### 15. Fail Fast on Required Fields in Serialized Data
+
+When loading JSON/TOML for CI handoff, required fields must fail fast
+with a clear error, not silently default to empty strings:
+
+```python
+# BAD — silent default hides missing data in downstream CI
+git_sha = data.get('git_sha', '')
+
+# GOOD — fail fast with documented ValueError
+try:
+    git_sha = data['git_sha']
+except KeyError as exc:
+    raise ValueError(f'Missing required field: git_sha') from exc
+```
+
+#### 16. Remove Dead Code Before Submitting
+
+Unused variables and unreachable code paths should be caught during
+self-review. Tools like `ruff` catch unused imports, but unused local
+variables assigned in loops require manual inspection.
+
+#### 17. Narrow Exception Types in Catch Blocks
+
+Catching `Exception` masks `KeyboardInterrupt`, `SystemExit`, and
+unexpected programming errors. Always catch the most specific type:
+
+```python
+# BAD — catches KeyboardInterrupt, SystemExit, etc.
+except Exception:
+    logger.warning('operation failed')
+
+# GOOD — catches only expected failure modes
+except OSError:
+    logger.warning('operation failed')
+```
+
+**Reference:** PR #4555.
+
+#### 18. Scope Commits Per-Package via `vcs.log(paths=...)`
+
+When computing version bumps in a monorepo, each package must only see
+commits that touched *its own files*. Fetching all commits globally and
+then trying to map them via `diff_files` is error-prone. Instead, use
+the VCS backend's `paths` filter:
+
+```python
+# BAD — associates ALL commits with any package that has changes
+all_commits = vcs.log(format='%H %s')
+for pkg in packages:
+    changed = vcs.diff_files(since_tag=tag)
+    # Tries to match commits to files — misses per-commit scoping
+
+# GOOD — per-package log query with path filtering
+for pkg in packages:
+    log_lines = vcs.log(since_tag=tag, paths=[str(pkg.path)])
+    # Only commits that touched files in pkg.path are returned
+```
+
+#### 19. Use `shutil.move` for Atomic File Restore
+
+When restoring from a backup file, `shutil.copy2()` + `unlink()` is
+two operations that can leave orphaned backups. `shutil.move()` is
+atomic on POSIX same-filesystem (uses `rename(2)`):
+
+```python
+# BAD — non-atomic: if unlink fails, backup is orphaned
+shutil.copy2(backup_path, target_path)
+backup_path.unlink()
+
+# GOOD — atomic on same filesystem
+shutil.move(backup_path, target_path)
+```
+
+#### 20. Test Orchestration Functions with Fake Backends
+
+Functions like `compute_bumps` that orchestrate multiple subsystems (VCS,
+package discovery, commit parsing) need integration tests with fake
+backends. A `FakeVCS` that maps paths to log output catches scoping bugs
+that unit tests on individual helpers miss.
+
+**Reference:** PR #4555.
+
 ## Release Process
 
 ### Automated Release Scripts
@@ -2293,111 +2822,6 @@ classifiers = [
 ]
 ```
 
-### CHANGELOG Format
-
-Follow [Keep a Changelog](https://keepachangelog.com/) format:
-
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
-
-### Added
-- New features
-
-### Changed
-- Changes to existing functionality
-
-### Deprecated
-- Features to be removed in future
-
-### Removed
-- Removed features
-
-### Fixed
-- Bug fixes
-
-### Security
-- Security fixes
-```
-
-### Session Learnings (2026-02-03): HTTP Client Event Loop Binding
-
-#### The Problem: `httpx.AsyncClient` Event Loop Binding
-
-`httpx.AsyncClient` instances are **bound to the event loop** they were created in.
-This causes issues in production when:
-
-1. **Different event loops**: The client was created in one event loop but is used
-   in another (common in test frameworks, async workers, or web servers)
-2. **Closed event loops**: The original event loop was closed but the client is
-   still being used
-
-**Error message**: `RuntimeError: Event loop is closed` or
-`RuntimeError: cannot schedule new futures after interpreter shutdown`
-
-#### The Solution: Per-Event-Loop Client Caching
-
-Created `genkit.core.http_client` module with a shared utility:
-
-```python
-from genkit.core.http_client import get_cached_client
-
-# Get or create cached client for current event loop
-client = get_cached_client(
-    cache_key='my-plugin',
-    headers={'Authorization': 'Bearer token'},
-    timeout=60.0,
-)
-```
-
-**Key design decisions**:
-
-| Decision | Rationale |
-|----------|-----------|
-| **WeakKeyDictionary** | Automatically cleanup when event loop is GC'd |
-| **Two-level cache** | `loop -> cache_key -> client` allows multiple configs per loop |
-| **Per-request auth** | For expiring tokens (GCP), pass headers in request not client |
-| **Static auth in client** | For static API keys (Cloudflare), include in cached client |
-
-#### Plugins Updated
-
-| Plugin | Change |
-|--------|--------|
-| **cloudflare-workers-ai** | Refactored `_get_client()` to use `get_cached_client()` |
-| **google-genai/rerankers** | Changed from `async with httpx.AsyncClient()` to cached client |
-| **google-genai/evaluators** | Changed from `async with httpx.AsyncClient()` to cached client |
-
-#### When to Use Which Pattern
-
-| Pattern | Use When |
-|---------|----------|
-| `async with httpx.AsyncClient()` | One-off requests, infrequent calls |
-| `get_cached_client()` | Frequent requests, performance-critical paths |
-| Client stored at init | **Never** - causes event loop binding issues |
-
-#### Testing Cached Clients
-
-When mocking HTTP clients in tests, mock `get_cached_client` instead of
-`httpx.AsyncClient`:
-
-```python
-from unittest.mock import AsyncMock, patch
-
-@patch('my_module.get_cached_client')
-async def test_api_call(mock_get_client):
-    mock_client = AsyncMock()
-    mock_client.post = AsyncMock(return_value=mock_response)
-    mock_client.is_closed = False
-    mock_get_client.return_value = mock_client
-
-    result = await my_api_call()
-
-    mock_client.post.assert_called_once()
-```
-
-#### Related Issue
-
-* GitHub Issue: [#4420](https://github.com/firebase/genkit/issues/4420)
-
 ### Session Learnings (2026-02-04): Release PRs and Changelogs
 
 When drafting release PRs and changelogs, follow these guidelines to create
@@ -2422,7 +2846,7 @@ Use this checklist when drafting a release PR:
 | 11 | **Categorize contributions** | Use bold categories: **Core**, **Plugins**, **Fixes**, etc. |
 | 12 | **Include PR numbers** | Add (#1234) for each major contribution |
 | 13 | **Add dotprompt table** | Same format as main table with PRs, Commits, Key Contributions |
-| 14 | **Create blog article** | `py/engdoc/blog-genkit-python-X.Y.Z.md` |
+| 14 | **Create blog article** | Optional: draft in PR description or external blog |
 | 15 | **Verify code examples** | Test all code snippets match actual API patterns |
 | 16 | **Run release validation** | `./bin/validate_release_docs` (see below) |
 | 17 | **Commit with --no-verify** | `git commit --no-verify -m "docs(py): ..."` |
@@ -2431,121 +2855,10 @@ Use this checklist when drafting a release PR:
 
 #### Automated Release Documentation Validation
 
-Run this validation script before finalizing any release documentation. Save as
-`py/bin/validate_release_docs` and run before committing:
-
-```bash
-#!/bin/bash
-# Release Documentation Validator
-# Run from py/ directory: ./bin/validate_release_docs
-
-set -e
-echo "=== Release Documentation Validation ==="
-ERRORS=0
-
-# 1. Check branding: No "Firebase Genkit" references
-echo -n "Checking branding (no 'Firebase Genkit')... "
-if grep -ri "Firebase Genkit" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
-    echo "FAIL: Found 'Firebase Genkit' - use 'Genkit' instead"
-    ERRORS=$((ERRORS + 1))
-else
-    echo "OK"
-fi
-
-# 2. Check for non-existent plugins
-echo -n "Checking plugin names... "
-FAKE_PLUGINS="genkit-plugin-aim|genkit-plugin-firestore"
-if grep -rE "$FAKE_PLUGINS" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
-    echo "FAIL: Found non-existent plugin names"
-    ERRORS=$((ERRORS + 1))
-else
-    echo "OK"
-fi
-
-# 3. Check for unshipped features (DAP, MCP unless actually shipped)
-echo -n "Checking for unshipped features... "
-UNSHIPPED="Dynamic Action Provider|DAP factory|MCP resource|action_provider"
-if grep -rE "$UNSHIPPED" engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null; then
-    echo "WARN: Found references to features that may not be shipped yet"
-    # Not a hard error, just a warning
-else
-    echo "OK"
-fi
-
-# 4. Check blog code syntax errors
-echo -n "Checking blog code syntax... "
-WRONG_PATTERNS='response\.text\(\)|output_schema=|asyncio\.run\(main|from genkit import Genkit[^.]'
-if grep -rE "$WRONG_PATTERNS" engdoc/blog-*.md 2>/dev/null; then
-    echo "FAIL: Found incorrect API patterns in blog code examples"
-    ERRORS=$((ERRORS + 1))
-else
-    echo "OK"
-fi
-
-# 5. Verify all mentioned plugins exist
-echo -n "Verifying plugin references... "
-for plugin in $(grep -ohE 'genkit-plugin-[a-z-]+' engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | sort -u); do
-    dir_name=$(echo "$plugin" | sed 's/genkit-plugin-//')
-    if [ ! -d "plugins/$dir_name" ]; then
-        echo "FAIL: Plugin $plugin does not exist (no plugins/$dir_name/)"
-        ERRORS=$((ERRORS + 1))
-    fi
-done
-echo "OK"
-
-# 6. Check contributor GitHub links are properly formatted
-echo -n "Checking contributor links... "
-if grep -E '\[@[a-zA-Z0-9]+\]' .github/PR_DESCRIPTION_*.md CHANGELOG.md 2>/dev/null | \
-   grep -vE '\[@[a-zA-Z0-9_-]+\]\(https://github\.com/[a-zA-Z0-9_-]+\)' 2>/dev/null; then
-    echo "WARN: Some contributor links may not have GitHub URLs"
-else
-    echo "OK"
-fi
-
-# 7. Check blog article exists for version in CHANGELOG
-echo -n "Checking blog article exists... "
-VERSION=$(grep -m1 '## \[' CHANGELOG.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-if [ -f "engdoc/blog-genkit-python-$VERSION.md" ]; then
-    echo "OK (found blog-genkit-python-$VERSION.md)"
-else
-    echo "FAIL: Missing engdoc/blog-genkit-python-$VERSION.md"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 8. Verify imports work
-echo -n "Checking Python imports... "
-if python -c "from genkit.ai import Genkit, Output; print('OK')" 2>/dev/null; then
-    :
-else
-    echo "WARN: Could not verify imports (genkit may not be installed)"
-fi
-
-# Summary
-echo ""
-echo "=== Validation Complete ==="
-if [ $ERRORS -gt 0 ]; then
-    echo "FAILED: $ERRORS error(s) found. Fix before releasing."
-    exit 1
-else
-    echo "PASSED: All checks passed!"
-    exit 0
-fi
-```
-
-**Quick manual validation commands:**
-
-```bash
-# All-in-one check for common issues
-cd py && grep -rE \
-  'Firebase Genkit|genkit-plugin-aim|response\.text\(\)|DAP factory|output_schema=' \
-  engdoc/ .github/PR_DESCRIPTION_*.md CHANGELOG.md
-
-# List all plugin references and verify they exist  
-for p in $(grep -ohE 'genkit-plugin-[a-z-]+' CHANGELOG.md | sort -u); do
-    d=$(echo $p | sed 's/genkit-plugin-//'); 
-    [ -d "plugins/$d" ] && echo "✓ $p" || echo "✗ $p (not found)";
-done
-```
+Run `py/bin/validate_release_docs` before finalizing release documentation. It
+checks branding ("Genkit" not "Firebase Genkit"), non-existent plugin names,
+unshipped feature references, blog code syntax, contributor link formatting,
+and import validity.
 
 #### Key Principles
 
@@ -2557,17 +2870,12 @@ done
 6. **Match table formats**: External repo tables should have same columns as main table
 7. **Cross-check repositories**: Check both firebase/genkit and google/dotprompt for Python work
 8. **Use --no-verify**: For documentation-only changes, skip hooks for faster iteration
-9. **Always include blog article**: Every release needs a blog article in `py/engdoc/`
+9. **Consider a blog article**: Major releases may warrant a blog article
 10. **Branding**: Use "Genkit" not "Firebase Genkit" (rebranded as of 2025)
 
 #### Blog Article Guidelines
 
-Every release MUST include a blog article at `py/engdoc/blog-genkit-python-X.Y.Z.md`.
-
-**Branding Note**: The project is called **"Genkit"** (not "Firebase Genkit"). While the
-repository is hosted at `github.com/firebase/genkit` and some blog posts may be published
-on the Firebase blog, the product name is simply "Genkit". Use this consistently in all
-documentation, blog articles, and release notes.
+Major releases may include a blog article (e.g. in the PR description or an external blog).
 
 **Required Sections:**
 1. **Headline**: "Genkit Python SDK X.Y.Z: [Catchy Subtitle]"
@@ -2582,65 +2890,19 @@ documentation, blog articles, and release notes.
 10. **What's Next**: Roadmap items
 11. **Get Involved**: Community links
 
-**Code Example Accuracy Checklist:**
-
-Before publishing, verify ALL code examples match the actual API:
+**Code Example Accuracy** — verify ALL examples match the actual API:
 
 | Pattern | Correct | Wrong |
 |---------|---------|-------|
 | Text response | `response.text` | `response.text()` |
 | Structured output | `output=Output(schema=Model)` | `output_schema=Model` |
 | Dynamic tools | `ai.dynamic_tool(name, fn, description=...)` | `@ai.action_provider()` |
-| Partials | `ai.define_partial('name', 'template')` | `Dotprompt.define_partial()` |
 | Main function | `ai.run_main(main())` | `asyncio.run(main())` |
 | Genkit init | Module-level `ai = Genkit(...)` | Inside `async def main()` |
 | Imports | `from genkit.ai import Genkit, Output` | `from genkit import Genkit` |
 
-**Verify examples against actual samples:**
-
-```bash
-# Check API patterns in existing samples
-grep -r "response.text" py/samples/*/src/main.py | head -5
-grep -r "Output(schema=" py/samples/*/src/main.py | head -5
-grep -r "ai.run_main" py/samples/*/src/main.py | head -5
-```
-
-**Verify blog code syntax matches codebase patterns:**
-
-CRITICAL: Before publishing any blog article, extract and validate ALL code snippets
-against the actual codebase to ensure they would compile/run correctly.
-
-```bash
-# Extract Python code blocks from a blog article and check for common errors
-grep -A 50 '```python' py/engdoc/blog-genkit-python-*.md | grep -E \
-  'response\.text\(\)|output_schema=|asyncio\.run\(|from genkit import Genkit'
-
-# Verify import statements match actual module structure
-python -c "from genkit.ai import Genkit, Output; print('Imports OK')"
-
-# Check that decorator patterns exist in codebase
-grep -r "@ai.flow()" py/samples/*/src/main.py | head -3
-grep -r "@ai.tool()" py/samples/*/src/main.py | head -3
-
-# Validate a blog article's code examples by syntax checking
-python -m py_compile <(grep -A 20 '```python' py/engdoc/blog-genkit-python-*.md | \
-  grep -v '```' | head -50) 2>&1 || echo "Syntax errors found!"
-```
-
-**Blog Article Code Review Checklist:**
-
-Before finalizing a blog article, manually verify:
-
-| Check | How to Verify |
-|-------|---------------|
-| No `response.text()` | Search for `\.text\(\)` - should find nothing |
-| Correct Output usage | Search for `output=Output(schema=` |
-| Module-level Genkit | `ai = Genkit(...)` outside any function |
-| `ai.run_main()` used | Not `asyncio.run()` for samples with Dev UI |
-| Pydantic imports | `from pydantic import BaseModel, Field` |
-| Tool decorator | `@ai.tool()` with Pydantic input schema |
-| Flow decorator | `@ai.flow()` for async functions |
-| No fictional features | DAP, MCP, etc. - only document shipped features |
+Cross-check against actual samples: `grep -r "pattern" py/samples/*/src/main.py`.
+Only document shipped features — never reference DAP, MCP, etc. unless actually shipped.
 
 **Verify plugin names exist before documenting:**
 
@@ -2699,265 +2961,41 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format with these section
 
 #### Gathering Release Statistics
 
-Use these commands to gather comprehensive release statistics:
-
 ```bash
-# Count commits since previous version
-git log "genkit-python@0.4.0"..HEAD --oneline -- py/ | wc -l
+# Commits, contributors, and file changes since last release
+git log "genkit-python@PREV"..HEAD --oneline -- py/ | wc -l
+git log "genkit-python@PREV"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
+git diff --stat "genkit-python@PREV"..HEAD -- py/ | tail -1
 
-# Get contributors by commit count
-git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
-
-# Get commits by each contributor with messages
-git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an|%s" -- py/
-
-# Get PR counts by contributor (requires gh CLI)
-gh pr list --repo firebase/genkit --state merged \
-  --search "label:python merged:>=2025-05-26" \
-  --json author,number,title --limit 200 | \
-  jq -r '.[].author.login' | sort | uniq -c | sort -rn
-
-# Get files changed count
-git diff --stat "genkit-python@0.4.0"..HEAD -- py/ | tail -1
+# Map git names to GitHub handles (requires gh CLI)
+gh pr list --state merged --search "label:python" --json author --limit 200 \
+  | jq -r '.[].author | "\(.name) -> @\(.login)"' | sort -u
 ```
 
-#### Contributor Acknowledgment Table
+#### PR Description & Contributors
 
-Include a detailed contributors table with both PRs and commits:
-
-```markdown
-### Contributors
-
-This release includes contributions from **N developers** across **M PRs**.
-Thank you to everyone who contributed!
-
-| Contributor | PRs | Commits | Key Contributions |
-|-------------|-----|---------|-------------------|
-| **Name** | 91 | 93 | Core framework, type safety, plugins |
-| **Name** | 42 | 42 | Resource support, samples |
-...
-
-**[external/repo](https://github.com/org/repo) Contributors** (Feature integration):
-
-| Contributor | PRs | Key Contributions |
-|-------------|-----|-------------------|
-| **Name** | 42 | CI/CD improvements, release automation |
-```
-
-#### PR Description File
-
-Create a `.github/PR_DESCRIPTION_X.Y.Z.md` file for each major release:
-
-```markdown
-# Genkit Python SDK vX.Y.Z Release
-
-## Overview
-
-Brief description of the release (one paragraph).
-
-## Impact Summary
-
-| Category | Description |
-|----------|-------------|
-| **New Capabilities** | Summary |
-| **Breaking Changes** | Summary |
-| **Performance** | Summary |
-
-## New Features
-
-### Feature Category 1
-- **Feature Name**: Description
-
-## Breaking Changes
-
-### Change 1
-**Before**: Old behavior...
-**After**: New behavior...
-**Migration**: How to migrate...
-
-## Critical Fixes
-
-- **Fix Name**: Description (PR #)
-
-## Testing
-
-All X plugins and Y+ samples have been tested. CI runs on Python 3.10-3.14.
-
-## Contributors
-(Same table format as CHANGELOG)
-
-## Full Changelog
-
-See [CHANGELOG.md](py/CHANGELOG.md) for the complete list of changes.
-```
-
-#### Updating the PR on GitHub
-
-Use gh CLI to update the PR body from the file:
-
-```bash
-gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
-```
-
-#### Key Sections to Include
+Create `.github/PR_DESCRIPTION_X.Y.Z.md` for each major release. Required sections:
 
 | Section | Purpose |
 |---------|---------|
 | **Impact Summary** | Quick overview table with categories |
-| **Critical Fixes** | Highlight race conditions, thread safety, security |
-| **Performance** | Document speedups and optimizations |
+| **Critical Fixes** | Race conditions, thread safety, security (with PR #s) |
 | **Breaking Changes** | Migration guide with before/after examples |
 | **Contributors** | Table with PRs, commits, and key contributions |
 
-#### Commit Messages for Release Documentation
-
-Use conventional commits with `--no-verify` for release documentation:
-
-```bash
-git commit --no-verify -m "docs(py): add contributor acknowledgments to changelog
-
-Genkit Python SDK Contributors (N developers):
-- Name: Core framework, type safety
-- Name: Plugins, samples
-...
-
-External Contributors:
-- Name: CI/CD improvements"
-```
-
-#### Highlighting Critical Information
-
-**When documenting fixes, emphasize:**
-
-1. **Race conditions**: Dev server startup, async operations
-2. **Thread safety**: Event loop binding, HTTP client caching
-3. **Security**: CVE/CWE references, audit results
-4. **Infinite recursion**: Cycle detection, recursion limits
-
-**Example format:**
-
-```markdown
-### Critical Fixes
-
-- **Race Condition**: Dev server startup race condition resolved (#4225)
-- **Thread Safety**: Per-event-loop HTTP client caching prevents event loop
-  binding errors (#4419, #4429)
-- **Infinite Recursion**: Cycle detection in Handlebars partial resolution
-- **Security**: Path traversal hardening (CWE-22), SigV4 signing (#4402)
-```
-
-#### External Project Contributions
-
-When integrating external projects (e.g., dotprompt), include their contributors:
-
-```bash
-# Check commits in external repo
-# Navigate to GitHub contributors page or use git log on local clone
-```
-
-Include a separate table linking to the external repository.
-
-#### Contributor Profile Links and Exhaustive Contributions
-
-**Always include clickable GitHub profile links** for contributors in release notes:
+Contributor table format — use clickable GitHub links:
 
 ```markdown
 | Contributor | PRs | Commits | Key Contributions |
 |-------------|-----|---------|-------------------|
-| [**@username**](https://github.com/username) | 91 | 93 | Exhaustive list... |
+| [**@user**](https://github.com/user) | 91 | 93 | Core framework, plugins |
 ```
 
-**Finding GitHub usernames from git log names:**
-
-```bash
-# Get GitHub username from PR data (most reliable)
-gh pr list --repo firebase/genkit --state merged \
-  --search "author:USERNAME label:python" \
-  --json author,title --limit 5
-
-# Map git log author names to GitHub handles
-gh pr list --repo firebase/genkit --state merged \
-  --search "label:python" \
-  --json author --limit 200 | \
-  jq -r '.[].author | "\(.name) -> @\(.login)"' | sort -u
-```
-
-**Make key contributions exhaustive by reviewing each contributor's commits:**
-
-```bash
-# Get detailed commits for each contributor
-git log "genkit-python@0.4.0"..HEAD --pretty=format:"%s" \
-  --author="Contributor Name" -- py/ | head -20
-```
-
-Then summarize their work comprehensively, including:
-- Specific plugins/features implemented
-- Specific samples maintained
-- API/config changes made
-- Bug fix categories
-- Documentation contributions
-
-**Handle cross-name contributors:**
-
-If a contributor uses different names in git vs GitHub (e.g., "Elisa Shen" in git but
-"@MengqinShen" on GitHub), add the real name in parentheses:
-
-```markdown
-| [**@MengqinShen**](https://github.com/MengqinShen) (Elisa Shen) | 42 | 42 | ... |
-```
-
-**Filter contributors by SDK:**
-
-For Python SDK releases, only include contributors with commits under `py/`:
-
-```bash
-# Get ONLY Python contributors
-git log "genkit-python@0.4.0"..HEAD --pretty=format:"%an" -- py/ | sort | uniq -c | sort -rn
-```
-
-Exclude contributors whose work is Go-only, JS-only, or infrastructure-only (unless
-their infrastructure work directly benefits the Python SDK).
-
-#### Separate External Repository Contributors
-
-When the Python SDK integrates external projects (like dotprompt), add a separate
-contributor table for that project with the **same columns** as the main table:
-
-```markdown
-**[google/dotprompt](https://github.com/google/dotprompt) Contributors** (Dotprompt Python integration):
-
-| Contributor | PRs | Commits | Key Contributions |
-|-------------|-----|---------|-------------------|
-| [**@username**](https://github.com/username) | 50+ | 100+ | **Category**: Feature descriptions with PR numbers. |
-| [**@contributor2**](https://github.com/contributor2) | 42 | 45 | **CI/CD**: Package publishing, release automation. |
-```
-
-This clearly distinguishes between core SDK contributions and external project contributions.
-
-#### Fast Iteration with --no-verify
-
-When iterating on release documentation, use `--no-verify` to skip pre-commit/pre-push
-hooks for faster feedback:
-
-```bash
-# Fast commit
-git commit --no-verify -m "docs(py): update contributor tables"
-
-# Fast push
-git push --no-verify
-```
-
-**Only use this for documentation-only changes** where CI verification is not critical.
-For code changes, always run full verification.
-
-#### Updating PR Description on GitHub
-
-After updating the PR description file, push it to GitHub:
-
-```bash
-# Update the PR body from the file
-gh pr edit <PR_NUMBER> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md
-```
+- Only include contributors with commits under `py/`
+- For cross-name contributors: `@GitHubName (Real Name)`
+- For external repos (e.g., dotprompt), add a separate table with same columns
+- Use `--no-verify` for documentation-only commits/pushes
+- Update PR body: `gh pr edit <NUM> --body-file py/.github/PR_DESCRIPTION_X.Y.Z.md`
 
 ### Release Publishing Process
 
@@ -3042,119 +3080,10 @@ pip install genkit genkit-plugin-google-genai
 python -c "from genkit.ai import Genkit; print('Success!')"
 ```
 
-#### v0.5.0 Release Summary
-
-For the v0.5.0 release specifically:
-
-| Metric | Value |
-|--------|-------|
-| **Commits** | 178 |
-| **Files Changed** | 680+ |
-| **Contributors** | 13 developers |
-| **PRs** | 188 |
-| **New PyPI Packages** | 14 (first publish) |
-| **Updated PyPI Packages** | 9 (from v0.4.0) |
-| **Total Packages** | 23 |
-
-**Packages on PyPI (existing - v0.4.0 → v0.5.0):**
-- genkit, genkit-plugin-compat-oai, genkit-plugin-dev-local-vectorstore
-- genkit-plugin-firebase, genkit-plugin-flask, genkit-plugin-google-cloud
-- genkit-plugin-google-genai, genkit-plugin-ollama, genkit-plugin-vertex-ai
-
-**New Packages (first publish at v0.5.0):**
-- genkit-plugin-anthropic, genkit-plugin-aws, genkit-plugin-amazon-bedrock
-- genkit-plugin-cloudflare-workers-ai
-- genkit-plugin-deepseek, genkit-plugin-evaluators, genkit-plugin-huggingface
-- genkit-plugin-mcp, genkit-plugin-mistral, genkit-plugin-microsoft-foundry
-- genkit-plugin-observability, genkit-plugin-xai
-
-#### Full Release Guide
-
-For detailed release instructions, see:
-- `py/engdoc/release-publishing-guide.md` - Complete step-by-step guide
-- `py/.github/PR_DESCRIPTION_0.5.0.md` - v0.5.0 PR description template
-- `py/CHANGELOG.md` - Full changelog format
-
 ### Version Consistency
 
-All packages (core, plugins, and samples) must have the same version. Use these scripts:
-
-```bash
-# Check version consistency
-./bin/check_versions
-
-# Fix version mismatches
-./bin/check_versions --fix
-# or
-./bin/bump_version 0.5.0
-
-# Bump to next version
-./bin/bump_version --minor    # 0.5.0 -> 0.6.0
-./bin/bump_version --patch    # 0.5.0 -> 0.5.1
-./bin/bump_version --major    # 0.5.0 -> 1.0.0
-```
-
-The `bump_version` script dynamically discovers all packages:
-- `packages/genkit` (core)
-- `plugins/*/` (all plugins)
-- `samples/*/` (all samples)
-
-### Shell Script Linting
-
-All shell scripts in `bin/` and `py/bin/` must pass `shellcheck`. This is enforced
-by `bin/lint` and `py/bin/release_check`.
-
-```bash
-# Run shellcheck on all scripts
-shellcheck bin/* py/bin/*
-
-# Install shellcheck if not present
-brew install shellcheck  # macOS
-apt install shellcheck   # Debian/Ubuntu
-```
-
-**Common shellcheck fixes:**
-- Use `"${var}"` instead of `$var` for safer expansion
-- Add `# shellcheck disable=SC2034` for intentionally unused variables
-- Use `${var//search/replace}` instead of `echo "$var" | sed 's/search/replace/'`
-
-### Shell Script Standards
-
-All shell scripts must follow these standards:
-
-**1. Shebang Line (line 1):**
-```bash
-#!/usr/bin/env bash
-```
-- Use `#!/usr/bin/env bash` for portability (not `#!/bin/bash`)
-- Must be the **first line** of the file (before license header)
-
-**2. Strict Mode:**
-```bash
-set -euo pipefail
-```
-- `-e`: Exit immediately on command failure
-- `-u`: Exit on undefined variable usage  
-- `-o pipefail`: Exit on pipe failures
-
-**3. Verification Script:**
-```bash
-# Check all scripts for proper shebang and pipefail
-for script in bin/* py/bin/*; do
-  if [ -f "$script" ] && file "$script" | grep -qE "shell|bash"; then
-    shebang=$(head -1 "$script")
-    if [[ "$shebang" != "#!/usr/bin/env bash" ]]; then
-      echo "❌ SHEBANG: $script"
-    fi
-    if ! grep -q "set -euo pipefail" "$script"; then
-      echo "❌ PIPEFAIL: $script"
-    fi
-  fi
-done
-```
-
-**Exception:** `bin/install_cli` intentionally omits `pipefail` as it's a user-facing
-install script that handles errors differently for better user experience.
+See "Plugin Version Sync" in the Code Quality section and "Version Bumping"
+above for version management details.
 
 ## Code Reviewer Preferences
 
@@ -3962,3 +3891,54 @@ When reviewing a sample or service for production readiness, verify each item:
 | Telemetry configured | Platform telemetry or OTLP endpoint set |
 | Graceful shutdown | `SHUTDOWN_GRACE` appropriate for the platform |
 | Keep-alive tuned | Server keep-alive > load balancer idle timeout |
+
+## GitHub Actions Security
+
+### Avoid `eval` in Shell Steps
+
+Never use `eval "$CMD"` to run dynamically-constructed commands in GitHub
+Actions `run:` steps. Free-form inputs (like `extra-args`) can inject
+arbitrary commands.
+
+**Use bash arrays** to build and execute commands:
+
+```yaml
+# WRONG — eval enables injection from free-form inputs
+CMD="uv run releasekit ${{ inputs.command }}"
+if [[ -n "${{ inputs.extra-args }}" ]]; then
+  CMD="$CMD ${{ inputs.extra-args }}"
+fi
+eval "$CMD"
+
+# CORRECT — array execution prevents injection
+cmd_array=(uv run releasekit ${{ inputs.command }})
+if [[ -n "${{ inputs.extra-args }}" ]]; then
+  read -ra extra <<< "${{ inputs.extra-args }}"
+  cmd_array+=("${extra[@]}")
+fi
+"${cmd_array[@]}"
+```
+
+Key rules:
+
+* **Build commands as arrays**, not strings
+* **Execute with `"${cmd_array[@]}"`**, not `eval`
+* **Quote all `${{ inputs.* }}`** references in array additions
+* **Use `read -ra`** to safely split free-form inputs into array elements
+* **Capture output** with `$("${cmd_array[@]}")`, not `$(eval "$CMD")`
+
+### Pin Dependencies with Version Constraints
+
+Always pin dependencies with `>=` version constraints, especially for
+packages with known CVEs. This ensures CI and production use the patched
+version:
+
+```toml
+# WRONG — allows any version, including vulnerable ones
+dependencies = ["pillow"]
+
+# CORRECT — pins to patched version (GHSA-cfh3-3jmp-rvhc)
+dependencies = ["pillow>=12.1.1"]
+```
+
+After pinning, always run `uv lock` to regenerate the lockfile.

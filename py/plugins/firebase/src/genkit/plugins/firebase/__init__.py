@@ -175,8 +175,11 @@ See Also:
     - Genkit documentation: https://genkit.dev/
 """
 
-from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
+from typing import Any
 
+from opentelemetry.sdk.trace.sampling import Sampler
+
+from .constant import FirebaseTelemetryConfig
 from .firestore import define_firestore_vector_store
 
 
@@ -189,17 +192,76 @@ def package_name() -> str:
     return 'genkit.plugins.firebase'
 
 
-def add_firebase_telemetry() -> None:
+def add_firebase_telemetry(
+    config: FirebaseTelemetryConfig | None = None,
+    *,
+    project_id: str | None = None,
+    credentials: dict[str, Any] | None = None,
+    sampler: Sampler | None = None,
+    log_input_and_output: bool = False,
+    force_dev_export: bool = False,
+    disable_metrics: bool = False,
+    disable_traces: bool = False,
+    metric_export_interval_ms: int | None = None,
+    metric_export_timeout_ms: int | None = None,
+) -> None:
     """Add Firebase telemetry export to Google Cloud Observability.
 
-    Exports traces to Cloud Trace and metrics to Cloud Monitoring.
-    In development (GENKIT_ENV=dev), telemetry is disabled by default.
+    Exports traces to Cloud Trace, metrics to Cloud Monitoring, and logs to
+    Cloud Logging. In development (GENKIT_ENV=dev), telemetry is disabled by
+    default unless force_dev_export is True.
+
+    Args:
+        config: FirebaseTelemetryConfig object. If provided, kwargs are ignored.
+        project_id: Firebase project ID. Auto-detected from environment if None.
+        credentials: Service account credentials dictionary.
+        sampler: OpenTelemetry trace sampler.
+        log_input_and_output: If True, logs feature inputs/outputs. WARNING: May log PII.
+        force_dev_export: If True, exports in dev mode.
+        disable_metrics: If True, disables metrics export.
+        disable_traces: If True, disables trace export.
+        metric_export_interval_ms: Metrics export interval in ms. Minimum: 1000ms.
+        metric_export_timeout_ms: Metrics export timeout in ms.
+
+    Example::
+
+        # Using kwargs
+        add_firebase_telemetry(project_id='my-project', log_input_and_output=True)
+
+        # Using config object
+        config = FirebaseTelemetryConfig(project_id='my-project')
+        add_firebase_telemetry(config)
     """
-    add_gcp_telemetry(force_export=False)
+    try:
+        # Imported lazily so Firestore-only users don't need telemetry deps.
+        from .telemetry import add_firebase_telemetry as _add_firebase_telemetry
+    except ImportError as e:
+        raise ImportError(
+            'Firebase telemetry requires the Google Cloud telemetry exporter. '
+            'Install it with: pip install "genkit-plugin-firebase[telemetry]"'
+        ) from e
+
+    if config is not None:
+        _add_firebase_telemetry(config)
+    else:
+        _add_firebase_telemetry(
+            FirebaseTelemetryConfig(
+                project_id=project_id,
+                credentials=credentials,
+                sampler=sampler,
+                log_input_and_output=log_input_and_output,
+                force_dev_export=force_dev_export,
+                disable_metrics=disable_metrics,
+                disable_traces=disable_traces,
+                metric_export_interval_ms=metric_export_interval_ms,
+                metric_export_timeout_ms=metric_export_timeout_ms,
+            )
+        )
 
 
 __all__ = [
     'add_firebase_telemetry',
     'define_firestore_vector_store',
+    'FirebaseTelemetryConfig',
     'package_name',
 ]

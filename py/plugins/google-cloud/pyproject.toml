@@ -25,6 +25,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Environment :: Web Environment",
+  "Framework :: AsyncIO",
+  "Framework :: Pydantic",
+  "Framework :: Pydantic :: 2",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -41,6 +44,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
+  "google-cloud-logging>=3.10.0",
   "opentelemetry-exporter-gcp-trace>=1.9.0",
   "opentelemetry-exporter-gcp-monitoring>=1.9.0",
   "strenum>=0.4.15; python_version < '3.11'",
@@ -66,6 +70,7 @@ version = "0.5.0"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/py/plugins/google-cloud/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

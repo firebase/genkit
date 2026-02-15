@@ -63,7 +63,7 @@ import json
 import os
 from typing import Any
 
-import boto3
+import aioboto3
 from botocore.config import Config
 
 from genkit.ai import Plugin
@@ -98,6 +98,32 @@ from genkit.plugins.amazon_bedrock.typing import (
     WriterConfig,
 )
 from genkit.types import Embedding, EmbedRequest, EmbedResponse
+
+# Regional prefixes for inference profiles (must match model.py)
+_INFERENCE_PROFILE_PREFIXES = ('us.', 'eu.', 'apac.')
+
+
+def _strip_inference_profile_prefix(model_id: str) -> str:
+    """Strip the regional inference profile prefix from a model ID.
+
+    Converts inference profile IDs (e.g., ``us.amazon.titan-embed-text-v2:0``)
+    back to base model IDs (``amazon.titan-embed-text-v2:0``).
+
+    The InvokeModel API (used for embeddings) does NOT support inference profile
+    IDs — only Converse/ConverseStream do. This helper ensures we always pass
+    base model IDs to InvokeModel.
+
+    Args:
+        model_id: A model ID, possibly with a regional prefix.
+
+    Returns:
+        The base model ID with any regional prefix stripped.
+    """
+    for prefix in _INFERENCE_PROFILE_PREFIXES:
+        if model_id.startswith(prefix):
+            return model_id[len(prefix) :]
+    return model_id
+
 
 _MODEL_CONFIG_PREFIX_MAP: dict[str, type] = {
     # Amazon models
@@ -262,9 +288,9 @@ class AmazonBedrock(Plugin):
         if not resolved_region:
             raise ValueError('AWS region is required. Set AWS_REGION environment variable or pass region parameter.')
 
-        # Build boto3 config with timeouts
+        # Build botocore config with timeouts
         # Nova models have 60-minute inference timeout, so we set read_timeout high
-        config = Config(
+        self._botocore_config = Config(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
             **boto_config,
@@ -278,23 +304,24 @@ class AmazonBedrock(Plugin):
         if profile_name:
             session_kwargs['profile_name'] = profile_name
 
-        # Create session
-        session = boto3.Session(**session_kwargs)
+        # Create aioboto3 session (sync — session creation is lightweight)
+        self._session = aioboto3.Session(**session_kwargs)
 
-        # Build client kwargs
-        client_kwargs: dict[str, Any] = {
-            'config': config,
+        # Client kwargs for bedrock-runtime
+        self._client_kwargs: dict[str, Any] = {
+            'config': self._botocore_config,
         }
 
         # Add explicit credentials if provided
         if access_key_id and secret_access_key:
-            client_kwargs['aws_access_key_id'] = access_key_id
-            client_kwargs['aws_secret_access_key'] = secret_access_key
+            self._client_kwargs['aws_access_key_id'] = access_key_id
+            self._client_kwargs['aws_secret_access_key'] = secret_access_key
             if session_token:
-                client_kwargs['aws_session_token'] = session_token
+                self._client_kwargs['aws_session_token'] = session_token
 
-        # Create bedrock-runtime client
-        self._client = session.client('bedrock-runtime', **client_kwargs)
+        # Async client — created in init(), closed in close()
+        self._client: Any = None  # noqa: ANN401
+        self._client_ctx: Any = None  # noqa: ANN401
         self._region = resolved_region
 
         logger.debug(
@@ -305,9 +332,18 @@ class AmazonBedrock(Plugin):
     async def init(self) -> list[Action]:
         """Initialize plugin and register supported models.
 
+        Creates the async bedrock-runtime client and registers all
+        supported models and embedders.
+
         Returns:
             List of Action objects for supported models and embedders.
         """
+        # Create the async bedrock-runtime client.
+        # aioboto3 requires async context managers for client creation.
+        # We enter the context here and exit in close().
+        self._client_ctx = self._session.client('bedrock-runtime', **self._client_kwargs)
+        self._client = await self._client_ctx.__aenter__()
+
         actions: list[Action] = []
 
         # Register all supported models from predefined list
@@ -319,6 +355,17 @@ class AmazonBedrock(Plugin):
             actions.append(self._create_embedder_action(bedrock_name(model_id)))
 
         return actions
+
+    async def close(self) -> None:
+        """Close the async bedrock-runtime client.
+
+        Exits the aioboto3 async context manager entered in init(),
+        releasing network connections and other resources.
+        """
+        if self._client_ctx is not None:
+            await self._client_ctx.__aexit__(None, None, None)
+            self._client = None
+            self._client_ctx = None
 
     async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
         """Resolve an action by type and name.
@@ -394,7 +441,16 @@ class AmazonBedrock(Plugin):
         )
 
         async def embed_fn(request: EmbedRequest) -> EmbedResponse:
-            """Generate embeddings using AWS Bedrock."""
+            """Generate embeddings using AWS Bedrock.
+
+            The InvokeModel API does NOT support inference profile IDs
+            (regional prefixes like ``us.``, ``eu.``, ``apac.``). Only
+            the Converse/ConverseStream APIs support them. We must strip
+            any inference profile prefix before calling InvokeModel.
+            """
+            # Strip inference profile prefix — InvokeModel requires base model IDs
+            base_model_id = _strip_inference_profile_prefix(model_id)
+
             # Extract text from document content
             texts: list[str] = []
             for doc in request.input:
@@ -410,35 +466,35 @@ class AmazonBedrock(Plugin):
             # Process each text (Bedrock embedding API typically handles one at a time)
             for text in texts:
                 # Build request body based on model type
-                if model_id.startswith('amazon.titan-embed'):
+                if base_model_id.startswith('amazon.titan-embed'):
                     body = {'inputText': text}
-                elif model_id.startswith('cohere.embed'):
+                elif base_model_id.startswith('cohere.embed'):
                     body = {
                         'texts': [text],
                         'input_type': 'search_document',
                     }
-                elif model_id.startswith('amazon.nova'):
+                elif base_model_id.startswith('amazon.nova'):
                     body = {'inputText': text}
                 else:
                     body = {'inputText': text}
 
-                # Call InvokeModel for embeddings
-                response = self._client.invoke_model(
-                    modelId=model_id,
+                # Call InvokeModel for embeddings (uses base model ID, not inference profile)
+                response = await self._client.invoke_model(
+                    modelId=base_model_id,
                     body=json.dumps(body),
                     contentType='application/json',
                     accept='application/json',
                 )
 
                 # Parse response
-                response_body = json.loads(response['body'].read())
+                response_body = json.loads(await response['body'].read())
 
                 # Extract embedding based on model type
-                if model_id.startswith('amazon.titan-embed'):
+                if base_model_id.startswith('amazon.titan-embed'):
                     embedding_vector = response_body.get('embedding', [])
-                elif model_id.startswith('cohere.embed'):
+                elif base_model_id.startswith('cohere.embed'):
                     embedding_vector = response_body.get('embeddings', [[]])[0]
-                elif model_id.startswith('amazon.nova'):
+                elif base_model_id.startswith('amazon.nova'):
                     embedding_vector = response_body.get('embedding', [])
                 else:
                     embedding_vector = response_body.get('embedding', [])
@@ -629,11 +685,12 @@ def inference_profile(model_id: str, region: str | None = None) -> str:
 #
 # Or use the region-specific helpers defined below.
 
-# Anthropic Claude models
-claude_sonnet_4_5 = bedrock_name('anthropic.claude-sonnet-4-5-20250929-v1:0')
-claude_sonnet_4 = bedrock_name('anthropic.claude-sonnet-4-20250514-v1:0')
+# Anthropic Claude models — grouped by family, descending version
+claude_opus_4_6 = bedrock_name('anthropic.claude-opus-4-6-20260205-v1:0')
 claude_opus_4_5 = bedrock_name('anthropic.claude-opus-4-5-20251101-v1:0')
 claude_opus_4_1 = bedrock_name('anthropic.claude-opus-4-1-20250805-v1:0')
+claude_sonnet_4_5 = bedrock_name('anthropic.claude-sonnet-4-5-20250929-v1:0')
+claude_sonnet_4 = bedrock_name('anthropic.claude-sonnet-4-20250514-v1:0')
 claude_haiku_4_5 = bedrock_name('anthropic.claude-haiku-4-5-20251001-v1:0')
 claude_3_5_haiku = bedrock_name('anthropic.claude-3-5-haiku-20241022-v1:0')
 claude_3_haiku = bedrock_name('anthropic.claude-3-haiku-20240307-v1:0')

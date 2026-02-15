@@ -27,6 +27,7 @@ This directory contains sample applications demonstrating various Genkit feature
 │   │ provider-mistral-hello           │      ──────────────────────────                  │
 │   │ provider-huggingface-hello       │      ┌──────────────────────────────────┐        │
 │   │ provider-cohere-hello            │      │ web-endpoints-hello              │        │
+│   │ provider-checks-hello            │      │ web-fastapi-bugbot               │        │
 │   │ provider-observability-hello     │      │ web-flask-hello                  │        │
 │   │ provider-vertex-ai-model-garden  │      │ web-multi-server                 │        │
 │   │ provider-vertex-ai-rerank-eval   │      │ web-short-n-long                 │        │
@@ -81,6 +82,7 @@ cd py/samples/<sample-name>
 | **provider-cohere-hello** | cohere | Cohere models, embeddings, reranking |
 | **provider-vertex-ai-model-garden** | vertex-ai | Third-party models via Vertex AI Model Garden |
 | **provider-observability-hello** | observability | Sentry, Honeycomb, Datadog, etc. |
+| **provider-checks-hello** | checks | Google Checks AI content safety guardrails |
 
 ### Provider Feature Samples (`provider-*`)
 
@@ -104,7 +106,7 @@ cd py/samples/<sample-name>
 | **framework-evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
 | **framework-format-demo** | Formats | Output formatting and schemas |
 | **framework-middleware-demo** | Middleware | Custom retry and logging middleware |
-| **framework-prompt-demo** | Prompts | Dotprompt templates and partials |
+| **framework-prompt-demo** | Prompts | Dotprompt: Picoschema, roles, media, tools, variants, helpers, partials, `{{#each}}` |
 | **framework-realtime-tracing-demo** | Telemetry | Real-time tracing visualization |
 | **framework-restaurant-demo** | Tools, RAG | Restaurant menu ordering with tools |
 | **framework-tool-interrupts** | Tools | Human-in-the-loop tool approval |
@@ -114,6 +116,7 @@ cd py/samples/<sample-name>
 | Sample | Features | Description |
 |--------|----------|-------------|
 | **web-endpoints-hello** | FastAPI, Litestar, Quart, gRPC | REST + gRPC endpoints with multi-cloud deploy, auto-telemetry |
+| **web-fastapi-bugbot** | FastAPI | AI code reviewer with streaming SSE and Swagger UI |
 | **web-flask-hello** | Flask | Flask HTTP endpoints with Genkit |
 | **web-multi-server** | Litestar, Starlette | Multiple Genkit servers |
 | **web-short-n-long** | ASGI | ASGI deployment with long-running flows |
@@ -129,7 +132,7 @@ cd py/samples/<sample-name>
 The table below tracks which capabilities each model provider sample exercises.
 This is a living document — update it as new flows are added to samples.
 
-> **Last audited**: 2026-02-08
+> **Last audited**: 2026-02-12
 
 | Sample | Basic | Stream | Tools | Struct | Vision | Embed | Code | Reasoning | TTS | Cache | PDF |
 |--------|:-----:|:------:|:-----:|:------:|:------:|:-----:|:----:|:---------:|:---:|:-----:|:---:|
@@ -283,10 +286,10 @@ Each sample's README.md contains specific environment requirements.
 
 ## Cross-Language Sample Parity
 
-> **Last audited**: 2026-02-08
+> **Last audited**: 2026-02-12
 
 The table below compares sample coverage across Python and JavaScript SDKs.
-Python currently has **33 samples/testapps** covering more provider diversity
+Python currently has **35 samples** covering more provider diversity
 than JavaScript's **32 testapps + 9 top-level samples**.
 
 ### Parity Status
@@ -338,6 +341,8 @@ Python has significantly broader provider and framework coverage:
 | `provider-firestore-retriever` | Vector store |
 | `provider-cohere-hello` | Model provider |
 | `provider-google-genai-vertexai-image` | Image generation |
+| `provider-checks-hello` | Safety (Checks AI) |
+| `web-fastapi-bugbot` | Web (FastAPI + SSE) |
 | `framework-middleware-demo` | Framework |
 | `framework-realtime-tracing-demo` | Framework |
 | `framework-context-demo` | Framework |
