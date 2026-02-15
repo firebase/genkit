@@ -99,7 +99,7 @@ def register_regex_evaluators(ai: Genkit, patterns: list[dict[str, Any]]) -> Non
 
         ai.define_evaluator(
             name=f'byo/{name}',
-            display_name='Regex Match',
+            display_name=f'Regex Match ({name.split("_")[-1]})',
             definition='Runs the output against a regex and responds with 1 if a match is found and 0 otherwise.',
             is_billed=False,
             fn=_regex_eval_fn_factory(regex),
