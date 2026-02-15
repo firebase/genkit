@@ -281,6 +281,18 @@ class MercurialCLIBackend:
         log.info('push', remote=hg_remote, tags=tags, set_upstream=set_upstream)
         return await asyncio.to_thread(self._hg, *cmd_parts, dry_run=dry_run)
 
+    async def tag_commit_sha(self, tag_name: str) -> str:
+        """Return the commit SHA that a tag points to."""
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            f'tag({tag_name!r})',
+            '--template',
+            '{node}',
+        )
+        return result.stdout.strip() if result.ok else ''
+
     async def list_tags(self, *, pattern: str = '') -> list[str]:
         """Return all tags, optionally filtered by a glob pattern.
 

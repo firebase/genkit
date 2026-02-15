@@ -70,6 +70,74 @@ def _create_go_workspace(directory: Path) -> Path:
     return directory
 
 
+def _create_dart_workspace(directory: Path) -> Path:
+    """Create a melos.yaml + pubspec.yaml at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'melos.yaml').write_text(
+        'name: workspace\n\npackages:\n  - packages/*\n',
+        encoding='utf-8',
+    )
+    (directory / 'pubspec.yaml').write_text(
+        'name: workspace\nversion: 0.0.0\n',
+        encoding='utf-8',
+    )
+    return directory
+
+
+def _create_java_workspace(directory: Path) -> Path:
+    """Create a settings.gradle at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'settings.gradle').write_text(
+        "include ':core'\n",
+        encoding='utf-8',
+    )
+    return directory
+
+
+def _create_kotlin_workspace(directory: Path) -> Path:
+    """Create a Kotlin/Gradle workspace at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'settings.gradle.kts').write_text(
+        'include(":core")\n',
+        encoding='utf-8',
+    )
+    (directory / 'build.gradle.kts').write_text(
+        'plugins {\n    kotlin("jvm") version "1.9.0"\n}\n',
+        encoding='utf-8',
+    )
+    return directory
+
+
+def _create_clojure_workspace(directory: Path) -> Path:
+    """Create a Leiningen project at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'project.clj').write_text(
+        '(defproject example "0.1.0")\n',
+        encoding='utf-8',
+    )
+    return directory
+
+
+def _create_clojure_deps_workspace(directory: Path) -> Path:
+    """Create a tools.deps (deps.edn) project at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'deps.edn').write_text(
+        '{:deps {org.clojure/clojure {:mvn/version "1.11.1"}}}\n',
+        encoding='utf-8',
+    )
+    return directory
+
+
+def _create_cargo_workspace(directory: Path) -> Path:
+    """Create a Cargo.toml with [workspace] at ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'Cargo.toml').write_text(
+        '[workspace]\nmembers = ["core"]\n',
+        encoding='utf-8',
+    )
+    return directory
+
+
 # ── find_monorepo_root ───────────────────────────────────────────────
 
 
@@ -142,11 +210,35 @@ class TestDetectEcosystems:
         if result[0].root != py_dir.resolve():
             pytest.fail(f'Expected {py_dir}, got {result[0].root}')
 
+    def test_detects_uv_in_python_subdir(self, tmp_path: Path) -> None:
+        """Detects a uv workspace in a python/ subdirectory."""
+        _create_git_repo(tmp_path)
+        python_dir = tmp_path / 'python'
+        _create_uv_workspace(python_dir)
+        result = detect_ecosystems(tmp_path)
+        if len(result) != 1:
+            pytest.fail(f'Expected 1 ecosystem, got {len(result)}')
+        if result[0].ecosystem != Ecosystem.PYTHON:
+            pytest.fail(f'Expected python, got {result[0].ecosystem}')
+        if result[0].root != python_dir.resolve():
+            pytest.fail(f'Expected {python_dir}, got {result[0].root}')
+
     def test_detects_pnpm_in_subdir(self, tmp_path: Path) -> None:
         """Detects a pnpm workspace in a subdirectory (js/)."""
         _create_git_repo(tmp_path)
         js_dir = tmp_path / 'js'
         _create_pnpm_workspace(js_dir)
+        result = detect_ecosystems(tmp_path)
+        if len(result) != 1:
+            pytest.fail(f'Expected 1 ecosystem, got {len(result)}')
+        if result[0].ecosystem != Ecosystem.JS:
+            pytest.fail(f'Expected js, got {result[0].ecosystem}')
+
+    def test_detects_pnpm_in_typescript_subdir(self, tmp_path: Path) -> None:
+        """Detects a pnpm workspace in a typescript/ subdirectory."""
+        _create_git_repo(tmp_path)
+        ts_dir = tmp_path / 'typescript'
+        _create_pnpm_workspace(ts_dir)
         result = detect_ecosystems(tmp_path)
         if len(result) != 1:
             pytest.fail(f'Expected 1 ecosystem, got {len(result)}')
@@ -163,9 +255,20 @@ class TestDetectEcosystems:
             pytest.fail(f'Expected 1 ecosystem, got {len(result)}')
         if result[0].ecosystem != Ecosystem.GO:
             pytest.fail(f'Expected go, got {result[0].ecosystem}')
-        # Go backend not yet implemented.
-        if result[0].workspace is not None:
-            pytest.fail('Expected None workspace for Go, got an instance')
+        # Go backend is now implemented — workspace should be instantiated.
+        if result[0].workspace is None:
+            pytest.fail('Expected GoWorkspace instance for Go, got None')
+
+    def test_detects_go_in_golang_subdir(self, tmp_path: Path) -> None:
+        """Detects a Go workspace in a golang/ subdirectory."""
+        _create_git_repo(tmp_path)
+        golang_dir = tmp_path / 'golang'
+        _create_go_workspace(golang_dir)
+        result = detect_ecosystems(tmp_path)
+        if len(result) != 1:
+            pytest.fail(f'Expected 1 ecosystem, got {len(result)}')
+        if result[0].ecosystem != Ecosystem.GO:
+            pytest.fail(f'Expected go, got {result[0].ecosystem}')
 
     def test_detects_multiple_ecosystems(self, tmp_path: Path) -> None:
         """Detects all three ecosystems in a polyglot monorepo."""
@@ -276,3 +379,191 @@ class TestDetectEcosystems:
         expected = {Ecosystem.PYTHON, Ecosystem.JS}
         if types != expected:
             pytest.fail(f'Expected {expected}, got {types}')
+
+    # ── Dart detection ─────────────────────────────────────────────────
+
+    def test_detects_dart_in_subdir(self, tmp_path: Path) -> None:
+        """Detects a Dart workspace in a subdirectory."""
+        _create_git_repo(tmp_path)
+        dart_dir = tmp_path / 'dart'
+        _create_dart_workspace(dart_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.DART
+        assert result[0].workspace is not None
+
+    def test_detects_dart_in_flutter_subdir(self, tmp_path: Path) -> None:
+        """Detects a Dart workspace in a flutter/ subdirectory."""
+        _create_git_repo(tmp_path)
+        flutter_dir = tmp_path / 'flutter'
+        _create_dart_workspace(flutter_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.DART
+        assert result[0].workspace is not None
+
+    # ── Java detection ─────────────────────────────────────────────────
+
+    def test_detects_java_in_subdir(self, tmp_path: Path) -> None:
+        """Detects a Java workspace in a subdirectory."""
+        _create_git_repo(tmp_path)
+        java_dir = tmp_path / 'java'
+        _create_java_workspace(java_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.JAVA
+        assert result[0].workspace is not None
+
+    def test_detects_java_in_jvm_subdir(self, tmp_path: Path) -> None:
+        """Detects a Java workspace in a jvm/ subdirectory."""
+        _create_git_repo(tmp_path)
+        jvm_dir = tmp_path / 'jvm'
+        _create_java_workspace(jvm_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.JAVA
+        assert result[0].workspace is not None
+
+    # ── Rust detection ─────────────────────────────────────────────────
+
+    def test_detects_rust_in_subdir(self, tmp_path: Path) -> None:
+        """Detects a Rust/Cargo workspace in a subdirectory."""
+        _create_git_repo(tmp_path)
+        rust_dir = tmp_path / 'rust'
+        _create_cargo_workspace(rust_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.RUST
+        assert result[0].workspace is not None
+
+    def test_detects_rust_in_rs_subdir(self, tmp_path: Path) -> None:
+        """Detects a Rust/Cargo workspace in an rs/ subdirectory."""
+        _create_git_repo(tmp_path)
+        rs_dir = tmp_path / 'rs'
+        _create_cargo_workspace(rs_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.RUST
+        assert result[0].workspace is not None
+
+    def test_cargo_toml_without_workspace_ignored(self, tmp_path: Path) -> None:
+        """A Cargo.toml without [workspace] is not detected as Rust."""
+        _create_git_repo(tmp_path)
+        rust_dir = tmp_path / 'rust'
+        rust_dir.mkdir(parents=True)
+        (rust_dir / 'Cargo.toml').write_text(
+            '[package]\nname = "standalone"\nversion = "1.0.0"\n',
+            encoding='utf-8',
+        )
+        result = detect_ecosystems(tmp_path)
+        rust_results = [e for e in result if e.ecosystem == Ecosystem.RUST]
+        assert len(rust_results) == 0
+
+    def test_filter_rust_only(self, tmp_path: Path) -> None:
+        """--ecosystem=rust returns only Rust ecosystems."""
+        _create_git_repo(tmp_path)
+        _create_uv_workspace(tmp_path / 'py')
+        _create_cargo_workspace(tmp_path / 'rust')
+        result = detect_ecosystems(tmp_path, ecosystem_filter=Ecosystem.RUST)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.RUST
+
+    # ── Kotlin detection ──────────────────────────────────────────────
+
+    def test_detects_kotlin_in_subdir(self, tmp_path: Path) -> None:
+        """Detects a Kotlin workspace in a subdirectory."""
+        _create_git_repo(tmp_path)
+        kotlin_dir = tmp_path / 'kotlin'
+        _create_kotlin_workspace(kotlin_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.KOTLIN
+        assert result[0].workspace is not None
+
+    def test_detects_kotlin_in_kt_subdir(self, tmp_path: Path) -> None:
+        """Detects a Kotlin workspace in a kt/ subdirectory."""
+        _create_git_repo(tmp_path)
+        kt_dir = tmp_path / 'kt'
+        _create_kotlin_workspace(kt_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.KOTLIN
+
+    def test_kotlin_preferred_over_java(self, tmp_path: Path) -> None:
+        """Kotlin DSL with kotlin plugin is detected as kotlin, not java."""
+        _create_git_repo(tmp_path)
+        # A Kotlin workspace also has settings.gradle.kts, which would
+        # match _is_java_workspace — but kotlin should win.
+        kotlin_dir = tmp_path / 'app'
+        _create_kotlin_workspace(kotlin_dir)
+        result = detect_ecosystems(tmp_path)
+        ecosystems = {e.ecosystem for e in result}
+        assert Ecosystem.KOTLIN in ecosystems
+        assert Ecosystem.JAVA not in ecosystems
+
+    def test_filter_kotlin_only(self, tmp_path: Path) -> None:
+        """--ecosystem=kotlin returns only Kotlin ecosystems."""
+        _create_git_repo(tmp_path)
+        _create_uv_workspace(tmp_path / 'py')
+        _create_kotlin_workspace(tmp_path / 'kotlin')
+        result = detect_ecosystems(tmp_path, ecosystem_filter=Ecosystem.KOTLIN)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.KOTLIN
+
+    # ── Clojure detection ─────────────────────────────────────────────
+
+    def test_detects_clojure_lein_in_subdir(self, tmp_path: Path) -> None:
+        """Detects a Clojure/Leiningen workspace in a subdirectory."""
+        _create_git_repo(tmp_path)
+        clj_dir = tmp_path / 'clojure'
+        _create_clojure_workspace(clj_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.CLOJURE
+        # No workspace backend yet.
+        assert result[0].workspace is None
+
+    def test_detects_clojure_deps_edn(self, tmp_path: Path) -> None:
+        """Detects a Clojure/tools.deps workspace via deps.edn."""
+        _create_git_repo(tmp_path)
+        clj_dir = tmp_path / 'clj'
+        _create_clojure_deps_workspace(clj_dir)
+        result = detect_ecosystems(tmp_path)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.CLOJURE
+
+    def test_filter_clojure_only(self, tmp_path: Path) -> None:
+        """--ecosystem=clojure returns only Clojure ecosystems."""
+        _create_git_repo(tmp_path)
+        _create_uv_workspace(tmp_path / 'py')
+        _create_clojure_workspace(tmp_path / 'clojure')
+        result = detect_ecosystems(tmp_path, ecosystem_filter=Ecosystem.CLOJURE)
+        assert len(result) == 1
+        assert result[0].ecosystem == Ecosystem.CLOJURE
+
+    # ── All ecosystems together ───────────────────────────────────────
+
+    def test_detects_all_eight_ecosystems(self, tmp_path: Path) -> None:
+        """Detects all eight ecosystems in a polyglot monorepo."""
+        _create_git_repo(tmp_path)
+        _create_uv_workspace(tmp_path / 'py')
+        _create_pnpm_workspace(tmp_path / 'js')
+        _create_go_workspace(tmp_path / 'go')
+        _create_dart_workspace(tmp_path / 'dart')
+        _create_java_workspace(tmp_path / 'java')
+        _create_kotlin_workspace(tmp_path / 'kotlin')
+        _create_clojure_workspace(tmp_path / 'clojure')
+        _create_cargo_workspace(tmp_path / 'rust')
+        result = detect_ecosystems(tmp_path)
+        types = {e.ecosystem for e in result}
+        expected = {
+            Ecosystem.PYTHON,
+            Ecosystem.JS,
+            Ecosystem.GO,
+            Ecosystem.DART,
+            Ecosystem.JAVA,
+            Ecosystem.KOTLIN,
+            Ecosystem.CLOJURE,
+            Ecosystem.RUST,
+        }
+        assert types == expected

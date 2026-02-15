@@ -214,9 +214,16 @@ async def create_commitback_pr(
 
     commit_msg = f'chore: bump to next dev version after {umbrella_version}'
     await vcs.commit(commit_msg, dry_run=dry_run)
-    push_result = await vcs.push(remote='origin', dry_run=dry_run)
-    if not push_result.ok:
-        raise RuntimeError(f'Failed to push commit-back branch {branch_name!r}: {push_result.stderr.strip()}')
+    try:
+        push_result = await vcs.push(remote='origin', dry_run=dry_run)
+        if not push_result.ok:
+            result.errors.append(f'Failed to push commit-back branch {branch_name!r}: {push_result.stderr.strip()}')
+            logger.error('commitback_push_failed', branch=branch_name, stderr=push_result.stderr.strip())
+            return result
+    except Exception as exc:
+        result.errors.append(f'Failed to push commit-back branch {branch_name!r}: {exc}')
+        logger.error('commitback_push_error', branch=branch_name, error=str(exc))
+        return result
     logger.info('commitback_pushed', branch=branch_name)
 
     if forge is not None and hasattr(forge, 'is_available') and await forge.is_available():

@@ -31,11 +31,11 @@ from releasekit.backends.vcs.git import GitCLIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['git'], returncode=0, stdout=stdout, **kw)
+    return CommandResult(command=['git'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['git'], returncode=1, stderr=stderr, **kw)
+    return CommandResult(command=['git'], return_code=1, stderr=stderr, **kw)
 
 
 @pytest.fixture()

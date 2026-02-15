@@ -76,7 +76,7 @@ async def test_health_creates_trace_span(client: AsyncClient) -> None:
     span = health_spans[0]
     if span.attributes is None:
         pytest.fail("Span has no attributes")
-    attrs = dict(span.attributes)  # ty: ignore[no-matching-overload] — attr type too broad for dict()
+    attrs = dict(span.attributes)
     method = attrs.get("http.method", attrs.get("http.request.method"))
     if method != "GET":
         pytest.fail(f"Expected GET method, got {method}")

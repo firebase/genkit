@@ -29,11 +29,11 @@ from releasekit.backends.forge.gitlab import GitLabCLIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['glab'], returncode=0, stdout=stdout, **kw)
+    return CommandResult(command=['glab'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['glab'], returncode=1, stderr=stderr, **kw)
+    return CommandResult(command=['glab'], return_code=1, stderr=stderr, **kw)
 
 
 @pytest.fixture()

@@ -96,10 +96,6 @@ class GitHubCLIBackend:
         cmd_parts = ['release', 'create', tag]
         if title:
             cmd_parts.extend(['--title', title])
-        if body:
-            cmd_parts.extend(['--notes', body])
-        else:
-            cmd_parts.append('--generate-notes')
         if draft:
             cmd_parts.append('--draft')
         if prerelease:
@@ -109,7 +105,27 @@ class GitHubCLIBackend:
                 cmd_parts.append(str(asset))
 
         log.info('create_release', tag=tag, draft=draft)
-        return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+        if body:
+            # Use --notes-file to avoid shell argument size limits with large
+            # release notes (e.g. 60+ package changelogs).
+            notes_file = ''
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.md',
+                    delete=False,
+                    encoding='utf-8',
+                ) as f:
+                    notes_file = f.name
+                    f.write(body)
+                cmd_parts.extend(['--notes-file', notes_file])
+                return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
+            finally:
+                if notes_file:
+                    os.unlink(notes_file)  # noqa: PTH108
+        else:
+            cmd_parts.append('--generate-notes')
+            return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def delete_release(
         self,
@@ -188,19 +204,21 @@ class GitHubCLIBackend:
         if body:
             # Use --body-file to avoid shell argument size limits with large
             # PR bodies (e.g. 60+ package changelogs + embedded manifest).
-            with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.md',
-                delete=False,
-                encoding='utf-8',
-            ) as f:
-                f.write(body)
-                body_file = f.name
+            body_file = ''
             try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.md',
+                    delete=False,
+                    encoding='utf-8',
+                ) as f:
+                    body_file = f.name
+                    f.write(body)
                 cmd_parts.extend(['--body-file', body_file])
                 return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
             finally:
-                os.unlink(body_file)  # noqa: PTH108
+                if body_file:
+                    os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
@@ -303,19 +321,21 @@ class GitHubCLIBackend:
         if body:
             # Use --body-file to avoid shell argument size limits with large
             # PR bodies (e.g. 60+ package changelogs + embedded manifest).
-            with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.md',
-                delete=False,
-                encoding='utf-8',
-            ) as f:
-                f.write(body)
-                body_file = f.name
+            body_file = ''
             try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.md',
+                    delete=False,
+                    encoding='utf-8',
+                ) as f:
+                    body_file = f.name
+                    f.write(body)
                 cmd_parts.extend(['--body-file', body_file])
                 return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
             finally:
-                os.unlink(body_file)  # noqa: PTH108
+                if body_file:
+                    os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._gh, *cmd_parts, dry_run=dry_run)
 
     async def merge_pr(

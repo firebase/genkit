@@ -179,6 +179,14 @@ has dozens of edge cases that will bite you if you try to do it with
 shell scripts or manual processes. Every feature exists because we
 hit the bug it prevents.
 
+Releasekit is **ecosystem-agnostic** — it supports Python (uv), JS
+(pnpm), Go, Dart (pub), Java/Kotlin (Maven/Gradle), Clojure
+(Leiningen/tools.deps), and Rust (Cargo). Each ecosystem has a
+workspace backend that discovers packages, a package manager backend
+that builds/publishes, and a registry backend that verifies
+availability. Adding a new ecosystem means implementing three
+protocols — no changes to the core orchestration.
+
 ## The Release Process
 
 A single release involves:
@@ -410,35 +418,33 @@ in production. Every module exists because a release failed without it.
 
 ## Releasekit Architecture
 
-```
-releasekit/
-├── preflight.py      # 12 safety checks before anything starts
-├── prepare.py        # Version bumps, changelogs, release PR
-├── release.py        # Tag creation, platform releases
-├── publisher.py      # Build → pin → publish → verify pipeline
-├── scheduler.py      # Dependency-triggered concurrent dispatch
-├── pin.py            # Ephemeral pyproject.toml rewriting
-├── graph.py          # DAG construction, cycle detection, topo sort
-├── state.py          # Crash-safe per-package status tracking
-├── tags.py           # Per-package + umbrella tag management
-├── changelog.py      # Conventional commit → changelog sections
-├── release_notes.py  # Umbrella release notes generation
-├── commitback.py     # Post-release .dev0 version bumping
-├── versioning.py     # Semantic version computation
-├── workspace.py      # Package discovery and metadata parsing
-├── config.py         # TOML config parsing and validation
-├── errors.py         # Structured error codes with hints
-├── ui.py             # Rich progress UI for terminal output
-├── doctor.py         # Diagnostic self-checks
-└── backends/         # Pluggable backends (git, uv, pnpm, gh, PyPI, npm)
-```
-
 Every module is tested with fake backends (no network, no git, no
-registry calls in tests). The entire test suite runs in seconds.
+registry calls in tests). The backends are pluggable via protocols:
+VCS (Git, Mercurial), PackageManager (uv, pnpm, Go, Dart, Maven,
+Cargo), Registry (PyPI, npm, Go proxy, pub.dev, Maven Central,
+crates.io), Forge (GitHub, GitLab, Bitbucket), and Workspace
+(package discovery per ecosystem).
 
 **If you're tempted to replace releasekit with shell scripts, read
 Part II again first.** The edge cases are real, and they will find you
 in production at the worst possible time.
+
+## Release Tool Invariants
+
+These are **hard requirements** — violations are P0 bugs. Tests live
+in `tests/rk_invariants_test.py`.
+
+| Key | Invariant | One-liner |
+|-----|-----------|----------|
+| `INV-IDEMPOTENCY` | Idempotency | Re-running a command is always safe |
+| `INV-CRASH-SAFETY` | Crash Safety | Interrupted releases resume without re-publishing |
+| `INV-ATOMICITY` | Atomicity | Each publish fully succeeds or fully fails |
+| `INV-DETERMINISM` | Determinism | Same inputs always produce same outputs |
+| `INV-OBSERVABILITY` | Observability | Every action emits structured logs |
+| `INV-DRY-RUN` | Dry-Run Fidelity | `--dry-run` exercises real code paths |
+| `INV-GRACEFUL-DEGRADATION` | Graceful Degradation | Missing optional components degrade to no-ops |
+| `INV-TOPO-ORDER` | Topological Correctness | Packages publish in dependency order |
+| `INV-SUPPLY-CHAIN` | Supply Chain Integrity | Published artifacts are verified against checksums |
 
 ---
 

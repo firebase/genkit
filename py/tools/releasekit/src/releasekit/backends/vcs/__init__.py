@@ -195,6 +195,21 @@ class VCS(Protocol):
         """
         ...
 
+    async def tag_commit_sha(self, tag_name: str) -> str:
+        """Return the commit SHA that a tag points to.
+
+        For annotated tags, this dereferences to the underlying commit.
+        For lightweight tags, this returns the tagged commit directly.
+
+        Args:
+            tag_name: Tag name to resolve.
+
+        Returns:
+            The full commit SHA, or an empty string if the tag does
+            not exist.
+        """
+        ...
+
     async def current_branch(self) -> str:
         """Return the name of the currently checked-out branch.
 

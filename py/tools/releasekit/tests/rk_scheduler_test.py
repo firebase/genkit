@@ -855,3 +855,231 @@ class TestRemovePackage:
             raise AssertionError(f'Expected a published: {result.published}')
         if 'b' in result.published or 'c' in result.published:
             raise AssertionError(f'b and c should not be published: {result.published}')
+
+
+class TestSchedulerNoSeeds:
+    """Tests for scheduler with no seedable packages."""
+
+    @pytest.mark.asyncio
+    async def test_all_packages_have_unsatisfied_deps(self) -> None:
+        """Scheduler returns immediately when no packages can be seeded."""
+        # Create a cycle-like situation where all packages have deps
+        # that are in the publishable set but none have 0 remaining deps.
+        # We do this by manually constructing nodes.
+        nodes = {
+            'a': PackageNode(name='a', remaining_deps=1, dependents=['b']),
+            'b': PackageNode(name='b', remaining_deps=1, dependents=['a']),
+        }
+        sched = Scheduler(nodes=nodes, concurrency=2)
+
+        async def publish_fn(name: str) -> None:
+            pass
+
+        result = await sched.run(publish_fn)
+
+        assert result.ok  # No failures, just nothing published.
+        assert not result.published
+        assert not result.failed
+
+
+class TestSchedulerResultOk:
+    """Tests for SchedulerResult.ok property."""
+
+    def test_empty_result_is_ok(self) -> None:
+        """Empty result is OK."""
+        result = SchedulerResult()
+        assert result.ok
+
+    def test_result_with_failures_not_ok(self) -> None:
+        """Result with failures is not OK."""
+        result = SchedulerResult(failed={'a': 'boom'})
+        assert not result.ok
+
+
+class TestSchedulerObserverNotify:
+    """Tests for scheduler observer notification helpers."""
+
+    def test_notify_stage_with_observer(self) -> None:
+        """_notify_stage calls observer.on_stage."""
+        from releasekit.observer import PublishObserver, PublishStage
+
+        stages: list[tuple[str, PublishStage]] = []
+
+        class SpyObserver(PublishObserver):
+            def on_stage(self, name: str, stage: PublishStage) -> None:
+                stages.append((name, stage))
+
+        nodes = {'a': PackageNode(name='a', remaining_deps=0)}
+        sched = Scheduler(nodes=nodes, observer=SpyObserver())
+        sched._notify_stage('a', 'retrying')
+
+        assert len(stages) == 1
+        assert stages[0] == ('a', PublishStage.RETRYING)
+
+    def test_notify_stage_without_observer(self) -> None:
+        """_notify_stage is a no-op without observer."""
+        nodes = {'a': PackageNode(name='a', remaining_deps=0)}
+        sched = Scheduler(nodes=nodes, observer=None)
+        # Should not raise.
+        sched._notify_stage('a', 'retrying')
+
+    def test_notify_scheduler_state_with_observer(self) -> None:
+        """_notify_scheduler_state calls observer.on_scheduler_state."""
+        from releasekit.observer import PublishObserver, SchedulerState
+
+        states: list[SchedulerState] = []
+
+        class SpyObserver(PublishObserver):
+            def on_scheduler_state(self, state: SchedulerState) -> None:
+                states.append(state)
+
+        nodes = {'a': PackageNode(name='a', remaining_deps=0)}
+        sched = Scheduler(nodes=nodes, observer=SpyObserver())
+        sched._notify_scheduler_state('paused')
+
+        assert len(states) == 1
+        assert states[0] == SchedulerState.PAUSED
+
+    def test_notify_view_mode_with_observer(self) -> None:
+        """_notify_view_mode calls observer.on_view_mode."""
+        from releasekit.observer import DisplayFilter, PublishObserver, ViewMode
+
+        calls: list[tuple[ViewMode, DisplayFilter]] = []
+
+        class SpyObserver(PublishObserver):
+            def on_view_mode(self, mode: ViewMode, display_filter: DisplayFilter) -> None:
+                """Record view mode change."""
+                calls.append((mode, display_filter))
+
+        nodes = {'a': PackageNode(name='a', remaining_deps=0)}
+        sched = Scheduler(nodes=nodes, observer=SpyObserver())
+        sched._notify_view_mode()
+
+        assert len(calls) == 1
+        assert calls[0] == (ViewMode.WINDOW, DisplayFilter.ALL)
+
+
+class TestSchedulerBlockDependents:
+    """Tests for _block_dependents recursion."""
+
+    def test_block_dependents_recursive(self) -> None:
+        """_block_dependents recursively blocks transitive dependents."""
+        from releasekit.observer import PublishObserver, PublishStage
+
+        blocked: list[str] = []
+
+        class SpyObserver(PublishObserver):
+            def on_stage(self, name: str, stage: PublishStage) -> None:
+                if stage == PublishStage.BLOCKED:
+                    blocked.append(name)
+
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        c = _make_pkg('c', internal_deps=['b'])
+        graph = _make_graph(a, b, c)
+        sched = Scheduler.from_graph(
+            graph,
+            publishable={'a', 'b', 'c'},
+            concurrency=1,
+            observer=SpyObserver(),
+        )
+
+        # Block dependents of 'a' — should block 'b' and 'c'.
+        sched._block_dependents('a')
+
+        assert 'b' in blocked
+        assert 'c' in blocked
+
+    def test_block_dependents_already_done_skipped(self) -> None:
+        """_block_dependents skips already-done packages."""
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        graph = _make_graph(a, b)
+        sched = Scheduler.from_graph(graph, publishable={'a', 'b'}, concurrency=1)
+
+        # Mark b as done first.
+        sched._done.add('b')
+        sched._completed += 1
+
+        # Should not crash or double-count.
+        sched._block_dependents('a')
+
+    def test_block_dependents_unknown_node(self) -> None:
+        """_block_dependents with unknown node is a no-op."""
+        nodes = {'a': PackageNode(name='a', remaining_deps=0)}
+        sched = Scheduler(nodes=nodes)
+        # Should not raise.
+        sched._block_dependents('nonexistent')
+
+
+class TestSchedulerFromGraphEdgeCases:
+    """Tests for from_graph edge cases."""
+
+    def test_non_publishable_dependent_skipped(self) -> None:
+        """Dependent not in publishable set is skipped during level computation."""
+        a = _make_pkg('a')
+        b = _make_pkg('b', internal_deps=['a'])
+        graph = _make_graph(a, b)
+        # Only 'a' is publishable — 'b' should be excluded from nodes.
+        sched = Scheduler.from_graph(graph, publishable={'a'}, concurrency=1)
+        assert 'a' in sched.nodes
+        assert 'b' not in sched.nodes
+
+    def test_mark_done_dependent_not_in_nodes(self) -> None:
+        """mark_done skips dependents not present in nodes dict."""
+        a = PackageNode(name='a', remaining_deps=0, dependents=['ghost'])
+        sched = Scheduler(nodes={'a': a})
+        # 'ghost' is not in nodes — should not raise.
+        result = sched.mark_done('a')
+        assert result == []
+
+
+class TestSchedulerCancelledPackage:
+    """Tests for cancelled/removed package handling in run."""
+
+    @pytest.mark.asyncio
+    async def test_removed_package_is_skipped(self) -> None:
+        """Packages removed before dequeue are skipped."""
+        a = _make_pkg('a')
+        b = _make_pkg('b')
+        graph = _make_graph(a, b)
+        sched = Scheduler.from_graph(
+            graph,
+            publishable={'a', 'b'},
+            concurrency=2,
+        )
+
+        published: list[str] = []
+
+        async def fake_publish(name: str) -> None:
+            published.append(name)
+
+        # Remove 'b' before running.
+        sched.remove_package('b')
+
+        result = await sched.run(fake_publish)
+        assert 'a' in published
+        assert 'b' not in published
+        assert 'b' in result.skipped
+
+    @pytest.mark.asyncio
+    async def test_keyboard_interrupt_during_run(self) -> None:
+        """CancelledError during queue.join is handled gracefully."""
+        a = _make_pkg('a')
+        graph = _make_graph(a)
+        sched = Scheduler.from_graph(
+            graph,
+            publishable={'a'},
+            concurrency=1,
+        )
+
+        call_count = 0
+
+        async def failing_publish(name: str) -> None:
+            nonlocal call_count
+            call_count += 1
+            raise asyncio.CancelledError
+
+        result = await sched.run(failing_publish)
+        # The scheduler should complete without hanging.
+        assert isinstance(result, SchedulerResult)

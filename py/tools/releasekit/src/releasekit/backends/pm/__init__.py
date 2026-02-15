@@ -21,6 +21,12 @@ building, publishing, and testing packages. Implementations:
 
 - :class:`~releasekit.backends.pm.uv.UvBackend` — ``uv`` CLI
 - :class:`~releasekit.backends.pm.pnpm.PnpmBackend` — ``pnpm`` CLI
+- :class:`~releasekit.backends.pm.go.GoBackend` — ``go`` CLI
+- :class:`~releasekit.backends.pm.dart.DartBackend` — ``dart pub`` CLI
+- :class:`~releasekit.backends.pm.maven.MavenBackend` — ``mvn`` / ``gradle`` CLI
+- :class:`~releasekit.backends.pm.cargo.CargoBackend` — ``cargo`` CLI
+- :class:`~releasekit.backends.pm.maturin.MaturinBackend` — ``maturin`` + ``uv`` CLI
+- :class:`~releasekit.backends.pm.bazel.BazelBackend` — ``bazel`` CLI
 
 Design notes:
 
@@ -34,10 +40,22 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from releasekit.backends._run import CommandResult
+from releasekit.backends.pm.bazel import BazelBackend as BazelBackend
+from releasekit.backends.pm.cargo import CargoBackend as CargoBackend
+from releasekit.backends.pm.dart import DartBackend as DartBackend
+from releasekit.backends.pm.go import GoBackend as GoBackend
+from releasekit.backends.pm.maturin import MaturinBackend as MaturinBackend
+from releasekit.backends.pm.maven import MavenBackend as MavenBackend
 from releasekit.backends.pm.pnpm import PnpmBackend as PnpmBackend
 from releasekit.backends.pm.uv import UvBackend as UvBackend
 
 __all__ = [
+    'BazelBackend',
+    'CargoBackend',
+    'DartBackend',
+    'GoBackend',
+    'MaturinBackend',
+    'MavenBackend',
     'PackageManager',
     'PnpmBackend',
     'UvBackend',

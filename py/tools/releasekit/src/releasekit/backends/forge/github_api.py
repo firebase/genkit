@@ -119,11 +119,15 @@ class GitHubAPIBackend:
             'X-GitHub-Api-Version': _API_VERSION,
         }
 
+    def __repr__(self) -> str:
+        """Return a safe repr that never exposes the API token."""
+        return f'GitHubAPIBackend(owner={self._owner!r}, repo={self._repo!r})'
+
     def _dry_run_result(self, method: str, url: str) -> CommandResult:
         """Create a synthetic CommandResult for dry-run mode."""
         return CommandResult(
             command=[method, url],
-            returncode=0,
+            return_code=0,
             stdout='',
             stderr='',
             dry_run=True,
@@ -193,7 +197,7 @@ class GitHubAPIBackend:
         log.info('create_release', tag=tag, status=response.status_code)
         return CommandResult(
             command=['POST', url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )
@@ -221,7 +225,7 @@ class GitHubAPIBackend:
                 log.warning('release_not_found', tag=tag, status=lookup.status_code)
                 return CommandResult(
                     command=['GET', release_url],
-                    returncode=lookup.status_code,
+                    return_code=lookup.status_code,
                     stdout='',
                     stderr=f'Release not found for tag {tag}',
                 )
@@ -235,7 +239,7 @@ class GitHubAPIBackend:
         log.info('delete_release', tag=tag, status=response.status_code)
         return CommandResult(
             command=['DELETE', delete_url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout='',
             stderr='' if response.is_success else response.text,
         )
@@ -261,7 +265,7 @@ class GitHubAPIBackend:
             if lookup.status_code != 200:
                 return CommandResult(
                     command=['GET', release_url],
-                    returncode=lookup.status_code,
+                    return_code=lookup.status_code,
                     stdout='',
                     stderr=f'Release not found for tag {tag}',
                 )
@@ -280,7 +284,7 @@ class GitHubAPIBackend:
         log.info('promote_release', tag=tag, status=response.status_code)
         return CommandResult(
             command=['PATCH', edit_url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )
@@ -359,7 +363,7 @@ class GitHubAPIBackend:
                 pass
         return CommandResult(
             command=['POST', url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=stdout,
             stderr='' if response.is_success else response.text,
         )
@@ -494,7 +498,7 @@ class GitHubAPIBackend:
         log.info('add_labels', pr=pr_number, labels=labels, status=response.status_code)
         return CommandResult(
             command=['POST', url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )
@@ -526,7 +530,7 @@ class GitHubAPIBackend:
                 response = await request_with_retry(client, 'DELETE', url)
                 last_result = CommandResult(
                     command=['DELETE', url],
-                    returncode=0 if response.is_success else response.status_code,
+                    return_code=0 if response.is_success else response.status_code,
                     stdout='',
                     stderr='' if response.is_success else response.text,
                 )
@@ -571,7 +575,7 @@ class GitHubAPIBackend:
         log.info('update_pr', pr=pr_number, status=response.status_code)
         return CommandResult(
             command=['PATCH', url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )
@@ -621,7 +625,7 @@ class GitHubAPIBackend:
         log.info('merge_pr', pr=pr_number, method=method, status=response.status_code)
         return CommandResult(
             command=['PUT', url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )

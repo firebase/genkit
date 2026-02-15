@@ -174,6 +174,155 @@ If `releasekit.toml` doesn't exist, sensible defaults are used:
 | `pr_title_template` | `"chore(release): v{version}"` |
 | `extra_files` | `[]` |
 
+## Planned Configuration *(Phase 8)*
+
+The following configuration sections are planned for Phase 8 (Release
+Automation). See [roadmap.md](../../../roadmap.md) and
+[competitive-gap-analysis.md](../../../docs/competitive-gap-analysis.md)
+for full rationale.
+
+### Override Hierarchy
+
+ReleaseKit uses a 3-tier config model. More specific tiers override
+less specific ones:
+
+```
+package > workspace > root > built-in default
+```
+
+Each `[workspace.*]` section can override root-level defaults. Package-level
+`releasekit.toml` files can override workspace settings where applicable.
+
+#### Phase 8 settings — override scope
+
+| Setting | Root | Workspace | Package | Notes |
+|---------|:----:|:---------:|:-------:|-------|
+| `release_mode` | ✅ | ✅ | ❌ | JS continuous, Python PR-based |
+| `[schedule]` (all keys) | ✅ | ✅ | ❌ | Different cadence per ecosystem |
+| `[hooks]` (all keys) | ✅ | ✅ | ✅ | Concatenated by default (see below) |
+| `[branches]` | ✅ | ✅ | ❌ | JS ships `next` channel, Python doesn't |
+| `versioning_scheme` | ✅ | ✅ | ❌ | One workspace CalVer, another semver |
+| `calver_format` | ✅ | ✅ | ❌ | Follows `versioning_scheme` |
+
+#### Existing settings gaining workspace override
+
+| Setting | New Scope | Rationale |
+|---------|:---------:|-----------|
+| `publish_from` | Root + Workspace | Python from CI, Go via git tags locally |
+| `concurrency` | Root + Workspace | PyPI slower than npm — different limits |
+| `max_retries` | Root + Workspace | npm rarely retries, PyPI often does |
+| `poll_timeout` | Root + Workspace | Maven Central ~10min sync vs PyPI ~30s |
+| `verify_checksums` | Root + Workspace | Not all registries support it |
+| `major_on_zero` | Root + Workspace | JS ships 0.x breaking changes, Python doesn't |
+| `prerelease_mode` | Root + Workspace | Different rollup strategies per ecosystem |
+
+Settings that remain **root-only**: `pr_title_template`, `http_pool_size`,
+`forge`, `repo_owner`, `repo_name`, `default_branch`.
+
+### Release Mode
+
+```toml
+# Release mode: "pr" (default) or "continuous"
+#   pr         — create a Release PR, publish after merge (default)
+#   continuous — skip PR, tag + publish directly on push
+release_mode = "pr"
+
+# Per-workspace override:
+[workspace.js]
+release_mode = "continuous"
+```
+
+### Schedule
+
+```toml
+# Cadence release settings (used by `releasekit should-release`)
+[schedule]
+cadence          = "daily"          # daily | weekly:monday | biweekly | on-push
+release_window   = "14:00-16:00"   # UTC time range for releases
+cooldown_minutes = 60               # minimum time between releases
+min_bump         = "patch"          # skip release if only chore/docs commits
+
+# Per-workspace override:
+[workspace.py.schedule]
+cadence          = "weekly:monday"
+release_window   = "10:00-12:00"
+```
+
+### Lifecycle Hooks
+
+```toml
+# Shell commands executed at lifecycle points
+# Template variables: ${version}, ${name}, ${tag}
+[hooks]
+before_prepare = ["./scripts/pre-release-checks.sh"]
+after_tag      = ["./scripts/notify-slack.sh ${version}"]
+before_publish = ["./scripts/build-docs.sh"]
+after_publish  = [
+  "./scripts/update-homebrew-formula.sh ${version}",
+  "./scripts/announce-release.sh ${name} ${version}",
+]
+```
+
+#### Hook merge semantics
+
+Hooks **concatenate** across tiers (root → workspace → package) by
+default. This ensures global hooks always run while workspace/package
+hooks add specifics.
+
+```toml
+# Root
+[hooks]
+before_publish = ["./scripts/lint.sh"]
+
+# Workspace
+[workspace.py.hooks]
+before_publish = ["./scripts/build-wheels.sh"]
+
+# Package (py/packages/genkit/releasekit.toml)
+[hooks]
+before_publish = ["./scripts/validate-schema.sh"]
+```
+
+Effective order for `genkit`:
+
+1. `./scripts/lint.sh` ← root
+2. `./scripts/build-wheels.sh` ← workspace
+3. `./scripts/validate-schema.sh` ← package
+
+To **replace** instead of concatenate, set `hooks_replace = true`:
+
+```toml
+# py/packages/special/releasekit.toml
+hooks_replace = true
+
+[hooks]
+before_publish = ["./scripts/special-only.sh"]
+```
+
+### Branch-to-Channel Mapping
+
+```toml
+# Map branches to release channels (dist-tags / pre-release suffixes)
+[branches]
+main          = "latest"
+"release/v1.*" = "v1-maintenance"
+next          = "next"
+beta          = "beta"
+
+# Per-workspace override:
+[workspace.js.branches]
+main          = "latest"
+next          = "next"
+```
+
+### CalVer
+
+```toml
+# Calendar-based versioning (alternative to semver)
+versioning_scheme = "calver"    # "semver" (default) or "calver"
+calver_format     = "YYYY.MM.DD"  # YYYY.MM.DD | YYYY.MM.MICRO
+```
+
 ## Example: Full Config
 
 ```toml

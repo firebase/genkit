@@ -251,3 +251,114 @@ class TestPackageDataclass:
             manifest_path=tmp_path / 'pyproject.toml',
         )
         assert pkg.is_publishable is True, f'Expected is_publishable=True, got {pkg.is_publishable}'
+
+
+class TestDiscoverPackagesParseErrors:
+    """Tests for workspace parse error handling."""
+
+    def test_corrupt_root_toml(self, tmp_path: Path) -> None:
+        """Corrupt root pyproject.toml raises ReleaseKitError."""
+        (tmp_path / 'pyproject.toml').write_text('not valid toml {{{{')
+        with pytest.raises(ReleaseKitError):
+            discover_packages(tmp_path)
+
+    def test_no_name_in_package(self, tmp_path: Path) -> None:
+        """Package without [project].name raises ReleaseKitError."""
+        _write_root(tmp_path)
+        pkg_dir = tmp_path / 'packages' / 'bad'
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / 'pyproject.toml').write_text('[project]\nversion = "1.0.0"\n')
+        with pytest.raises(ReleaseKitError, match='No \\[project\\].name'):
+            discover_packages(tmp_path)
+
+    def test_corrupt_package_toml(self, tmp_path: Path) -> None:
+        """Corrupt package pyproject.toml raises ReleaseKitError."""
+        _write_root(tmp_path)
+        pkg_dir = tmp_path / 'packages' / 'bad'
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / 'pyproject.toml').write_text('not valid {{{{')
+        with pytest.raises(ReleaseKitError):
+            discover_packages(tmp_path)
+
+    def test_no_matching_members(self, tmp_path: Path) -> None:
+        """No directories matching member globs raises RK-WORKSPACE-NO-MEMBERS."""
+        _write_root(tmp_path, members='"nonexistent/*"')
+        with pytest.raises(ReleaseKitError, match='No packages found'):
+            discover_packages(tmp_path)
+
+
+class TestDiscoverPackagesPrivate:
+    """Tests for private package detection."""
+
+    def test_private_package_not_publishable(self, tmp_path: Path) -> None:
+        """Package with Private :: Do Not Upload classifier is not publishable."""
+        _write_root(tmp_path)
+        pkg_dir = tmp_path / 'packages' / 'internal'
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\n'
+            'name = "internal-tool"\n'
+            'version = "0.1.0"\n'
+            'dependencies = []\n'
+            'classifiers = ["Private :: Do Not Upload"]\n',
+        )
+        pkgs = discover_packages(tmp_path)
+        assert len(pkgs) == 1
+        assert pkgs[0].is_publishable is False
+
+
+class TestDiscoverPackagesMalformedDeps:
+    """Tests for malformed dependency specifier fallback."""
+
+    def test_malformed_dep_uses_fallback(self, tmp_path: Path) -> None:
+        """Malformed dep specifier uses regex fallback for name extraction."""
+        _write_root(tmp_path)
+        pkg_dir = tmp_path / 'packages' / 'app'
+        pkg_dir.mkdir(parents=True)
+        # Write a dep with a malformed specifier that packaging can't parse.
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "app"\nversion = "1.0.0"\ndependencies = ["some-pkg [bad"]\n',
+        )
+        # Should not crash — fallback extracts name.
+        pkgs = discover_packages(tmp_path)
+        assert len(pkgs) == 1
+        assert 'some-pkg' in pkgs[0].external_deps or 'some-pkg [bad' in pkgs[0].all_deps
+
+
+class TestDiscoverPackagesReadErrors:
+    """Tests for file read/parse error paths."""
+
+    def test_unreadable_package_pyproject(self, tmp_path: Path) -> None:
+        """Unreadable package pyproject.toml raises ReleaseKitError."""
+        _write_root(tmp_path)
+        pkg_dir = tmp_path / 'packages' / 'broken'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text('[project]\nname = "broken"\nversion = "0.1.0"\ndependencies = []\n')
+        # Make unreadable.
+        pyproject.chmod(0o000)  # noqa: S103
+        try:
+            with pytest.raises(ReleaseKitError, match='Failed to read'):
+                discover_packages(tmp_path)
+        finally:
+            pyproject.chmod(0o644)  # noqa: S103
+
+    def test_unreadable_root_pyproject(self, tmp_path: Path) -> None:
+        """Unreadable root pyproject.toml raises ReleaseKitError."""
+        _write_root(tmp_path)
+        root_pyproject = tmp_path / 'pyproject.toml'
+        root_pyproject.chmod(0o000)  # noqa: S103
+        try:
+            with pytest.raises(ReleaseKitError, match='Failed to read'):
+                discover_packages(tmp_path)
+        finally:
+            root_pyproject.chmod(0o644)  # noqa: S103
+
+    def test_js_ecosystem_dispatch(self, tmp_path: Path) -> None:
+        """JS ecosystem dispatches to _discover_js_packages."""
+        from unittest.mock import patch
+
+        with patch('releasekit.workspace._discover_js_packages', return_value=[]) as mock_js:
+            result = discover_packages(tmp_path, ecosystem='js')
+        assert result == []
+        mock_js.assert_called_once()

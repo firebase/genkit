@@ -151,7 +151,7 @@ class GitLabCLIBackend:
         log.warning('gitlab_promote_noop', tag=tag, hint='GitLab has no draft releases')
         return CommandResult(
             command=['glab', 'release', 'edit', tag, '(no-op)'],
-            returncode=0,
+            return_code=0,
             stdout='',
             stderr='',
             dry_run=dry_run,
@@ -210,19 +210,21 @@ class GitLabCLIBackend:
         if body:
             # Use a temp file to avoid shell argument size limits with large
             # MR descriptions (e.g. 60+ package changelogs + embedded manifest).
-            with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.md',
-                delete=False,
-                encoding='utf-8',
-            ) as f:
-                f.write(body)
-                body_file = f.name
+            body_file = ''
             try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.md',
+                    delete=False,
+                    encoding='utf-8',
+                ) as f:
+                    body_file = f.name
+                    f.write(body)
                 cmd_parts.extend(['--description', f'@{body_file}'])
                 return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
             finally:
-                os.unlink(body_file)  # noqa: PTH108
+                if body_file:
+                    os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:

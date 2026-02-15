@@ -19,21 +19,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.tags import TagResult, create_tags, delete_tags, format_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
+from tests._fakes import OK as _OK, FakeForge as _BaseFakeForge, FakeVCS as _BaseFakeVCS
 
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-
-class FakeVCS:
-    """Minimal VCS double for tag tests.
-
-    Records all tag/push/delete operations for assertions.
-    """
+class FakeVCS(_BaseFakeVCS):
+    """VCS double that records tag/push/delete operations and supports error injection."""
 
     def __init__(
         self,
@@ -42,23 +37,14 @@ class FakeVCS:
         tag_error: str | None = None,
         push_error: str | None = None,
     ) -> None:
-        """Initialize with optional existing tags and error injection.
-
-        Args:
-            existing_tags: Tags that already exist (tag_exists returns True).
-            tag_error: If set, vcs.tag() raises RuntimeError with this message.
-            push_error: If set, vcs.push() raises RuntimeError with this message.
-        """
+        """Initialize with optional existing tags and error injection."""
+        super().__init__(tags=existing_tags)
         self.existing_tags: set[str] = existing_tags or set()
         self.tag_error = tag_error
         self.push_error = push_error
-        self.created_tags: list[tuple[str, str]] = []  # (tag_name, message)
-        self.deleted_tags: list[tuple[str, bool]] = []  # (tag_name, remote)
+        self.created_tags: list[tuple[str, str]] = []
+        self.deleted_tags: list[tuple[str, bool]] = []
         self.push_calls: list[dict[str, object]] = []
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Check if a tag exists."""
-        return tag_name in self.existing_tags
 
     async def tag(
         self,
@@ -98,80 +84,16 @@ class FakeVCS:
         if self.push_error:
             return CommandResult(
                 command=['git', 'push'],
-                returncode=128,
+                return_code=128,
                 stdout='',
                 stderr=self.push_error,
             )
         self.push_calls.append({'tags': tags, 'remote': remote})
         return _OK
 
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Stub — always clean."""
-        return True
 
-    async def is_shallow(self) -> bool:
-        """Stub — not shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Stub — main."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return all existing tags."""
-        return sorted(self.existing_tags)
-
-    async def current_branch(self) -> str:
-        """Stub — main."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Stub SHA."""
-        return 'abc123'
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Stub log."""
-        return []
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Stub diff."""
-        return []
-
-    async def commit(
-        self,
-        message: str,
-        *,
-        paths: list[str] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub commit."""
-        return _OK
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub checkout_branch."""
-        return _OK
-
-
-class FakeForge:
-    """Minimal Forge double for release tests.
-
-    Records all release creation/deletion operations.
-    """
+class FakeForge(_BaseFakeForge):
+    """Forge double that records release operations and supports error injection."""
 
     def __init__(
         self,
@@ -180,22 +102,12 @@ class FakeForge:
         create_error: str | None = None,
         delete_error: str | None = None,
     ) -> None:
-        """Initialize with availability and error injection.
-
-        Args:
-            available: Whether is_available() returns True.
-            create_error: If set, create_release() raises with this message.
-            delete_error: If set, delete_release() raises with this message.
-        """
-        self._available = available
+        """Initialize with availability and error injection."""
+        super().__init__(available=available)
         self._create_error = create_error
         self._delete_error = delete_error
         self.releases_created: list[dict[str, object]] = []
         self.releases_deleted: list[str] = []
-
-    async def is_available(self) -> bool:
-        """Check if the forge CLI is available."""
-        return self._available
 
     async def create_release(
         self,
@@ -231,89 +143,6 @@ class FakeForge:
         if self._delete_error:
             raise RuntimeError(self._delete_error)
         self.releases_deleted.append(tag)
-        return _OK
-
-    async def promote_release(
-        self,
-        tag: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub promote_release."""
-        return _OK
-
-    async def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
-        """Stub list_releases."""
-        return []
-
-    async def create_pr(
-        self,
-        *,
-        title: str,
-        body: str = '',
-        head: str,
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub create_pr."""
-        return _OK
-
-    async def pr_data(self, pr_number: int) -> dict[str, Any]:
-        """Stub pr_data."""
-        return {}
-
-    async def list_prs(
-        self,
-        *,
-        label: str = '',
-        state: str = 'open',
-        head: str = '',
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Stub list_prs."""
-        return []
-
-    async def add_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub add_labels."""
-        return _OK
-
-    async def remove_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub remove_labels."""
-        return _OK
-
-    async def update_pr(
-        self,
-        pr_number: int,
-        *,
-        title: str = '',
-        body: str = '',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub update_pr."""
-        return _OK
-
-    async def merge_pr(
-        self,
-        pr_number: int,
-        *,
-        method: str = 'squash',
-        commit_message: str = '',
-        delete_branch: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub merge_pr."""
         return _OK
 
 
@@ -361,6 +190,59 @@ class TestFormatTag:
         result = format_tag('py/{name}@{version}', name='genkit', version='1.0.0')
         if result != 'py/genkit@1.0.0':
             raise AssertionError(f'Expected py/genkit@1.0.0, got {result}')
+
+
+class TestParseTag:
+    """Tests for parse_tag function."""
+
+    def test_standard_format(self) -> None:
+        """Parse standard per-package tag."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('genkit-v0.5.0', '{name}-v{version}')
+        assert result is not None
+        assert result == ('genkit', '0.5.0')
+
+    def test_scoped_npm_format(self) -> None:
+        """Parse scoped npm tag format."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('@genkit-ai/core@1.2.3', '{name}@{version}')
+        assert result is not None
+        assert result == ('@genkit-ai/core', '1.2.3')
+
+    def test_no_match_returns_none(self) -> None:
+        """Non-matching tag returns None."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('v0.5.0', '{name}-v{version}')
+        assert result is None
+
+    def test_umbrella_format_no_name(self) -> None:
+        """Parse umbrella tag with no {name} placeholder."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('v0.5.0', 'v{version}')
+        assert result is not None
+        assert result[0] == ''
+        assert result[1] == '0.5.0'
+
+    def test_with_label_placeholder(self) -> None:
+        """Parse tag with {label} placeholder."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('py/genkit@0.5.0', '{label}/{name}@{version}')
+        assert result is not None
+        assert result == ('genkit', '0.5.0')
+
+    def test_prerelease_version(self) -> None:
+        """Parse tag with prerelease version."""
+        from releasekit.tags import parse_tag
+
+        result = parse_tag('genkit-v1.0.0-rc.1', '{name}-v{version}')
+        assert result is not None
+        assert result[0] == 'genkit'
+        assert result[1] == '1.0.0-rc.1'
 
 
 class TestTagResult:
@@ -732,3 +614,126 @@ class TestDeleteTags:
         for tag_name, remote in vcs.deleted_tags:
             if remote:
                 raise AssertionError(f'Expected remote=False for {tag_name}')
+
+    @pytest.mark.asyncio
+    async def test_empty_manifest_no_deletes(self) -> None:
+        """Empty manifest produces no deletes."""
+        manifest = ReleaseManifest(git_sha='abc123', packages=[])
+        vcs = FakeVCS()
+        result = await delete_tags(manifest=manifest, vcs=vcs)
+        assert not result.created
+        assert not result.failed
+
+    @pytest.mark.asyncio
+    async def test_delete_tag_error_recorded(self) -> None:
+        """Tag deletion failure is recorded in failed dict."""
+
+        class FailDeleteVCS(FakeVCS):
+            async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+                raise RuntimeError('permission denied')
+
+        manifest = _make_manifest('genkit')
+        vcs = FailDeleteVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
+        result = await delete_tags(manifest=manifest, vcs=vcs)
+        assert not result.ok
+        assert 'genkit-v0.5.0' in result.failed
+
+    @pytest.mark.asyncio
+    async def test_delete_umbrella_tag_error_recorded(self) -> None:
+        """Umbrella tag deletion failure is recorded."""
+        call_count = 0
+
+        class FailUmbrellaDeleteVCS(FakeVCS):
+            async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+                nonlocal call_count
+                call_count += 1
+                if tag_name == 'v0.5.0':
+                    raise RuntimeError('umbrella delete failed')
+                self.deleted_tags.append((tag_name, remote))
+                self.existing_tags.discard(tag_name)
+                return _OK
+
+        manifest = _make_manifest('genkit')
+        vcs = FailUmbrellaDeleteVCS(existing_tags={'genkit-v0.5.0', 'v0.5.0'})
+        result = await delete_tags(manifest=manifest, vcs=vcs)
+        assert 'v0.5.0' in result.failed
+
+
+class TestCreateTagsSecondary:
+    """Tests for secondary (dual) tag creation."""
+
+    @pytest.mark.asyncio
+    async def test_secondary_tags_created(self) -> None:
+        """Secondary tags are created when secondary_tag_format is set."""
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{name}-v{version}',
+            secondary_tag_format='{name}@{version}',
+        )
+
+        assert 'genkit-v0.5.0' in result.created
+        assert 'genkit@0.5.0' in result.created
+
+    @pytest.mark.asyncio
+    async def test_secondary_tag_skipped_if_exists(self) -> None:
+        """Secondary tag is skipped if it already exists."""
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS(existing_tags={'genkit@0.5.0'})
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{name}-v{version}',
+            secondary_tag_format='{name}@{version}',
+        )
+
+        assert 'genkit@0.5.0' in result.skipped
+        assert 'genkit-v0.5.0' in result.created
+
+    @pytest.mark.asyncio
+    async def test_secondary_tag_error_recorded(self) -> None:
+        """Secondary tag creation failure is recorded."""
+        call_count = 0
+
+        class FailSecondaryVCS(FakeVCS):
+            async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+                nonlocal call_count
+                call_count += 1
+                if '@' in tag_name:
+                    raise RuntimeError('secondary tag failed')
+                self.created_tags.append((tag_name, message or ''))
+                self.existing_tags.add(tag_name)
+                return _OK
+
+        manifest = _make_manifest('genkit')
+        vcs = FailSecondaryVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{name}-v{version}',
+            secondary_tag_format='{name}@{version}',
+        )
+
+        assert 'genkit@0.5.0' in result.failed
+
+    @pytest.mark.asyncio
+    async def test_secondary_tag_same_as_primary_skipped(self) -> None:
+        """Secondary tag identical to primary is not duplicated."""
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{name}-v{version}',
+            secondary_tag_format='{name}-v{version}',
+        )
+
+        # Only one tag per package (not duplicated).
+        genkit_tags = [t for t in result.created if 'genkit' in t and 'v0.5.0' in t]
+        assert len(genkit_tags) == 1

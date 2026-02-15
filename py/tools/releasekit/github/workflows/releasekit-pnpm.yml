@@ -35,8 +35,8 @@
 # ── Automatic Flow ──────────────────────────────────────────────────
 #
 #   push to main ──► releasekit prepare --workspace js     ──► Release PR (js)
-#   (js/**,          releasekit prepare --workspace js-cli ──► Release PR (js-cli)
-#    genkit-tools/**)                                            │
+#   (js/** or          releasekit prepare --workspace js-cli ──► Release PR (js-cli)
+#    typescript/**)                                              │
 #                                                           merge PR
 #                                                                │
 #                                                                ▼
@@ -161,6 +161,7 @@ on:
     branches: [main]
     paths:
       - "js/**"
+      - "typescript/**"
       - "genkit-tools/**"
   pull_request:
     types: [closed]

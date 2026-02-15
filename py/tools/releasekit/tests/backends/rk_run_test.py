@@ -37,35 +37,35 @@ class TestCommandResult:
     """Tests for CommandResult dataclass."""
 
     def test_ok_on_zero_returncode(self) -> None:
-        """Ok should be True when returncode is 0."""
-        result = CommandResult(command=['echo'], returncode=0)
+        """Ok should be True when return_code is 0."""
+        result = CommandResult(command=['echo'], return_code=0)
         assert result.ok is True
 
     def test_not_ok_on_nonzero_returncode(self) -> None:
-        """Ok should be False when returncode is non-zero."""
-        result = CommandResult(command=['false'], returncode=1)
+        """Ok should be False when return_code is non-zero."""
+        result = CommandResult(command=['false'], return_code=1)
         assert result.ok is False
 
     def test_ok_on_dry_run(self) -> None:
         """Ok should be True for dry-run results."""
-        result = CommandResult(command=['rm', '-rf', '/'], returncode=0, dry_run=True)
+        result = CommandResult(command=['rm', '-rf', '/'], return_code=0, dry_run=True)
         assert result.ok is True
 
     def test_command_str(self) -> None:
         """command_str should join command list with spaces."""
-        result = CommandResult(command=['git', 'commit', '-m', 'test'], returncode=0)
+        result = CommandResult(command=['git', 'commit', '-m', 'test'], return_code=0)
         assert result.command_str == 'git commit -m test'
 
     def test_frozen(self) -> None:
         """CommandResult should be immutable."""
         assert dataclasses.is_dataclass(CommandResult)
         params = {f.name for f in dataclasses.fields(CommandResult)}
-        assert 'returncode' in params
+        assert 'return_code' in params
         # Verify assignment raises: frozen(True) means __setattr__ raises.
-        result = CommandResult(command=['echo'], returncode=0)
+        result = CommandResult(command=['echo'], return_code=0)
         raised = False
         try:
-            result.__setattr__('returncode', 1)
+            result.__setattr__('return_code', 1)
         except AttributeError:
             raised = True
         assert raised, 'CommandResult should be frozen'
@@ -79,13 +79,13 @@ class TestRunCommand:
         result = run_command(['echo', 'hello'])
         assert result.ok
         assert result.stdout.strip() == 'hello'
-        assert result.duration_ms > 0
+        assert result.duration > 0
 
     def test_failed_command(self) -> None:
         """Should capture non-zero return code without raising."""
         result = run_command(['false'])
         assert not result.ok
-        assert result.returncode != 0
+        assert result.return_code != 0
 
     def test_check_raises_on_failure(self) -> None:
         """check=True should raise CalledProcessError on failure."""
@@ -97,7 +97,7 @@ class TestRunCommand:
         result = run_command(['rm', '-rf', '/nonexistent'], dry_run=True)
         assert result.ok
         assert result.dry_run
-        assert result.duration_ms == 0.0
+        assert result.duration == 0.0
 
     def test_cwd(self, tmp_path: Path) -> None:
         """Should execute in the specified working directory."""

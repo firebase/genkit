@@ -79,6 +79,7 @@ from releasekit.commit_parsing import (
 from releasekit.errors import E, ReleaseKitError
 from releasekit.graph import DependencyGraph
 from releasekit.logging import get_logger
+from releasekit.tags import format_tag
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 
@@ -89,14 +90,9 @@ logger = get_logger(__name__)
 _DEFAULT_PARSER = ConventionalCommitParser()
 
 
-def _format_tag(tag_format: str, name: str, version: str, label: str = '') -> str:
-    """Format a git tag using the configured template."""
-    return tag_format.replace('{name}', name).replace('{version}', version).replace('{label}', label)
-
-
 async def _last_tag(vcs: VCS, tag_format: str, name: str, version: str) -> str | None:
     """Find the most recent tag for a package, or None if no tag exists."""
-    tag = _format_tag(tag_format, name, version)
+    tag = format_tag(tag_format, name=name, version=version)
     if await vcs.tag_exists(tag):
         return tag
     return None
@@ -125,6 +121,7 @@ def _apply_bump(version: str, bump: BumpType, prerelease: str = '') -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Version {version!r} is not valid semver (expected X.Y.Z)',
+            hint='Use a version string like "1.2.3" (MAJOR.MINOR.PATCH).',
         )
 
     try:
@@ -133,6 +130,7 @@ def _apply_bump(version: str, bump: BumpType, prerelease: str = '') -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Version {version!r} contains non-numeric components',
+            hint='Each component of the version (MAJOR.MINOR.PATCH) must be a non-negative integer.',
         ) from exc
 
     if bump == BumpType.MAJOR:
@@ -381,7 +379,7 @@ async def compute_bumps(
             skipped = False
 
         new_version = _apply_bump(pkg.version, max_bump, prerelease)
-        tag = _format_tag(tag_format, pkg.name, new_version)
+        tag = format_tag(tag_format, name=pkg.name, version=new_version)
 
         results.append(
             PackageVersion(

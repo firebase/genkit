@@ -48,11 +48,11 @@ def _init_repo_with_remote(tmp_path: Path) -> tuple[GitCLIBackend, Path, Path]:
     """
     bare = tmp_path / 'remote.git'
     bare.mkdir()
-    run_command(['git', 'init', '--bare'], cwd=bare, check=True)
+    run_command(['git', 'init', '--bare', '-b', 'main'], cwd=bare, check=True)
 
     work = tmp_path / 'work'
     work.mkdir()
-    run_command(['git', 'init'], cwd=work, check=True)
+    run_command(['git', 'init', '-b', 'main'], cwd=work, check=True)
     run_command(['git', 'config', 'user.email', 'test@example.com'], cwd=work, check=True)
     run_command(['git', 'config', 'user.name', 'Test User'], cwd=work, check=True)
     run_command(['git', 'remote', 'add', 'origin', str(bare)], cwd=work, check=True)
@@ -126,7 +126,7 @@ class TestPushTags:
     @pytest.mark.asyncio
     async def test_push_tags_does_not_use_set_upstream(self, tmp_path: Path) -> None:
         """push(tags=True) should NOT include --set-upstream."""
-        backend, work, _ = _init_repo_with_remote(tmp_path)
+        backend, _work, _ = _init_repo_with_remote(tmp_path)
 
         await backend.tag('v2.0.0', message='Release v2.0.0')
         # This should succeed — --set-upstream is skipped for tag pushes.

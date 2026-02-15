@@ -289,6 +289,7 @@ class RunState:
             raise ReleaseKitError(
                 E.STATE_CORRUPTED,
                 f'State file {path} is missing required field: git_sha',
+                hint='Delete the state file and restart the release.',
             ) from exc
 
         packages: dict[str, PackageState] = {}

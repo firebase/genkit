@@ -17,7 +17,8 @@
 """Workspace configuration scaffolding for releasekit.
 
 Auto-detects workspace structure, generates ``releasekit.toml``
-configuration, and updates ``.gitignore``.
+configuration, updates ``.gitignore``, and scans existing git tags
+to auto-set ``bootstrap_sha`` for mid-stream adoption.
 Idempotent — safe to run multiple times.
 
 Architecture::
@@ -35,11 +36,19 @@ Architecture::
          │                         │
          ▼                         ▼
     Write releasekit.toml      Prompt: apply? [Y/n]
+         │
+         ▼
+    Scan git tags              Report discrepancies
+    (classify, pick latest)    (unclassified, missing)
+         │
+         ▼
+    Write bootstrap_sha
 """
 
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import tomlkit
@@ -52,8 +61,16 @@ try:
 except ImportError:
     _HAS_RICH = False
 
-from releasekit.config import CONFIG_FILENAME, DEFAULT_TOOLS
+from releasekit.backends.vcs import VCS
+from releasekit.config import CONFIG_FILENAME, DEFAULT_TOOLS, ReleaseConfig
 from releasekit.logging import get_logger
+from releasekit.migrate import (
+    ClassifiedTag,
+    classify_tags,
+    pick_latest,
+    resolve_commit_shas,
+    write_bootstrap_sha,
+)
 from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
@@ -199,11 +216,29 @@ def _detect_ecosystem(workspace_root: Path) -> tuple[str, str]:
     if (workspace_root / 'go.work').exists() or (workspace_root / 'go.mod').exists():
         return ('go', 'go')
 
-    # Check for JVM workspace markers.
-    if (workspace_root / 'build.gradle.kts').exists() or (workspace_root / 'build.gradle').exists():
-        return ('jvm', 'jvm')
+    # Check for Clojure workspace markers (before JVM — Clojure is distinct).
+    if (workspace_root / 'project.clj').exists() or (workspace_root / 'deps.edn').exists():
+        return ('clojure', 'clojure')
+
+    # Check for Kotlin workspace markers (Kotlin DSL + kotlin plugin).
+    if (workspace_root / 'settings.gradle.kts').exists() and (workspace_root / 'build.gradle.kts').exists():
+        try:
+            text = (workspace_root / 'build.gradle.kts').read_text(encoding='utf-8')
+            if 'kotlin' in text.lower():
+                return ('kotlin', 'kotlin')
+        except OSError:
+            pass
+
+    # Check for Java/JVM workspace markers.
+    if (
+        (workspace_root / 'settings.gradle.kts').exists()
+        or (workspace_root / 'settings.gradle').exists()
+        or (workspace_root / 'build.gradle.kts').exists()
+        or (workspace_root / 'build.gradle').exists()
+    ):
+        return ('java', 'java')
     if (workspace_root / 'pom.xml').exists():
-        return ('jvm', 'jvm')
+        return ('java', 'java')
 
     # Check for Dart workspace markers.
     if (workspace_root / 'pubspec.yaml').exists():
@@ -291,6 +326,128 @@ def scaffold_config(
     return toml_content
 
 
+def scaffold_multi_config(
+    monorepo_root: Path,
+    ecosystems: list[tuple[str, str, Path]],
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+) -> str:
+    """Scaffold releasekit configuration for a multi-ecosystem monorepo.
+
+    Generates a single ``releasekit.toml`` at the monorepo root with
+    one ``[workspace.<label>]`` section per detected ecosystem, each
+    with its own groups discovered from that ecosystem's packages.
+
+    Args:
+        monorepo_root: Path to the monorepo root (where ``.git`` lives).
+        ecosystems: List of ``(ecosystem, label, workspace_root)`` tuples.
+            For example: ``[("python", "py", Path("/repo/py")),
+            ("js", "js", Path("/repo/js"))]``.
+        dry_run: Preview changes without writing files.
+        force: Overwrite existing ``releasekit.toml``.
+
+    Returns:
+        The generated TOML content (for display/preview).
+    """
+    if _has_releasekit_config(monorepo_root) and not force:
+        logger.info(
+            '%s already exists in %s (use --force to overwrite)',
+            CONFIG_FILENAME,
+            monorepo_root,
+        )
+        return ''
+
+    if not ecosystems:
+        logger.warning('No ecosystems detected — cannot scaffold config.')
+        return ''
+
+    doc = tomlkit.document()
+
+    # Global settings.
+    doc.add('forge', tomlkit.item('github'))
+    doc.add(tomlkit.nl())
+
+    # One workspace section per ecosystem.
+    ws_super = tomlkit.table(is_super_table=True)
+
+    for ecosystem, label, ws_root in ecosystems:
+        ws_inner = tomlkit.table()
+        ws_inner.add('ecosystem', tomlkit.item(ecosystem))
+
+        # Compute root relative to monorepo root (omit if same dir).
+        try:
+            rel_root = ws_root.relative_to(monorepo_root)
+            if str(rel_root) != '.':
+                ws_inner.add('root', tomlkit.item(str(rel_root)))
+        except ValueError:
+            ws_inner.add('root', tomlkit.item(str(ws_root)))
+
+        default_tool = DEFAULT_TOOLS.get(ecosystem, '')
+        if default_tool:
+            ws_inner.comment(f'tool defaults to "{default_tool}" for {ecosystem}')
+
+        ws_inner.add('tag_format', tomlkit.item('{name}-v{version}'))
+        ws_inner.add('umbrella_tag', tomlkit.item(f'{label}/v{{version}}'))
+        ws_inner.add('changelog', tomlkit.item(True))
+        ws_inner.add('smoke_test', tomlkit.item(True))
+
+        # Discover packages and detect groups for this ecosystem.
+        try:
+            packages = discover_packages(ws_root, ecosystem=ecosystem)
+            groups = detect_groups(packages)
+
+            # Detect sample patterns for exclusion.
+            exclude: list[str] = []
+            sample_patterns = [p.name for p in packages if 'sample' in str(p.path).lower()]
+            if sample_patterns:
+                prefixes = set()
+                for name in sample_patterns:
+                    parts = name.split('-')
+                    if len(parts) > 1:
+                        prefixes.add(parts[0] + '-*')
+                if len(prefixes) == 1 and len(sample_patterns) > 2:
+                    exclude.append(prefixes.pop())
+
+            if exclude:
+                ws_inner.add('exclude', tomlkit.item(exclude))
+
+            if groups:
+                ws_inner.add(tomlkit.nl())
+                groups_table = tomlkit.table()
+                for group_name, patterns in sorted(groups.items()):
+                    groups_table.add(group_name, tomlkit.item(patterns))
+                ws_inner.add('groups', groups_table)
+        except Exception:  # noqa: BLE001
+            # Package discovery may fail for ecosystems without backends.
+            logger.info(
+                'scaffold_discovery_skipped',
+                ecosystem=ecosystem,
+                label=label,
+                message=f'Could not discover packages for {ecosystem} workspace.',
+            )
+
+        ws_super.add(label, ws_inner)
+
+    doc.add('workspace', ws_super)
+
+    toml_content = tomlkit.dumps(doc)
+
+    if dry_run:
+        return toml_content
+
+    # Write releasekit.toml at monorepo root.
+    config_path = monorepo_root / CONFIG_FILENAME
+    config_path.write_text(toml_content, encoding='utf-8')
+    logger.info('Created %s', config_path)
+
+    # Update .gitignore.
+    _update_gitignore(monorepo_root / '.gitignore')
+    logger.info('Updated %s', monorepo_root / '.gitignore')
+
+    return toml_content
+
+
 def _update_gitignore(gitignore_path: Path) -> None:
     """Append releasekit patterns to .gitignore if not already present."""
     existing = ''
@@ -313,6 +470,170 @@ def _update_gitignore(gitignore_path: Path) -> None:
             f.write(line + '\n')
 
 
+@dataclass
+class TagScanReport:
+    """Result of scanning existing git tags during init.
+
+    Attributes:
+        classified: Tags successfully matched to a workspace.
+        unclassified: Tags that could not be matched to any workspace.
+        latest_per_workspace: The latest classified tag per workspace label.
+        bootstrap_shas: The ``bootstrap_sha`` value written per workspace.
+        discrepancies: Human-readable discrepancy messages.
+        written: Whether ``releasekit.toml`` was modified with bootstrap SHAs.
+    """
+
+    classified: list[ClassifiedTag] = field(default_factory=list)
+    unclassified: list[str] = field(default_factory=list)
+    latest_per_workspace: dict[str, ClassifiedTag] = field(default_factory=dict)
+    bootstrap_shas: dict[str, str] = field(default_factory=dict)
+    discrepancies: list[str] = field(default_factory=list)
+    written: bool = False
+
+
+def _detect_discrepancies(
+    classified: list[ClassifiedTag],
+    unclassified: list[str],
+    latest: dict[str, ClassifiedTag],
+) -> list[str]:
+    """Detect discrepancies in the tag landscape.
+
+    Checks for:
+    - Unclassified tags that don't match any workspace format.
+    - Workspaces with only umbrella tags but no per-package tags.
+    - Multiple tag formats detected for the same workspace.
+
+    Args:
+        classified: Successfully classified tags.
+        unclassified: Tags that didn't match any workspace.
+        latest: Latest tag per workspace.
+
+    Returns:
+        List of human-readable discrepancy messages.
+    """
+    msgs: list[str] = []
+
+    if unclassified:
+        msgs.append(
+            f'{len(unclassified)} tag(s) could not be matched to any workspace: '
+            + ', '.join(sorted(unclassified)[:10])
+            + (' ...' if len(unclassified) > 10 else '')
+        )
+
+    # Check for workspaces with only umbrella tags.
+    by_workspace: dict[str, list[ClassifiedTag]] = {}
+    for ct in classified:
+        by_workspace.setdefault(ct.workspace_label, []).append(ct)
+
+    for label, tags in by_workspace.items():
+        umbrella_only = all(ct.is_umbrella for ct in tags)
+        if umbrella_only and len(tags) > 0:
+            msgs.append(
+                f'Workspace {label!r}: only umbrella tags found '
+                f'(no per-package tags). All packages will use bootstrap_sha.'
+            )
+
+        # Check for mixed tag formats (per-package names that differ in pattern).
+        per_pkg_tags = [ct for ct in tags if not ct.is_umbrella]
+        if per_pkg_tags:
+            formats_seen = set()
+            for ct in per_pkg_tags:
+                # Approximate the format by replacing the version with a placeholder.
+                approx = ct.tag.replace(ct.version, '{version}')
+                if ct.package_name:
+                    approx = approx.replace(ct.package_name, '{name}')
+                formats_seen.add(approx)
+            if len(formats_seen) > 1:
+                msgs.append(f'Workspace {label!r}: multiple tag formats detected: ' + ', '.join(sorted(formats_seen)))
+
+    return msgs
+
+
+async def scan_and_bootstrap(
+    config_path: Path,
+    config: ReleaseConfig,
+    vcs: VCS,
+    *,
+    dry_run: bool = False,
+) -> TagScanReport:
+    """Scan existing git tags and write ``bootstrap_sha`` into config.
+
+    Called after ``scaffold_config()`` to auto-detect the last release
+    tag and set ``bootstrap_sha`` so that only new commits are scanned.
+
+    Gracefully skips when no tags exist.
+
+    Args:
+        config_path: Path to ``releasekit.toml``.
+        config: The loaded release configuration.
+        vcs: VCS backend for tag operations.
+        dry_run: If ``True``, compute everything but don't write files.
+
+    Returns:
+        A :class:`TagScanReport` with all findings.
+    """
+    report = TagScanReport()
+
+    workspaces = config.workspaces
+    if not workspaces:
+        logger.info('init_scan_no_workspaces', message='No workspaces configured, skipping tag scan.')
+        return report
+
+    # 1. Scan all tags.
+    all_tags = await vcs.list_tags()
+    if not all_tags:
+        logger.info('init_scan_no_tags', message='No git tags found. Skipping bootstrap.')
+        return report
+
+    logger.info('init_scan_tags_found', count=len(all_tags))
+
+    # 2. Classify tags against workspace configs.
+    classified, unclassified = classify_tags(all_tags, workspaces)
+    report.classified = classified
+    report.unclassified = unclassified
+
+    logger.info(
+        'init_scan_classified',
+        classified=len(classified),
+        unclassified=len(unclassified),
+    )
+
+    if not classified:
+        report.discrepancies.append(f'Found {len(all_tags)} tag(s) but none matched any workspace tag format.')
+        return report
+
+    # 3. Resolve commit SHAs.
+    await resolve_commit_shas(classified, vcs)
+
+    # 4. Pick latest per workspace.
+    report.latest_per_workspace = pick_latest(classified)
+
+    # 5. Compute bootstrap_sha per workspace.
+    for label, ct in report.latest_per_workspace.items():
+        if ct.commit_sha:
+            report.bootstrap_shas[label] = ct.commit_sha
+            logger.info(
+                'init_scan_latest',
+                workspace=label,
+                tag=ct.tag,
+                version=ct.version,
+                sha=ct.commit_sha[:12],
+            )
+
+    # 6. Detect discrepancies.
+    report.discrepancies = _detect_discrepancies(classified, unclassified, report.latest_per_workspace)
+
+    # 7. Write bootstrap_sha to releasekit.toml.
+    config_exists = config_path.exists()  # noqa: ASYNC240
+    if not dry_run and report.bootstrap_shas and config_exists:
+        for label, sha in report.bootstrap_shas.items():
+            write_bootstrap_sha(config_path, label, sha)
+        report.written = True
+        logger.info('init_scan_written', path=str(config_path))
+
+    return report
+
+
 def print_scaffold_preview(toml_fragment: str) -> None:
     """Print a preview of the generated configuration.
 
@@ -332,9 +653,46 @@ def print_scaffold_preview(toml_fragment: str) -> None:
     print(toml_fragment)  # noqa: T201 - CLI output
 
 
+def print_tag_scan_report(report: TagScanReport) -> None:
+    """Print the tag scan results to stdout.
+
+    Shows classified tags, bootstrap SHAs, and any discrepancies.
+    """
+    if not report.classified and not report.unclassified:
+        print('  ℹ️  No git tags found — bootstrap_sha not needed.')  # noqa: T201 - CLI output
+        return
+
+    total = len(report.classified) + len(report.unclassified)
+    print(f'\n  🔍 Scanned {total} tag(s):')  # noqa: T201 - CLI output
+    if report.classified:
+        print(f'     {len(report.classified)} matched workspace tag formats')  # noqa: T201 - CLI output
+    if report.unclassified:
+        print(f'     {len(report.unclassified)} unrecognized')  # noqa: T201 - CLI output
+
+    for label, ct in report.latest_per_workspace.items():
+        sha_short = ct.commit_sha[:12] if ct.commit_sha else '(unknown)'
+        print(f'     Latest for {label!r}: {ct.tag} → {sha_short}')  # noqa: T201 - CLI output
+
+    if report.bootstrap_shas:
+        if report.written:
+            for label, sha in report.bootstrap_shas.items():
+                print(f'  ✅ bootstrap_sha for {label!r} = "{sha[:12]}..."')  # noqa: T201 - CLI output
+        else:
+            for label, sha in report.bootstrap_shas.items():
+                print(f'  🔶 Would write bootstrap_sha for {label!r} = "{sha[:12]}..."')  # noqa: T201 - CLI output
+
+    if report.discrepancies:
+        print('\n  ⚠️  Discrepancies:')  # noqa: T201 - CLI output
+        for msg in report.discrepancies:
+            print(f'     • {msg}')  # noqa: T201 - CLI output
+
+
 __all__ = [
+    'TagScanReport',
     'detect_groups',
     'generate_config_toml',
     'print_scaffold_preview',
+    'print_tag_scan_report',
+    'scan_and_bootstrap',
     'scaffold_config',
 ]

@@ -24,123 +24,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from releasekit.backends._run import CommandResult
 from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.release import ReleaseResult, extract_manifest, tag_release
 from releasekit.versions import PackageVersion, ReleaseManifest
+from tests._fakes import FakeForge as _BaseFakeForge, FakeVCS
 
 # ── Fake backends ──
 
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-
-class FakeVCS:
-    """Fake VCS backend for release tests."""
-
-    def __init__(self, *, sha: str = 'abc123', log_lines: list[str] | None = None) -> None:
-        """Initialize instance."""
-        self._sha = sha
-        self._log_lines = log_lines or []
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Is clean."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Is shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return empty list."""
-        return []
-
-    async def current_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Current sha."""
-        return self._sha
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Log."""
-        return self._log_lines
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Diff files."""
-        return []
-
-    async def commit(
-        self,
-        message: str,
-        *,
-        paths: list[str] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Commit."""
-        return _OK
-
-    async def tag(
-        self,
-        tag_name: str,
-        *,
-        message: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Tag."""
-        return _OK
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Tag exists."""
-        return False
-
-    async def delete_tag(
-        self,
-        tag_name: str,
-        *,
-        remote: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Delete tag."""
-        return _OK
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Push."""
-        return _OK
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Checkout branch."""
-        return _OK
-
-
-class FakeForge:
-    """Fake forge for release tests."""
+class FakeForge(_BaseFakeForge):
+    """Forge double that supports canned PR data and records list_prs filters."""
 
     def __init__(
         self,
@@ -150,56 +43,14 @@ class FakeForge:
         pr_body: str = '',
     ) -> None:
         """Initialize instance."""
-        self._available = available
+        super().__init__(available=available)
         self._prs: list[dict[str, str | int | list[str]]] = prs or []
         self._pr_body = pr_body
-        self.labels_added: list[tuple[int, list[str]]] = []
-        self.labels_removed: list[tuple[int, list[str]]] = []
-
-    async def is_available(self) -> bool:
-        """Is available."""
-        return self._available
-
-    async def create_release(
-        self,
-        tag: str,
-        *,
-        title: str | None = None,
-        body: str = '',
-        draft: bool = False,
-        prerelease: bool = False,
-        assets: list[Path] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create release."""
-        return _OK
-
-    async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """Delete release."""
-        return _OK
-
-    async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """Promote release."""
-        return _OK
-
-    async def list_releases(self, *, limit: int = 10) -> list[dict[str, str | bool]]:
-        """List releases."""
-        return []
-
-    async def create_pr(
-        self,
-        *,
-        title: str = '',
-        body: str = '',
-        head: str = '',
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create pr."""
-        return _OK
+        self.last_list_prs_head: str = ''
+        self.last_list_prs_label: str = ''
 
     async def pr_data(self, pr_number: int) -> dict[str, str | int]:
-        """Pr data."""
+        """Return canned PR body."""
         return {'body': self._pr_body, 'number': pr_number}
 
     async def list_prs(
@@ -210,55 +61,10 @@ class FakeForge:
         head: str = '',
         limit: int = 10,
     ) -> list[dict[str, str | int | list[str]]]:
-        """List prs."""
+        """Return canned PRs and record filter args."""
         self.last_list_prs_head = head
         self.last_list_prs_label = label
         return self._prs
-
-    async def add_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Add labels."""
-        self.labels_added.append((pr_number, labels))
-        return _OK
-
-    async def remove_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Remove labels."""
-        self.labels_removed.append((pr_number, labels))
-        return _OK
-
-    async def update_pr(
-        self,
-        pr_number: int,
-        *,
-        title: str = '',
-        body: str = '',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Update pr."""
-        return _OK
-
-    async def merge_pr(
-        self,
-        pr_number: int,
-        *,
-        method: str = 'squash',
-        commit_message: str = '',
-        delete_branch: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Merge pr."""
-        return _OK
 
 
 # ── Tests: ReleaseResult ──

@@ -40,9 +40,15 @@ class PyPIBackend:
 
     Args:
         base_url: Base URL for the PyPI JSON API. Defaults to public PyPI.
+            Use :data:`TEST_BASE_URL` for Test PyPI.
         pool_size: HTTP connection pool size.
         timeout: HTTP request timeout in seconds.
     """
+
+    #: Base URL for the production PyPI registry.
+    DEFAULT_BASE_URL: str = 'https://pypi.org'
+    #: Base URL for Test PyPI (staging registry).
+    TEST_BASE_URL: str = 'https://test.pypi.org'
 
     def __init__(
         self,

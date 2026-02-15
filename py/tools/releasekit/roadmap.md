@@ -494,7 +494,8 @@ Remaining migration steps:
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Release-Please | ✅ Complete | Orchestrators, CI workflow, workspace-sourced deps |
 | 6: UX Polish | ✅ Complete | init, formatters (9), rollback, completion, diagnostics, granular flags, TOML config migration |
-| 7: Quality + Ship | 🔶 In progress | 1,293 tests pass, 76 source modules, 51 test files (~19.3K test LOC) |
+| 7: Quality + Ship | 🔶 In progress | 1,739 tests pass, 78 source modules, 64 test files (~28K test LOC), 91.07% coverage |
+| 8: Release Automation | ⬜ Planned | Continuous deploy, cadence releases, hooks, branch channels (from competitive analysis) |
 
 ### Phase 5 completion status
 
@@ -879,7 +880,7 @@ Phase 6: UX Polish         ▼    ✅ COMPLETE
                            │
 Phase 7: Quality + Ship    ▼    🔶 IN PROGRESS
 ┌─────────────────────────────────────────────────────────┐
-│  tests (1,293 tests, 51 files, ~19.3K lines)            │
+│  tests (1,470 tests, 56 files, ~24K lines)              │
 │  type checking (ty, pyright, pyrefly -- zero errors)    │
 │  README.md (21 sections, mermaid diagrams)              │
 │  workspace config (releasekit init on genkit repo)     │
@@ -1395,12 +1396,183 @@ deletion. Shell completion works in bash/zsh/fish.
 | Type checking | Zero errors from `ty`, `pyright`, and `pyrefly` in strict mode. | config |
 | `README.md` | 21 sections with Mermaid workflow diagrams, CLI reference, config reference, testing workflow, vulnerability scanning, migration guide. | ~800 |
 | Workspace config | Run `releasekit init` on the genkit repo. Review auto-detected groups. Commit generated config. | config |
-| `migrate.py` | `releasekit migrate` subcommand for mid-stream adoption. See details below. | ~200 |
+| `migrate.py` | ✅ `releasekit migrate` subcommand for mid-stream adoption. See details below. | 119 src + 34 tests |
 
 **Done when**: `pytest --cov-fail-under=90` passes, all three type checkers
 report zero errors, README is complete.
 
 **Milestone**: Ship `releasekit` v0.1.0 to PyPI.
+
+### Phase 8: Release Automation  ⬜ Planned
+
+Features identified through competitive analysis against release-it,
+semantic-release, and other alternatives. See
+[competitive-gap-analysis.md](docs/competitive-gap-analysis.md) §8 for
+full rationale.
+
+| Item | Module | Description | Est. Lines | Priority |
+|------|--------|-------------|-----------|----------|
+| **R1** | `config.py`, `cli.py` | **Continuous deploy mode** — `release_mode = "continuous"` config. In this mode, `releasekit publish` skips PR creation and goes directly to tag + publish. `--if-needed` flag exits 0 if no releasable changes. Idempotent: checks if HEAD already has a release tag → no-op. Uses release lock for concurrent CI safety. | ~120 | High |
+| **R2** | `should_release.py`, `cli.py` | **`releasekit should-release`** command for CI cron integration. Returns exit 0 if a release should happen based on: (a) releasable commits exist, (b) within release window, (c) cooldown elapsed, (d) minimum bump met. Designed for `cron` + `should-release || exit 0` pattern. | ~100 | High |
+| **R3** | `hooks.py`, `publisher.py` | **Lifecycle hooks** — `[hooks]` section in `releasekit.toml`. `before_publish`, `after_publish`, `after_tag`, `before_prepare` keys, each a list of shell commands. Template variables: `${version}`, `${name}`, `${tag}`. Executed via `_run.py` subprocess abstraction. Dry-run aware. | ~150 | High |
+| **R4** | `config.py` | **Scheduled release config** — `[schedule]` section: `cadence` (`daily`, `weekly:monday`, `biweekly`, `on-push`), `release_window` (UTC time range), `cooldown_minutes`, `min_bump` (skip if only chore/docs). Read by `should-release` command. | ~60 | Medium |
+| **R5** | `config.py`, `versioning.py` | **Branch-to-channel mapping** — `[branches]` config section: `main = "latest"`, `"release/v1.*" = "v1-maintenance"`, `"next" = "next"`. Maps current branch to a release channel for dist-tag / pre-release suffix. | ~80 | Medium |
+| **R6** | `config.py`, `versioning.py` | **CalVer support** — Calendar-based versioning (`YYYY.MM.DD`, `YYYY.MM.MICRO`). New `versioning_scheme = "calver"` config. Compute version from date instead of semver bump. | ~100 | Low |
+
+#### Configuration Override Hierarchy
+
+All Phase 8 settings follow the existing 3-tier config model. Workspace
+sections can override root-level defaults; package-level `releasekit.toml`
+can override workspace settings where it makes sense.
+
+**Resolution order**: package > workspace > root > built-in default.
+
+##### Phase 8 settings — override scope
+
+| Setting | Root | Workspace | Package | Rationale |
+|---------|:----:|:---------:|:-------:|-----------|
+| `release_mode` | ✅ | ✅ | ❌ | JS might use continuous deploy while Python uses PR-based |
+| `[schedule]` (all keys) | ✅ | ✅ | ❌ | Python daily, JS weekly — different ecosystem velocity |
+| `[hooks]` (all keys) | ✅ | ✅ | ✅ | Root hooks run for all; workspace adds ecosystem-specific; package for special cases |
+| `[branches]` | ✅ | ✅ | ❌ | JS might ship `next` channel while Python doesn't |
+| `versioning_scheme` | ✅ | ✅ | ❌ | One workspace CalVer, another semver |
+| `calver_format` | ✅ | ✅ | ❌ | Follows `versioning_scheme` |
+
+##### Existing settings gaining workspace-level override
+
+These settings currently only exist at root level but should be
+overridable per-workspace:
+
+| Setting | Current Scope | New Scope | Rationale |
+|---------|:------------:|:---------:|-----------|
+| `publish_from` | Root | Root + Workspace | Python from CI, Go via git tags locally |
+| `concurrency` | Root | Root + Workspace | PyPI is slower than npm — different limits |
+| `max_retries` | Root | Root + Workspace | npm rarely needs retries, PyPI often does |
+| `poll_timeout` | Root | Root + Workspace | Maven Central ~10min sync vs PyPI ~30s |
+| `verify_checksums` | Root | Root + Workspace | Not all registries support checksum verification |
+| `major_on_zero` | Root | Root + Workspace | JS commonly ships 0.x breaking changes, Python doesn't |
+| `prerelease_mode` | Root | Root + Workspace | Different rollup strategies per ecosystem |
+
+Settings that remain **root-only** (not overridable):
+
+| Setting | Rationale |
+|---------|-----------|
+| `pr_title_template` | Single PR spans all workspaces — one title |
+| `http_pool_size` | Shared connection pool across all registries |
+| `forge` | One forge per repo |
+| `repo_owner`, `repo_name` | One repo identity |
+| `default_branch` | One default branch |
+
+##### Hook merge semantics
+
+Hooks **concatenate** across tiers (root → workspace → package), not
+replace. This ensures global hooks (e.g. lint) always run while
+workspace/package hooks add specifics.
+
+```toml
+# Root releasekit.toml
+[hooks]
+before_publish = ["./scripts/lint.sh"]
+
+# [workspace.py] section (or workspace-level hooks)
+[workspace.py.hooks]
+before_publish = ["./scripts/build-docs.sh"]
+
+# py/packages/genkit/releasekit.toml (package-level)
+[hooks]
+before_publish = ["./scripts/validate-schema.sh"]
+```
+
+Effective execution order for `genkit` (Python workspace):
+
+```
+before_publish:
+  1. ./scripts/lint.sh               ← root
+  2. ./scripts/build-docs.sh         ← workspace.py
+  3. ./scripts/validate-schema.sh    ← package
+```
+
+To **replace** instead of concatenate, set `hooks_replace = true` at
+the workspace or package level:
+
+```toml
+# py/packages/special/releasekit.toml
+hooks_replace = true   # discard root + workspace hooks for this package
+
+[hooks]
+before_publish = ["./scripts/special-only.sh"]
+```
+
+##### Example: multi-workspace with per-workspace overrides
+
+```toml
+# releasekit.toml (root)
+forge            = "github"
+repo_owner       = "firebase"
+repo_name        = "genkit"
+default_branch   = "main"
+release_mode     = "pr"              # default for all workspaces
+major_on_zero    = false
+concurrency      = 5
+max_retries      = 2
+
+[schedule]
+cadence          = "on-push"         # default: release on every push
+
+[hooks]
+after_publish    = ["./scripts/notify-slack.sh ${version}"]
+
+[branches]
+main             = "latest"
+
+[workspace.py]
+ecosystem        = "python"
+tool             = "uv"
+root             = "py"
+tag_format       = "{name}@{version}"
+concurrency      = 3                 # override: PyPI is slower
+max_retries      = 3                 # override: PyPI needs more retries
+poll_timeout     = 60.0              # override: PyPI indexing delay
+major_on_zero    = false
+
+[workspace.py.schedule]
+cadence          = "daily"           # override: Python releases daily
+release_window   = "14:00-16:00"
+cooldown_minutes = 120
+min_bump         = "patch"
+
+[workspace.py.hooks]
+before_publish   = ["./scripts/build-wheels.sh"]
+
+[workspace.py.branches]
+main             = "latest"
+"release/v1.*"   = "v1-maintenance"
+
+[workspace.js]
+ecosystem        = "js"
+tool             = "pnpm"
+root             = "."
+tag_format       = "{name}@{version}"
+release_mode     = "continuous"      # override: JS ships on every push
+synchronize      = true
+concurrency      = 10                # override: npm is fast
+verify_checksums = false             # override: npm doesn't support it
+
+[workspace.js.schedule]
+cadence          = "on-push"         # override: continuous
+
+[workspace.js.branches]
+main             = "latest"
+next             = "next"
+beta             = "beta"
+```
+
+**Done when**: `releasekit publish --if-needed` works in continuous mode,
+`releasekit should-release` integrates with CI cron, hooks execute at
+lifecycle points, workspace-level overrides resolve correctly.
+
+**Milestone**: First release tool with built-in cadence release support
+and per-workspace override hierarchy.
 
 #### `releasekit migrate` — Automatic Tag Detection and Bootstrap
 
@@ -1517,9 +1689,10 @@ shell completion) is enhancement.
 | 4b: Streaming Publisher | 2 (+tests) | ~250 | 541 src + ~640 tests | ✅ Complete |
 | 5: Post-Pipeline + CI | 5 (+CI workflow) | ~700 | prepare, release, tags, changelog, release_notes | ✅ Complete |
 | 6: UX Polish | 3 (+ 9 formatters) | ~570 | init + formatters + config migration | ✅ Complete |
-| 7: Quality + Ship | tests + docs | ~2800 | 706 tests pass | 🔶 In progress |
+| 7: Quality + Ship | tests + docs | ~2800 | 1,739 tests pass, 91.07% coverage | 🔶 In progress |
+| 8: Release Automation | 6 modules | ~610 | — | ⬜ Planned |
 
-**Current totals**: 16,783 lines source, 12,105 lines tests, 706 tests pass.
+**Current totals**: ~17,400 lines source, ~28K lines tests, 1,739 tests pass, 91.07% coverage.
 All three type checkers (ty, pyrefly, pyright) report zero errors.
 
 ---
@@ -1788,6 +1961,943 @@ The 3-stage process separates planning, tagging, and publishing.
  │ 6. Dispatch "repository_dispatch" to Plugins Repos            │
  └───────────────────────────────────────────────────────────────┘
 ```
+
+## Bazel Backend — Polyglot Build & Publish Support
+
+Bazel is a polyglot build system used by many of the largest open-source
+projects. This section defines the implementation plan for adding Bazel
+support to releasekit, informed by analysis of 20 major Bazel repositories:
+
+**Library publishing repos** (Phase 1–2):
+
+| Repo | Languages | Publish Pattern | Version Pattern |
+|------|-----------|----------------|-----------------|
+| google/dotprompt | 7 (Java, Python, Go, Rust, Dart, JS, Kotlin) | `java_export .publish` (Java), `dart_pub_publish` (Dart) | `maven_coordinates` inline (Java), `pubspec.yaml version:` (Dart) |
+| protocolbuffers/protobuf | 8+ (C++, Java, Python, Ruby, Rust, etc.) | `java_export .publish` | `.bzl` constants |
+| google/dagger | Java/Kotlin/Android | `bazel build` + `mvn deploy` | Placeholder (`${project.version}`) |
+| angular/angular | JS/TS | Custom `ng-dev` + npm | Placeholder (`0.0.0-PLACEHOLDER`) |
+| tensorflow/tensorflow | C++/Python | `bazel build :wheel` + twine | `.bzl` constant (`TF_VERSION`) |
+| grpc/grpc | C++/Python/Ruby/PHP/etc. | `setup.py` + twine | `MODULE.bazel` + 15× `grpc_version.py` |
+
+**Container / binary release repos** (Phase 4):
+
+| Repo | Languages | Publish Pattern | Version Pattern |
+|------|-----------|----------------|-----------------|
+| GoogleContainerTools/distroless | Starlark/Go | `rules_oci` `oci_push` + cosign sign + SBOM attest | Commit SHA tags (no semver) |
+| buchgr/bazel-remote | Go | `rules_oci` `oci_push` + multi-arch `go_binary` | `x_defs` git stamp (`{STABLE_GIT_COMMIT}`) |
+| buildfarm/buildfarm | Java | `rules_oci` `oci_push` + `java_binary` | `MODULE.bazel` (no version field) |
+| envoyproxy/envoy | C++ | GitHub Release + Docker | `VERSION.txt` plain text |
+| google/gvisor | Go | Buildkite + GitHub Release | Git tags (injected at build) |
+| ApolloAuto/apollo | C++ | Docker images | `version.json` |
+
+**Bazel rules / ecosystem repos** (Phase 4 — BCR):
+
+| Repo | Languages | Publish Pattern | Version Pattern |
+|------|-----------|----------------|-----------------|
+| bazel-contrib/rules_oci | Starlark/Go | GitHub Release + BCR PR | `MODULE.bazel` `module(version=)` |
+| bazelbuild/rules_apple | Starlark | GitHub Release + BCR PR | `MODULE.bazel` `version = "0"` (placeholder) |
+| bazelbuild/apple_support | Starlark | GitHub Release + BCR PR | `MODULE.bazel` (no version field) |
+| bazel-ios/rules_ios | Starlark | GitHub Release + BCR PR | `MODULE.bazel` `version = "0"` (placeholder) |
+| bazelbuild/rules_swift | Starlark | GitHub Release + BCR PR | `MODULE.bazel` `version = "0"` (placeholder) |
+| aspect-build/rules_ts | Starlark | GitHub Release + BCR PR | `MODULE.bazel` (no version field) |
+| bazelbuild/rules_python | Starlark | GitHub Release + BCR PR | `MODULE.bazel` `module(version=)` |
+
+### Key Findings
+
+**10 version patterns** discovered across 20 repos:
+
+```
+Pattern                   Format                                    Used By
+─────────────────────────────────────────────────────────────────────────────
+module()                  module(version = "X.Y.Z")                 envoy, gvisor, rules_python, rules_oci
+maven_coordinates         maven_coordinates = "g:a:X.Y.Z"          dotprompt
+bzl_constant              VAR = "X.Y.Z" in *.bzl                   tensorflow, protobuf
+version_txt               Plain text file                           envoy
+version_json              JSON with per-language versions            protobuf, apollo
+placeholder               Sentinel replaced at build/release         dagger, angular
+build_define              --define=pom_version=X build flag          dagger
+x_defs / embed_label      Go x_defs stamp or --embed_label          bazel-remote, gvisor, rules_oci
+pubspec_yaml              version: X.Y.Z in pubspec.yaml             dotprompt (Dart)
+package_json              "version": "X.Y.Z" in package.json          rules_js (npm)
+```
+
+**12 publish patterns** discovered:
+
+```
+Pattern                   Flow                                      Used By
+─────────────────────────────────────────────────────────────────────────────
+java_export .publish      bazel run //target:name.publish            dotprompt, protobuf
+mvn_deploy                bazel build → mvn deploy:deploy-file       dagger
+bazel_wheel               bazel build :wheel → twine upload          tensorflow
+native_tool               bazel build → ecosystem-native publish     angular (npm), grpc (twine)
+github_release            GitHub Release + BCR PR / Docker           envoy, abseil, rules_python
+oci_push                  rules_oci oci_push → crane push            distroless, bazel-remote, buildfarm
+oci_push + cosign         oci_push + cosign sign + SBOM attest       distroless
+dart_pub_publish          bazel run → dart pub publish (pub.dev)      dotprompt (Dart)
+npm_package .publish      bazel run //pkg:name.publish (npm)           rules_js
+py_wheel .publish         bazel run :wheel.publish (twine→PyPI)        rules_python
+kt_jvm_export .publish    bazel run :name.publish (Maven, Kotlin)       rules_jvm_external
+dotnet publish_binary     bazel run :publish (dotnet nuget push)        rules_dotnet
+```
+
+**WORKSPACE vs bzlmod**: No special handling needed. The difference only
+affects dependency resolution (`lock()` command). Build, test, publish,
+and version rewriting work identically. WORKSPACE is deprecated in
+Bazel 8+; all new projects use bzlmod.
+
+### New Findings from Round 2 Analysis (9 repos + proposals)
+
+**Container publishing via `rules_oci`** is the dominant pattern:
+
+- **distroless**: The canonical example. Uses `sign_and_push_all` macro that
+  wraps `oci_push` + `cosign sign` + `cosign attest` (SBOM via SPDX).
+  Images are pushed by digest first, then tagged. Cosign keyless signing
+  uses OIDC (Google accounts). Multi-arch via `oci_image_index`. No semver —
+  tags are `latest`, `nonroot`, `debug`, `debug-nonroot` × arch × distro.
+- **bazel-remote**: Go binary cross-compiled to 5 platform variants
+  (`linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`). Version
+  injected via `x_defs` (`main.gitCommit = "{STABLE_GIT_COMMIT}"`). OCI
+  images built with `oci_image` + `pkg_tar`, pushed via `oci_push` to
+  Docker Hub. Multi-arch images for amd64 + arm64.
+- **buildfarm**: Java binaries (`java_binary`) packaged into OCI images
+  with Amazon Corretto base. Uses `rules_oci` `oci.pull` for base images
+  with digest pinning and multi-platform support (`linux/amd64`, `linux/arm64/v8`).
+  Maven deps managed via `rules_jvm_external` with `REPIN=1 bazel run @maven//:pin`.
+
+**Design implications for B16 (ContainerBackend)**:
+
+1. `oci_push` is the standard — `bazel run //:push` with `--repository` override
+2. Cosign signing is table-stakes for production containers (keyless via OIDC)
+3. SBOM attestation via `cosign attest --type spdx` is emerging standard
+4. Multi-arch is handled by `oci_image_index` (not releasekit's concern)
+5. Version tagging: `crane tag` after push-by-digest (atomic push pattern)
+6. Container registries: GCR, Docker Hub, ECR, GHCR all supported by crane
+
+**Apple platform rules ecosystem** (informs Phase 3):
+
+- **rules_apple**: The authoritative iOS/macOS/tvOS/watchOS rules. Key rules:
+  `ios_application`, `ios_extension`, `ios_framework`, `ios_static_framework`,
+  `ios_app_clip`. Versioning via `apple_bundle_version` rule which sets
+  `CFBundleVersion` + `CFBundleShortVersionString`. Supports hard-coded
+  versions or `--embed_label` parsing with regex capture groups and fallback.
+  Provisioning profiles handled via `provisioning_profile_repository` extension.
+- **apple_support**: Toolchain layer. Provides `apple_cc_configure` for
+  cross-compilation. No versioning or publishing — pure build infrastructure.
+- **rules_ios**: Community rules wrapping `rules_apple`. Adds `apple_library`
+  convenience macro, `process_infoplists`, `framework_middleman`. Depends on
+  `rules_apple` + `rules_swift`. Uses `arm64-to-sim` for simulator builds.
+- **rules_swift**: Swift compilation rules. `swift_library`, `swift_binary`,
+  `swift_test`. Depends on `apple_support`. Provides Swift toolchain
+  registration. No publishing — build-only.
+
+**Design implications for B13 (AppStoreConnectBackend)**:
+
+1. `apple_bundle_version` is the version source of truth for iOS apps —
+   releasekit must rewrite the `build_version` and `short_version_string`
+   attributes (or the `--embed_label` flag)
+2. Provisioning profiles are local-only (`local_provisioning_profiles` repo) —
+   releasekit should validate they exist but not manage them
+3. Code signing is handled by `rules_apple` at build time — releasekit
+   only needs to ensure the right signing identity is configured
+4. The `xcarchive` rule produces `.xcarchive` bundles for App Store submission
+5. `rules_ios` is a convenience layer — target `rules_apple` directly
+
+**TypeScript / JavaScript rules and npm publishing** (informs Phase 1 JS support):
+
+- **rules_ts** (`aspect-build/rules_ts`): `ts_project` macro wraps
+  TypeScript compilation. Version stamping via `expand_template` +
+  `stamp_substitutions` (same `BUILD_EMBED_LABEL` pattern as
+  `rules_oci`). No publishing — TS output is consumed by `rules_js`.
+- **rules_js** (`aspect-build/rules_js`): `npm_package` macro packages
+  JS/TS output for npm. With `publishable = True`, produces a
+  `[name].publish` target that runs `npm publish` under the hood —
+  same `.publish` pattern as `java_export` in `rules_jvm_external`.
+  Supports npm workspaces for monorepo packages. Version source is
+  `package.json` `"version"` field (10th version pattern).
+  Auth via `NPM_TOKEN` env var or `.npmrc` file.
+  Lock via `pnpm install --frozen-lockfile` or `npm ci`.
+- **Pipeline**: `rules_ts` (compile TS) → `rules_js` `npm_package`
+  (package) → `npm_package.publish` (publish to npm registry).
+
+**Dart rules and pub.dev publishing** (informs Phase 1 Dart support):
+
+- **rules_dart** (in `google/dotprompt` at `bazel/rules_dart/`): Full-featured
+  Dart Bazel rules with `dart_library`, `dart_binary`, `dart_test`,
+  `dart_native_binary`, `dart_js_binary`, `dart_wasm_binary`,
+  `dart_aot_snapshot`, `dart_pub_get`, and crucially **`dart_pub_publish`**.
+  The `dart_pub_publish` macro wraps `dart pub publish` as a Bazel run target.
+  Includes Gazelle extension for BUILD file generation, `dart_deps` module
+  extension for `pubspec.lock`-based dependency resolution, toolchain
+  abstraction, persistent workers, coverage, proto/gRPC codegen, and
+  `build_runner` integration. BCR-ready with `.bcr/` metadata directory.
+  Also has a companion `rules_flutter` for Flutter app builds.
+- **dotprompt Dart packages**: Two packages — `dotprompt` (core library) and
+  `handlebarrz` (Handlebars template engine). Both use `dart_library` +
+  `dart_test` in BUILD.bazel. Version in `pubspec.yaml` (`version: 0.0.1`).
+  **Blockers for publishing**:
+  1. `dart/dotprompt/pubspec.yaml` has `publish_to: none` — must be removed
+  2. Neither BUILD.bazel has a `dart_pub_publish` target — must be added
+
+  The `handlebarrz` `path:` dependency is **not** a blocker — releasekit's
+  ephemeral pinning handles it automatically (same pattern as Genkit's
+  Python monorepo: temporarily rewrite `path: ../handlebarrz` →
+  `handlebarrz: 0.0.2` during publish, revert after).
+- **Version pattern**: `pubspec.yaml` `version:` field — new 9th pattern.
+  Regex: `version:\s*(\d+\.\d+\.\d+.*)` in YAML. Releasekit's
+  `BazelVersionRewriter` needs a `pubspec_yaml` handler.
+- **Publish pattern**: `dart_pub_publish` — `bazel run //pkg:publish` invokes
+  `dart pub publish`. Requires `PUB_TOKEN` env var for authentication
+  (or `dart pub token add` pre-configured). New 8th publish pattern.
+- **Lock pattern**: `dart_pub_get` — `bazel run //pkg:pub_get` invokes
+  `dart pub get`, updating `pubspec.lock`. Releasekit's `lock()` should
+  call this target.
+
+**Bazel proposals** — relevant design docs:
+
+- **Build Stamping API for Starlark rules** (implemented): Formalizes
+  `--stamp` / `--embed_label` / `ctx.version_file` for injecting version
+  info at build time. Releasekit should support `--embed_label` as a
+  version injection mechanism (already covered by `build_define` pattern).
+- **Bzlmod lockfile** (implemented): `MODULE.bazel.lock` is the lockfile.
+  Releasekit's `lock()` command should run `bazel mod deps --lockfile_mode=update`.
+- **Bazel Central Registry Policies** (implemented): BCR requires a
+  `.bcr/` directory with `metadata.json`, `presubmit.yml`, and `source.json`.
+  Releasekit's B15 (BcrBackend) must generate these files.
+- **Android Native to Starlark Migration** (implemented): Android rules
+  are now Starlark-based. No impact on releasekit — `android_binary` API
+  is stable.
+- **Simplifying lockfile maintenance** (implemented): `bazel mod tidy`
+  auto-fixes `use_repo` statements. Releasekit should call this after
+  version bumps that affect MODULE.bazel.
+
+### Dependency Graph (Bazel + Gradle Tasks)
+
+Each node is a discrete implementation task. Edges represent "must be
+done before" relationships.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  Bazel + Gradle Backend Dependency Graph                     │
+│                                                                             │
+│  B1: Config fields ──────────────────────────────────────────────────────┐  │
+│      (bazel_* keys, ecosystems,                                          │  │
+│       DEFAULT_TOOLS)                                                     │  │
+│         │                                                                │  │
+│         ├──────────────────────┐                                         │  │
+│         │                      │                                         │  │
+│         ▼                      ▼                                         │  │
+│  B2: BazelVersionRewriter   B3: BazelWorkspace                           │  │
+│      (10 version formats)      (discover, rewrite,                       │  │
+│         │                       5 ephemeral pin modes)                   │  │
+│         │                      │                                         │  │
+│         ▼                      ▼                                         │  │
+│  B4: BazelBackend (PM)  ◄──── B3                                        │  │
+│      (build, test, 8 publish                                             │  │
+│       modes, lock, smoke_test)                                           │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  B5: Dispatch wiring                                                     │  │
+│      (workspace.py, cli.py,                                              │  │
+│       pm/__init__.py)                                                    │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  B6: Tests + lint                                                        │  │
+│      (config, workspace, PM,                                             │  │
+│       version, dispatch)                                                 │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  B7: Integration test                                                    │  │
+│      (dry-run vs dotprompt)                                              │  │
+│                                                                          │  │
+│  ═══════════════════════════ Phase 1 above ═══════════════════════════   │  │
+│                                                                          │  │
+│  B8: MavenCentralRegistry ◄── B4                                        │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  B9: Signing integration                                                 │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  B10: End-to-end publish                                                 │  │
+│                                                                          │  │
+│  ═══════════════════════════ Phase 2 above ═══════════════════════════   │  │
+│                                                                          │  │
+│  B11: AppStore protocol ◄── B4                                          │  │
+│         │                                                                │  │
+│         ├──────────────────────┐                                         │  │
+│         ▼                      ▼                                         │  │
+│  B12: PlayStoreBackend   B13: AppStoreConnectBackend                    │  │
+│         │                      │                                         │  │
+│         ▼                      ▼                                         │  │
+│  B14: Flutter dispatch                                                   │  │
+│                                                                          │  │
+│  ═══════════════════════════ Phase 3 above ═══════════════════════════   │  │
+│                                                                          │  │
+│  B15: BcrBackend ◄── B1                                                 │  │
+│  B16: ContainerBackend ◄── B4                                           │  │
+│  B17: BinaryReleaseBackend ◄── B4                                       │  │
+│                                                                          │  │
+│  ═══════════════════════════ Phase 4 above ═══════════════════════════   │  │
+│                                                                          │  │
+│  G1: Config fields (gradle_*)  ◄── (independent, no Bazel deps)         │  │
+│         │                                                                │  │
+│         ├──────────────────────┐                                         │  │
+│         │                      │                                         │  │
+│         ▼                      ▼                                         │  │
+│  G2: GradleVersionRewriter  G3: GradleWorkspace                          │  │
+│      (3 version formats)       (discover, rewrite)                       │  │
+│         │                      │                                         │  │
+│         ▼                      ▼                                         │  │
+│  G4: GradleBackend (PM)  ◄──── G3                                       │  │
+│      (build, 3 publish modes,                                            │  │
+│       lock, smoke_test)                                                  │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  G5: Dispatch wiring                                                     │  │
+│         │                                                                │  │
+│         ▼                                                                │  │
+│  G6: Tests + lint                                                        │  │
+│                                                                          │  │
+│  ═══════════════════════════ Phase 5 above ═══════════════════════════   │  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Reverse Topological Sort (Execution Order)
+
+Tasks sorted so that all dependencies are completed before dependents.
+Within each level, tasks are independent and can be parallelized.
+Note: Gradle (G*) tasks are fully independent of Bazel (B*) tasks and
+can be developed in parallel.
+
+```
+Level 0 (no deps):        B1  Config fields (Bazel)
+                           G1  Config fields (Gradle)          ← parallel
+Level 1 (deps: B1):       B2  BazelVersionRewriter
+                           B3  BazelWorkspace
+Level 1 (deps: G1):       G2  GradleVersionRewriter            ← parallel
+                           G3  GradleWorkspace                  ← parallel
+Level 2 (deps: B2, B3):   B4  BazelBackend (PM)
+Level 2 (deps: G2, G3):   G4  GradleBackend (PM)               ← parallel
+Level 3 (deps: B4):       B5  Dispatch wiring (Bazel)
+Level 3 (deps: G4):       G5  Dispatch wiring (Gradle)         ← parallel
+Level 4 (deps: B5):       B6  Tests + lint (Bazel)
+Level 4 (deps: G5):       G6  Tests + lint (Gradle)            ← parallel
+Level 5 (deps: B6):       B7  Integration test (Bazel)
+─── Phase 1 complete ───   ─── Phase 5 complete ───
+Level 6 (deps: B4):       B8  MavenCentralRegistry
+Level 7 (deps: B8):       B9  Signing integration
+Level 8 (deps: B9):       B10 End-to-end publish
+─── Phase 2 complete ───
+Level 9 (deps: B4):       B11 AppStore protocol
+Level 10 (deps: B11):     B12 PlayStoreBackend
+                           B13 AppStoreConnectBackend
+Level 11 (deps: B12,B13): B14 Flutter dispatch
+─── Phase 3 complete ───
+Level 12 (deps: B1):      B15 BcrBackend
+Level 12 (deps: B4):      B16 ContainerBackend
+                           B17 BinaryReleaseBackend
+─── Phase 4 complete ───
+```
+
+### Mermaid (renders on GitHub)
+
+```mermaid
+flowchart TD
+    subgraph phase_b1 ["Bazel Phase 1: Library Build + Discover"]
+        B1["B1: Config fields<br/>(bazel_* keys, ecosystems, tools)"]
+        B2["B2: BazelVersionRewriter<br/>(10 version formats)"]
+        B3["B3: BazelWorkspace<br/>(discover, 5 pin modes)"]
+        B4["B4: BazelBackend PM<br/>(build, test, 8 publish modes)"]
+        B5["B5: Dispatch wiring<br/>(workspace.py, cli.py)"]
+        B6["B6: Tests + lint"]
+        B7["B7: Integration test<br/>(dry-run vs dotprompt)"]
+    end
+
+    subgraph phase_b2 ["Bazel Phase 2: Maven Central E2E"]
+        B8["B8: MavenCentralRegistry<br/>(check, poll, latest)"]
+        B9["B9: Signing integration<br/>(GPG + Sigstore)"]
+        B10["B10: End-to-end publish<br/>(prepare → tag → publish)"]
+    end
+
+    subgraph phase_b3 ["Bazel Phase 3: Mobile App Releases"]
+        B11["B11: AppStore protocol<br/>(upload, promote, status)"]
+        B12["B12: PlayStoreBackend<br/>(Android .apk/.aab)"]
+        B13["B13: AppStoreConnectBackend<br/>(iOS .ipa, TestFlight)"]
+        B14["B14: Flutter dispatch<br/>(reuses B12 + B13)"]
+    end
+
+    subgraph phase_b4 ["Bazel Phase 4: Binary + BCR + Container"]
+        B15["B15: BcrBackend<br/>(Bazel Central Registry)"]
+        B16["B16: ContainerBackend<br/>(rules_oci + cosign)"]
+        B17["B17: BinaryReleaseBackend<br/>(GitHub Release binaries)"]
+    end
+
+    subgraph phase_g ["Phase 5: Gradle Backend"]
+        G1["G1: Config fields<br/>(gradle_* keys)"]
+        G2["G2: GradleVersionRewriter<br/>(3 version formats)"]
+        G3["G3: GradleWorkspace<br/>(discover, rewrite)"]
+        G4["G4: GradleBackend PM<br/>(build, 3 publish modes)"]
+        G5["G5: Dispatch wiring"]
+        G6["G6: Tests + lint"]
+    end
+
+    B1 --> B2
+    B1 --> B3
+    B2 --> B4
+    B3 --> B4
+    B4 --> B5
+    B5 --> B6
+    B6 --> B7
+
+    B4 --> B8
+    B8 --> B9
+    B9 --> B10
+
+    B4 --> B11
+    B11 --> B12
+    B11 --> B13
+    B12 --> B14
+    B13 --> B14
+
+    B1 --> B15
+    B4 --> B16
+    B4 --> B17
+
+    G1 --> G2
+    G1 --> G3
+    G2 --> G4
+    G3 --> G4
+    G4 --> G5
+    G5 --> G6
+
+    phase_b1 --> phase_b2
+    phase_b2 --> phase_b3
+    phase_b3 --> phase_b4
+```
+
+### Bazel Phase 1: Library Build + Discover
+
+Goal: Build and discover Java artifacts from Bazel workspaces. Dry-run
+validated against dotprompt and protobuf repo structures.
+
+| Task | Module | Description | Est. Lines | Deps |
+|------|--------|-------------|-----------|------|
+| **B1** | `config.py` | Add `bazel_*` fields to `VALID_WORKSPACE_KEYS` and `WorkspaceConfig`. Add `'android'`, `'ios'`, `'macos'`, `'cpp'`, `'bazel'` to `ALLOWED_ECOSYSTEMS`. Add `'bazel': 'bazel'` to `DEFAULT_TOOLS`. New fields: `bazel_build_target`, `bazel_test_target`, `bazel_publish_target`, `bazel_publish_mode` (`java_export` / `kt_jvm_export` / `mvn_deploy` / `dart_pub_publish` / `npm_package_publish` / `py_wheel_publish` / `dotnet_publish` / `custom`), `bazel_publish_script`, `bazel_version_file`, `bazel_version_format` (`module` / `maven_coordinates` / `bzl_constant` / `version_txt` / `version_json` / `placeholder` / `pubspec_yaml` / `package_json`), `bazel_version_variable`, `bazel_version_jsonpath`, `bazel_version_placeholder`, `bazel_maven_coordinates`, `bazel_signing` (`gpg` / `sigstore` / `both`), `bazel_build_defines`, `bazel_artifact_type` (`jar` / `aar` / `wheel` / `binary`), `bazel_lock_command`. | ~80 | — |
+| **B2** | `backends/workspace/bazel_version.py` | `BazelVersionRewriter` with 10 format handlers: (1) `module` — regex `module(version = "...")` in MODULE.bazel; (2) `maven_coordinates` — regex `group:artifact:VERSION` in BUILD.bazel; (3) `bzl_constant` — regex `VARIABLE = "VERSION"` in .bzl; (4) `version_txt` — plain text file; (5) `version_json` — JSON path rewrite; (6) `placeholder` — string replacement of sentinel; (7) `build_define` — no file rewrite, returns `--define` flag; (8) `x_defs` — Go `x_defs` stamp vars or `--embed_label` (per bazel-remote/rules_oci pattern, returns build flags, no file rewrite); (9) `pubspec_yaml` — regex `version: X.Y.Z` in pubspec.yaml (per dotprompt Dart pattern); (10) `package_json` — regex `"version": "X.Y.Z"` in package.json (per rules_js npm pattern). Each handler: `read_version(path) -> str` and `write_version(path, new_version)`. | ~260 | B1 |
+| **B3** | `backends/workspace/bazel.py` | `BazelWorkspace` implementing the `Workspace` protocol. `discover()` reads `bazel_maven_coordinates` from config, calls `BazelVersionRewriter.read_version()` to get current version, returns `list[Package]`. `rewrite_version()` delegates to `BazelVersionRewriter.write_version()`. `rewrite_dependency_version()` supports 5 ephemeral pinning modes: (A) Maven — rewrites `maven.install()` artifact versions in MODULE.bazel or WORKSPACE; (B) Dart `pubspec.yaml` — rewrites `path:` deps to hosted version (e.g. `path: ../handlebarrz` → `handlebarrz: 0.0.2`); (C) Bzlmod dev overrides — removes any of `local_path_override()`, `git_override()`, or `archive_override()` stanzas and updates `bazel_dep(version=)` in MODULE.bazel (for BCR publishing of monorepo rules like rules_flutter → rules_dart; all three override types follow the same strip-override + set-version pattern); (D) npm `package.json` — rewrites `workspace:*` deps to hosted version (e.g. `"workspace:*"` → `"^1.2.0"`) for npm monorepo packages; (E) `single_version_override` — updates the `version` arg in an existing `single_version_override()` stanza (for forcing a specific registry version without removing the override). | ~240 | B1, B2 |
+| **B4** | `backends/pm/bazel.py` | `BazelBackend` implementing `PackageManager` protocol. `build()` → `bazelisk build <target>` with optional `--define` flags. `publish()` → 8 modes: (A) `java_export` — `bazel run <target>.publish` with `MAVEN_REPO`/`MAVEN_USER`/`MAVEN_PASSWORD`/`GPG_SIGN` env vars; (B) `kt_jvm_export` — same as (A) but for Kotlin via `rules_jvm_external`; (C) `mvn_deploy` — `bazel build` + `mvn gpg:sign-and-deploy-file`; (D) `dart_pub_publish` — `bazel run <target>` invoking `dart pub publish` with `PUB_TOKEN`; (E) `npm_package_publish` — `bazel run <target>.publish` invoking `npm publish` with `NPM_TOKEN` (rules_js); (F) `py_wheel_publish` — `bazel run <target>.publish` invoking twine with `TWINE_USERNAME`/`TWINE_PASSWORD` (rules_python); (G) `dotnet_publish` — `bazel run <target>:publish` invoking `dotnet nuget push` (rules_dotnet); (H) `custom` script. `lock()` → `bazelisk run <lock_command>` (default `@maven//:pin`; Dart: `dart_pub_get`; npm: `pnpm install --frozen-lockfile`; Python: n/a; .NET: `dotnet restore`). `version_bump()` → delegates to `BazelWorkspace.rewrite_version()`. `smoke_test()` → `bazelisk test <test_target>`. `resolve_check()` → per-ecosystem: `mvn dependency:get`, `dart pub deps`, `npm view`, `pip index versions`, `dotnet nuget list`. | ~300 | B1, B2, B3 |
+| **B5** | `workspace.py`, `cli.py`, `pm/__init__.py` | Thread `tool` parameter through dispatch. In `workspace.py:_discover_via_backend()`: if `tool == 'bazel'` → `BazelWorkspace`. In `cli.py:_create_backends()`: if `tool == 'bazel'` → `BazelBackend`. Import and register in `pm/__init__.py`. | ~40 | B4 |
+| **B6** | `tests/` | Unit tests: `rk_config_bazel_test.py` (config validation, 15+ tests), `rk_bazel_version_test.py` (10 format handlers × read/write, 26+ tests), `rk_bazel_workspace_test.py` (discover, rewrite, 12+ tests), `rk_pm_bazel_test.py` (protocol conformance, dry-run commands, 8 publish modes, 30+ tests), `rk_bazel_dispatch_test.py` (tool routing, 5+ tests). Lint pass. | ~1000 | B5 |
+| **B7** | `tests/` | Integration test: clone dotprompt repo structure (fixtures), run `releasekit discover --dry-run` and `releasekit plan --dry-run` against it. Verify correct package discovery, version reading, and build command construction. | ~150 | B6 |
+
+**Done when**: `releasekit discover` finds Java packages in a Bazel
+workspace, `releasekit plan` shows correct versions, `releasekit publish
+--dry-run` constructs correct `bazel build` and `bazel run .publish`
+commands.
+
+**Milestone**: Can dry-run a Bazel Java publish pipeline.
+
+### Bazel Phase 2: Maven Central End-to-End
+
+Goal: Actually publish Java JARs to Maven Central from a Bazel workspace.
+
+| Task | Module | Description | Est. Lines | Deps |
+|------|--------|-------------|-----------|------|
+| **B8** | `backends/registry/maven_central.py` | `MavenCentralRegistry` implementing `Registry` protocol. `check_published()` → query Maven Central Search API (`search.maven.org/solrsearch/select?q=g:GROUP+AND+a:ARTIFACT+AND+v:VERSION`). `poll_available()` → poll until artifact appears (Maven Central has ~10min sync delay). `latest_version()` → query latest from search API. `project_exists()` → check if group:artifact exists. `verify_checksum()` → download SHA-1 from Maven Central and compare. | ~200 | B4 |
+| **B9** | `backends/pm/bazel.py` | Signing integration in `BazelBackend.publish()`. For `java_export` mode: set `GPG_SIGN=true`, `PGP_SIGNING_KEY`, `PGP_SIGNING_PWD` env vars (handled by rules_jvm_external uploader). For `mvn_deploy` mode: pass `-Dgpg.keyname=KEY` to mvn. For Sigstore: call `signing.sign_artifact()` on the built JAR in `bazel-bin/`. | ~60 | B8 |
+| **B10** | Integration | End-to-end test: `releasekit prepare` → `releasekit tag` → `releasekit publish` against a real Bazel workspace publishing to Maven Central staging (OSSRH). Verify artifact appears, POM is correct, GPG signature validates. | ~100 | B9 |
+
+**Done when**: `releasekit publish` successfully uploads a signed JAR
+to Maven Central from a Bazel workspace.
+
+**Milestone**: Production-ready Bazel → Maven Central pipeline.
+
+### Bazel Phase 3: Mobile App Releases (Future)
+
+Goal: Release Android and iOS apps built with Bazel or Flutter.
+
+App releases differ fundamentally from library publishing:
+
+```
+Libraries:  build → sign → upload to registry → done
+Apps:       build → sign → upload to store → review → staged rollout
+```
+
+| Task | Module | Description | Est. Lines | Deps |
+|------|--------|-------------|-----------|------|
+| **B11** | `backends/app_store/__init__.py` | `AppStore` protocol: `upload(artifact, track, dry_run)`, `promote(version, from_track, to_track, rollout_fraction)`, `check_status(version)`. Tracks: `internal`, `alpha`, `beta`, `production`. | ~60 | B4 |
+| **B12** | `backends/app_store/play_store.py` | `PlayStoreBackend`: Upload `.apk`/`.aab` via Google Play Developer API v3. Service account auth. Track management. Staged rollout support. Version code auto-increment. | ~300 | B11 |
+| **B13** | `backends/app_store/app_store_connect.py` | `AppStoreConnectBackend`: Upload `.ipa` via App Store Connect API. API key auth (`.p8` file). TestFlight distribution. App Store submission. Version rewriting targets `apple_bundle_version` rule in BUILD.bazel — rewrites `build_version` and `short_version_string` attrs (or sets `--embed_label` flag with `build_label_pattern` + `capture_groups` regex parsing, per rules_apple's versioning.bzl). Validates provisioning profile exists via `local_provisioning_profiles` repo. Build via `bazel build` producing `.xcarchive` (rules_apple `xcarchive` rule) or `.ipa`. | ~350 | B11 |
+| **B14** | `cli.py`, `config.py` | Flutter dispatch: `flutter_android_bundle` → `PlayStoreBackend`, `flutter_ios_app` → `AppStoreConnectBackend`. New config fields: `android_keystore`, `android_track`, `android_service_account`, `ios_team_id`, `ios_api_key`, `app_store_track`. | ~80 | B12, B13 |
+
+**Done when**: `releasekit publish` can upload an Android `.aab` to
+Play Store internal track and an iOS `.ipa` to TestFlight.
+
+### Bazel Phase 4: Binary + BCR + Container (Future)
+
+Goal: Support non-registry release targets.
+
+| Task | Module | Description | Est. Lines | Deps |
+|------|--------|-------------|-----------|------|
+| **B15** | `backends/registry/bcr.py` | `BcrBackend`: Publish Bazel rules to Bazel Central Registry. Generate `.bcr/` metadata directory (`metadata.json` with versions/yanked_versions/maintainers, `presubmit.yml` with test matrix, `source.json` with GitHub archive URL + integrity hash). Create PR to `bazelbuild/bazel-central-registry` via Forge protocol. Rewrite `MODULE.bazel` `module(version=)`. Handle `version = "0"` placeholder pattern (rules_apple, rules_ios, rules_swift all use this — real version set only in BCR). | ~250 | B1 |
+| **B16** | `backends/pm/container.py` | `ContainerBackend`: Wraps `rules_oci` `oci_push` pattern discovered in distroless/bazel-remote/buildfarm. Three-step atomic push: (1) `bazel run //:push -- --repository=REGISTRY/IMAGE` (push by digest via crane), (2) `cosign sign REGISTRY/IMAGE@DIGEST --yes` (keyless OIDC signing), (3) `cosign attest REGISTRY/IMAGE@DIGEST --predicate=SBOM --type=spdx --yes` (SBOM attestation). Config fields: `oci_push_target`, `oci_repository`, `oci_remote_tags` (list or stamped file), `oci_cosign_sign` (bool), `oci_sbom_attest` (bool), `oci_cosign_oidc_issuer`. Multi-arch handled by `oci_image_index` at build time (not releasekit's concern). Supports GCR, Docker Hub, ECR, GHCR. | ~300 | B4 |
+| **B17** | `backends/pm/binary_release.py` | `BinaryReleaseBackend`: Build binaries via `bazel build` with cross-compilation (per bazel-remote pattern: `go_binary` with `goarch`/`goos` attrs, or `cc_binary` with `--platforms`). Version injection via `x_defs` stamp (`{STABLE_GIT_COMMIT}`, `{GIT_TAGS}`) or `--embed_label`. Upload to GitHub Release as assets via Forge protocol. Checksum file generation (SHA-256). Config fields: `binary_targets` (list of target+platform pairs), `binary_stamp_vars` (dict of x_defs). | ~200 | B4 |
+
+**Done when**: `releasekit publish` can publish a Bazel rule to BCR,
+push a Docker image with cosign signing, or attach binaries to a GitHub Release.
+
+### Bazel Phase 5: Gradle Backend (Future)
+
+Goal: Support Gradle-based Java/Kotlin/Android projects that don't use Bazel,
+or hybrid repos (like google/dagger) where some artifacts are published via
+Gradle. This completes the JVM ecosystem coverage alongside the Bazel backend.
+
+**Gradle publishing landscape:**
+
+- **`maven-publish` plugin** — standard Gradle plugin for publishing JARs/AARs
+  to Maven Central (OSSRH) or any Maven repository. Generates POM, signs with
+  GPG via the `signing` plugin. Command: `./gradlew publish` or
+  `./gradlew publishToMavenCentral`.
+- **`com.gradle.plugin-publish` plugin** — publishes Gradle plugins to the
+  Gradle Plugin Portal. Command: `./gradlew publishPlugins`. Auto-signs from
+  v1.0.0+. Auth via `gradle.publish.key` / `gradle.publish.secret` in
+  `gradle.properties` or env vars.
+- **`vanniktech/gradle-maven-publish-plugin`** — popular third-party plugin
+  that simplifies Maven Central publishing. Used by many Android libraries.
+  Command: `./gradlew publishAndReleaseToMavenCentral`.
+
+**Gradle version patterns (3 new):**
+
+```
+Pattern                   Format                                    Used By
+─────────────────────────────────────────────────────────────────────────────
+gradle_properties         VERSION_NAME=X.Y.Z in gradle.properties   dagger, most Android libs
+build_gradle              version = "X.Y.Z" in build.gradle(.kts)   simple projects
+version_catalog           version in libs.versions.toml              modern Gradle monorepos
+```
+
+**Gradle publish patterns (3 new):**
+
+```
+Pattern                   Flow                                      Used By
+─────────────────────────────────────────────────────────────────────────────
+gradle_maven_publish      ./gradlew publish (maven-publish plugin)   most Java/Kotlin libs
+gradle_plugin_publish     ./gradlew publishPlugins (Plugin Portal)   dagger Gradle plugin
+gradle_vanniktech         ./gradlew publishAndReleaseToMavenCentral  Android libs (vanniktech)
+```
+
+| Task | Module | Description | Est. Lines | Deps |
+|------|--------|-------------|-----------|------|
+| **G1** | `config.py` | Add `'gradle'` to `ALLOWED_WORKSPACE_TOOLS`. New fields: `gradle_publish_task` (default `publish`), `gradle_build_task` (default `build`), `gradle_test_task` (default `test`), `gradle_version_file` (default `gradle.properties`), `gradle_version_format` (`gradle_properties` / `build_gradle` / `version_catalog`), `gradle_version_key` (default `VERSION_NAME`), `gradle_signing` (`gpg` / `none`), `gradle_wrapper` (bool, default `true` — use `./gradlew` vs `gradle`), `gradle_subproject` (for multi-project builds, e.g. `:dagger-compiler`). | ~50 | — |
+| **G2** | `backends/workspace/gradle_version.py` | `GradleVersionRewriter` with 3 format handlers: (1) `gradle_properties` — regex `KEY=X.Y.Z` in `gradle.properties`; (2) `build_gradle` — regex `version = "X.Y.Z"` in `build.gradle` or `build.gradle.kts`; (3) `version_catalog` — TOML rewrite of version entry in `gradle/libs.versions.toml`. Each handler: `read_version(path) -> str` and `write_version(path, new_version)`. | ~120 | G1 |
+| **G3** | `backends/workspace/gradle.py` | `GradleWorkspace` implementing `Workspace` protocol. `discover()` reads `gradle_version_file` + `gradle_version_format` from config, returns `list[Package]`. `rewrite_version()` delegates to `GradleVersionRewriter`. `rewrite_dependency_version()` supports: (A) `gradle.properties` — rewrite dependency version properties; (B) `version_catalog` — rewrite dependency version in `libs.versions.toml`; (C) `build.gradle` — rewrite `implementation "group:artifact:VERSION"` strings. | ~150 | G1, G2 |
+| **G4** | `backends/pm/gradle.py` | `GradleBackend` implementing `PackageManager` protocol. `build()` → `./gradlew <build_task>` (or `gradle` if `gradle_wrapper = false`). `publish()` → 3 modes: (A) `gradle_maven_publish` — `./gradlew <publish_task>` with `MAVEN_REPO`/`MAVEN_USER`/`MAVEN_PASSWORD` env vars + GPG signing via `ORG_GRADLE_PROJECT_signingKey`/`ORG_GRADLE_PROJECT_signingPassword`; (B) `gradle_plugin_publish` — `./gradlew publishPlugins` with `gradle.publish.key`/`gradle.publish.secret`; (C) `gradle_vanniktech` — `./gradlew publishAndReleaseToMavenCentral` with `mavenCentralUsername`/`mavenCentralPassword`. `lock()` → `./gradlew dependencies --write-locks` (Gradle dependency locking). `version_bump()` → delegates to `GradleWorkspace.rewrite_version()`. `smoke_test()` → `./gradlew <test_task>`. `resolve_check()` → `./gradlew dependencyInsight --dependency=GROUP:ARTIFACT`. For multi-project: prepend `:<subproject>:` to all task names. | ~200 | G1, G2, G3 |
+| **G5** | `workspace.py`, `cli.py`, `pm/__init__.py` | Thread `tool = "gradle"` through dispatch. | ~30 | G4 |
+| **G6** | `tests/` | Unit tests: `rk_config_gradle_test.py` (10+ tests), `rk_gradle_version_test.py` (3 formats × read/write, 10+ tests), `rk_gradle_workspace_test.py` (8+ tests), `rk_pm_gradle_test.py` (3 publish modes, 15+ tests), `rk_gradle_dispatch_test.py` (5+ tests). | ~500 | G5 |
+
+**Done when**: `releasekit publish --dry-run` constructs correct `./gradlew`
+commands for Maven Central, Gradle Plugin Portal, and vanniktech publishing.
+
+**Milestone**: Can dry-run a Gradle publish pipeline. Enables hybrid repos
+like google/dagger where Bazel handles 30+ JARs and Gradle handles the
+Gradle plugin.
+
+**Example configs:**
+
+```toml
+# google/dagger — hybrid Bazel + Gradle
+# 30+ Maven artifacts via Bazel (see earlier example)
+[workspace.dagger-java]
+ecosystem              = "java"
+tool                   = "bazel"
+root                   = "."
+synchronize            = true
+bazel_publish_mode     = "mvn_deploy"
+bazel_version_file     = "build_defs.bzl"
+bazel_version_format   = "placeholder"
+bazel_version_placeholder = "${project.version}"
+bazel_signing          = "gpg"
+
+# Gradle plugin via Gradle
+[workspace.dagger-gradle-plugin]
+ecosystem              = "java"
+tool                   = "gradle"
+root                   = "java/dagger/hilt/android/plugin"
+synchronize            = true
+gradle_publish_task    = "publishPlugins"
+gradle_version_file    = "gradle.properties"
+gradle_version_format  = "gradle_properties"
+gradle_version_key     = "VERSION_NAME"
+
+# Typical Android library (vanniktech plugin)
+# [workspace.my-android-lib]
+# ecosystem              = "java"
+# tool                   = "gradle"
+# root                   = "."
+# gradle_publish_task    = "publishAndReleaseToMavenCentral"
+# gradle_version_file    = "gradle.properties"
+# gradle_version_format  = "gradle_properties"
+# gradle_version_key     = "VERSION_NAME"
+# gradle_signing         = "gpg"
+```
+
+### Config Reference (All Bazel Fields)
+
+```toml
+# ── Phase 1 fields ──────────────────────────────────────────────────────
+
+[workspace.java]
+ecosystem             = "java"
+tool                  = "bazel"
+root                  = "."
+
+# Build targets
+bazel_build_target    = "//java/com/google/dotprompt:dotprompt_pkg"
+bazel_test_target     = "//java/..."
+bazel_publish_target  = "//java/com/google/dotprompt:dotprompt_pkg.publish"
+
+# Publish mode: "java_export" | "mvn_deploy" | "custom"
+bazel_publish_mode    = "java_export"
+bazel_publish_script  = ""              # For custom mode only
+
+# Version management (pick one format)
+bazel_version_file    = "java/com/google/dotprompt/BUILD.bazel"
+bazel_version_format  = "maven_coordinates"
+#   "module"            → module(version = "X.Y.Z") in MODULE.bazel
+#   "maven_coordinates" → maven_coordinates = "g:a:X.Y.Z" in BUILD.bazel
+#   "bzl_constant"      → VAR = "X.Y.Z" in *.bzl (needs bazel_version_variable)
+#   "version_txt"       → plain text file
+#   "version_json"      → JSON file (needs bazel_version_jsonpath)
+#   "placeholder"       → sentinel replacement (needs bazel_version_placeholder)
+bazel_version_variable   = ""           # For bzl_constant: "PROTOBUF_JAVA_VERSION"
+bazel_version_jsonpath   = ""           # For version_json: "$.languages.java"
+bazel_version_placeholder = ""          # For placeholder: "${project.version}"
+
+# Maven coordinates (group:artifact, without version)
+bazel_maven_coordinates = "com.google.dotprompt:dotprompt"
+
+# Signing: "gpg" | "sigstore" | "both"
+bazel_signing         = "both"
+
+# Build-time --define flags ({version} is replaced)
+bazel_build_defines   = []              # e.g. ["pom_version={version}"]
+
+# Artifact type: "jar" | "aar" | "wheel" | "binary"
+bazel_artifact_type   = "jar"
+
+# Lock command (empty = no lock step)
+bazel_lock_command    = "@maven//:pin"
+
+# ── Phase 3 fields (future) ────────────────────────────────────────────
+
+# Android
+android_keystore         = ""
+android_keystore_password = ""          # env var name, not value
+android_track            = "internal"   # internal | alpha | beta | production
+android_service_account  = ""           # path to service account JSON
+
+# iOS (informed by rules_apple analysis)
+ios_provisioning_profile = ""
+ios_team_id              = ""
+ios_api_key              = ""           # path to .p8 file
+ios_api_issuer           = ""
+app_store_track          = "testflight" # testflight | app_store
+ios_version_rule         = ""           # label of apple_bundle_version target
+ios_embed_label_pattern  = ""           # e.g. "MyApp_{version}_build_{build}"
+
+# ── Phase 4 fields (future) ────────────────────────────────────────────
+
+# Container (informed by distroless/bazel-remote/buildfarm analysis)
+oci_push_target          = ""           # e.g. "//:push" or "//container:push"
+oci_repository           = ""           # e.g. "gcr.io/my-project/my-image"
+oci_remote_tags          = []           # e.g. ["latest", "{version}"]
+oci_cosign_sign          = false        # enable cosign keyless signing
+oci_sbom_attest          = false        # enable SBOM attestation via cosign
+oci_cosign_oidc_issuer   = ""           # e.g. "https://accounts.google.com"
+
+# Binary release (informed by bazel-remote analysis)
+binary_targets           = []           # e.g. ["//:app-linux-amd64", "//:app-linux-arm64"]
+binary_stamp_vars        = {}           # e.g. {"main.gitCommit": "{STABLE_GIT_COMMIT}"}
+binary_embed_label       = ""           # value for --embed_label flag
+
+# BCR (informed by rules_apple/rules_oci/rules_python analysis)
+bcr_module_name          = ""           # module name in MODULE.bazel
+bcr_presubmit_targets    = []           # test targets for presubmit.yml
+bcr_compatibility_level  = 1            # compatibility_level for metadata.json
+bcr_maintainers          = []           # GitHub usernames for metadata.json
+```
+
+### Example Configs for Real Repos
+
+**dotprompt** (simplest — single `java_export` artifact):
+
+```toml
+[workspace.java]
+ecosystem              = "java"
+tool                   = "bazel"
+root                   = "."
+bazel_build_target     = "//java/com/google/dotprompt:dotprompt_pkg"
+bazel_test_target      = "//java/..."
+bazel_publish_target   = "//java/com/google/dotprompt:dotprompt_pkg.publish"
+bazel_publish_mode     = "java_export"
+bazel_version_file     = "java/com/google/dotprompt/BUILD.bazel"
+bazel_version_format   = "maven_coordinates"
+bazel_maven_coordinates = "com.google.dotprompt:dotprompt"
+```
+
+**protobuf** (5 Java artifacts, shared `.bzl` version constant):
+
+```toml
+[workspace.java-core]
+ecosystem              = "java"
+tool                   = "bazel"
+root                   = "."
+synchronize            = true
+bazel_build_target     = "//java/core:core_mvn"
+bazel_publish_target   = "//java/core:core_mvn.publish"
+bazel_publish_mode     = "java_export"
+bazel_version_file     = "protobuf_version.bzl"
+bazel_version_format   = "bzl_constant"
+bazel_version_variable = "PROTOBUF_JAVA_VERSION"
+bazel_maven_coordinates = "com.google.protobuf:protobuf-java"
+
+[workspace.java-lite]
+ecosystem              = "java"
+tool                   = "bazel"
+root                   = "."
+synchronize            = true
+bazel_build_target     = "//java/core:lite_mvn"
+bazel_publish_target   = "//java/core:lite_mvn.publish"
+bazel_publish_mode     = "java_export"
+bazel_version_file     = "protobuf_version.bzl"
+bazel_version_format   = "bzl_constant"
+bazel_version_variable = "PROTOBUF_JAVA_VERSION"
+bazel_maven_coordinates = "com.google.protobuf:protobuf-javalite"
+```
+
+**dagger** (30+ artifacts, custom maven deploy, placeholder version):
+
+```toml
+[workspace.dagger-core]
+ecosystem              = "java"
+tool                   = "bazel"
+root                   = "."
+bazel_build_target     = "//dagger-runtime:artifact"
+bazel_publish_mode     = "mvn_deploy"
+bazel_build_defines    = ["pom_version={version}"]
+bazel_version_file     = "build_defs.bzl"
+bazel_version_format   = "placeholder"
+bazel_version_placeholder = "${project.version}"
+bazel_maven_coordinates = "com.google.dagger:dagger"
+```
+
+**envoy** (binary release, future Phase 4):
+
+```toml
+[workspace.envoy]
+ecosystem              = "cpp"
+tool                   = "bazel"
+root                   = "."
+bazel_build_target     = "//source/exe:envoy"
+bazel_version_file     = "VERSION.txt"
+bazel_version_format   = "version_txt"
+bazel_artifact_type    = "binary"
+```
+
+**tensorflow** (Python wheel from Bazel, future Phase 4):
+
+```toml
+[workspace.tf-python]
+ecosystem              = "python"
+tool                   = "bazel"
+root                   = "."
+bazel_build_target     = "//tensorflow/tools/pip_package:wheel"
+bazel_version_file     = "tensorflow/tf_version.bzl"
+bazel_version_format   = "bzl_constant"
+bazel_version_variable = "TF_VERSION"
+bazel_artifact_type    = "wheel"
+```
+
+**distroless** (container images with cosign signing, future Phase 4):
+
+```toml
+[workspace.distroless]
+ecosystem              = "bazel"
+tool                   = "bazel"
+root                   = "."
+oci_push_target        = "//:sign_and_push"
+oci_repository         = "gcr.io/distroless/static"
+oci_remote_tags        = ["latest", "nonroot", "debug"]
+oci_cosign_sign        = true
+oci_sbom_attest        = true
+oci_cosign_oidc_issuer = "https://accounts.google.com"
+```
+
+**bazel-remote** (Go binary + container, future Phase 4):
+
+```toml
+[workspace.bazel-remote-binary]
+ecosystem              = "go"
+tool                   = "bazel"
+root                   = "."
+bazel_artifact_type    = "binary"
+binary_targets         = ["//:bazel-remote-linux-amd64", "//:bazel-remote-linux-arm64", "//:bazel-remote-darwin-amd64", "//:bazel-remote-darwin-arm64"]
+binary_stamp_vars      = {"main.gitCommit" = "{STABLE_GIT_COMMIT}", "main.gitTags" = "{GIT_TAGS}"}
+
+[workspace.bazel-remote-container]
+ecosystem              = "bazel"
+tool                   = "bazel"
+root                   = "."
+oci_push_target        = "//:push_to_dockerhub_amd64"
+oci_repository         = "buchgr/bazel-remote-cache"
+oci_remote_tags        = ["{version}"]
+```
+
+**rules_oci** (Bazel rules published to BCR, future Phase 4):
+
+```toml
+[workspace.rules-oci]
+ecosystem              = "bazel"
+tool                   = "bazel"
+root                   = "."
+bazel_version_file     = "MODULE.bazel"
+bazel_version_format   = "module"
+bcr_module_name        = "rules_oci"
+bcr_presubmit_targets  = ["//oci/..."]
+bcr_compatibility_level = 1
+bcr_maintainers        = ["thesayyn", "alexeagle"]
+```
+
+**dotprompt rules_dart + rules_flutter** (Bazel rules to BCR, future Phase 4):
+
+```toml
+# rules_dart must publish first (rules_flutter depends on it)
+[workspace.rules-dart]
+ecosystem              = "bazel"
+tool                   = "bazel"
+root                   = "bazel/rules_dart"
+synchronize            = true
+bazel_version_file     = "bazel/rules_dart/MODULE.bazel"
+bazel_version_format   = "module"
+bazel_test_target      = "//bazel/rules_dart/..."
+bcr_module_name        = "rules_dart"
+bcr_presubmit_targets  = ["//:all"]
+bcr_compatibility_level = 1
+
+[workspace.rules-flutter]
+ecosystem              = "bazel"
+tool                   = "bazel"
+root                   = "bazel/rules_flutter"
+synchronize            = true
+bazel_version_file     = "bazel/rules_flutter/MODULE.bazel"
+bazel_version_format   = "module"
+bazel_test_target      = "//bazel/rules_flutter/..."
+bcr_module_name        = "rules_flutter"
+bcr_presubmit_targets  = ["//:all"]
+bcr_compatibility_level = 1
+```
+
+Ephemeral pinning handles the `rules_flutter` → `rules_dart`
+`local_path_override` dependency: temporarily remove the override
+and set `bazel_dep(version = "0.2.0")` during BCR publish, then
+restore `local_path_override` for local dev.
+
+**JS/TS via rules_js** (npm packages to registry, Phase 1):
+
+```toml
+[workspace.js-my-lib]
+ecosystem              = "js"
+tool                   = "bazel"
+root                   = "packages/my-lib"
+synchronize            = true
+bazel_build_target     = "//packages/my-lib"
+bazel_test_target      = "//packages/my-lib:..."
+bazel_publish_target   = "//packages/my-lib:my-lib"
+bazel_publish_mode     = "npm_package_publish"
+bazel_version_file     = "packages/my-lib/package.json"
+bazel_version_format   = "package_json"
+bazel_lock_command     = "pnpm install --frozen-lockfile"
+```
+
+The `npm_package` macro in `rules_js` with `publishable = True`
+generates a `.publish` target. `bazel run //pkg:name.publish` invokes
+`npm publish`. Auth via `NPM_TOKEN` env var or `.npmrc`.
+Ephemeral pinning rewrites `"workspace:*"` deps to hosted versions.
+
+**dotprompt Dart** (2 Dart packages to pub.dev, Phase 1):
+
+```toml
+# handlebarrz must publish first (dotprompt depends on it)
+[workspace.dart-handlebarrz]
+ecosystem              = "dart"
+tool                   = "bazel"
+root                   = "dart/handlebarrz"
+synchronize            = true
+bazel_build_target     = "//dart/handlebarrz"
+bazel_test_target      = "//dart/handlebarrz:..."
+bazel_publish_target   = "//dart/handlebarrz:publish"
+bazel_publish_mode     = "dart_pub_publish"
+bazel_version_file     = "dart/handlebarrz/pubspec.yaml"
+bazel_version_format   = "pubspec_yaml"
+bazel_lock_command     = "//dart/handlebarrz:pub_get"
+
+[workspace.dart-dotprompt]
+ecosystem              = "dart"
+tool                   = "bazel"
+root                   = "dart/dotprompt"
+synchronize            = true
+bazel_build_target     = "//dart/dotprompt"
+bazel_test_target      = "//dart/dotprompt:..."
+bazel_publish_target   = "//dart/dotprompt:publish"
+bazel_publish_mode     = "dart_pub_publish"
+bazel_version_file     = "dart/dotprompt/pubspec.yaml"
+bazel_version_format   = "pubspec_yaml"
+bazel_lock_command     = "//dart/dotprompt:pub_get"
+```
+
+**Prerequisites in dotprompt repo** (before releasekit can publish):
+
+1. Remove `publish_to: none` from `dart/dotprompt/pubspec.yaml`
+2. Add `dart_pub_publish` and `dart_pub_get` targets to both BUILD.bazel files
+
+**Ephemeral pinning** handles the `path: ../handlebarrz` dependency
+automatically — same pattern as Genkit's Python monorepo packages:
+
+```
+1. Bump both pubspec.yaml versions to 0.0.2
+2. Ephemeral pin: rewrite dotprompt's handlebarrz dep
+     path: ../handlebarrz  →  handlebarrz: 0.0.2
+3. Publish handlebarrz to pub.dev
+4. Publish dotprompt to pub.dev (handlebarrz 0.0.2 now exists)
+5. Unpin: revert to path: ../handlebarrz for local dev
+```
+
+The `path:` dependency stays in the repo permanently for local
+development. Releasekit only swaps it to a hosted version during
+the publish window. This requires the `BazelWorkspace` (B3) to
+support Dart `pubspec.yaml` path-dep → hosted-dep rewriting in
+its `rewrite_dependency_version()` method.
+
+### New Files (Phase 1)
+
+```
+src/releasekit/
+  backends/
+    pm/
+      bazel.py                    ← BazelBackend (PackageManager protocol)
+    workspace/
+      bazel.py                    ← BazelWorkspace (Workspace protocol)
+      bazel_version.py            ← BazelVersionRewriter (9 formats)
+tests/
+  backends/
+    rk_config_bazel_test.py       ← config validation tests
+    rk_bazel_version_test.py      ← version rewriter tests
+    rk_bazel_workspace_test.py    ← workspace discovery tests
+    rk_pm_bazel_test.py           ← PM protocol conformance tests
+    rk_bazel_dispatch_test.py     ← dispatch routing tests
+    rk_bazel_integration_test.py  ← dry-run integration test
+```
+
+---
 
 ## Upstream & External Tasks
 

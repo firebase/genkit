@@ -19,21 +19,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.commitback import CommitbackResult, _next_dev_version, create_commitback_pr
 from releasekit.versions import PackageVersion, ReleaseManifest
+from tests._fakes import OK as _OK, FakeForge, FakeVCS as _BaseFakeVCS
 
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
 
-
-class FakeVCS:
-    """Minimal VCS double for commitback tests."""
+class FakeVCS(_BaseFakeVCS):
+    """FakeVCS that records branch, commit, and push operations."""
 
     def __init__(self) -> None:
         """Initialize with empty tracking lists."""
+        super().__init__()
         self.branches_created: list[str] = []
         self.commits: list[str] = []
         self.pushes: int = 0
@@ -59,169 +58,6 @@ class FakeVCS:
     ) -> CommandResult:
         """Record push call."""
         self.pushes += 1
-        return _OK
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Always clean."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Never shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return empty list."""
-        return []
-
-    async def current_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Return a fake SHA."""
-        return 'abc123'
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Return empty log."""
-        return []
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Return empty diff."""
-        return []
-
-    async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
-        """No-op tag."""
-        return _OK
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """No tags exist."""
-        return False
-
-    async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
-        """No-op delete_tag."""
-        return _OK
-
-
-class FakeForge:
-    """Minimal Forge double for commitback tests."""
-
-    def __init__(self, *, available: bool = True) -> None:
-        """Initialize with availability flag."""
-        self._available = available
-        self.prs_created: list[dict[str, str]] = []
-
-    async def is_available(self) -> bool:
-        """Check availability."""
-        return self._available
-
-    async def create_pr(
-        self,
-        *,
-        title: str,
-        body: str = '',
-        head: str,
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Record PR creation."""
-        self.prs_created.append({'title': title, 'head': head, 'base': base})
-        return _OK
-
-    async def create_release(
-        self,
-        tag: str,
-        *,
-        title: str | None = None,
-        body: str = '',
-        draft: bool = False,
-        prerelease: bool = False,
-        assets: list[Path] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op create_release."""
-        return _OK
-
-    async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """No-op delete_release."""
-        return _OK
-
-    async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """No-op promote_release."""
-        return _OK
-
-    async def list_releases(self, *, limit: int = 10) -> list[dict[str, Any]]:
-        """Return empty release list."""
-        return []
-
-    async def pr_data(self, pr_number: int) -> dict[str, Any]:
-        """Return empty PR data."""
-        return {}
-
-    async def list_prs(
-        self,
-        *,
-        label: str = '',
-        state: str = 'open',
-        head: str = '',
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Stub list_prs."""
-        return []
-
-    async def add_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub add_labels."""
-        return _OK
-
-    async def remove_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub remove_labels."""
-        return _OK
-
-    async def update_pr(
-        self,
-        pr_number: int,
-        *,
-        title: str = '',
-        body: str = '',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub update_pr."""
-        return _OK
-
-    async def merge_pr(
-        self,
-        pr_number: int,
-        *,
-        method: str = 'squash',
-        commit_message: str = '',
-        delete_branch: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub merge_pr."""
         return _OK
 
 
@@ -416,3 +252,175 @@ class TestCreateCommitbackPr:
         result = await create_commitback_pr(manifest=manifest, vcs=vcs, package_paths={})
         if result.bumped:
             raise AssertionError(f'Expected no bumps: {result.bumped}')
+
+    @pytest.mark.asyncio
+    async def test_branch_creation_error(self) -> None:
+        """Branch creation failure is captured in errors."""
+
+        class FailBranchVCS(FakeVCS):
+            async def checkout_branch(
+                self,
+                branch: str,
+                *,
+                create: bool = False,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                raise RuntimeError('branch exists')
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            umbrella_tag='v0.5.0',
+            packages=[
+                PackageVersion(name='genkit', old_version='0.4.0', new_version='0.5.0', bump='minor'),
+            ],
+        )
+        result = await create_commitback_pr(manifest=manifest, vcs=FailBranchVCS())
+        assert not result.ok
+        assert any('branch' in e.lower() for e in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_missing_pyproject_file(self, tmp_path: Path) -> None:
+        """Package dir exists but pyproject.toml is missing."""
+        pkg_dir = tmp_path / 'genkit'
+        pkg_dir.mkdir()
+        # No pyproject.toml created
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            umbrella_tag='v0.5.0',
+            packages=[
+                PackageVersion(name='genkit', old_version='0.4.0', new_version='0.5.0', bump='minor'),
+            ],
+        )
+        vcs = FakeVCS()
+        result = await create_commitback_pr(
+            manifest=manifest,
+            vcs=vcs,
+            package_paths={'genkit': pkg_dir},
+        )
+        assert 'genkit' not in result.bumped
+
+    @pytest.mark.asyncio
+    async def test_bump_error_captured(self, tmp_path: Path) -> None:
+        """Bump failure is captured in errors without crashing."""
+        pkg_dir = tmp_path / 'genkit'
+        pkg_dir.mkdir()
+        # Write invalid pyproject that will cause bump_pyproject to fail.
+        (pkg_dir / 'pyproject.toml').write_text('not valid toml {{{{')
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            umbrella_tag='v0.5.0',
+            packages=[
+                PackageVersion(name='genkit', old_version='0.4.0', new_version='0.5.0', bump='minor'),
+            ],
+        )
+        vcs = FakeVCS()
+        result = await create_commitback_pr(
+            manifest=manifest,
+            vcs=vcs,
+            package_paths={'genkit': pkg_dir},
+        )
+        assert not result.ok
+        assert any('genkit' in e for e in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_push_failure_reports_error(self, tmp_path: Path) -> None:
+        """Push failure is reported in result.errors without raising."""
+
+        class FailPushVCS(FakeVCS):
+            async def push(
+                self,
+                *,
+                tags: bool = False,
+                remote: str = 'origin',
+                set_upstream: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                return CommandResult(
+                    command=['git', 'push'],
+                    return_code=1,
+                    stdout='',
+                    stderr='push rejected',
+                )
+
+        pkg_dir = tmp_path / 'genkit'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text('[project]\nname = "genkit"\nversion = "0.5.0"\n')
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            umbrella_tag='v0.5.0',
+            packages=[
+                PackageVersion(name='genkit', old_version='0.4.0', new_version='0.5.0', bump='minor'),
+            ],
+        )
+        result = await create_commitback_pr(
+            manifest=manifest,
+            vcs=FailPushVCS(),
+            package_paths={'genkit': pkg_dir},
+        )
+        assert any('push rejected' in e for e in result.errors)
+        assert not result.pr_created
+
+    @pytest.mark.asyncio
+    async def test_pr_creation_error_captured(self, tmp_path: Path) -> None:
+        """PR creation failure is captured in errors."""
+
+        class FailPRForge(FakeForge):
+            async def create_pr(
+                self,
+                *,
+                title: str,
+                body: str = '',
+                head: str,
+                base: str = 'main',
+                dry_run: bool = False,
+            ) -> CommandResult:
+                raise RuntimeError('API error')
+
+        pkg_dir = tmp_path / 'genkit'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text('[project]\nname = "genkit"\nversion = "0.5.0"\n')
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            umbrella_tag='v0.5.0',
+            packages=[
+                PackageVersion(name='genkit', old_version='0.4.0', new_version='0.5.0', bump='minor'),
+            ],
+        )
+        vcs = FakeVCS()
+        forge = FailPRForge(available=True)
+        result = await create_commitback_pr(
+            manifest=manifest,
+            vcs=vcs,
+            forge=forge,
+            package_paths={'genkit': pkg_dir},
+        )
+        assert not result.pr_created
+        assert any('PR creation failed' in e for e in result.errors)
+
+
+class TestNextDevVersionEdgeCases:
+    """Additional edge cases for _next_dev_version."""
+
+    def test_short_version(self) -> None:
+        """Two-part version gets padded."""
+        assert _next_dev_version('1.0') == '1.0.1.dev0'
+
+    def test_single_part_version(self) -> None:
+        """Single-part version gets padded."""
+        assert _next_dev_version('5') == '5.0.1.dev0'
+
+    def test_alpha_stripped(self) -> None:
+        """Alpha suffix is stripped."""
+        assert _next_dev_version('1.2.3a1') == '1.2.4.dev0'
+
+    def test_beta_stripped(self) -> None:
+        """Beta suffix is stripped."""
+        assert _next_dev_version('1.2.3b2') == '1.2.4.dev0'
+
+    def test_hyphen_prerelease(self) -> None:
+        """Hyphenated prerelease is stripped."""
+        assert _next_dev_version('1.2.3-rc.1') == '1.2.4.dev0'

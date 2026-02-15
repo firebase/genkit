@@ -53,7 +53,7 @@ from releasekit.distro import (
     fix_distro_deps as _fix_distro_deps_for_package,
 )
 from releasekit.logging import get_logger
-from releasekit.preflight import PreflightResult
+from releasekit.preflight import PreflightResult, SourceContext, find_key_line
 from releasekit.workspace import Package
 
 logger = get_logger(__name__)
@@ -149,6 +149,7 @@ class PythonCheckBackend:
         """
         check_name = 'type_markers'
         missing: list[str] = []
+        locations: list[str] = []
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
@@ -160,10 +161,13 @@ class PythonCheckBackend:
             py_typed_files = list(src_dir.rglob('py.typed'))
             if not py_typed_files:
                 missing.append(pkg.name)
+                locations.append(str(src_dir))
         if missing:
             result.add_warning(
                 check_name,
                 f'Missing py.typed marker: {", ".join(missing)}',
+                hint="Create an empty py.typed file in each package's src/<pkg>/ directory (PEP 561).",
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -184,11 +188,13 @@ class PythonCheckBackend:
             result.add_warning(
                 check_name,
                 f'Core "{self._core_package}" package not found; cannot verify versions.',
+                hint=f'Ensure a package named "{self._core_package}" exists in the workspace.',
             )
             return
 
         core_version = core_pkg.version
         mismatches: list[str] = []
+        locations: list[str] = []
         for pkg in packages:
             if not pkg.name.startswith(self._plugin_prefix):
                 continue
@@ -196,11 +202,14 @@ class PythonCheckBackend:
                 mismatches.append(
                     f'{pkg.name}=={pkg.version} (expected {core_version})',
                 )
+                locations.append(str(pkg.manifest_path))
 
         if mismatches:
             result.add_warning(
                 check_name,
                 f'Plugin version mismatches: {", ".join(mismatches)}',
+                hint=f'Run `releasekit bump` to align all plugin versions with {self._core_package}.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -222,6 +231,7 @@ class PythonCheckBackend:
             return
 
         mismatches: list[str] = []
+        locations: list[str] = []
         for pkg in packages:
             dir_name = pkg.path.name
             parent_name = pkg.path.parent.name
@@ -234,11 +244,14 @@ class PythonCheckBackend:
                 mismatches.append(
                     f'{dir_name}/ → {pkg.name} (expected {expected})',
                 )
+                locations.append(str(pkg.manifest_path))
 
         if mismatches:
             result.add_warning(
                 check_name,
                 f'Naming mismatches: {", ".join(mismatches)}',
+                hint=f'Rename the package in pyproject.toml to match the pattern {self._plugin_prefix}<dir>.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -252,6 +265,7 @@ class PythonCheckBackend:
         check_name = 'metadata_completeness'
         required_fields = ['description', 'authors', 'license']
         issues: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -266,6 +280,7 @@ class PythonCheckBackend:
                     error=str(exc),
                 )
                 issues.append(f'{pkg.name}: cannot parse pyproject.toml')
+                locations.append(str(pkg.manifest_path))
                 continue
 
             project: dict[str, object] = data.get('project', {})
@@ -278,11 +293,20 @@ class PythonCheckBackend:
                 issues.append(
                     f'{pkg.name}: missing {", ".join(missing_fields)}',
                 )
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        label=f'missing: {", ".join(missing_fields)}',
+                    )
+                )
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Incomplete metadata: {"; ".join(issues)}',
+                hint='Add description, authors, and license fields to [project] in pyproject.toml.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -326,9 +350,29 @@ class PythonCheckBackend:
             parts: list[str] = []
             for ver, pkgs in sorted(versions.items()):
                 parts.append(f'{ver}: {len(pkgs)} packages')
+            # Collect manifest paths with line numbers for context.
+            all_locs: list[str | SourceContext] = []
+            for pkgs_list in versions.values():
+                for pname in pkgs_list:
+                    p = next((x for x in packages if x.name == pname), None)
+                    if p:
+                        try:
+                            c = p.manifest_path.read_text(encoding='utf-8')
+                            line = find_key_line(c, 'requires-python')
+                        except Exception:
+                            line = 0
+                        all_locs.append(
+                            SourceContext(
+                                path=str(p.manifest_path),
+                                line=line,
+                                key='requires-python',
+                            )
+                        )
             result.add_warning(
                 check_name,
                 f'Inconsistent requires-python: {"; ".join(parts)}',
+                hint='Align requires-python across all packages. Run `releasekit check --fix`.',
+                context=all_locs,
             )
 
     def check_python_classifiers(
@@ -345,6 +389,7 @@ class PythonCheckBackend:
         check_name = 'python_classifiers'
         expected_versions = {'3.10', '3.11', '3.12', '3.13', '3.14'}
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -374,11 +419,14 @@ class PythonCheckBackend:
                 issues.append(
                     f'{pkg.name}: missing classifiers for Python {", ".join(sorted(missing))}',
                 )
+                locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Missing Python classifiers: {"; ".join(issues)}',
+                hint='Add Programming Language :: Python :: 3.{10..14} classifiers. Run `releasekit check --fix`.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -405,12 +453,14 @@ class PythonCheckBackend:
             result.add_warning(
                 check_name,
                 'uv not found; skipping dependency resolution check.',
+                hint='Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`.',
             )
             return
         except subprocess.TimeoutExpired:
             result.add_warning(
                 check_name,
                 'uv pip check timed out after 60 seconds.',
+                hint='Check for slow network or large dependency trees.',
             )
             return
 
@@ -424,6 +474,7 @@ class PythonCheckBackend:
             result.add_warning(
                 check_name,
                 f'Dependency issues: {output}',
+                hint='Run `uv pip install -e .` to fix missing deps, or update version constraints.',
             )
 
     def check_namespace_init(
@@ -448,6 +499,7 @@ class PythonCheckBackend:
             return
 
         offenders: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if self._plugin_dirs and pkg.path.parent.name not in self._plugin_dirs:
@@ -461,11 +513,14 @@ class PythonCheckBackend:
                 if init_file.exists():
                     relative = init_file.relative_to(pkg.path)
                     offenders.append(f'{pkg.name}: {relative}')
+                    locations.append(str(init_file))
 
         if offenders:
             result.add_failure(
                 check_name,
                 f'Namespace dirs must not have __init__.py: {", ".join(offenders)}',
+                hint='Delete the __init__.py files in namespace directories. Run `releasekit check --fix`.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -483,6 +538,7 @@ class PythonCheckBackend:
         """
         check_name = 'readme_field'
         missing: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -492,17 +548,27 @@ class PythonCheckBackend:
                 data = tomlkit.parse(content)
             except Exception:
                 missing.append(f'{pkg.name}: cannot parse pyproject.toml')
+                locations.append(str(pkg.manifest_path))
                 continue
 
             project: dict[str, object] = data.get('project', {})
             if 'readme' not in project or not project['readme']:
                 missing.append(pkg.name)
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        key='readme',
+                        label='readme field missing',
+                    )
+                )
 
         if missing:
             result.add_warning(
                 check_name,
                 f'Missing readme field: {", ".join(missing)}',
                 hint='Add readme = "README.md" to the [project] section in pyproject.toml.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -520,6 +586,7 @@ class PythonCheckBackend:
         """
         check_name = 'changelog_url'
         missing: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -529,6 +596,7 @@ class PythonCheckBackend:
                 data = tomlkit.parse(content)
             except Exception:
                 missing.append(f'{pkg.name}: cannot parse pyproject.toml')
+                locations.append(str(pkg.manifest_path))
                 continue
 
             project: dict[str, object] = data.get('project', {})
@@ -537,12 +605,23 @@ class PythonCheckBackend:
             has_changelog = any(key.lower() == 'changelog' for key in urls)
             if not has_changelog:
                 missing.append(pkg.name)
+                line = find_key_line(content, '', section='project.urls')
+                if not line:
+                    line = find_key_line(content, '', section='project') or 1
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=line,
+                        label='Changelog URL missing',
+                    )
+                )
 
         if missing:
             result.add_warning(
                 check_name,
                 f'Missing Changelog URL in [project.urls]: {", ".join(missing)}',
                 hint='Add Changelog = "https://github.com/.../CHANGELOG.md" to [project.urls] in pyproject.toml.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -567,6 +646,7 @@ class PythonCheckBackend:
             return
 
         issues: list[str] = []
+        locations: list[str] = []
         for pkg in packages:
             is_excluded = any(fnmatch.fnmatch(pkg.name, pat) for pat in exclude_publish)
             has_private_classifier = not pkg.is_publishable
@@ -575,16 +655,19 @@ class PythonCheckBackend:
                 issues.append(
                     f'{pkg.name}: has Private :: Do Not Upload but is NOT in exclude_publish',
                 )
+                locations.append(str(pkg.manifest_path))
             elif is_excluded and not has_private_classifier:
                 issues.append(
                     f'{pkg.name}: in exclude_publish but missing Private :: Do Not Upload classifier',
                 )
+                locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Publish classifier mismatch: {"; ".join(issues)}',
                 hint='Ensure exclude_publish patterns and Private :: Do Not Upload classifiers agree.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -626,11 +709,20 @@ class PythonCheckBackend:
                 collisions.append(f'{rel_path} in {", ".join(sorted(pkg_names))}')
 
         if collisions:
+            # Collect the actual colliding file paths for context.
+            collision_locs: list[str] = []
+            for rel_path, pkg_names in sorted(seen.items()):
+                if len(pkg_names) > 1:
+                    for pname in pkg_names:
+                        p = next((x for x in packages if x.name == pname), None)
+                        if p:
+                            collision_locs.append(str(p.path / rel_path))
             result.add_warning(
                 check_name,
                 f'Test file collisions (pytest may shadow): {"; ".join(collisions)}',
                 hint='Rename colliding test files to be unique across packages, '
                 'e.g. tests/pkgname_utils_test.py instead of tests/utils_test.py.',
+                context=collision_locs,
             )
         else:
             result.add_pass(check_name)
@@ -644,6 +736,20 @@ class PythonCheckBackend:
         except Exception:
             return None
 
+    @staticmethod
+    def _parse_pyproject_with_content(pkg: Package) -> tuple[tomlkit.TOMLDocument | None, str]:
+        """Parse a package's pyproject.toml, returning ``(doc, raw_content)``.
+
+        The raw content is needed by :func:`find_key_line` to locate
+        TOML keys by line number (tomlkit does not expose positions).
+        Returns ``(None, '')`` on parse failure.
+        """
+        try:
+            content = pkg.manifest_path.read_text(encoding='utf-8')
+            return tomlkit.parse(content), content
+        except Exception:
+            return None, ''
+
     def check_build_system(
         self,
         packages: list[Package],
@@ -652,25 +758,43 @@ class PythonCheckBackend:
         """Check that ``[build-system]`` is present and has ``build-backend``."""
         check_name = 'build_system'
         issues: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
-            doc = self._parse_pyproject(pkg)
+            doc, content = self._parse_pyproject_with_content(pkg)
             if doc is None:
                 issues.append(f'{pkg.name}: cannot parse pyproject.toml')
+                locations.append(str(pkg.manifest_path))
                 continue
             build_system = doc.get('build-system')
             if not isinstance(build_system, dict):
                 issues.append(f'{pkg.name}: missing [build-system]')
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        label='[build-system] section missing',
+                    )
+                )
             elif 'build-backend' not in build_system:
                 issues.append(f'{pkg.name}: [build-system] missing build-backend')
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='build-system'),
+                        key='build-backend',
+                        label='build-backend key missing',
+                    )
+                )
 
         if issues:
             result.add_failure(
                 check_name,
                 f'Build system issues: {"; ".join(issues)}',
                 hint='Add [build-system] with requires and build-backend to pyproject.toml.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -683,11 +807,12 @@ class PythonCheckBackend:
         """Check that ``[project].version`` is present or declared dynamic."""
         check_name = 'version_field'
         issues: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
-            doc = self._parse_pyproject(pkg)
+            doc, content = self._parse_pyproject_with_content(pkg)
             if doc is None:
                 continue
             project = doc.get('project')
@@ -698,12 +823,21 @@ class PythonCheckBackend:
             has_dynamic_version = isinstance(dynamic, list) and 'version' in dynamic
             if not has_version and not has_dynamic_version:
                 issues.append(pkg.name)
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        key='version',
+                        label='version key missing',
+                    )
+                )
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Missing version field (will build as 0.0.0): {", ".join(issues)}',
                 hint='Add version = "x.y.z" to [project] or add "version" to dynamic.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -716,6 +850,7 @@ class PythonCheckBackend:
         """Check for duplicate entries in ``[project.dependencies]``."""
         check_name = 'duplicate_dependencies'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             doc = self._parse_pyproject(pkg)
@@ -740,12 +875,14 @@ class PythonCheckBackend:
             dupes = [n for n, count in seen_names.items() if count > 1]
             if dupes:
                 issues.append(f'{pkg.name}: {", ".join(sorted(dupes))}')
+                locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Duplicate dependencies: {"; ".join(issues)}',
                 hint='Remove duplicate entries from [project.dependencies].',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -758,11 +895,12 @@ class PythonCheckBackend:
         """Check that publishable library packages don't pin deps with ``==``."""
         check_name = 'pinned_deps_in_libraries'
         issues: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
-            doc = self._parse_pyproject(pkg)
+            doc, content = self._parse_pyproject_with_content(pkg)
             if doc is None:
                 continue
             project = doc.get('project')
@@ -775,12 +913,26 @@ class PythonCheckBackend:
             pinned = [d for d in deps if isinstance(d, str) and '==' in d]
             if pinned:
                 issues.append(f'{pkg.name}: {", ".join(pinned)}')
+                # Point at the first pinned dep line.
+                first_pinned = pinned[0].split('==')[0].strip()
+                line = find_key_line(content, first_pinned)
+                if not line:
+                    line = find_key_line(content, 'dependencies') or 1
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=line,
+                        key=pinned[0],
+                        label='pinned with == (use >= for libraries)',
+                    )
+                )
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Pinned dependencies in libraries (use >= instead): {"; ".join(issues)}',
                 hint='Libraries should use >= version specifiers, not ==, to avoid breaking downstream users.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -793,11 +945,12 @@ class PythonCheckBackend:
         """Check that publishable packages declare ``requires-python``."""
         check_name = 'requires_python'
         missing: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
-            doc = self._parse_pyproject(pkg)
+            doc, content = self._parse_pyproject_with_content(pkg)
             if doc is None:
                 continue
             project = doc.get('project')
@@ -805,12 +958,21 @@ class PythonCheckBackend:
                 continue
             if 'requires-python' not in project or not project['requires-python']:
                 missing.append(pkg.name)
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        key='requires-python',
+                        label='requires-python missing',
+                    )
+                )
 
         if missing:
             result.add_warning(
                 check_name,
                 f'Missing requires-python: {", ".join(missing)}',
                 hint='Add requires-python = ">=3.10" (or appropriate version) to [project].',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -823,6 +985,7 @@ class PythonCheckBackend:
         """Check that readme file extension matches content-type declaration."""
         check_name = 'readme_content_type'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -850,14 +1013,17 @@ class PythonCheckBackend:
                 ext = Path(file_path).suffix.lower()
                 if ext == '.md' and 'rst' in content_type.lower():
                     issues.append(f'{pkg.name}: {file_path} is Markdown but content-type is {content_type}')
+                    locations.append(str(pkg.manifest_path))
                 elif ext == '.rst' and 'markdown' in content_type.lower():
                     issues.append(f'{pkg.name}: {file_path} is RST but content-type is {content_type}')
+                    locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Readme content-type mismatch: {"; ".join(issues)}',
                 hint='Ensure readme file extension matches content-type (text/markdown for .md, text/x-rst for .rst).',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -870,18 +1036,33 @@ class PythonCheckBackend:
         """Check that package versions are PEP 440 compliant."""
         check_name = 'version_pep440'
         invalid: list[str] = []
+        locations: list[str | SourceContext] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
                 continue
             if pkg.version and not _PEP440_RE.match(pkg.version):
                 invalid.append(f'{pkg.name}: {pkg.version!r}')
+                try:
+                    content = pkg.manifest_path.read_text(encoding='utf-8')
+                    line = find_key_line(content, 'version')
+                except Exception:
+                    line = 0
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=line,
+                        key='version',
+                        label=f'not PEP 440: {pkg.version!r}',
+                    )
+                )
 
         if invalid:
             result.add_failure(
                 check_name,
                 f'Non-PEP 440 versions (PyPI will reject): {"; ".join(invalid)}',
                 hint='Use PEP 440 compliant versions like 1.0.0, 1.0.0a1, 1.0.0.post1, etc.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -894,6 +1075,7 @@ class PythonCheckBackend:
         """Check for placeholder or empty URLs in ``[project.urls]``."""
         check_name = 'placeholder_urls'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -914,14 +1096,17 @@ class PythonCheckBackend:
                 url_lower = url.lower().strip()
                 if not url_lower:
                     issues.append(f'{pkg.name}: [{label}] is empty')
+                    locations.append(str(pkg.manifest_path))
                 elif any(p.lower() in url_lower for p in _PLACEHOLDER_URL_PATTERNS):
                     issues.append(f'{pkg.name}: [{label}] = {url!r} looks like a placeholder')
+                    locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Placeholder URLs: {"; ".join(issues)}',
                 hint='Replace placeholder URLs in [project.urls] with real values.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -934,17 +1119,20 @@ class PythonCheckBackend:
         """Check for leftover ``setup.py`` or ``setup.cfg`` files."""
         check_name = 'legacy_setup_files'
         found: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             for legacy in ('setup.py', 'setup.cfg'):
                 if (pkg.path / legacy).exists():
                     found.append(f'{pkg.name}: {legacy}')
+                    locations.append(str(pkg.path / legacy))
 
         if found:
             result.add_warning(
                 check_name,
                 f'Legacy setup files found: {"; ".join(found)}',
                 hint='Remove setup.py/setup.cfg and use pyproject.toml exclusively.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -957,6 +1145,7 @@ class PythonCheckBackend:
         """Check for deprecated trove classifiers."""
         check_name = 'deprecated_classifiers'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             doc = self._parse_pyproject(pkg)
@@ -976,14 +1165,17 @@ class PythonCheckBackend:
                     replacement = DEPRECATED_CLASSIFIERS[clf]
                     if replacement:
                         issues.append(f'{pkg.name}: {clf!r} → {replacement!r}')
+                        locations.append(str(pkg.manifest_path))
                     else:
                         issues.append(f'{pkg.name}: {clf!r} (remove)')
+                        locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Deprecated classifiers: {"; ".join(issues)}',
                 hint='Run with --fix to auto-replace deprecated classifiers.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -996,6 +1188,7 @@ class PythonCheckBackend:
         """Check that license classifiers match the LICENSE file content."""
         check_name = 'license_classifier_mismatch'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -1039,12 +1232,14 @@ class PythonCheckBackend:
                     f'{pkg.name}: LICENSE file looks like {detected_classifier.split("::")[-1].strip()}'
                     f' but classifiers say {", ".join(license_classifiers)}',
                 )
+                locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'License mismatch: {"; ".join(issues)}',
                 hint='Ensure license classifiers in pyproject.toml match the LICENSE file.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -1057,6 +1252,7 @@ class PythonCheckBackend:
         """Check that optional-dependencies reference known packages."""
         check_name = 'unreachable_extras'
         issues: list[str] = []
+        locations: list[str] = []
 
         # Build set of all known workspace package names.
         workspace_names = {pkg.name.lower().replace('-', '_').replace('.', '_') for pkg in packages}
@@ -1085,6 +1281,7 @@ class PythonCheckBackend:
                     match = _DEP_NAME_RE.match(dep_stripped)
                     if not match:
                         issues.append(f'{pkg.name}[{extra_name}]: unparseable dep {dep!r}')
+                        locations.append(str(pkg.manifest_path))
                         continue
                     dep_name = match.group(1).lower().replace('-', '_').replace('.', '_')
                     # Only flag if it looks like a workspace package reference that doesn't exist.
@@ -1100,6 +1297,7 @@ class PythonCheckBackend:
                 check_name,
                 f'Unreachable extras: {"; ".join(issues)}',
                 hint='Check that optional-dependencies reference valid package names.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -1112,6 +1310,7 @@ class PythonCheckBackend:
         """Check that no package lists itself in its own dependencies."""
         check_name = 'self_dependencies'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             doc = self._parse_pyproject(pkg)
@@ -1134,6 +1333,7 @@ class PythonCheckBackend:
                 dep_name = match.group(1).lower().replace('-', '_').replace('.', '_')
                 if dep_name == pkg_norm:
                     issues.append(f'{pkg.name}: lists itself ({dep.strip()!r})')
+                    locations.append(str(pkg.manifest_path))
                     break
 
         if issues:
@@ -1141,6 +1341,7 @@ class PythonCheckBackend:
                 check_name,
                 f'Self-dependencies found: {"; ".join(issues)}',
                 hint='Remove the package from its own [project].dependencies.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)
@@ -1153,6 +1354,7 @@ class PythonCheckBackend:
         """Check that distro packaging deps match ``pyproject.toml``."""
         check_name = 'distro_deps'
         issues: list[str] = []
+        locations: list[str] = []
 
         for pkg in packages:
             if not pkg.is_publishable:
@@ -1172,12 +1374,14 @@ class PythonCheckBackend:
                     if diff.version_mismatch:
                         parts.append(f'version mismatch: {", ".join(diff.version_mismatch)}')
                     issues.append(f'{pkg.name} ({diff.distro}): {"; ".join(parts)}')
+                    locations.append(str(pkg.manifest_path))
 
         if issues:
             result.add_warning(
                 check_name,
                 f'Distro packaging deps out of sync: {"; ".join(issues)}',
                 hint='Run "releasekit check --fix" to update distro packaging files.',
+                context=locations,
             )
         else:
             result.add_pass(check_name)

@@ -26,63 +26,24 @@ All file I/O is non-blocking via ``aiofiles``.
 from __future__ import annotations
 
 import fnmatch
-import re
 from pathlib import Path
 from typing import Any
 
-import aiofiles
 import tomlkit
 import tomlkit.exceptions
-from packaging.requirements import InvalidRequirement, Requirement
 
+from releasekit.backends.workspace._io import read_file as _read_file, write_file as _write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
+from releasekit.utils.packaging import normalize_name as _normalize_name, parse_dep_name as _parse_dep_name
 
 log = get_logger('releasekit.backends.workspace.uv')
-
-
-def _parse_dep_name(dep_spec: str) -> str:
-    """Extract the normalized package name from a PEP 508 dependency specifier."""
-    try:
-        return Requirement(dep_spec).name.lower()
-    except InvalidRequirement:
-        name = re.split(r'[<>=!~,;\[]', dep_spec, maxsplit=1)[0].strip()
-        return name.lower()
-
-
-def _normalize_name(name: str) -> str:
-    """Normalize a package name per PEP 503 (lowercase, underscores to hyphens)."""
-    return name.lower().replace('_', '-')
 
 
 def _is_publishable(classifiers: list[str]) -> bool:
     """Check if any classifier indicates the package is private."""
     return not any('Private' in c and 'Do Not Upload' in c for c in classifiers)
-
-
-async def _read_file(path: Path) -> str:
-    """Read a file asynchronously via aiofiles."""
-    try:
-        async with aiofiles.open(path, encoding='utf-8') as f:
-            return await f.read()
-    except OSError as exc:
-        raise ReleaseKitError(
-            code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to read {path}: {exc}',
-        ) from exc
-
-
-async def _write_file(path: Path, content: str) -> None:
-    """Write a file asynchronously via aiofiles."""
-    try:
-        async with aiofiles.open(path, mode='w', encoding='utf-8') as f:
-            await f.write(content)
-    except OSError as exc:
-        raise ReleaseKitError(
-            code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to write {path}: {exc}',
-        ) from exc
 
 
 def _parse_toml(text: str, path: Path) -> tomlkit.TOMLDocument:
@@ -93,6 +54,7 @@ def _parse_toml(text: str, path: Path) -> tomlkit.TOMLDocument:
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
             message=f'Failed to parse {path}: {exc}',
+            hint=f'Check that {path} contains valid TOML.',
         ) from exc
 
 

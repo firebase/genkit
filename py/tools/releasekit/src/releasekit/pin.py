@@ -135,6 +135,7 @@ def pin_dependencies(
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot read {pyproject_path}: {exc}',
+            hint=f'Check that {pyproject_path} exists and is readable.',
         ) from exc
 
     try:
@@ -143,6 +144,7 @@ def pin_dependencies(
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot parse {pyproject_path}: {exc}',
+            hint=f'Check that {pyproject_path} contains valid TOML.',
         ) from exc
 
     # Normalize version_map keys for matching.
@@ -170,6 +172,7 @@ def pin_dependencies(
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot write {pyproject_path}: {exc}',
+            hint=f'Check file permissions for {pyproject_path}.',
         ) from exc
 
     logger.info(
@@ -219,6 +222,7 @@ def ephemeral_pin(
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot create backup at {backup_path}: {exc}',
+            hint=f'Check file permissions for {backup_path.parent}.',
         ) from exc
     logger.debug('backup_created', path=str(backup_path))
 

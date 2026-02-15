@@ -373,3 +373,41 @@ class TestFormatAsciiFlow:
         assert 'parallel' in output
         assert 'genkit-plugin-a' in output
         assert 'genkit-plugin-b' in output
+
+
+class TestExecutionPlanEmpty:
+    """Tests for empty execution plan."""
+
+    def test_format_table_empty(self) -> None:
+        """Empty plan returns a 'no packages' message."""
+        plan = ExecutionPlan(entries=[])
+        output = plan.format_table()
+        assert 'No packages' in output
+
+
+class TestBuildPlanSkippedVersion:
+    """Tests for skipped versions in build_plan."""
+
+    def test_skipped_version_shows_skipped_status(self) -> None:
+        """Skipped version gets SKIPPED status in the plan."""
+        pkg = Package(
+            name='genkit',
+            version='0.5.0',
+            path=Path('/ws/packages/genkit'),
+            manifest_path=Path('/ws/packages/genkit/pyproject.toml'),
+        )
+        versions = [
+            PackageVersion(
+                name='genkit',
+                old_version='0.5.0',
+                new_version='0.5.0',
+                bump='',
+                skipped=True,
+                reason='no changes since last tag',
+            ),
+        ]
+        levels: list[list[Package]] = [[pkg]]
+        plan = build_plan(versions, levels)
+        assert len(plan.entries) == 1
+        assert plan.entries[0].status == PlanStatus.SKIPPED
+        assert 'no changes' in plan.entries[0].reason

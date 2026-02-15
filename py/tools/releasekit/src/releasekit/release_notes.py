@@ -76,6 +76,7 @@ from releasekit.changelog import (
     render_changelog,
 )
 from releasekit.logging import get_logger
+from releasekit.tags import format_tag
 from releasekit.versions import ReleaseManifest
 
 logger = get_logger(__name__)
@@ -132,11 +133,6 @@ _PACKAGE_TEMPLATE = Template("""\
 
 $changelog
 """)
-
-
-def _format_tag(tag_format: str, name: str, version: str, label: str = '') -> str:
-    """Format a git tag using the configured template."""
-    return tag_format.replace('{name}', name).replace('{version}', version).replace('{label}', label)
 
 
 def render_release_notes(
@@ -218,7 +214,7 @@ async def generate_release_notes(
     paths_map = package_paths or {}
 
     for pkg in manifest.bumped:
-        since_tag = _format_tag(tag_format, pkg.name, pkg.old_version)
+        since_tag = format_tag(tag_format, name=pkg.name, version=pkg.old_version)
 
         effective_since: str | None = since_tag
         if not await vcs.tag_exists(since_tag):

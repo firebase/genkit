@@ -167,10 +167,9 @@ class GitCLIBackend:
     ) -> CommandResult:
         """Create a commit, staging specified paths first."""
         if paths:
-            if not dry_run:
-                await asyncio.to_thread(self._git, 'add', *paths)
-        elif not dry_run:
-            await asyncio.to_thread(self._git, 'add', '-A')
+            await asyncio.to_thread(self._git, 'add', *paths, dry_run=dry_run)
+        else:
+            await asyncio.to_thread(self._git, 'add', '-A', dry_run=dry_run)
 
         log.info('commit', message=message[:80])
         return await asyncio.to_thread(self._git, 'commit', '-m', message, dry_run=dry_run)
@@ -244,6 +243,11 @@ class GitCLIBackend:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)
         return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
+
+    async def tag_commit_sha(self, tag_name: str) -> str:
+        """Return the commit SHA that a tag points to."""
+        result = await asyncio.to_thread(self._git, 'rev-list', '-1', tag_name)
+        return result.stdout.strip() if result.ok else ''
 
     async def list_tags(self, *, pattern: str = '') -> list[str]:
         """Return all tags, optionally filtered by a glob pattern."""

@@ -312,3 +312,32 @@ class TestDependencyGraphProperties:
         """Len() returns the number of packages."""
         graph = build_graph([_pkg('a'), _pkg('b')])
         assert len(graph) == 2, f'Expected 2, got {len(graph)}'
+
+
+class TestTransitiveDepsEdgeCases:
+    """Edge cases for forward_deps and reverse_deps."""
+
+    def test_forward_deps_leaf_node(self) -> None:
+        """Leaf node (no deps) returns empty set."""
+        graph = build_graph([_pkg('a')])
+        result = forward_deps(graph, 'a')
+        assert result == set()
+
+    def test_reverse_deps_leaf_node(self) -> None:
+        """Leaf node (no dependents) returns empty set."""
+        graph = build_graph([_pkg('a'), _pkg('b', internal_deps=['a'])])
+        # 'b' depends on 'a', so nothing depends on 'b'.
+        result = reverse_deps(graph, 'b')
+        assert result == set()
+
+    def test_forward_deps_unknown_node(self) -> None:
+        """Unknown node returns empty set."""
+        graph = build_graph([_pkg('a')])
+        result = forward_deps(graph, 'nonexistent')
+        assert result == set()
+
+    def test_reverse_deps_unknown_node(self) -> None:
+        """Unknown node returns empty set."""
+        graph = build_graph([_pkg('a')])
+        result = reverse_deps(graph, 'nonexistent')
+        assert result == set()

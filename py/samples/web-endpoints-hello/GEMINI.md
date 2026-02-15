@@ -319,6 +319,90 @@ See the module docstrings in each file for detailed rationale.
 
 ## Code Quality
 
+- **Configurability Over Hardcoding**: All tools, scripts, and libraries MUST be
+  configurable rather than hardcoded. This is a hard design requirement that applies
+  to URLs, API endpoints, file paths, thresholds, timeouts, and any other value
+  that a user or CI environment might need to override.
+
+  - **Never hardcode URLs** — use constructor parameters, config fields, environment
+    variables, or CLI flags. Every URL that appears as a string literal must also be
+    overridable (e.g. `base_url` parameter with a sensible default).
+  - **Expose constants as class attributes** — use `DEFAULT_BASE_URL` / `TEST_BASE_URL`
+    patterns so users can reference well-known values without string literals.
+  - **No magic constants in business logic** — extract thresholds, retry counts,
+    pool sizes, and timeouts into named constants or config fields with docstrings
+    explaining the default value.
+  - **Priority order** (highest wins):
+    `CLI flag > environment variable > config file > class/struct default`
+
+  This principle ensures that every component can be tested against staging/local
+  services, used in air-gapped environments, and adapted to non-standard
+  infrastructure without code changes.
+
+- **No Kitchen-Sink `utils.py`**: Do not dump unrelated helpers into a single
+  `utils.py` file. Instead, organise shared utilities into focused modules
+  grouped by domain:
+
+  ```
+  utils/
+  ├── __init__.py
+  ├── date.py        # UTC date/time helpers
+  ├── packaging.py   # PEP 503/508 name normalisation
+  └── text.py        # String formatting helpers
+  ```
+
+  **Rules**:
+  - Each module in `utils/` must have a single, clear responsibility described
+    in its module docstring.
+  - If a helper is only used by one module, keep it private in that module
+    (prefixed with `_`). Only promote to `utils/` when a second consumer appears.
+  - Never create a bare `utils.py` at the package root — always use a `utils/`
+    package with sub-modules.
+  - Name the sub-module after the *domain* it serves (e.g. `date`, `packaging`,
+    `text`), not after the caller (e.g. ~~`prepare_helpers`~~).
+
+- **Fixer Scripts Over Shell Eval**: When fixing lint errors, formatting issues,
+  or performing bulk code transformations, **always write a dedicated fixer script**
+  instead of evaluating code snippets or one-liners at the shell. This is a hard
+  requirement.
+
+  - **Never `eval` or `exec` strings at the command line** to fix code. Shell
+    one-liners with `sed`, `awk`, `perl -pi -e`, or `python -c` are fragile,
+    unreviewable, and unreproducible. They also bypass linting and type checking.
+  - **Write a Python fixer script** (e.g. `py/bin/fix_*.py`) that uses the `ast`
+    module or `libcst` for syntax-aware transformations. Text-based regex fixes
+    are acceptable only for non-Python files (TOML, YAML, Markdown).
+  - **Prefer AST-based transforms** over regex for Python code. The `ast` module
+    can parse, inspect, and rewrite Python source without breaking syntax. Use
+    `ast.parse()` + `ast.NodeVisitor`/`ast.NodeTransformer` for structural changes.
+    Use `libcst` when you need to preserve comments and whitespace.
+  - **Use `ruff check --fix`** for auto-fixable lint rules before writing custom
+    fixers. Ruff can auto-fix many categories (unused imports, formatting, simple
+    refactors). Only write a custom fixer for issues Ruff cannot auto-fix.
+  - **Fixer scripts must be idempotent** — running them twice produces the same
+    result. This allows safe re-runs and CI integration.
+  - **Commit fixer scripts** to the repo (in `py/bin/`) so the team can re-run
+    them and review the transformation logic.
+
+- **Rust-Style Errors with Hints**: Every user-facing error MUST follow the Rust
+  compiler's diagnostic style: a **machine-readable error code**, a **human-readable
+  message**, and an actionable **hint** that tells the user (or an AI agent) exactly
+  how to fix the problem.
+
+  **Rules**:
+  - Every custom exception raise MUST include a non-empty `hint` (or equivalent
+    guidance field). A raise site without a hint is a bug.
+  - The `hint` must be **actionable** — it tells the reader what to do, not just
+    what went wrong. Good: `"Run 'git fetch --unshallow' to fetch full history."`
+    Bad: `"The repository is shallow."` (that's the message, not a hint).
+  - Error codes should use a `PREFIX-NAMED-KEY` format (e.g. `RK-CONFIG-NOT-FOUND`,
+    `GK-PLUGIN-NOT-FOUND`). Define codes as enums, not raw strings.
+
+  **Why hints matter**: Hints are the single most important part of an error for
+  both humans and AI agents. An AI reading a hint can self-correct without
+  needing to understand the full codebase. A human reading a hint can fix the
+  issue without searching docs. Treat a missing hint as a P1 bug.
+
 `pyproject.toml` includes full linter and type checker configs — they work
 both inside the monorepo and when the sample is copied out as a standalone
 project:

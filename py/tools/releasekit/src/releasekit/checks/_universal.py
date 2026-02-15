@@ -66,14 +66,17 @@ def _check_self_deps(
     """
     check_name = 'self_deps'
     offenders: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         if pkg.name in pkg.internal_deps:
             offenders.append(pkg.name)
+            locations.append(str(pkg.manifest_path))
     if offenders:
         result.add_failure(
             check_name,
             f'Packages depend on themselves: {", ".join(offenders)}',
             hint='Remove the package from its own [project.dependencies] list.',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -92,14 +95,18 @@ def _check_orphan_deps(
     check_name = 'orphan_deps'
     known_names = {pkg.name for pkg in packages}
     orphans: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         for dep in pkg.internal_deps:
             if dep not in known_names:
                 orphans.append(f'{pkg.name} → {dep}')
+                locations.append(str(pkg.manifest_path))
     if orphans:
         result.add_warning(
             check_name,
             f'Internal deps not found in workspace: {", ".join(orphans)}',
+            hint='Add the missing packages to the workspace or remove the stale dependency.',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -117,17 +124,20 @@ def _check_missing_license(
     """
     check_name = 'missing_license'
     missing: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         if not pkg.is_publishable:
             continue
         license_path = pkg.path / 'LICENSE'
         if not license_path.exists():
             missing.append(pkg.name)
+            locations.append(str(pkg.path))
     if missing:
         result.add_failure(
             check_name,
             f'Missing LICENSE file: {", ".join(missing)}',
             hint='Copy the Apache 2.0 LICENSE file into each listed package directory.',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -145,17 +155,20 @@ def _check_missing_readme(
     """
     check_name = 'missing_readme'
     missing: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         if not pkg.is_publishable:
             continue
         readme_path = pkg.path / 'README.md'
         if not readme_path.exists():
             missing.append(pkg.name)
+            locations.append(str(pkg.path))
     if missing:
         result.add_failure(
             check_name,
             f'Missing README.md file: {", ".join(missing)}',
             hint='Create a README.md in each listed package directory describing the package.',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -175,22 +188,26 @@ def _check_stale_artifacts(
     """
     check_name = 'stale_artifacts'
     stale: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         bak_files = list(pkg.path.glob('*.bak'))
         if bak_files:
             stale.append(f'{pkg.name}: {len(bak_files)} .bak file(s)')
+            locations.extend(str(f) for f in bak_files)
 
         dist_dir = pkg.path / 'dist'
         if dist_dir.is_dir():
             dist_files = list(dist_dir.iterdir())
             if dist_files:
                 stale.append(f'{pkg.name}: dist/ has {len(dist_files)} file(s)')
+                locations.append(str(dist_dir))
 
     if stale:
         result.add_warning(
             check_name,
             f'Stale artifacts: {"; ".join(stale)}',
             hint='Remove stale files with: rm -f *.bak && rm -rf dist/',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -225,15 +242,18 @@ def _check_ungrouped_packages(
                 all_patterns.append(pat)
 
     ungrouped: list[str] = []
+    locations: list[str] = []
     for pkg in packages:
         if not any(fnmatch.fnmatch(pkg.name, pat) for pat in all_patterns):
             ungrouped.append(pkg.name)
+            locations.append(str(pkg.manifest_path))
 
     if ungrouped:
         result.add_warning(
             check_name,
             f'Packages not in any config group: {", ".join(sorted(ungrouped))}',
             hint='Add each package to a [groups] entry in releasekit.toml so it is covered by exclusion rules.',
+            context=locations,
         )
     else:
         result.add_pass(check_name)
@@ -277,6 +297,7 @@ def _check_lockfile_staleness(
                 check_name,
                 'uv.lock is out of date with pyproject.toml dependencies.',
                 hint="Run 'uv lock' to regenerate the lockfile.",
+                context=[str(workspace_root / 'uv.lock')],
             )
     except subprocess.TimeoutExpired:
         result.add_warning(

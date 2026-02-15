@@ -20,368 +20,15 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.backends.registry import ChecksumResult
 from releasekit.errors import ReleaseKitError
 from releasekit.graph import build_graph
 from releasekit.preflight import PreflightResult, run_preflight
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
-
-# ── Fake backends for DI testing ──
-
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-
-class FakeVCS:
-    """Fake VCS backend that satisfies the VCS protocol."""
-
-    def __init__(
-        self,
-        *,
-        clean: bool = True,
-        shallow: bool = False,
-        sha: str = 'abc123',
-    ) -> None:
-        """Initialize with configurable state."""
-        self._clean = clean
-        self._shallow = shallow
-        self._sha = sha
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Return configured clean state."""
-        return self._clean
-
-    async def is_shallow(self) -> bool:
-        """Return configured shallow state."""
-        return self._shallow
-
-    async def default_branch(self) -> str:
-        """Return main."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return empty list."""
-        return []
-
-    async def current_branch(self) -> str:
-        """Return main."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Return configured SHA."""
-        return self._sha
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Return empty log."""
-        return []
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Return empty diff."""
-        return []
-
-    async def commit(
-        self,
-        message: str,
-        *,
-        paths: list[str] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op commit."""
-        return _OK
-
-    async def tag(
-        self,
-        tag_name: str,
-        *,
-        message: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op tag."""
-        return _OK
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """No tags exist."""
-        return False
-
-    async def delete_tag(
-        self,
-        tag_name: str,
-        *,
-        remote: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op delete_tag."""
-        return _OK
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op push."""
-        return _OK
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op checkout_branch."""
-        return _OK
-
-
-class FakePackageManager:
-    """Fake package manager that satisfies the PackageManager protocol."""
-
-    def __init__(self, *, lock_ok: bool = True) -> None:
-        """Initialize with configurable lock state."""
-        self._lock_ok = lock_ok
-
-    async def build(
-        self,
-        package_dir: Path,
-        *,
-        output_dir: Path | None = None,
-        no_sources: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Return success result."""
-        return _OK
-
-    async def publish(
-        self,
-        dist_dir: Path,
-        *,
-        check_url: str | None = None,
-        index_url: str | None = None,
-        dist_tag: str | None = None,
-        publish_branch: str | None = None,
-        provenance: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Return success result."""
-        return _OK
-
-    async def lock(
-        self,
-        *,
-        check_only: bool = False,
-        upgrade_package: str | None = None,
-        cwd: Path | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Return lock result based on configured state."""
-        if not self._lock_ok and check_only:
-            return CommandResult(command=['uv', 'lock', '--check'], returncode=1, stdout='', stderr='')
-        return _OK
-
-    async def version_bump(
-        self,
-        package_dir: Path,
-        new_version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op version bump."""
-        return _OK
-
-    async def resolve_check(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        index_url: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op resolve check."""
-        return _OK
-
-    async def smoke_test(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op smoke test."""
-        return _OK
-
-
-class FakeRegistry:
-    """Fake registry that satisfies the Registry protocol."""
-
-    def __init__(self, *, published: set[str] | None = None) -> None:
-        """Initialize with optional set of published versions."""
-        self._published = published or set()
-
-    async def check_published(self, package_name: str, version: str) -> bool:
-        """Check if a version is in the published set."""
-        return f'{package_name}=={version}' in self._published
-
-    async def poll_available(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        timeout: float = 300.0,
-        interval: float = 5.0,
-    ) -> bool:
-        """Always available immediately."""
-        return True
-
-    async def project_exists(self, package_name: str) -> bool:
-        """Always exists."""
-        return True
-
-    async def latest_version(self, package_name: str) -> str | None:
-        """Return None (no published version)."""
-        return None
-
-    async def verify_checksum(
-        self,
-        package_name: str,
-        version: str,
-        local_checksums: dict[str, str],
-    ) -> ChecksumResult:
-        """Return empty checksum result."""
-        return ChecksumResult(matched=[], mismatched={}, missing=[])
-
-
-class FakeForge:
-    """Fake forge that satisfies the Forge protocol."""
-
-    async def is_available(self) -> bool:
-        """Always available."""
-        return True
-
-    async def create_release(
-        self,
-        tag: str,
-        *,
-        title: str | None = None,
-        body: str = '',
-        draft: bool = False,
-        prerelease: bool = False,
-        assets: list[Path] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op create_release."""
-        return _OK
-
-    async def delete_release(
-        self,
-        tag: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op delete_release."""
-        return _OK
-
-    async def promote_release(
-        self,
-        tag: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op promote_release."""
-        return _OK
-
-    async def list_releases(
-        self,
-        *,
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Return empty release list."""
-        return []
-
-    async def create_pr(
-        self,
-        *,
-        title: str,
-        body: str = '',
-        head: str,
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op create_pr."""
-        return _OK
-
-    async def pr_data(self, pr_number: int) -> dict[str, Any]:
-        """Return empty PR data."""
-        return {}
-
-    async def list_prs(
-        self,
-        *,
-        label: str = '',
-        state: str = 'open',
-        head: str = '',
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
-        """Stub list_prs."""
-        return []
-
-    async def add_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub add_labels."""
-        return _OK
-
-    async def remove_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub remove_labels."""
-        return _OK
-
-    async def update_pr(
-        self,
-        pr_number: int,
-        *,
-        title: str = '',
-        body: str = '',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub update_pr."""
-        return _OK
-
-    async def merge_pr(
-        self,
-        pr_number: int,
-        *,
-        method: str = 'squash',
-        commit_message: str = '',
-        delete_branch: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Stub merge_pr."""
-        return _OK
-
+from tests._fakes import OK as _OK, FakeForge, FakePM as FakePackageManager, FakeRegistry, FakeVCS
 
 # ── PreflightResult tests ──
 
@@ -765,3 +412,384 @@ class TestEcosystemSpecificChecks:
         # metadata_validation should pass because no publishable packages had issues.
         if 'metadata_validation' not in result.passed:
             raise AssertionError(f'Expected metadata_validation pass: {result.passed}')
+
+
+class TestPreflightLockFile:
+    """Tests for lock file preflight check."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
+        ]
+
+    def test_lock_file_out_of_date(self, tmp_path: Path) -> None:
+        """Out-of-date lock file records a failure in the result."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        class FailLockPM(FakePackageManager):
+            async def lock(
+                self,
+                *,
+                check_only: bool = False,
+                upgrade_package: str | None = None,
+                cwd: Path | None = None,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                if check_only:
+                    raise RuntimeError('Lock out of date')
+                return _OK
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FailLockPM(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert not result.ok
+        assert 'lock_file' in result.failed
+
+
+class TestPreflightForgeAvailable:
+    """Tests for forge availability check."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
+        ]
+
+    def test_forge_available_passes(self, tmp_path: Path) -> None:
+        """Available forge passes the check."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=FakeForge(),
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert result.ok
+        assert 'forge_available' in result.passed
+
+    def test_forge_unavailable_warns(self, tmp_path: Path) -> None:
+        """Unavailable forge CLI produces a warning."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        class UnavailableForge(FakeForge):
+            async def is_available(self) -> bool:
+                return False
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=UnavailableForge(),
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert result.ok  # Warning, not failure.
+        assert 'forge_available' in result.warnings
+
+
+class TestPreflightVersionConflicts:
+    """Tests for version conflict detection."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
+        ]
+
+    def test_version_already_published(self, tmp_path: Path) -> None:
+        """Version already on registry records a failure in the result."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(published={'genkit==0.6.0'}),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert not result.ok
+        assert 'version_conflicts' in result.failed
+
+
+class TestPreflightStaleDist:
+    """Tests for stale dist/ directory detection."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
+        ]
+
+    def test_stale_dist_fails(self, tmp_path: Path) -> None:
+        """Stale dist/ directory records a failure in the result."""
+        packages = self._make_packages(tmp_path)
+        # Create a stale dist/ directory with a file.
+        dist_dir = packages[0].path / 'dist'
+        dist_dir.mkdir()
+        (dist_dir / 'genkit-0.5.0.tar.gz').write_text('fake')
+
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert not result.ok
+        assert 'dist_clean' in result.failed
+
+
+class TestPreflightTrustedPublisher:
+    """Tests for trusted publisher OIDC check."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
+        ]
+
+    def test_ci_without_oidc_warns(self, tmp_path: Path) -> None:
+        """CI environment without OIDC produces a warning."""
+        import os
+        from unittest.mock import patch
+
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
+
+        env = {**os.environ, 'CI': 'true'}
+        # Remove any OIDC env vars.
+        for key in ('ACTIONS_ID_TOKEN_REQUEST_URL', 'CI_JOB_JWT_V2', 'CI_JOB_JWT', 'CIRCLE_OIDC_TOKEN_V2'):
+            env.pop(key, None)
+
+        with patch.dict(os.environ, env, clear=True):
+            result = asyncio.run(
+                run_preflight(
+                    vcs=FakeVCS(),
+                    pm=FakePackageManager(),
+                    forge=None,
+                    registry=FakeRegistry(),
+                    packages=packages,
+                    graph=graph,
+                    versions=versions,
+                    workspace_root=tmp_path,
+                ),
+            )
+
+        assert result.ok  # Warning, not failure.
+        assert 'trusted_publisher' in result.warnings
+
+
+class TestPreflightResultHints:
+    """Tests for PreflightResult hint recording."""
+
+    def test_add_warning_with_hint(self) -> None:
+        """add_warning stores hint when provided."""
+        result = PreflightResult()
+        result.add_warning('test_check', 'Something happened', hint='Try this fix')
+        assert result.hints['test_check'] == 'Try this fix'
+
+    def test_add_failure_with_hint(self) -> None:
+        """add_failure stores hint when provided."""
+        result = PreflightResult()
+        result.add_failure('test_check', 'Something broke', hint='Fix it')
+        assert result.hints['test_check'] == 'Fix it'
+        assert not result.ok
+
+
+class TestPreflightCycleDetection:
+    """Tests for cycle detection in preflight."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        """Create packages with a circular dependency."""
+        pkg_a = tmp_path / 'packages' / 'a'
+        pkg_a.mkdir(parents=True, exist_ok=True)
+        pkg_b = tmp_path / 'packages' / 'b'
+        pkg_b.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(
+                name='a',
+                version='0.1.0',
+                path=pkg_a,
+                manifest_path=pkg_a / 'pyproject.toml',
+                internal_deps=['b'],
+            ),
+            Package(
+                name='b',
+                version='0.1.0',
+                path=pkg_b,
+                manifest_path=pkg_b / 'pyproject.toml',
+                internal_deps=['a'],
+            ),
+        ]
+
+    def test_cycle_detected_fails(self, tmp_path: Path) -> None:
+        """Circular dependency records a failure."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [
+            PackageVersion(name='a', old_version='0.1.0', new_version='0.2.0', bump='minor'),
+            PackageVersion(name='b', old_version='0.1.0', new_version='0.2.0', bump='minor'),
+        ]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        assert not result.ok
+        assert 'cycle_detection' in result.failed
+
+
+class TestPreflightSkippedVersion:
+    """Tests for skipped versions in conflict check."""
+
+    @staticmethod
+    def _make_packages(tmp_path: Path) -> list[Package]:
+        pkg_dir = tmp_path / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        return [
+            Package(
+                name='genkit',
+                version='0.5.0',
+                path=pkg_dir,
+                manifest_path=pkg_dir / 'pyproject.toml',
+            ),
+        ]
+
+    def test_skipped_version_not_checked(self, tmp_path: Path) -> None:
+        """Skipped versions are not checked against the registry."""
+        packages = self._make_packages(tmp_path)
+        graph = build_graph(packages)
+        versions = [
+            PackageVersion(
+                name='genkit',
+                old_version='0.5.0',
+                new_version='0.5.0',
+                bump='',
+                skipped=True,
+            ),
+        ]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(published={'genkit==0.5.0'}),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+            ),
+        )
+
+        # Should pass — skipped version is not checked.
+        assert 'version_conflicts' in result.passed
+
+
+class TestPreflightMetadataParseError:
+    """Tests for metadata validation parse error path."""
+
+    def test_unparseable_pyproject_warns(self, tmp_path: Path) -> None:
+        """Unparseable pyproject.toml in metadata check produces a warning."""
+        pkg_dir = tmp_path / 'packages' / 'broken'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text('this is not valid toml {{{{')
+
+        packages = [
+            Package(
+                name='broken',
+                version='0.1.0',
+                path=pkg_dir,
+                manifest_path=pyproject,
+                is_publishable=True,
+            ),
+        ]
+        graph = build_graph(packages)
+        versions = [
+            PackageVersion(name='broken', old_version='0.1.0', new_version='0.2.0', bump='minor'),
+        ]
+
+        result = asyncio.run(
+            run_preflight(
+                vcs=FakeVCS(),
+                pm=FakePackageManager(),
+                forge=None,
+                registry=FakeRegistry(),
+                packages=packages,
+                graph=graph,
+                versions=versions,
+                workspace_root=tmp_path,
+                ecosystem='python',
+            ),
+        )
+
+        assert 'metadata_validation' in result.warnings

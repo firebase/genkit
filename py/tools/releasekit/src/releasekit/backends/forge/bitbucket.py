@@ -150,11 +150,15 @@ class BitbucketAPIBackend:
 
         self._client: httpx.AsyncClient | None = None
 
+    def __repr__(self) -> str:
+        """Return a safe repr that never exposes credentials."""
+        return f'BitbucketAPIBackend(workspace={self._workspace!r}, repo_slug={self._repo_slug!r})'
+
     def _dry_run_result(self, method: str, url: str) -> CommandResult:
         """Create a synthetic CommandResult for dry-run mode."""
         return CommandResult(
             command=[method, url],
-            returncode=0,
+            return_code=0,
             stdout='',
             stderr='',
             dry_run=True,
@@ -197,7 +201,7 @@ class BitbucketAPIBackend:
 
         return CommandResult(
             command=[method, url],
-            returncode=0 if response.is_success else response.status_code,
+            return_code=0 if response.is_success else response.status_code,
             stdout=response.text,
             stderr='' if response.is_success else response.text,
         )
@@ -208,7 +212,7 @@ class BitbucketAPIBackend:
         if not result.ok:
             log.warning(
                 'bitbucket_not_available',
-                status=result.returncode,
+                status=result.return_code,
                 hint='Check BITBUCKET_TOKEN or BITBUCKET_USERNAME + BITBUCKET_APP_PASSWORD',
             )
         return result.ok

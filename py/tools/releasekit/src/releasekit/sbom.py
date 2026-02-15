@@ -75,12 +75,12 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from releasekit.logging import get_logger
+from releasekit.utils.date import utc_iso
 from releasekit.versions import ReleaseManifest
 
 logger = get_logger(__name__)
@@ -201,7 +201,7 @@ def _render_cyclonedx(
     if not serial_number:
         serial_number = f'urn:uuid:{uuid.uuid4()}'
     if not timestamp:
-        timestamp = datetime.now(tz=timezone.utc).isoformat()
+        timestamp = utc_iso()
 
     cdx_components: list[dict[str, Any]] = []
     for comp in components:
@@ -267,7 +267,7 @@ def _render_spdx(
     if not document_namespace:
         document_namespace = f'https://spdx.org/spdxdocs/{document_name}-{uuid.uuid4()}'
     if not timestamp:
-        timestamp = datetime.now(tz=timezone.utc).isoformat()
+        timestamp = utc_iso()
 
     spdx_packages: list[dict[str, Any]] = []
     for comp in components:

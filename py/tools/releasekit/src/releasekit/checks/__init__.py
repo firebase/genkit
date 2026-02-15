@@ -50,10 +50,12 @@ Architecture::
     │  │   CheckBackend (Protocol)   │  Injected            │
     │  │                             │                      │
     │  │  ┌───────────────────────┐  │                      │
-    │  │  │ PythonCheckBackend    │  │  Default             │
-    │  │  │ GoCheckBackend        │  │  Future              │
-    │  │  │ JsCheckBackend        │  │  Future              │
-    │  │  │ PluginCheckBackend    │  │  Future (plugins)    │
+    │  │  │ PythonCheckBackend    │  │  python              │
+    │  │  │ JavaCheckBackend      │  │  java/kotlin/clojure │
+    │  │  │ GoCheckBackend        │  │  go                  │
+    │  │  │ RustCheckBackend      │  │  rust                │
+    │  │  │ JsCheckBackend        │  │  js                  │
+    │  │  │ DartCheckBackend      │  │  dart                │
     │  │  └───────────────────────┘  │                      │
     │  └─────────────────────────────┘                      │
     └───────────────────────────────────────────────────────┘
@@ -100,7 +102,12 @@ Usage::
     result = run_checks(packages, graph, backend=None)
 """
 
+from releasekit.checks._base import BaseCheckBackend
 from releasekit.checks._constants import DEPRECATED_CLASSIFIERS
+from releasekit.checks._dart import DartCheckBackend
+from releasekit.checks._go import GoCheckBackend
+from releasekit.checks._java import JavaCheckBackend
+from releasekit.checks._js import JsCheckBackend
 from releasekit.checks._protocol import CheckBackend
 from releasekit.checks._python import PythonCheckBackend
 from releasekit.checks._python_fixers import (
@@ -119,7 +126,8 @@ from releasekit.checks._python_fixers import (
     fix_type_markers,
     fix_version_field,
 )
-from releasekit.checks._runner import run_checks
+from releasekit.checks._runner import run_checks, run_checks_async
+from releasekit.checks._rust import RustCheckBackend
 from releasekit.checks._universal import (
     fix_missing_license,
     fix_missing_readme,
@@ -127,10 +135,48 @@ from releasekit.checks._universal import (
 )
 from releasekit.distro import fix_distro_deps
 
+# Ecosystem → CheckBackend class mapping.
+_BACKEND_MAP: dict[str, type] = {
+    'python': PythonCheckBackend,
+    'java': JavaCheckBackend,
+    'kotlin': JavaCheckBackend,
+    'clojure': JavaCheckBackend,
+    'go': GoCheckBackend,
+    'rust': RustCheckBackend,
+    'js': JsCheckBackend,
+    'dart': DartCheckBackend,
+}
+
+
+def get_check_backend(
+    ecosystem: str,
+    **kwargs: object,
+) -> CheckBackend:
+    """Return the appropriate :class:`CheckBackend` for *ecosystem*.
+
+    Falls back to :class:`BaseCheckBackend` (all checks pass) for
+    unknown ecosystems.
+
+    Args:
+        ecosystem: Ecosystem identifier (e.g. ``'python'``, ``'java'``).
+        **kwargs: Forwarded to the backend constructor (e.g.
+            ``core_package``, ``plugin_prefix``).
+    """
+    cls = _BACKEND_MAP.get(ecosystem, BaseCheckBackend)
+    return cls(**kwargs)
+
+
 __all__ = [
+    'BaseCheckBackend',
     'CheckBackend',
     'DEPRECATED_CLASSIFIERS',
+    'DartCheckBackend',
+    'GoCheckBackend',
+    'JavaCheckBackend',
+    'JsCheckBackend',
     'PythonCheckBackend',
+    'RustCheckBackend',
+    'get_check_backend',
     'fix_build_system',
     'fix_changelog_url',
     'fix_distro_deps',
@@ -150,4 +196,5 @@ __all__ = [
     'fix_type_markers',
     'fix_version_field',
     'run_checks',
+    'run_checks_async',
 ]
