@@ -577,6 +577,7 @@ search-path = [
   ".",
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
+  "samples/framework-custom-evaluators",
   "samples/framework-restaurant-demo/src",
 
   "samples/web-endpoints-hello",
