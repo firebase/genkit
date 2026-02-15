@@ -32,6 +32,7 @@ classifiers = [
   "Topic :: Software Development :: Build Tools",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Typing :: Typed",
+  "Private :: Do Not Upload",
 ]
 dependencies = [
   "aiofiles>=24.1.0",                         # Non-blocking file I/O for async Workspace protocol

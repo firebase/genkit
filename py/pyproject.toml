@@ -239,9 +239,9 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 # Internal tools (private, not published)
-conform = { workspace = true }
+conform                        = { workspace = true }
 genkit-tools-model-config-test = { workspace = true }
-genkit-tools-sample-flows = { workspace = true }
+genkit-tools-sample-flows      = { workspace = true }
 
 [tool.uv.workspace]
 exclude = ["*/shared", "testapps/*"]

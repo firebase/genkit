@@ -21,14 +21,21 @@
             "allow-failure": true
           },
           "options": {
-            "max-size": "1M"
+            "max-size": "2M"
           }
         },
         {
           "run": "CaptainHook::File.BlockSecrets",
           "options": {
-            "presets": ["Aws", "GitHub", "Stripe", "Google"],
-            "allowed": ["AIDAQEAAAAAAAAA"]
+            "presets": [
+              "Aws",
+              "GitHub",
+              "Stripe",
+              "Google"
+            ],
+            "allowed": [
+              "AIDAQEAAAAAAAAA"
+            ]
           }
         },
         {
@@ -68,7 +75,9 @@
         {
           "run": "CaptainHook::Branch.PreventPushOfFixupAndSquashCommits",
           "options": {
-            "branches-to-protect": ["main"]
+            "branches-to-protect": [
+              "main"
+            ]
           }
         },
         {
