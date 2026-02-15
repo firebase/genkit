@@ -361,25 +361,18 @@ async def create_tags(
             )
 
     if result.created and not result.failed:
-        try:
-            await vcs.push(tags=True, dry_run=dry_run)
-            # Mutate the frozen dataclass via object.__setattr__ for
-            # the pushed flag — TagResult is frozen for safety but we
-            # need to set this after the push succeeds.
-            object.__setattr__(result, 'pushed', True)
-            logger.info(
-                'tags_pushed',
-                count=len(result.created),
-                tags=result.created,
-            )
-        except Exception as exc:
-            # Tag push failure is non-fatal — tags exist locally and
-            # can be pushed manually.
-            logger.error(
-                'tags_push_failed',
-                error=str(exc),
-                hint='Tags were created locally. Push manually with: git push --tags',
-            )
+        push_result = await vcs.push(tags=True, dry_run=dry_run)
+        if not push_result.ok:
+            raise RuntimeError(f'Failed to push tags to remote: {push_result.stderr.strip()}')
+        # Mutate the frozen dataclass via object.__setattr__ for
+        # the pushed flag — TagResult is frozen for safety but we
+        # need to set this after the push succeeds.
+        object.__setattr__(result, 'pushed', True)
+        logger.info(
+            'tags_pushed',
+            count=len(result.created),
+            tags=result.created,
+        )
 
     await _create_release_if_available(
         forge=forge,

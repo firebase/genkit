@@ -129,4 +129,4 @@ class TestGitHubCLIBackendDryRun:
         assert result.ok
         assert result.dry_run
         assert '--title' in result.command
-        assert '--body' in result.command
+        assert '--body-file' in result.command

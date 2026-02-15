@@ -110,6 +110,7 @@ def bump_pyproject(pyproject_path: Path, new_version: str) -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot read {pyproject_path}: {exc}',
+            hint=f'Check that {pyproject_path} exists and is readable.',
         ) from exc
 
     try:
@@ -118,6 +119,7 @@ def bump_pyproject(pyproject_path: Path, new_version: str) -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot parse {pyproject_path}: {exc}',
+            hint=f'Check that {pyproject_path} contains valid TOML.',
         ) from exc
 
     project = doc.get('project')
@@ -137,6 +139,7 @@ def bump_pyproject(pyproject_path: Path, new_version: str) -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot write {pyproject_path}: {exc}',
+            hint=f'Check file permissions for {pyproject_path}.',
         ) from exc
 
     logger.info(
@@ -168,6 +171,7 @@ def bump_file(target: BumpTarget, new_version: str) -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot read {target.path}: {exc}',
+            hint=f'Check that {target.path} exists and is readable.',
         ) from exc
 
     compiled = re.compile(target.pattern, re.MULTILINE)
@@ -202,6 +206,7 @@ def bump_file(target: BumpTarget, new_version: str) -> str:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
             message=f'Cannot write {target.path}: {exc}',
+            hint=f'Check file permissions for {target.path}.',
         ) from exc
 
     logger.info(

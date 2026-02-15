@@ -14,12 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Optional OpenTelemetry tracing for releasekit pipelines.
+"""OpenTelemetry tracing for releasekit pipelines.
 
-Wraps the OpenTelemetry API so that tracing is **completely optional**:
-if ``opentelemetry-api`` is not installed, all operations gracefully
-degrade to no-ops. This means releasekit never requires OTel as a
-hard dependency.
+Provides distributed tracing for release operations. Tracing is always
+available but only emits real spans when a ``TracerProvider`` is
+configured (e.g. via CLI flags or environment variables). Without
+configuration, the default OTel no-op provider silently discards spans.
 
 Key Concepts (ELI5)::
 
@@ -30,14 +30,9 @@ Key Concepts (ELI5)::
     ├─────────────────────┼────────────────────────────────────────────────┤
     │ Span                │ A timed operation with a name, attributes,    │
     │                     │ and parent/child relationships.               │
-    ├─────────────────────┼────────────────────────────────────────────────┤
-    │ NoOpSpan            │ A do-nothing span used when OTel is absent.   │
     └─────────────────────┴────────────────────────────────────────────────┘
 
-Setup (optional)::
-
-    # Install the optional dependency:
-    pip install opentelemetry-api opentelemetry-sdk
+Setup::
 
     # In your entrypoint, configure the SDK before calling releasekit:
     from opentelemetry import trace
@@ -70,66 +65,9 @@ Usage in releasekit modules::
 from __future__ import annotations
 
 import functools
-from collections.abc import Generator
-from contextlib import contextmanager
 from typing import Any
 
-# Try to import OpenTelemetry. If not installed, use no-op fallbacks.
-_OTEL_AVAILABLE = False
-try:
-    from opentelemetry import trace as _otel_trace
-
-    _OTEL_AVAILABLE = True
-except ImportError:
-    _otel_trace = None  # type: ignore[assignment]
-
-
-class _NoOpSpan:
-    """A do-nothing span for when OpenTelemetry is not installed."""
-
-    def set_attribute(self, key: str, value: Any) -> None:  # noqa: ANN401
-        """No-op."""
-
-    def set_status(self, status: Any, description: str | None = None) -> None:  # noqa: ANN401
-        """No-op."""
-
-    def record_exception(self, exception: BaseException) -> None:
-        """No-op."""
-
-    def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> None:
-        """No-op."""
-
-    def end(self) -> None:
-        """No-op."""
-
-    def __enter__(self) -> _NoOpSpan:
-        return self
-
-    def __exit__(self, *args: object) -> None:
-        pass
-
-
-_NO_OP_SPAN = _NoOpSpan()
-
-
-class _NoOpTracer:
-    """A do-nothing tracer for when OpenTelemetry is not installed."""
-
-    @contextmanager
-    def start_as_current_span(
-        self,
-        name: str,
-        **kwargs: Any,  # noqa: ANN401
-    ) -> Generator[_NoOpSpan, None, None]:
-        """Yield a no-op span."""
-        yield _NO_OP_SPAN
-
-    def start_span(self, name: str, **kwargs: Any) -> _NoOpSpan:  # noqa: ANN401
-        """Return a no-op span."""
-        return _NO_OP_SPAN
-
-
-_NO_OP_TRACER = _NoOpTracer()
+from opentelemetry import trace as _otel_trace
 
 # Module-level cache of tracers.
 _TRACERS: dict[str, Any] = {}
@@ -138,36 +76,23 @@ _TRACERS: dict[str, Any] = {}
 _INSTRUMENTATION_NAME = 'releasekit'
 
 
-def is_available() -> bool:
-    """Return True if OpenTelemetry is installed and configured.
-
-    Returns:
-        ``True`` if ``opentelemetry-api`` is importable.
-    """
-    return _OTEL_AVAILABLE
-
-
-def get_tracer(name: str = _INSTRUMENTATION_NAME) -> Any:  # noqa: ANN401
+def get_tracer(name: str = _INSTRUMENTATION_NAME) -> _otel_trace.Tracer:
     """Return a tracer instance.
 
-    If OpenTelemetry is installed, returns a real OTel tracer.
-    Otherwise, returns a :class:`_NoOpTracer` that silently ignores
-    all span operations.
+    Returns a real OTel tracer. If no ``TracerProvider`` has been
+    configured, the default OTel no-op provider is used (spans are
+    silently discarded).
 
     Args:
         name: Tracer name (typically ``__name__`` of the calling module).
 
     Returns:
-        A tracer (real or no-op).
+        An OpenTelemetry tracer.
     """
     if name in _TRACERS:
         return _TRACERS[name]
 
-    if _OTEL_AVAILABLE and _otel_trace is not None:
-        tracer = _otel_trace.get_tracer(name)
-    else:
-        tracer = _NO_OP_TRACER
-
+    tracer = _otel_trace.get_tracer(name)
     _TRACERS[name] = tracer
     return tracer
 
@@ -202,10 +127,6 @@ def span(
     """
 
     def decorator(fn: Any) -> Any:  # noqa: ANN401
-        if not _OTEL_AVAILABLE:
-            # Zero-overhead pass-through when OTel is absent.
-            return fn
-
         tracer = get_tracer(tracer_name)
 
         if _is_coroutine_function(fn):
@@ -256,6 +177,5 @@ def _is_coroutine_function(fn: Any) -> bool:  # noqa: ANN401
 
 __all__ = [
     'get_tracer',
-    'is_available',
     'span',
 ]

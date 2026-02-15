@@ -68,11 +68,17 @@ class NpmRegistry:
     protocol using the npm registry JSON API.
 
     Args:
-        base_url: Base URL for the registry API. Defaults to
-            ``https://registry.npmjs.org``.
+        base_url: Base URL for the npm registry API. Defaults to
+            public npm. Use :data:`TEST_BASE_URL` for a local
+            Verdaccio or similar test registry.
         pool_size: HTTP connection pool size.
         timeout: HTTP request timeout in seconds.
     """
+
+    #: Base URL for the production npm registry.
+    DEFAULT_BASE_URL: str = 'https://registry.npmjs.org'
+    #: Base URL for a local Verdaccio test registry (common default).
+    TEST_BASE_URL: str = 'http://localhost:4873'
 
     def __init__(
         self,

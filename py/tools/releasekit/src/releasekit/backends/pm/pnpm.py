@@ -152,14 +152,14 @@ class PnpmBackend:
         See: https://pnpm.io/cli/install#--lockfile-only
         See: https://pnpm.io/cli/install#--frozen-lockfile
         """
-        if check_only:
+        if upgrade_package:
+            # pnpm update <pkg> is the equivalent of upgrading a single dep.
+            # Note: check_only is not applicable with upgrade_package.
+            cmd = ['pnpm', 'update', upgrade_package]
+        elif check_only:
             cmd = ['pnpm', 'install', '--frozen-lockfile']
         else:
             cmd = ['pnpm', 'install', '--lockfile-only']
-
-        if upgrade_package:
-            # pnpm update <pkg> is the equivalent.
-            cmd = ['pnpm', 'update', upgrade_package]
 
         effective_cwd = cwd or self._root
         log.info('lock', check_only=check_only, upgrade_package=upgrade_package)

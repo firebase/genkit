@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import pytest
-from releasekit.backends._run import CommandResult
 from releasekit.changelog import Changelog, ChangelogEntry, ChangelogSection
 from releasekit.release_notes import (
     PackageSummary,
@@ -28,89 +27,7 @@ from releasekit.release_notes import (
     render_release_notes,
 )
 from releasekit.versions import PackageVersion, ReleaseManifest
-
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-
-class FakeVCS:
-    """Minimal VCS double for release notes tests."""
-
-    def __init__(self, log_lines: list[str] | None = None, tags: set[str] | None = None) -> None:
-        """Initialize with optional canned log lines and tag set."""
-        self._log_lines = log_lines or []
-        self._tags = tags or set()
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Return canned log lines."""
-        return self._log_lines
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Check if tag is in the fake tag set."""
-        return tag_name in self._tags
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Always clean."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Never shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return all fake tags."""
-        return sorted(self._tags)
-
-    async def current_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Return a fake SHA."""
-        return 'abc123'
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Return empty diff."""
-        return []
-
-    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
-        """No-op commit."""
-        return _OK
-
-    async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
-        """No-op tag."""
-        return _OK
-
-    async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
-        """No-op delete_tag."""
-        return _OK
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op push."""
-        return _OK
-
-    async def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
-        """No-op checkout_branch."""
-        return _OK
+from tests._fakes import FakeVCS
 
 
 class TestRenderReleaseNotes:

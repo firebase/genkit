@@ -84,6 +84,20 @@ graph LR
     Post-publish SHA-256 verification ensures uploaded artifacts
     match local builds.
 
+-   :material-clock-outline:{ .lg .middle } **Cadence Releases** *(planned)*
+
+    ---
+
+    Scheduled daily, weekly, or per-commit releases with built-in
+    cooldown, release windows, and minimum-bump thresholds.
+
+-   :material-hook:{ .lg .middle } **Lifecycle Hooks** *(planned)*
+
+    ---
+
+    Run custom scripts at key points: before/after publish, after
+    tag, before prepare. Template variables for version and name.
+
 </div>
 
 ## Quick Start

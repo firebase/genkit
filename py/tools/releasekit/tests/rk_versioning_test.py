@@ -21,7 +21,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from releasekit.backends._run import CommandResult
 from releasekit.errors import ReleaseKitError
 from releasekit.graph import build_graph
 from releasekit.versioning import (
@@ -32,120 +31,7 @@ from releasekit.versioning import (
     parse_conventional_commit,
 )
 from releasekit.workspace import Package
-
-
-class FakeVCS:
-    """Minimal VCS implementation for testing compute_bumps.
-
-    Simulates per-package path-scoped git log output.
-    """
-
-    def __init__(
-        self,
-        log_by_path: dict[str, list[str]] | None = None,
-        tags: set[str] | None = None,
-    ) -> None:
-        """Initialize with optional path-scoped log and tag set."""
-        self._log_by_path = log_by_path or {}
-        self._tags = tags or set()
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Return log lines, optionally filtered by path."""
-        if paths:
-            result: list[str] = []
-            for p in paths:
-                result.extend(self._log_by_path.get(p, []))
-            return result
-        all_lines: list[str] = []
-        for lines in self._log_by_path.values():
-            all_lines.extend(lines)
-        return all_lines
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Return True if tag is in the fake tag set."""
-        return tag_name in self._tags
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Always returns True."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Always returns False."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return all fake tags."""
-        return sorted(self._tags)
-
-    async def current_branch(self) -> str:
-        """Always main."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Return a fake SHA."""
-        return 'fake_sha'
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Return empty list (not used in compute_bumps)."""
-        return []
-
-    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
-        """No-op commit."""
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-    async def tag(
-        self,
-        tag_name: str,
-        *,
-        message: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op tag."""
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-    async def delete_tag(
-        self,
-        tag_name: str,
-        *,
-        remote: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op delete_tag."""
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op push."""
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """No-op checkout_branch."""
-        return CommandResult(command=[], returncode=0, stdout='', stderr='')
+from tests._fakes import FakeVCS
 
 
 class TestParseConventionalCommit:

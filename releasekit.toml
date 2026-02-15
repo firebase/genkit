@@ -129,6 +129,7 @@ community_plugins = [
 ]
 core = ["genkit"]
 google_plugins = [
+  "genkit-plugin-checks",
   "genkit-plugin-firebase",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
@@ -184,6 +185,41 @@ samples = [
   "web-short-n-long",
 ]
 unreleased_plugins = []
+
+# ---------------------------------------------------------------------------
+# Go workspace (ready — uncomment to activate)
+#
+# The Go SDK is a single module (github.com/firebase/genkit/go) without
+# go.work. Versions are set by VCS tags (go/v{version}), not go.mod.
+# After tagging, the Go module proxy picks up the new version automatically.
+#
+# Before enabling:
+#   1. Pick a bootstrap_sha (last commit before releasekit adoption).
+#   2. Run `releasekit plan --workspace go --dry-run` to validate.
+#   3. Run 1–2 dry-run cycles to confirm tag format and changelog.
+# ---------------------------------------------------------------------------
+
+# [workspace.go]
+# ecosystem        = "go"
+# tool             = "go"
+# root             = "go"
+# core_package     = "github.com/firebase/genkit/go"
+# tag_format       = "go/v{version}"
+# umbrella_tag     = "go/v{version}"
+# changelog        = true
+# smoke_test       = false                  # Go proxy verification instead
+# synchronize      = true                   # single module — one version
+# bootstrap_sha    = ""                     # TODO: set to last pre-releasekit commit
+#
+# exclude_publish = [
+#   "group:samples",
+# ]
+#
+# [workspace.go.groups]
+# core = ["github.com/firebase/genkit/go"]
+# samples = [
+#   "github.com/firebase/genkit/go/samples/mcp-git-pr-explainer",
+# ]
 
 # ---------------------------------------------------------------------------
 # JS workspace (ready — uncomment to activate)

@@ -29,6 +29,8 @@ Subcommands::
     releasekit version    Show computed version bumps
     releasekit explain    Explain an error code
     releasekit doctor    Diagnose release state consistency
+    releasekit sign      Sign artifacts with Sigstore (keyless)
+    releasekit verify    Verify Sigstore bundles
 
 Usage::
 
@@ -50,6 +52,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import concurrent.futures
+import dataclasses
 import fnmatch
 import json
 import sys
@@ -62,8 +66,26 @@ from releasekit.backends._run import CommandResult
 from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.forge.bitbucket import BitbucketAPIBackend
 from releasekit.backends.forge.gitlab import GitLabCLIBackend
-from releasekit.backends.pm import PackageManager, PnpmBackend, UvBackend
-from releasekit.backends.registry import NpmRegistry, PyPIBackend, Registry
+from releasekit.backends.pm import (
+    BazelBackend,
+    CargoBackend,
+    DartBackend,
+    GoBackend,
+    MaturinBackend,
+    MavenBackend,
+    PackageManager,
+    PnpmBackend,
+    UvBackend,
+)
+from releasekit.backends.registry import (
+    CratesIoRegistry,
+    GoProxyCheck,
+    MavenCentralRegistry,
+    NpmRegistry,
+    PubDevRegistry,
+    PyPIBackend,
+    Registry,
+)
 from releasekit.backends.vcs import GitCLIBackend
 from releasekit.checks import (
     PythonCheckBackend,
@@ -84,11 +106,18 @@ from releasekit.errors import E, ReleaseKitError, explain, render_error
 from releasekit.formatters import FORMATTERS, format_graph
 from releasekit.graph import build_graph, topo_sort
 from releasekit.groups import filter_by_group
-from releasekit.init import print_scaffold_preview, scaffold_config
+from releasekit.init import (
+    print_scaffold_preview,
+    print_tag_scan_report,
+    scaffold_config,
+    scaffold_multi_config,
+    scan_and_bootstrap,
+)
 from releasekit.lock import release_lock
 from releasekit.logging import get_logger
+from releasekit.migrate import MIGRATION_SOURCES, migrate_from_source
 from releasekit.plan import build_plan
-from releasekit.preflight import run_preflight
+from releasekit.preflight import PreflightResult, SourceContext, read_source_snippet, run_preflight
 from releasekit.prepare import prepare_release
 from releasekit.publisher import PublishConfig, publish_workspace
 from releasekit.release import tag_release
@@ -155,7 +184,7 @@ def _get_ecosystem_filter(args: argparse.Namespace) -> Ecosystem | None:
     eco_str = getattr(args, 'ecosystem', None)
     if eco_str is None:
         return None
-    for member in list(Ecosystem):
+    for member in Ecosystem:
         if member.value == eco_str:
             return member
     return None
@@ -186,7 +215,7 @@ class _NullForge:
     workflows).
     """
 
-    _NOOP = CommandResult(command=[], returncode=0, stdout='', stderr='')
+    _NOOP = CommandResult(command=[], return_code=0, stdout='', stderr='')
 
     async def is_available(self) -> bool:
         return False
@@ -297,6 +326,16 @@ def _create_backends(
 
     - ``"uv"`` → :class:`UvBackend` + :class:`PyPIBackend`
     - ``"pnpm"`` → :class:`PnpmBackend` + :class:`NpmRegistry`
+    - ``"go"`` → :class:`GoBackend` + :class:`GoProxyCheck`
+    - ``"pub"`` → :class:`DartBackend` + :class:`PubDevRegistry`
+    - ``"gradle"`` / ``"maven"`` → :class:`MavenBackend` + :class:`MavenCentralRegistry`
+    - ``"bazel"`` → :class:`BazelBackend` + :class:`MavenCentralRegistry`
+    - ``"cargo"`` → :class:`CargoBackend` + :class:`CratesIoRegistry`
+    - ``"maturin"`` → :class:`MaturinBackend` + :class:`PyPIBackend`
+
+    When ``ws_config.registry_url`` is set, it overrides the default
+    base URL for the registry backend (e.g. for Test PyPI, a local
+    Verdaccio, or a staging crates.io).
 
     Args:
         config_root: Directory containing ``releasekit.toml`` (repo root).
@@ -314,14 +353,39 @@ def _create_backends(
     vcs = GitCLIBackend(config_root)
 
     tool = ws_config.tool if ws_config else 'uv'
+    registry_url = ws_config.registry_url if ws_config else ''
+    pool = config.http_pool_size
+
     pm: PackageManager
     registry: Registry
+    registry_kw: dict[str, object] = {'pool_size': pool}
+    if registry_url:
+        registry_kw['base_url'] = registry_url
+
     if tool == 'pnpm':
         pm = PnpmBackend(effective_root)
-        registry = NpmRegistry(pool_size=config.http_pool_size)
+        registry = NpmRegistry(**registry_kw)  # type: ignore[arg-type]
+    elif tool == 'go':
+        pm = GoBackend(effective_root)
+        registry = GoProxyCheck(**registry_kw)  # type: ignore[arg-type]
+    elif tool == 'pub':
+        pm = DartBackend(effective_root)
+        registry = PubDevRegistry(**registry_kw)  # type: ignore[arg-type]
+    elif tool in ('gradle', 'maven'):
+        pm = MavenBackend(effective_root)
+        registry = MavenCentralRegistry(**registry_kw)  # type: ignore[arg-type]
+    elif tool == 'bazel':
+        pm = BazelBackend(effective_root)
+        registry = MavenCentralRegistry(**registry_kw)  # type: ignore[arg-type]
+    elif tool == 'cargo':
+        pm = CargoBackend(effective_root)
+        registry = CratesIoRegistry(**registry_kw)  # type: ignore[arg-type]
+    elif tool == 'maturin':
+        pm = MaturinBackend(effective_root)
+        registry = PyPIBackend(**registry_kw)  # type: ignore[arg-type]
     else:
         pm = UvBackend(effective_root)
-        registry = PyPIBackend(pool_size=config.http_pool_size)
+        registry = PyPIBackend(**registry_kw)  # type: ignore[arg-type]
 
     owner = config.repo_owner
     repo = config.repo_name
@@ -397,6 +461,12 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
     config_root = _find_workspace_root()
     config = load_config(config_root)
     ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+
+    # CLI --registry-url overrides the config-file registry_url.
+    cli_registry_url = getattr(args, 'registry_url', None)
+    if cli_registry_url:
+        ws_config = dataclasses.replace(ws_config, registry_url=cli_registry_url)
+
     ws_root = _effective_workspace_root(config_root, ws_config)
     forge_backend = getattr(args, 'forge_backend', 'cli')
     vcs, pm, forge, registry = _create_backends(
@@ -743,11 +813,19 @@ def _cmd_graph(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_check(args: argparse.Namespace) -> int:
-    """Handle the ``check`` subcommand."""
-    config_root = _find_workspace_root()
-    config = load_config(config_root)
-    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+def _check_one_workspace(
+    config_root: Path,
+    config: ReleaseConfig,
+    ws_config: WorkspaceConfig,
+    *,
+    fix: bool = False,
+) -> tuple[str, PreflightResult]:
+    """Run checks for a single workspace and return ``(label, result)``.
+
+    This is the core logic extracted from ``_cmd_check`` so that
+    multiple workspaces can be checked concurrently.
+    """
+    label = ws_config.label or ws_config.ecosystem or 'default'
     ws_root = _effective_workspace_root(config_root, ws_config)
     packages = discover_packages(
         ws_root,
@@ -759,7 +837,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
     resolved_exclude_publish = resolve_group_refs(ws_config.exclude_publish, ws_config.groups)
 
     # --fix: auto-fix issues before running checks.
-    if getattr(args, 'fix', False):
+    if fix:
         all_changes: list[str] = []
 
         # Universal fixers (ecosystem-agnostic).
@@ -789,7 +867,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
         if all_changes:
             for change in all_changes:
-                print(f'  🔧 {change}')  # noqa: T201 - CLI output
+                print(f'  🔧 [{label}] {change}')  # noqa: T201 - CLI output
             print()  # noqa: T201 - CLI output
             # Re-discover packages so checks see the updated state.
             packages = discover_packages(
@@ -811,30 +889,134 @@ def _cmd_check(args: argparse.Namespace) -> int:
         library_dirs=ws_config.library_dirs,
         plugin_dirs=ws_config.plugin_dirs,
     )
+    return label, result
 
-    # Print detailed results.
+
+def _print_source_context(loc: str | SourceContext) -> None:
+    """Print a single location annotation with optional source snippet.
+
+    For plain strings, prints ``--> path``.  For :class:`SourceContext`
+    with a line number, prints the surrounding source lines with the
+    offending line highlighted::
+
+        --> plugins/foo/pyproject.toml:5
+         |
+       3 |  version = "1.0.0"
+       4 |  description = "A test"
+       5 |  requires-python = ">=3.10"
+         |  ^^^^^^^^^^^^^^^^ missing here
+       6 |
+         |
+    """
+    if isinstance(loc, SourceContext) and loc.line > 0:
+        print(f'     --> {loc}')  # noqa: T201 - CLI output
+        snippet = read_source_snippet(loc.path, loc.line)
+        if snippet:
+            gutter_width = len(str(snippet[-1][0]))
+            print(f'     {" " * gutter_width} |')  # noqa: T201 - CLI output
+            for lineno, text in snippet:
+                marker = '>' if lineno == loc.line else ' '
+                print(f'     {lineno:>{gutter_width}} |{marker} {text}')  # noqa: T201 - CLI output
+            if loc.label:
+                # Underline the key on the offending line.
+                offending_text = next((t for n, t in snippet if n == loc.line), '')
+                if loc.key and loc.key in offending_text:
+                    col = offending_text.index(loc.key)
+                    underline = ' ' * col + '^' * len(loc.key) + ' ' + loc.label
+                else:
+                    underline = loc.label
+                print(f'     {" " * gutter_width} |  {underline}')  # noqa: T201 - CLI output
+            print(f'     {" " * gutter_width} |')  # noqa: T201 - CLI output
+    else:
+        print(f'     --> {loc}')  # noqa: T201 - CLI output
+
+
+def _print_check_result(label: str, result: PreflightResult, *, show_label: bool = False) -> None:
+    """Print the check results for one workspace.
+
+    Output follows Rust-style diagnostic formatting with source context::
+
+        ✅ check_name
+        ⚠️  warning[check_name]: message
+           --> path/to/file.toml:5
+            |
+          3 |  version = "1.0.0"
+          4 |  description = "A test"
+          5 |> requires-python = ">=3.10"
+            |  ^^^^^^^^^^^^^^^^ missing here
+          6 |
+            |
+           = hint: actionable suggestion
+        ❌ error[check_name]: message
+           --> path/to/file.toml
+           = hint: actionable suggestion
+    """
+    prefix = f'[{label}] ' if show_label else ''
     if result.passed:
         for name in result.passed:
-            print(f'  ✅ {name}')  # noqa: T201 - CLI output
+            print(f'  ✅ {prefix}{name}')  # noqa: T201 - CLI output
     if result.warnings:
         for name in result.warnings:
             msg = result.warning_messages.get(name, '')
-            print(f'  ⚠️  {name}: {msg}')  # noqa: T201 - CLI output
+            print(f'  ⚠️  {prefix}warning[{name}]: {msg}')  # noqa: T201 - CLI output
+            for loc in result.context.get(name, []):
+                _print_source_context(loc)
             hint = result.hints.get(name, '')
             if hint:
                 print(f'     = hint: {hint}')  # noqa: T201 - CLI output
     if result.failed:
         for name in result.failed:
             msg = result.errors.get(name, '')
-            print(f'  ❌ {name}: {msg}')  # noqa: T201 - CLI output
+            print(f'  ❌ {prefix}error[{name}]: {msg}')  # noqa: T201 - CLI output
+            for loc in result.context.get(name, []):
+                _print_source_context(loc)
             hint = result.hints.get(name, '')
             if hint:
                 print(f'     = hint: {hint}')  # noqa: T201 - CLI output
 
     print()  # noqa: T201 - CLI output
-    print(f'  {result.summary()}')  # noqa: T201 - CLI output
+    print(f'  {prefix}{result.summary()}')  # noqa: T201 - CLI output
 
-    return 0 if result.ok else 1
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    """Handle the ``check`` subcommand.
+
+    When ``--workspace`` is specified, checks that single workspace.
+    Otherwise, checks **all** configured workspaces in parallel using
+    :class:`concurrent.futures.ThreadPoolExecutor`.
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    fix = getattr(args, 'fix', False)
+    explicit_ws = getattr(args, 'workspace', None)
+
+    # Single workspace: original behaviour.
+    if explicit_ws or len(config.workspaces) <= 1:
+        ws_config = _resolve_ws_config(config, explicit_ws)
+        label, result = _check_one_workspace(config_root, config, ws_config, fix=fix)
+        _print_check_result(label, result)
+        return 0 if result.ok else 1
+
+    # Multiple workspaces: run in parallel.
+    ws_configs = list(config.workspaces.values())
+    results: list[tuple[str, PreflightResult]] = []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(ws_configs)) as pool:
+        futures = {pool.submit(_check_one_workspace, config_root, config, wsc, fix=fix): wsc for wsc in ws_configs}
+        for future in concurrent.futures.as_completed(futures):
+            results.append(future.result())
+
+    # Sort by label for deterministic output.
+    results.sort(key=lambda r: r[0])
+
+    all_ok = True
+    for label, result in results:
+        print(f'\n--- workspace: {label} ---')  # noqa: T201 - CLI output
+        _print_check_result(label, result, show_label=False)
+        if not result.ok:
+            all_ok = False
+
+    return 0 if all_ok else 1
 
 
 async def _cmd_version(args: argparse.Namespace) -> int:
@@ -905,10 +1087,9 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
     Generates per-package changelogs from Conventional Commits and
     writes them to ``CHANGELOG.md`` in each package directory.
     """
-    from datetime import datetime, timezone
-
     from releasekit.changelog import generate_changelog, render_changelog, write_changelog
     from releasekit.tags import format_tag
+    from releasekit.utils.date import utc_today
 
     config_root = _find_workspace_root()
     config = load_config(config_root)
@@ -925,7 +1106,7 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
     packages = _maybe_filter_group(all_packages, ws_config, group)
 
     dry_run = getattr(args, 'dry_run', False)
-    today = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')
+    today = utc_today()
 
     written = 0
     skipped = 0
@@ -973,13 +1154,14 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_init(args: argparse.Namespace) -> int:
+async def _cmd_init(args: argparse.Namespace) -> int:
     """Handle the ``init`` subcommand.
 
     Detects all ecosystems in the monorepo and scaffolds a
     ``releasekit.toml`` at the monorepo root.  If ``--ecosystem``
     is specified, only that ecosystem is included in the generated
-    config.
+    config.  After scaffolding, scans existing git tags and writes
+    ``bootstrap_sha`` for mid-stream adoption.
     """
     monorepo_root, ecosystems = _resolve_ecosystems(args)
     dry_run = getattr(args, 'dry_run', False)
@@ -989,16 +1171,26 @@ def _cmd_init(args: argparse.Namespace) -> int:
         eco_summary = ', '.join(f'{e.ecosystem.value} ({e.root.relative_to(monorepo_root)})' for e in ecosystems)
         logger.info('init_detected_ecosystems', ecosystems=eco_summary)
 
-    # Use the first uv workspace root for backward compatibility
-    # with the single-ecosystem scaffold_config.
-    uv_ecosystems = [e for e in ecosystems if e.ecosystem == Ecosystem.PYTHON]
-    workspace_root = uv_ecosystems[0].root if uv_ecosystems else monorepo_root
-
-    toml_fragment = scaffold_config(
-        workspace_root,
-        dry_run=dry_run,
-        force=force,
-    )
+    # Multi-ecosystem path: generate one [workspace.<label>] per ecosystem.
+    if len(ecosystems) > 1 or (ecosystems and ecosystems[0].root != monorepo_root):
+        eco_tuples = [
+            (e.ecosystem.value, e.ecosystem.value if e.ecosystem.value != 'python' else 'py', e.root)
+            for e in ecosystems
+        ]
+        toml_fragment = scaffold_multi_config(
+            monorepo_root,
+            eco_tuples,
+            dry_run=dry_run,
+            force=force,
+        )
+    else:
+        # Single-ecosystem at monorepo root: use original scaffold_config.
+        workspace_root = ecosystems[0].root if ecosystems else monorepo_root
+        toml_fragment = scaffold_config(
+            workspace_root,
+            dry_run=dry_run,
+            force=force,
+        )
 
     if toml_fragment:
         print_scaffold_preview(toml_fragment)
@@ -1006,6 +1198,19 @@ def _cmd_init(args: argparse.Namespace) -> int:
             print('  ✅ Configuration written')  # noqa: T201 - CLI output
     elif not dry_run:
         print('  ℹ️  releasekit.toml already exists (use --force to overwrite)')  # noqa: T201 - CLI output
+
+    # Scan existing git tags and write bootstrap_sha.
+    config_path = monorepo_root / 'releasekit.toml'
+    if config_path.exists():
+        config = load_config(monorepo_root)
+        vcs = GitCLIBackend(monorepo_root)
+        report = await scan_and_bootstrap(
+            config_path,
+            config,
+            vcs,
+            dry_run=dry_run,
+        )
+        print_tag_scan_report(report)
 
     return 0
 
@@ -1318,6 +1523,152 @@ async def _cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _cmd_migrate(args: argparse.Namespace) -> int:
+    """Handle the ``migrate`` subcommand.
+
+    Migrates from an alternative release tool (e.g. release-please)
+    by reading its config files and generating ``releasekit.toml``.
+    """
+    from releasekit.detection import find_monorepo_root
+    from releasekit.init import print_scaffold_preview
+
+    source_name = getattr(args, 'from_tool', None)
+    dry_run = getattr(args, 'dry_run', False)
+    force = getattr(args, 'force', False)
+
+    if not source_name:
+        print('  \u274c --from is required. Supported sources:')  # noqa: T201
+        for name in sorted(MIGRATION_SOURCES):
+            print(f'     \u2022 {name}')  # noqa: T201
+        return 1
+
+    source = MIGRATION_SOURCES.get(source_name)
+    if source is None:
+        print(f'  \u274c Unknown source: {source_name!r}')  # noqa: T201
+        print('  Supported sources:')  # noqa: T201
+        for name in sorted(MIGRATION_SOURCES):
+            print(f'     \u2022 {name}')  # noqa: T201
+        return 1
+
+    root = find_monorepo_root()
+    report = migrate_from_source(root, source, dry_run=dry_run, force=force)
+
+    if not report.detected:
+        print(f'  \u2139\ufe0f  No {source.name} configuration found in {root}')  # noqa: T201
+        return 1
+
+    if report.toml_content:
+        print_scaffold_preview(report.toml_content)
+
+    if report.written:
+        print(f"  \u2705 Migrated from {source.name}. Run 'releasekit init' to scan tags.")  # noqa: T201
+    elif dry_run:
+        print('  (dry-run: no files modified)')  # noqa: T201
+    elif not report.written and report.toml_content:
+        print('  \u2139\ufe0f  releasekit.toml already exists (use --force to overwrite)')  # noqa: T201
+
+    return 0
+
+
+def _cmd_sign(args: argparse.Namespace) -> int:
+    """Handle the ``sign`` subcommand.
+
+    Signs release artifacts using Sigstore keyless signing.
+    """
+    from releasekit.signing import sign_artifacts
+
+    dry_run = getattr(args, 'dry_run', False)
+    output_dir = getattr(args, 'output_dir', None)
+    identity_token = getattr(args, 'identity_token', '') or ''
+
+    artifact_paths: list[Path] = []
+    raw_paths: list[str] = getattr(args, 'artifacts', [])
+    for raw in raw_paths:
+        p = Path(raw)
+        if p.is_dir():
+            artifact_paths.extend(sorted(p.glob('*.tar.gz')))
+            artifact_paths.extend(sorted(p.glob('*.whl')))
+        elif p.exists():
+            artifact_paths.append(p)
+        else:
+            print(f'  ❌ Not found: {p}')  # noqa: T201
+            return 1
+
+    if not artifact_paths:
+        print('  ❌ No artifacts to sign. Pass file paths or a directory.')  # noqa: T201
+        return 1
+
+    out = Path(output_dir) if output_dir else None
+    results = sign_artifacts(
+        artifact_paths,
+        output_dir=out,
+        identity_token=identity_token,
+        dry_run=dry_run,
+    )
+
+    failures = 0
+    for r in results:
+        if r.signed:
+            print(f'  ✅ Signed: {r.artifact_path.name} → {r.bundle_path.name}')  # noqa: T201
+        elif r.reason and 'dry-run' in r.reason:
+            print(f'  🔍 Would sign: {r.artifact_path.name}')  # noqa: T201
+        else:
+            print(f'  ❌ {r.artifact_path.name}: {r.reason}')  # noqa: T201
+            failures += 1
+
+    return 1 if failures else 0
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    """Handle the ``verify`` subcommand.
+
+    Verifies Sigstore bundles for release artifacts.
+    """
+    from releasekit.signing import verify_artifact
+
+    identity = getattr(args, 'cert_identity', '') or ''
+    issuer = getattr(args, 'cert_oidc_issuer', '') or ''
+
+    artifact_paths: list[Path] = []
+    raw_paths: list[str] = getattr(args, 'artifacts', [])
+    for raw in raw_paths:
+        p = Path(raw)
+        if p.is_dir():
+            artifact_paths.extend(sorted(p.glob('*.tar.gz')))
+            artifact_paths.extend(sorted(p.glob('*.whl')))
+        elif p.exists():
+            artifact_paths.append(p)
+        else:
+            print(f'  ❌ Not found: {p}')  # noqa: T201
+            return 1
+
+    if not artifact_paths:
+        print('  ❌ No artifacts to verify. Pass file paths or a directory.')  # noqa: T201
+        return 1
+
+    failures = 0
+    for artifact_path in artifact_paths:
+        bundle_path = artifact_path.parent / f'{artifact_path.name}.sigstore.json'
+        if not bundle_path.exists():
+            print(f'  ❌ Bundle not found: {bundle_path.name}')  # noqa: T201
+            failures += 1
+            continue
+
+        result = verify_artifact(
+            artifact_path,
+            bundle_path,
+            identity=identity,
+            issuer=issuer,
+        )
+        if result.verified:
+            print(f'  ✅ Verified: {artifact_path.name}')  # noqa: T201
+        else:
+            print(f'  ❌ {artifact_path.name}: {result.reason}')  # noqa: T201
+            failures += 1
+
+    return 1 if failures else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -1382,7 +1733,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_parser.add_argument(
         '--index-url',
-        help='Custom registry index URL.',
+        help='Custom registry index URL (passed to the package manager).',
+    )
+    publish_parser.add_argument(
+        '--registry-url',
+        help='Custom registry URL for polling/verification (e.g. Test PyPI, local Verdaccio).',
     )
     publish_parser.add_argument(
         '--dist-tag',
@@ -1440,6 +1795,11 @@ def build_parser() -> argparse.ArgumentParser:
         default='cli',
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
+    publish_parser.add_argument(
+        '--sign',
+        action='store_true',
+        help='Sign published artifacts with Sigstore after publishing.',
+    )
 
     plan_parser = subparsers.add_parser(
         'plan',
@@ -1487,7 +1847,7 @@ def build_parser() -> argparse.ArgumentParser:
     discover_parser.add_argument(
         '--ecosystem',
         '-e',
-        choices=[e.value for e in list(Ecosystem)],
+        choices=[e.value for e in Ecosystem],
         metavar='ECO',
         help='Only discover packages in this ecosystem.',
     )
@@ -1593,7 +1953,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument(
         '--ecosystem',
         '-e',
-        choices=[e.value for e in list(Ecosystem)],
+        choices=[e.value for e in Ecosystem],
         metavar='ECO',
         help='Only init for this ecosystem.',
     )
@@ -1675,6 +2035,68 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
 
+    migrate_parser = subparsers.add_parser(
+        'migrate',
+        help='Migrate from an alternative release tool (e.g. release-please).',
+    )
+    migrate_parser.add_argument(
+        '--from',
+        dest='from_tool',
+        choices=sorted(MIGRATION_SOURCES),
+        help='Source tool to migrate from.',
+    )
+    migrate_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be written without modifying files.',
+    )
+    migrate_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite existing releasekit.toml.',
+    )
+
+    sign_parser = subparsers.add_parser(
+        'sign',
+        help='Sign release artifacts with Sigstore (keyless).',
+    )
+    sign_parser.add_argument(
+        'artifacts',
+        nargs='+',
+        help='Artifact files or directories to sign (e.g. dist/).',
+    )
+    sign_parser.add_argument(
+        '--output-dir',
+        help='Directory for .sigstore.json bundles (default: same as artifact).',
+    )
+    sign_parser.add_argument(
+        '--identity-token',
+        help='Explicit OIDC identity token (default: ambient detection).',
+    )
+    sign_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be signed without signing.',
+    )
+
+    verify_parser = subparsers.add_parser(
+        'verify',
+        help='Verify Sigstore bundles for release artifacts.',
+    )
+    verify_parser.add_argument(
+        'artifacts',
+        nargs='+',
+        help='Artifact files or directories to verify.',
+    )
+    verify_parser.add_argument(
+        '--cert-identity',
+        help='Expected certificate identity (email or URI).',
+    )
+    verify_parser.add_argument(
+        '--cert-oidc-issuer',
+        help='Expected OIDC issuer URL.',
+    )
+
     return parser
 
 
@@ -1706,7 +2128,7 @@ def main() -> int:
         if command == 'explain':
             return _cmd_explain(args)
         if command == 'init':
-            return _cmd_init(args)
+            return asyncio.run(_cmd_init(args))
         if command == 'rollback':
             return asyncio.run(_cmd_rollback(args))
         if command == 'prepare':
@@ -1717,6 +2139,12 @@ def main() -> int:
             return _cmd_completion(args)
         if command == 'doctor':
             return asyncio.run(_cmd_doctor(args))
+        if command == 'migrate':
+            return _cmd_migrate(args)
+        if command == 'sign':
+            return _cmd_sign(args)
+        if command == 'verify':
+            return _cmd_verify(args)
 
         parser.print_help()  # noqa: T201 - CLI output
         print(  # noqa: T201 - CLI output

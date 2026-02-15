@@ -25,7 +25,6 @@ from pathlib import Path
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.backends.registry import ChecksumResult
 from releasekit.graph import build_graph
 from releasekit.observer import PublishObserver, PublishStage
 from releasekit.publisher import (
@@ -39,341 +38,7 @@ from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 
 # ── Fake backends ──
-
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
-
-
-class FakeVCS:
-    """Fake VCS backend."""
-
-    def __init__(self, *, sha: str = 'abc123') -> None:
-        """Initialize instance."""
-        self._sha = sha
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Is clean."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Is shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return empty list."""
-        return []
-
-    async def current_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Current sha."""
-        return self._sha
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Log."""
-        return []
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Diff files."""
-        return []
-
-    async def commit(
-        self,
-        message: str,
-        *,
-        paths: list[str] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Commit."""
-        return _OK
-
-    async def tag(
-        self,
-        tag_name: str,
-        *,
-        message: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Tag."""
-        return _OK
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Tag exists."""
-        return False
-
-    async def delete_tag(
-        self,
-        tag_name: str,
-        *,
-        remote: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Delete tag."""
-        return _OK
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Push."""
-        return _OK
-
-    async def checkout_branch(
-        self,
-        branch: str,
-        *,
-        create: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Checkout branch."""
-        return _OK
-
-
-class FakePM:
-    """Fake PackageManager backend."""
-
-    def __init__(self, *, build_files: dict[str, bytes] | None = None) -> None:
-        """Initialize instance."""
-        self._build_files = build_files or {}
-
-    async def build(
-        self,
-        package_dir: Path,
-        *,
-        output_dir: Path | None = None,
-        no_sources: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Build."""
-        if output_dir and self._build_files:
-            for name, content in self._build_files.items():
-                (output_dir / name).write_bytes(content)
-        return _OK
-
-    async def publish(
-        self,
-        dist_dir: Path,
-        *,
-        check_url: str | None = None,
-        index_url: str | None = None,
-        dist_tag: str | None = None,
-        publish_branch: str | None = None,
-        provenance: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Publish."""
-        return _OK
-
-    async def lock(
-        self,
-        *,
-        check_only: bool = False,
-        upgrade_package: str | None = None,
-        cwd: Path | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Lock."""
-        return _OK
-
-    async def version_bump(
-        self,
-        package_dir: Path,
-        new_version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Version bump."""
-        return _OK
-
-    async def resolve_check(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        index_url: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Resolve check."""
-        return _OK
-
-    async def smoke_test(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Smoke test."""
-        return _OK
-
-
-class FakeRegistry:
-    """Fake registry backend."""
-
-    def __init__(self, *, available: bool = True, checksums_ok: bool = True) -> None:
-        """Initialize instance."""
-        self._available = available
-        self._checksums_ok = checksums_ok
-
-    async def check_published(self, package_name: str, version: str) -> bool:
-        """Check published."""
-        return False
-
-    async def poll_available(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        timeout: float = 300.0,
-        interval: float = 5.0,
-    ) -> bool:
-        """Poll available."""
-        return self._available
-
-    async def project_exists(self, package_name: str) -> bool:
-        """Project exists."""
-        return True
-
-    async def latest_version(self, package_name: str) -> str | None:
-        """Latest version."""
-        return None
-
-    async def verify_checksum(
-        self,
-        package_name: str,
-        version: str,
-        local_checksums: dict[str, str],
-    ) -> ChecksumResult:
-        """Verify checksum."""
-        if self._checksums_ok:
-            return ChecksumResult(matched=list(local_checksums.keys()), mismatched={}, missing=[])
-        return ChecksumResult(
-            matched=[],
-            mismatched={'bad.whl': ('aaa', 'bbb')},
-            missing=[],
-        )
-
-
-class FakeForge:
-    """Fake forge backend."""
-
-    async def is_available(self) -> bool:
-        """Is available."""
-        return True
-
-    async def create_release(
-        self,
-        tag: str,
-        *,
-        title: str | None = None,
-        body: str = '',
-        draft: bool = False,
-        prerelease: bool = False,
-        assets: list[Path] | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create release."""
-        return _OK
-
-    async def delete_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """Delete release."""
-        return _OK
-
-    async def promote_release(self, tag: str, *, dry_run: bool = False) -> CommandResult:
-        """Promote release."""
-        return _OK
-
-    async def list_releases(self, *, limit: int = 10) -> list[dict[str, str | bool]]:
-        """List releases."""
-        return []
-
-    async def create_pr(
-        self,
-        *,
-        title: str = '',
-        body: str = '',
-        head: str = '',
-        base: str = 'main',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Create pr."""
-        return _OK
-
-    async def pr_data(self, pr_number: int) -> dict[str, str | int]:
-        """Pr data."""
-        return {}
-
-    async def list_prs(
-        self,
-        *,
-        label: str = '',
-        state: str = 'open',
-        head: str = '',
-        limit: int = 10,
-    ) -> list[dict[str, str | int | list[str]]]:
-        """List prs."""
-        return []
-
-    async def add_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Add labels."""
-        return _OK
-
-    async def remove_labels(
-        self,
-        pr_number: int,
-        labels: list[str],
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Remove labels."""
-        return _OK
-
-    async def update_pr(
-        self,
-        pr_number: int,
-        *,
-        title: str = '',
-        body: str = '',
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Update pr."""
-        return _OK
-
-    async def merge_pr(
-        self,
-        pr_number: int,
-        *,
-        method: str = 'squash',
-        commit_message: str = '',
-        delete_branch: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Merge pr."""
-        return _OK
+from tests._fakes import OK as _OK, FakePM, FakeRegistry, FakeVCS
 
 
 class SpyObserver(PublishObserver):
@@ -729,3 +394,206 @@ class TestPublishWorkspaceDryRun:
         )
         if not result.ok:
             raise AssertionError(f'Should be OK: {result.failed}')
+
+
+class TestPublishWorkspaceNonDryRun:
+    """Tests for publish_workspace with real (non-dry-run) paths."""
+
+    def test_build_no_dist_files(self, tmp_path: Path) -> None:
+        """Build that produces no dist files records failure."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(dry_run=False, workspace_root=tmp_path, smoke_test=False, verify_checksums=False)
+
+        result = asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=FakePM(),  # No build_files → empty dist dir.
+                forge=None,
+                registry=FakeRegistry(),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        assert not result.ok
+        assert 'genkit' in result.failed
+        assert 'No distribution files' in result.failed['genkit']
+
+    def test_poll_timeout(self, tmp_path: Path) -> None:
+        """Registry poll timeout records failure."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(
+            dry_run=False,
+            workspace_root=tmp_path,
+            smoke_test=False,
+            verify_checksums=False,
+            poll_timeout=0.1,
+            poll_interval=0.05,
+        )
+
+        build_files = {
+            'genkit-0.2.0.tar.gz': b'tarball',
+            'genkit-0.2.0.whl': b'wheel',
+        }
+
+        result = asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=FakePM(build_files=build_files),
+                forge=None,
+                registry=FakeRegistry(available=False),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        assert not result.ok
+        assert 'genkit' in result.failed
+        assert 'not available on registry' in result.failed['genkit']
+
+    def test_checksum_mismatch(self, tmp_path: Path) -> None:
+        """Checksum mismatch records failure."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(
+            dry_run=False,
+            workspace_root=tmp_path,
+            smoke_test=False,
+            verify_checksums=True,
+        )
+
+        build_files = {
+            'genkit-0.2.0.tar.gz': b'tarball',
+            'genkit-0.2.0.whl': b'wheel',
+        }
+
+        result = asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=FakePM(build_files=build_files),
+                forge=None,
+                registry=FakeRegistry(checksums_ok=False),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        assert not result.ok
+        assert 'genkit' in result.failed
+        assert 'Checksum verification failed' in result.failed['genkit']
+
+    def test_smoke_test_runs(self, tmp_path: Path) -> None:
+        """Smoke test is invoked when enabled."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(
+            dry_run=False,
+            workspace_root=tmp_path,
+            smoke_test=True,
+            verify_checksums=False,
+        )
+
+        smoke_called: list[str] = []
+
+        class SmokePM(FakePM):
+            async def build(
+                self,
+                package_dir: Path,
+                *,
+                output_dir: Path | None = None,
+                no_sources: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                if output_dir:
+                    (output_dir / 'genkit-0.2.0.whl').write_bytes(b'wheel')
+                return _OK
+
+            async def smoke_test(self, package_name: str, version: str, *, dry_run: bool = False) -> CommandResult:
+                smoke_called.append(package_name)
+                return _OK
+
+        result = asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=SmokePM(),
+                forge=None,
+                registry=FakeRegistry(),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        assert result.ok
+        assert 'genkit' in smoke_called
+
+    def test_unexpected_error_wrapped(self, tmp_path: Path) -> None:
+        """Unexpected exception during publish is wrapped and recorded."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(dry_run=False, workspace_root=tmp_path, smoke_test=False, verify_checksums=False)
+
+        class BoomPM(FakePM):
+            async def build(
+                self,
+                package_dir: Path,
+                *,
+                output_dir: Path | None = None,
+                no_sources: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                raise RuntimeError('unexpected boom')
+
+        result = asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=BoomPM(),
+                forge=None,
+                registry=FakeRegistry(),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        assert not result.ok
+        assert 'genkit' in result.failed
+        assert 'Unexpected error' in result.failed['genkit']
+
+    def test_workspace_label_state_file(self, tmp_path: Path) -> None:
+        """State file uses workspace label when configured."""
+        pkg = _make_pkg('genkit', tmp_path)
+        graph = build_graph([pkg])
+        versions = [PackageVersion(name='genkit', old_version='0.1.0', new_version='0.2.0', bump='minor')]
+        config = PublishConfig(dry_run=True, workspace_root=tmp_path, workspace_label='py')
+
+        asyncio.run(
+            publish_workspace(
+                vcs=FakeVCS(),
+                pm=FakePM(),
+                forge=None,
+                registry=FakeRegistry(),
+                graph=graph,
+                packages=[pkg],
+                versions=versions,
+                config=config,
+            ),
+        )
+
+        state_path = tmp_path / '.releasekit-state--py.json'
+        assert state_path.is_file(), f'Expected state file at {state_path}'

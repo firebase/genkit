@@ -175,6 +175,11 @@ def acquire_lock(
                 f'Release lock held by PID {existing.pid} on {existing.hostname} (user={existing.user!r}).',
                 hint=(f"If the process is no longer running, delete '{lock_path}' manually."),
             )
+    elif lock_path.exists():
+        # File exists but _read_lock returned None → corrupt lock file.
+        # Remove it so the atomic O_CREAT|O_EXCL open below can succeed.
+        logger.warning('corrupt_lock_removed', path=str(lock_path))
+        lock_path.unlink(missing_ok=True)
 
     info = LockInfo(
         pid=os.getpid(),
@@ -183,16 +188,37 @@ def acquire_lock(
         user=os.environ.get('USER', os.environ.get('USERNAME', '')),
     )
 
+    # Use O_CREAT | O_EXCL for atomic creation — prevents TOCTOU race
+    # where two processes both see "no lock" and both try to create one.
+    # Write to a temp file first, then atomically rename to avoid
+    # partial reads by concurrent processes.
+    content = json.dumps(asdict(info), indent=2) + '\n'
     try:
-        lock_path.write_text(
-            json.dumps(asdict(info), indent=2) + '\n',
-            encoding='utf-8',
-        )
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        # Another process created the lock between our stale check and
+        # our open(). Re-read and report the conflict.
+        rival = _read_lock(lock_path)
+        rival_pid = rival.pid if rival else '?'
+        rival_host = rival.hostname if rival else '?'
+        raise ReleaseKitError(
+            E.LOCK_ACQUISITION_FAILED,
+            f'Release lock held by PID {rival_pid} on {rival_host}.',
+            hint=f"If the process is no longer running, delete '{lock_path}' manually.",
+        ) from None
     except OSError as exc:
         raise ReleaseKitError(
             E.LOCK_ACQUISITION_FAILED,
             f'Failed to write lock file: {exc}',
+            hint='Check file permissions on the .releasekit-lock file and its parent directory.',
         ) from exc
+    try:
+        os.write(fd, content.encode('utf-8'))
+    except BaseException:
+        os.close(fd)
+        lock_path.unlink(missing_ok=True)
+        raise
+    os.close(fd)
 
     logger.info('lock_acquired', path=str(lock_path), pid=info.pid)
 

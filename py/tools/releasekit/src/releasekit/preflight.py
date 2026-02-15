@@ -68,8 +68,12 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import threading
 import warnings
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import tomlkit
 
@@ -87,6 +91,97 @@ from releasekit.workspace import Package
 logger = get_logger(__name__)
 
 
+@dataclass(frozen=True)
+class SourceContext:
+    """Source location with optional line number and snippet.
+
+    Used by health checks to point the user at the exact file and line
+    that caused a warning or failure.  The CLI renderer reads these to
+    produce Rust-style diagnostic output with source excerpts.
+
+    Attributes:
+        path: Absolute or relative path to the file.
+        line: 1-based line number of the offending line (0 = unknown).
+        key: The TOML key or search term that was matched.
+        label: Short annotation shown next to the line (e.g. ``'missing here'``).
+    """
+
+    path: str
+    line: int = 0
+    key: str = ''
+    label: str = ''
+
+    def __str__(self) -> str:
+        """Format as ``path:line`` when line is known, else just ``path``."""
+        if self.line:
+            return f'{self.path}:{self.line}'
+        return self.path
+
+
+def find_key_line(content: str, key: str, *, section: str = '') -> int:
+    """Find the 1-based line number of a TOML key in file content.
+
+    Searches for ``key = `` or ``[section]`` patterns.  Returns 0 if
+    not found.  This is a simple string-search fallback because
+    ``tomlkit`` does not expose line numbers.
+
+    Args:
+        content: The full file content.
+        key: The TOML key to search for (e.g. ``'name'``,
+            ``'build-system'``).
+        section: If provided, search for ``[section]`` header instead
+            of a key assignment.
+
+    Returns:
+        1-based line number, or 0 if not found.
+    """
+    if section:
+        target = f'[{section}]'
+        for i, line in enumerate(content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped == target or stripped.startswith(target + ' '):
+                return i
+        return 0
+
+    target = f'{key} ='
+    target_no_space = f'{key}='
+    for i, line in enumerate(content.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith(target) or stripped.startswith(target_no_space):
+            return i
+    return 0
+
+
+def read_source_snippet(
+    path: str | Path,
+    line: int,
+    *,
+    context_lines: int = 2,
+) -> list[tuple[int, str]]:
+    """Read a few lines around ``line`` from a file.
+
+    Returns a list of ``(line_number, line_text)`` tuples.  Returns an
+    empty list if the file cannot be read or ``line`` is 0.
+
+    Args:
+        path: Path to the source file.
+        line: 1-based centre line.
+        context_lines: Number of lines to show above and below.
+
+    Returns:
+        List of ``(lineno, text)`` pairs.
+    """
+    if line <= 0:
+        return []
+    try:
+        all_lines = Path(path).read_text(encoding='utf-8').splitlines()
+    except Exception:
+        return []
+    start = max(0, line - 1 - context_lines)
+    end = min(len(all_lines), line + context_lines)
+    return [(i + 1, all_lines[i]) for i in range(start, end)]
+
+
 class PreflightResult:
     """Collects preflight check results.
 
@@ -100,32 +195,71 @@ class PreflightResult:
 
     def __init__(self) -> None:
         """Initialize with empty result lists."""
+        self._lock = threading.Lock()
         self.passed: list[str] = []
         self.warnings: list[str] = []
         self.failed: list[str] = []
         self.errors: dict[str, str] = {}
         self.warning_messages: dict[str, str] = {}
         self.hints: dict[str, str] = {}
+        self.context: dict[str, Sequence[str | SourceContext]] = {}
 
     def add_pass(self, name: str) -> None:
         """Record a passing check."""
-        self.passed.append(name)
+        with self._lock:
+            self.passed.append(name)
         logger.info('preflight_pass', check=name)
 
-    def add_warning(self, name: str, message: str, *, hint: str = '') -> None:
-        """Record a warning (non-blocking)."""
-        self.warnings.append(name)
-        self.warning_messages[name] = message
-        if hint:
-            self.hints[name] = hint
+    def add_warning(
+        self,
+        name: str,
+        message: str,
+        *,
+        hint: str = '',
+        context: Sequence[str | SourceContext] | None = None,
+    ) -> None:
+        """Record a warning (non-blocking).
+
+        Args:
+            name: Check identifier.
+            message: Human-readable description of the issue.
+            hint: Actionable suggestion for fixing the issue.
+            context: File location annotations — plain path strings or
+                :class:`SourceContext` instances with line numbers.
+        """
+        with self._lock:
+            self.warnings.append(name)
+            self.warning_messages[name] = message
+            if hint:
+                self.hints[name] = hint
+            if context:
+                self.context[name] = context
         logger.warning('preflight_warning', check=name, message=message)
 
-    def add_failure(self, name: str, message: str, *, hint: str = '') -> None:
-        """Record a failure (blocking)."""
-        self.failed.append(name)
-        self.errors[name] = message
-        if hint:
-            self.hints[name] = hint
+    def add_failure(
+        self,
+        name: str,
+        message: str,
+        *,
+        hint: str = '',
+        context: Sequence[str | SourceContext] | None = None,
+    ) -> None:
+        """Record a failure (blocking).
+
+        Args:
+            name: Check identifier.
+            message: Human-readable description of the issue.
+            hint: Actionable suggestion for fixing the issue.
+            context: File location annotations — plain path strings or
+                :class:`SourceContext` instances with line numbers.
+        """
+        with self._lock:
+            self.failed.append(name)
+            self.errors[name] = message
+            if hint:
+                self.hints[name] = hint
+            if context:
+                self.context[name] = context
         logger.error('preflight_fail', check=name, message=message)
 
     @property
@@ -144,6 +278,121 @@ class PreflightResult:
         if self.failed:
             parts.append(f'{len(self.failed)} failed')
         return ', '.join(parts)
+
+
+def run_check(
+    result: PreflightResult,
+    check_name: str,
+    packages: Sequence[Package],
+    probe: Callable[[Package], Sequence[tuple[str, str | SourceContext]]],
+    *,
+    message: str,
+    hint: str,
+    severity: Literal['warning', 'failure'] = 'failure',
+    joiner: str = ', ',
+) -> None:
+    """Run a per-package probe and record the outcome.
+
+    This eliminates the boilerplate that every check method repeats:
+    initialise two lists, loop over packages, collect issues and
+    locations, then call ``add_warning`` / ``add_failure`` or
+    ``add_pass``.
+
+    Args:
+        result: Accumulator for check outcomes.
+        check_name: Identifier for this check (e.g. ``'build_system'``).
+        packages: Packages to inspect.
+        probe: Called once per package.  Returns a (possibly empty)
+            sequence of ``(issue_description, location)`` tuples.
+            The location can be a plain path string or a
+            :class:`SourceContext` with line-level detail.
+            Return an empty sequence to signal "no issues for this
+            package".
+        message: Prefix placed before the joined issue descriptions,
+            e.g. ``'Missing go.mod'``.  The final message is
+            ``f'{message}: {joiner.join(issues)}'``.
+        hint: Actionable fix suggestion.
+        severity: ``'failure'`` (default, blocks release) or
+            ``'warning'`` (informational).
+        joiner: String used to join issue descriptions (default ``', '``).
+    """
+    issues: list[str] = []
+    locations: list[str | SourceContext] = []
+    for pkg in packages:
+        for desc, loc in probe(pkg):
+            issues.append(desc)
+            locations.append(loc)
+
+    if issues:
+        text = f'{message}: {joiner.join(issues)}'
+        if severity == 'failure':
+            result.add_failure(check_name, text, hint=hint, context=locations)
+        else:
+            result.add_warning(check_name, text, hint=hint, context=locations)
+    else:
+        result.add_pass(check_name)
+
+
+def run_version_consistency_check(
+    result: PreflightResult,
+    check_name: str,
+    packages: Sequence[Package],
+    *,
+    core_package: str,
+    manifest_path_fn: Callable[[Package], str],
+    hint_template: str = 'All packages should use version {version}.',
+    filter_fn: Callable[[Package], bool] | None = None,
+) -> None:
+    """Check that all packages share the same version as the core package.
+
+    This is the second most common pattern across check backends.
+
+    Args:
+        result: Accumulator for check outcomes.
+        check_name: Identifier for this check.
+        packages: Packages to inspect.
+        core_package: Name of the core/reference package.
+        manifest_path_fn: Given a package, return the path string to
+            use as context (e.g. ``lambda p: str(p.path / 'go.mod')``).
+        hint_template: Format string with ``{version}`` placeholder.
+        filter_fn: Optional predicate to restrict which packages are
+            compared.  Receives each non-core package; return ``True``
+            to include it in the comparison.
+    """
+    if not core_package:
+        result.add_pass(check_name)
+        return
+
+    core_pkg = next((p for p in packages if p.name == core_package), None)
+    if core_pkg is None:
+        result.add_warning(
+            check_name,
+            f'Core package "{core_package}" not found.',
+            hint=f'Ensure a package named "{core_package}" exists in the workspace.',
+        )
+        return
+
+    core_version = core_pkg.version
+    mismatches: list[str] = []
+    locations: list[str] = []
+    for pkg in packages:
+        if pkg.name == core_package:
+            continue
+        if filter_fn is not None and not filter_fn(pkg):
+            continue
+        if pkg.version != core_version:
+            mismatches.append(f'{pkg.name}=={pkg.version} (expected {core_version})')
+            locations.append(manifest_path_fn(pkg))
+
+    if mismatches:
+        result.add_failure(
+            check_name,
+            f'Version mismatch: {", ".join(mismatches)}',
+            hint=hint_template.format(version=core_version),
+            context=locations,
+        )
+    else:
+        result.add_pass(check_name)
 
 
 async def _check_clean_worktree(
@@ -378,7 +627,7 @@ async def _check_pip_audit(
             ['pip-audit', '--strict', '--progress-spinner=off'],
             cwd=workspace_root,
         )
-        if cmd_result.returncode == 0:
+        if cmd_result.return_code == 0:
             result.add_pass(check_name)
         else:
             result.add_warning(
@@ -534,5 +783,8 @@ async def run_preflight(
 
 __all__ = [
     'PreflightResult',
+    'SourceContext',
+    'find_key_line',
+    'read_source_snippet',
     'run_preflight',
 ]

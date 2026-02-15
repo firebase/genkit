@@ -28,8 +28,7 @@ from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.prepare import PrepareResult, _build_pr_body, _embed_manifest, _package_paths, prepare_release
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
-
-_OK = CommandResult(command=[], returncode=0, stdout='', stderr='')
+from tests._fakes import OK as _OK, FakePM as _FakePM, FakeVCS as _BaseFakeVCS
 
 
 class TestPrepareResult:
@@ -150,154 +149,18 @@ class TestPackagePaths:
             raise AssertionError('Expected empty map')
 
 
-class _FakeVCS:
-    """Minimal VCS for prepare tests."""
-
-    def __init__(self, *, log_lines: list[str] | None = None) -> None:
-        self._log_lines = log_lines or ['aaa1111 feat: initial']
-
-    async def is_clean(self, *, dry_run: bool = False) -> bool:
-        """Is clean."""
-        return True
-
-    async def is_shallow(self) -> bool:
-        """Is shallow."""
-        return False
-
-    async def default_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def list_tags(self, *, pattern: str = '') -> list[str]:
-        """Return empty list."""
-        return []
-
-    async def current_branch(self) -> str:
-        """Default branch."""
-        return 'main'
-
-    async def current_sha(self) -> str:
-        """Current sha."""
-        return 'abc123'
-
-    async def log(
-        self,
-        *,
-        since_tag: str | None = None,
-        paths: list[str] | None = None,
-        format: str = '%H %s',
-        first_parent: bool = False,
-        no_merges: bool = False,
-        max_commits: int = 0,
-    ) -> list[str]:
-        """Log."""
-        return self._log_lines
-
-    async def diff_files(self, *, since_tag: str | None = None) -> list[str]:
-        """Diff files."""
-        return ['packages/genkit/src/main.py']
-
-    async def commit(self, message: str, *, paths: list[str] | None = None, dry_run: bool = False) -> CommandResult:
-        """Commit."""
-        return _OK
-
-    async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
-        """Tag."""
-        return _OK
-
-    async def tag_exists(self, tag_name: str) -> bool:
-        """Tag exists."""
-        return False
-
-    async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
-        """Delete tag."""
-        return _OK
-
-    async def push(
-        self,
-        *,
-        tags: bool = False,
-        remote: str = 'origin',
-        set_upstream: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Push."""
-        return _OK
-
-    async def checkout_branch(self, branch: str, *, create: bool = False, dry_run: bool = False) -> CommandResult:
-        """Checkout branch."""
-        return _OK
+# _FakePM is imported directly from tests._fakes (see top of file).
 
 
-class _FakePM:
-    """Minimal package manager for prepare tests."""
+class _FakeVCS(_BaseFakeVCS):
+    """FakeVCS with prepare-specific defaults."""
 
-    async def build(
-        self,
-        package_dir: Path,
-        *,
-        output_dir: Path | None = None,
-        no_sources: bool = True,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Build."""
-        return _OK
-
-    async def publish(
-        self,
-        dist_dir: Path,
-        *,
-        check_url: str | None = None,
-        index_url: str | None = None,
-        dist_tag: str | None = None,
-        publish_branch: str | None = None,
-        provenance: bool = False,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Publish."""
-        return _OK
-
-    async def lock(
-        self,
-        *,
-        check_only: bool = False,
-        upgrade_package: str | None = None,
-        cwd: Path | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Lock."""
-        return _OK
-
-    async def version_bump(
-        self,
-        package_dir: Path,
-        new_version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Version bump."""
-        return _OK
-
-    async def resolve_check(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        index_url: str | None = None,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Resolve check."""
-        return _OK
-
-    async def smoke_test(
-        self,
-        package_name: str,
-        version: str,
-        *,
-        dry_run: bool = False,
-    ) -> CommandResult:
-        """Smoke test."""
-        return _OK
+    def __init__(self, *, log_lines: list[str] | None = None, **kwargs: object) -> None:
+        super().__init__(
+            log_lines=log_lines if log_lines is not None else ['aaa1111 feat: initial'],
+            diff_files=['packages/genkit/src/main.py'],
+            **kwargs,  # type: ignore[arg-type]
+        )
 
 
 class _FakeForge:
@@ -348,7 +211,7 @@ class _FakeForge:
         dry_run: bool = False,
     ) -> CommandResult:
         """Create pr."""
-        return CommandResult(command=[], returncode=0, stdout=self._create_pr_url, stderr='')
+        return CommandResult(command=[], return_code=0, stdout=self._create_pr_url, stderr='')
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
         """Pr data."""
@@ -518,3 +381,605 @@ class TestPrepareLabelOnNewPR:
         label_prs = [pr for pr, labels in forge.labels_added if 'autorelease: pending' in labels]
         if 101 not in label_prs:
             raise AssertionError(f'Expected label on PR #101, got labels_added={forge.labels_added}')
+
+
+class TestPrepareNoBumps:
+    """Tests for prepare_release when no packages have changes."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace with one package."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_no_bumps_returns_early(self, tmp_path: Path) -> None:
+        """No version bumps returns empty result with no errors."""
+        from unittest.mock import AsyncMock, patch
+
+        vcs = _FakeVCS(log_lines=[])
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        # Mock compute_bumps to return all-skipped versions.
+        mock_bumps = AsyncMock(
+            return_value=[
+                PackageVersion(name='genkit', old_version='0.1.0', new_version='0.1.0', bump='none', skipped=True),
+            ]
+        )
+
+        with patch('releasekit.prepare.compute_bumps', mock_bumps):
+            result = asyncio.run(
+                prepare_release(
+                    vcs=vcs,
+                    pm=_FakePM(),
+                    forge=None,
+                    registry=_FakeRegistry(),
+                    config=config,
+                    ws_config=ws_config,
+                    workspace_root=self._make_workspace(tmp_path),
+                    dry_run=False,
+                    force=True,
+                ),
+            )
+
+        assert result.ok
+        assert not result.bumped
+        assert not result.pr_url
+
+
+class TestPrepareDryRun:
+    """Tests for prepare_release in dry_run mode."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_dry_run_skips_side_effects(self, tmp_path: Path) -> None:
+        """Dry run produces result without writing files or creating PRs."""
+        vcs = _FakeVCS()
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        result = asyncio.run(
+            prepare_release(
+                vcs=vcs,
+                pm=_FakePM(),
+                forge=None,
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=self._make_workspace(tmp_path),
+                dry_run=True,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+        assert result.bumped
+        assert result.manifest is not None
+        # No PR URL since forge is None.
+        assert not result.pr_url
+
+
+class TestPrepareAutoMerge:
+    """Tests for auto-merge functionality."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_auto_merge_on_new_pr(self, tmp_path: Path) -> None:
+        """Auto-merge is attempted when ws_config.auto_merge is True."""
+        merge_calls: list[int] = []
+
+        class MergeForge(_FakeForge):
+            def __init__(self) -> None:
+                super().__init__(existing_prs=[], create_pr_url='https://github.com/test/pull/42')
+
+            async def merge_pr(
+                self,
+                pr_number: int,
+                *,
+                method: str = 'squash',
+                commit_message: str = '',
+                delete_branch: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                merge_calls.append(pr_number)
+                return _OK
+
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig(auto_merge=True)
+
+        asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=MergeForge(),
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=self._make_workspace(tmp_path),
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert 42 in merge_calls, f'Expected merge on PR #42, got {merge_calls}'
+
+    def test_auto_merge_failure_logged(self, tmp_path: Path) -> None:
+        """Failed auto-merge does not crash prepare_release."""
+
+        class FailMergeForge(_FakeForge):
+            def __init__(self) -> None:
+                super().__init__(existing_prs=[], create_pr_url='https://github.com/test/pull/42')
+
+            async def merge_pr(
+                self,
+                pr_number: int,
+                *,
+                method: str = 'squash',
+                commit_message: str = '',
+                delete_branch: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                return CommandResult(command=[], return_code=1, stdout='', stderr='merge failed')
+
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig(auto_merge=True)
+
+        # Should not raise — failure is logged as warning.
+        result = asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=FailMergeForge(),
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=self._make_workspace(tmp_path),
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+
+
+class TestPreparePreflightFailure:
+    """Tests for prepare_release when preflight fails."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace with one package."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_preflight_failure_returns_errors(self, tmp_path: Path) -> None:
+        """Preflight failure populates result.errors and returns early."""
+        from unittest.mock import AsyncMock, patch
+
+        from releasekit.preflight import PreflightResult
+
+        vcs = _FakeVCS()
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        failed_preflight = PreflightResult()
+        failed_preflight.add_failure('dirty_worktree', 'Uncommitted changes')
+
+        with patch('releasekit.prepare.run_preflight', AsyncMock(return_value=failed_preflight)):
+            result = asyncio.run(
+                prepare_release(
+                    vcs=vcs,
+                    pm=_FakePM(),
+                    forge=None,
+                    registry=_FakeRegistry(),
+                    config=config,
+                    ws_config=ws_config,
+                    workspace_root=self._make_workspace(tmp_path),
+                    dry_run=False,
+                    force=False,
+                ),
+            )
+
+        assert not result.ok
+        assert 'preflight:dirty_worktree' in result.errors
+
+
+class TestPrepareExtraFiles:
+    """Tests for extra_files bumping in prepare_release."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a workspace with an extra file containing a version."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        init_file = ws / 'packages' / 'genkit' / '__init__.py'
+        init_file.write_text("__version__ = '0.1.0'\n", encoding='utf-8')
+        return ws
+
+    def test_extra_files_with_pattern(self, tmp_path: Path) -> None:
+        """Extra files with colon-separated pattern are processed."""
+        ws = self._make_workspace(tmp_path)
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig(
+            extra_files=['packages/genkit/__init__.py:__version__'],
+        )
+
+        result = asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=None,
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=ws,
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+        assert result.bumped
+
+    def test_extra_files_without_pattern(self, tmp_path: Path) -> None:
+        """Extra files without pattern are processed."""
+        ws = self._make_workspace(tmp_path)
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig(
+            extra_files=['packages/genkit/__init__.py'],
+        )
+
+        result = asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=None,
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=ws,
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+
+    def test_extra_files_nonexistent_skipped(self, tmp_path: Path) -> None:
+        """Non-existent extra files are silently skipped."""
+        ws = self._make_workspace(tmp_path)
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig(
+            extra_files=['nonexistent/file.py'],
+        )
+
+        result = asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=None,
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=ws,
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+
+
+class TestPreparePushFailure:
+    """Tests for push failure in prepare_release."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_push_failure_raises(self, tmp_path: Path) -> None:
+        """Push failure raises RuntimeError."""
+        import pytest
+
+        class FailPushVCS(_FakeVCS):
+            """VCS that fails on push."""
+
+            async def push(
+                self,
+                *,
+                tags: bool = False,
+                remote: str = 'origin',
+                set_upstream: bool = True,
+                dry_run: bool = False,
+            ) -> CommandResult:
+                """Fail push."""
+                return CommandResult(
+                    command=['git', 'push'],
+                    return_code=1,
+                    stdout='',
+                    stderr='push rejected',
+                )
+
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        with pytest.raises(RuntimeError, match='push rejected'):
+            asyncio.run(
+                prepare_release(
+                    vcs=FailPushVCS(),
+                    pm=_FakePM(),
+                    forge=None,
+                    registry=_FakeRegistry(),
+                    config=config,
+                    ws_config=ws_config,
+                    workspace_root=self._make_workspace(tmp_path),
+                    dry_run=False,
+                    force=True,
+                ),
+            )
+
+
+class TestPreparePRCreationFailure:
+    """Tests for PR creation failure in prepare_release."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_pr_creation_failure_raises(self, tmp_path: Path) -> None:
+        """PR creation failure raises RuntimeError."""
+        import pytest
+
+        class FailCreatePRForge(_FakeForge):
+            """Forge that fails to create PR."""
+
+            async def create_pr(
+                self,
+                *,
+                title: str = '',
+                body: str = '',
+                head: str = '',
+                base: str = 'main',
+                dry_run: bool = False,
+            ) -> CommandResult:
+                """Fail create PR."""
+                return CommandResult(
+                    command=['gh', 'pr', 'create'],
+                    return_code=1,
+                    stdout='',
+                    stderr='API rate limit exceeded',
+                )
+
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        with pytest.raises(RuntimeError, match='API rate limit'):
+            asyncio.run(
+                prepare_release(
+                    vcs=_FakeVCS(),
+                    pm=_FakePM(),
+                    forge=FailCreatePRForge(existing_prs=[]),
+                    registry=_FakeRegistry(),
+                    config=config,
+                    ws_config=ws_config,
+                    workspace_root=self._make_workspace(tmp_path),
+                    dry_run=False,
+                    force=True,
+                ),
+            )
+
+
+class TestPreparePRNumberParsing:
+    """Tests for PR number extraction from URL edge cases."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_unparseable_pr_url_does_not_crash(self, tmp_path: Path) -> None:
+        """PR URL that cannot be parsed for a number does not crash."""
+
+        class BadURLForge(_FakeForge):
+            """Forge that returns a non-numeric PR URL."""
+
+            async def create_pr(
+                self,
+                *,
+                title: str = '',
+                body: str = '',
+                head: str = '',
+                base: str = 'main',
+                dry_run: bool = False,
+            ) -> CommandResult:
+                """Return a URL with no numeric PR number."""
+                return CommandResult(
+                    command=[],
+                    return_code=0,
+                    stdout='https://github.com/test/pull/not-a-number',
+                    stderr='',
+                )
+
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        result = asyncio.run(
+            prepare_release(
+                vcs=_FakeVCS(),
+                pm=_FakePM(),
+                forge=BadURLForge(existing_prs=[]),
+                registry=_FakeRegistry(),
+                config=config,
+                ws_config=ws_config,
+                workspace_root=self._make_workspace(tmp_path),
+                dry_run=False,
+                force=True,
+            ),
+        )
+
+        assert result.ok
+        assert result.pr_url
+
+
+class TestPreparePackageNotFound:
+    """Tests for bumped package not found in workspace."""
+
+    def _make_workspace(self, tmp_path: Path) -> Path:
+        """Create a minimal workspace with one package."""
+        ws = tmp_path / 'workspace'
+        ws.mkdir()
+        pkg_dir = ws / 'packages' / 'genkit'
+        pkg_dir.mkdir(parents=True)
+        pyproject = pkg_dir / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "genkit"\nversion = "0.1.0"\ndependencies = []\n',
+            encoding='utf-8',
+        )
+        root_pyproject = ws / 'pyproject.toml'
+        root_pyproject.write_text(
+            '[project]\nname = "workspace"\nversion = "0.0.0"\n\n[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            encoding='utf-8',
+        )
+        return ws
+
+    def test_bumped_package_not_in_workspace(self, tmp_path: Path) -> None:
+        """Bumped package missing from workspace records an error."""
+        from unittest.mock import AsyncMock, patch
+
+        vcs = _FakeVCS()
+        config = ReleaseConfig()
+        ws_config = WorkspaceConfig()
+
+        # Return a bump for a package that doesn't exist in the workspace.
+        mock_bumps = AsyncMock(
+            return_value=[
+                PackageVersion(
+                    name='nonexistent-pkg',
+                    old_version='0.1.0',
+                    new_version='0.2.0',
+                    bump='minor',
+                ),
+            ]
+        )
+
+        with patch('releasekit.prepare.compute_bumps', mock_bumps):
+            result = asyncio.run(
+                prepare_release(
+                    vcs=vcs,
+                    pm=_FakePM(),
+                    forge=None,
+                    registry=_FakeRegistry(),
+                    config=config,
+                    ws_config=ws_config,
+                    workspace_root=self._make_workspace(tmp_path),
+                    dry_run=False,
+                    force=True,
+                ),
+            )
+
+        assert 'bump:nonexistent-pkg' in result.errors

@@ -149,6 +149,7 @@ VALID_WORKSPACE_KEYS: frozenset[str] = frozenset({
     'propagate_bumps',
     'provenance',
     'publish_branch',
+    'registry_url',
     'root',
     'secondary_tag_format',
     'smoke_test',
@@ -160,20 +161,26 @@ VALID_WORKSPACE_KEYS: frozenset[str] = frozenset({
 
 # Allowed ecosystem values for the ``ecosystem`` field.
 ALLOWED_ECOSYSTEMS: frozenset[str] = frozenset({
+    'clojure',
     'dart',
     'go',
+    'java',
     'js',
     'jvm',
+    'kotlin',
     'python',
     'rust',
 })
 
 # Default tool for each ecosystem (used when ``tool`` is not specified).
 DEFAULT_TOOLS: dict[str, str] = {
+    'clojure': 'lein',
     'dart': 'pub',
     'go': 'go',
+    'java': 'gradle',
     'js': 'pnpm',
     'jvm': 'gradle',
+    'kotlin': 'gradle',
     'python': 'uv',
     'rust': 'cargo',
 }
@@ -195,7 +202,8 @@ class WorkspaceConfig:
     Attributes:
         label: User-chosen workspace name from the TOML section key.
         ecosystem: Ecosystem identifier (``"python"``, ``"js"``,
-            ``"go"``, ``"rust"``, ``"java"``, ``"dart"``).
+            ``"go"``, ``"rust"``, ``"java"``, ``"kotlin"``,
+            ``"clojure"``, ``"dart"``).
         tool: Build/package-manager tool (``"uv"``, ``"pnpm"``,
             ``"cargo"``, ``"bazel"``, etc.). Defaults per ecosystem.
         root: Relative path from the monorepo root to the workspace
@@ -232,6 +240,10 @@ class WorkspaceConfig:
         publish_branch: Allow publishing from a non-default branch.
             Maps to ``pnpm publish --publish-branch``. ``None`` means
             use the default (``main``/``master``). Ignored for Python.
+        registry_url: Custom registry URL for publishing and polling.
+            Use this to point at a test/staging registry (e.g.
+            ``https://test.pypi.org`` for Python, ``https://staging-crates.io``
+            for Rust). When empty, the production registry is used.
         provenance: Generate npm provenance attestation via
             ``pnpm publish --provenance``. Ignored for Python.
     """
@@ -264,6 +276,7 @@ class WorkspaceConfig:
     auto_merge: bool = False
     dist_tag: str = ''
     publish_branch: str = ''
+    registry_url: str = ''
     provenance: bool = False
 
 
@@ -413,6 +426,7 @@ def _validate_groups(groups: dict[str, Any]) -> dict[str, list[str]]:  # noqa: A
                 raise ReleaseKitError(
                     code=E.CONFIG_INVALID_VALUE,
                     message=f"Group '{group_name}' patterns must be strings, got {type(pattern).__name__}",
+                    hint=f'Each pattern in groups.{group_name} must be a quoted string.',
                 )
         result[group_name] = list(patterns)
     return result
@@ -515,6 +529,7 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
         raise ReleaseKitError(
             code=E.CONFIG_NOT_FOUND,
             message=f'Failed to read {config_path}: {exc}',
+            hint=f'Check that {config_path} exists and is readable.',
         ) from exc
 
     try:
@@ -523,6 +538,7 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
         raise ReleaseKitError(
             code=E.CONFIG_NOT_FOUND,
             message=f'Failed to parse {config_path}: {exc}',
+            hint=f'Check that {config_path} contains valid TOML.',
         ) from exc
 
     raw: dict[str, Any] = dict(doc)  # noqa: ANN401
@@ -568,6 +584,7 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
             raise ReleaseKitError(
                 code=E.CONFIG_INVALID_VALUE,
                 message=f'[workspace.{ws_label}] must be a table, got {type(section).__name__}',
+                hint=f'Define [workspace.{ws_label}] as a TOML table with key-value pairs.',
             )
         workspaces[ws_label] = _parse_workspace_section(ws_label, dict(section))
 

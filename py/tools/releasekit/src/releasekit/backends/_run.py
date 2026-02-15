@@ -63,25 +63,25 @@ class CommandResult:
 
     Attributes:
         command: The command that was executed (as a list of strings).
-        returncode: Process exit code (0 = success).
+        return_code: Process exit code (0 = success).
         stdout: Captured standard output.
         stderr: Captured standard error.
-        duration_ms: Wall-clock duration in milliseconds.
+        duration: Wall-clock duration in milliseconds.
         dry_run: Whether this was a dry-run (command was not actually executed).
     """
 
     command: list[str]
-    returncode: int
+    return_code: int
     stdout: str = ''
     stderr: str = ''
-    duration_ms: float = 0.0
+    duration: float = 0.0
     dry_run: bool = False
     env_overrides: dict[str, str] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
-        """Whether the command succeeded (returncode == 0 or dry-run)."""
-        return self.returncode == 0
+        """Whether the command succeeded (return_code == 0 or dry-run)."""
+        return self.return_code == 0
 
     @property
     def command_str(self) -> str:
@@ -126,10 +126,10 @@ def run_command(
         log.info('dry_run', cmd=cmd_str)
         return CommandResult(
             command=cmd,
-            returncode=0,
+            return_code=0,
             stdout='',
             stderr='',
-            duration_ms=0.0,
+            duration=0.0,
             dry_run=True,
             env_overrides=env or {},
         )
@@ -149,17 +149,17 @@ def run_command(
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        duration_ms = (time.monotonic() - start) * 1000
-        log.error('command_timeout', cmd=cmd_str, timeout=timeout, duration_ms=duration_ms)
+        duration = (time.monotonic() - start) * 1000
+        log.error('command_timeout', cmd=cmd_str, timeout=timeout, duration=duration)
         raise
 
-    duration_ms = (time.monotonic() - start) * 1000
+    duration = (time.monotonic() - start) * 1000
     cmd_result = CommandResult(
         command=cmd,
-        returncode=result.returncode,
+        return_code=result.returncode,
         stdout=result.stdout if capture else '',
         stderr=result.stderr if capture else '',
-        duration_ms=duration_ms,
+        duration=duration,
         dry_run=False,
         env_overrides=env or {},
     )
@@ -168,9 +168,9 @@ def run_command(
         log.warning(
             'command_failed',
             cmd=cmd_str,
-            returncode=result.returncode,
+            return_code=result.returncode,
             stderr=result.stderr[:500] if capture else '',
-            duration_ms=duration_ms,
+            duration=duration,
         )
         if check:
             raise subprocess.CalledProcessError(
@@ -180,7 +180,7 @@ def run_command(
                 stderr=result.stderr,
             )
     else:
-        log.debug('command_ok', cmd=cmd_str, duration_ms=duration_ms)
+        log.debug('command_ok', cmd=cmd_str, duration=duration)
 
     return cmd_result
 

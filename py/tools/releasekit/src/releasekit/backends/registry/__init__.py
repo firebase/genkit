@@ -22,6 +22,10 @@ Implementations:
 
 - :class:`~releasekit.backends.registry.pypi.PyPIBackend` — PyPI JSON API
 - :class:`~releasekit.backends.registry.npm.NpmRegistry` — npm registry API
+- :class:`~releasekit.backends.registry.goproxy.GoProxyCheck` — Go module proxy
+- :class:`~releasekit.backends.registry.pubdev.PubDevRegistry` — pub.dev API
+- :class:`~releasekit.backends.registry.maven_central.MavenCentralRegistry` — Maven Central Search API
+- :class:`~releasekit.backends.registry.crates_io.CratesIoRegistry` — crates.io API
 
 Operations are async because they involve network I/O with potential
 latency and rate limiting.
@@ -32,12 +36,20 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from releasekit.backends.registry._types import ChecksumResult as ChecksumResult
+from releasekit.backends.registry.crates_io import CratesIoRegistry as CratesIoRegistry
+from releasekit.backends.registry.goproxy import GoProxyCheck as GoProxyCheck
+from releasekit.backends.registry.maven_central import MavenCentralRegistry as MavenCentralRegistry
 from releasekit.backends.registry.npm import NpmRegistry as NpmRegistry
+from releasekit.backends.registry.pubdev import PubDevRegistry as PubDevRegistry
 from releasekit.backends.registry.pypi import PyPIBackend as PyPIBackend
 
 __all__ = [
     'ChecksumResult',
+    'CratesIoRegistry',
+    'GoProxyCheck',
+    'MavenCentralRegistry',
     'NpmRegistry',
+    'PubDevRegistry',
     'PyPIBackend',
     'Registry',
 ]

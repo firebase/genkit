@@ -242,3 +242,59 @@ class TestRunState:
 
         with pytest.raises(ReleaseKitError):
             RunState.load(path)
+
+    def test_set_status_auto_creates_package(self) -> None:
+        """set_status creates a PackageState if the name doesn't exist yet."""
+        state = RunState(git_sha='abc')
+        state.set_status('new-pkg', PackageStatus.BUILDING)
+        assert 'new-pkg' in state.packages
+        assert state.packages['new-pkg'].status == PackageStatus.BUILDING
+
+    def test_load_nonexistent_file(self, tmp_path: Path) -> None:
+        """Loading a nonexistent file raises OSError."""
+        path = tmp_path / 'does_not_exist.json'
+        with pytest.raises(OSError, match='Failed to read'):
+            RunState.load(path)
+
+    def test_load_missing_git_sha(self, tmp_path: Path) -> None:
+        """Loading state without git_sha raises ReleaseKitError."""
+        path = tmp_path / 'state.json'
+        path.write_text(json.dumps({'packages': {}}), encoding='utf-8')
+        with pytest.raises(ReleaseKitError, match='missing required field'):
+            RunState.load(path)
+
+    def test_load_invalid_status_falls_back_to_pending(self, tmp_path: Path) -> None:
+        """Loading state with invalid status value falls back to PENDING."""
+        path = tmp_path / 'state.json'
+        data = {
+            'git_sha': 'abc',
+            'packages': {
+                'foo': {'name': 'foo', 'status': 'INVALID_STATUS', 'version': '1.0.0'},
+            },
+        }
+        path.write_text(json.dumps(data), encoding='utf-8')
+        loaded = RunState.load(path)
+        assert loaded.packages['foo'].status == PackageStatus.PENDING
+
+    def test_save_write_error_cleans_up_temp(self, tmp_path: Path) -> None:
+        """Save failure cleans up temp file and re-raises."""
+        import os
+
+        state = RunState(git_sha='abc')
+        state.init_package('x', version='1.0.0')
+
+        # Make directory read-only so mkstemp succeeds but os.replace fails.
+        save_dir = tmp_path / 'readonly'
+        save_dir.mkdir()
+        path = save_dir / 'state.json'
+
+        # Write initial state so the file exists.
+        state.save(path)
+
+        # Now make the directory read-only to prevent os.replace.
+        os.chmod(save_dir, 0o555)  # noqa: S103
+        try:
+            with pytest.raises(OSError):
+                state.save(path)
+        finally:
+            os.chmod(save_dir, 0o755)  # noqa: S103

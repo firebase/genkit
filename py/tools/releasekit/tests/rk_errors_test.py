@@ -174,3 +174,155 @@ class TestExplain:
         result = explain('RK-VERSION-INVALID')
         assert result is not None
         assert 'No detailed explanation' in result
+
+
+class TestRenderError:
+    """Tests for render_error function."""
+
+    def test_plain_text_with_hint(self) -> None:
+        """render_error writes plain text to a non-TTY stream."""
+        import io
+
+        from releasekit.errors import render_error
+
+        err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config found', hint='Run init')
+        buf = io.StringIO()
+        render_error(err, file=buf)
+        output = buf.getvalue()
+        assert 'error[RK-CONFIG-NOT-FOUND]' in output
+        assert 'No config found' in output
+        assert 'hint: Run init' in output
+
+    def test_plain_text_without_hint(self) -> None:
+        """render_error without hint omits the hint line."""
+        import io
+
+        from releasekit.errors import render_error
+
+        err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config found')
+        buf = io.StringIO()
+        render_error(err, file=buf)
+        output = buf.getvalue()
+        assert 'error[RK-CONFIG-NOT-FOUND]' in output
+        assert 'hint' not in output
+
+
+class TestRenderWarning:
+    """Tests for render_warning function."""
+
+    def test_plain_text_with_hint(self) -> None:
+        """render_warning writes plain text to a non-TTY stream."""
+        import io
+
+        from releasekit.errors import render_warning
+
+        warn = ReleaseKitWarning(
+            code=E.PREFLIGHT_SHALLOW_CLONE,
+            message='Shallow clone',
+            hint='fetch --unshallow',
+        )
+        buf = io.StringIO()
+        render_warning(warn, file=buf)
+        output = buf.getvalue()
+        assert 'warning[RK-PREFLIGHT-SHALLOW-CLONE]' in output
+        assert 'Shallow clone' in output
+        assert 'hint: fetch --unshallow' in output
+
+    def test_plain_text_without_hint(self) -> None:
+        """render_warning without hint omits the hint line."""
+        import io
+
+        from releasekit.errors import render_warning
+
+        warn = ReleaseKitWarning(
+            code=E.PREFLIGHT_SHALLOW_CLONE,
+            message='Shallow clone',
+        )
+        buf = io.StringIO()
+        render_warning(warn, file=buf)
+        output = buf.getvalue()
+        assert 'warning[RK-PREFLIGHT-SHALLOW-CLONE]' in output
+        assert 'hint' not in output
+
+
+class TestRenderErrorRich:
+    """Tests for render_error with Rich (TTY) output."""
+
+    def test_rich_tty_with_hint(self) -> None:
+        """render_error uses Rich when output is a TTY."""
+        import io
+        from unittest.mock import patch
+
+        from releasekit.errors import render_error
+
+        err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config', hint='Run init')
+        buf = io.StringIO()
+        buf.isatty = lambda: True  # type: ignore[assignment]
+
+        with patch('releasekit.errors._HAS_RICH', True):
+            render_error(err, file=buf)
+
+        output = buf.getvalue()
+        assert 'No config' in output
+
+    def test_rich_tty_without_hint(self) -> None:
+        """render_error Rich path without hint."""
+        import io
+        from unittest.mock import patch
+
+        from releasekit.errors import render_error
+
+        err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config')
+        buf = io.StringIO()
+        buf.isatty = lambda: True  # type: ignore[assignment]
+
+        with patch('releasekit.errors._HAS_RICH', True):
+            render_error(err, file=buf)
+
+        output = buf.getvalue()
+        assert 'No config' in output
+
+
+class TestRenderWarningRich:
+    """Tests for render_warning with Rich (TTY) output."""
+
+    def test_rich_tty_with_hint(self) -> None:
+        """render_warning uses Rich when output is a TTY."""
+        import io
+        from unittest.mock import patch
+
+        from releasekit.errors import render_warning
+
+        warn = ReleaseKitWarning(
+            code=E.PREFLIGHT_SHALLOW_CLONE,
+            message='Shallow clone',
+            hint='fetch --unshallow',
+        )
+        buf = io.StringIO()
+        buf.isatty = lambda: True  # type: ignore[assignment]
+
+        with patch('releasekit.errors._HAS_RICH', True):
+            render_warning(warn, file=buf)
+
+        output = buf.getvalue()
+        assert 'Shallow clone' in output
+
+    def test_rich_tty_without_hint(self) -> None:
+        """render_warning Rich path without hint."""
+        import io
+        from unittest.mock import patch
+
+        from releasekit.errors import render_warning
+
+        warn = ReleaseKitWarning(
+            code=E.PREFLIGHT_SHALLOW_CLONE,
+            message='Shallow clone',
+        )
+        buf = io.StringIO()
+        buf.isatty = lambda: True  # type: ignore[assignment]
+
+        with patch('releasekit.errors._HAS_RICH', True):
+            render_warning(warn, file=buf)
+
+        output = buf.getvalue()
+        assert 'Shallow clone' in output

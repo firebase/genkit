@@ -32,11 +32,11 @@ from releasekit.backends.forge.github import GitHubCLIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['gh'], returncode=0, stdout=stdout, **kw)
+    return CommandResult(command=['gh'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
-    return CommandResult(command=['gh'], returncode=1, stderr=stderr, **kw)
+    return CommandResult(command=['gh'], return_code=1, stderr=stderr, **kw)
 
 
 @pytest.fixture()
@@ -86,7 +86,7 @@ class TestCreateRelease:
             assert 'create' in args
             assert 'v1.0.0' in args
             assert '--title' in args
-            assert '--notes' in args
+            assert '--notes-file' in args
 
     @pytest.mark.asyncio()
     async def test_generate_notes(self, gh: GitHubCLIBackend) -> None:
@@ -185,7 +185,7 @@ class TestCreatePR:
             args = m.call_args[0]
             assert 'pr' in args
             assert 'create' in args
-            assert '--body' in args
+            assert '--body-file' in args
 
 
 class TestPRData:
@@ -272,7 +272,7 @@ class TestUpdatePR:
             await gh.update_pr(42, title='New title', body='New body')
             args = m.call_args[0]
             assert '--title' in args
-            assert '--body' in args
+            assert '--body-file' in args
 
 
 class TestMergePR:

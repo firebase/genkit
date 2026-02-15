@@ -22,6 +22,11 @@ rewriting versions. Implementations:
 
 - :class:`~releasekit.backends.workspace.uv.UvWorkspace` — ``pyproject.toml`` + ``[tool.uv]``
 - :class:`~releasekit.backends.workspace.pnpm.PnpmWorkspace` — ``pnpm-workspace.yaml`` + ``package.json``
+- :class:`~releasekit.backends.workspace.go.GoWorkspace` — ``go.work`` + ``go.mod``
+- :class:`~releasekit.backends.workspace.dart.DartWorkspace` — ``pubspec.yaml`` + ``melos.yaml``
+- :class:`~releasekit.backends.workspace.maven.MavenWorkspace` — ``pom.xml`` / ``settings.gradle``
+- :class:`~releasekit.backends.workspace.cargo.CargoWorkspace` — ``Cargo.toml`` + ``[workspace]``
+- :class:`~releasekit.backends.workspace.bazel.BazelWorkspace` — ``MODULE.bazel`` / ``WORKSPACE`` + ``BUILD``
 """
 
 from __future__ import annotations
@@ -30,10 +35,20 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from releasekit.backends.workspace._types import Package as Package
+from releasekit.backends.workspace.bazel import BazelWorkspace as BazelWorkspace
+from releasekit.backends.workspace.cargo import CargoWorkspace as CargoWorkspace
+from releasekit.backends.workspace.dart import DartWorkspace as DartWorkspace
+from releasekit.backends.workspace.go import GoWorkspace as GoWorkspace
+from releasekit.backends.workspace.maven import MavenWorkspace as MavenWorkspace
 from releasekit.backends.workspace.pnpm import PnpmWorkspace as PnpmWorkspace
 from releasekit.backends.workspace.uv import UvWorkspace as UvWorkspace
 
 __all__ = [
+    'BazelWorkspace',
+    'CargoWorkspace',
+    'DartWorkspace',
+    'GoWorkspace',
+    'MavenWorkspace',
     'Package',
     'PnpmWorkspace',
     'UvWorkspace',

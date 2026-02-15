@@ -342,6 +342,7 @@ async def _publish_one(
         raise ReleaseKitError(
             E.PUBLISH_FAILED,
             f'Unexpected error publishing {name}: {exc}',
+            hint='Check the build output and registry status. Re-run with --resume to retry.',
         ) from exc
 
 

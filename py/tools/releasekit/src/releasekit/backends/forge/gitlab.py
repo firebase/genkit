@@ -33,7 +33,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -149,7 +151,7 @@ class GitLabCLIBackend:
         log.warning('gitlab_promote_noop', tag=tag, hint='GitLab has no draft releases')
         return CommandResult(
             command=['glab', 'release', 'edit', tag, '(no-op)'],
-            returncode=0,
+            return_code=0,
             stdout='',
             stderr='',
             dry_run=dry_run,
@@ -204,10 +206,25 @@ class GitLabCLIBackend:
             base,
             '--remove-source-branch',
         ]
-        if body:
-            cmd_parts.extend(['--description', body])
-
         log.info('create_mr', title=title, head=head, base=base)
+        if body:
+            # Use a temp file to avoid shell argument size limits with large
+            # MR descriptions (e.g. 60+ package changelogs + embedded manifest).
+            body_file = ''
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.md',
+                    delete=False,
+                    encoding='utf-8',
+                ) as f:
+                    body_file = f.name
+                    f.write(body)
+                cmd_parts.extend(['--description', f'@{body_file}'])
+                return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
+            finally:
+                if body_file:
+                    os.unlink(body_file)  # noqa: PTH108
         return await asyncio.to_thread(self._glab, *cmd_parts, dry_run=dry_run)
 
     async def pr_data(self, pr_number: int) -> dict[str, Any]:
@@ -292,6 +309,7 @@ class GitLabCLIBackend:
                     'number': mr.get('iid', 0),
                     'title': mr.get('title', ''),
                     'state': mr.get('state', ''),
+                    'url': mr.get('web_url', ''),
                     'labels': mr.get('labels', []),
                     'headRefName': mr.get('source_branch', ''),
                     'mergeCommit': {'oid': mr.get('merge_commit_sha', '')},

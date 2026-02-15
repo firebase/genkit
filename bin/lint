@@ -25,63 +25,66 @@ PY_DIR="${TOP_DIR}/py"
 # shellcheck disable=SC2034
 JS_DIR="${TOP_DIR}/js"  # Reserved for future JS linting
 
+# ── Phase 1: Sequential (modifies files) ──────────────────────────────
+# ruff fix/format must complete before any read-only checks see the source.
 uv run --directory "${PY_DIR}" ruff check --fix --preview --unsafe-fixes .
 uv run --directory "${PY_DIR}" ruff format --preview .
 
-# Check lockfile is up to date
 echo "--- 🔒 Checking lockfile is up to date ---"
 uv lock --check --directory "${PY_DIR}"
 
-# Fast type checkers first (blocking)
-# Note: ty reads its config (environment.root) from py/pyproject.toml
-echo "--- 🔍 Running Ty Type Check ---"
-uv run --directory "${PY_DIR}" ty check .
+# ── Phase 2: Parallel read-only checks ────────────────────────────────
+# All checks below are read-only and independent. Run them concurrently
+# and collect results at the end.
 
-# Pyrefly checks the full workspace (config in pyproject.toml handles PEP 420 namespace packages)
-echo "--- 🔍 Running Pyrefly Type Check ---"
-uv run --directory "${PY_DIR}" pyrefly check .
+TMPDIR_LINT=$(mktemp -d)
+# shellcheck disable=SC2064
+trap "rm -rf '${TMPDIR_LINT}'" EXIT
 
-# Pyright runs on packages/ only (blocking)
-echo "--- 🔍 Running Pyright Type Check ---"
-uv run --directory "${PY_DIR}" pyright packages/
+declare -a PIDS=()
+declare -a NAMES=()
 
-"${PY_DIR}/bin/run_python_security_checks"
+# Helper: launch a check in the background, capturing output.
+run_check() {
+  local name="$1"; shift
+  local logfile="${TMPDIR_LINT}/${name}.log"
+  (
+    echo "--- ${name} ---"
+    "$@" 2>&1
+  ) > "${logfile}" 2>&1 &
+  PIDS+=($!)
+  NAMES+=("${name}")
+}
 
-# License checks
-echo "--- 📜 Running License Check ---"
-"${TOP_DIR}/bin/check_license"
+# Type checkers
+run_check "🔍 Ty Type Check"      uv run --directory "${PY_DIR}" ty check .
+run_check "🔍 Pyrefly Type Check"  uv run --directory "${PY_DIR}" pyrefly check .
+run_check "🔍 Pyright Type Check"  uv run --directory "${PY_DIR}" pyright packages/
 
-# Dependency license check
-echo "--- 📜 Running Dependency License Check ---"
-uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
+# Security
+run_check "🔒 Security Checks"     "${PY_DIR}/bin/run_python_security_checks"
 
-# Consistency checks (Python versions, plugin versions, naming, workspace completeness)
-echo "--- 🔍 Running Consistency Checks ---"
-"${PY_DIR}/bin/check_consistency"
+# License
+run_check "📜 License Check"       "${TOP_DIR}/bin/check_license"
+run_check "📜 Dep License Check"   uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
 
-# Releasekit workspace health checks (PyPI metadata, publish classifiers, changelog URLs, etc.)
-echo "--- 📦 Running Releasekit Checks ---"
-if ! uv run --directory "${TOP_DIR}/py/tools/releasekit" releasekit check 2>&1; then
-  echo "⚠️  releasekit check found issues (see above)"
-  exit 1
-fi
-echo "✅ All releasekit checks passed"
+# Consistency + releasekit
+run_check "🔍 Consistency Checks"  "${PY_DIR}/bin/check_consistency"
+run_check "📦 Releasekit Checks"   uv run --directory "${TOP_DIR}/py/tools/releasekit" releasekit check
 
-# Shell script linting
-echo "--- 🐚 Running Shell Script Lint (shellcheck) ---"
-if command -v shellcheck &> /dev/null; then
-  shell_errors=0
+# Shellcheck (inline — slightly more complex, but still read-only)
+_run_shellcheck() {
+  if ! command -v shellcheck &> /dev/null; then
+    echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"
+    return 0
+  fi
+  local shell_errors=0
+  local shell_scripts=()
 
-  # Collect all shell scripts to check:
-  #   1. bin/* and py/bin/* (scripts without extensions)
-  #   2. All *.sh files in py/samples/ (run.sh, deploy_*.sh, test_*.sh, etc.)
-  shell_scripts=()
-
-  # bin/ scripts (detect by file type since they have no extension).
   for script in "${TOP_DIR}"/bin/* "${PY_DIR}"/bin/*; do
     if [ -f "$script" ] && file "$script" | grep -qE "shell|bash|sh script" 2>/dev/null; then
+      local script_name
       script_name=$(basename "$script")
-      # Skip .py files and .venv directories.
       if [[ "$script_name" == *.py ]] || [[ "$script" == */.venv/* ]]; then
         continue
       fi
@@ -89,14 +92,11 @@ if command -v shellcheck &> /dev/null; then
     fi
   done
 
-  # py/samples/ shell scripts (find all .sh files recursively).
   while IFS= read -r -d '' script; do
     shell_scripts+=("$script")
   done < <(find "${PY_DIR}/samples" -not -path '*/.venv/*' -name '*.sh' -type f -print0 2>/dev/null)
 
   for script in "${shell_scripts[@]}"; do
-    # -x follows sourced files; -e SC1091 skips "not following" warnings
-    # for files like _common.sh that live in parent directories.
     if ! shellcheck -x -e SC1091 "$script" 2>&1; then
       shell_errors=$((shell_errors + 1))
     fi
@@ -104,12 +104,32 @@ if command -v shellcheck &> /dev/null; then
 
   if [ $shell_errors -gt 0 ]; then
     echo "⚠️  $shell_errors shell script(s) have shellcheck warnings"
-    exit 1
+    return 1
   else
     echo "✅ All ${#shell_scripts[@]} shell scripts pass shellcheck"
   fi
-else
-  echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"
+}
+run_check "🐚 Shellcheck"  _run_shellcheck
+
+# ── Collect results ───────────────────────────────────────────────────
+failures=0
+for i in "${!PIDS[@]}"; do
+  pid="${PIDS[$i]}"
+  name="${NAMES[$i]}"
+  if ! wait "${pid}"; then
+    echo ""
+    echo "❌ FAILED: ${name}"
+    cat "${TMPDIR_LINT}/${name}.log"
+    failures=$((failures + 1))
+  else
+    echo "✅ ${name}"
+  fi
+done
+
+if [ $failures -gt 0 ]; then
+  echo ""
+  echo "❌ ${failures} check(s) failed"
+  exit 1
 fi
 
 # Disabled because there are many lint errors.

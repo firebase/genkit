@@ -54,8 +54,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-import aiofiles
-
+from releasekit.backends.workspace._io import read_file as _read_file, write_file as _write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
@@ -86,30 +85,6 @@ def _normalize_name(name: str) -> str:
     return name.lower()
 
 
-async def _read_file(path: Path) -> str:
-    """Read a file asynchronously via aiofiles."""
-    try:
-        async with aiofiles.open(path, encoding='utf-8') as f:
-            return await f.read()
-    except OSError as exc:
-        raise ReleaseKitError(
-            code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to read {path}: {exc}',
-        ) from exc
-
-
-async def _write_file(path: Path, content: str) -> None:
-    """Write a file asynchronously via aiofiles."""
-    try:
-        async with aiofiles.open(path, mode='w', encoding='utf-8') as f:
-            await f.write(content)
-    except OSError as exc:
-        raise ReleaseKitError(
-            code=E.WORKSPACE_PARSE_ERROR,
-            message=f'Failed to write {path}: {exc}',
-        ) from exc
-
-
 def _parse_json(text: str, path: Path) -> dict[str, Any]:  # noqa: ANN401 - JSON dict values are inherently untyped
     """Parse JSON text, raising a ReleaseKitError on failure."""
     try:
@@ -118,11 +93,13 @@ def _parse_json(text: str, path: Path) -> dict[str, Any]:  # noqa: ANN401 - JSON
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
             message=f'Failed to parse {path}: {exc}',
+            hint=f'Check that {path} contains valid JSON.',
         ) from exc
     if not isinstance(data, dict):
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
             message=f'{path} is not a JSON object',
+            hint=f'Expected a JSON object (dict) at the top level of {path}.',
         )
     return data
 

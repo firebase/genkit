@@ -293,3 +293,125 @@ class TestEphemeralPin:
 
         if backup.exists():
             raise AssertionError('Backup should be cleaned up after exception')
+
+
+class TestPinDependenciesErrors:
+    """Tests for pin_dependencies error handling."""
+
+    def test_read_error(self, tmp_path: Path) -> None:
+        """Raises ReleaseKitError when file cannot be read."""
+        import pytest
+        from releasekit.errors import ReleaseKitError
+
+        nonexistent = tmp_path / 'nonexistent' / 'pyproject.toml'
+        with pytest.raises(ReleaseKitError, match='Cannot read'):
+            pin_dependencies(nonexistent, {'genkit': '0.5.0'})
+
+    def test_parse_error(self, tmp_path: Path) -> None:
+        """Raises ReleaseKitError when TOML is invalid."""
+        import pytest
+        from releasekit.errors import ReleaseKitError
+
+        pyproject = tmp_path / 'pyproject.toml'
+        pyproject.write_text('not valid toml {{{{', encoding='utf-8')
+        with pytest.raises(ReleaseKitError, match='Cannot parse'):
+            pin_dependencies(pyproject, {'genkit': '0.5.0'})
+
+    def test_malformed_dep_specifier_fallback(self, tmp_path: Path) -> None:
+        """Malformed dep specifier uses regex fallback for name extraction."""
+        pyproject = tmp_path / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "x"\nversion = "1.0.0"\ndependencies = [\n    "genkit [extra",\n]\n',
+            encoding='utf-8',
+        )
+        # Should not crash — fallback extracts "genkit " → "genkit"
+        pin_dependencies(pyproject, {'genkit': '0.5.0'})
+        content = pyproject.read_text(encoding='utf-8')
+        assert '0.5.0' in content
+
+    def test_optional_deps_non_list_skipped(self, tmp_path: Path) -> None:
+        """Non-list optional-dependencies values are skipped."""
+        pyproject = tmp_path / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "x"\nversion = "1.0.0"\n'
+            'dependencies = ["genkit"]\n'
+            '\n[project.optional-dependencies]\n'
+            'dev = ["genkit-plugin-test"]\n',
+            encoding='utf-8',
+        )
+        version_map = {'genkit': '0.5.0', 'genkit-plugin-test': '0.5.0'}
+        pin_dependencies(pyproject, version_map)
+        content = pyproject.read_text(encoding='utf-8')
+        assert 'genkit==0.5.0' in content
+        assert 'genkit-plugin-test==0.5.0' in content
+
+
+class TestPinDependenciesNonListOptional:
+    """Tests for non-list optional-dependencies values."""
+
+    def test_non_list_optional_deps_skipped(self, tmp_path: Path) -> None:
+        """Non-list value in optional-dependencies is silently skipped."""
+        pyproject = tmp_path / 'pyproject.toml'
+        # Manually craft TOML where optional-dependencies has a non-list value.
+        # tomlkit will parse inline tables as dicts, so we use a string value.
+        pyproject.write_text(
+            '[project]\n'
+            'name = "x"\n'
+            'version = "1.0.0"\n'
+            'dependencies = ["genkit"]\n'
+            '\n'
+            '[project.optional-dependencies]\n'
+            'dev = "not-a-list"\n',
+            encoding='utf-8',
+        )
+        version_map = {'genkit': '0.5.0'}
+        pin_dependencies(pyproject, version_map)
+        content = pyproject.read_text(encoding='utf-8')
+        assert 'genkit==0.5.0' in content
+
+    def test_write_error_raises(self, tmp_path: Path) -> None:
+        """Write error during pin raises ReleaseKitError."""
+        import os
+
+        import pytest
+        from releasekit.errors import ReleaseKitError
+
+        pyproject = tmp_path / 'pyproject.toml'
+        pyproject.write_text(
+            '[project]\nname = "x"\nversion = "1.0.0"\ndependencies = ["genkit"]\n',
+            encoding='utf-8',
+        )
+        # Make file read-only so write fails.
+        os.chmod(pyproject, 0o444)  # noqa: S103
+        try:
+            with pytest.raises(ReleaseKitError, match='Cannot write'):
+                pin_dependencies(pyproject, {'genkit': '0.5.0'})
+        finally:
+            os.chmod(pyproject, 0o644)  # noqa: S103
+
+
+class TestEphemeralPinErrors:
+    """Tests for ephemeral_pin error paths."""
+
+    def test_backup_creation_error(self, tmp_path: Path) -> None:
+        """Raises ReleaseKitError when backup cannot be created."""
+        import os
+
+        import pytest
+        from releasekit.errors import ReleaseKitError
+
+        # Create pyproject in a subdirectory, then make the dir read-only
+        # so the backup file cannot be created.
+        sub = tmp_path / 'readonly'
+        sub.mkdir()
+        pyproject = sub / 'pyproject.toml'
+        pyproject.write_text('[project]\nname = "x"\nversion = "1.0.0"\n', encoding='utf-8')
+
+        # Remove write permission from the directory.
+        os.chmod(sub, 0o555)  # noqa: S103
+        try:
+            with pytest.raises(ReleaseKitError, match='Cannot create backup'):
+                with ephemeral_pin(pyproject, {'genkit': '0.5.0'}):
+                    pass
+        finally:
+            os.chmod(sub, 0o755)  # noqa: S103

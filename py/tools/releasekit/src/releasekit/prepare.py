@@ -101,7 +101,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 
 from releasekit.backends.forge import Forge
@@ -116,6 +115,7 @@ from releasekit.graph import build_graph, topo_sort
 from releasekit.logging import get_logger
 from releasekit.preflight import run_preflight
 from releasekit.tags import format_tag
+from releasekit.utils.date import utc_iso, utc_today
 from releasekit.versioning import compute_bumps
 from releasekit.versions import PackageVersion, ReleaseManifest
 from releasekit.workspace import Package, discover_packages
@@ -302,10 +302,14 @@ async def prepare_release(
             await pm.lock(upgrade_package=ver.name)
 
     # 6. Generate changelogs.
-    today = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')
+    today = utc_today()
     pkg_paths = _package_paths(packages)
     for ver in bumped:
         since_tag = format_tag(ws_config.tag_format, name=ver.name, version=ver.old_version, label=ws_config.label)
+        # Fall back to bootstrap_sha (or None for full history) when the
+        # per-package tag doesn't exist yet — e.g. on the very first release.
+        if not await vcs.tag_exists(since_tag):
+            since_tag = ws_config.bootstrap_sha or None
         changelog = await generate_changelog(
             vcs=vcs,
             version=ver.new_version,
@@ -335,7 +339,7 @@ async def prepare_release(
         git_sha=git_sha,
         umbrella_tag=umbrella_tag,
         packages=versions,
-        created_at=datetime.now(tz=timezone.utc).isoformat(),
+        created_at=utc_iso(),
     )
     result.manifest = manifest
 

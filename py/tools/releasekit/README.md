@@ -3,9 +3,10 @@
 Release orchestration for polyglot monorepos — publish packages in
 topological order with dependency-triggered scheduling, ephemeral version
 pinning, retry with jitter, crash-safe file restoration, and post-publish
-checksum verification. Supports Python (uv), JavaScript (pnpm), and Go
-workspaces today, with Bazel, Rust (Cargo), Java (Maven/Gradle), and
-Dart (Pub) on the roadmap — all through protocol-based backends.
+checksum verification. Supports Python (uv), JavaScript (pnpm), Go,
+Dart (Pub), Java (Maven/Gradle), Kotlin (Gradle), Clojure (Leiningen/deps.edn),
+and Rust (Cargo) workspaces today, with Bazel on the roadmap — all
+through protocol-based backends.
 
 ## Why This Tool Exists
 
@@ -43,32 +44,37 @@ implementation plan.
 
 ## How Does releasekit Compare?
 
-| Feature | releasekit | release-please | semantic-release | changesets | nx release | knope | goreleaser |
-|---------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| 🏗️ Monorepo | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| 🌐 Polyglot (Py/JS/Go/Bazel/Rust/Java/Dart) | ✅ | ✅ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
-| 📝 Conventional Commits | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| 📦 Changeset files | 🔜 | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
-| 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| 🩺 Health checks (33) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
-| 🏷️ Pre-release | 🔜 | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 🧪 Dry-run | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| ⏪ Rollback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔮 Version preview | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| 📈 Graph visualization | ✅ 8 formats | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| 🐚 Shell completions | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| 🔍 Error explainer | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔄 Retry with backoff | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| ✍️ Signing / provenance | 🔜 | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
-| 📋 SBOM | ✅ CycloneDX+SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 📢 Announcements | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 📊 Plan profiling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔭 OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔄 Migrate from alternatives | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feature | releasekit | release-please | semantic-release | release-it | changesets | nx release | knope | goreleaser |
+|---------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| 🏗️ Monorepo | ✅ | ✅ | ❌ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
+| 🌐 Polyglot (Py/JS/Go/Bazel/Rust/Java/Dart) | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
+| 📝 Conventional Commits | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| 📦 Changeset files | 🔜 | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 🩺 Health checks (33) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ✅ GH/GL | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
+| 🏷️ Pre-release | 🔜 | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 🧪 Dry-run | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| ⏪ Rollback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔮 Version preview | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| 📈 Graph visualization | ✅ 8 formats | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| 🐚 Shell completions | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 🔍 Error explainer | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔄 Retry with backoff | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ✍️ Signing / provenance | ✅ Sigstore | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
+| 📋 SBOM | ✅ CycloneDX+SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📢 Announcements | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📊 Plan profiling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔭 OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔄 Migrate from alternatives | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔁 Continuous deploy mode | 🔜 | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| ⏰ Cadence / scheduled releases | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🪝 Lifecycle hooks | 🔜 | ❌ | ✅ plugins | ✅ | ❌ | ❌ | ❌ | ✅ |
+| 🌿 Branch → channel mapping | 🔜 | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 📅 CalVer support | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Legend:** ✅ = supported, ⚠️ = partial, ❌ = not supported, 🔜 = planned
 
@@ -120,7 +126,7 @@ uvx releasekit check
 | `rollback` | Delete a git tag (local + remote) and its GitHub release |
 | `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
 | `version` | Show the releasekit version |
-| `migrate` | Migrate from another release tool (release-please, semantic-release, changesets, etc.) |
+| `migrate` | Auto-detect existing tags and set `bootstrap_sha` for mid-stream adoption |
 | `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
 | `completion` | Generate shell completion scripts (bash/zsh/fish) |
 
@@ -193,36 +199,26 @@ Scaffolds `releasekit.toml` in the workspace root with auto-detected
 package groups (plugins, samples, core). Also adds `.releasekit-state/`
 to `.gitignore`.
 
-### Migrate from Other Tools
+### Migrate (Mid-Stream Adoption)
+
+When adopting releasekit on a repo that already has releases, the `migrate`
+command automates setting `bootstrap_sha` by scanning existing git tags:
 
 ```bash
-# Auto-detect and migrate from release-please
-releasekit migrate --from release-please
+# Preview what would be written
+releasekit migrate --dry-run
 
-# Migrate from semantic-release
-releasekit migrate --from semantic-release --dry-run
-
-# Migrate from changesets
-releasekit migrate --from changesets
-
-# Migrate from a custom shell-script release process
-releasekit migrate --from scripts --scan-dir scripts/
+# Write bootstrap_sha to releasekit.toml
+releasekit migrate
 ```
 
-The `migrate` command uses a `MigrationSource` protocol to read configuration
-and state from each alternative tool:
-
-| Source | What it reads | What it generates |
-|--------|---------------|-------------------|
-| `release-please` | `.release-please-manifest.json`, `release-please-config.json` | `releasekit.toml` with groups, tag format, changelog settings |
-| `semantic-release` | `.releaserc`, `package.json[release]` | `releasekit.toml` with branch config, plugin equivalents |
-| `python-semantic-release` | `pyproject.toml[tool.semantic_release]` | `releasekit.toml` with version variables, commit parsing |
-| `changesets` | `.changeset/config.json` | `releasekit.toml` with linked/fixed packages, changelog |
-| `scripts` | Shell scripts with `npm version`, `pnpm publish` | `releasekit.toml` with discovered package list, publish order |
-
-Each `MigrationSource` implementation converts the alternative tool's config into
-releasekit's native format, preserving tag history and version state so
-there's no gap in the release timeline.
+The command:
+1. Scans all git tags in the repo.
+2. Classifies each tag against workspace `tag_format`, `umbrella_tag`,
+   and `secondary_tag_format` patterns.
+3. Picks the latest semver tag per workspace.
+4. Resolves the commit SHA the tag points to.
+5. Writes `bootstrap_sha` into `releasekit.toml` (comment-preserving).
 
 ### Rollback
 
@@ -300,9 +296,36 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `license_classifier_mismatch` — license classifiers match LICENSE file
 - `unreachable_extras` — optional-dependencies reference valid packages
 - `self_dependencies` — no package lists itself in dependencies
+- `distro_deps` — distro packaging dep sync
 
 The `CheckBackend` protocol allows adding language-specific checks
-for other runtimes (Go, JS) without modifying the core check runner.
+for other runtimes (Go, JS, Rust, Java, Dart) without modifying the
+core check runner.
+
+#### Source-Level Diagnostics
+
+Health checks produce **source-level context** via `SourceContext`
+objects that point to the exact file and line causing a warning or
+failure. The CLI renders these as Rust-compiler-style diagnostics
+with source excerpts:
+
+```text
+  ⚠️  warning[build_system]: Missing [build-system] section
+   --> py/plugins/foo/pyproject.toml:1
+    |
+  1 | [project]
+  2 | name = "foo"
+    | ^^^ build-backend missing
+  3 | version = "1.0"
+    |
+  = hint: Add [build-system] with build-backend = "hatchling.build".
+```
+
+Helpers for check authors:
+
+- `SourceContext(path, line, key, label)` — frozen dataclass for file locations
+- `find_key_line(content, key, section=)` — find 1-based line of a TOML key
+- `read_source_snippet(path, line, context_lines=)` — read lines around a location
 
 ### Auto-Fixers
 
@@ -351,6 +374,24 @@ Checks are split into **universal** (always run) and **ecosystem-specific**
 The `ecosystem` parameter enables forward-compatible extensibility: future
 ecosystems (Node/npm, Rust/cargo, Go) can add their own checks (e.g.
 `npm audit`, `cargo audit`, `govulncheck`) without modifying universal logic.
+
+### Design Invariants
+
+Every command, backend, and orchestrator must uphold these invariants.
+Violations are treated as P0 bugs. Each invariant has a named key used
+in tests (`tests/rk_invariants_test.py`) and documentation (`GEMINI.md`).
+
+| Key | Invariant | One-liner |
+|-----|-----------|----------|
+| `INV-IDEMPOTENCY` | Idempotency | Re-running a command is always safe |
+| `INV-CRASH-SAFETY` | Crash Safety / Resume | Interrupted releases resume without re-publishing |
+| `INV-ATOMICITY` | Atomicity | Each publish fully succeeds or fully fails |
+| `INV-DETERMINISM` | Determinism | Same inputs always produce same outputs |
+| `INV-OBSERVABILITY` | Observability | Every action emits structured logs |
+| `INV-DRY-RUN` | Dry-Run Fidelity | `--dry-run` exercises real code paths |
+| `INV-GRACEFUL-DEGRADATION` | Graceful Degradation | Missing optional components degrade to no-ops |
+| `INV-TOPO-ORDER` | Topological Correctness | Packages publish in dependency order |
+| `INV-SUPPLY-CHAIN` | Supply Chain Integrity | Published artifacts are verified against checksums |
 
 ### Resume / State
 
@@ -488,8 +529,12 @@ releasekit
 │   │   ├── uv.py          UvBackend (default)
 │   │   └── pnpm.py        PnpmBackend
 │   ├── Workspace        package discovery
-│   │   ├── uv.py          UvWorkspaceBackend (default)
-│   │   └── pnpm.py        PnpmWorkspaceBackend
+│   │   ├── uv.py          UvWorkspace (Python, default)
+│   │   ├── pnpm.py        PnpmWorkspace (JS)
+│   │   ├── go.py          GoWorkspace (Go)
+│   │   ├── dart.py        DartWorkspace (Dart)
+│   │   ├── maven.py       MavenWorkspace (Java/Kotlin)
+│   │   └── cargo.py       CargoWorkspace (Rust)
 │   ├── Registry         package registry queries
 │   │   ├── pypi.py        PyPIBackend (default)
 │   │   └── npm.py         NpmRegistry
@@ -635,7 +680,7 @@ enables multi-ecosystem support:
 
 ## Testing
 
-The test suite has **1,274 tests** across 19k+ lines:
+The test suite has **1,739 tests** across 28k+ lines with 91%+ coverage:
 
 ```bash
 # Run all tests

@@ -94,68 +94,23 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
-import re
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import tomlkit
 import tomlkit.exceptions
-from packaging.requirements import InvalidRequirement, Requirement
 
+from releasekit.backends.workspace._types import Package
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
+from releasekit.utils.packaging import normalize_name as _normalize_name, parse_dep_name as _parse_dep_name
 
 logger = get_logger(__name__)
 
 
-@dataclass(frozen=True)
-class Package:
-    """A single package discovered in the workspace.
-
-    Attributes:
-        name: The package name (e.g. ``"genkit"``).
-        version: The version string (e.g. ``"0.5.0"``).
-        path: Absolute path to the package directory.
-        manifest_path: Absolute path to the package's manifest file
-            (``pyproject.toml`` for Python, ``package.json`` for JS,
-            ``Cargo.toml`` for Rust, etc.).
-        internal_deps: Names of workspace packages this package depends on.
-        external_deps: Names of external (registry) packages this package
-            depends on.
-        all_deps: All dependency specifiers as raw strings.
-        is_publishable: Whether this package should be published.
-            Packages marked private are excluded.
-    """
-
-    name: str
-    version: str
-    path: Path
-    manifest_path: Path
-    internal_deps: list[str] = field(default_factory=list)
-    external_deps: list[str] = field(default_factory=list)
-    all_deps: list[str] = field(default_factory=list)
-    is_publishable: bool = True
-
-
-def _parse_dep_name(dep_spec: str) -> str:
-    """Extract the normalized package name from a PEP 508 dependency specifier.
-
-    Uses the ``packaging`` library for robust parsing of all valid PEP 508
-    forms including extras, version specifiers, and environment markers.
-    Falls back to basic string splitting if parsing fails.
-    """
-    try:
-        return Requirement(dep_spec).name.lower()
-    except InvalidRequirement:
-        # Fallback for malformed specifiers: split at first specifier char.
-        name = re.split(r'[<>=!~,;\[]', dep_spec, maxsplit=1)[0].strip()
-        return name.lower()
-
-
-def _normalize_name(name: str) -> str:
-    """Normalize a package name per PEP 503 (lowercase, hyphens to hyphens)."""
-    return name.lower().replace('_', '-')
+# Re-exported from backends.workspace._types so all consumers can
+# ``from releasekit.workspace import Package``.
+__all__ = ['Package', 'discover_packages']
 
 
 def _is_publishable(classifiers: list[str]) -> bool:
@@ -234,6 +189,7 @@ def _parse_package(
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
             message=f'Failed to read {manifest_path}: {exc}',
+            hint=f'Check that {manifest_path} exists and is readable.',
         ) from exc
 
     try:
@@ -242,6 +198,7 @@ def _parse_package(
         raise ReleaseKitError(
             code=E.WORKSPACE_PARSE_ERROR,
             message=f'Failed to parse {manifest_path}: {exc}',
+            hint=f'Check that {manifest_path} contains valid TOML.',
         ) from exc
 
     project: dict[str, Any] = dict(doc.get('project', {}))  # noqa: ANN401
@@ -339,6 +296,63 @@ def _discover_js_packages(
     return asyncio.run(_run())
 
 
+def _discover_via_backend(
+    workspace_root: Path,
+    ecosystem: str,
+    *,
+    exclude_patterns: list[str] | None = None,
+) -> list[Package]:
+    """Discover packages using a workspace backend (Go, Dart, Java, Rust).
+
+    Creates the appropriate workspace backend and runs its async
+    ``discover()`` method synchronously.
+
+    Args:
+        workspace_root: Path to the workspace root.
+        ecosystem: One of ``"go"``, ``"dart"``, ``"java"``, ``"rust"``.
+        exclude_patterns: Glob patterns to exclude packages by name.
+
+    Returns:
+        List of discovered packages.
+    """
+    from releasekit.backends.workspace.cargo import CargoWorkspace
+    from releasekit.backends.workspace.dart import DartWorkspace
+    from releasekit.backends.workspace.go import GoWorkspace
+    from releasekit.backends.workspace.maven import MavenWorkspace
+
+    backend_map: dict[str, type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace]] = {
+        'go': GoWorkspace,
+        'dart': DartWorkspace,
+        'java': MavenWorkspace,
+        'rust': CargoWorkspace,
+    }
+    backend_cls = backend_map.get(ecosystem)
+    if backend_cls is None:
+        raise ReleaseKitError(
+            code=E.WORKSPACE_NOT_FOUND,
+            message=f'No workspace backend for ecosystem: {ecosystem}',
+            hint=f"Supported ecosystems: python, js, go, dart, java, kotlin, rust. Got '{ecosystem}'.",
+        )
+
+    ws = backend_cls(workspace_root)
+
+    async def _run() -> list[Package]:
+        return await ws.discover(exclude_patterns=exclude_patterns)
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            result: list[Package] = pool.submit(asyncio.run, _run()).result()  # type: ignore[arg-type]
+            return result
+    return asyncio.run(_run())
+
+
 def discover_packages(
     workspace_root: Path,
     *,
@@ -354,12 +368,18 @@ def discover_packages(
       root ``pyproject.toml``.
     - ``"js"``: reads ``pnpm-workspace.yaml`` and ``package.json``
       files via :class:`~releasekit.backends.workspace.pnpm.PnpmWorkspace`.
+    - ``"go"``: reads ``go.work`` and ``go.mod`` files via
+      :class:`~releasekit.backends.workspace.go.GoWorkspace`.
+    - ``"dart"``: reads ``pubspec.yaml`` and ``melos.yaml`` via
+      :class:`~releasekit.backends.workspace.dart.DartWorkspace`.
+    - ``"java"``: reads ``pom.xml`` or ``settings.gradle`` via
+      :class:`~releasekit.backends.workspace.maven.MavenWorkspace`.
 
     Args:
         workspace_root: Path to the workspace root directory.
         exclude_patterns: Additional glob patterns to exclude packages
             (on top of those in the workspace config).
-        ecosystem: Ecosystem identifier (``"python"`` or ``"js"``).
+        ecosystem: Ecosystem identifier.
 
     Returns:
         List of :class:`Package` objects, sorted by name.
@@ -369,6 +389,9 @@ def discover_packages(
     """
     if ecosystem == 'js':
         return _discover_js_packages(workspace_root, exclude_patterns=exclude_patterns)
+
+    if ecosystem in ('go', 'dart', 'java', 'rust'):
+        return _discover_via_backend(workspace_root, ecosystem, exclude_patterns=exclude_patterns)
 
     root_pyproject = workspace_root / 'pyproject.toml'
     if not root_pyproject.is_file():
@@ -384,6 +407,7 @@ def discover_packages(
         raise ReleaseKitError(
             code=E.WORKSPACE_NOT_FOUND,
             message=f'Failed to read {root_pyproject}: {exc}',
+            hint=f'Check that {root_pyproject} exists and is readable.',
         ) from exc
 
     try:
@@ -392,6 +416,7 @@ def discover_packages(
         raise ReleaseKitError(
             code=E.WORKSPACE_NOT_FOUND,
             message=f'Failed to parse {root_pyproject}: {exc}',
+            hint=f'Check that {root_pyproject} contains valid TOML.',
         ) from exc
 
     uv_section = doc.get('tool', {}).get('uv', {})

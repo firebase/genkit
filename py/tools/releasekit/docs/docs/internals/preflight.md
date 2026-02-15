@@ -135,17 +135,71 @@ validation:
 | Namespace `__init__.py` | ✅ | — | — |
 | OSS files (README, LICENSE) | ✅ | ✅ | ✅ |
 
+## Source-Level Diagnostics
+
+Health checks can attach **source-level context** to warnings and
+failures via `SourceContext` objects. The CLI renders these as
+Rust-compiler-style diagnostics with file paths, line numbers, and
+source excerpts.
+
+### SourceContext
+
+```python
+@dataclass(frozen=True)
+class SourceContext:
+    path: str       # File path (absolute or relative)
+    line: int = 0   # 1-based line number (0 = unknown)
+    key: str = ''   # TOML key or search term matched
+    label: str = '' # Short annotation (e.g. "missing here")
+```
+
+### Helpers
+
+| Helper | Purpose |
+|--------|---------|
+| `find_key_line(content, key, section=)` | Find 1-based line of a TOML key or `[section]` header |
+| `read_source_snippet(path, line, context_lines=2)` | Read lines around a location for display |
+
+### Example
+
+```python
+from releasekit.preflight import SourceContext, find_key_line
+
+content = pkg.manifest_path.read_text(encoding='utf-8')
+line = find_key_line(content, 'build-backend', section='build-system')
+result.add_failure(
+    'build_system',
+    'Missing build-backend',
+    hint='Add build-backend = "hatchling.build" to [build-system].',
+    context=[SourceContext(
+        path=str(pkg.manifest_path),
+        line=line,
+        key='build-backend',
+        label='build-backend missing',
+    )],
+)
+```
+
 ## Result Types
 
 ```python
 class PreflightResult:
-    passed: list[str]     # Checks that passed
-    warnings: list[str]   # Non-blocking warnings
-    failed: list[str]     # Blocking failures
+    passed: list[str]                                  # Checks that passed
+    warnings: list[str]                                # Non-blocking warnings
+    failed: list[str]                                  # Blocking failures
+    errors: dict[str, str]                             # Failed check → message
+    warning_messages: dict[str, str]                   # Warning check → message
+    hints: dict[str, str]                              # Check → actionable hint
+    context: dict[str, Sequence[str | SourceContext]]   # Check → file locations
 
     def ok(self) -> bool:
         return len(self.failed) == 0
 ```
+
+The `context` parameter on `add_warning()` and `add_failure()` accepts
+`Sequence[str | SourceContext]` — callers can pass plain `list[str]`
+(file paths only) or `list[SourceContext]` (with line numbers) without
+type errors.
 
 **Warnings** are displayed but don't block publishing.
 **Failures** abort the release with a non-zero exit code.

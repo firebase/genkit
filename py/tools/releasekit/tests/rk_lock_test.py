@@ -143,3 +143,139 @@ class TestReleaseLockContextManager:
 
         if lock_path and lock_path.exists():
             raise AssertionError('Lock not released after exception')
+
+
+class TestCorruptLockFile:
+    """Tests for corrupt lock file handling."""
+
+    def test_corrupt_json(self, tmp_path: Path) -> None:
+        """Corrupt JSON in lock file is treated as no lock."""
+        lock_path = tmp_path / LOCK_FILENAME
+        lock_path.write_text('not json at all {{{', encoding='utf-8')
+
+        # Should succeed — corrupt lock is ignored.
+        new_lock = acquire_lock(tmp_path)
+        try:
+            assert new_lock.exists()
+        finally:
+            release_lock_file(new_lock)
+
+    def test_missing_fields(self, tmp_path: Path) -> None:
+        """Lock file with missing required fields is treated as corrupt."""
+        lock_path = tmp_path / LOCK_FILENAME
+        lock_path.write_text('{"hostname": "h"}', encoding='utf-8')  # missing pid, timestamp
+
+        new_lock = acquire_lock(tmp_path)
+        try:
+            assert new_lock.exists()
+        finally:
+            release_lock_file(new_lock)
+
+
+class TestReleaseLockOwnership:
+    """Tests for lock ownership checks."""
+
+    def test_release_owned_by_other_process(self, tmp_path: Path) -> None:
+        """Releasing a lock owned by another PID is a no-op."""
+        import os
+
+        lock_path = tmp_path / LOCK_FILENAME
+        other_lock = {
+            'pid': os.getpid() + 99999,
+            'hostname': 'localhost',
+            'timestamp': 9999999999.0,
+            'user': 'other',
+        }
+        lock_path.write_text(json.dumps(other_lock), encoding='utf-8')
+
+        release_lock_file(lock_path)
+        # Lock should NOT be removed (owned by another process).
+        assert lock_path.exists()
+
+    def test_stale_lock_same_host_dead_pid(self, tmp_path: Path) -> None:
+        """Lock from a dead process on the same host is stale."""
+        import socket
+
+        lock_path = tmp_path / LOCK_FILENAME
+        stale_lock = {
+            'pid': 99999999,  # Almost certainly not running.
+            'hostname': socket.gethostname(),
+            'timestamp': 9999999999.0,  # Not old by timestamp, but dead PID.
+            'user': 'ghost',
+        }
+        lock_path.write_text(json.dumps(stale_lock), encoding='utf-8')
+
+        # Should succeed because the process is dead on the same host.
+        new_lock = acquire_lock(tmp_path)
+        try:
+            assert new_lock.exists()
+        finally:
+            release_lock_file(new_lock)
+
+
+class TestAtexitCleanup:
+    """Tests for _atexit_cleanup."""
+
+    def test_atexit_cleanup_same_pid(self, tmp_path: Path) -> None:
+        """Atexit cleanup removes lock when PID matches."""
+        import os
+
+        from releasekit.lock import _atexit_cleanup
+
+        lock_path = tmp_path / LOCK_FILENAME
+        lock_path.write_text('{}', encoding='utf-8')
+
+        _atexit_cleanup(lock_path, os.getpid())
+        assert not lock_path.exists()
+
+    def test_atexit_cleanup_different_pid(self, tmp_path: Path) -> None:
+        """Atexit cleanup does NOT remove lock when PID differs (fork safety)."""
+        import os
+
+        from releasekit.lock import _atexit_cleanup
+
+        lock_path = tmp_path / LOCK_FILENAME
+        lock_path.write_text('{}', encoding='utf-8')
+
+        _atexit_cleanup(lock_path, os.getpid() + 99999)
+        assert lock_path.exists()  # Not removed — different PID.
+
+
+class TestIsPidAlive:
+    """Tests for _is_pid_alive edge cases."""
+
+    def test_permission_error_means_alive(self) -> None:
+        """PermissionError when signalling a process means it exists."""
+        from unittest.mock import patch
+
+        from releasekit.lock import _is_process_alive
+
+        with patch('os.kill', side_effect=PermissionError):
+            assert _is_process_alive(1) is True
+
+    def test_process_lookup_error_means_dead(self) -> None:
+        """ProcessLookupError means process does not exist."""
+        from releasekit.lock import _is_process_alive
+
+        # Use a PID that almost certainly doesn't exist.
+        assert _is_process_alive(2**30) is False
+
+
+class TestAcquireLockWriteError:
+    """Tests for lock file write error path."""
+
+    def test_write_error_raises(self, tmp_path: Path) -> None:
+        """OSError writing lock file raises ReleaseKitError."""
+        import os
+
+        from releasekit.errors import ReleaseKitError
+        from releasekit.lock import acquire_lock
+
+        lock_dir = tmp_path / 'readonly'
+        lock_dir.mkdir()
+        os.chmod(lock_dir, 0o555)  # noqa: S103
+        try:
+            with pytest.raises(ReleaseKitError, match='Failed to write lock'):
+                acquire_lock(lock_dir)
+        finally:
+            os.chmod(lock_dir, 0o755)  # noqa: S103

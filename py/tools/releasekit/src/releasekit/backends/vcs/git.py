@@ -166,8 +166,8 @@ class GitCLIBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Create a commit, staging specified paths first."""
-        if paths and not dry_run:
-            await asyncio.to_thread(self._git, 'add', *paths)
+        if paths:
+            await asyncio.to_thread(self._git, 'add', *paths, dry_run=dry_run)
         else:
             await asyncio.to_thread(self._git, 'add', '-A', dry_run=dry_run)
 
@@ -209,13 +209,15 @@ class GitCLIBackend:
         """Delete a tag locally and optionally on the remote."""
         result = await asyncio.to_thread(self._git, 'tag', '-d', tag_name, dry_run=dry_run)
         if remote and result.ok:
-            await asyncio.to_thread(
+            remote_result = await asyncio.to_thread(
                 self._git,
                 'push',
                 'origin',
                 f':refs/tags/{tag_name}',
                 dry_run=dry_run,
             )
+            if not remote_result.ok:
+                return remote_result
         return result
 
     async def push(
@@ -227,13 +229,25 @@ class GitCLIBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags."""
-        cmd_parts = ['push', remote]
-        if set_upstream:
+        cmd_parts = ['push']
+        # --set-upstream is only meaningful for branch pushes, not tag-only pushes.
+        branch_refspec: str = ''
+        if set_upstream and not tags:
             cmd_parts.append('--set-upstream')
+            # --set-upstream requires an explicit refspec (branch name).
+            branch_refspec = await self.current_branch()
+        cmd_parts.append(remote)
+        if branch_refspec:
+            cmd_parts.append(branch_refspec)
         if tags:
             cmd_parts.append('--tags')
         log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)
         return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
+
+    async def tag_commit_sha(self, tag_name: str) -> str:
+        """Return the commit SHA that a tag points to."""
+        result = await asyncio.to_thread(self._git, 'rev-list', '-1', tag_name)
+        return result.stdout.strip() if result.ok else ''
 
     async def list_tags(self, *, pattern: str = '') -> list[str]:
         """Return all tags, optionally filtered by a glob pattern."""

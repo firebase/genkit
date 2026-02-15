@@ -208,3 +208,120 @@ releasekit plan --format json
 # Dry-run publish (no uploads)
 releasekit publish --dry-run
 ```
+
+## Scheduled / Cadence Releases *(planned)*
+
+ReleaseKit will support scheduled releases via the `should-release`
+command and `[schedule]` config. This enables daily, weekly, or
+custom-cadence releases driven by CI cron triggers.
+
+### Daily Release (GitHub Actions)
+
+```yaml
+name: Daily Release
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 2 PM UTC daily
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if release needed
+        id: check
+        run: |
+          uv run releasekit should-release || echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - uses: ./py/tools/releasekit
+        if: steps.check.outputs.skip != 'true'
+        with:
+          command: prepare
+          working-directory: py
+```
+
+### Configuration
+
+```toml
+# releasekit.toml — scheduled release settings (planned)
+[schedule]
+cadence          = "daily"          # daily | weekly:monday | biweekly | on-push
+release_window   = "14:00-16:00"   # UTC time range
+cooldown_minutes = 60               # min time between releases
+min_bump         = "patch"          # skip if only chore/docs commits
+```
+
+## Continuous Deploy Mode *(planned)*
+
+For projects that want a release on every push to `main` (like
+semantic-release's default behavior), ReleaseKit will support a
+`release_mode = "continuous"` config that skips PR creation and
+goes directly to tag + publish.
+
+### Per-Commit Release (GitHub Actions)
+
+```yaml
+name: Continuous Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./py/tools/releasekit
+        with:
+          command: publish
+          extra-args: "--if-needed"
+          working-directory: py
+```
+
+### Configuration
+
+```toml
+# releasekit.toml — continuous deploy settings (planned)
+release_mode = "continuous"   # skip PR, tag + publish directly
+```
+
+## Lifecycle Hooks *(planned)*
+
+ReleaseKit will support lifecycle hooks that run custom scripts at
+key points in the release pipeline. Unlike semantic-release's plugin
+system, hooks are simple shell commands configured in TOML — no
+JavaScript plugins required.
+
+### Configuration
+
+```toml
+# releasekit.toml — lifecycle hooks (planned)
+[hooks]
+before_prepare = ["./scripts/pre-release-checks.sh"]
+after_tag      = ["./scripts/notify-slack.sh ${version}"]
+before_publish = ["./scripts/build-docs.sh"]
+after_publish  = [
+  "./scripts/update-homebrew-formula.sh ${version}",
+  "./scripts/announce-release.sh ${name} ${version}",
+]
+```
+
+Template variables available in hooks:
+
+| Variable | Description |
+|----------|-------------|
+| `${version}` | The new version being released |
+| `${name}` | Package name |
+| `${tag}` | Git tag (e.g. `genkit-v0.6.0`) |

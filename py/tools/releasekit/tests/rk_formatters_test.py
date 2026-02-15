@@ -219,6 +219,18 @@ class TestMermaidFormat:
         if 'title: Dependencies' not in output:
             raise AssertionError('Missing title')
 
+    def test_no_version_package(self) -> None:
+        """Package not in pkg_map renders without version."""
+        orphan = Package(
+            name='orphan',
+            version='',
+            path=Path('/p/orphan'),
+            manifest_path=Path('/p/orphan/pyproject.toml'),
+        )
+        graph = build_graph([orphan])
+        output = format_mermaid(graph, [])
+        assert 'orphan["orphan"]' in output
+
 
 # ── D2 format ───────────────────────────────────────────────────────
 
@@ -254,6 +266,30 @@ class TestD2Format:
 
         if 'direction: right' not in output:
             raise AssertionError('Missing direction: right')
+
+    def test_with_title(self) -> None:
+        """D2 output includes title block when provided."""
+        pkgs = _make_packages()
+        graph = _make_graph(pkgs)
+        output = format_d2(graph, pkgs, title='My Graph')
+
+        assert 'title: My Graph {' in output
+        assert 'shape: text' in output
+        assert 'near: top-center' in output
+
+    def test_no_version_package(self) -> None:
+        """Package not in pkg_map renders without version."""
+        # Create a graph with a package that has an empty version.
+        orphan = Package(
+            name='orphan',
+            version='',
+            path=Path('/p/orphan'),
+            manifest_path=Path('/p/orphan/pyproject.toml'),
+        )
+        graph = build_graph([orphan])
+        # Pass empty pkg list so pkg_map won't find 'orphan'.
+        output = format_d2(graph, [])
+        assert 'orphan: "orphan" {' in output
 
 
 # ── ASCII art format ────────────────────────────────────────────────
@@ -294,6 +330,20 @@ class TestAsciiFormat:
 
         if '→' not in output:
             raise AssertionError('Missing dependency arrow')
+
+    def test_no_version_package(self) -> None:
+        """Package with empty version renders without version."""
+        orphan = Package(
+            name='orphan',
+            version='',
+            path=Path('/p/orphan'),
+            manifest_path=Path('/p/orphan/pyproject.toml'),
+        )
+        graph = build_graph([orphan])
+        output = format_ascii(graph, [orphan])
+        assert 'orphan' in output
+        # Should NOT have parenthesized version.
+        assert '()' not in output
 
 
 # ── JSON format ─────────────────────────────────────────────────────

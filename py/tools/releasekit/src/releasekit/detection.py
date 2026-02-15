@@ -29,7 +29,17 @@ Detection Signals::
     ├──────────────┼─────────────────────────────────┼───────────────┤
     │  js/pnpm     │  pnpm-workspace.yaml            │  PnpmWorkspace│
     ├──────────────┼─────────────────────────────────┼───────────────┤
-    │  go          │  go.work                        │  (future)     │
+    │  go          │  go.work                        │  GoWorkspace  │
+    ├──────────────┼─────────────────────────────────┼───────────────┤
+    │  dart        │  pubspec.yaml + melos.yaml      │  DartWorkspace│
+    ├──────────────┼─────────────────────────────────┼───────────────┤
+    │  java        │  pom.xml / settings.gradle       │ MavenWorkspace│
+    ├──────────────┼─────────────────────────────────┼───────────────┤
+    │  kotlin      │  build.gradle.kts (Kotlin DSL)  │ MavenWorkspace│
+    ├──────────────┼─────────────────────────────────┼───────────────┤
+    │  clojure     │  project.clj / deps.edn         │ (None)        │
+    ├──────────────┼─────────────────────────────────┼───────────────┤
+    │  rust        │  Cargo.toml with [workspace]    │ CargoWorkspace│
     └──────────────┴─────────────────────────────────┴───────────────┘
 
 Discovery Strategy::
@@ -38,6 +48,11 @@ Discovery Strategy::
     2. Scan the monorepo root for ecosystem markers at depth 0 and 1.
     3. Return a list of detected ecosystems with workspace instances.
 
+Detection is **directory-name-agnostic**: any directory containing the
+right marker file is detected, regardless of its name. The example
+below uses conventional names, but ``python/``, ``typescript/``,
+``golang/``, ``flutter/``, ``jvm/``, ``rs/``, etc. all work equally::
+
     monorepo/
     ├── .git/                     ← monorepo root
     ├── releasekit.toml           ← root config
@@ -45,12 +60,23 @@ Discovery Strategy::
     │   └── pyproject.toml        ← [tool.uv.workspace] → python
     ├── js/
     │   └── pnpm-workspace.yaml   ← pnpm workspace → js
-    └── go/
-        └── go.work               ← go workspace → go (future)
+    ├── go/
+    │   └── go.work               ← go workspace → go
+    ├── dart/
+    │   └── pubspec.yaml          ← dart workspace → dart
+    ├── java/                     ← tests may live in javatest/
+    │   └── pom.xml               ← maven workspace → java
+    ├── kotlin/ (or kt/)
+    │   └── build.gradle.kts      ← gradle workspace → kotlin
+    ├── clojure/
+    │   └── project.clj           ← leiningen workspace → clojure
+    └── rust/
+        └── Cargo.toml            ← cargo workspace → rust
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass
 from enum import unique
@@ -61,7 +87,15 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-from releasekit.backends.workspace import PnpmWorkspace, UvWorkspace, Workspace
+from releasekit.backends.workspace import (
+    CargoWorkspace,
+    DartWorkspace,
+    GoWorkspace,
+    MavenWorkspace,
+    PnpmWorkspace,
+    UvWorkspace,
+    Workspace,
+)
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
 
@@ -75,6 +109,11 @@ class Ecosystem(StrEnum):
     PYTHON = 'python'
     JS = 'js'
     GO = 'go'
+    DART = 'dart'
+    JAVA = 'java'
+    KOTLIN = 'kotlin'
+    CLOJURE = 'clojure'
+    RUST = 'rust'
 
 
 @dataclass(frozen=True)
@@ -143,6 +182,121 @@ def _is_go_workspace(directory: Path) -> bool:
     return (directory / 'go.work').is_file()
 
 
+def _is_dart_workspace(directory: Path) -> bool:
+    """Check if ``directory`` contains a Dart workspace root.
+
+    Detects Melos workspaces (``melos.yaml``) or standalone Dart
+    packages (``pubspec.yaml`` without being a Flutter sub-package).
+    """
+    return (directory / 'melos.yaml').is_file() or (
+        (directory / 'pubspec.yaml').is_file()
+        and not (directory / 'go.mod').is_file()  # Not a Go module
+        and not (directory / 'pom.xml').is_file()  # Not a Maven project
+    )
+
+
+def _is_java_workspace(directory: Path) -> bool:
+    """Check if ``directory`` contains a Java/Maven/Gradle workspace root.
+
+    Detects Maven multi-module projects (``pom.xml`` with ``<modules>``)
+    or Gradle multi-project builds (``settings.gradle``).
+    """
+    if (directory / 'settings.gradle').is_file() or (directory / 'settings.gradle.kts').is_file():
+        return True
+    pom = directory / 'pom.xml'
+    if pom.is_file():
+        try:
+            text = pom.read_text(encoding='utf-8')
+            return '<modules>' in text
+        except OSError:
+            return False
+    return False
+
+
+def _is_kotlin_workspace(directory: Path) -> bool:
+    """Check if ``directory`` contains a Kotlin/Gradle workspace root.
+
+    Detects Kotlin projects by looking for ``build.gradle.kts`` (Kotlin
+    DSL) that is **not** already detected as a Java workspace (i.e. no
+    ``settings.gradle`` / ``pom.xml``).  A ``build.gradle.kts`` with a
+    sibling ``settings.gradle.kts`` is the canonical Kotlin multi-project
+    layout.
+    """
+    if (directory / 'settings.gradle.kts').is_file():
+        # Check if Kotlin DSL is used (settings.gradle.kts is Kotlin-specific).
+        build_kts = directory / 'build.gradle.kts'
+        if build_kts.is_file():
+            try:
+                text = build_kts.read_text(encoding='utf-8')
+                # Kotlin projects typically apply the kotlin plugin.
+                if 'kotlin' in text.lower():
+                    return True
+            except OSError:
+                pass
+    return False
+
+
+def _is_clojure_workspace(directory: Path) -> bool:
+    """Check if ``directory`` contains a Clojure workspace root.
+
+    Detects Leiningen projects (``project.clj``) or tools.deps
+    projects (``deps.edn``).
+    """
+    return (directory / 'project.clj').is_file() or (directory / 'deps.edn').is_file()
+
+
+def _is_cargo_workspace(directory: Path) -> bool:
+    """Check if ``directory`` contains a Cargo workspace root.
+
+    Detects Rust workspaces by looking for ``Cargo.toml`` containing
+    a ``[workspace]`` section.
+    """
+    cargo_toml = directory / 'Cargo.toml'
+    if not cargo_toml.is_file():
+        return False
+    try:
+        text = cargo_toml.read_text(encoding='utf-8')
+        return '[workspace]' in text
+    except OSError:
+        return False
+
+
+def _parse_gitmodules(monorepo_root: Path) -> set[str]:
+    """Parse ``.gitmodules`` and return the set of submodule paths.
+
+    Each entry in ``.gitmodules`` looks like::
+
+        [submodule "vendor/lib"]
+            path = vendor/lib
+            url = https://github.com/...
+
+    Args:
+        monorepo_root: Path to the monorepo root.
+
+    Returns:
+        Set of relative path strings for each submodule.
+    """
+    gitmodules = monorepo_root / '.gitmodules'
+    if not gitmodules.is_file():
+        return set()
+    try:
+        text = gitmodules.read_text(encoding='utf-8')
+    except OSError:
+        return set()
+    # Match lines like: path = vendor/lib
+    return set(re.findall(r'^\s*path\s*=\s*(.+)$', text, re.MULTILINE))
+
+
+def _is_submodule(directory: Path) -> bool:
+    """Return True if ``directory`` is a git submodule.
+
+    Git submodules have a ``.git`` *file* (not directory) that contains
+    a ``gitdir:`` pointer to the parent repo's ``.git/modules/`` tree.
+    """
+    git_path = directory / '.git'
+    return git_path.is_file()
+
+
 def detect_ecosystems(
     monorepo_root: Path,
     *,
@@ -169,11 +323,24 @@ def detect_ecosystems(
     # Check candidates: the monorepo root itself, plus all immediate
     # child directories. This covers both flat repos (workspace at root)
     # and nested repos (workspace in py/, js/, go/ subdirs).
+    # Submodule directories are excluded — they have their own release
+    # lifecycle and should not be auto-detected as workspaces.
+    submodule_paths = _parse_gitmodules(monorepo_root)
     candidates = [monorepo_root]
     try:
-        candidates.extend(
-            sorted(child for child in monorepo_root.iterdir() if child.is_dir() and not child.name.startswith('.'))
-        )
+        for child in sorted(monorepo_root.iterdir()):
+            if not child.is_dir() or child.name.startswith('.'):
+                continue
+            # Skip git submodules (detected via .gitmodules or .git file).
+            rel = child.relative_to(monorepo_root)
+            if str(rel) in submodule_paths or _is_submodule(child):
+                log.info(
+                    'skipping_submodule',
+                    path=str(rel),
+                    message=f'Skipping submodule: {rel}',
+                )
+                continue
+            candidates.append(child)
     except OSError:
         pass
 
@@ -199,7 +366,47 @@ def detect_ecosystems(
                 DetectedEcosystem(
                     ecosystem=Ecosystem.GO,
                     root=candidate,
-                    workspace=None,  # Go backend not yet implemented
+                    workspace=GoWorkspace(candidate),
+                )
+            )
+        if _is_dart_workspace(candidate):
+            detected.append(
+                DetectedEcosystem(
+                    ecosystem=Ecosystem.DART,
+                    root=candidate,
+                    workspace=DartWorkspace(candidate),
+                )
+            )
+        if _is_kotlin_workspace(candidate):
+            detected.append(
+                DetectedEcosystem(
+                    ecosystem=Ecosystem.KOTLIN,
+                    root=candidate,
+                    workspace=MavenWorkspace(candidate),
+                )
+            )
+        elif _is_java_workspace(candidate):
+            detected.append(
+                DetectedEcosystem(
+                    ecosystem=Ecosystem.JAVA,
+                    root=candidate,
+                    workspace=MavenWorkspace(candidate),
+                )
+            )
+        if _is_clojure_workspace(candidate):
+            detected.append(
+                DetectedEcosystem(
+                    ecosystem=Ecosystem.CLOJURE,
+                    root=candidate,
+                    workspace=None,
+                )
+            )
+        if _is_cargo_workspace(candidate):
+            detected.append(
+                DetectedEcosystem(
+                    ecosystem=Ecosystem.RUST,
+                    root=candidate,
+                    workspace=CargoWorkspace(candidate),
                 )
             )
 
@@ -233,7 +440,9 @@ def detect_ecosystems(
             monorepo_root=str(monorepo_root),
             hint=f'No workspace markers found{ecosystem_hint}. '
             'Expected pyproject.toml with [tool.uv.workspace], '
-            'pnpm-workspace.yaml, or go.work.',
+            'pnpm-workspace.yaml, go.work, melos.yaml/pubspec.yaml, '
+            'or pom.xml/settings.gradle(.kts), project.clj/deps.edn, '
+            'or Cargo.toml with [workspace].',
         )
 
     return result
@@ -244,4 +453,6 @@ __all__ = [
     'Ecosystem',
     'detect_ecosystems',
     'find_monorepo_root',
+    '_is_submodule',
+    '_parse_gitmodules',
 ]

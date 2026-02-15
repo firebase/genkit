@@ -32,8 +32,8 @@
 # ── Automatic Flow ──────────────────────────────────────────────────
 #
 #   push to main ──► releasekit prepare ──► Release PR
-#   (py/packages/**                          (autorelease: pending)
-#    py/plugins/**)                                │
+#   (py/** or python/**)                       (autorelease: pending)
+#                                                  │
 #                                             merge PR
 #                                                  │
 #                                                  ▼
@@ -160,6 +160,8 @@ on:
     paths:
       - "py/packages/**"
       - "py/plugins/**"
+      - "python/packages/**"
+      - "python/plugins/**"
   pull_request:
     types: [closed]
     branches: [main]
