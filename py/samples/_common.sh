@@ -16,6 +16,12 @@
 #   - open_browser_for_url "url" - Open browser when URL is ready
 #   - genkit_start_with_browser [args...] - Start genkit and auto-open browser
 
+# Resolve the py/ workspace root so that `samples.shared` is importable.
+# _common.sh lives at py/samples/_common.sh, so py/ is one level up.
+_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_PY_ROOT="$(cd "${_COMMON_DIR}/.." && pwd)"
+export PYTHONPATH="${_PY_ROOT}${PYTHONPATH:+:$PYTHONPATH}"
+
 # Colors for output
 export RED='\033[0;31m'
 export GREEN='\033[0;32m'
@@ -29,7 +35,7 @@ export NC='\033[0m' # No Color
 print_banner() {
     local title="$1"
     local emoji="${2:-✨}"
-    
+
     # Calculate padding for centering (box is 67 chars wide, content is 65)
     local content="${emoji} ${title} ${emoji}"
     local content_len=${#content}
@@ -38,7 +44,7 @@ print_banner() {
     left_pad=$(printf '%*s' "$padding" '')
     local right_pad
     right_pad=$(printf '%*s' "$((65 - content_len - padding))" '')
-    
+
     echo -e "${BLUE}"
     echo "╔═══════════════════════════════════════════════════════════════╗"
     printf "║%s%s%s║\n" "$left_pad" "$content" "$right_pad"
@@ -51,28 +57,28 @@ print_banner() {
 check_env_var() {
     local var_name="$1"
     local get_url="$2"
-    
+
     local current_val="${!var_name:-}"
 
     # Prompt if running interactively
     # We check -t 0 (stdin is TTY) and also explicit check for /dev/tty availability
     if [[ -t 0 ]] && [ -c /dev/tty ]; then
         local display_val="${current_val}"
-        
+
         # Simple masking for keys
         if [[ "$var_name" == *"API_KEY"* || "$var_name" == *"SECRET"* || "$var_name" == *"TOKEN"* ]]; then
             if [[ -n "$current_val" ]]; then
                display_val="******"
             fi
         fi
-        
+
         echo -en "${BLUE}Enter ${var_name}${NC}"
         if [[ -n "$display_val" ]]; then
             echo -en " [${YELLOW}${display_val}${NC}]: "
         else
             echo -n ": "
         fi
-        
+
         local input_val
         # Safely read from TTY
         if read -r input_val < /dev/tty; then
@@ -81,7 +87,7 @@ check_env_var() {
             fi
         fi
         # Only print newline if we actually prompted
-        echo "" 
+        echo ""
     fi
 
     if [[ -z "${!var_name:-}" ]]; then
@@ -105,24 +111,24 @@ has_display() {
             return 1  # No display in SSH without X forwarding
         fi
     fi
-    
+
     # macOS always has a display if not in SSH
     if [[ "$(uname)" == "Darwin" ]]; then
         return 0
     fi
-    
+
     # Linux - check for display server
     if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
         return 0
     fi
-    
+
     # WSL - check for WSLg or access to Windows
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         if command -v wslview &> /dev/null; then
             return 0
         fi
     fi
-    
+
     # No display detected
     return 1
 }
@@ -132,14 +138,14 @@ has_display() {
 # Skips browser opening if no display is available (e.g., SSH sessions)
 open_browser_for_url() {
     local url="$1"
-    
+
     # Check if we have a display
     if ! has_display; then
         echo -e "${CYAN}Remote session detected - skipping browser auto-open${NC}"
         echo -e "Open manually: ${GREEN}${url}${NC}"
         return 0
     fi
-    
+
     if command -v open &> /dev/null; then
         open "$url"  # macOS
     elif command -v xdg-open &> /dev/null; then
@@ -158,18 +164,18 @@ open_browser_for_url() {
 _watch_for_devui_url() {
     local line
     local url_found=false
-    
+
     while IFS= read -r line; do
         # Print the line as it comes (pass through)
         echo "$line"
-        
+
         # Check for the Genkit Developer UI URL
         if [[ "$url_found" == "false" && "$line" == *"Genkit Developer UI:"* ]]; then
             # Extract URL - handle both with and without ANSI codes
             local url
             # Remove ANSI escape codes and extract URL
             url=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | grep -oE 'https?://[^ ]+' | head -1)
-            
+
             if [[ -n "$url" ]]; then
                 url_found=true
                 # Open browser in background
@@ -186,11 +192,21 @@ _watch_for_devui_url() {
 # Start genkit with automatic browser opening
 # Usage: genkit_start_with_browser -- [your command after --]
 # Example: genkit_start_with_browser -- uv run src/main.py
+#
+# Set GENKIT_NO_BROWSER=1 or pass --no-browser to any run.sh to
+# disable automatic browser opening (useful for CI/headless).
 genkit_start_with_browser() {
+    if [[ "${GENKIT_NO_BROWSER:-}" == "1" ]]; then
+        echo -e "${BLUE}Starting Genkit Dev UI (browser disabled)...${NC}"
+        echo ""
+        genkit start "$@"
+        return
+    fi
+
     echo -e "${BLUE}Starting Genkit Dev UI...${NC}"
     echo -e "Browser will open automatically when ready"
     echo ""
-    
+
     # Run genkit start and pipe through our URL watcher
     # Using stdbuf to disable buffering for real-time output
     if command -v stdbuf &> /dev/null; then
@@ -201,8 +217,48 @@ genkit_start_with_browser() {
     fi
 }
 
+# Prompt the user to run setup.sh interactively.
+# Returns 0 if setup was run successfully, 1 otherwise.
+# Usage: _prompt_run_setup "/path/to/setup.sh" && return
+_prompt_run_setup() {
+    local setup_script="$1"
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "${BLUE}Run setup.sh now? [Y/n]:${NC} "
+        local response
+        read -r response < /dev/tty
+        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
+            bash "$setup_script"
+            return $?
+        fi
+    fi
+    return 1
+}
+
+# Check if the development environment is set up and offer to run setup.sh.
+# This is called automatically by install_deps.
+check_setup() {
+    local setup_script="${_COMMON_DIR}/setup.sh"
+
+    # Quick checks: is uv available? Does the workspace .venv exist?
+    if ! command -v uv &>/dev/null; then
+        echo -e "${YELLOW}⚠  uv is not installed.${NC}"
+        echo -e "Run ${GREEN}${setup_script}${NC} to set up your development environment."
+        _prompt_run_setup "$setup_script" && return
+        echo -e "${RED}Cannot continue without uv. Exiting.${NC}"
+        exit 1
+    fi
+
+    if [[ ! -d "${_PY_ROOT}/.venv" ]]; then
+        echo -e "${YELLOW}⚠  Virtual environment not found at ${_PY_ROOT}/.venv${NC}"
+        echo -e "Run ${GREEN}${setup_script}${NC} to set up your development environment."
+        _prompt_run_setup "$setup_script" && return
+        echo -e "${YELLOW}Continuing without setup — uv sync will create .venv...${NC}"
+    fi
+}
+
 # Install dependencies with uv
 install_deps() {
+    check_setup
     echo -e "${BLUE}Installing dependencies...${NC}"
     uv sync
     echo ""
@@ -214,7 +270,7 @@ print_help_footer() {
     echo ""
     echo "Getting Started:"
     echo "  1. Set required environment variables"
-    echo "  2. Run: ./run.sh"  
+    echo "  2. Run: ./run.sh"
     echo "  3. Browser opens automatically to http://localhost:${port}"
 }
 
@@ -521,12 +577,12 @@ check_flyctl_installed() {
 # Usage: check_gcloud_auth || true
 check_gcloud_auth() {
     echo -e "${BLUE}Checking gcloud authentication...${NC}"
-    
+
     # Check application default credentials
     if ! gcloud auth application-default print-access-token &> /dev/null; then
         echo -e "${YELLOW}Application default credentials not found.${NC}"
         echo ""
-        
+
         if [[ -t 0 ]] && [ -c /dev/tty ]; then
             echo -en "Run ${GREEN}gcloud auth application-default login${NC} now? [Y/n]: "
             local response
@@ -546,7 +602,7 @@ check_gcloud_auth() {
     else
         echo -e "${GREEN}✓ Application default credentials found${NC}"
     fi
-    
+
     echo ""
     return 0
 }
@@ -556,16 +612,16 @@ check_gcloud_auth() {
 # Usage: check_aws_auth || true
 check_aws_auth() {
     echo -e "${BLUE}Checking AWS authentication...${NC}"
-    
+
     if aws sts get-caller-identity &> /dev/null; then
         echo -e "${GREEN}✓ AWS credentials found${NC}"
         echo ""
         return 0
     fi
-    
+
     echo -e "${YELLOW}AWS credentials not found.${NC}"
     echo ""
-    
+
     if [[ -t 0 ]] && [ -c /dev/tty ]; then
         echo -en "Run ${GREEN}aws configure${NC} now? [Y/n]: "
         local response
@@ -582,7 +638,7 @@ check_aws_auth() {
         echo "Run: aws configure"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -591,16 +647,16 @@ check_aws_auth() {
 # Usage: check_az_auth || true
 check_az_auth() {
     echo -e "${BLUE}Checking Azure authentication...${NC}"
-    
+
     if az account show &> /dev/null; then
         echo -e "${GREEN}✓ Azure credentials found${NC}"
         echo ""
         return 0
     fi
-    
+
     echo -e "${YELLOW}Azure credentials not found.${NC}"
     echo ""
-    
+
     if [[ -t 0 ]] && [ -c /dev/tty ]; then
         echo -en "Run ${GREEN}az login${NC} now? [Y/n]: "
         local response
@@ -617,7 +673,7 @@ check_az_auth() {
         echo "Run: az login"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -626,12 +682,12 @@ check_az_auth() {
 is_api_enabled() {
     local api="$1"
     local project="$2"
-    
+
     gcloud services list --project="$project" --enabled --filter="name:$api" --format="value(name)" 2>/dev/null | grep -q "$api"
 }
 
 # Enable required Google Cloud APIs interactively
-# Usage: 
+# Usage:
 #   REQUIRED_APIS=("aiplatform.googleapis.com" "discoveryengine.googleapis.com")
 #   enable_required_apis "${REQUIRED_APIS[@]}"
 #
@@ -642,21 +698,21 @@ is_api_enabled() {
 enable_required_apis() {
     local project="${GOOGLE_CLOUD_PROJECT:-}"
     local apis=("$@")
-    
+
     if [[ -z "$project" ]]; then
         echo -e "${YELLOW}GOOGLE_CLOUD_PROJECT not set, skipping API enablement${NC}"
         return 1
     fi
-    
+
     if [[ ${#apis[@]} -eq 0 ]]; then
         echo -e "${YELLOW}No APIs specified${NC}"
         return 0
     fi
-    
+
     echo -e "${BLUE}Checking required APIs for project: ${project}${NC}"
-    
+
     local apis_to_enable=()
-    
+
     for api in "${apis[@]}"; do
         if is_api_enabled "$api" "$project"; then
             echo -e "  ${GREEN}✓${NC} $api"
@@ -665,15 +721,15 @@ enable_required_apis() {
             apis_to_enable+=("$api")
         fi
     done
-    
+
     echo ""
-    
+
     if [[ ${#apis_to_enable[@]} -eq 0 ]]; then
         echo -e "${GREEN}All required APIs are already enabled!${NC}"
         echo ""
         return 0
     fi
-    
+
     # Prompt to enable APIs
     if [[ -t 0 ]] && [ -c /dev/tty ]; then
         echo -e "${YELLOW}The following APIs need to be enabled:${NC}"
@@ -684,7 +740,7 @@ enable_required_apis() {
         echo -en "Enable these APIs now? [Y/n]: "
         local response
         read -r response < /dev/tty
-        
+
         if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
             echo ""
             for api in "${apis_to_enable[@]}"; do
@@ -709,7 +765,7 @@ enable_required_apis() {
         done
         return 1
     fi
-    
+
     echo ""
     return 0
 }
@@ -720,10 +776,10 @@ enable_required_apis() {
 #   run_gcp_setup "${REQUIRED_APIS[@]}"
 run_gcp_setup() {
     local apis=("$@")
-    
+
     # Check gcloud is installed
     check_gcloud_installed || return 1
-    
+
     # Check/prompt for project
     check_env_var "GOOGLE_CLOUD_PROJECT" "" || {
         echo -e "${RED}Error: GOOGLE_CLOUD_PROJECT is required${NC}"
@@ -733,14 +789,14 @@ run_gcp_setup() {
         echo ""
         return 1
     }
-    
+
     # Check authentication
     check_gcloud_auth || true
-    
+
     # Enable APIs if any were specified
     if [[ ${#apis[@]} -gt 0 ]]; then
         enable_required_apis "${apis[@]}" || true
     fi
-    
+
     return 0
 }
