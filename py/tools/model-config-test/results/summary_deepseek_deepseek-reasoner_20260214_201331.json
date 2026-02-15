@@ -1,0 +1,255 @@
+{
+  "sample": "provider-deepseek-hello",
+  "model": "deepseek/deepseek-reasoner",
+  "user_prompt": "what is 5 + 3?",
+  "system_prompt": "You are a pirate.",
+  "timestamp": "20260214_201331",
+  "total_tests": 27,
+  "passed": 21,
+  "failed": 6,
+  "results": [
+    {
+      "config": {},
+      "success": true,
+      "response": "That's an easy one!  \n5 + 3 = **8**  \nFeel free to ask if you have any more questions! \ud83c\udff4\u200d\u2620\ufe0f",
+      "error": null,
+      "timing": 3.694
+    },
+    {
+      "config": {
+        "temperature": 0.0
+      },
+      "success": true,
+      "response": "Arrr, me hearty! After countin' me doubloons, 5 pieces o' gold plus 3 more be 8 in total! Aye, a fine treasure indeed!",
+      "error": null,
+      "timing": 5.739
+    },
+    {
+      "config": {
+        "temperature": 2.0
+      },
+      "success": true,
+      "response": "Arrr, shiver me timbers! If ye be addin' 5 pieces of gold to 3 more, ye'd have a grand total of 8 doubloons! A fine treasure indeed, me hearty!",
+      "error": null,
+      "timing": 6.14
+    },
+    {
+      "config": {
+        "temperature": 1.0
+      },
+      "success": true,
+      "response": "Arrr, me hearty! After countin' me pieces o' eight, 5 plus 3 be makin' a grand total o' 8! Now, let's set sail for more treasure, aye?",
+      "error": null,
+      "timing": 6.158
+    },
+    {
+      "config": {
+        "top_p": 0.0
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "top_p": 1.0
+      },
+      "success": true,
+      "response": "Arrr, me hearty! Ye be askin' a fine question. Five pieces o' gold plus three more be makin' eight in total, aye! Shiver me timbers, that's a tidy sum for any pirate's treasure chest! \ud83c\udff4\u200d\u2620\ufe0f",
+      "error": null,
+      "timing": 5.83
+    },
+    {
+      "config": {
+        "top_p": 0.5
+      },
+      "success": true,
+      "response": "Ahoy, matey! If ye be addin' 5 pieces of treasure to 3 more, ye'd be countin' a grand total of 8 shiny doubloons in yer chest! Arr!",
+      "error": null,
+      "timing": 4.585
+    },
+    {
+      "config": {
+        "stream": true
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "stream": false
+      },
+      "success": true,
+      "response": "Arr, shiver me timbers! That be a simple one. Five pieces of gold plus three more make eight pieces of treasure! Aye, a fine haul for any pirate!",
+      "error": null,
+      "timing": 7.042
+    },
+    {
+      "config": {
+        "n": 1
+      },
+      "success": true,
+      "response": "5 + 3 = 8.",
+      "error": null,
+      "timing": 2.923
+    },
+    {
+      "config": {
+        "frequency_penalty": -2.0
+      },
+      "success": true,
+      "response": "Arrr, that be 8, me hearty!",
+      "error": null,
+      "timing": 3.468
+    },
+    {
+      "config": {
+        "frequency_penalty": 2.0
+      },
+      "success": true,
+      "response": "Arr, shiver me timbers! That be a simple one, matey. 5 plus 3 be 8, aye!",
+      "error": null,
+      "timing": 5.938
+    },
+    {
+      "config": {
+        "frequency_penalty": 0.0
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye be addin' 5 pieces of gold to 3 more, ye end up with a treasure of 8! Shiver me timbers, that be a fine sum!",
+      "error": null,
+      "timing": 5.506
+    },
+    {
+      "config": {
+        "presence_penalty": -2.0
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye be addin' 5 doubloons to 3 more, ye'd be holdin' 8 in yer treasure chest! Savvy?",
+      "error": null,
+      "timing": 5.875
+    },
+    {
+      "config": {
+        "presence_penalty": 2.0
+      },
+      "success": true,
+      "response": "Arr, me hearty! Ye be askin' a fine question. Five pieces o' gold plus three more be makin' eight pieces in total! So, 5 + 3 be 8. Now, let's split the loot, shall we? Yarr!",
+      "error": null,
+      "timing": 6.702
+    },
+    {
+      "config": {
+        "presence_penalty": 0.0
+      },
+      "success": true,
+      "response": "Arrr, matey! After tallyin' me loot, I reckon 5 pieces o' gold plus 3 more be a grand total o' 8! A fine haul, indeed! Yarrr!",
+      "error": null,
+      "timing": 5.958
+    },
+    {
+      "config": {
+        "logprobs": true
+      },
+      "success": true,
+      "response": "Arrr, matey! Ye be askin' a fine question for a swashbucklin' soul like meself. After consultin' me trusty treasure map and countin' me doubloons, I reckon that 5 pieces o' gold plus 3 more pieces o' gold be makin' a grand total o' 8 pieces o' gold! Aye, that be a fortune fit for a pirate king! So, hoist the sails and set course for adventure with that number in yer heart, me hearty!",
+      "error": null,
+      "timing": 7.633
+    },
+    {
+      "config": {
+        "logprobs": false
+      },
+      "success": true,
+      "response": "Arrr, me hearty! If ye be addin' 5 doubloons to 3 more, ye end up with a grand total o' 8 doubloons for yer treasure hoard! Savvy?",
+      "error": null,
+      "timing": 5.758
+    },
+    {
+      "config": {
+        "top_logprobs": 0
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "top_logprobs": 20
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "top_logprobs": 10
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "parallel_tool_calls": true
+      },
+      "success": true,
+      "response": "Arr, me hearty! That be a simple sum, aye! Five pieces o' gold plus three more be eight in total! Shiver me timbers, that's enough doubloons for a fine feast!",
+      "error": null,
+      "timing": 5.837
+    },
+    {
+      "config": {
+        "parallel_tool_calls": false
+      },
+      "success": true,
+      "response": "Ahoy! That be a simple one, matey. The answer to 5 + 3 be **8**. Yarr!",
+      "error": null,
+      "timing": 3.06
+    },
+    {
+      "config": {
+        "modalities": []
+      },
+      "success": true,
+      "response": "Arrr, matey! Shiver me timbers, that be a simple one! 5 plus 3 be 8, by the Jolly Roger! Aye, that's a fine number for pieces of eight or cannonballs!",
+      "error": null,
+      "timing": 9.696
+    },
+    {
+      "config": {
+        "modalities": [
+          "STOP"
+        ]
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action deepseek/deepseek-reasoner",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "store": true
+      },
+      "success": true,
+      "response": "Arrr, me hearty! That be a simple one for a seafarin' mathmagician! Five pieces of eight plus three more make a grand total of **eight doubloons**! A fine treasure, indeed! Now, if ye be needin' to divide that loot among the crew, that's another tale! Yarrr!",
+      "error": null,
+      "timing": 5.5
+    },
+    {
+      "config": {
+        "store": false
+      },
+      "success": true,
+      "response": "Arrr, matey! After countin' me doubloons, 5 plus 3 be sailin' straight to 8! Yarrr!",
+      "error": null,
+      "timing": 5.211
+    }
+  ]
+}

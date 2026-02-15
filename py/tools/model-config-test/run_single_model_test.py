@@ -195,10 +195,17 @@ def main() -> None:
         )
 
         # Output JSON result with markers
-        print(f'---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---')
+        print(f'---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---')  # noqa: T201
 
-    except Exception:  # noqa: S110 - intentionally silent, error handled by returning result dict
-        pass
+    except Exception:  # noqa: S110 - error is captured and reported as JSON
+        import traceback
+        result = {
+            'success': False,
+            'response': None,
+            'error': f'Unexpected error in test script:\n{traceback.format_exc()}',
+            'timing': 0.0,
+        }
+        print(f'---JSON_RESULT_START---\n{json.dumps(result)}\n---JSON_RESULT_END---')  # noqa: T201
 
 
 if __name__ == '__main__':

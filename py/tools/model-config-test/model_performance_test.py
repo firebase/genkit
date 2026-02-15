@@ -114,7 +114,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
     logger = logging.getLogger(__name__)
 
     # Find the sample directory
-    samples_dir = Path(__file__).parent.parent.parent
+    samples_dir = Path(__file__).parent.parent.parent / 'samples'
     sample_dir = samples_dir / sample_name
 
     if not sample_dir.exists():
@@ -469,7 +469,7 @@ def run_model_test(
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=helper_script.parent,  # Run from script directory (samples/sample-test)
+            cwd=helper_script.parent,  # Run from script directory (tools/sample-flows)
         )
 
         # Parse JSON output

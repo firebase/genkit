@@ -20,9 +20,11 @@ Or manually:
 
 ```bash
 # Run from the repository root (py/)
-uv run samples/sample-test/flow-test/review_sample_flows.py samples/provider-google-genai-hello
+uv run tools/sample-flows/review_sample_flows.py samples/provider-google-genai-hello
 ```
 
 ## Output
 
 The tool generates a text report (e.g., `flow_review_results.txt`) detailing which flows passed or failed, along with their outputs or error messages.
+
+**Note:** The `test_sample_flows` script automatically skips samples that do not have a standard `main.py` entry point (e.g., `framework-evaluator-demo`), preventing execution errors.

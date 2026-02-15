@@ -212,7 +212,7 @@ web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
 web-short-n-long                           = { workspace = true }
-sample-test                        = { workspace = true }
+
 # Core packages
 genkit = { workspace = true }
 # Plugins (alphabetical)
@@ -240,10 +240,12 @@ genkit-plugin-vertex-ai             = { workspace = true }
 genkit-plugin-xai                   = { workspace = true }
 # Internal tools (private, not published)
 conform = { workspace = true }
+genkit-tools-model-config-test = { workspace = true }
+genkit-tools-sample-flows = { workspace = true }
 
 [tool.uv.workspace]
-exclude = ["*/shared", "samples/sample-test", "testapps/*"]
-members = ["packages/*", "plugins/*", "samples/*", "samples/sample-test/model-config-test", "tools/conform"]
+exclude = ["*/shared", "testapps/*"]
+members = ["packages/*", "plugins/*", "samples/*", "tools/*"]
 
 
 # Ruff checks and formatting.
@@ -508,6 +510,8 @@ extraPaths = [
   # Tools
   "tools/releasekit/src",
   "tools/conform/src",
+  "tools/model-config-test",
+  "tools/sample-flows",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -540,7 +544,8 @@ project_excludes = [
   "build",
   "dist",
   "testapps",
-  "samples/sample-test/**/*.py",
+  "testapps",
+  "tools/model-config-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)
@@ -557,6 +562,7 @@ project_includes = [
   "tools/releasekit/src/**/*.py",
   "tools/releasekit/tests/**/*.py",
   "tools/conform/src/**/*.py",
+  "tools/sample-flows/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
@@ -564,23 +570,25 @@ project_includes = [
 # - plugins/mcp/tests: has a local `fakes` module for test mocks
 # - samples/framework-evaluator-demo: has `evaluator_demo` package with internal imports
 # - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
-# - samples/sample-test: has `model_performance_test` module for imports
+# - tools/model-config-test: has `model_performance_test` module for imports
 search-path = [
   ".",
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
   "samples/framework-restaurant-demo/src",
-  "samples/sample-test",
+
   "samples/web-endpoints-hello",
   # Tools
   "tools/releasekit/src",
   "tools/releasekit",
   "tools/conform/src",
+  "tools/sample-flows",
+  "tools/model-config-test",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime.
 # model_performance_test is local to sample-test (excluded from workspace).
-ignore-missing-imports = ["genkit.plugins.*", "model_performance_test"]
+ignore-missing-imports = ["genkit.plugins.*"]
 python_version         = "3.10"
 
 # Treat warnings as errors.

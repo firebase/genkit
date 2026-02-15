@@ -14,6 +14,7 @@ members = [
     "conform",
     "dev-local-vectorstore-hello",
     "framework-context-demo",
+    "framework-custom-evaluators",
     "framework-dynamic-tools-demo",
     "framework-evaluator-demo",
     "framework-format-demo",
@@ -45,6 +46,8 @@ members = [
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-plugin-xai",
+    "genkit-tools-model-config-test",
+    "genkit-tools-sample-flows",
     "genkit-workspace",
     "provider-amazon-bedrock-hello",
     "provider-anthropic-hello",
@@ -70,7 +73,7 @@ members = [
     "provider-vertex-ai-vector-search-bigquery",
     "provider-vertex-ai-vector-search-firestore",
     "provider-xai-hello",
-    "sample-test",
+    "releasekit",
     "web-endpoints-hello",
     "web-fastapi-bugbot",
     "web-flask-hello",
@@ -1822,6 +1825,23 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
+name = "framework-custom-evaluators"
+version = "0.0.1"
+source = { editable = "samples/framework-custom-evaluators" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "structlog" },
+]
+
+[[package]]
 name = "framework-dynamic-tools-demo"
 version = "0.1.0"
 source = { editable = "samples/framework-dynamic-tools-demo" }
@@ -2725,6 +2745,96 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "xai-sdk", specifier = ">=0.0.1" },
+]
+
+[[package]]
+name = "genkit-tools-model-config-test"
+version = "0.1.0"
+source = { editable = "tools/model-config-test" }
+dependencies = [
+    { name = "datamodel-code-generator" },
+    { name = "fastapi" },
+    { name = "genkit" },
+    { name = "genkit-plugin-amazon-bedrock" },
+    { name = "genkit-plugin-anthropic" },
+    { name = "genkit-plugin-deepseek" },
+    { name = "genkit-plugin-evaluators" },
+    { name = "genkit-plugin-google-cloud" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-mistral" },
+    { name = "genkit-plugin-ollama" },
+    { name = "genkit-plugin-vertex-ai" },
+    { name = "genkit-plugin-xai" },
+    { name = "grpcio" },
+    { name = "grpcio-reflection" },
+    { name = "gunicorn" },
+    { name = "hypercorn" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-asgi" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-sdk" },
+    { name = "pydantic-settings" },
+    { name = "quart" },
+    { name = "secure" },
+    { name = "structlog" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "uvicorn" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "datamodel-code-generator" },
+    { name = "fastapi" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
+    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
+    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
+    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-mistral", editable = "plugins/mistral" },
+    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "genkit-plugin-xai", editable = "plugins/xai" },
+    { name = "grpcio" },
+    { name = "grpcio-reflection" },
+    { name = "gunicorn" },
+    { name = "hypercorn" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-asgi" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-sdk" },
+    { name = "pydantic-settings" },
+    { name = "quart" },
+    { name = "secure" },
+    { name = "structlog" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
+    { name = "uvicorn" },
+    { name = "uvloop" },
+]
+
+[[package]]
+name = "genkit-tools-sample-flows"
+version = "0.1.0"
+source = { editable = "tools/sample-flows" }
+dependencies = [
+    { name = "genkit" },
+    { name = "httpx" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "httpx" },
+    { name = "structlog" },
 ]
 
 [[package]]
@@ -8128,6 +8238,62 @@ wheels = [
 ]
 
 [[package]]
+name = "releasekit"
+version = "0.1.0"
+source = { editable = "tools/releasekit" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "argcomplete" },
+    { name = "diagnostic" },
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "packaging" },
+    { name = "rich" },
+    { name = "rich-argparse" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+    { name = "tomlkit" },
+]
+
+[package.optional-dependencies]
+tracing = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiofiles", specifier = ">=24.1.0" },
+    { name = "argcomplete", specifier = ">=3.0.0" },
+    { name = "diagnostic", specifier = ">=3.0.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "jinja2", specifier = ">=3.1.0" },
+    { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.20.0" },
+    { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.20.0" },
+    { name = "packaging", specifier = ">=24.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "rich-argparse", specifier = ">=1.6.0" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.1.0" },
+    { name = "tomlkit", specifier = ">=0.13.0" },
+]
+provides-extras = ["tracing"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+]
+
+[[package]]
 name = "requests"
 version = "2.32.5"
 source = { registry = "https://pypi.org/simple" }
@@ -8430,79 +8596,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/62/74/8d69dcb7a9efe8baa2046891735e5dfe433ad558ae23d9e3c14c633d1d58/s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125", size = 151547, upload-time = "2025-09-09T19:23:31.089Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/48/f0/ae7ca09223a81a1d890b2557186ea015f6e0502e9b8cb8e1813f1d8cfa4e/s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456", size = 85712, upload-time = "2025-09-09T19:23:30.041Z" },
-]
-
-[[package]]
-name = "sample-test"
-version = "0.1.0"
-source = { editable = "samples/sample-test/model-config-test" }
-dependencies = [
-    { name = "datamodel-code-generator" },
-    { name = "fastapi" },
-    { name = "genkit" },
-    { name = "genkit-plugin-amazon-bedrock" },
-    { name = "genkit-plugin-anthropic" },
-    { name = "genkit-plugin-deepseek" },
-    { name = "genkit-plugin-evaluators" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-mistral" },
-    { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "genkit-plugin-xai" },
-    { name = "grpcio" },
-    { name = "grpcio-reflection" },
-    { name = "gunicorn" },
-    { name = "hypercorn" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-instrumentation-asgi" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-grpc" },
-    { name = "opentelemetry-sdk" },
-    { name = "pydantic-settings" },
-    { name = "quart" },
-    { name = "secure" },
-    { name = "structlog" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "uvicorn" },
-    { name = "uvloop" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "datamodel-code-generator" },
-    { name = "fastapi" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
-    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "genkit-plugin-deepseek", editable = "plugins/deepseek" },
-    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-mistral", editable = "plugins/mistral" },
-    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "genkit-plugin-xai", editable = "plugins/xai" },
-    { name = "grpcio" },
-    { name = "grpcio-reflection" },
-    { name = "gunicorn" },
-    { name = "hypercorn" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-instrumentation-asgi" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-grpc" },
-    { name = "opentelemetry-sdk" },
-    { name = "pydantic-settings" },
-    { name = "quart" },
-    { name = "secure" },
-    { name = "structlog" },
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
-    { name = "uvicorn" },
-    { name = "uvloop" },
 ]
 
 [[package]]

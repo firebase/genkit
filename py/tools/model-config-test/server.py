@@ -72,7 +72,7 @@ class TestResult(BaseModel):
 
 async def discover_scenarios() -> list[Scenario]:
     """Discover test scenarios from samples directory."""
-    samples_dir = Path(__file__).parent.parent.parent
+    samples_dir = Path(__file__).parent.parent.parent / 'samples'
     scenarios = []
 
     if not samples_dir.exists():
@@ -100,11 +100,14 @@ async def discover_scenarios() -> list[Scenario]:
                 else:
                     import tomli as tomllib  # conditional dep for 3.10
 
-                with open(pyproject_path, 'rb') as f:
-                    data = tomllib.load(f)
-                    project = data.get('project', {})
-                    name = project.get('name', name)
-                    description = project.get('description', description)
+                def load_toml_data(path: Path) -> dict[str, Any]:
+                    with open(path, 'rb') as f:
+                        return tomllib.load(f)
+
+                data = await asyncio.to_thread(load_toml_data, pyproject_path)
+                project = data.get('project', {})
+                name = project.get('name', name)
+                description = project.get('description', description)
             except Exception:  # noqa: S110
                 pass
 
@@ -316,8 +319,11 @@ async def run_comprehensive_test(
                 'results': all_results,
             }
 
-            with open(summary_file, 'w') as f:
-                json.dump(summary_data, f, indent=2)
+            def write_summary(path: Path, data: dict[str, Any]) -> None:
+                with open(path, 'w') as f:
+                    json.dump(data, f, indent=2)
+
+            await asyncio.to_thread(write_summary, summary_file, summary_data)
 
             logging.info(f'Saved comprehensive test summary to {summary_file}')
         except Exception as e:

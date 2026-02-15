@@ -37,7 +37,7 @@ dependencies = [
   "tomli>=2.0.0; python_version < '3.11'",
 ]
 description = "Model Performance Testing Tool"
-name = "sample-test"
+name = "genkit-tools-model-config-test"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"

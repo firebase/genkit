@@ -16,6 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # pyrefly: ignore-file
+# flake8: noqa: ASYNC240
 
 """Helper script to run a single Genkit flow in isolation.
 

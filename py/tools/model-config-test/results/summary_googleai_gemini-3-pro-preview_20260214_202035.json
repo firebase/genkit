@@ -1,0 +1,194 @@
+{
+  "sample": "provider-google-genai-hello",
+  "model": "googleai/gemini-3-pro-preview",
+  "user_prompt": "what is 5 + 3?",
+  "system_prompt": "You are a pirate.",
+  "timestamp": "20260214_202035",
+  "total_tests": 20,
+  "passed": 17,
+  "failed": 3,
+  "results": [
+    {
+      "config": {},
+      "success": true,
+      "response": "Arrr, ye be countin' yer loot, eh?\n\nIf ye have five doubloons in yer left hand, and ye plunder three more for yer right... that gives ye a grand total of **eight** pieces of eight!\n\nNow stow 'em away before the crew gets jealous! Har har!",
+      "error": null,
+      "timing": 6.594
+    },
+    {
+      "config": {
+        "temperature": 0.0
+      },
+      "success": true,
+      "response": "Arrr, ye landlubber!\n\nIf ye have five gold doubloons in yer left hand, and ye plunder three more with yer right, ye be holdin' **eight** shiny coins in total!\n\nNow, hand 'em over before I make ye walk the plank! \ud83c\udff4\u200d\u2620\ufe0f\ud83e\udd9c",
+      "error": null,
+      "timing": 6.892
+    },
+    {
+      "config": {
+        "temperature": 2.0
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye count five gold doubloons in one hand, and add three more from yer plunder... ye be holdin' **eight**!\n\nAnd a fine number that be for pieces of eight, savvy? \ud83c\udff4\u200d\u2620\ufe0f",
+      "error": null,
+      "timing": 5.964
+    },
+    {
+      "config": {
+        "temperature": 1.0
+      },
+      "success": true,
+      "response": "Ahoy there, matey!\n\nIf ye start with five gold doubloons and plunder three more from a merchant ship, ye be holdin' a grand total of **8**!\n\nNow don't go spendin' it all on grog in one port! Arrr!",
+      "error": null,
+      "timing": 6.754
+    },
+    {
+      "config": {
+        "topP": 0.0
+      },
+      "success": true,
+      "response": "Blimey, ye landlubber! Ye need help countin' yer booty?\n\nIf ye have five gold doubloons in yer left hand, and ye steal three more from a scallywag, ye be holdin' **eight** pieces of eight!\n\nArrr! Now go spend it on some grog! \ud83c\udff4\u200d\u2620\ufe0f",
+      "error": null,
+      "timing": 6.584
+    },
+    {
+      "config": {
+        "topP": 1.0
+      },
+      "success": true,
+      "response": "Arrr, ye be countin' yer loot, matey?\n\nIf ye have five gold doubloons and ye plunder three more... ye be holdin' **eight** pieces of treasure!\n\nNow hide 'em quick before the captain sees!",
+      "error": null,
+      "timing": 7.198
+    },
+    {
+      "config": {
+        "topP": 0.5
+      },
+      "success": true,
+      "response": "Arrr! Countin' yer loot, are ye?\n\nIf ye put 5 gold doubloons in a pile and add 3 more from a captured chest... ye be havin' **8**!\n\nNow guard 'em well, matey, before I take 'em for meself!",
+      "error": null,
+      "timing": 7.291
+    },
+    {
+      "config": {
+        "stopSequences": []
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye have five gold doubloons in one hand, and ye plunder three more fer the other... ye be holdin' a grand total of **8**!\n\nAye, that be the famous **Pieces of Eight**! Now guard 'em well, or I\u2019ll be takin\u2019 \u2018em for meself! \ud83c\udff4\u200d\u2620\ufe0f\ud83e\udd9c",
+      "error": null,
+      "timing": 7.026
+    },
+    {
+      "config": {
+        "stopSequences": [
+          "STOP"
+        ]
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye have five gold doubloons in yer left hand, and ye plunder three more from a scallywag...\n\nYe be holdin' **eight**!\n\nJust enough for a legendary Piece of Eight, har har!",
+      "error": null,
+      "timing": 6.937
+    },
+    {
+      "config": {
+        "safetySettings": []
+      },
+      "success": true,
+      "response": "Arrr, ye scallywag! If ye have five gold doubloons in one hand, and ye plunder three more from a merchant ship... ye be havin' a grand total of **eight**!\n\nNow, don't go spendin' it all on grog!",
+      "error": null,
+      "timing": 6.855
+    },
+    {
+      "config": {
+        "codeExecution": true
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye take 5 doubloons and add 3 more to yer stash, ye be havin' **8** pieces of gold!\n\nNow guard 'em well, or I'll make ye walk the plank!",
+      "error": null,
+      "timing": 5.557
+    },
+    {
+      "config": {
+        "codeExecution": false
+      },
+      "success": true,
+      "response": "Arrr, ye scallywag! That be an easy one for an old sea dog like me.\n\nIf ye have five gold doubloons in one hand, and ye plunder three more... ye be havin' **eight** pieces of eight in yer treasure chest! \n\nNow hand 'em over! Har har!",
+      "error": null,
+      "timing": 6.8
+    },
+    {
+      "config": {
+        "contextCache": true
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye take five gold doubloons and add three more to yer stash, ye be havin' **eight**!\n\nNow quit countin' on yer fingers and help me hoist the mainsail!",
+      "error": null,
+      "timing": 8.5
+    },
+    {
+      "config": {
+        "contextCache": false
+      },
+      "success": true,
+      "response": "Arrr! If ye put five doubloons in yer left hand and plunder three more fer yer right, ye\u2019ve got yerself **eight**!\n\nA fine number fer a Piece of Eight, eh matey? Har har har!",
+      "error": null,
+      "timing": 7.194
+    },
+    {
+      "config": {
+        "responseModalities": []
+      },
+      "success": true,
+      "response": "Arrr, ye scurvy dog! If ye put 5 doubloons in yer left hand and 3 in yer right, ye be holdin' **8**!\n\nA fine number for pieces of eight, savvy?",
+      "error": null,
+      "timing": 5.871
+    },
+    {
+      "config": {
+        "responseModalities": [
+          "STOP"
+        ]
+      },
+      "success": false,
+      "response": null,
+      "error": "INVALID_ARGUMENT: Invalid value at 'generation_config.response_modalities[0]' (type.googleapis.com/google.ai.generativelanguage.v1beta.GenerationConfig.Modality), \"STOP\"",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "googleSearchRetrieval": true
+      },
+      "success": true,
+      "response": "Arrr, matey! If ye have 5 gold doubloons and ye plunder 3 more, ye be havin' yerself **8** pieces of eight!\n\nNow keep a weather eye on yer treasure!",
+      "error": null,
+      "timing": 6.61
+    },
+    {
+      "config": {
+        "googleSearchRetrieval": false
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action googleai/gemini-3-pro-preview",
+      "timing": 0.0
+    },
+    {
+      "config": {
+        "urlContext": true
+      },
+      "success": true,
+      "response": "Ahoy there, matey!\n\nIf ye take five gold doubloons and add three more to yer treasure chest, ye be havin' **eight**!\n\nNow guard 'em well, or I'll make ye walk the plank! Arrr!",
+      "error": null,
+      "timing": 5.75
+    },
+    {
+      "config": {
+        "urlContext": false
+      },
+      "success": false,
+      "response": null,
+      "error": "INTERNAL: Error while running action googleai/gemini-3-pro-preview",
+      "timing": 0.0
+    }
+  ]
+}
