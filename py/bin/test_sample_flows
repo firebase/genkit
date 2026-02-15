@@ -118,7 +118,7 @@ if [[ $# -lt 1 ]]; then
         # Run the flow testing tool
         cd "$PY_DIR"
         # Don't trap SIGINT here - allow user to interrupt
-        if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+        if uv run tools/sample-flows/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
             TEST_SUCCESS=true
         else
             TEST_SUCCESS=false
@@ -149,6 +149,12 @@ else
         exit 1
     fi
 
+    if [[ ! -f "$SAMPLE_DIR/src/main.py" ]] && [[ ! -f "$SAMPLE_DIR/main.py" ]]; then
+        echo "Error: Sample '$SAMPLE_NAME' does not have a main.py or src/main.py"
+        echo "Skipping..."
+        exit 1
+    fi
+
     echo ""
     echo "============================================================"
     echo "Testing flows in: $SAMPLE_NAME"
@@ -162,7 +168,7 @@ else
     # Run the flow testing tool
     cd "$PY_DIR"
     # Allow Ctrl+C to interrupt
-    if uv run samples/sample-test/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
+    if uv run tools/sample-flows/review_sample_flows.py "$SAMPLE_DIR" --output "$OUTPUT_FILE"; then
         echo "Flow testing completed for $SAMPLE_NAME"
     else
         echo ""

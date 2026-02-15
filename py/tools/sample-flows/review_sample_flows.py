@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,25 +29,25 @@ import asyncio
 import importlib.util
 import json
 import logging
-
-logging.getLogger().setLevel(logging.ERROR)
-logging.getLogger('asyncio').setLevel(logging.ERROR)
-logging.getLogger('httpx').setLevel(logging.ERROR)
-logging.getLogger('httpcore').setLevel(logging.ERROR)
 import platform
 import re
-import time
-import warnings
-
-warnings.filterwarnings('ignore')
 import subprocess  # noqa: S404
 import sys
+import time
 import traceback
+import warnings
 from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
 from genkit.types import Media
+
+logging.getLogger().setLevel(logging.ERROR)
+logging.getLogger('asyncio').setLevel(logging.ERROR)
+logging.getLogger('httpx').setLevel(logging.ERROR)
+logging.getLogger('httpcore').setLevel(logging.ERROR)
+
+warnings.filterwarnings('ignore')
 
 
 def open_file(path: str) -> None:

@@ -1,4 +1,4 @@
-# Model Performance Testing Tool
+# Model Config Testing Tool
 
 A tool to test model performance across different models and configuration variations.
 
@@ -12,7 +12,14 @@ A tool to test model performance across different models and configuration varia
 Run the tool:
 
 ```bash
-uv run test_model_performance.py --models googleai/gemini-2.0-flash
+uv run tools/model-config-test/model_performance_test.py --models googleai/gemini-2.0-flash
+```
+
+Or run the web interface:
+
+```bash
+cd py
+uv run tools/model-config-test/server.py
 ```
 
 ## Features
