@@ -153,6 +153,8 @@ async def chef_flow(input: ChefInput) -> Recipe:
 
     response = await recipe_prompt(input={'food': input.food})
     # Ensure we return a Pydantic model as expected by the type hint and caller
+    if not response.output:
+        raise ValueError('Model did not return a recipe.')
     result = Recipe.model_validate(response.output)
     await logger.ainfo(f'chef_flow result: {result}')
     return result
@@ -180,6 +182,8 @@ async def robot_chef_flow(input: ChefInput) -> Recipe:
 
     response = await robot_recipe_prompt(input={'food': input.food})
     # Ensure we return a Pydantic model as expected by the type hint and caller
+    if not response.output:
+        raise ValueError('Model did not return a recipe.')
     result = Recipe.model_validate(response.output)
     await logger.ainfo(f'robot_chef_flow result: {result}')
     return result

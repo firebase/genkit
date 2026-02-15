@@ -88,7 +88,8 @@ older browsers (OWASP recommendation since 2023).
 """
 
 _SECURITY_HEADERS_DEBUG = secure_lib.Secure(
-    csp=secure_lib.ContentSecurityPolicy()
+    csp=secure_lib
+    .ContentSecurityPolicy()
     .default_src("'self'")
     .script_src("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net")
     .style_src("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net")

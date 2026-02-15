@@ -26,8 +26,8 @@ URL_REGEX = re.compile(
 US_PHONE_REGEX = re.compile(r'\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b')
 
 # Permissive safety settings for judge model
-PERMISSIVE_SAFETY_SETTINGS = {
-    'safetySettings': [
+PERMISSIVE_SAFETY_SETTINGS: dict[str, object] = {
+    'safety_settings': [
         {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
         {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
         {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},

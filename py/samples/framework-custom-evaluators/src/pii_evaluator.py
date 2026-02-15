@@ -16,6 +16,8 @@
 
 """PII detection evaluator using LLM-as-a-judge."""
 
+from functools import partial
+
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
@@ -33,6 +35,7 @@ async def pii_detection_score(
     ai: Genkit,
     judge: str,
     datapoint: BaseDataPoint,
+    _options: dict[str, object] | None = None,
     judge_config: dict[str, object] | None = None,
 ) -> EvalFnResponse:
     """Score a datapoint for PII presence using an LLM judge.
@@ -41,6 +44,7 @@ async def pii_detection_score(
         ai: Genkit instance with loaded prompts.
         judge: Model name to use as judge (e.g., 'googleai/gemini-2.0-flash').
         datapoint: The evaluation datapoint containing output to check.
+        _options: (Unused) Evaluation options passed by Genkit.
         judge_config: Optional configuration for the judge model.
 
     Returns:
@@ -91,5 +95,5 @@ def register_pii_evaluator(
         name='byo/pii_detection',
         display_name='PII Detection',
         definition='Detects whether PII is present in the output.',
-        fn=lambda dp, options: pii_detection_score(ai, judge, dp, judge_config),
+        fn=partial(pii_detection_score, ai, judge, judge_config=judge_config),
     )

@@ -906,7 +906,7 @@ async def test_load_static_prompts() -> None:
 
     # Verify 'kitchensink' rendering with input
     # kitchensink.prompt has:
-    # model: googleai/gemini-5.0-ultimate-pro-plus
+    # model: googleai/gemini-3-pro-preview
     # config: temperature: 11
     # tools: [toolA, toolB]
     # output: format: csv, schema: ...
@@ -919,7 +919,7 @@ async def test_load_static_prompts() -> None:
     kitchensink_response = await kitchensink_executable.arun({'subject': 'banana'})
     req = kitchensink_response.response
 
-    assert req.model == 'googleai/gemini-5.0-ultimate-pro-plus'
+    assert req.model == 'googleai/gemini-3-pro-preview'
     assert req.config.temperature == 11
     assert req.output.format == 'csv'
     # Tools should be listed

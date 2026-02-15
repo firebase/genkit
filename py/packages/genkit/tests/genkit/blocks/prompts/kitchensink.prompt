@@ -1,5 +1,5 @@
 ---
-model: googleai/gemini-5.0-ultimate-pro-plus
+model: googleai/gemini-3-pro-preview
 description: a description
 config: 
   temperature: 11

@@ -62,8 +62,8 @@ Testing Instructions
 """
 
 import asyncio
+import os
 from pathlib import Path
-from typing import cast
 
 from genkit.ai import Genkit
 from genkit.core.logging import get_logger
@@ -81,7 +81,7 @@ current_dir = Path(__file__).resolve().parent
 prompts_path = current_dir.parent / 'prompts'
 
 # Register all evaluators
-JUDGE_MODEL = 'googleai/gemini-3-pro-preview'
+JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-3-pro-preview')
 
 # Initialize Genkit with Google AI plugin, default model, and load prompts
 ai = Genkit(plugins=[GoogleAI()], model=JUDGE_MODEL, prompt_dir=prompts_path)
@@ -96,9 +96,9 @@ register_regex_evaluators(
 )
 
 # LLM-based evaluators
-register_pii_evaluator(ai, JUDGE_MODEL, cast(dict[str, object], PERMISSIVE_SAFETY_SETTINGS))
-register_funniness_evaluator(ai, JUDGE_MODEL, cast(dict[str, object], PERMISSIVE_SAFETY_SETTINGS))
-register_deliciousness_evaluator(ai, JUDGE_MODEL, cast(dict[str, object], PERMISSIVE_SAFETY_SETTINGS))
+register_pii_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
+register_funniness_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
+register_deliciousness_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
 
 
 async def main() -> None:

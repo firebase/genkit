@@ -16,6 +16,7 @@
 
 """Deliciousness evaluator using LLM-as-a-judge."""
 
+from functools import partial
 from typing import Literal
 
 from pydantic import BaseModel
@@ -35,6 +36,7 @@ async def deliciousness_score(
     ai: Genkit,
     judge: str,
     datapoint: BaseDataPoint,
+    _options: dict[str, object] | None = None,
     judge_config: dict[str, object] | None = None,
 ) -> EvalFnResponse:
     """Score a datapoint for deliciousness using an LLM judge.
@@ -43,6 +45,7 @@ async def deliciousness_score(
         ai: Genkit instance with loaded prompts.
         judge: Model name to use as judge (e.g., 'googleai/gemini-2.0-flash').
         datapoint: The evaluation datapoint containing output to check.
+        _options: (Unused) Evaluation options passed by Genkit.
         judge_config: Optional configuration for the judge model.
 
     Returns:
@@ -93,5 +96,5 @@ def register_deliciousness_evaluator(
         name='byo/deliciousness',
         display_name='Deliciousness',
         definition='Determines if output is considered delicious.',
-        fn=lambda dp, options: deliciousness_score(ai, judge, dp, judge_config),
+        fn=partial(deliciousness_score, ai, judge, judge_config=judge_config),
     )
