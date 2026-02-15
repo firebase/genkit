@@ -150,6 +150,7 @@ addopts = [
   "--ignore=tools/conform/tests",
   "--import-mode=importlib",
 ]
+pythonpath = ["."]  # For samples.shared imports
 asyncio_default_fixture_loop_scope = "session"
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]

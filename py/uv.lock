@@ -8292,22 +8292,20 @@ dependencies = [
     { name = "diagnostic" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
     { name = "packaging" },
     { name = "rich" },
     { name = "rich-argparse" },
+    { name = "sigstore" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
     { name = "tomlkit" },
 ]
 
-[package.optional-dependencies]
-tracing = [
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-sdk" },
-]
-
 [package.dev-dependencies]
 dev = [
+    { name = "jsonschema" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -8320,19 +8318,20 @@ requires-dist = [
     { name = "diagnostic", specifier = ">=3.0.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
-    { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.20.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.20.0" },
+    { name = "opentelemetry-api", specifier = ">=1.20.0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "packaging", specifier = ">=24.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "rich-argparse", specifier = ">=1.6.0" },
+    { name = "sigstore", specifier = ">=3.0.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.1.0" },
     { name = "tomlkit", specifier = ">=0.13.0" },
 ]
-provides-extras = ["tracing"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
