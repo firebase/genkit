@@ -856,9 +856,7 @@ async def test_variant_prompt_loading_does_not_recurse() -> None:
         assert 'pizza' in robot_response.text
 
 
-@pytest.mark.asyncio
-async def test_load_static_prompts() -> None:
-    """Test loading static prompts from the definitions/prompts directory."""
+async def _setup_static_prompts_test() -> Genkit:
     ai, *_ = setup_test()
 
     @ai.tool(name='toolA')
@@ -877,24 +875,28 @@ async def test_load_static_prompts() -> None:
         pytest.skip(f'Static prompts directory not found at {prompts_dir}')
 
     load_prompt_folder(ai.registry, prompts_dir)
+    return ai
 
-    # Verify 'test' prompt
-    test_prompt = await ai.registry.resolve_action(ActionKind.PROMPT, 'test')
-    assert test_prompt is not None
 
-    # Verify 'kitchensink' prompt
-    kitchensink_prompt = await ai.registry.resolve_action(ActionKind.PROMPT, 'kitchensink')
-    assert kitchensink_prompt is not None
+@pytest.mark.asyncio
+async def test_static_prompts_loaded() -> None:
+    """Test that all expected static prompts are loaded and resolvable."""
+    ai = await _setup_static_prompts_test()
 
-    # Verify 'toolPrompt' prompt
-    tool_prompt = await ai.registry.resolve_action(ActionKind.PROMPT, 'toolPrompt')
-    assert tool_prompt is not None
+    # Verify prompts are loaded
+    for name in ['test', 'kitchensink', 'toolPrompt']:
+        prompt = await ai.registry.resolve_action(ActionKind.PROMPT, name)
+        assert prompt is not None, f"Prompt '{name}' should have been loaded."
 
-    # Verify sub-directory prompt 'sub/test'
+
+@pytest.mark.asyncio
+async def test_static_sub_test_prompt_rendering() -> None:
+    """Test rendering of the 'sub/test' static prompt."""
+    ai = await _setup_static_prompts_test()
+
     sub_test_prompt = await ai.registry.resolve_action(ActionKind.PROMPT, 'sub/test')
     assert sub_test_prompt is not None
 
-    # Verify 'sub/test' rendering
     sub_test_response = await sub_test_prompt.arun({})
     sub_test_req = sub_test_response.response
     assert sub_test_req.config.temperature == 12  # From config in sub/test.prompt
@@ -904,13 +906,11 @@ async def test_load_static_prompts() -> None:
     assert sub_test_req.messages[0].role == Role.USER
     assert sub_test_req.messages[0].content[0].root.text == 'Hello from the sub folder prompt file'
 
-    # Verify 'kitchensink' rendering with input
-    # kitchensink.prompt has:
-    # model: googleai/gemini-3-pro-preview
-    # config: temperature: 11
-    # tools: [toolA, toolB]
-    # output: format: csv, schema: ...
-    # template: {{role "system"}} Hello {{history}} from the prompt file {{ subject }}
+
+@pytest.mark.asyncio
+async def test_static_kitchensink_prompt_rendering() -> None:
+    """Test rendering of the 'kitchensink' static prompt."""
+    ai = await _setup_static_prompts_test()
 
     # Use EXECUTABLE_PROMPT to verify model and other generation options
     kitchensink_executable = await ai.registry.resolve_action(ActionKind.EXECUTABLE_PROMPT, 'kitchensink')
@@ -922,9 +922,11 @@ async def test_load_static_prompts() -> None:
     assert req.model == 'googleai/gemini-3-pro-preview'
     assert req.config.temperature == 11
     assert req.output.format == 'csv'
+    assert req.tool_choice == ToolChoice.REQUIRED
+    assert req.max_turns == 77
+    assert req.return_tool_requests is True
     # Tools should be listed
-    assert 'toolA' in req.tools
-    assert 'toolB' in req.tools
+    assert set(req.tools) == {'toolA', 'toolB'}
 
     # Verify messages structure
     # Expected: System message " Hello " and maybe another message
