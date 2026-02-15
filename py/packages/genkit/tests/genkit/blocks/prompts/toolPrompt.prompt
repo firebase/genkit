@@ -1,6 +1,0 @@
----
-description: prompt in a file
-tools: 
-  - agentA
----
-{{ role "system" }} {{ @state.name }} toolPrompt prompt
