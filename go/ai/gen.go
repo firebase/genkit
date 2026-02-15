@@ -334,13 +334,13 @@ type MultipartToolResponse struct {
 // Operation represents a long-running background task.
 type Operation struct {
 	// Action is the name of the action being performed by this operation.
-	Action string `json:"action,omitempty"`
+	Action string `json:"action"`
 	// Done indicates whether the operation has completed.
-	Done bool `json:"done,omitempty"`
+	Done bool `json:"done"`
 	// Error contains error information if the operation failed.
 	Error *OperationError `json:"error,omitempty"`
 	// Id is the unique identifier for this operation.
-	Id string `json:"id,omitempty"`
+	Id string `json:"id"`
 	// Metadata contains additional information about the operation.
 	Metadata map[string]any `json:"metadata,omitempty"`
 	// Output contains the result of the operation if it has completed successfully.
