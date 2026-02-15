@@ -29,7 +29,7 @@ if [ -f "$SCRIPT_DIR/local.env" ]; then
   source "$SCRIPT_DIR/local.env"
 fi
 
-check_env_var "GEMINI_API_KEY" "https://makersuite.google.com/app/apikey" || true
+check_env_var "GEMINI_API_KEY" "https://makersuite.google.com/app/apikey"
 
 install_deps
 

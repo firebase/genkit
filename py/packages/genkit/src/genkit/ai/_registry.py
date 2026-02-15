@@ -668,7 +668,6 @@ class GenkitRegistry:
             options = SimpleRetrieverOptions(name=options)
 
         async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
-
             items = await ensure_async(handler)(query, options_obj)
             docs = []
             for item in items:

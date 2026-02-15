@@ -75,16 +75,16 @@ async def regex_match_score(datapoint: BaseDataPoint, regex: Pattern[str]) -> Ev
 
 def _regex_eval_fn_factory(
     regex_pattern: re.Pattern[str],
-) -> Callable[[BaseDataPoint, Any], Coroutine[Any, Any, EvalFnResponse]]:
+) -> Callable[[BaseDataPoint, dict[str, Any] | None], Coroutine[Any, Any, EvalFnResponse]]:
     """Factory to create a callable for regex evaluators."""
 
-    async def _eval_fn(datapoint: BaseDataPoint, options: Any) -> EvalFnResponse:  # noqa: ANN401
+    async def _eval_fn(datapoint: BaseDataPoint, options: dict[str, Any] | None = None) -> EvalFnResponse:
         return await regex_match_score(datapoint, regex_pattern)
 
     return _eval_fn
 
 
-def register_regex_evaluators(ai: Genkit, patterns: list[dict[str, object]]) -> None:
+def register_regex_evaluators(ai: Genkit, patterns: list[dict[str, Any]]) -> None:
     """Register regex-based evaluators with Genkit.
 
     Args:

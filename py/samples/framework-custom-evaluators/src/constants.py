@@ -23,7 +23,7 @@ URL_REGEX = re.compile(
     r'https?://(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)'
 )
 
-US_PHONE_REGEX = re.compile(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b')
+US_PHONE_REGEX = re.compile(r'\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b')
 
 # Permissive safety settings for judge model
 PERMISSIVE_SAFETY_SETTINGS = {
