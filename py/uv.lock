@@ -14,6 +14,7 @@ members = [
     "conform",
     "dev-local-vectorstore-hello",
     "framework-context-demo",
+    "framework-custom-evaluators",
     "framework-dynamic-tools-demo",
     "framework-evaluator-demo",
     "framework-format-demo",
@@ -1818,6 +1819,36 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "framework-custom-evaluators"
+version = "0.0.1"
+source = { editable = "samples/framework-custom-evaluators" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "rich" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "watchdog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]

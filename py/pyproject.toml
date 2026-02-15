@@ -175,6 +175,7 @@ default-groups = ["dev", "lint"]
 # Samples (alphabetical by package name from pyproject.toml)
 dev-local-vectorstore-hello                = { workspace = true }
 framework-context-demo                     = { workspace = true }
+framework-custom-evaluators                = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
 framework-evaluator-demo                   = { workspace = true }
 framework-format-demo                      = { workspace = true }
@@ -425,7 +426,7 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 [tool.ty.src]
 # Auto-generated protobuf stubs use grpc.experimental implicit submodule
 # access that ty warns about. We can't modify generated code.
-exclude = ["**/generated"]
+exclude = ["**/generated", "samples/web-endpoints-hello"]
 
 [tool.ty.environment]
 root = [
@@ -457,7 +458,7 @@ root = [
   ".",                                     # For samples.shared imports
   "samples/framework-evaluator-demo",      # For evaluator_demo package imports
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
-  "samples/web-endpoints-hello",           # For src imports in tests
+  "samples/framework-custom-evaluators",   # For custom evaluators sample imports
   "plugins/mcp/tests",                     # For fakes module imports in tests
   # Tools
   "tools/releasekit/src", # For releasekit package imports
@@ -507,6 +508,7 @@ extraPaths = [
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "plugins/xai/src",
+  "samples/framework-custom-evaluators",
   # Tools
   "tools/releasekit/src",
   "tools/conform/src",
@@ -575,6 +577,7 @@ search-path = [
   ".",
   "plugins/mcp/tests",
   "samples/framework-evaluator-demo",
+  "samples/framework-custom-evaluators",
   "samples/framework-restaurant-demo/src",
 
   "samples/web-endpoints-hello",
