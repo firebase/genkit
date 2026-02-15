@@ -199,6 +199,7 @@ def main() -> None:
 
     except Exception:  # noqa: S110 - error is captured and reported as JSON
         import traceback
+
         result = {
             'success': False,
             'response': None,
