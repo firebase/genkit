@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -56,7 +57,51 @@ var (
 		ai.RoleSystem: "system",
 		ai.RoleTool:   "tool",
 	}
+	// defaultOllamaSupports defines the default capabilities for dynamically
+	// discovered Ollama models. All capabilities are enabled since local models
+	// vary widely and we can't query their capabilities individually.
+	defaultOllamaSupports = ai.ModelSupports{
+		Multiturn:  true,
+		Media:      true,
+		Tools:      true,
+		SystemRole: true,
+	}
 )
+
+// ollamaTagsResponse represents the response from GET /api/tags.
+type ollamaTagsResponse struct {
+	Models []ollamaLocalModel `json:"models"`
+}
+
+// ollamaLocalModel represents a locally available Ollama model.
+type ollamaLocalModel struct {
+	Name  string `json:"name"`
+	Model string `json:"model"`
+}
+
+// listLocalModels calls GET /api/tags to list locally installed Ollama models.
+func listLocalModels(ctx context.Context, serverAddress string) ([]ollamaLocalModel, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", serverAddress+"/api/tags", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch local models from Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama /api/tags returned status %d", resp.StatusCode)
+	}
+
+	var tagsResp ollamaTagsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		return nil, fmt.Errorf("failed to decode /api/tags response: %w", err)
+	}
+	return tagsResp.Models, nil
+}
 
 func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.ModelOptions) ai.Model {
 	o.mu.Lock()
@@ -224,6 +269,57 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 		o.Timeout = 30
 	}
 	return []api.Action{}
+}
+
+// newModel creates an Ollama model without registering it in the Genkit registry.
+// It is used by ListActions (to generate ActionDesc) and ResolveAction (to return an Action).
+func (o *Ollama) newModel(name string, opts ai.ModelOptions) ai.Model {
+	meta := &ai.ModelOptions{
+		Label:    "Ollama - " + name,
+		Supports: opts.Supports,
+		Versions: []string{},
+	}
+	gen := &generator{
+		model:         ModelDefinition{Name: name, Type: "chat"},
+		serverAddress: o.ServerAddress,
+		timeout:       o.Timeout,
+	}
+	return ai.NewModel(api.NewName(provider, name), meta, gen.generate)
+}
+
+// ListActions calls /api/tags to discover locally installed Ollama models.
+func (o *Ollama) ListActions(ctx context.Context) []api.ActionDesc {
+	models, err := listLocalModels(ctx, o.ServerAddress)
+	if err != nil {
+		slog.Error("unable to list ollama models", "error", err)
+		return nil
+	}
+
+	var actions []api.ActionDesc
+	for _, m := range models {
+		name := m.Name
+		// Filter out embedding models (following JS: !m.model.includes('embed'))
+		if strings.Contains(name, "embed") {
+			continue
+		}
+		model := o.newModel(name, ai.ModelOptions{Supports: &defaultOllamaSupports})
+		if action, ok := model.(api.Action); ok {
+			actions = append(actions, action.Desc())
+		}
+	}
+	return actions
+}
+
+// ResolveAction dynamically creates a model action on demand.
+func (o *Ollama) ResolveAction(atype api.ActionType, name string) api.Action {
+	if atype != api.ActionTypeModel {
+		return nil
+	}
+	model := o.newModel(name, ai.ModelOptions{Supports: &defaultOllamaSupports})
+	if action, ok := model.(api.Action); ok {
+		return action
+	}
+	return nil
 }
 
 // Generate makes a request to the Ollama API and processes the response.
