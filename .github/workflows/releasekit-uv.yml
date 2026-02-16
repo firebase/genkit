@@ -488,7 +488,10 @@ jobs:
   verify:
     name: Verify Published Packages
     needs: publish
-    if: success() && env.DRY_RUN != 'true'
+    if: >-
+      success() &&
+      (github.event_name == 'pull_request' ||
+       inputs.dry_run == false)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -537,7 +540,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: [publish, verify]
+    needs: [release, publish, verify]
     if: success()
     runs-on: ubuntu-latest
     timeout-minutes: 5

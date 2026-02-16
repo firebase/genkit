@@ -357,7 +357,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify-js:
     name: "Notify Downstream (JS)"
-    needs: publish-js
+    needs: [release-js, publish-js]
     if: success() && needs.publish-js.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5

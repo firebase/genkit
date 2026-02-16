@@ -72,11 +72,90 @@ run_check "📜 Dep License Check"   uv run --directory "${PY_DIR}" liccheck -s 
 run_check "🔍 Consistency Checks"  "${PY_DIR}/bin/check_consistency"
 run_check "📦 Releasekit Checks"   uv run --directory "${TOP_DIR}/py/tools/releasekit" releasekit check
 
+# Actionlint (GitHub Actions workflow validation)
+_run_actionlint() {
+  if ! command -v actionlint &> /dev/null; then
+    echo "⚠️  actionlint not found."
+    # Auto-install prompt (only if stdin is a terminal)
+    if [ -t 0 ]; then
+      read -r -p "    Install actionlint via 'go install'? [Y/n] " answer
+      case "${answer:-Y}" in
+        [Yy]*)
+          if command -v go &> /dev/null; then
+            go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          elif command -v brew &> /dev/null; then
+            brew install actionlint
+          else
+            echo "    ❌ Neither 'go' nor 'brew' found. Install manually:"
+            echo "       https://github.com/rhysd/actionlint#quick-start"
+            return 0
+          fi
+          echo "✅ actionlint installed. Please re-run the linter."
+          return 0
+          ;;
+        *)
+          echo "    Skipping actionlint (install: go install github.com/rhysd/actionlint/cmd/actionlint@latest)"
+          return 0
+          ;;
+      esac
+    else
+      echo "    Skipping (install: go install github.com/rhysd/actionlint/cmd/actionlint@latest)"
+      return 0
+    fi
+  fi
+  local workflow_files=()
+  local workflow_dirs=(
+    "${TOP_DIR}/.github/workflows"
+    "${TOP_DIR}/py/tools/releasekit/github/workflows"
+  )
+  for dir in "${workflow_dirs[@]}"; do
+    while IFS= read -r -d '' f; do
+      workflow_files+=("$f")
+    done < <(find "${dir}" \( -name '*.yml' -o -name '*.yaml' \) -type f -print0 2>/dev/null)
+  done
+
+  if [ ${#workflow_files[@]} -eq 0 ]; then
+    echo "ℹ️  No workflow files found — skipping"
+    return 0
+  fi
+
+  # -ignore 'shellcheck' suppresses all embedded shellcheck warnings since
+  # we already run shellcheck separately. Actionlint's shellcheck integration
+  # also produces false positives for ${{ }} expression expansions.
+  if actionlint -ignore 'shellcheck' "${workflow_files[@]}" 2>&1; then
+    echo "✅ All ${#workflow_files[@]} workflow files pass actionlint"
+  else
+    return 1
+  fi
+}
+run_check "🔧 Actionlint"  _run_actionlint
+
 # Shellcheck (inline — slightly more complex, but still read-only)
 _run_shellcheck() {
   if ! command -v shellcheck &> /dev/null; then
-    echo "⚠️  shellcheck not installed (brew install shellcheck) - skipping"
-    return 0
+    echo "⚠️  shellcheck not found."
+    if [ -t 0 ]; then
+      read -r -p "    Install shellcheck via 'brew install'? [Y/n] " answer
+      case "${answer:-Y}" in
+        [Yy]*)
+          if command -v brew &> /dev/null; then
+            brew install shellcheck
+          else
+            echo "    ❌ 'brew' not found. Install manually: https://github.com/koalaman/shellcheck#installing"
+            return 0
+          fi
+          echo "✅ shellcheck installed. Please re-run the linter."
+          return 0
+          ;;
+        *)
+          echo "    Skipping shellcheck (install: brew install shellcheck)"
+          return 0
+          ;;
+      esac
+    else
+      echo "    Skipping (install: brew install shellcheck)"
+      return 0
+    fi
   fi
   local shell_errors=0
   local shell_scripts=()

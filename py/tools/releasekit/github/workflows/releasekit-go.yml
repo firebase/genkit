@@ -288,7 +288,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: publish
+    needs: [release, publish]
     if: success()
     runs-on: ubuntu-latest
     timeout-minutes: 5
