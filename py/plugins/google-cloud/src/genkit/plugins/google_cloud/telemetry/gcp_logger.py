@@ -181,12 +181,24 @@ class GcpLogger:
 
         Args:
             message: Log message for fallback logging.
-            payload: Structured payload with all metadata.
+            payload: Structured payload with nested metadata.
             severity: Cloud Logging severity (INFO, ERROR).
         """
         if self._export and self._cloud_logger:
             try:
-                self._cloud_logger.log_struct(payload, severity=severity, labels={'module': 'genkit'})
+                from google.cloud.logging_v2.resource import Resource as MonitoredResource
+
+                # Attach resource for proper dashboard filtering
+                resource = MonitoredResource(
+                    type='global', labels={'project_id': self._project_id} if self._project_id else {}
+                )
+
+                self._cloud_logger.log_struct(
+                    payload,
+                    severity=severity,
+                    labels={'module': 'genkit'},
+                    resource=resource,
+                )
             except Exception as e:
                 logger.error('Failed to write to Cloud Logging', error=str(e), message=message)
                 # Fallback to console
@@ -224,8 +236,9 @@ class GcpLogger:
             logger.warning(f'[FALLBACK] {message}', **(metadata or {}))
             return
 
-        payload = metadata.copy() if metadata else {}
-        payload['message'] = message
+        # Create nested payload: {message, metadata: {...}, trace fields}
+        metadata_dict = metadata.copy() if metadata else {}
+        payload = {'message': message, 'metadata': metadata_dict}
         payload.update(self._get_trace_context())
         self._write(message, payload, 'INFO')
 
@@ -236,8 +249,8 @@ class GcpLogger:
             message: Log message.
             metadata: Additional structured metadata.
         """
-        payload = metadata.copy() if metadata else {}
-        payload['message'] = message
+        metadata_dict = metadata.copy() if metadata else {}
+        payload = {'message': message, 'metadata': metadata_dict}
         payload.update(self._get_trace_context())
         self._write(message, payload, 'ERROR')
 

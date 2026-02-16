@@ -187,7 +187,7 @@ def test_add_gcp_telemetry_disable_traces() -> None:
 
 
 def test_add_gcp_telemetry_disable_metrics() -> None:
-    """Test that disable_metrics=True skips metrics export (JS/Go parity)."""
+    """Test that disable_metrics=True skips metrics export but still enables traces with resource detection."""
     with (
         mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.PROD}),
         patch('genkit.plugins.google_cloud.telemetry.config.GenkitGCPExporter'),
@@ -199,16 +199,23 @@ def test_add_gcp_telemetry_disable_metrics() -> None:
         patch('genkit.plugins.google_cloud.telemetry.config.PeriodicExportingMetricReader') as mock_reader,
         patch('genkit.plugins.google_cloud.telemetry.config.metrics'),
     ):
+        # Configure mock detector to return a mock resource
+        mock_resource = mock.MagicMock()
+        mock_detector.return_value.detect.return_value = mock_resource
+
         from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
 
         # Call with disable_metrics=True (JS/Go: disableMetrics)
         add_gcp_telemetry(disable_metrics=True)
 
-        # Verify metrics exporter was NOT created
-        mock_detector.assert_not_called()
+        # Verify metrics exporters were NOT created (metrics disabled)
         mock_metric_exp.assert_not_called()
         mock_genkit_metric.assert_not_called()
         mock_reader.assert_not_called()
+
+        # Verify resource detection was called for traces (Firebase dashboard needs this)
+        mock_detector.assert_called_once_with(raise_on_error=True)
+        mock_detector.return_value.detect.assert_called_once()
 
 
 def test_add_gcp_telemetry_custom_metric_interval() -> None:
