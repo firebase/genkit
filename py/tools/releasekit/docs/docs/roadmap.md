@@ -494,8 +494,9 @@ Remaining migration steps:
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Release-Please | ✅ Complete | Orchestrators, CI workflow, workspace-sourced deps |
 | 6: UX Polish | ✅ Complete | init, formatters (9), rollback, completion, diagnostics, granular flags, TOML config migration |
-| 7: Quality + Ship | 🔶 In progress | 1,739 tests pass, 78 source modules, 64 test files (~28K test LOC), 91.07% coverage |
-| 8: Release Automation | ⬜ Planned | Continuous deploy, cadence releases, hooks, branch channels (from competitive analysis) |
+| 7: Quality + Ship | 🔶 In progress | 2,572 tests pass, 82+ source modules, 68+ test files, 91%+ coverage |
+| 8: Release Automation | ✅ Complete | hooks.py, should_release.py, calver.py, channels.py, config Phase 8 fields, CLI wiring, 73 new tests |
+| 9: Advanced Workflows | ✅ Complete | prerelease.py, hotfix.py, snapshot.py, announce.py, changesets.py, api.py, incremental changelog, Jinja2 templates, promote/snapshot CLI, 113 new tests |
 
 ### Phase 5 completion status
 
@@ -730,7 +731,7 @@ Phase 1: Discovery         ▼
 │                                                         │
 │  ✓ releasekit discover                                 │
 │  ✓ releasekit graph                                    │
-│  ✓ releasekit check-cycles                             │
+│  ✓ releasekit check (cycles, deps, metadata)           │
 └──────────────────────────┬──────────────────────────────┘
                            │
 Phase 2: Version + Pin     ▼
@@ -878,9 +879,9 @@ Phase 6: UX Polish         ▼    ✅ COMPLETE
 │  ✓ Migrated config from pyproject.toml to releasekit.toml│
 └──────────────────────────┬──────────────────────────────┘
                            │
-Phase 7: Quality + Ship    ▼    🔶 IN PROGRESS
+Phase 7: Quality + Ship    ▼    ✅ COMPLETE
 ┌─────────────────────────────────────────────────────────┐
-│  tests (1,470 tests, 56 files, ~24K lines)              │
+│  tests (3,325 tests, 113 files, ~48K lines)             │
 │  type checking (ty, pyright, pyrefly -- zero errors)    │
 │  README.md (21 sections, mermaid diagrams)              │
 │  workspace config (releasekit init on genkit repo)     │
@@ -891,8 +892,53 @@ Phase 7: Quality + Ship    ▼    🔶 IN PROGRESS
 │  distro.py (Debian/Fedora/Homebrew dep sync)            │
 │  branch.py (default branch resolution)                  │
 │  commit_parsing/ (conventional commit parser)           │
+│  compliance.py (OpenSSF Scorecard, SECURITY.md gen)     │
+│  scorecard.py (OpenSSF Scorecard automation)             │
+│  security_insights.py (SECURITY-INSIGHTS.yml gen)       │
+│  trust.py (SLSA provenance + trust framework)           │
+│  osv.py (OSV vulnerability scanning)                    │
 │                                                         │
 │  ✓ Ship v0.1.0 to PyPI                                  │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+Phase 8: Release Auto      ▼    ✅ COMPLETE
+┌─────────────────────────────────────────────────────────┐
+│  should_release.py (CI cron integration)                 │
+│  hooks.py (lifecycle hooks: before/after publish/tag)   │
+│  channels.py (branch-to-channel mapping)                │
+│  calver.py (calendar-based versioning)                  │
+│  hotfix.py (maintenance branch + cherry-pick)           │
+│  prerelease.py (RC/alpha/beta + promote CLI)            │
+│  snapshot.py (dev snapshot releases)                    │
+│  announce.py (Slack, Discord, webhook notifications)    │
+│  api.py (programmatic Python API: ReleaseKit class)     │
+│  changesets.py (optional changeset file support)        │
+│  signing.py (Sigstore signing + verification)           │
+│  provenance.py (SLSA provenance generation)             │
+│  attestations.py (artifact attestation framework)       │
+│  detection.py (auto-detect CI platform + forge)         │
+│                                                         │
+│  ✓ All 6 planned items (R1–R6) implemented              │
+│  ✓ 8 additional modules beyond original plan            │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+Phase 9: Polyglot Backends ▼    ✅ COMPLETE
+┌─────────────────────────────────────────────────────────┐
+│  backends/pm/       — 8 backends: uv, pnpm, bazel,     │
+│                       cargo, dart, go, maturin, maven   │
+│  backends/forge/    — 4 backends: GitHub (CLI + API),   │
+│                       GitLab, Bitbucket                 │
+│  backends/registry/ — 6 backends: PyPI, npm, crates.io, │
+│                       Go proxy, Maven Central, pub.dev  │
+│  backends/workspace/— 7 backends: uv, pnpm, Bazel,     │
+│                       Cargo, Dart, Go, Maven            │
+│  backends/vcs/      — 2 backends: Git, Mercurial        │
+│  backends/validation/ — 8 modules: attestation, JWKS,   │
+│                       OIDC, provenance, runner, SBOM,   │
+│                       schema, SLSA                      │
+│                                                         │
+│  ✓ Full polyglot support across 7 ecosystems            │
+│  ✓ Supply chain security (Sigstore, SLSA, SBOM, OIDC)   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -1089,7 +1135,7 @@ implementations. `run_command()` logs and supports dry-run.
 
 **Done when**: `releasekit discover` prints JSON package list,
 `releasekit graph` prints topological levels,
-`releasekit check-cycles` exits 0 on acyclic graph.
+`releasekit check` exits 0 on acyclic graph.
 
 **Milestone**: Can discover and visualize the genkit workspace.
 
@@ -1388,36 +1434,70 @@ deletion. Shell completion works in bash/zsh/fish.
 - 51+ new tests: formatters (30), init (15), config (26), render diagnostics (14)
 - `scripts/dump_diagnostics.py` — diagnostic formatting gallery script
 
-### Phase 7: Quality + Ship
+### Phase 7: Quality + Ship  ✅ Complete
 
-| Item | Description | Est. Lines |
-|------|-------------|-----------|
-| Tests | 90%+ line coverage across all 30 modules. Mocked subprocess calls via `run_command()` abstraction. Snapshot tests for formatters. Integration tests with `--dry-run`. | ~2000 |
-| Type checking | Zero errors from `ty`, `pyright`, and `pyrefly` in strict mode. | config |
-| `README.md` | 21 sections with Mermaid workflow diagrams, CLI reference, config reference, testing workflow, vulnerability scanning, migration guide. | ~800 |
-| Workspace config | Run `releasekit init` on the genkit repo. Review auto-detected groups. Commit generated config. | config |
-| `migrate.py` | ✅ `releasekit migrate` subcommand for mid-stream adoption. See details below. | 119 src + 34 tests |
+| Item | Description | Est. Lines | Actual | Status |
+|------|-------------|-----------|--------|--------|
+| Tests | 90%+ line coverage across all modules. Mocked subprocess calls via `run_command()` abstraction. Snapshot tests for formatters. Integration tests with `--dry-run`. | ~2000 | 3,325 tests, 113 files, ~48K lines | ✅ |
+| Type checking | Zero errors from `ty`, `pyright`, and `pyrefly` in strict mode. | config | Zero errors | ✅ |
+| `README.md` | 21 sections with Mermaid workflow diagrams, CLI reference, config reference, testing workflow, vulnerability scanning, migration guide. | ~800 | ~800 | ✅ |
+| Workspace config | Run `releasekit init` on the genkit repo. Review auto-detected groups. Commit generated config. | config | Done | ✅ |
+| `migrate.py` | `releasekit migrate` subcommand for mid-stream adoption. See details below. | 119 | 487 | ✅ |
+| `sbom.py` | CycloneDX + SPDX SBOM generation for published artifacts. | ~200 | 400 | ✅ |
+| `profiling.py` | Pipeline step timing + bottleneck identification. | ~100 | 261 | ✅ |
+| `tracing.py` | Optional OpenTelemetry integration with graceful no-op fallback. | ~80 | 180 | ✅ |
+| `doctor.py` | Release state consistency checker. | ~100 | 317 | ✅ |
+| `distro.py` | Debian/Fedora/Homebrew dependency synchronization. | ~200 | 791 | ✅ |
+| `branch.py` | Default branch resolution utilities. | ~50 | 67 | ✅ |
+| `commit_parsing/` | Conventional Commit parser with breaking change detection. | ~300 | 853 | ✅ |
+| `compliance.py` | OpenSSF Scorecard integration + compliance checks. | ~400 | 925 | ✅ |
+| `scorecard.py` | OpenSSF Scorecard automation runner. | ~200 | 370 | ✅ |
+| `security_insights.py` | SECURITY-INSIGHTS.yml generator (OpenSSF standard). | ~200 | 478 | ✅ |
+| `trust.py` | SLSA provenance + trust framework verification. | ~200 | 331 | ✅ |
+| `osv.py` | OSV vulnerability scanning integration. | ~100 | 232 | ✅ |
 
 **Done when**: `pytest --cov-fail-under=90` passes, all three type checkers
 report zero errors, README is complete.
 
 **Milestone**: Ship `releasekit` v0.1.0 to PyPI.
 
-### Phase 8: Release Automation  ⬜ Planned
+**Status**: ✅ Complete. All goals met:
+- 3,325 test functions across 113 test files (~48K lines of tests)
+- All three type checkers (ty, pyrefly, pyright) report zero errors
+- README complete with 21 sections and Mermaid diagrams
+- All Phase 7 modules implemented and tested
+
+### Phase 8: Release Automation  ✅ Complete
 
 Features identified through competitive analysis against release-it,
 semantic-release, and other alternatives. See
-[competitive-gap-analysis.md](docs/competitive-gap-analysis.md) §8 for
+[competitive-gap-analysis.md](competitive-gap-analysis.md) §8 for
 full rationale.
 
-| Item | Module | Description | Est. Lines | Priority |
-|------|--------|-------------|-----------|----------|
-| **R1** | `config.py`, `cli.py` | **Continuous deploy mode** — `release_mode = "continuous"` config. In this mode, `releasekit publish` skips PR creation and goes directly to tag + publish. `--if-needed` flag exits 0 if no releasable changes. Idempotent: checks if HEAD already has a release tag → no-op. Uses release lock for concurrent CI safety. | ~120 | High |
-| **R2** | `should_release.py`, `cli.py` | **`releasekit should-release`** command for CI cron integration. Returns exit 0 if a release should happen based on: (a) releasable commits exist, (b) within release window, (c) cooldown elapsed, (d) minimum bump met. Designed for `cron` + `should-release || exit 0` pattern. | ~100 | High |
-| **R3** | `hooks.py`, `publisher.py` | **Lifecycle hooks** — `[hooks]` section in `releasekit.toml`. `before_publish`, `after_publish`, `after_tag`, `before_prepare` keys, each a list of shell commands. Template variables: `${version}`, `${name}`, `${tag}`. Executed via `_run.py` subprocess abstraction. Dry-run aware. | ~150 | High |
-| **R4** | `config.py` | **Scheduled release config** — `[schedule]` section: `cadence` (`daily`, `weekly:monday`, `biweekly`, `on-push`), `release_window` (UTC time range), `cooldown_minutes`, `min_bump` (skip if only chore/docs). Read by `should-release` command. | ~60 | Medium |
-| **R5** | `config.py`, `versioning.py` | **Branch-to-channel mapping** — `[branches]` config section: `main = "latest"`, `"release/v1.*" = "v1-maintenance"`, `"next" = "next"`. Maps current branch to a release channel for dist-tag / pre-release suffix. | ~80 | Medium |
-| **R6** | `config.py`, `versioning.py` | **CalVer support** — Calendar-based versioning (`YYYY.MM.DD`, `YYYY.MM.MICRO`). New `versioning_scheme = "calver"` config. Compute version from date instead of semver bump. | ~100 | Low |
+| Item | Module | Description | Est. Lines | Actual | Status |
+|------|--------|-------------|-----------|--------|--------|
+| **R1** | `config.py`, `cli.py` | **Continuous deploy mode** — `release_mode = "continuous"` config. `--if-needed` flag exits 0 if no releasable changes. Idempotent. | ~120 | Integrated | ✅ |
+| **R2** | `should_release.py`, `cli.py` | **`releasekit should-release`** — CI cron integration. Exit 0 if release should happen. | ~100 | 280 | ✅ |
+| **R3** | `hooks.py`, `publisher.py` | **Lifecycle hooks** — `[hooks]` section with 4 lifecycle events. Template variables, dry-run aware. | ~150 | 204 | ✅ |
+| **R4** | `config.py` | **Scheduled release config** — `[schedule]` section with cadence, window, cooldown, min_bump. | ~60 | Integrated | ✅ |
+| **R5** | `channels.py`, `config.py` | **Branch-to-channel mapping** — `[branches]` config section for dist-tag / pre-release suffix. | ~80 | 130 | ✅ |
+| **R6** | `calver.py`, `config.py` | **CalVer support** — Calendar-based versioning (`YYYY.MM.DD`, `YYYY.MM.MICRO`). | ~100 | 134 | ✅ |
+
+**Additional modules implemented beyond original plan:**
+
+| Module | Description | Lines | Status |
+|--------|-------------|-------|--------|
+| `prerelease.py` | Pre-release/RC workflow with PEP 440 + semver support, `promote` CLI subcommand. | 518 | ✅ |
+| `hotfix.py` | Maintenance branch support with cherry-pick and `--since-tag`. | 324 | ✅ |
+| `snapshot.py` | Dev snapshot releases (`0.1.0.dev20260215`). | 220 | ✅ |
+| `announce.py` | Announcement integrations (Slack, Discord, webhooks). | 531 | ✅ |
+| `api.py` | Programmatic Python API with `ReleaseKit` class. | 308 | ✅ |
+| `changesets.py` | Optional changeset file support (à la changesets). | 289 | ✅ |
+| `signing.py` | Sigstore keyless signing + verification. | 326 | ✅ |
+| `provenance.py` | SLSA provenance generation for supply chain security. | 1,085 | ✅ |
+| `attestations.py` | Artifact attestation framework. | 570 | ✅ |
+| `detection.py` | Auto-detect CI platform (GCP, AWS, Azure) + forge. | 462 | ✅ |
+| `commitback.py` | Post-release PR to bump to next dev version. | 262 | ✅ |
 
 #### Configuration Override Hierarchy
 
@@ -1689,11 +1769,15 @@ shell completion) is enhancement.
 | 4b: Streaming Publisher | 2 (+tests) | ~250 | 541 src + ~640 tests | ✅ Complete |
 | 5: Post-Pipeline + CI | 5 (+CI workflow) | ~700 | prepare, release, tags, changelog, release_notes | ✅ Complete |
 | 6: UX Polish | 3 (+ 9 formatters) | ~570 | init + formatters + config migration | ✅ Complete |
-| 7: Quality + Ship | tests + docs | ~2800 | 1,739 tests pass, 91.07% coverage | 🔶 In progress |
-| 8: Release Automation | 6 modules | ~610 | — | ⬜ Planned |
+| 7: Quality + Ship | 17 modules + tests | ~2800 | ~5.4K src + ~48K tests (3,325 test functions) | ✅ Complete |
+| 8: Release Automation | 17 modules | ~610 | ~4.5K src | ✅ Complete |
+| 9: Polyglot Backends | 35 backend modules | — | ~13K src (backends/) | ✅ Complete |
 
-**Current totals**: ~17,400 lines source, ~28K lines tests, 1,739 tests pass, 91.07% coverage.
-All three type checkers (ty, pyrefly, pyright) report zero errors.
+**Current totals** (as of 2026-02-15):
+- **~47K lines source** (25.7K top-level + 13K backends + 6.9K checks + 853 commit_parsing + 839 formatters + 118 utils)
+- **~48K lines tests** across 113 test files with 3,325 test functions
+- **55 source modules** + 35 backend modules
+- All three type checkers (ty, pyrefly, pyright) report zero errors
 
 ---
 
@@ -1761,27 +1845,29 @@ hundreds (releasekit v2 vision):
 
 ---
 
-## Growth Path to releasekit v2
+## Growth Path
 
-The Protocol-based backend shim layer makes releasekit v1 a foundation for v2:
+The Protocol-based backend shim layer is already fully polyglot:
 
-| What stays (v1 → v2) | What changes |
-|------------------------|-------------|
-| `PackageManager` protocol + `UvBackend`, `PnpmBackend` | Add `GoBackend`, `CargoBackend` |
-| `VCS` protocol + `GitBackend`, `MercurialBackend` | Unchanged (git + hg cover all cases) |
-| `Forge` protocol + `GitHubBackend`, `GitLabBackend`, `BitbucketBackend` | Already complete |
-| `Registry` protocol + `PyPIBackend`, `NpmRegistry` | Add `GolangProxy`, `CratesBackend` |
-| `Workspace` protocol + `UvWorkspace`, `PnpmWorkspace` | Add `GoWorkspace`, `CargoWorkspace` |
+| Layer | Implemented backends |
+|-------|---------------------|
+| `PackageManager` protocol | `UvBackend`, `PnpmBackend`, `BazelBackend`, `CargoBackend`, `DartBackend`, `GoBackend`, `MaturinBackend`, `MavenBackend` |
+| `VCS` protocol | `GitBackend`, `MercurialBackend` |
+| `Forge` protocol | `GitHubBackend`, `GitHubAPIBackend`, `GitLabBackend`, `BitbucketBackend` |
+| `Registry` protocol | `PyPIBackend`, `NpmRegistry`, `CratesIoBackend`, `GoProxyBackend`, `MavenCentralBackend`, `PubDevBackend` |
+| `Workspace` protocol | `UvWorkspace`, `PnpmWorkspace`, `BazelWorkspace`, `CargoWorkspace`, `DartWorkspace`, `GoWorkspace`, `MavenWorkspace` |
+| `Validation` pipeline | Attestation, JWKS, OIDC, Provenance, Runner, SBOM, Schema, SLSA |
 | Graph algorithms | Unchanged (language-agnostic) |
-| Error system (RK-NAMED-KEY) | Expand code categories |
+| Error system (RK-NAMED-KEY) | Full catalog with `explain()` |
 | Rich UI, structured logging | Unchanged |
-| CLI structure | Add language auto-detection |
-| `releasekit.toml` config format | Stable — ecosystem-agnostic by design |
+| `releasekit.toml` config | Stable — ecosystem-agnostic by design |
 
-**Migration path**: No breaking changes. v2 adds new backends and a
-`language` field to package config. Existing `releasekit.toml` configs
-continue to work. The `uvx-releasekit` shim ensures old invocations keep
-working.
+**Future work**: The remaining items are enhancements, not architecture changes:
+- Interactive mode (prompt-based version selection for manual releases)
+- `--no-increment` re-run releases
+- Full plugin system (entry-point discovery for custom steps; hooks cover most cases today)
+- Cross-compilation / binary promotion orchestration
+- Trunk-based development documentation (tooling exists, recipe docs missing)
 
 ---
 
@@ -1791,90 +1877,132 @@ working.
 py/tools/releasekit/
   pyproject.toml
   README.md
-  roadmap.md                          ← this file
+  docs/                               ← documentation
+    docs/
+      roadmap.md                      ← this file
+      competitive-gap-analysis.md     ← competitive landscape
   src/
     releasekit/
       __init__.py
       py.typed
+      # ── Core infrastructure ──
       errors.py                       ← diagnostic lib, RK-NAMED-KEY codes
       logging.py                      ← structlog + Rich
-      backends/                       ← Protocol-based shim layer
-        __init__.py                   ← re-exports all protocols + defaults
-        _run.py                       ← run_command() subprocess abstraction
-        pm.py                         ← PackageManager protocol + UvBackend
-        vcs.py                        ← VCS protocol + GitBackend
-        forge.py                      ← Forge protocol + GitHubBackend (async)
-        registry.py                   ← Registry protocol + PyPIBackend (async)
       net.py                          ← httpx connection pool, retry, rate limit
-      cli.py                          ← argparse + rich-argparse + argcomplete
       config.py                       ← releasekit.toml reader + validator
-      workspace.py                    ← uv workspace discovery
+      cli.py                          ← argparse + rich-argparse + argcomplete (2,929 lines)
+      # ── Discovery + Graph ──
+      workspace.py                    ← multi-ecosystem workspace discovery
       graph.py                        ← dep graph, topo sort, filter
       plan.py                         ← ExecutionPlan dataclass + table/JSON/CSV
-      formatters/
-        __init__.py
-        dot.py                        ← Graphviz DOT
-        json_fmt.py                   ← JSON adjacency list
-        levels.py                     ← human-readable levels
-        ascii_art.py                  ← box-drawing diagram
-        mermaid.py                    ← Mermaid syntax
-        d2.py                         ← D2 syntax
-      init.py                         ← workspace config scaffolding
-      migrate.py                      ← mid-stream adoption: tag detection + bootstrap_sha
+      detection.py                    ← auto-detect CI platform + forge
+      branch.py                       ← default branch resolution
+      groups.py                       ← package group management
+      # ── Versioning ──
       versioning.py                   ← Conventional Commits -> semver
       pin.py                          ← ephemeral version pinning
       bump.py                         ← version string rewriting
       versions.py                     ← JSON manifest + ReleaseManifest
+      calver.py                       ← calendar-based versioning
+      prerelease.py                   ← RC/alpha/beta + promote CLI
+      snapshot.py                     ← dev snapshot releases
+      channels.py                     ← branch-to-channel mapping
+      commit_parsing/                 ← conventional commit parser
+      # ── Publish pipeline ──
       lock.py                         ← advisory lock file
       state.py                        ← run state + resume
-      preflight.py                    ← safety checks + pip-audit
-      publisher.py                    ← level-by-level orchestration
-      prepare.py                      ← Release PR creation (release-please step 1)
-      release.py                      ← Tag + GitHub Release (release-please step 2)
+      preflight.py                    ← safety checks + vulnerability scan (1,133 lines)
+      publisher.py                    ← orchestration via scheduler
+      scheduler.py                    ← dependency-triggered async scheduler (994 lines)
+      observer.py                     ← publish stage enums + observer protocol
+      ui.py                           ← Rich Live progress table
+      hooks.py                        ← lifecycle hooks (before/after publish/tag)
+      should_release.py               ← CI cron integration (should-release)
+      # ── Release lifecycle ──
+      prepare.py                      ← Release PR creation
+      release.py                      ← Tag + GitHub Release
       tags.py                         ← git tags + GitHub Releases
       changelog.py                    ← structured changelog
       release_notes.py                ← umbrella release notes (Jinja2)
-      ui.py                           ← Rich Live progress table
+      commitback.py                   ← post-release PR to bump dev version
+      hotfix.py                       ← maintenance branch + cherry-pick
+      changesets.py                   ← optional changeset file support
+      # ── Supply chain security ──
+      signing.py                      ← Sigstore signing + verification
+      provenance.py                   ← SLSA provenance generation (1,085 lines)
+      attestations.py                 ← artifact attestation framework
+      sbom.py                         ← CycloneDX + SPDX SBOM generation
+      osv.py                          ← OSV vulnerability scanning
+      trust.py                        ← SLSA provenance + trust framework
+      compliance.py                   ← OpenSSF Scorecard integration (925 lines)
+      scorecard.py                    ← OpenSSF Scorecard automation
+      security_insights.py            ← SECURITY-INSIGHTS.yml generator
+      # ── UX + tooling ──
+      init.py                         ← workspace config scaffolding
+      migrate.py                      ← mid-stream adoption: tag detection + bootstrap_sha
+      doctor.py                       ← release state consistency checker
+      profiling.py                    ← pipeline step timing + bottleneck
+      tracing.py                      ← optional OpenTelemetry integration
+      distro.py                       ← Debian/Fedora/Homebrew dep sync
+      announce.py                     ← Slack, Discord, webhook notifications
+      api.py                          ← programmatic Python API (ReleaseKit class)
+      formatters/                     ← 9 graph output formats
+        dot.py, json_fmt.py, levels.py, ascii_art.py,
+        mermaid.py, d2.py, csv_fmt.py, table.py, registry.py
+      utils/                          ← shared utility modules
       templates/
         release_notes.md.j2           ← default release notes template
-  tests/
+      # ── Backend layer (Protocol-based) ──
+      backends/
+        __init__.py                   ← re-exports all protocols + defaults
+        _run.py                       ← run_command() subprocess abstraction
+        pm/                           ← PackageManager implementations
+          __init__.py                 ← PackageManager protocol
+          uv.py                       ← Python (uv)
+          pnpm.py                     ← JavaScript (pnpm)
+          bazel.py                    ← Bazel (polyglot)
+          cargo.py                    ← Rust (cargo)
+          dart.py                     ← Dart (pub)
+          go.py                       ← Go modules
+          maturin.py                  ← Rust+Python (maturin)
+          maven.py                    ← Java (Maven)
+        forge/                        ← Forge implementations
+          __init__.py                 ← Forge protocol
+          github.py                   ← GitHub (gh CLI)
+          github_api.py               ← GitHub (REST API via httpx)
+          gitlab.py                   ← GitLab (glab CLI)
+          bitbucket.py                ← Bitbucket (REST API)
+        registry/                     ← Registry implementations
+          __init__.py                 ← Registry protocol
+          pypi.py                     ← PyPI
+          npm.py                      ← npm
+          crates_io.py                ← crates.io
+          goproxy.py                  ← Go module proxy
+          maven_central.py            ← Maven Central
+          pubdev.py                   ← pub.dev (Dart)
+        workspace/                    ← Workspace implementations
+          __init__.py                 ← Workspace protocol
+          uv.py                       ← uv workspaces
+          pnpm.py                     ← pnpm workspaces
+          bazel.py                    ← Bazel workspaces
+          cargo.py                    ← Cargo workspaces
+          dart.py                     ← Dart/pub workspaces
+          go.py                       ← Go module workspaces
+          maven.py                    ← Maven multi-module
+        vcs/                          ← VCS implementations
+          __init__.py                 ← VCS protocol
+          git.py                      ← Git
+          mercurial.py                ← Mercurial
+        validation/                   ← Supply chain validation
+          __init__.py
+          attestation.py, jwks.py, oidc.py, provenance.py,
+          runner.py, sbom.py, schema.py, slsa.py
+      checks/                         ← Workspace health checks
+        __init__.py                   ← CheckBackend protocol
+        _python.py, _javascript.py, _go.py, ...  ← language-specific
+  tests/                              ← 113 test files, 3,325 tests, ~48K lines
     conftest.py
-    errors_test.py
-    logging_test.py
-    backends/
-      run_test.py
-      pm_test.py
-      vcs_test.py
-      forge_test.py
-      registry_test.py
-    net_test.py
-    plan_test.py
-    cli_test.py
-    config_test.py
-    workspace_test.py
-    graph_test.py
-    formatters/
-      dot_test.py
-      json_fmt_test.py
-      levels_test.py
-      ascii_art_test.py
-      mermaid_test.py
-      d2_test.py
-    init_test.py
-    versioning_test.py
-    pin_test.py
-    bump_test.py
-    versions_test.py
-    lock_test.py
-    state_test.py
-    preflight_test.py
-    publisher_test.py
-    tags_test.py
-    changelog_test.py
-    release_notes_test.py
-    rk_prepare_test.py
-    rk_release_test.py
-    ui_test.py
+    (113 test files across multiple subdirectories)
 ```
 
 ---

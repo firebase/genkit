@@ -29,6 +29,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from releasekit.checks import PythonCheckBackend
+from releasekit.checks._constants import DEPRECATED_CLASSIFIERS
+from releasekit.checks._python import _refresh_publishable
 from releasekit.preflight import PreflightResult, SourceContext
 from releasekit.workspace import Package
 
@@ -712,8 +714,6 @@ class TestRefreshPublishable:
 
     def test_refresh_marks_private_as_non_publishable(self, tmp_path: Path) -> None:
         """Package with Private classifier becomes non-publishable."""
-        from releasekit.checks._python import _refresh_publishable
-
         toml = '[project]\nname = "priv"\nversion = "1.0"\nclassifiers = ["Private :: Do Not Upload"]\n'
         pkg = _make_pkg(tmp_path, 'priv', toml, is_publishable=True)
         _refresh_publishable([pkg])
@@ -722,8 +722,6 @@ class TestRefreshPublishable:
 
     def test_refresh_marks_public_as_publishable(self, tmp_path: Path) -> None:
         """Package without Private classifier becomes publishable."""
-        from releasekit.checks._python import _refresh_publishable
-
         toml = '[project]\nname = "pub"\nversion = "1.0"\nclassifiers = []\n'
         pkg = _make_pkg(tmp_path, 'pub', toml, is_publishable=False)
         _refresh_publishable([pkg])
@@ -732,8 +730,6 @@ class TestRefreshPublishable:
 
     def test_refresh_handles_missing_project(self, tmp_path: Path) -> None:
         """Handles pyproject.toml without [project] section."""
-        from releasekit.checks._python import _refresh_publishable
-
         toml = '[build-system]\nrequires = ["hatchling"]\n'
         pkg = _make_pkg(tmp_path, 'no-proj', toml)
         _refresh_publishable([pkg])
@@ -741,16 +737,12 @@ class TestRefreshPublishable:
 
     def test_refresh_handles_bad_toml(self, tmp_path: Path) -> None:
         """Handles unparseable pyproject.toml gracefully."""
-        from releasekit.checks._python import _refresh_publishable
-
         pkg = _make_pkg(tmp_path, 'bad', '{{invalid}}')
         _refresh_publishable([pkg])
         # Should not crash.
 
     def test_refresh_handles_non_list_classifiers(self, tmp_path: Path) -> None:
         """Handles classifiers that are not a list."""
-        from releasekit.checks._python import _refresh_publishable
-
         toml = '[project]\nname = "x"\nversion = "1.0"\nclassifiers = "not-a-list"\n'
         pkg = _make_pkg(tmp_path, 'x', toml)
         _refresh_publishable([pkg])
@@ -1054,8 +1046,6 @@ class TestDeprecatedClassifiers:
 
     def test_deprecated_classifier_warns(self, tmp_path: Path) -> None:
         """Deprecated classifier warns."""
-        from releasekit.checks._constants import DEPRECATED_CLASSIFIERS
-
         if not DEPRECATED_CLASSIFIERS:
             return  # Nothing to test if no deprecated classifiers defined.
 

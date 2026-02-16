@@ -19,15 +19,15 @@ graph TD
 
     SCAN --> UV{"pyproject.toml with<br/>[tool.uv.workspace]?"}
     SCAN --> PNPM{"pnpm-workspace.yaml?"}
-    SCAN --> GO{"go.work?"}
+    SCAN --> GO{"go.work or go.mod?"}
 
     UV -->|yes| PY["Python (uv)"]
     PNPM -->|yes| JS["JavaScript (pnpm)"]
     GO -->|yes| GOLANG["Go"]
 
-    style PY fill:#3776ab,color:#fff
+    style PY fill:#90b4d4,stroke:#3776ab,color:#1a3a5c
     style JS fill:#f7df1e,color:#000
-    style GOLANG fill:#00add8,color:#fff
+    style GOLANG fill:#80d6ec,stroke:#00838f,color:#004d40
 ```
 
 ## Detection Signals
@@ -36,7 +36,7 @@ graph TD
 |-----------|------------|----------|
 | Python (uv) | `pyproject.toml` with `[tool.uv.workspace]` | Root or `py/` subdirectory |
 | JavaScript (pnpm) | `pnpm-workspace.yaml` | Root or `js/` subdirectory |
-| Go | `go.work` | Root or `go/` subdirectory |
+| Go | `go.work` or `go.mod` | Root or `go/` subdirectory |
 
 ## Example Monorepo Layout
 
@@ -101,9 +101,9 @@ graph TB
     UV_PM & PNPM_PM --> GIT
     PYPI & NPM --> GH
 
-    style UV_WS fill:#3776ab,color:#fff
-    style UV_PM fill:#3776ab,color:#fff
-    style PYPI fill:#3776ab,color:#fff
+    style UV_WS fill:#90b4d4,stroke:#3776ab,color:#1a3a5c
+    style UV_PM fill:#90b4d4,stroke:#3776ab,color:#1a3a5c
+    style PYPI fill:#90b4d4,stroke:#3776ab,color:#1a3a5c
     style PNPM_WS fill:#f7df1e,color:#000
     style PNPM_PM fill:#f7df1e,color:#000
     style NPM fill:#f7df1e,color:#000
@@ -136,12 +136,25 @@ Discovers packages by parsing `pnpm-workspace.yaml`:
 3. Parse each `package.json` for name, version, dependencies
 4. Return `list[Package]`
 
+## Supported Ecosystems
+
+ReleaseKit has workspace backends for all major ecosystems:
+
+| Ecosystem | Workspace Backend | Registry Backend |
+|-----------|------------------|------------------|
+| Python (uv) | `UvWorkspace` | `PyPIBackend` |
+| JavaScript (pnpm) | `PnpmWorkspace` | `NpmRegistry` |
+| Go | `GoWorkspace` | Go module proxy |
+| Rust (Cargo) | `CargoWorkspace` | crates.io |
+| Dart (pub) | `DartWorkspace` | pub.dev |
+| Java (Maven/Gradle) | `MavenWorkspace` | Maven Central |
+
 ## Adding a New Ecosystem
 
-To add support for a new ecosystem (e.g., Cargo for Rust):
+To add support for a new ecosystem:
 
-1. Create `backends/workspace/cargo.py` implementing the `Workspace` protocol
-2. Create `backends/pm/cargo.py` implementing the `PackageManager` protocol
-3. Create `backends/registry/crates.py` implementing the `Registry` protocol
-4. Add detection logic in `detection.py` (look for `Cargo.toml` workspace)
-5. Add the `Ecosystem.RUST` variant
+1. Create `backends/workspace/<eco>.py` implementing the `Workspace` protocol
+2. Create `backends/pm/<eco>.py` implementing the `PackageManager` protocol
+3. Create `backends/registry/<eco>.py` implementing the `Registry` protocol
+4. Add detection logic in `detection.py`
+5. Add the `Ecosystem.<ECO>` variant

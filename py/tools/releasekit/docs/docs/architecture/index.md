@@ -52,8 +52,8 @@ graph TB
     PRE --> VCS & PM & REG & FORGE
     PUB --> PM & REG & VCS
 
-    style CLI fill:#1976d2,color:#fff
-    style GHA fill:#1976d2,color:#fff
+    style CLI fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style GHA fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 ## Design Principles

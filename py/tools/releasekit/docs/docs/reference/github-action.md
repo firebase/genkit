@@ -30,8 +30,8 @@ graph TD
     F -->|no| H["Done"]
     G --> H
 
-    style A fill:#1976d2,color:#fff
-    style E fill:#1e88e5,color:#fff
+    style A fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style E fill:#64b5f6,stroke:#1565c0,color:#0d47a1
 ```
 
 ## Inputs
@@ -68,8 +68,14 @@ operations, configure **OIDC trusted publishing** on PyPI:
 permissions:
   contents: write       # For tags and releases
   pull-requests: write  # For Release PRs
-  id-token: write       # For OIDC trusted publishing
+  id-token: write       # For OIDC trusted publishing + SLSA L3 provenance
 ```
+
+!!! success "SLSA L3 by default on hosted runners"
+    With `id-token: write` on GitHub-hosted runners, ReleaseKit
+    **automatically** achieves SLSA Build L3 — signed provenance with
+    hardened, isolated builds. No extra flags needed.
+    See the [SLSA Provenance guide](../guides/slsa-provenance.md) for details.
 
 !!! warning "Command injection prevention"
     The action builds the command as a **bash array** to prevent

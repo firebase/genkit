@@ -128,6 +128,36 @@ pr_title_template = "chore(release): v{version}"
 extra_files = []
 ```
 
+### Versioning Scheme
+
+```toml
+# Versioning scheme: "semver" (default), "pep440", or "calver"
+# Auto-detected from ecosystem if not set (python → pep440, all others → semver)
+versioning_scheme = "semver"
+
+# CalVer format (only used when versioning_scheme = "calver")
+calver_format = "YYYY.MM.MICRO"
+```
+
+See [Versioning Schemes](versioning-schemes.md) for a full guide.
+
+### Per-Package Overrides
+
+Override workspace-level settings for specific packages or groups:
+
+```toml
+[workspace.mono.packages."my-js-lib"]
+versioning_scheme = "semver"
+dist_tag = "next"
+
+[workspace.mono.packages."my-experimental-lib"]
+registry_url = "https://test.pypi.org/legacy/"
+smoke_test = false
+```
+
+See [Per-Package Configuration](per-package-config.md) for all available
+fields and resolution rules.
+
 ### Synchronize Mode
 
 When `synchronize = true`, all packages get the **same version bump**
@@ -147,9 +177,9 @@ graph LR
         C2["plugin-bar: feat → 0.6.0"]
     end
 
-    style A2 fill:#1976d2,color:#fff
-    style B2 fill:#1976d2,color:#fff
-    style C2 fill:#1976d2,color:#fff
+    style A2 fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style B2 fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style C2 fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 ## Defaults
@@ -174,12 +204,10 @@ If `releasekit.toml` doesn't exist, sensible defaults are used:
 | `pr_title_template` | `"chore(release): v{version}"` |
 | `extra_files` | `[]` |
 
-## Planned Configuration *(Phase 8)*
+## Advanced Configuration
 
-The following configuration sections are planned for Phase 8 (Release
-Automation). See [roadmap.md](../../../roadmap.md) and
-[competitive-gap-analysis.md](../../../docs/competitive-gap-analysis.md)
-for full rationale.
+The following configuration sections control release automation,
+scheduling, hooks, and branch-to-channel mapping.
 
 ### Override Hierarchy
 
@@ -193,7 +221,7 @@ package > workspace > root > built-in default
 Each `[workspace.*]` section can override root-level defaults. Package-level
 `releasekit.toml` files can override workspace settings where applicable.
 
-#### Phase 8 settings — override scope
+#### Override scope
 
 | Setting | Root | Workspace | Package | Notes |
 |---------|:----:|:---------:|:-------:|-------|

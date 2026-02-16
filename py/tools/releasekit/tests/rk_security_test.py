@@ -276,7 +276,7 @@ class TestNoPlaintextHTTP:
     def test_no_http_urls(self) -> None:
         """No Python file uses http:// URLs (except license headers)."""
         violations: list[str] = []
-        pattern = re.compile(r'http://(?!www\.apache\.org|maven\.apache\.org/POM/|localhost[:/])')
+        pattern = re.compile(r'http://(?!www\.apache\.org|maven\.apache\.org/POM/|localhost[:/]|adaptivecards\.io/)')
         for path in _PY_FILES:
             content = _read(path)
             for i, line in enumerate(content.splitlines(), 1):
@@ -330,3 +330,119 @@ class TestPathResolution:
 
         content = _read(pin_path)
         assert '.resolve()' in content, 'pin.py does not call resolve() on pyproject paths (symlink traversal risk)'
+
+
+# ── 12. CI Workflow Script Injection ──────────────────────────────
+
+
+# Root of the repository (walk up from tests/ to find .github/).
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
+
+# GitHub Actions workflow files.
+_WORKFLOW_DIR = _REPO_ROOT / '.github' / 'workflows'
+_WORKFLOW_FILES: list[Path] = sorted(_WORKFLOW_DIR.glob('releasekit*.yml')) if _WORKFLOW_DIR.exists() else []
+
+# String-type inputs that are vulnerable to script injection when used
+# directly in shell `run:` blocks via ${{ inputs.name }}.  Boolean and
+# choice inputs are safe because their values are constrained by GitHub.
+_STRING_INPUTS_RE = re.compile(
+    r"""\$\{\{\s*inputs\.(group|prerelease|concurrency|max_retries)\s*\}\}""",
+)
+
+
+class TestCIWorkflowScriptInjection:
+    """Verify CI workflows don't interpolate string inputs into shell scripts.
+
+    GitHub Actions ``${{ inputs.name }}`` with string-type inputs is expanded
+    *before* bash parses the script, allowing command injection.  String inputs
+    must be passed via ``env:`` blocks and referenced as ``$ENV_VAR`` in shell.
+
+    See: https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+    """
+
+    def test_no_inline_string_inputs_in_run_blocks(self) -> None:
+        """No workflow interpolates string-type inputs directly in run: blocks."""
+        if not _WORKFLOW_FILES:
+            pytest.skip('No releasekit workflow files found')
+
+        violations: list[str] = []
+        for wf_path in _WORKFLOW_FILES:
+            content = _read(wf_path)
+            # Only check inside `run: |` blocks — skip env: sections.
+            in_run_block = False
+            for line_no, line in enumerate(content.splitlines(), start=1):
+                stripped = line.strip()
+                if stripped.startswith('run: |') or stripped.startswith('run: "'):
+                    in_run_block = True
+                    continue
+                if in_run_block and (not stripped or not line.startswith(' ' * 10)):
+                    # End of run block (de-indented or empty line at top level).
+                    if not stripped.startswith('#') and not line.startswith(' ' * 10):
+                        in_run_block = False
+                if in_run_block:
+                    match = _STRING_INPUTS_RE.search(line)
+                    if match:
+                        violations.append(
+                            f'{wf_path.name}:{line_no}: '
+                            f'${{{{ inputs.{match.group(1)} }}}} in run: block '
+                            f'(use env var instead)'
+                        )
+
+        assert not violations, (
+            'CI workflow uses inline ${{ inputs.* }} for string inputs in run: blocks '
+            '(script injection risk):\n' + '\n'.join(violations)
+        )
+
+
+# ── 13. Hook Template Safety ──────────────────────────────────────
+
+
+class TestHookTemplateSafety:
+    """Verify hooks.py uses safe command parsing (shlex.split)."""
+
+    def test_hooks_use_shlex_split(self) -> None:
+        """hooks.py parses expanded commands with shlex.split (not raw shell)."""
+        hooks_path = _SRC_ROOT / 'hooks.py'
+        if not hooks_path.exists():
+            pytest.skip('No hooks.py')
+
+        content = _read(hooks_path)
+        assert 'shlex.split' in content, (
+            'hooks.py does not use shlex.split() for command parsing (shell interpretation risk)'
+        )
+
+    def test_hooks_use_run_command(self) -> None:
+        """hooks.py uses the centralized run_command (not subprocess directly)."""
+        hooks_path = _SRC_ROOT / 'hooks.py'
+        if not hooks_path.exists():
+            pytest.skip('No hooks.py')
+
+        content = _read(hooks_path)
+        assert 'run_command' in content, (
+            'hooks.py does not use centralized run_command() (bypasses security controls in _run.py)'
+        )
+        assert 'subprocess.run' not in content, (
+            'hooks.py calls subprocess.run() directly instead of run_command() (bypasses security controls in _run.py)'
+        )
+
+
+# ── 14. No os.system() ────────────────────────────────────────────
+
+
+class TestNoOsSystem:
+    """Verify no code uses os.system() (shell=True equivalent)."""
+
+    _OS_SYSTEM_RE = re.compile(r'\bos\.system\s*\(')
+
+    def test_no_os_system(self) -> None:
+        """No Python file uses os.system() (implicit shell=True)."""
+        violations: list[str] = []
+        for pyfile in _PY_FILES:
+            content = _read(pyfile)
+            for line_no, line in enumerate(content.splitlines(), start=1):
+                if self._OS_SYSTEM_RE.search(line):
+                    violations.append(f'{_relpath(pyfile)}:{line_no}: {line.strip()}')
+
+        assert not violations, 'os.system() found (uses shell=True internally, command injection risk):\n' + '\n'.join(
+            violations
+        )

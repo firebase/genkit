@@ -201,3 +201,30 @@ class FakeVCS:
     ) -> CommandResult:
         """No-op checkout_branch."""
         return OK
+
+    async def tags_on_branch(self, branch: str) -> list[str]:
+        """Return tags as a sorted list (ignores branch)."""
+        if self._tag_list is not None:
+            return list(self._tag_list)
+        return sorted(self._tags)
+
+    async def commit_exists(self, sha: str) -> bool:
+        """Return True if sha matches the configured SHA."""
+        return sha == self._sha
+
+    async def cherry_pick(
+        self,
+        sha: str,
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """No-op cherry_pick."""
+        return OK
+
+    async def cherry_pick_abort(self) -> CommandResult:
+        """No-op cherry_pick_abort."""
+        return OK
+
+    async def tag_date(self, tag_name: str) -> str:
+        """Return empty string (no date info in fake)."""
+        return ''

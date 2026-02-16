@@ -79,8 +79,14 @@ class ParsedCommit:
         sha: The full commit SHA.
         type: The commit type (e.g. ``"feat"``, ``"fix"``).
         scope: The optional scope (e.g. ``"auth"``).
-        description: The commit description.
+        description: The commit description (subject line after ``type:``).
+        body: The commit body (free-form text between subject and footers).
+        footers: Parsed git trailers as ``(token, value)`` tuples.
+            Duplicate tokens are allowed per the git trailer convention.
         breaking: Whether this is a breaking change.
+        breaking_description: The reason for the breaking change, from
+            a ``BREAKING CHANGE:`` footer or the commit description if
+            ``!`` was used without a footer.
         bump: The computed bump type for this commit.
         raw: The original unparsed commit message.
         is_revert: Whether this commit reverts another commit.
@@ -91,7 +97,10 @@ class ParsedCommit:
     type: str
     description: str
     scope: str = ''
+    body: str = ''
+    footers: tuple[tuple[str, str], ...] = ()
     breaking: bool = False
+    breaking_description: str = ''
     bump: BumpType = BumpType.NONE
     raw: str = ''
     is_revert: bool = False

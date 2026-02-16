@@ -62,6 +62,10 @@ import re
 import xml.etree.ElementTree as ET  # noqa: N817, S405
 from pathlib import Path
 
+import tomlkit
+import tomlkit.exceptions
+import tomlkit.items
+
 from releasekit.backends.workspace._io import read_file, write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.logging import get_logger
@@ -72,14 +76,24 @@ log = get_logger('releasekit.backends.workspace.maven')
 _POM_NS = '{http://maven.apache.org/POM/4.0.0}'
 
 # Regex to parse Gradle version from build.gradle or gradle.properties.
-_GRADLE_VERSION_RE = re.compile(r"""^version\s*=\s*['"]?([^'"]+)['"]?""", re.MULTILINE)
+_GRADLE_VERSION_RE = re.compile(r"""^version\s*=\s*['"]?([^'"\s]+)['"]?""", re.MULTILINE)
 
 # Regex to parse Gradle group from build.gradle.
-_GRADLE_GROUP_RE = re.compile(r"""^group\s*=\s*['"]?([^'"]+)['"]?""", re.MULTILINE)
+_GRADLE_GROUP_RE = re.compile(r"""^group\s*=\s*['"]?([^'"\s]+)['"]?""", re.MULTILINE)
 
-# Regex to parse include directives from settings.gradle / settings.gradle.kts.
-# Handles both Groovy: include ':core'  and Kotlin DSL: include(":core")
-_SETTINGS_INCLUDE_RE = re.compile(r"""include\s*\(?['"]:([\w:/-]+)['"]""")
+# Regex to parse VERSION_NAME from gradle.properties.
+# Matches: VERSION_NAME=1.2.3  or  VERSION_NAME = 1.2.3
+_GRADLE_PROPS_VERSION_RE = re.compile(
+    r'^(?!\s*#)VERSION_NAME\s*=\s*(.+?)\s*$',
+    re.MULTILINE,
+)
+
+# Regex to extract project paths from settings.gradle / settings.gradle.kts.
+# Matches ':project' strings in any include variant:
+#   Groovy:     include ':core', ':plugins:google'
+#   Kotlin DSL: include(":core", ":plugins:google")
+# In settings.gradle, ':project' strings only appear in include directives.
+_SETTINGS_INCLUDE_RE = re.compile(r"""['"]:([\w:/-]+)['"]""")
 
 # Regex to parse Gradle dependency declarations.
 # Matches: implementation 'group:artifact:version'
@@ -151,6 +165,102 @@ def _parse_pom_dependencies(pom_path: Path) -> list[str]:
             if aid is not None and aid.text:
                 deps.append(aid.text)
     return deps
+
+
+def _read_gradle_properties_version(props_path: Path) -> str:
+    """Read ``VERSION_NAME`` from ``gradle.properties``.
+
+    Returns the version string, or empty string if not found.
+    """
+    if not props_path.is_file():
+        return ''
+    text = props_path.read_text(encoding='utf-8')
+    m = _GRADLE_PROPS_VERSION_RE.search(text)
+    return m.group(1).strip() if m else ''
+
+
+def _write_gradle_properties_version(props_path: Path, new_version: str) -> str:
+    """Rewrite ``VERSION_NAME`` in ``gradle.properties``.
+
+    Returns the old version string.
+    """
+    text = props_path.read_text(encoding='utf-8')
+    m = _GRADLE_PROPS_VERSION_RE.search(text)
+    old_version = m.group(1).strip() if m else '0.0.0'
+    # Use a capturing-group regex to preserve surrounding content.
+    pattern = re.compile(r'^(?!\s*#)(VERSION_NAME\s*=\s*)(.+?)(\s*)$', re.MULTILINE)
+    new_text = pattern.sub(rf'\g<1>{new_version}\g<3>', text, count=1)
+    if new_text != text:
+        props_path.write_text(new_text, encoding='utf-8')
+    return old_version
+
+
+def _read_version_catalog_version(
+    catalog_path: Path,
+    version_key: str = 'projectVersion',
+) -> str:
+    """Read a version from ``gradle/libs.versions.toml``.
+
+    Looks for ``key = "x.y.z"`` under the ``[versions]`` section.
+
+    Args:
+        catalog_path: Path to ``libs.versions.toml``.
+        version_key: Key name under ``[versions]`` (default: ``projectVersion``).
+
+    Returns:
+        The version string, or empty string if not found.
+    """
+    if not catalog_path.is_file():
+        return ''
+    text = catalog_path.read_text(encoding='utf-8')
+    try:
+        doc = tomlkit.parse(text)
+        version = doc.get('versions', {}).get(version_key)
+        return str(version) if version else ''
+    except tomlkit.exceptions.TOMLKitError:
+        log.warning('version_catalog_parse_failed', path=str(catalog_path))
+        return ''
+
+
+def _write_version_catalog_version(
+    catalog_path: Path,
+    new_version: str,
+    version_key: str = 'projectVersion',
+) -> str:
+    """Rewrite a version in ``gradle/libs.versions.toml``.
+
+    Uses ``tomlkit`` to parse and rewrite the TOML file, preserving
+    formatting and comments.
+
+    Args:
+        catalog_path: Path to ``libs.versions.toml``.
+        new_version: New version string.
+        version_key: Key name under ``[versions]``.
+
+    Returns:
+        The old version string.
+    """
+    text = catalog_path.read_text(encoding='utf-8')
+    try:
+        doc = tomlkit.parse(text)
+    except tomlkit.exceptions.TOMLKitError as e:
+        log.warning('version_catalog_parse_failed', path=str(catalog_path), error=str(e))
+        return '0.0.0'
+
+    versions_table = doc.get('versions')
+    if not isinstance(versions_table, tomlkit.items.Table):
+        return '0.0.0'
+
+    old_version = versions_table.get(version_key)
+    if old_version is None:
+        return '0.0.0'
+
+    old_version_str = str(old_version)
+    if old_version_str != new_version:
+        versions_table[version_key] = new_version
+        catalog_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+
+    return old_version_str
 
 
 def _parse_gradle_dependencies(build_file: Path) -> list[str]:
@@ -330,7 +440,19 @@ class MavenWorkspace:
 
             text = build_file.read_text(encoding='utf-8')
             version_match = _GRADLE_VERSION_RE.search(text)
-            version = version_match.group(1) if version_match else '0.0.0'
+            version = version_match.group(1) if version_match else ''
+
+            # Fall back to gradle.properties VERSION_NAME.
+            if not version:
+                version = _read_gradle_properties_version(proj_dir / 'gradle.properties')
+            # Fall back to root gradle.properties.
+            if not version:
+                version = _read_gradle_properties_version(self._root / 'gradle.properties')
+            # Fall back to version catalog.
+            if not version:
+                version = _read_version_catalog_version(self._root / 'gradle' / 'libs.versions.toml')
+            if not version:
+                version = '0.0.0'
 
             dep_coords = _parse_gradle_dependencies(build_file)
             internal_deps: list[str] = []
@@ -369,13 +491,28 @@ class MavenWorkspace:
     ) -> str:
         """Rewrite the version in a Maven POM or Gradle build file.
 
+        Supported manifest types:
+
+        - ``pom.xml``: rewrites ``<version>`` element.
+        - ``build.gradle`` / ``build.gradle.kts``: rewrites ``version = '...'``.
+        - ``gradle.properties``: rewrites ``VERSION_NAME=...``.
+        - ``libs.versions.toml``: rewrites version key under ``[versions]``.
+
         Args:
-            manifest_path: Path to ``pom.xml`` or ``build.gradle``.
+            manifest_path: Path to the manifest file.
             new_version: New version string.
 
         Returns:
             The old version string.
         """
+        if manifest_path.name == 'gradle.properties':
+            old = _write_gradle_properties_version(manifest_path, new_version)
+            log.info('version_rewritten', manifest=str(manifest_path), old=old, new=new_version)
+            return old
+        if manifest_path.name == 'libs.versions.toml':
+            old = _write_version_catalog_version(manifest_path, new_version)
+            log.info('version_rewritten', manifest=str(manifest_path), old=old, new=new_version)
+            return old
         if manifest_path.name.startswith('build.gradle'):
             return self._rewrite_gradle_version(manifest_path, new_version)
         return self._rewrite_pom_version(manifest_path, new_version)

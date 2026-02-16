@@ -208,20 +208,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
-      pr_url: ${{ steps.prepare.outputs.pr_url }}
+      has_bumps: ${{ steps.rk.outputs.has-bumps }}
+      pr_url: ${{ steps.rk.outputs.pr-url }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
 
       - uses: actions/setup-java@v4
         with:
@@ -232,50 +226,16 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Run releasekit prepare
-        id: prepare
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace java prepare)
-          if [ "${{ inputs.force_prepare }}" = "true" ]; then
-            cmd+=(--force)
-          fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
-            cmd+=(--bump "${{ inputs.bump_type }}")
-          fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
-          fi
-
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
-          if [ -n "$PR_URL" ]; then
-            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: prepare
+          workspace: java
+          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          group: ${{ inputs.group }}
+          bump-type: ${{ inputs.bump_type }}
+          prerelease: ${{ inputs.prerelease }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
@@ -290,7 +250,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      release_url: ${{ steps.release.outputs.release_url }}
+      release_url: ${{ steps.rk.outputs.release-url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -298,62 +258,16 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (Java)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace java plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no tags or releases will be created"
-          else
-            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run releasekit release
-        id: release
-        run: |
-          set -euo pipefail
-
-          DRY_RUN_FLAG=""
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace java release $DRY_RUN_FLAG 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit release failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
-          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: release
+          workspace: java
+          dry-run: ${{ env.DRY_RUN }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PUBLISH: Build and publish artifacts to Maven Central
-  #
-  # Uses Gradle's publishToMavenCentral task (or publishToSonatype)
-  # with GPG signing. The staging target publishes to Sonatype OSSRH
-  # staging for manual review before promotion.
   # ═══════════════════════════════════════════════════════════════════════
   publish:
     name: Publish to ${{ inputs.target || 'maven-central' }}
@@ -366,12 +280,6 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
 
       - uses: actions/setup-java@v4
         with:
@@ -392,53 +300,17 @@ jobs:
         working-directory: ${{ env.WORKSPACE_DIR }}
         run: gradle build --no-daemon
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (Java)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace java plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no artifacts will be published"
-          else
-            echo "::notice::LIVE RUN — artifacts will be published to ${{ inputs.target || 'maven-central' }}"
-          fi
-
       - name: Run releasekit publish
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace java publish --force)
-
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            cmd+=(--dry-run)
-          fi
-
-          CONCURRENCY="${{ inputs.concurrency }}"
-          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
-            cmd+=(--concurrency "$CONCURRENCY")
-          fi
-
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-
-          MAX_RETRIES="${{ inputs.max_retries }}"
-          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
-            cmd+=(--max-retries "$MAX_RETRIES")
-          fi
-
-          echo "::group::Running: ${cmd[*]}"
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          echo "::endgroup::"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit publish failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: publish
+          workspace: java
+          dry-run: ${{ env.DRY_RUN }}
+          force: "true"
+          group: ${{ inputs.group }}
+          concurrency: ${{ inputs.concurrency || '0' }}
+          max-retries: ${{ inputs.max_retries || '2' }}
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

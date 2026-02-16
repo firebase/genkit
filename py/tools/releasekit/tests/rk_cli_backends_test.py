@@ -43,7 +43,7 @@ from releasekit.backends.registry import (
     PyPIBackend,
 )
 from releasekit.cli import _create_backends
-from releasekit.config import ReleaseConfig, WorkspaceConfig
+from releasekit.config import CONFIG_FILENAME, VALID_WORKSPACE_KEYS, ReleaseConfig, WorkspaceConfig, load_config
 
 
 def _config(forge: str = 'none') -> ReleaseConfig:
@@ -215,8 +215,6 @@ class TestConfigRegistryUrl:
 
     def test_registry_url_in_valid_keys(self) -> None:
         """registry_url is in VALID_WORKSPACE_KEYS."""
-        from releasekit.config import VALID_WORKSPACE_KEYS
-
         assert 'registry_url' in VALID_WORKSPACE_KEYS
 
     def test_workspace_config_default(self) -> None:
@@ -231,8 +229,6 @@ class TestConfigRegistryUrl:
 
     def test_registry_url_roundtrip(self, tmp_path: Path) -> None:
         """registry_url survives TOML write → load round-trip."""
-        from releasekit.config import CONFIG_FILENAME, load_config
-
         toml_content = """\
 forge = "none"
 

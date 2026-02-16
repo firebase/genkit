@@ -42,11 +42,11 @@ graph TB
     REG_P --> PYPI & NPM
     WS_P --> UV_WS & PNPM_WS
 
-    style VCS_P fill:#1976d2,color:#fff
-    style PM_P fill:#1976d2,color:#fff
-    style FORGE_P fill:#1976d2,color:#fff
-    style REG_P fill:#1976d2,color:#fff
-    style WS_P fill:#1976d2,color:#fff
+    style VCS_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style PM_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style FORGE_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style REG_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style WS_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 ## VCS Protocol

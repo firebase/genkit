@@ -76,7 +76,7 @@ def fix_placeholder_urls(
         changes.append(action)
         if not dry_run:
             tree.write(str(pkg.manifest_path), xml_declaration=True, encoding='unicode')
-            logger.info('fix_java_placeholder_url', action=action, path=str(pkg.manifest_path))
+            logger.warning('fix_java_placeholder_url', action=action, path=str(pkg.manifest_path))
         else:
             logger.info('fix_java_placeholder_url_dry_run', action=action, path=str(pkg.manifest_path))
 
@@ -146,7 +146,7 @@ def fix_duplicate_dependencies(
             changes.append(action)
             if not dry_run:
                 tree.write(str(pkg.manifest_path), xml_declaration=True, encoding='unicode')
-                logger.info('fix_java_duplicate_deps', action=action, path=str(pkg.manifest_path))
+                logger.warning('fix_java_duplicate_deps', action=action, path=str(pkg.manifest_path))
             else:
                 logger.info('fix_java_duplicate_deps_dry_run', action=action, path=str(pkg.manifest_path))
 
@@ -196,7 +196,7 @@ def fix_metadata_completeness(
         changes.append(action)
         if not dry_run:
             manifest.write_text(new_text, encoding='utf-8')
-            logger.info('fix_java_metadata', action=action, path=str(manifest))
+            logger.warning('fix_java_metadata', action=action, path=str(manifest))
         else:
             logger.info('fix_java_metadata_dry_run', action=action, path=str(manifest))
 

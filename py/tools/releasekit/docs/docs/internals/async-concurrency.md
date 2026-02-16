@@ -181,7 +181,7 @@ graph LR
     PUB3["Worker 2<br/>poll plugin-bar"] --> POOL
     POOL --> PYPI["PyPI JSON API"]
 
-    style POOL fill:#1976d2,color:#fff
+    style POOL fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 **Retry logic** (`request_with_retry`):
@@ -293,8 +293,8 @@ graph TD
     PIN --> ATEXIT --> SIGNAL --> BACKUP
     BACKUP --> PUBLISH --> RESTORE --> VERIFY --> CLEANUP
 
-    style BACKUP fill:#ff9800,color:#fff
-    style VERIFY fill:#4caf50,color:#fff
+    style BACKUP fill:#ffe082,stroke:#f57f17,color:#e65100
+    style VERIFY fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
 ```
 
 ### Problem 6: Advisory Lock Race Conditions

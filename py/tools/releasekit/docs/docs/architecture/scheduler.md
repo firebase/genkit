@@ -47,8 +47,8 @@ graph TB
     W1 & W2 & W3 --> |"mark_done"| NODES
     NODES --> |"remaining_deps == 0"| Q
 
-    style Q fill:#1976d2,color:#fff
-    style SEM fill:#1e88e5,color:#fff
+    style Q fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style SEM fill:#64b5f6,stroke:#1565c0,color:#0d47a1
 ```
 
 ## How It Works
@@ -83,9 +83,9 @@ graph TD
     WAIT --> PUB
     CHECK -->|no| FAIL["mark_failed → skip dependents"]
 
-    style DONE fill:#4caf50,color:#fff
-    style FAIL fill:#f44336,color:#fff
-    style PUB fill:#1976d2,color:#fff
+    style DONE fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
+    style FAIL fill:#ef9a9a,stroke:#c62828,color:#b71c1c
+    style PUB fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 The backoff formula:

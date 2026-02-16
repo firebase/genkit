@@ -21,25 +21,30 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from releasekit.checks._dart import DartCheckBackend
 from releasekit.checks._dart_fixers import (
     fix_duplicate_dependencies as dart_fix_duplicate_dependencies,
     fix_metadata_completeness as dart_fix_metadata_completeness,
     fix_publish_to_consistency as dart_fix_publish_to_consistency,
 )
+from releasekit.checks._go import GoCheckBackend
 from releasekit.checks._go_fixers import (
     fix_build_system as go_fix_build_system,
     fix_duplicate_dependencies as go_fix_duplicate_dependencies,
 )
+from releasekit.checks._java import JavaCheckBackend
 from releasekit.checks._java_fixers import (
     fix_duplicate_dependencies as java_fix_duplicate_dependencies,
     fix_metadata_completeness as java_fix_metadata_completeness,
     fix_placeholder_urls as java_fix_placeholder_urls,
 )
+from releasekit.checks._js import JsCheckBackend
 from releasekit.checks._js_fixers import (
     fix_duplicate_dependencies as js_fix_duplicate_dependencies,
     fix_metadata_completeness as js_fix_metadata_completeness,
     fix_private_field_consistency as js_fix_private_field_consistency,
 )
+from releasekit.checks._rust import RustCheckBackend
 from releasekit.checks._rust_fixers import (
     fix_duplicate_dependencies as rust_fix_duplicate_dependencies,
     fix_metadata_completeness as rust_fix_metadata_completeness,
@@ -683,8 +688,6 @@ class TestRunFixesIntegration:
 
     def test_go_run_fixes(self, tmp_path: Path) -> None:
         """Test Go backend run_fixes creates go.mod."""
-        from releasekit.checks._go import GoCheckBackend
-
         pkg = _pkg('example.com/foo', path=tmp_path / 'foo')
         pkg.path.mkdir(parents=True)
         backend = GoCheckBackend()
@@ -693,8 +696,6 @@ class TestRunFixesIntegration:
 
     def test_dart_run_fixes(self, tmp_path: Path) -> None:
         """Test Dart backend run_fixes adds metadata."""
-        from releasekit.checks._dart import DartCheckBackend
-
         pkg = _pkg('my_pkg', path=tmp_path / 'my_pkg')
         pkg.path.mkdir(parents=True)
         (pkg.path / 'pubspec.yaml').write_text('name: my_pkg\nversion: 1.0.0\n')
@@ -704,8 +705,6 @@ class TestRunFixesIntegration:
 
     def test_js_run_fixes(self, tmp_path: Path) -> None:
         """Test JS backend run_fixes adds private field."""
-        from releasekit.checks._js import JsCheckBackend
-
         pkg = _pkg('my-pkg', path=tmp_path / 'my-pkg', is_publishable=False)
         pkg.path.mkdir(parents=True)
         (pkg.path / 'package.json').write_text(json.dumps({'name': 'my-pkg', 'version': '1.0.0'}))
@@ -715,8 +714,6 @@ class TestRunFixesIntegration:
 
     def test_rust_run_fixes(self, tmp_path: Path) -> None:
         """Test Rust backend run_fixes adds metadata."""
-        from releasekit.checks._rust import RustCheckBackend
-
         pkg = _pkg('my-crate', path=tmp_path / 'my-crate')
         pkg.path.mkdir(parents=True)
         (pkg.path / 'Cargo.toml').write_text('[package]\nname = "my-crate"\nversion = "1.0.0"\n')
@@ -726,8 +723,6 @@ class TestRunFixesIntegration:
 
     def test_java_run_fixes(self, tmp_path: Path) -> None:
         """Test Java backend run_fixes adds Gradle metadata."""
-        from releasekit.checks._java import JavaCheckBackend
-
         pkg = _pkg(
             'my-module',
             path=tmp_path / 'my-module',

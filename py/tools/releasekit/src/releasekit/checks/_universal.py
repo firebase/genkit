@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import fnmatch
+import importlib.resources as _resources
 import shutil
 import subprocess  # noqa: S404 - intentional use for uv lock check
 from pathlib import Path
@@ -26,6 +27,10 @@ from pathlib import Path
 from releasekit.graph import DependencyGraph, detect_cycles
 from releasekit.logging import get_logger
 from releasekit.preflight import PreflightResult
+from releasekit.security_insights import (
+    SecurityInsightsConfig,
+    generate_security_insights,
+)
 from releasekit.workspace import Package
 
 logger = get_logger(__name__)
@@ -340,7 +345,7 @@ def fix_stale_artifacts(
             changes.append(action)
             if not dry_run:
                 bak_file.unlink()
-                logger.info('fix_stale_artifacts', action=action, path=str(bak_file))
+                logger.warning('fix_stale_artifacts', action=action, path=str(bak_file))
 
         # Delete dist/ directories.
         dist_dir = pkg.path / 'dist'
@@ -349,7 +354,7 @@ def fix_stale_artifacts(
             changes.append(action)
             if not dry_run:
                 shutil.rmtree(dist_dir)
-                logger.info('fix_stale_artifacts', action=action, path=str(dist_dir))
+                logger.warning('fix_stale_artifacts', action=action, path=str(dist_dir))
 
     return changes
 
@@ -379,7 +384,64 @@ def fix_missing_readme(
         changes.append(action)
         if not dry_run:
             readme_path.write_text(f'# {pkg.name}\n', encoding='utf-8')
-            logger.info('fix_missing_readme', action=action, path=str(readme_path))
+            logger.warning('fix_missing_readme', action=action, path=str(readme_path))
+
+    return changes
+
+
+def fix_missing_security_insights(
+    workspace_root: Path,
+    *,
+    dry_run: bool = False,
+    project_name: str = '',
+    repo_url: str = '',
+) -> list[str]:
+    """Generate ``SECURITY-INSIGHTS.yml`` if it does not exist.
+
+    Uses :mod:`releasekit.security_insights` to produce an OpenSSF
+    Security Insights v2 file at the repository root.
+
+    Args:
+        workspace_root: Path to the repository root.
+        dry_run: If ``True``, report what would change without writing.
+        project_name: Project name for the generated file.
+            Defaults to the workspace directory name.
+        repo_url: Repository URL for the generated file.
+
+    Returns:
+        List of human-readable descriptions of changes made.
+    """
+    candidates = [
+        workspace_root / 'SECURITY-INSIGHTS.yml',
+        workspace_root / 'SECURITY_INSIGHTS.yml',
+        workspace_root / '.github' / 'SECURITY-INSIGHTS.yml',
+    ]
+    for path in candidates:
+        if path.is_file():
+            return []
+
+    si_path = workspace_root / 'SECURITY-INSIGHTS.yml'
+    si_config = SecurityInsightsConfig(
+        project_name=project_name or workspace_root.name,
+        repo_url=repo_url,
+    )
+
+    changes: list[str] = []
+    action = f'created SECURITY-INSIGHTS.yml at {si_path.relative_to(workspace_root)}'
+
+    if dry_run:
+        changes.append(f'(dry-run) {action}')
+        logger.info('fix_missing_security_insights', action=action, dry_run=True)
+    else:
+        result = generate_security_insights(si_config, output_path=si_path)
+        if result.generated:
+            changes.append(action)
+            logger.warning('fix_missing_security_insights', action=action, path=str(si_path))
+        elif result.reason:
+            logger.warning(
+                'fix_missing_security_insights_failed',
+                reason=result.reason,
+            )
 
     return changes
 
@@ -398,8 +460,6 @@ def _get_bundled_license() -> str:
     """
     # 1. Try importlib.resources (works in installed environments).
     try:
-        import importlib.resources as _resources  # noqa: PLC0415
-
         ref = _resources.files('releasekit').joinpath('LICENSE')
         license_text = ref.read_text(encoding='utf-8')
         if license_text:
@@ -449,6 +509,6 @@ def fix_missing_license(
         changes.append(action)
         if not dry_run:
             license_path.write_text(license_text, encoding='utf-8')
-            logger.info('fix_missing_license', action=action, path=str(license_path))
+            logger.warning('fix_missing_license', action=action, path=str(license_path))
 
     return changes

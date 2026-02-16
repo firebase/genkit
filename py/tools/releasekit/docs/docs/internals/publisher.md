@@ -89,8 +89,8 @@ graph TD
     MATCH -->|yes| OK
     MATCH -->|no| FAIL
 
-    style OK fill:#4caf50,color:#fff
-    style FAIL fill:#f44336,color:#fff
+    style OK fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
+    style FAIL fill:#ef9a9a,stroke:#c62828,color:#b71c1c
 ```
 
 ### Stage 6: Restore
@@ -148,7 +148,7 @@ graph TD
     RETRY -->|yes| BACKOFF --> STAGE
     RETRY -->|no| FAIL --> RESTORE
 
-    style FAIL fill:#f44336,color:#fff
+    style FAIL fill:#ef9a9a,stroke:#c62828,color:#b71c1c
 ```
 
 The `pyproject.toml` is **always** restored, even on failure. This is

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -278,8 +279,6 @@ class TestRunState:
 
     def test_save_write_error_cleans_up_temp(self, tmp_path: Path) -> None:
         """Save failure cleans up temp file and re-raises."""
-        import os
-
         state = RunState(git_sha='abc')
         state.init_package('x', version='1.0.0')
 

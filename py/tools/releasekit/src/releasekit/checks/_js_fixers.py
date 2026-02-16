@@ -75,7 +75,7 @@ def fix_private_field_consistency(
         changes.append(action)
         if not dry_run:
             _write_package_json(pkg, data)
-            logger.info('fix_js_private_field', action=action, path=str(pkg.path / 'package.json'))
+            logger.warning('fix_js_private_field', action=action, path=str(pkg.path / 'package.json'))
         else:
             logger.info('fix_js_private_field_dry_run', action=action, path=str(pkg.path / 'package.json'))
 
@@ -126,7 +126,7 @@ def fix_metadata_completeness(
         changes.append(action)
         if not dry_run:
             _write_package_json(pkg, data)
-            logger.info('fix_js_metadata', action=action, path=str(pkg.path / 'package.json'))
+            logger.warning('fix_js_metadata', action=action, path=str(pkg.path / 'package.json'))
         else:
             logger.info('fix_js_metadata_dry_run', action=action, path=str(pkg.path / 'package.json'))
 
@@ -180,7 +180,7 @@ def fix_duplicate_dependencies(
         changes.append(action)
         if not dry_run:
             _write_package_json(pkg, data)
-            logger.info('fix_js_duplicate_deps', action=action, path=str(pkg.path / 'package.json'))
+            logger.warning('fix_js_duplicate_deps', action=action, path=str(pkg.path / 'package.json'))
         else:
             logger.info('fix_js_duplicate_deps_dry_run', action=action, path=str(pkg.path / 'package.json'))
 

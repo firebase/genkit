@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-site_name: ReleaseKit Engineering Docs
+site_name: ReleaseKit
 site_description: >-
-  Engineering documentation for ReleaseKit — release orchestration for
-  monorepo workspaces supporting Python (uv), JavaScript (pnpm), and Go.
+  ReleaseKit — release orchestration for polyglot monorepo workspaces
+  supporting Python (uv), JavaScript (pnpm), Go, Dart, Java, Kotlin,
+  Clojure, Rust, and Bazel ecosystems.
 site_url: https://firebase.github.io/genkit/releasekit/
 repo_url: https://github.com/firebase/genkit
 repo_name: firebase/genkit
@@ -106,6 +107,9 @@ markdown_extensions:
       custom_checkbox: true
   - pymdownx.tilde
 
+extra_css:
+  - stylesheets/extra.css
+
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -114,7 +118,6 @@ extra:
 
 nav:
   - Home: index.md
-  - Announcement: announcement.md
   - Architecture:
       - architecture/index.md
       - Module Map: architecture/module-map.md
@@ -124,18 +127,62 @@ nav:
       - State Machine: architecture/state-machine.md
   - Guides:
       - guides/index.md
-      - Getting Started: guides/getting-started.md
-      - Configuration: guides/configuration.md
-      - Multi-Ecosystem: guides/multi-ecosystem.md
-      - CI/CD Integration: guides/ci-cd.md
-      - Error Codes: guides/error-codes.md
-      - FAQ: guides/faq.md
+      - "Beginner's Guide": guides/beginners-guide.md
+      - Getting Started:
+          - Getting Started: guides/getting-started.md
+          - Configuration: guides/configuration.md
+          - Per-Package Config: guides/per-package-config.md
+          - Multi-Ecosystem: guides/multi-ecosystem.md
+          - Release Groups: guides/groups.md
+          - Migration: guides/migration.md
+      - Versioning:
+          - Versioning Schemes: guides/versioning-schemes.md
+          - Release Channels: guides/channels.md
+          - Changesets: guides/changesets.md
+          - Snapshots & Pre-Releases: guides/snapshots.md
+      - Publishing:
+          - Publish Pipeline: guides/publish-pipeline.md
+          - Dependency Pinning: guides/dependency-pinning.md
+          - Lifecycle Hooks: guides/hooks.md
+          - Commit-Back PRs: guides/commitback.md
+          - Hotfix & Maintenance: guides/hotfix.md
+          - Rollback: guides/rollback.md
+          - Concurrency & Locking: guides/concurrency.md
+          - Announcements: guides/announcements.md
+      - Security & Compliance:
+          - Overview: guides/compliance.md
+          - Signing & Verification: guides/signing.md
+          - SLSA Provenance: guides/slsa-provenance.md
+          - SBOM Generation: guides/sbom.md
+          - Trust & Verification: guides/trust.md
+          - Vulnerability Scanning: guides/vulnerability-scanning.md
+          - OpenSSF Scorecard: guides/scorecard.md
+          - Security Insights: guides/security-insights.md
+      - CI/CD & Operations:
+          - CI/CD Integration: guides/ci-cd.md
+          - Starter Patterns: guides/workflow-templates.md
+          - Health Checks & Doctor: guides/health-checks.md
+          - Observability: guides/observability.md
+          - Skipping Checks: guides/skip-checks.md
+      - Troubleshooting:
+          - Error Codes: guides/error-codes.md
+          - FAQ: guides/faq.md
+  - Workflow Templates:
+      - guides/workflows/index.md
+      - Python (uv): guides/workflows/python-uv.md
+      - JavaScript (pnpm): guides/workflows/javascript-pnpm.md
+      - Go: guides/workflows/go.md
+      - Rust (Cargo): guides/workflows/rust-cargo.md
+      - Dart/Flutter: guides/workflows/dart-flutter.md
+      - Java/Kotlin (Gradle): guides/workflows/java-gradle.md
+      - Rollback: guides/workflows/rollback.md
   - Reference:
       - reference/index.md
       - CLI Commands: reference/cli.md
       - Configuration File: reference/config-file.md
       - GitHub Action: reference/github-action.md
       - Graph Formatters: reference/formatters.md
+      - Compliance API: reference/compliance-api.md
   - Internals:
       - internals/index.md
       - Versioning Engine: internals/versioning.md
@@ -145,3 +192,7 @@ nav:
       - Changelog Generation: internals/changelog.md
       - Release Notes: internals/release-notes.md
       - Tags & Releases: internals/tags.md
+  - Planning:
+      - Roadmap: roadmap.md
+      - Competitive Gap Analysis: competitive-gap-analysis.md
+      - "Slide Deck \u2197": slides/index.html

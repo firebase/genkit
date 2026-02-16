@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 import pytest
 from releasekit.graph import DependencyGraph, build_graph
+from releasekit.observer import DisplayFilter, PublishObserver, PublishStage, SchedulerState, ViewMode
 from releasekit.scheduler import PackageNode, Scheduler, SchedulerResult
 from releasekit.workspace import Package
 
@@ -901,8 +902,6 @@ class TestSchedulerObserverNotify:
 
     def test_notify_stage_with_observer(self) -> None:
         """_notify_stage calls observer.on_stage."""
-        from releasekit.observer import PublishObserver, PublishStage
-
         stages: list[tuple[str, PublishStage]] = []
 
         class SpyObserver(PublishObserver):
@@ -925,8 +924,6 @@ class TestSchedulerObserverNotify:
 
     def test_notify_scheduler_state_with_observer(self) -> None:
         """_notify_scheduler_state calls observer.on_scheduler_state."""
-        from releasekit.observer import PublishObserver, SchedulerState
-
         states: list[SchedulerState] = []
 
         class SpyObserver(PublishObserver):
@@ -942,8 +939,6 @@ class TestSchedulerObserverNotify:
 
     def test_notify_view_mode_with_observer(self) -> None:
         """_notify_view_mode calls observer.on_view_mode."""
-        from releasekit.observer import DisplayFilter, PublishObserver, ViewMode
-
         calls: list[tuple[ViewMode, DisplayFilter]] = []
 
         class SpyObserver(PublishObserver):
@@ -964,8 +959,6 @@ class TestSchedulerBlockDependents:
 
     def test_block_dependents_recursive(self) -> None:
         """_block_dependents recursively blocks transitive dependents."""
-        from releasekit.observer import PublishObserver, PublishStage
-
         blocked: list[str] = []
 
         class SpyObserver(PublishObserver):

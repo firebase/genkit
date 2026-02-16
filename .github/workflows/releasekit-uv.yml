@@ -170,6 +170,7 @@ concurrency:
 permissions:
   contents: write        # Create tags, releases, and push to release branch
   pull-requests: write   # Open/update Release PRs, manage labels
+  id-token: write        # Sigstore keyless signing (SLSA provenance)
 
 env:
   RELEASEKIT_DIR: py/tools/releasekit
@@ -227,21 +228,29 @@ jobs:
 
       - name: Run releasekit prepare
         id: prepare
+        env:
+          # Pass user-controlled inputs via env vars to prevent script injection.
+          # ${{ inputs.* }} with string types is unsafe in inline shell scripts
+          # because the value is expanded before bash parses the command.
+          INPUT_GROUP: ${{ inputs.group }}
+          INPUT_BUMP_TYPE: ${{ inputs.bump_type }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+          INPUT_FORCE_PREPARE: ${{ inputs.force_prepare }}
         run: |
           set -euo pipefail
 
           cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py prepare)
-          if [ "${{ inputs.force_prepare }}" = "true" ]; then
+          if [ "$INPUT_FORCE_PREPARE" = "true" ]; then
             cmd+=(--force)
           fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
+          if [ -n "$INPUT_GROUP" ]; then
+            cmd+=(--group "$INPUT_GROUP")
           fi
-          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
-            cmd+=(--bump "${{ inputs.bump_type }}")
+          if [ "$INPUT_BUMP_TYPE" != "auto" ] && [ -n "$INPUT_BUMP_TYPE" ]; then
+            cmd+=(--bump "$INPUT_BUMP_TYPE")
           fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
+          if [ -n "$INPUT_PRERELEASE" ]; then
+            cmd+=(--prerelease "$INPUT_PRERELEASE")
           fi
 
           # Run prepare — capture output even on failure so CI logs
@@ -358,7 +367,8 @@ jobs:
     timeout-minutes: 30
     environment: ${{ inputs.target || 'pypi' }}
     permissions:
-      id-token: write  # Trusted publishing (OIDC)
+      id-token: write    # Trusted publishing (OIDC) + Sigstore signing
+      attestations: write  # PEP 740 attestations
     steps:
       - uses: actions/checkout@v6
         with:
@@ -396,6 +406,11 @@ jobs:
           fi
 
       - name: Run releasekit publish
+        env:
+          # Pass user-controlled inputs via env vars to prevent script injection.
+          INPUT_GROUP: ${{ inputs.group }}
+          INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+          INPUT_MAX_RETRIES: ${{ inputs.max_retries }}
         run: |
           set -euo pipefail
 
@@ -412,18 +427,16 @@ jobs:
             cmd+=(--index-url "$PUBLISH_INDEX_URL")
           fi
 
-          CONCURRENCY="${{ inputs.concurrency }}"
-          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
-            cmd+=(--concurrency "$CONCURRENCY")
+          if [ -n "$INPUT_CONCURRENCY" ] && [ "$INPUT_CONCURRENCY" != "0" ]; then
+            cmd+=(--concurrency "$INPUT_CONCURRENCY")
           fi
 
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
+          if [ -n "$INPUT_GROUP" ]; then
+            cmd+=(--group "$INPUT_GROUP")
           fi
 
-          MAX_RETRIES="${{ inputs.max_retries }}"
-          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
-            cmd+=(--max-retries "$MAX_RETRIES")
+          if [ -n "$INPUT_MAX_RETRIES" ] && [ "$INPUT_MAX_RETRIES" != "0" ]; then
+            cmd+=(--max-retries "$INPUT_MAX_RETRIES")
           fi
 
           # Capture output even on failure so CI logs show diagnostics.
@@ -441,11 +454,82 @@ jobs:
           UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
 
       - name: Upload manifest artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: release-manifest
           path: ${{ env.WORKSPACE_DIR }}/release-manifest.json
           retention-days: 90
+
+      - name: Upload SLSA provenance
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slsa-provenance
+          path: ${{ env.WORKSPACE_DIR }}/provenance*.intoto.jsonl
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload SBOMs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            ${{ env.WORKSPACE_DIR }}/sbom.cdx.json
+            ${{ env.WORKSPACE_DIR }}/sbom.spdx.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # VERIFY: Check published packages are installable
+  #
+  # Waits for PyPI propagation, then verifies that the core package and
+  # all plugins install correctly.
+  # ═══════════════════════════════════════════════════════════════════════
+  verify:
+    name: Verify Published Packages
+    needs: publish
+    if: success() && env.DRY_RUN != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Wait for PyPI propagation
+        run: |
+          echo "Waiting 60 seconds for PyPI CDN propagation..."
+          sleep 60
+
+      - name: Get core version and verify installation
+        run: |
+          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+          echo "Core version: $VERSION"
+
+          pip install --upgrade pip
+
+          # Verify core package.
+          pip install "genkit==$VERSION"
+          python -c "from genkit.ai import Genkit; print('✅ genkit imports successfully')"
+
+          # Verify all plugins are installable.
+          for pyproject in py/plugins/*/pyproject.toml; do
+            plugin_dir=$(dirname "$pyproject")
+            plugin_name=$(basename "$plugin_dir")
+            pkg_name="genkit-plugin-${plugin_name}"
+            plugin_version=$(grep '^version' "$pyproject" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
+            echo "Verifying $pkg_name==$plugin_version..."
+            if pip install "$pkg_name==$plugin_version" 2>/dev/null; then
+              echo "✅ $pkg_name installed"
+            else
+              echo "⚠️  $pkg_name==$plugin_version not found on PyPI (may not have been published)"
+            fi
+          done
 
   # ═══════════════════════════════════════════════════════════════════════
   # NOTIFY: Post-release notifications
@@ -455,7 +539,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: publish
+    needs: [publish, verify]
     if: success()
     runs-on: ubuntu-latest
     timeout-minutes: 5

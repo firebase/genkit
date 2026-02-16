@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -162,8 +163,6 @@ class TestBumpFile:
 
     def test_write_error_raises(self, tmp_path: Path) -> None:
         """Write error in bump_file raises ReleaseKitError."""
-        import os
-
         init_py = tmp_path / '__init__.py'
         init_py.write_text('__version__ = "1.0.0"\n', encoding='utf-8')
         target = BumpTarget(path=init_py)
@@ -181,10 +180,6 @@ class TestBumpPyprojectWriteError:
 
     def test_write_error_raises(self, tmp_path: Path) -> None:
         """Write error in bump_pyproject raises ReleaseKitError."""
-        import os
-
-        from releasekit.bump import bump_pyproject
-
         pyproject = tmp_path / 'pyproject.toml'
         pyproject.write_text(
             '[project]\nname = "foo"\nversion = "1.0.0"\n',

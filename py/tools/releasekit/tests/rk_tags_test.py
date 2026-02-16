@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.tags import TagResult, create_tags, delete_tags, format_tag
+from releasekit.tags import TagResult, create_tags, delete_tags, format_tag, parse_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
 from tests._fakes import OK as _OK, FakeForge as _BaseFakeForge, FakeVCS as _BaseFakeVCS
 
@@ -197,31 +197,23 @@ class TestParseTag:
 
     def test_standard_format(self) -> None:
         """Parse standard per-package tag."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('genkit-v0.5.0', '{name}-v{version}')
         assert result is not None
         assert result == ('genkit', '0.5.0')
 
     def test_scoped_npm_format(self) -> None:
         """Parse scoped npm tag format."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('@genkit-ai/core@1.2.3', '{name}@{version}')
         assert result is not None
         assert result == ('@genkit-ai/core', '1.2.3')
 
     def test_no_match_returns_none(self) -> None:
         """Non-matching tag returns None."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('v0.5.0', '{name}-v{version}')
         assert result is None
 
     def test_umbrella_format_no_name(self) -> None:
         """Parse umbrella tag with no {name} placeholder."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('v0.5.0', 'v{version}')
         assert result is not None
         assert result[0] == ''
@@ -229,16 +221,12 @@ class TestParseTag:
 
     def test_with_label_placeholder(self) -> None:
         """Parse tag with {label} placeholder."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('py/genkit@0.5.0', '{label}/{name}@{version}')
         assert result is not None
         assert result == ('genkit', '0.5.0')
 
     def test_prerelease_version(self) -> None:
         """Parse tag with prerelease version."""
-        from releasekit.tags import parse_tag
-
         result = parse_tag('genkit-v1.0.0-rc.1', '{name}-v{version}')
         assert result is not None
         assert result[0] == 'genkit'

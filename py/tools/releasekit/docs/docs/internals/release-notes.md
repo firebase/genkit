@@ -25,8 +25,8 @@ graph TD
     NOTES --> TEMPLATE
     TEMPLATE --> MD
 
-    style MANIFEST fill:#1976d2,color:#fff
-    style MD fill:#4caf50,color:#fff
+    style MANIFEST fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style MD fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
 ```
 
 ## Generation Pipeline

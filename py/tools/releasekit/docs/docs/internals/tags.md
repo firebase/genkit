@@ -41,8 +41,8 @@ graph TD
     UMBTAG --> PUSH
     PUSH --> REL
 
-    style MFST fill:#1976d2,color:#fff
-    style REL fill:#4caf50,color:#fff
+    style MFST fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style REL fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
 ```
 
 ## Local vs CI Mode
@@ -67,8 +67,8 @@ graph LR
         C1 --> C2 --> C3 --> C4 --> C5
     end
 
-    style L3 fill:#4caf50,color:#fff
-    style C5 fill:#4caf50,color:#fff
+    style L3 fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
+    style C5 fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
 ```
 
 ### CI Mode Details

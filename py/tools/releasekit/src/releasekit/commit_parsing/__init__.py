@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Commit message parsing framework.
+r"""Commit message parsing framework.
 
 This subpackage provides a protocol-based commit parsing system.
 The :class:`CommitParser` protocol allows teams to plug in their own
@@ -24,11 +24,16 @@ changelog machinery.
 Built-in parsers:
 
 - :class:`ConventionalCommitParser` — ``type(scope)!: description``
+  (accepts any type)
+- :class:`AngularCommitParser` — same syntax but restricted to Angular's
+  type allowlist (``build``, ``ci``, ``docs``, ``feat``, ``fix``,
+  ``perf``, ``refactor``, ``style``, ``test``)
 
 Usage::
 
     from releasekit.commit_parsing import (
         ConventionalCommitParser,
+        AngularCommitParser,
         ParsedCommit,
         parse_conventional_commit,
     )
@@ -38,11 +43,28 @@ Usage::
     assert cc.type == 'feat'
     assert cc.bump == BumpType.MINOR
 
-    # Using a parser instance (for DI):
-    parser = ConventionalCommitParser()
-    cc = parser.parse('fix: null pointer')
+    # Using the Angular parser:
+    parser = AngularCommitParser()
+    cc = parser.parse('refactor(core): simplify logic')
+    assert cc.type == 'refactor'
+    assert cc.bump == BumpType.NONE
+
+    # Angular rejects unknown types:
+    assert parser.parse('chore: update deps') is None
+
+    # Full multi-line message with footer:
+    msg = 'feat: new API\\n\\nBREAKING CHANGE: removed v1 endpoints'
+    cc = parse_conventional_commit(msg)
+    assert cc.breaking is True
+    assert cc.breaking_description == 'removed v1 endpoints'
 """
 
+from releasekit.commit_parsing._angular import (
+    ANGULAR_MINOR_TYPES,
+    ANGULAR_PATCH_TYPES,
+    ANGULAR_TYPES,
+    AngularCommitParser,
+)
 from releasekit.commit_parsing._conventional import ConventionalCommitParser
 from releasekit.commit_parsing._types import (
     BUMP_PRECEDENCE,
@@ -63,7 +85,8 @@ def parse_conventional_commit(message: str, sha: str = '') -> ParsedCommit | Non
     Convenience wrapper around :meth:`ConventionalCommitParser.parse`.
 
     Args:
-        message: The commit subject line.
+        message: The commit message (subject line, or full multi-line
+            message with body and footers).
         sha: The commit SHA (for reference).
 
     Returns:
@@ -74,6 +97,10 @@ def parse_conventional_commit(message: str, sha: str = '') -> ParsedCommit | Non
 
 
 __all__ = [
+    'ANGULAR_MINOR_TYPES',
+    'ANGULAR_PATCH_TYPES',
+    'ANGULAR_TYPES',
+    'AngularCommitParser',
     'BUMP_PRECEDENCE',
     'BumpType',
     'CommitParser',

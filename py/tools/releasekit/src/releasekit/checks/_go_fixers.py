@@ -88,7 +88,7 @@ def fix_duplicate_dependencies(
             changes.append(action)
             if not dry_run:
                 go_mod.write_text(new_text, encoding='utf-8')
-                logger.info('fix_go_duplicate_deps', action=action, path=str(go_mod))
+                logger.warning('fix_go_duplicate_deps', action=action, path=str(go_mod))
             else:
                 logger.info('fix_go_duplicate_deps_dry_run', action=action, path=str(go_mod))
 
@@ -124,7 +124,7 @@ def fix_build_system(
         changes.append(action)
         if not dry_run:
             go_mod.write_text(content, encoding='utf-8')
-            logger.info('fix_go_build_system', action=action, path=str(go_mod))
+            logger.warning('fix_go_build_system', action=action, path=str(go_mod))
         else:
             logger.info('fix_go_build_system_dry_run', action=action, path=str(go_mod))
 

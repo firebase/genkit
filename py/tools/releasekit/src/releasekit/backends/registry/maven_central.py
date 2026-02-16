@@ -211,6 +211,46 @@ class MavenCentralRegistry:
         )
         return ChecksumResult(missing=list(local_checksums.keys()))
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions from Maven Central (newest first)."""
+        group_id, artifact_id = self._parse_coordinates(package_name)
+        query = f'g:"{group_id}" AND a:"{artifact_id}"'
+        url = f'{self._base_url}/solrsearch/select?q={query}&rows=200&wt=json&core=gav'
+
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            try:
+                data = response.json()
+                docs = data.get('response', {}).get('docs', [])
+                return [d['v'] for d in docs if 'v' in d]
+            except (ValueError, KeyError):
+                log.warning('maven_central_list_versions_error', artifact=package_name)
+                return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Maven Central does not support yanking or unpublishing.
+
+        Once an artifact is published to Maven Central, it is
+        immutable and cannot be removed. The only recourse is to
+        publish a new version.
+        """
+        log.warning(
+            'maven_central_yank_unsupported',
+            artifact=package_name,
+            version=version,
+            hint='Maven Central does not support yanking. Publish a new version instead.',
+        )
+        return False
+
 
 __all__ = [
     'MavenCentralRegistry',

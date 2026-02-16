@@ -5,8 +5,7 @@ topological order with dependency-triggered scheduling, ephemeral version
 pinning, retry with jitter, crash-safe file restoration, and post-publish
 checksum verification. Supports Python (uv), JavaScript (pnpm), Go,
 Dart (Pub), Java (Maven/Gradle), Kotlin (Gradle), Clojure (Leiningen/deps.edn),
-and Rust (Cargo) workspaces today, with Bazel on the roadmap — all
-through protocol-based backends.
+Rust (Cargo), and Bazel workspaces — all through protocol-based backends.
 
 ## Why This Tool Exists
 
@@ -39,7 +38,7 @@ multi-package release orchestration. releasekit fills that gap:
 `uv publish` is the low-level primitive. releasekit is the orchestrator
 that calls it per-package at the right time in the right order.
 
-See [roadmap.md](roadmap.md) for the full design rationale and
+See [docs/docs/roadmap.md](docs/docs/roadmap.md) for the full design rationale and
 implementation plan.
 
 ## How Does releasekit Compare?
@@ -49,13 +48,13 @@ implementation plan.
 | 🏗️ Monorepo | ✅ | ✅ | ❌ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
 | 🌐 Polyglot (Py/JS/Go/Bazel/Rust/Java/Dart) | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
 | 📝 Conventional Commits | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| 📦 Changeset files | 🔜 | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| 📦 Changeset files | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | 🩺 Health checks (33) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ✅ GH/GL | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
-| 🏷️ Pre-release | 🔜 | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 🏷️ Pre-release | ✅ | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | 🧪 Dry-run | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | ⏪ Rollback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔮 Version preview | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
@@ -66,22 +65,93 @@ implementation plan.
 | 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | ✍️ Signing / provenance | ✅ Sigstore | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | 📋 SBOM | ✅ CycloneDX+SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 📢 Announcements | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📢 Announcements | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | 📊 Plan profiling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔭 OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔄 Migrate from alternatives | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🔁 Continuous deploy mode | 🔜 | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| ⏰ Cadence / scheduled releases | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 🪝 Lifecycle hooks | 🔜 | ❌ | ✅ plugins | ✅ | ❌ | ❌ | ❌ | ✅ |
-| 🌿 Branch → channel mapping | 🔜 | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| 📅 CalVer support | 🔜 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔄 Migrate from alternatives | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🔁 Continuous deploy mode | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| ⏰ Cadence / scheduled releases | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🪝 Lifecycle hooks | ✅ | ❌ | ✅ plugins | ✅ | ❌ | ❌ | ❌ | ✅ |
+| 🌿 Branch → channel mapping | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 📅 CalVer support | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🛡️ OSPS Baseline compliance | ✅ L1–L3 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🌍 Ecosystem-specific security | ✅ 6 ecosystems | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| ⏭️ Per-package check skipping | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Legend:** ✅ = supported, ⚠️ = partial, ❌ = not supported, 🔜 = planned
 
-See [docs/competitive-gap-analysis.md](docs/competitive-gap-analysis.md) for
+See [docs/docs/competitive-gap-analysis.md](docs/docs/competitive-gap-analysis.md) for
 the full analysis with issue tracker references, and
-[roadmap.md](roadmap.md) for the detailed roadmap with dependency graphs
+[docs/docs/roadmap.md](docs/docs/roadmap.md) for the detailed roadmap with dependency graphs
 and execution phases.
+
+## Screenshots
+
+<!-- Plan output showing version bumps and publish order -->
+
+```text
+$ releasekit plan --format full
+┌──────────────────────────────────────────────────────────────┐
+│ Level 0 (parallel)                                           │
+│   📦 genkit 0.9.0 → 0.10.0 (minor)                          │
+│                           │                                  │
+│                           ▼                                  │
+├──────────────────────────────────────────────────────────────┤
+│ Level 1 (parallel)                                           │
+│   📦 genkit-plugin-google-genai 0.9.0 → 0.10.0 (minor)      │
+│   📦 genkit-plugin-vertex-ai 0.9.0 → 0.10.0 (minor)         │
+│   📦 genkit-plugin-firebase 0.9.0 → 0.10.0 (minor)          │
+└──────────────────────────────────────────────────────────────┘
+
+     Level  Package                       Current  Next    Bump   Status    Reason
+     ─────  ───────                       ───────  ────    ────   ──────    ──────
+  📦 0      genkit                        0.9.0    0.10.0  minor  included  feat: add streaming support
+  📦 1      genkit-plugin-google-genai    0.9.0    0.10.0  minor  included  dependency bump
+  📦 1      genkit-plugin-vertex-ai       0.9.0    0.10.0  minor  included  dependency bump
+  📦 1      genkit-plugin-firebase        0.9.0    0.10.0  minor  included  dependency bump
+  ⏭️  1      genkit-plugin-ollama          0.9.0    —       none   skipped   no changes
+
+Total: 5 packages (4 included, 1 skipped)
+```
+
+<!-- Health check output with Rust-style diagnostics -->
+
+```text
+$ releasekit check
+  ✓ dependency_cycles         No circular dependencies
+  ✓ lockfile_staleness        uv.lock is up to date
+  ✓ type_markers              All packages have py.typed
+  ⚠ version_consistency       genkit-plugin-foo has version 0.4.0 (expected 0.5.0)
+     --> plugins/foo/pyproject.toml:3
+      |
+    3 | version = "0.4.0"
+      |           ^^^^^^^ expected 0.5.0
+      |
+     = hint: Run 'releasekit check --fix' or update the version manually.
+  ✓ naming_convention         All names match pattern
+  ✓ metadata_completeness     All required fields present
+
+  33 checks run: 32 passed, 1 warning, 0 errors
+```
+
+<!-- Compliance report -->
+
+```text
+$ releasekit compliance
+  ID             Control                          Level  Status
+  ─────────────  ───────────────────────────────  ─────  ──────
+  OSPS-SCA-01    SBOM generation                  L1     ✅ met
+  OSPS-GOV-01    Security policy (SECURITY.md)    L1     ✅ met
+  OSPS-LEG-01    License declared                 L1     ✅ met
+  OSPS-SCA-02    Signed release artifacts         L2     ✅ met
+  OSPS-SCA-03    Provenance attestation           L2     ✅ met
+  OSPS-BLD-01    Build isolation (SLSA Build L3)  L3     ✅ met
+  OSPS-BLD-02    Signed provenance                L3     ✅ met
+  ECO-PY-01      PEP 561 type markers             L1     ✅ met
+  ECO-PY-02      PEP 740 attestations             L2     ❌ gap
+
+  8/9 controls met.
+```
 
 ## Getting Started
 
@@ -110,24 +180,55 @@ uvx releasekit graph --format table
 uvx releasekit check
 ```
 
+### GitHub Action
+
+Use the reusable composite action to run any releasekit command in CI
+with zero setup — Python, uv, git config, output parsing, and job
+summaries are handled automatically:
+
+```yaml
+- uses: ./py/tools/releasekit  # or your-org/releasekit@v1
+  with:
+    command: release
+    workspace: py
+    dry-run: ${{ env.DRY_RUN }}
+```
+
+The action supports all commands (`prepare`, `release`, `publish`,
+`rollback`, `plan`, `discover`, etc.) and all ecosystems. It captures
+outputs (`release-url`, `pr-url`, `first-tag`, `has-bumps`) and writes
+a GitHub Actions Job Summary with rollback links automatically.
+
+See the [sample workflows](github/workflows/) for production-ready
+templates for Python/uv, Go, JS/pnpm, Rust/Cargo, Dart/pub, and
+Java/Gradle.
+
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `discover` | List all workspace packages with versions and metadata |
+| `discover` | List all workspace packages (8 graph formats + JSON) |
 | `graph` | Print the dependency graph (8 output formats) |
 | `plan` | Preview version bumps and publish order (formats: table, json, csv, ascii, full) |
-| `publish` | Build and publish packages to PyPI in dependency order |
+| `publish` | Build and publish packages to registries in dependency order |
 | `prepare` | Bump versions, generate changelogs, open a Release PR |
 | `release` | Tag a merged Release PR and create a GitHub Release |
-| `check` | Run standalone workspace health checks (`--fix` to auto-fix) |
+| `check` | Run 33 workspace health checks (`--fix` to auto-fix 17 issues) |
+| `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
+| `validate` | Run validators against release artifacts (provenance, SBOM, attestations) |
+| `compliance` | Evaluate OSPS Baseline compliance (L1–L3) across all ecosystems |
+| `rollback` | Delete git tags + platform releases; optionally yank from registries |
+| `snapshot` | Compute snapshot/dev versions for CI preview builds |
+| `promote` | Promote pre-release packages to stable (`1.0.0rc1` → `1.0.0`) |
+| `should-release` | Check if a release is needed (for CI cron integration) |
+| `sign` | Sign release artifacts with Sigstore (keyless OIDC) |
+| `verify` | Verify Sigstore bundles and SLSA provenance |
 | `bump` | Bump version for one or all packages |
 | `init` | Scaffold `releasekit.toml` config with auto-detected groups |
-| `rollback` | Delete a git tag (local + remote) and its GitHub release |
-| `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
-| `version` | Show the releasekit version |
 | `migrate` | Auto-detect existing tags and set `bootstrap_sha` for mid-stream adoption |
-| `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
+| `explain` | Look up any error code (e.g. `releasekit explain RK-GRAPH-CYCLE-DETECTED`) |
+| `changelog` | Generate per-package CHANGELOG.md from Conventional Commits |
+| `version` | Show computed version bumps |
 | `completion` | Generate shell completion scripts (bash/zsh/fish) |
 
 ## Features
@@ -223,9 +324,14 @@ The command:
 ### Rollback
 
 ```bash
-releasekit rollback genkit-v0.5.0            # Delete tag + GitHub release
-releasekit rollback genkit-v0.5.0 --dry-run  # Preview what would be deleted
+releasekit rollback genkit-v0.5.0                      # Delete tag + GitHub release
+releasekit rollback genkit-v0.5.0 --all-tags            # Delete ALL tags from the release
+releasekit rollback genkit-v0.5.0 --all-tags --yank     # Also yank from registries
+releasekit rollback genkit-v0.5.0 --dry-run             # Preview what would be deleted
 ```
+
+See the [Rollback guide](docs/docs/guides/rollback.md) for the full
+one-click-from-GitHub-Release workflow.
 
 ### Rust-Style Diagnostics
 
@@ -234,7 +340,7 @@ All errors and warnings use Rust-compiler-style formatting:
 ```
 error[RK-GRAPH-CYCLE-DETECTED]: Circular dependency detected in the workspace dependency graph.
   |
-  = hint: Run 'releasekit check-cycles' to identify the cycle.
+  = hint: Run 'releasekit check' to identify the cycle.
 ```
 
 Every error code can be looked up:
@@ -485,6 +591,61 @@ samples = ["*-hello", "*-demo", "web-*"]
 | `pr_title_template` | `"chore(release): v{version}"` | Template for the Release PR title. Placeholder: `{version}` |
 | `extra_files` | `[]` | Extra files with version strings to bump (path or `path:regex` pairs) |
 | `max_commits` | `0` | Limit git log depth (0 = unlimited; useful for large repos) |
+| `versioning_scheme` | *(auto)* | `"semver"`, `"pep440"`, or `"calver"` (auto-detected from ecosystem) |
+
+### Default Versioning Schemes
+
+When `versioning_scheme` is not explicitly set, releasekit applies the
+appropriate default based on the workspace ecosystem:
+
+| Ecosystem | Default | Registry | Why |
+|-----------|---------|----------|-----|
+| `python` | `pep440` | PyPI | PyPI **requires** [PEP 440](https://peps.python.org/pep-0440/) (`1.0.0a1`, `1.0.0rc1`) |
+| `js` | `semver` | npm | [Semantic Versioning 2.0.0](https://semver.org/) (`1.0.0-rc.1`) |
+| `go` | `semver` | Go proxy | [Go module versioning](https://go.dev/ref/mod#versions) |
+| `rust` | `semver` | crates.io | [Cargo SemVer](https://doc.rust-lang.org/cargo/reference/semver.html) |
+| `dart` | `semver` | pub.dev | [Dart versioning](https://dart.dev/tools/pub/versioning) |
+| `java` | `semver` | Maven Central | [Maven versioning](https://maven.apache.org/pom.html#Version) |
+| `jvm` | `semver` | Maven Central | Same as Java |
+| `kotlin` | `semver` | Maven Central | Same as Java |
+| `clojure` | `semver` | Clojars | [Leiningen versioning](https://codeberg.org/leiningen/leiningen) |
+| `bazel` | `semver` | BCR | [Bazel Central Registry](https://registry.bazel.build/) |
+
+Python is the only ecosystem that defaults to PEP 440 because PyPI
+requires it. All other registries use or recommend Semantic Versioning.
+
+### Per-Package Configuration
+
+Individual packages can override workspace-level settings via
+`[workspace.<label>.packages.<name>]` sections. This is useful for
+mixed-ecosystem workspaces (e.g. Python + JS in one workspace):
+
+```toml
+[workspace.mono]
+ecosystem = "python"
+root = "."
+versioning_scheme = "pep440"  # default for all packages
+
+[workspace.mono.groups]
+js-libs = ["my-js-*"]
+
+# JS packages use semver instead of pep440
+[workspace.mono.packages.js-libs]
+versioning_scheme = "semver"
+dist_tag = "latest"
+
+# One package publishes to test PyPI
+[workspace.mono.packages."genkit-experimental"]
+registry_url = "https://test.pypi.org"
+major_on_zero = true
+```
+
+Resolution order: exact package name → group membership → workspace default.
+
+Supported per-package keys: `versioning_scheme`, `calver_format`,
+`prerelease_label`, `changelog`, `changelog_template`, `smoke_test`,
+`major_on_zero`, `extra_files`, `dist_tag`, `registry_url`, `provenance`,
+`skip_checks`.
 
 ### Exclusion Hierarchy
 
@@ -680,7 +841,7 @@ enables multi-ecosystem support:
 
 ## Testing
 
-The test suite has **1,739 tests** across 28k+ lines with 91%+ coverage:
+The test suite has **3,300+ tests** across 110+ test files:
 
 ```bash
 # Run all tests
@@ -703,15 +864,184 @@ uv run pytest tests/rk_publisher_test.py -v
   following the want/got pattern.
 - Complex comparisons use `dataclasses.asdict` for readable diffs.
 
-## Security
+## Security & Compliance
 
-- **No credentials in code** — PyPI tokens come from environment
-  (`UV_PUBLISH_TOKEN`) or trusted publishing (OIDC).
-- **Checksum verification** — SHA-256 checksums are computed locally
-  and verified against the registry after publish.
-- **Ephemeral pinning** — dependency rewrites use crash-safe
-  backup/restore with `.bak` files.
-- **State file integrity** — resume refuses if HEAD SHA differs.
+### ELI5: What Does "Supply Chain Security" Mean?
+
+```text
+Imagine you're baking a cake and sharing the recipe:
+
+  🧁 Your code       = the recipe
+  📦 Your package    = the cake you bake from the recipe
+  🏪 PyPI / npm      = the bakery shelf where people pick up cakes
+  🔒 Signing         = a tamper-evident seal on the box
+  📋 SBOM            = the ingredient list on the label
+  📜 Provenance      = a certificate saying "this cake was baked
+                        in THIS kitchen from THIS recipe at THIS time"
+  🔍 Checksums       = weighing the cake to make sure nobody
+                        swapped it on the shelf
+
+Supply chain security = making sure the cake on the shelf
+is EXACTLY the one you baked, with no tampering in between.
+```
+
+### Security Features
+
+| Feature | What It Does | Module |
+|---------|-------------|--------|
+| **No credentials in code** | PyPI tokens from env (`UV_PUBLISH_TOKEN`) or OIDC trusted publishing | `publisher.py` |
+| **Sigstore keyless signing** | Sign artifacts + verify bundles via ambient OIDC credentials | `signing.py` |
+| **SLSA provenance (L0–L3)** | in-toto attestation v1 envelopes; auto-detects CI → L3 on hosted runners | `provenance.py` |
+| **Artifact validation** | Validate provenance, SBOM, attestations, SECURITY-INSIGHTS post-build | `backends/validation/` |
+| **SBOM generation** | CycloneDX 1.5 + SPDX 2.3 from workspace metadata | `sbom.py` |
+| **Checksum verification** | SHA-256 computed locally, verified against registry post-publish | `publisher.py` |
+| **PEP 740 attestations** | PyPI Trusted Publisher attestations for Python packages | `attestations.py` |
+| **OCI container signing** | cosign keyless signing + SBOM attestation for containers | `signing.py` |
+| **OSPS Baseline compliance** | Evaluate L1–L3 controls across 6 ecosystems with `releasekit compliance` | `compliance.py` |
+| **Ephemeral pinning** | Crash-safe backup/restore with `.bak` files | `pin.py` |
+| **State file integrity** | Resume refuses if HEAD SHA differs | `state.py` |
+
+### OSPS Baseline Compliance
+
+releasekit evaluates your repository against the [OpenSSF OSPS Baseline](https://best.openssf.org/Concise-Guide-for-Evaluating-Open-Source-Software)
+framework. Run `releasekit compliance` to see your status.
+
+#### ELI5: What Is OSPS Baseline?
+
+```text
+Think of OSPS Baseline like a safety checklist for open-source projects:
+
+  Level 1 (L1) = "Do you have a seatbelt?"
+    → LICENSE file, SECURITY.md, SBOM, manifest files
+
+  Level 2 (L2) = "Do you have airbags too?"
+    → Signed artifacts, provenance, lockfiles, vuln scanning
+
+  Level 3 (L3) = "Is your car crash-tested by an independent lab?"
+    → Isolated builds, signed provenance on hosted runners
+```
+
+#### Universal Controls (All Ecosystems)
+
+| ID | Control | Level | Module | NIST SSDF |
+|----|---------|:-----:|--------|-----------|
+| `OSPS-SCA-01` | SBOM generation | L1 | `sbom.py` | PS.3.2 |
+| `OSPS-GOV-01` | Security policy (SECURITY.md) | L1 | `scorecard.py` | PO.1.1 |
+| `OSPS-LEG-01` | License declared | L1 | — | PO.1.3 |
+| `OSPS-SCA-02` | Signed release artifacts | L2 | `signing.py` | PS.2.1 |
+| `OSPS-SCA-03` | Provenance attestation | L2 | `provenance.py` | PS.3.1 |
+| `OSPS-SCA-04` | Vulnerability scanning | L2 | `osv.py` | RV.1.1 |
+| `OSPS-SCA-05` | Dependency pinning (lockfile) | L2 | `preflight.py` | PS.1.1 |
+| `OSPS-SCA-06` | Automated dependency updates | L2 | `scorecard.py` | PS.1.1 |
+| `OSPS-BLD-01` | Build isolation (SLSA Build L3) | L3 | `provenance.py` | PW.6.1 |
+| `OSPS-BLD-02` | Signed provenance | L3 | `signing.py` | PS.2.1 |
+
+#### Ecosystem-Specific Controls
+
+releasekit auto-detects which ecosystems are present and evaluates
+ecosystem-specific security requirements:
+
+**Python**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-PY-01` | PEP 561 type markers | L1 | `py.typed` files for type-safe packages |
+| `ECO-PY-02` | PEP 740 attestations | L2 | PyPI Trusted Publisher attestations |
+| `ECO-PY-03` | requires-python declared | L1 | Prevents install on wrong Python version |
+
+**Go**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-GO-01` | go.mod present | L1 | Module dependency management |
+| `ECO-GO-02` | go.sum integrity | L2 | Cryptographic hash verification of deps |
+| `ECO-GO-03` | govulncheck in CI | L2 | Go vulnerability database scanning |
+
+**JavaScript / Node.js**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-JS-01` | package.json present | L1 | npm/pnpm manifest |
+| `ECO-JS-02` | npm provenance | L2 | `npm publish --provenance` attestations |
+| `ECO-JS-03` | .npmrc registry config | L1 | Prevents registry substitution attacks |
+
+**Java (Maven / Gradle)**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-JV-01` | Build system manifest | L1 | pom.xml or build.gradle present |
+| `ECO-JV-02` | Gradle dep verification | L2 | Checksum/signature verification of deps |
+| `ECO-JV-03` | Maven Central signing | L2 | GPG-signed artifacts for Maven Central |
+
+**Rust**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-RS-01` | Cargo.toml present | L1 | Rust package manifest |
+| `ECO-RS-02` | Cargo.lock committed | L2 | Reproducible builds |
+| `ECO-RS-03` | cargo-audit in CI | L2 | RustSec advisory database scanning |
+| `ECO-RS-04` | cargo-deny policy | L2 | License allowlist + advisory bans |
+
+**Dart / Flutter**
+
+| ID | Control | Level | What It Checks |
+|----|---------|:-----:|----------------|
+| `ECO-DT-01` | pubspec.yaml present | L1 | Dart/Flutter package manifest |
+| `ECO-DT-02` | pubspec.lock committed | L2 | Reproducible builds |
+| `ECO-DT-03` | analysis_options.yaml | L1 | Static analysis for type safety |
+
+### Per-Package Check Skipping
+
+Individual packages can opt out of specific checks via `skip_checks`
+in `releasekit.toml`. This is useful when a package legitimately
+doesn't need a particular check (e.g., an internal tool that doesn't
+need `requires-python`).
+
+#### ELI5: Why Skip Checks?
+
+```
+Imagine your school has a dress code (checks). Most students follow it.
+But the gym teacher (internal tool) doesn't need to wear a tie.
+skip_checks = ["tie_check"] for the gym teacher only.
+Everyone else still gets checked.
+```
+
+#### Configuration
+
+```toml
+# Skip checks for ALL packages in this workspace
+[workspace.py]
+skip_checks = ["stale_artifacts"]
+
+# Skip checks for ONE specific package
+[workspace.py.packages."my-internal-tool"]
+skip_checks = ["requires_python", "publish_classifier_consistency"]
+```
+
+The effective skip set for each package is the **union** of workspace-level
+and per-package skips. Check names match the check IDs listed in the
+[Health Checks](#health-checks) section above.
+
+#### How It Works
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Check Runner                            │
+│                                                          │
+│  For each check (e.g. "requires_python"):                │
+│                                                          │
+│    packages = [A, B, C, D]                               │
+│                                                          │
+│    skip_map = {                                          │
+│      "C": {"requires_python", "stale_artifacts"},        │
+│    }                                                     │
+│                                                          │
+│    filtered = [A, B, D]   ← C is excluded for this check │
+│                                                          │
+│    run check on [A, B, D] only                           │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
 
 ## Standalone Repository
 

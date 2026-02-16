@@ -64,7 +64,9 @@ Usage in releasekit modules::
 
 from __future__ import annotations
 
+import asyncio
 import functools
+import inspect
 from typing import Any
 
 from opentelemetry import trace as _otel_trace
@@ -167,9 +169,6 @@ def _is_coroutine_function(fn: Any) -> bool:  # noqa: ANN401
 
     Handles both native ``async def`` and functools-wrapped coroutines.
     """
-    import asyncio
-    import inspect
-
     return inspect.iscoroutinefunction(fn) or (
         hasattr(fn, '__wrapped__') and asyncio.iscoroutinefunction(fn.__wrapped__)
     )

@@ -71,7 +71,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from types import TracebackType
 
-from rich.console import Console
+from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
@@ -547,8 +547,6 @@ class RichProgressUI(PublishObserver):
         # Error panel (if any).
         content = table
         if self._errors:
-            from rich.console import Group
-
             error_lines: list[str] = []
             for pkg_name, error_msg in self._errors[-5:]:  # Show last 5 errors.
                 error_lines.append(f'[red bold]{pkg_name}[/]: {error_msg}')

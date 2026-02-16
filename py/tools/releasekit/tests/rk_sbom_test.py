@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import jsonschema
 from releasekit.sbom import (
     SBOMComponent,
     SBOMFormat,
@@ -396,8 +397,6 @@ class TestCycloneDXSchemaValidation:
 
     def test_single_package(self) -> None:
         """Single-package SBOM validates against CycloneDX 1.5 schema."""
-        import jsonschema
-
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             return  # Schema file not available; skip gracefully.
@@ -407,8 +406,6 @@ class TestCycloneDXSchemaValidation:
 
     def test_multiple_packages(self) -> None:
         """Multi-package SBOM validates against CycloneDX 1.5 schema."""
-        import jsonschema
-
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             return
@@ -422,8 +419,6 @@ class TestCycloneDXSchemaValidation:
 
     def test_minimal_no_supplier(self) -> None:
         """Minimal SBOM without supplier validates."""
-        import jsonschema
-
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             return
@@ -433,8 +428,6 @@ class TestCycloneDXSchemaValidation:
 
     def test_js_ecosystem(self) -> None:
         """JS ecosystem SBOM validates against CycloneDX 1.5 schema."""
-        import jsonschema
-
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             return
@@ -448,8 +441,6 @@ class TestSPDXSchemaValidation:
 
     def test_single_package(self) -> None:
         """Single-package SBOM validates against SPDX 2.3 schema."""
-        import jsonschema
-
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             return
@@ -459,8 +450,6 @@ class TestSPDXSchemaValidation:
 
     def test_multiple_packages(self) -> None:
         """Multi-package SBOM validates against SPDX 2.3 schema."""
-        import jsonschema
-
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             return
@@ -474,8 +463,6 @@ class TestSPDXSchemaValidation:
 
     def test_minimal_no_supplier(self) -> None:
         """Minimal SBOM without supplier validates."""
-        import jsonschema
-
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             return
@@ -485,8 +472,6 @@ class TestSPDXSchemaValidation:
 
     def test_no_license(self) -> None:
         """SBOM with NOASSERTION license validates."""
-        import jsonschema
-
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             return

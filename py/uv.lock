@@ -2929,6 +2929,7 @@ lint = [
     { name = "pip-audit" },
     { name = "pydantic-settings" },
     { name = "pypdf" },
+    { name = "pypi-attestations" },
     { name = "pyrefly" },
     { name = "pyright" },
     { name = "pysentry-rs" },
@@ -3022,6 +3023,7 @@ lint = [
     { name = "pip-audit", specifier = ">=2.7.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pypdf", specifier = ">=6.6.2" },
+    { name = "pypi-attestations", specifier = ">=0.0.20" },
     { name = "pyrefly", specifier = ">=0.15.0" },
     { name = "pyright", specifier = ">=1.1.392" },
     { name = "pysentry-rs", specifier = ">=0.3.14" },
@@ -7781,6 +7783,25 @@ wheels = [
 ]
 
 [[package]]
+name = "pypi-attestations"
+version = "0.0.29"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "packaging" },
+    { name = "pyasn1" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "rfc3986" },
+    { name = "sigstore" },
+    { name = "sigstore-models" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/a9/20169d7df89a79bfb00045c7d42d81ccc612008474306e1858984990e165/pypi_attestations-0.0.29.tar.gz", hash = "sha256:2daf3ec46ff4c7123184ec892852b4d4599b78128f01f742a44406a73200c5df", size = 128954, upload-time = "2025-12-11T13:24:21.425Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/4c/a008365b5bdeab52f023945af9aff2baf7f99de5784adca314b55872d6be/pypi_attestations-0.0.29-py3-none-any.whl", hash = "sha256:278a28d741b57d62973c00d453ec9b9bb30456464d69296c6780474cd0bf098e", size = 21922, upload-time = "2025-12-11T13:24:19.943Z" },
+]
+
+[[package]]
 name = "pyproject-api"
 version = "1.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -8295,6 +8316,8 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
     { name = "packaging" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "pypi-attestations" },
     { name = "rich" },
     { name = "rich-argparse" },
     { name = "sigstore" },
@@ -8309,6 +8332,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -8321,6 +8345,8 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "packaging", specifier = ">=24.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
+    { name = "pypi-attestations", specifier = ">=0.0.20" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "rich-argparse", specifier = ">=1.6.0" },
     { name = "sigstore", specifier = ">=3.0.0" },
@@ -8335,6 +8361,7 @@ dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]

@@ -77,19 +77,33 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from releasekit.attestations import sign_distributions
 from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import ChecksumResult, Registry
+from releasekit.backends.validation.attestation import (
+    PEP740AttestationValidator,
+)
+from releasekit.backends.validation.schema import (
+    ProvenanceSchemaValidator,
+)
 from releasekit.backends.vcs import VCS
 from releasekit.errors import E, ReleaseKitError
 from releasekit.graph import DependencyGraph, topo_sort
 from releasekit.logging import get_logger
 from releasekit.observer import PublishObserver, PublishStage
 from releasekit.pin import ephemeral_pin
+from releasekit.provenance import (
+    BuildContext,
+    generate_workspace_provenance,
+)
+from releasekit.sbom import SBOMFormat, write_sbom
 from releasekit.scheduler import Scheduler
+from releasekit.signing import sign_artifact
 from releasekit.state import PackageStatus, RunState
 from releasekit.ui import NullProgressUI
-from releasekit.versions import PackageVersion
+from releasekit.utils.date import utc_iso
+from releasekit.versions import PackageVersion, ReleaseManifest
 from releasekit.workspace import Package
 
 logger = get_logger(__name__)
@@ -121,6 +135,17 @@ class PublishConfig:
         provenance: Generate npm provenance attestation.
             Maps to ``pnpm publish --provenance``. Ignored by
             Python backends.
+        slsa_provenance: Generate SLSA Provenance v1 in-toto statement
+            for all published artifacts. The provenance file is written
+            to ``<workspace_root>/provenance.intoto.jsonl``.
+        pep740_attestations: Generate PEP 740 digital attestations for
+            each distribution file using ``pypi-attestations``. Requires
+            ambient OIDC credentials (Trusted Publisher). Only applies
+            to Python ecosystem publishes.
+        config_source: Path to the build configuration file (relative
+            to the repo root), recorded in the provenance predicate.
+        ecosystem: Package ecosystem identifier (e.g. ``python``,
+            ``js``) recorded in the provenance predicate.
     """
 
     concurrency: int = 5
@@ -131,7 +156,7 @@ class PublishConfig:
     verify_checksums: bool = True
     poll_timeout: float = 300.0
     poll_interval: float = 5.0
-    max_retries: int = 0
+    max_retries: int = 3
     retry_base_delay: float = 1.0
     task_timeout: float = 600.0
     force: bool = False
@@ -139,7 +164,14 @@ class PublishConfig:
     workspace_label: str = ''
     dist_tag: str = ''
     publish_branch: str = ''
-    provenance: bool = False
+    provenance: bool = True
+    slsa_provenance: bool = True
+    sign_provenance: bool = True
+    pep740_attestations: bool = True
+    sbom: bool = True
+    sbom_formats: list[str] = field(default_factory=lambda: ['cyclonedx', 'spdx'])
+    config_source: str = ''
+    ecosystem: str = ''
 
 
 @dataclass
@@ -157,6 +189,8 @@ class PublishResult:
     skipped: list[str] = field(default_factory=list)
     failed: dict[str, str] = field(default_factory=dict)
     state: RunState | None = None
+    artifact_checksums: dict[str, dict[str, str]] = field(default_factory=dict)
+    provenance_path: Path | None = None
 
     @property
     def ok(self) -> bool:
@@ -201,6 +235,213 @@ def _build_version_map(versions: list[PackageVersion]) -> dict[str, str]:
     return {v.name: v.new_version for v in versions if not v.skipped}
 
 
+def _validate_provenance(prov_path: Path) -> None:
+    """Run schema validation on a generated provenance file.
+
+    Args:
+        prov_path: Path to the provenance ``.intoto.jsonl`` file.
+    """
+    try:
+        vr = ProvenanceSchemaValidator().validate(prov_path)
+        if vr.ok:
+            logger.info('slsa_provenance_validated', path=str(prov_path))
+        else:
+            logger.warning(
+                'slsa_provenance_validation_failed',
+                path=str(prov_path),
+                message=vr.message,
+                hint='Provenance was written but failed schema validation.',
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            'slsa_provenance_validation_error',
+            error=str(exc),
+            hint='Could not validate provenance (validator unavailable).',
+        )
+
+
+def _sign_provenance(prov_path: Path) -> None:
+    """Sign a provenance file with Sigstore for SLSA L2.
+
+    Args:
+        prov_path: Path to the provenance file to sign.
+    """
+    try:
+        sign_result = sign_artifact(prov_path)
+        if sign_result.signed:
+            logger.info(
+                'slsa_provenance_signed',
+                path=str(prov_path),
+                bundle=str(sign_result.bundle_path),
+            )
+        else:
+            logger.warning(
+                'slsa_provenance_sign_failed',
+                reason=sign_result.reason,
+                hint='Provenance was generated but could not be signed.',
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            'slsa_provenance_sign_error',
+            error=str(exc),
+            hint='Provenance was generated but signing raised an error.',
+        )
+
+
+def _generate_and_sign_provenance(
+    config: PublishConfig,
+    result: PublishResult,
+    build_start_time: str,
+) -> None:
+    """Generate SLSA provenance, validate it, and optionally sign it.
+
+    Args:
+        config: Publish configuration.
+        result: Publish result (provenance_path is set on success).
+        build_start_time: ISO 8601 timestamp of build start.
+    """
+    try:
+        build_ctx = BuildContext.from_env()
+        prov_stmt = generate_workspace_provenance(
+            artifact_checksums=result.artifact_checksums,
+            context=build_ctx,
+            config_source=config.config_source,
+            build_start_time=build_start_time,
+            build_finish_time=utc_iso(),
+            ecosystem=config.ecosystem,
+        )
+        prov_name = (
+            f'provenance-{config.workspace_label}.intoto.jsonl' if config.workspace_label else 'provenance.intoto.jsonl'
+        )
+        prov_path = config.workspace_root / prov_name
+        prov_stmt.write(prov_path)
+        result.provenance_path = prov_path
+        logger.info('slsa_provenance_written', path=str(prov_path))
+
+        _validate_provenance(prov_path)
+
+        if config.sign_provenance:
+            _sign_provenance(prov_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            'slsa_provenance_failed',
+            error=str(exc),
+            hint='Provenance generation failed but publish succeeded.',
+        )
+
+
+def _validate_attestation(attestation_path: Path, dist_path: Path) -> None:
+    """Run structural validation on a generated PEP 740 attestation.
+
+    Args:
+        attestation_path: Path to the ``.publish.attestation`` file.
+        dist_path: Path to the distribution file (for logging).
+    """
+    try:
+        vr = PEP740AttestationValidator().validate(attestation_path)
+        if vr.ok:
+            logger.info('pep740_attestation_validated', dist=str(dist_path))
+        else:
+            logger.warning(
+                'pep740_attestation_validation_failed',
+                dist=str(dist_path),
+                message=vr.message,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning('pep740_attestation_validation_error', error=str(exc))
+
+
+def _generate_pep740_attestations(
+    config: PublishConfig,
+    result: PublishResult,
+) -> None:
+    """Generate and validate PEP 740 attestations for published distributions.
+
+    Args:
+        config: Publish configuration.
+        result: Publish result with artifact checksums.
+    """
+    try:
+        for name, checksums in result.artifact_checksums.items():
+            dist_paths = [config.workspace_root / 'dist' / fname for fname in checksums]
+            existing = [p for p in dist_paths if p.exists()]
+            if not existing:
+                continue
+            attest_results = sign_distributions(existing, dry_run=config.dry_run)
+            for ar in attest_results:
+                if ar.signed:
+                    logger.info(
+                        'pep740_attestation_created',
+                        package=name,
+                        dist=str(ar.dist_path),
+                        attestation=str(ar.attestation_path),
+                    )
+                    _validate_attestation(ar.attestation_path, ar.dist_path)
+                elif ar.reason:
+                    logger.warning(
+                        'pep740_attestation_skipped',
+                        package=name,
+                        dist=str(ar.dist_path),
+                        reason=ar.reason,
+                    )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            'pep740_attestation_failed',
+            error=str(exc),
+            hint='PEP 740 attestation generation failed but publish succeeded.',
+        )
+
+
+def _generate_sboms(
+    config: PublishConfig,
+    versions: list[PackageVersion],
+    git_sha: str,
+) -> list[Path]:
+    """Generate SBOM files in all configured formats.
+
+    Args:
+        config: Publish configuration.
+        versions: Version records for the published packages.
+        git_sha: The HEAD SHA at the time versions were computed.
+
+    Returns:
+        List of paths to the written SBOM files.
+    """
+    sbom_paths: list[Path] = []
+    try:
+        manifest = ReleaseManifest(
+            git_sha=git_sha,
+            packages=versions,
+            created_at=utc_iso(),
+        )
+        output_dir = config.workspace_root
+        for fmt_name in config.sbom_formats:
+            try:
+                fmt = SBOMFormat(fmt_name)
+            except ValueError:
+                logger.warning(
+                    'sbom_format_unknown',
+                    format=fmt_name,
+                    hint=f'Allowed values: {", ".join(f.value for f in SBOMFormat)}.',
+                )
+                continue
+            path = write_sbom(
+                manifest,
+                output_dir,
+                fmt=fmt,
+                ecosystem=config.ecosystem,
+            )
+            sbom_paths.append(path)
+            logger.info('sbom_generated_ok', path=str(path), format=fmt_name)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            'sbom_generation_failed',
+            error=str(exc),
+            hint='SBOM generation failed but publish succeeded.',
+        )
+    return sbom_paths
+
+
 async def _publish_one(
     *,
     pkg: Package,
@@ -212,6 +453,7 @@ async def _publish_one(
     state: RunState,
     state_path: Path,
     observer: PublishObserver,
+    result: PublishResult,
 ) -> None:
     """Publish a single package through the full pipeline.
 
@@ -232,6 +474,7 @@ async def _publish_one(
         state: Run state (mutated in place).
         state_path: Path to persist state.
         observer: UI observer for progress callbacks.
+        result: Publish result to accumulate checksums into.
     """
     name = pkg.name
     try:
@@ -322,6 +565,10 @@ async def _publish_one(
         state.set_status(name, PackageStatus.PUBLISHED)
         state.save(state_path)
 
+        # Store checksums for SLSA provenance generation.
+        if checksums:
+            result.artifact_checksums[name] = dict(checksums)
+
         logger.info(
             'package_published',
             package=name,
@@ -385,20 +632,16 @@ async def publish_workspace(
     Returns:
         A :class:`PublishResult` summarizing the outcome.
     """
-    # Default to no-op observer if none provided.
     if observer is None:
         observer = NullProgressUI()
 
-    # Compute levels from graph if not provided.
     if levels is None:
         levels = topo_sort(graph)
 
-    # Build lookup maps.
     ver_map: dict[str, PackageVersion] = {v.name: v for v in versions}
     version_map = _build_version_map(versions)
     pkg_map: dict[str, Package] = {p.name: p for p in packages}
 
-    # Initialize or resume state.
     git_sha = await vcs.current_sha()
     state_name = (
         f'.releasekit-state--{config.workspace_label}.json' if config.workspace_label else '.releasekit-state.json'
@@ -428,7 +671,6 @@ async def publish_workspace(
 
     state.save(state_path)
 
-    # Initialize observer with all packages.
     observer_packages: list[tuple[str, int, str]] = []
     for level_idx, level in enumerate(levels):
         for pkg in level:
@@ -437,7 +679,6 @@ async def publish_workspace(
             observer_packages.append((pkg.name, level_idx, version_str))
     observer.init_packages(observer_packages)
 
-    # Determine which packages are publishable (not skipped/already done).
     publishable: set[str] = set()
     for name, pkg_state in state.packages.items():
         if pkg_state.status == PackageStatus.SKIPPED:
@@ -449,7 +690,6 @@ async def publish_workspace(
 
     result = PublishResult(state=state)
 
-    # Pre-populate result with already-completed packages (resume support).
     for name, pkg_state in state.packages.items():
         if pkg_state.status == PackageStatus.PUBLISHED:
             result.published.append(name)
@@ -462,7 +702,6 @@ async def publish_workspace(
         observer.on_complete()
         return result
 
-    # Build the scheduler from the graph.
     scheduler = Scheduler.from_graph(
         graph=graph,
         publishable=publishable,
@@ -473,7 +712,8 @@ async def publish_workspace(
         observer=observer,
     )
 
-    # Create the publish callback — closes over all context.
+    build_start_time = utc_iso()
+
     async def _do_publish(name: str) -> None:
         """Publish a single package (scheduler callback)."""
         pkg = pkg_map[name]
@@ -488,16 +728,23 @@ async def publish_workspace(
             state=state,
             state_path=state_path,
             observer=observer,
+            result=result,
         )
 
-    # Run the scheduler.
     sched_result = await scheduler.run(_do_publish)
 
-    # Merge scheduler results into publish result.
     result.published.extend(sched_result.published)
     result.failed.update(sched_result.failed)
 
-    # Save final state.
+    if config.slsa_provenance and result.published and not config.dry_run:
+        _generate_and_sign_provenance(config, result, build_start_time)
+
+    if config.sbom and result.published and not config.dry_run:
+        _generate_sboms(config, versions, git_sha)
+
+    if config.pep740_attestations and config.ecosystem == 'python' and result.published:
+        _generate_pep740_attestations(config, result)
+
     state.save(state_path)
     observer.on_complete()
 

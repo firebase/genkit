@@ -18,15 +18,26 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 from pathlib import Path
 
 import tomlkit
-from releasekit.config import CONFIG_FILENAME
+from releasekit.config import CONFIG_FILENAME, ReleaseConfig, load_config
+from releasekit.detection import _is_submodule, _parse_gitmodules, detect_ecosystems
 from releasekit.init import (
+    TagScanReport,
+    _detect_discrepancies,
+    _detect_ecosystem,
     detect_groups,
     generate_config_toml,
+    print_scaffold_preview,
+    print_tag_scan_report,
     scaffold_config,
+    scaffold_multi_config,
+    scan_and_bootstrap,
 )
+from releasekit.migrate import ClassifiedTag
 from releasekit.workspace import Package
 from tests._fakes import FakeVCS
 
@@ -187,8 +198,6 @@ class TestGenerateConfigToml:
 
     def test_roundtrip_through_load_config(self, tmp_path: Path) -> None:
         """Generated TOML can be loaded by load_config."""
-        from releasekit.config import load_config
-
         groups = {'core': ['genkit'], 'plugins': ['genkit-plugin-*']}
         output = generate_config_toml(
             groups,
@@ -359,16 +368,12 @@ class TestDetectEcosystem:
 
     def test_python_default(self, tmp_path: Path) -> None:
         """Empty directory defaults to python."""
-        from releasekit.init import _detect_ecosystem
-
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'python'
         assert label == 'py'
 
     def test_js_pnpm_workspace(self, tmp_path: Path) -> None:
         """pnpm-workspace.yaml triggers JS detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'pnpm-workspace.yaml').write_text('packages:\n  - packages/*\n')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'js'
@@ -376,8 +381,6 @@ class TestDetectEcosystem:
 
     def test_js_package_json(self, tmp_path: Path) -> None:
         """package.json triggers JS detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'package.json').write_text('{}')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'js'
@@ -385,8 +388,6 @@ class TestDetectEcosystem:
 
     def test_rust_cargo_workspace(self, tmp_path: Path) -> None:
         """Cargo.toml with [workspace] triggers Rust detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'Cargo.toml').write_text('[workspace]\nmembers = ["crates/*"]\n')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'rust'
@@ -394,16 +395,12 @@ class TestDetectEcosystem:
 
     def test_rust_cargo_no_workspace(self, tmp_path: Path) -> None:
         """Cargo.toml without [workspace] falls through."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'Cargo.toml').write_text('[package]\nname = "foo"\n')
         eco, _label = _detect_ecosystem(tmp_path)
         assert eco == 'python'  # falls through to default
 
     def test_go_workspace(self, tmp_path: Path) -> None:
         """go.work triggers Go detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'go.work').write_text('go 1.21\n')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'go'
@@ -411,8 +408,6 @@ class TestDetectEcosystem:
 
     def test_go_mod(self, tmp_path: Path) -> None:
         """go.mod triggers Go detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'go.mod').write_text('module example.com/foo\n')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'go'
@@ -420,8 +415,6 @@ class TestDetectEcosystem:
 
     def test_jvm_gradle_kts(self, tmp_path: Path) -> None:
         """build.gradle.kts triggers Java/JVM detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'build.gradle.kts').write_text('plugins {}')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'java'
@@ -429,8 +422,6 @@ class TestDetectEcosystem:
 
     def test_jvm_gradle(self, tmp_path: Path) -> None:
         """build.gradle triggers Java/JVM detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'build.gradle').write_text('apply plugin: "java"')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'java'
@@ -438,8 +429,6 @@ class TestDetectEcosystem:
 
     def test_jvm_maven(self, tmp_path: Path) -> None:
         """pom.xml triggers Java/JVM detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'pom.xml').write_text('<project></project>')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'java'
@@ -447,8 +436,6 @@ class TestDetectEcosystem:
 
     def test_dart_pubspec(self, tmp_path: Path) -> None:
         """pubspec.yaml triggers Dart detection."""
-        from releasekit.init import _detect_ecosystem
-
         (tmp_path / 'pubspec.yaml').write_text('name: foo\n')
         eco, label = _detect_ecosystem(tmp_path)
         assert eco == 'dart'
@@ -460,15 +447,11 @@ class TestPrintScaffoldPreview:
 
     def test_empty_fragment_no_output(self, capsys: object) -> None:
         """Empty fragment produces no output."""
-        from releasekit.init import print_scaffold_preview
-
         print_scaffold_preview('')
         # No assertion needed — just verify no crash.
 
     def test_plain_text_output(self, capsys: object) -> None:
         """Non-TTY output prints plain text."""
-        from releasekit.init import print_scaffold_preview
-
         print_scaffold_preview('forge = "github"\n')
         # In test environment (non-TTY), should print plain text.
 
@@ -478,10 +461,6 @@ class TestDetectEcosystemEdgeCases:
 
     def test_cargo_toml_unreadable(self, tmp_path: Path) -> None:
         """Unreadable Cargo.toml falls through to default."""
-        import os
-
-        from releasekit.init import _detect_ecosystem
-
         cargo = tmp_path / 'Cargo.toml'
         cargo.write_text('[workspace]\nmembers = ["crates/*"]\n')
         os.chmod(cargo, 0o000)  # noqa: S103
@@ -583,11 +562,6 @@ class TestScanAndBootstrap:
 
     def test_no_tags_graceful_skip(self, tmp_path: Path) -> None:
         """No tags in repo produces empty report, no bootstrap_sha."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -603,11 +577,6 @@ class TestScanAndBootstrap:
 
     def test_tags_write_bootstrap_sha(self, tmp_path: Path) -> None:
         """Matching tags result in bootstrap_sha written to config."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -631,11 +600,6 @@ class TestScanAndBootstrap:
 
     def test_umbrella_tags_classified(self, tmp_path: Path) -> None:
         """Umbrella tags are classified and used for bootstrap_sha."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -655,11 +619,6 @@ class TestScanAndBootstrap:
 
     def test_unclassified_tags_reported(self, tmp_path: Path) -> None:
         """Tags that don't match any format are reported as unclassified."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -679,11 +638,6 @@ class TestScanAndBootstrap:
 
     def test_dry_run_no_write(self, tmp_path: Path) -> None:
         """Dry run computes bootstrap_sha but does not write to config."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -704,11 +658,6 @@ class TestScanAndBootstrap:
 
     def test_no_workspaces_configured(self, tmp_path: Path) -> None:
         """Config with no workspaces returns empty report."""
-        import asyncio
-
-        from releasekit.config import ReleaseConfig
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = ws / CONFIG_FILENAME
@@ -723,11 +672,6 @@ class TestScanAndBootstrap:
 
     def test_no_tags_match_any_workspace(self, tmp_path: Path) -> None:
         """All tags are unclassified when none match workspace formats."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -743,11 +687,6 @@ class TestScanAndBootstrap:
 
     def test_picks_latest_semver(self, tmp_path: Path) -> None:
         """When multiple versions exist, picks the latest by semver."""
-        import asyncio
-
-        from releasekit.config import load_config
-        from releasekit.init import scan_and_bootstrap
-
         ws = tmp_path / 'ws'
         ws.mkdir()
         config_path = _write_config(ws)
@@ -773,9 +712,6 @@ class TestDetectDiscrepancies:
 
     def test_no_discrepancies(self) -> None:
         """Clean tag set produces no discrepancies."""
-        from releasekit.init import _detect_discrepancies
-        from releasekit.migrate import ClassifiedTag
-
         classified = [
             ClassifiedTag(tag='genkit-v0.5.0', workspace_label='py', package_name='genkit', version='0.5.0'),
         ]
@@ -784,8 +720,6 @@ class TestDetectDiscrepancies:
 
     def test_unclassified_tags_reported(self) -> None:
         """Unclassified tags produce a discrepancy message."""
-        from releasekit.init import _detect_discrepancies
-
         msgs = _detect_discrepancies([], ['random-tag', 'other-tag'], {})
         assert len(msgs) == 1
         assert '2 tag(s)' in msgs[0]
@@ -793,9 +727,6 @@ class TestDetectDiscrepancies:
 
     def test_umbrella_only_warning(self) -> None:
         """Workspace with only umbrella tags produces a warning."""
-        from releasekit.init import _detect_discrepancies
-        from releasekit.migrate import ClassifiedTag
-
         classified = [
             ClassifiedTag(tag='v1.0.0', workspace_label='py', version='1.0.0', is_umbrella=True),
         ]
@@ -804,9 +735,6 @@ class TestDetectDiscrepancies:
 
     def test_mixed_tag_formats_warning(self) -> None:
         """Multiple tag formats for same workspace produces a warning."""
-        from releasekit.init import _detect_discrepancies
-        from releasekit.migrate import ClassifiedTag
-
         classified = [
             ClassifiedTag(tag='genkit-v0.5.0', workspace_label='py', package_name='genkit', version='0.5.0'),
             ClassifiedTag(tag='genkit/v0.4.0', workspace_label='py', package_name='genkit', version='0.4.0'),
@@ -816,8 +744,6 @@ class TestDetectDiscrepancies:
 
     def test_many_unclassified_truncated(self) -> None:
         """More than 10 unclassified tags are truncated with '...'."""
-        from releasekit.init import _detect_discrepancies
-
         unclassified = [f'tag-{i}' for i in range(15)]
         msgs = _detect_discrepancies([], unclassified, {})
         assert '...' in msgs[0]
@@ -829,17 +755,12 @@ class TestPrintTagScanReport:
 
     def test_no_tags_message(self, capsys: object) -> None:
         """Empty report prints info message."""
-        from releasekit.init import TagScanReport, print_tag_scan_report
-
         report = TagScanReport()
         print_tag_scan_report(report)
         # Should not crash; prints info about no tags.
 
     def test_with_classified_tags(self, capsys: object) -> None:
         """Report with classified tags prints scan summary."""
-        from releasekit.init import TagScanReport, print_tag_scan_report
-        from releasekit.migrate import ClassifiedTag
-
         ct = ClassifiedTag(
             tag='genkit-v0.5.0',
             workspace_label='py',
@@ -858,9 +779,6 @@ class TestPrintTagScanReport:
 
     def test_dry_run_message(self, capsys: object) -> None:
         """Dry-run report shows 'Would write' instead of written."""
-        from releasekit.init import TagScanReport, print_tag_scan_report
-        from releasekit.migrate import ClassifiedTag
-
         ct = ClassifiedTag(
             tag='v1.0.0',
             workspace_label='py',
@@ -879,9 +797,6 @@ class TestPrintTagScanReport:
 
     def test_discrepancies_printed(self, capsys: object) -> None:
         """Report with discrepancies prints warning section."""
-        from releasekit.init import TagScanReport, print_tag_scan_report
-        from releasekit.migrate import ClassifiedTag
-
         ct = ClassifiedTag(
             tag='genkit-v0.5.0',
             workspace_label='py',
@@ -911,8 +826,6 @@ class TestScaffoldMultiConfig:
 
     def test_generates_multiple_workspaces(self, tmp_path: Path) -> None:
         """Generates one [workspace.<label>] per ecosystem."""
-        from releasekit.init import scaffold_multi_config
-
         ecosystems = [
             ('python', 'py', tmp_path / 'py'),
             ('js', 'js', tmp_path / 'js'),
@@ -932,8 +845,6 @@ class TestScaffoldMultiConfig:
 
     def test_includes_root_for_nested_workspaces(self, tmp_path: Path) -> None:
         """Nested workspace roots get a 'root' field."""
-        from releasekit.init import scaffold_multi_config
-
         py_root = tmp_path / 'py'
         py_root.mkdir()
 
@@ -947,8 +858,6 @@ class TestScaffoldMultiConfig:
 
     def test_omits_root_for_same_dir(self, tmp_path: Path) -> None:
         """Workspace at monorepo root omits 'root' field."""
-        from releasekit.init import scaffold_multi_config
-
         result = scaffold_multi_config(
             tmp_path,
             [('python', 'py', tmp_path)],
@@ -959,8 +868,6 @@ class TestScaffoldMultiConfig:
 
     def test_umbrella_tag_uses_label(self, tmp_path: Path) -> None:
         """Umbrella tag format includes the workspace label."""
-        from releasekit.init import scaffold_multi_config
-
         (tmp_path / 'js').mkdir()
         result = scaffold_multi_config(
             tmp_path,
@@ -972,8 +879,6 @@ class TestScaffoldMultiConfig:
 
     def test_dry_run_no_write(self, tmp_path: Path) -> None:
         """Dry run does not write files."""
-        from releasekit.init import scaffold_multi_config
-
         result = scaffold_multi_config(
             tmp_path,
             [('python', 'py', tmp_path)],
@@ -984,8 +889,6 @@ class TestScaffoldMultiConfig:
 
     def test_writes_file(self, tmp_path: Path) -> None:
         """Non-dry-run writes releasekit.toml."""
-        from releasekit.init import scaffold_multi_config
-
         result = scaffold_multi_config(
             tmp_path,
             [('python', 'py', tmp_path)],
@@ -995,8 +898,6 @@ class TestScaffoldMultiConfig:
 
     def test_no_overwrite_without_force(self, tmp_path: Path) -> None:
         """Existing config is not overwritten without --force."""
-        from releasekit.init import scaffold_multi_config
-
         (tmp_path / 'releasekit.toml').write_text('existing = true\n')
         result = scaffold_multi_config(
             tmp_path,
@@ -1007,8 +908,6 @@ class TestScaffoldMultiConfig:
 
     def test_force_overwrites(self, tmp_path: Path) -> None:
         """--force overwrites existing config."""
-        from releasekit.init import scaffold_multi_config
-
         (tmp_path / 'releasekit.toml').write_text('existing = true\n')
         result = scaffold_multi_config(
             tmp_path,
@@ -1020,8 +919,6 @@ class TestScaffoldMultiConfig:
 
     def test_empty_ecosystems(self, tmp_path: Path) -> None:
         """Empty ecosystems list returns empty string."""
-        from releasekit.init import scaffold_multi_config
-
         result = scaffold_multi_config(tmp_path, [])
         assert result == ''
 
@@ -1036,8 +933,6 @@ class TestParseGitmodules:
 
     def test_parses_paths(self, tmp_path: Path) -> None:
         """Extracts submodule paths from .gitmodules."""
-        from releasekit.detection import _parse_gitmodules
-
         (tmp_path / '.gitmodules').write_text(
             '[submodule "vendor/lib"]\n'
             '    path = vendor/lib\n'
@@ -1051,14 +946,10 @@ class TestParseGitmodules:
 
     def test_no_gitmodules(self, tmp_path: Path) -> None:
         """Returns empty set when .gitmodules doesn't exist."""
-        from releasekit.detection import _parse_gitmodules
-
         assert _parse_gitmodules(tmp_path) == set()
 
     def test_empty_gitmodules(self, tmp_path: Path) -> None:
         """Returns empty set for empty .gitmodules."""
-        from releasekit.detection import _parse_gitmodules
-
         (tmp_path / '.gitmodules').write_text('')
         assert _parse_gitmodules(tmp_path) == set()
 
@@ -1068,8 +959,6 @@ class TestIsSubmodule:
 
     def test_git_file_is_submodule(self, tmp_path: Path) -> None:
         """Directory with .git file (not dir) is a submodule."""
-        from releasekit.detection import _is_submodule
-
         sub = tmp_path / 'vendor'
         sub.mkdir()
         (sub / '.git').write_text('gitdir: ../.git/modules/vendor\n')
@@ -1077,8 +966,6 @@ class TestIsSubmodule:
 
     def test_git_dir_is_not_submodule(self, tmp_path: Path) -> None:
         """Directory with .git directory is not a submodule."""
-        from releasekit.detection import _is_submodule
-
         sub = tmp_path / 'repo'
         sub.mkdir()
         (sub / '.git').mkdir()
@@ -1086,8 +973,6 @@ class TestIsSubmodule:
 
     def test_no_git_is_not_submodule(self, tmp_path: Path) -> None:
         """Directory without .git is not a submodule."""
-        from releasekit.detection import _is_submodule
-
         sub = tmp_path / 'normal'
         sub.mkdir()
         assert _is_submodule(sub) is False
@@ -1098,8 +983,6 @@ class TestDetectEcosystemsSubmoduleExclusion:
 
     def test_skips_gitmodules_listed_dir(self, tmp_path: Path) -> None:
         """Directories listed in .gitmodules are skipped."""
-        from releasekit.detection import detect_ecosystems
-
         # Set up monorepo root.
         (tmp_path / '.git').mkdir()
 
@@ -1129,8 +1012,6 @@ class TestDetectEcosystemsSubmoduleExclusion:
 
     def test_skips_git_file_submodule(self, tmp_path: Path) -> None:
         """Directories with .git file are skipped even without .gitmodules."""
-        from releasekit.detection import detect_ecosystems
-
         (tmp_path / '.git').mkdir()
 
         sub = tmp_path / 'external'

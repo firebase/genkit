@@ -137,6 +137,11 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import select
+import signal
+import sys
+import termios
+import tty
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
@@ -825,14 +830,8 @@ class Scheduler:
         Args:
             done_event: Set when the scheduler is done (stops listener).
         """
-        import select
-        import sys
-
         if sys.platform == 'win32' or not sys.stdin.isatty():
             return
-
-        import termios
-        import tty
 
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -955,9 +954,6 @@ class Scheduler:
 
         Only available on Unix. Silently skipped on Windows.
         """
-        import signal
-        import sys
-
         if sys.platform == 'win32':
             return
 
@@ -976,9 +972,6 @@ class Scheduler:
 
     def _uninstall_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
         """Remove signal handlers registered by _install_signal_handlers."""
-        import signal
-        import sys
-
         if sys.platform == 'win32':
             return
 

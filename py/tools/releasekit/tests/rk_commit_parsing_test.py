@@ -16,6 +16,10 @@
 
 """Tests for the commit_parsing subpackage.
 
+Covers the Conventional Commits v1.0.0 spec, the Angular commit
+convention, multi-line message parsing, footer extraction, and
+the CommitParser protocol.
+
 All tests are pure — no I/O, no mocks, no async.
 """
 
@@ -23,7 +27,9 @@ from __future__ import annotations
 
 import pytest
 from releasekit.commit_parsing import (
+    ANGULAR_TYPES,
     BUMP_PRECEDENCE,
+    AngularCommitParser,
     BumpType,
     CommitParser,
     ConventionalCommit,
@@ -32,10 +38,6 @@ from releasekit.commit_parsing import (
     max_bump,
     parse_conventional_commit,
 )
-
-# ---------------------------------------------------------------------------
-# BumpType
-# ---------------------------------------------------------------------------
 
 
 class TestBumpType:
@@ -58,11 +60,6 @@ class TestBumpType:
             BumpType.PRERELEASE,
             BumpType.NONE,
         ]
-
-
-# ---------------------------------------------------------------------------
-# max_bump
-# ---------------------------------------------------------------------------
 
 
 class TestMaxBump:
@@ -108,11 +105,6 @@ class TestMaxBump:
                 assert max_bump(a, b) == max_bump(b, a)
 
 
-# ---------------------------------------------------------------------------
-# ParsedCommit / ConventionalCommit alias
-# ---------------------------------------------------------------------------
-
-
 class TestParsedCommit:
     """Tests for the ParsedCommit dataclass."""
 
@@ -126,7 +118,10 @@ class TestParsedCommit:
         """Test defaults."""
         cc = ParsedCommit(sha='', type='feat', description='x')
         assert cc.scope == ''
+        assert cc.body == ''
+        assert cc.footers == ()
         assert cc.breaking is False
+        assert cc.breaking_description == ''
         assert cc.bump == BumpType.NONE
         assert cc.raw == ''
         assert cc.is_revert is False
@@ -149,17 +144,17 @@ class TestParsedCommit:
         assert a != b
 
 
-# ---------------------------------------------------------------------------
-# CommitParser protocol
-# ---------------------------------------------------------------------------
-
-
 class TestCommitParserProtocol:
     """Tests for the CommitParser protocol."""
 
     def test_conventional_parser_satisfies_protocol(self) -> None:
         """Test conventional parser satisfies protocol."""
         parser = ConventionalCommitParser()
+        assert isinstance(parser, CommitParser)
+
+    def test_angular_parser_satisfies_protocol(self) -> None:
+        """Test angular parser satisfies protocol."""
+        parser = AngularCommitParser()
         assert isinstance(parser, CommitParser)
 
     def test_custom_parser_satisfies_protocol(self) -> None:
@@ -188,11 +183,6 @@ class TestCommitParserProtocol:
                 return msg
 
         assert not isinstance(NotAParser(), CommitParser)
-
-
-# ---------------------------------------------------------------------------
-# ConventionalCommitParser
-# ---------------------------------------------------------------------------
 
 
 class TestConventionalCommitParser:
@@ -299,7 +289,7 @@ class TestConventionalCommitParser:
         assert cc is not None
         assert cc.scope == 'my-scope'
 
-    # --- Breaking changes ---
+    # --- Breaking changes (subject line) ---
 
     def test_breaking_bang(self, parser: ConventionalCommitParser) -> None:
         """Test breaking bang."""
@@ -317,26 +307,35 @@ class TestConventionalCommitParser:
         assert cc.breaking is True
         assert cc.bump == BumpType.MAJOR
 
-    def test_breaking_change_footer(self, parser: ConventionalCommitParser) -> None:
-        """Test breaking change footer."""
-        cc = parser.parse('feat: new API BREAKING CHANGE')
-        assert cc is not None
-        assert cc.breaking is True
-        assert cc.bump == BumpType.MAJOR
-
-    def test_breaking_change_hyphen(self, parser: ConventionalCommitParser) -> None:
-        """Test breaking change hyphen."""
-        cc = parser.parse('feat: new API BREAKING-CHANGE')
-        assert cc is not None
-        assert cc.breaking is True
-        assert cc.bump == BumpType.MAJOR
-
     def test_chore_breaking(self, parser: ConventionalCommitParser) -> None:
         """Even chore with ! is MAJOR."""
         cc = parser.parse('chore!: drop Python 3.9 support')
         assert cc is not None
         assert cc.breaking is True
         assert cc.bump == BumpType.MAJOR
+
+    def test_breaking_bang_description_is_breaking_description(self, parser: ConventionalCommitParser) -> None:
+        """When ! is used without a BREAKING CHANGE footer, description serves as breaking_description."""
+        cc = parser.parse('feat!: remove v1 endpoints')
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'remove v1 endpoints'
+
+    # --- Case insensitivity (spec rule 15) ---
+
+    def test_uppercase_type_normalised(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 15: types are case-insensitive, normalised to lowercase."""
+        cc = parser.parse('FEAT: add thing')
+        assert cc is not None
+        assert cc.type == 'feat'
+        assert cc.bump == BumpType.MINOR
+
+    def test_mixed_case_type_normalised(self, parser: ConventionalCommitParser) -> None:
+        """Mixed case types are normalised to lowercase."""
+        cc = parser.parse('Fix: bug')
+        assert cc is not None
+        assert cc.type == 'fix'
+        assert cc.bump == BumpType.PATCH
 
     # --- Revert commits ---
 
@@ -442,15 +441,294 @@ class TestConventionalCommitParser:
         assert cc is not None
         assert cc.description == 'handle edge case: null input'
 
-    def test_uppercase_type_rejected(self, parser: ConventionalCommitParser) -> None:
-        """Types must be lowercase per spec."""
-        assert parser.parse('FEAT: add thing') is None
-        assert parser.parse('Fix: bug') is None
+
+class TestConventionalCommitMultiLine:
+    """Tests for full multi-line Conventional Commit messages."""
+
+    @pytest.fixture()
+    def parser(self) -> ConventionalCommitParser:
+        """Parser."""
+        return ConventionalCommitParser()
+
+    def test_body_extracted(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 6: body begins one blank line after description."""
+        msg = 'feat: add streaming\n\nThis adds real-time streaming support.'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.type == 'feat'
+        assert cc.description == 'add streaming'
+        assert cc.body == 'This adds real-time streaming support.'
+
+    def test_multi_paragraph_body(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 7: body may consist of multiple paragraphs."""
+        msg = 'fix: prevent racing\n\nIntroduce a request id.\n\nRemove old timeouts.'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.body == 'Introduce a request id.\n\nRemove old timeouts.'
+
+    def test_breaking_change_footer(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 12: BREAKING CHANGE footer triggers MAJOR."""
+        msg = 'feat: new API\n\nBREAKING CHANGE: removed v1 endpoints'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'removed v1 endpoints'
+        assert cc.bump == BumpType.MAJOR
+
+    def test_breaking_change_hyphen_footer(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 16: BREAKING-CHANGE is synonymous with BREAKING CHANGE."""
+        msg = 'feat: new API\n\nBREAKING-CHANGE: removed v1 endpoints'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'removed v1 endpoints'
+        assert cc.bump == BumpType.MAJOR
+
+    def test_bang_plus_breaking_footer(self, parser: ConventionalCommitParser) -> None:
+        """Spec example: both ! and BREAKING CHANGE footer."""
+        msg = 'chore!: drop Node 6\n\nBREAKING CHANGE: use JS features not in Node 6.'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'use JS features not in Node 6.'
+        assert cc.bump == BumpType.MAJOR
+
+    def test_footer_colon_separator(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 8: footers use 'token: value' format."""
+        msg = 'fix: bug\n\nReviewed-by: Jane\nRefs: #123'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert ('Reviewed-by', 'Jane') in cc.footers
+        assert ('Refs', '#123') in cc.footers
+
+    def test_footer_hash_separator(self, parser: ConventionalCommitParser) -> None:
+        """Spec rule 8: footers can use 'token #value' format."""
+        msg = 'fix: bug\n\nFixes #42'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert ('Fixes', '42') in cc.footers
+
+    def test_body_with_footers(self, parser: ConventionalCommitParser) -> None:
+        """Body and footers are separated correctly."""
+        msg = (
+            'fix: prevent racing\n'
+            '\n'
+            'Introduce a request id and a reference to latest request.\n'
+            'Remove timeouts.\n'
+            '\n'
+            'Reviewed-by: Z\n'
+            'Refs: #123'
+        )
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert 'Introduce a request id' in cc.body
+        assert 'Remove timeouts' in cc.body
+        assert ('Reviewed-by', 'Z') in cc.footers
+        assert ('Refs', '#123') in cc.footers
+
+    def test_no_body_with_footer(self, parser: ConventionalCommitParser) -> None:
+        """Footer directly after subject (no body)."""
+        msg = 'feat: add thing\n\nBREAKING CHANGE: old API removed'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'old API removed'
+        # When BREAKING CHANGE is the only content, it's a footer, not body.
+
+    def test_subject_only_no_body_no_footers(self, parser: ConventionalCommitParser) -> None:
+        """Single-line message has empty body and footers."""
+        cc = parser.parse('docs: correct spelling')
+        assert cc is not None
+        assert cc.body == ''
+        assert cc.footers == ()
+
+    def test_spec_example_with_description_and_breaking_footer(self, parser: ConventionalCommitParser) -> None:
+        """Spec example: feat with breaking change footer."""
+        msg = (
+            'feat: allow provided config object to extend other configs\n'
+            '\n'
+            'BREAKING CHANGE: `extends` key in config file is now used for '
+            'extending other config files'
+        )
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.type == 'feat'
+        assert cc.breaking is True
+        assert '`extends` key' in cc.breaking_description
+
+    def test_spec_example_multi_paragraph_body_and_multiple_footers(self, parser: ConventionalCommitParser) -> None:
+        """Spec example: multi-paragraph body with multiple footers."""
+        msg = (
+            'fix: prevent racing of requests\n'
+            '\n'
+            'Introduce a request id and a reference to latest request. Dismiss\n'
+            'incoming responses other than from latest request.\n'
+            '\n'
+            'Remove timeouts which were used to mitigate the racing issue but are\n'
+            'obsolete now.\n'
+            '\n'
+            'Reviewed-by: Z\n'
+            'Refs: #123'
+        )
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.type == 'fix'
+        assert cc.bump == BumpType.PATCH
+        assert 'Introduce a request id' in cc.body
+        assert 'obsolete now.' in cc.body
+        assert ('Reviewed-by', 'Z') in cc.footers
+        assert ('Refs', '#123') in cc.footers
 
 
-# ---------------------------------------------------------------------------
-# parse_conventional_commit convenience function
-# ---------------------------------------------------------------------------
+class TestAngularCommitParser:
+    """Comprehensive tests for AngularCommitParser."""
+
+    @pytest.fixture()
+    def parser(self) -> AngularCommitParser:
+        """Parser."""
+        return AngularCommitParser()
+
+    # --- Allowed types ---
+
+    @pytest.mark.parametrize(
+        'commit_type',
+        sorted(ANGULAR_TYPES),
+    )
+    def test_all_angular_types_accepted(self, parser: AngularCommitParser, commit_type: str) -> None:
+        """Every Angular type is accepted."""
+        cc = parser.parse(f'{commit_type}: do something')
+        assert cc is not None
+        assert cc.type == commit_type
+
+    def test_feat_minor(self, parser: AngularCommitParser) -> None:
+        """Feat maps to MINOR."""
+        cc = parser.parse('feat: add streaming')
+        assert cc is not None
+        assert cc.bump == BumpType.MINOR
+
+    def test_fix_patch(self, parser: AngularCommitParser) -> None:
+        """Fix maps to PATCH."""
+        cc = parser.parse('fix: null pointer')
+        assert cc is not None
+        assert cc.bump == BumpType.PATCH
+
+    def test_perf_patch(self, parser: AngularCommitParser) -> None:
+        """Perf maps to PATCH."""
+        cc = parser.parse('perf: optimize loop')
+        assert cc is not None
+        assert cc.bump == BumpType.PATCH
+
+    @pytest.mark.parametrize(
+        'commit_type',
+        ['build', 'ci', 'docs', 'refactor', 'style', 'test'],
+    )
+    def test_non_release_types_none(self, parser: AngularCommitParser, commit_type: str) -> None:
+        """Non-release types map to NONE."""
+        cc = parser.parse(f'{commit_type}: do something')
+        assert cc is not None
+        assert cc.bump == BumpType.NONE
+
+    # --- Rejected types ---
+
+    def test_chore_rejected(self, parser: AngularCommitParser) -> None:
+        """Chore is not in Angular's type list."""
+        assert parser.parse('chore: update deps') is None
+
+    def test_release_rejected(self, parser: AngularCommitParser) -> None:
+        """Release is not in Angular's type list."""
+        assert parser.parse('release: v1.0.0') is None
+
+    def test_wip_rejected(self, parser: AngularCommitParser) -> None:
+        """Wip is not in Angular's type list."""
+        assert parser.parse('wip: work in progress') is None
+
+    # --- Custom allowlist ---
+
+    def test_custom_types(self) -> None:
+        """Custom types extend the allowlist."""
+        parser = AngularCommitParser(
+            allowed_types=frozenset({*ANGULAR_TYPES, 'chore'}),
+        )
+        cc = parser.parse('chore: update deps')
+        assert cc is not None
+        assert cc.type == 'chore'
+
+    # --- Scope ---
+
+    def test_scope(self, parser: AngularCommitParser) -> None:
+        """Test scope extraction."""
+        cc = parser.parse('feat(auth): add OAuth2')
+        assert cc is not None
+        assert cc.scope == 'auth'
+
+    # --- Breaking changes ---
+
+    def test_breaking_bang(self, parser: AngularCommitParser) -> None:
+        """! triggers MAJOR."""
+        cc = parser.parse('fix!: remove deprecated API')
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.bump == BumpType.MAJOR
+
+    def test_breaking_footer(self, parser: AngularCommitParser) -> None:
+        """BREAKING CHANGE footer triggers MAJOR."""
+        msg = 'feat: new config\n\nBREAKING CHANGE: old config format removed'
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.breaking is True
+        assert cc.breaking_description == 'old config format removed'
+
+    # --- Case insensitivity ---
+
+    def test_uppercase_type_normalised(self, parser: AngularCommitParser) -> None:
+        """Types are case-insensitive, normalised to lowercase."""
+        cc = parser.parse('FEAT: add thing')
+        assert cc is not None
+        assert cc.type == 'feat'
+        assert cc.bump == BumpType.MINOR
+
+    # --- Reverts ---
+
+    def test_revert_github_format(self, parser: AngularCommitParser) -> None:
+        """GitHub revert format works."""
+        cc = parser.parse('Revert "feat: add streaming"')
+        assert cc is not None
+        assert cc.is_revert is True
+        assert cc.reverted_bump == BumpType.MINOR
+
+    def test_revert_non_angular_inner(self, parser: AngularCommitParser) -> None:
+        """Revert of a non-Angular message (e.g. chore) has NONE reverted_bump."""
+        cc = parser.parse('Revert "chore: update deps"')
+        assert cc is not None
+        assert cc.is_revert is True
+        assert cc.reverted_bump == BumpType.NONE
+
+    # --- Multi-line ---
+
+    def test_body_and_footers(self, parser: AngularCommitParser) -> None:
+        """Full message with body and footers."""
+        msg = (
+            'fix(core): prevent null pointer\n'
+            '\n'
+            'Added null check before dereferencing.\n'
+            '\n'
+            'Reviewed-by: Alice\n'
+            'Refs: #456'
+        )
+        cc = parser.parse(msg)
+        assert cc is not None
+        assert cc.type == 'fix'
+        assert cc.scope == 'core'
+        assert 'null check' in cc.body
+        assert ('Reviewed-by', 'Alice') in cc.footers
+
+    # --- Non-conventional messages ---
+
+    def test_non_conventional(self, parser: AngularCommitParser) -> None:
+        """Non-conventional messages return None."""
+        assert parser.parse('Update README.md') is None
+        assert parser.parse('') is None
+        assert parser.parse('   ') is None
 
 
 class TestParseConventionalCommitFunction:
@@ -473,10 +751,12 @@ class TestParseConventionalCommitFunction:
         assert cc is not None
         assert cc.sha == 'deadbeef'
 
-
-# ---------------------------------------------------------------------------
-# Custom parser integration
-# ---------------------------------------------------------------------------
+    def test_multi_line_with_footer(self) -> None:
+        """Multi-line messages work through the convenience function."""
+        msg = 'feat: new API\n\nBREAKING CHANGE: v1 removed'
+        cc = parse_conventional_commit(msg)
+        assert cc is not None
+        assert cc.breaking is True
 
 
 class TestCustomParser:

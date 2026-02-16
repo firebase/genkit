@@ -278,6 +278,49 @@ class GitCLIBackend:
         log.info('checkout_branch', branch=branch)
         return await asyncio.to_thread(self._git, 'checkout', branch, dry_run=dry_run)
 
+    async def tags_on_branch(self, branch: str) -> list[str]:
+        """Return tags reachable from a branch, in chronological order."""
+        result = await asyncio.to_thread(
+            self._git,
+            'tag',
+            '--merged',
+            branch,
+            '--sort=creatordate',
+        )
+        if not result.ok or not result.stdout.strip():
+            return []
+        return result.stdout.strip().splitlines()
+
+    async def commit_exists(self, sha: str) -> bool:
+        """Return ``True`` if the commit SHA exists in the repository."""
+        result = await asyncio.to_thread(self._git, 'cat-file', '-t', sha)
+        return result.ok and result.stdout.strip() == 'commit'
+
+    async def cherry_pick(
+        self,
+        sha: str,
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Cherry-pick a single commit onto the current branch."""
+        log.info('cherry_pick', sha=sha[:8])
+        return await asyncio.to_thread(self._git, 'cherry-pick', sha, dry_run=dry_run)
+
+    async def cherry_pick_abort(self) -> CommandResult:
+        """Abort an in-progress cherry-pick operation."""
+        return await asyncio.to_thread(self._git, 'cherry-pick', '--abort')
+
+    async def tag_date(self, tag_name: str) -> str:
+        """Return the ISO 8601 date of a tag."""
+        result = await asyncio.to_thread(
+            self._git,
+            'log',
+            '-1',
+            '--format=%aI',
+            tag_name,
+        )
+        return result.stdout.strip() if result.ok else ''
+
 
 __all__ = [
     'GitCLIBackend',

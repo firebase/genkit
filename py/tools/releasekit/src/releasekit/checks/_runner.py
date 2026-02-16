@@ -48,6 +48,20 @@ logger = get_logger(__name__)
 
 _USE_DEFAULT = object()
 
+SkipMap = dict[str, frozenset[str]]
+"""Package name → frozenset of check names to skip for that package."""
+
+
+def _filter_pkgs(
+    packages: list[Package],
+    check_name: str,
+    skip_map: SkipMap | None,
+) -> list[Package]:
+    """Return packages that have not opted out of *check_name*."""
+    if not skip_map:
+        return packages
+    return [p for p in packages if check_name not in skip_map.get(p.name, frozenset())]
+
 
 async def run_checks_async(
     packages: list[Package],
@@ -62,6 +76,7 @@ async def run_checks_async(
     namespace_dirs: list[str] | None = None,
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
+    skip_map: SkipMap | None = None,
 ) -> PreflightResult:
     """Run all workspace health checks concurrently.
 
@@ -97,6 +112,9 @@ async def run_checks_async(
             publishable library packages requiring ``py.typed``.
         plugin_dirs: Parent directory names whose children follow
             the naming convention and need namespace init checks.
+        skip_map: Per-package check skip map. Keys are package names,
+            values are frozensets of check names to skip for that
+            package. Built from ``PackageConfig.skip_checks``.
 
     Returns:
         A :class:`PreflightResult` with all check outcomes.
@@ -106,16 +124,47 @@ async def run_checks_async(
     # Collect all check tasks for concurrent execution.
     tasks: list[asyncio.Task[None]] = []
 
+    fp = _filter_pkgs
+    _t = asyncio.to_thread
+
     # Universal checks.
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_cycles, graph, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_self_deps, packages, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_orphan_deps, packages, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_missing_license, packages, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_missing_readme, packages, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_stale_artifacts, packages, result)))
-    tasks.append(asyncio.create_task(asyncio.to_thread(_check_ungrouped_packages, packages, groups or {}, result)))
+    tasks.append(asyncio.create_task(_t(_check_cycles, graph, result)))
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_self_deps, fp(packages, 'self_deps', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_orphan_deps, fp(packages, 'orphan_deps', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_missing_license, fp(packages, 'missing_license', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_missing_readme, fp(packages, 'missing_readme', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_stale_artifacts, fp(packages, 'stale_artifacts', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_ungrouped_packages, packages, groups or {}, result),
+        )
+    )
     if workspace_root is not None:
-        tasks.append(asyncio.create_task(asyncio.to_thread(_check_lockfile_staleness, workspace_root, result)))
+        tasks.append(
+            asyncio.create_task(
+                _t(_check_lockfile_staleness, workspace_root, result),
+            )
+        )
 
     if backend is _USE_DEFAULT:
         backend = PythonCheckBackend(
@@ -127,49 +176,50 @@ async def run_checks_async(
         )
 
     if backend is not None and isinstance(backend, CheckBackend):
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_type_markers, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_version_consistency, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_naming_convention, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_metadata_completeness, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_python_version_consistency, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_python_classifiers, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_dependency_resolution, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_namespace_init, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_readme_field, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_changelog_url, packages, result)))
+        # Each check gets a filtered package list excluding per-package skips.
+        _backend_checks: list[tuple[str, str]] = [
+            ('check_type_markers', 'type_markers'),
+            ('check_version_consistency', 'version_consistency'),
+            ('check_naming_convention', 'naming_convention'),
+            ('check_metadata_completeness', 'metadata_completeness'),
+            ('check_python_version_consistency', 'python_version_consistency'),
+            ('check_python_classifiers', 'python_classifiers'),
+            ('check_dependency_resolution', 'dependency_resolution'),
+            ('check_namespace_init', 'namespace_init'),
+            ('check_readme_field', 'readme_field'),
+            ('check_changelog_url', 'changelog_url'),
+            ('check_test_filename_collisions', 'test_filename_collisions'),
+            ('check_build_system', 'build_system'),
+            ('check_version_field', 'version_field'),
+            ('check_duplicate_dependencies', 'duplicate_dependencies'),
+            ('check_pinned_deps_in_libraries', 'pinned_deps_in_libraries'),
+            ('check_requires_python', 'requires_python'),
+            ('check_readme_content_type', 'readme_content_type'),
+            ('check_version_pep440', 'version_pep440'),
+            ('check_placeholder_urls', 'placeholder_urls'),
+            ('check_legacy_setup_files', 'legacy_setup_files'),
+            ('check_deprecated_classifiers', 'deprecated_classifiers'),
+            ('check_license_classifier_mismatch', 'license_classifier_mismatch'),
+            ('check_unreachable_extras', 'unreachable_extras'),
+            ('check_self_dependencies', 'self_dependencies'),
+            ('check_distro_deps', 'distro_deps'),
+        ]
+        for method_name, check_name in _backend_checks:
+            method = getattr(backend, method_name)
+            filtered = fp(packages, check_name, skip_map)
+            tasks.append(asyncio.create_task(_t(method, filtered, result)))
+
+        # publish_classifier_consistency has an extra arg.
         tasks.append(
             asyncio.create_task(
-                asyncio.to_thread(
+                _t(
                     backend.check_publish_classifier_consistency,
-                    packages,
+                    fp(packages, 'publish_classifier_consistency', skip_map),
                     result,
                     exclude_publish,
                 )
             )
         )
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_test_filename_collisions, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_build_system, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_version_field, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_duplicate_dependencies, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_pinned_deps_in_libraries, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_requires_python, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_readme_content_type, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_version_pep440, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_placeholder_urls, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_legacy_setup_files, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_deprecated_classifiers, packages, result)))
-        tasks.append(
-            asyncio.create_task(
-                asyncio.to_thread(
-                    backend.check_license_classifier_mismatch,
-                    packages,
-                    result,
-                )
-            )
-        )
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_unreachable_extras, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_self_dependencies, packages, result)))
-        tasks.append(asyncio.create_task(asyncio.to_thread(backend.check_distro_deps, packages, result)))
 
     await asyncio.gather(*tasks)
 
@@ -190,6 +240,7 @@ def run_checks(
     namespace_dirs: list[str] | None = None,
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
+    skip_map: SkipMap | None = None,
 ) -> PreflightResult:
     """Synchronous wrapper around :func:`run_checks_async`.
 
@@ -217,6 +268,7 @@ def run_checks(
             namespace_dirs=namespace_dirs,
             library_dirs=library_dirs,
             plugin_dirs=plugin_dirs,
+            skip_map=skip_map,
         )
 
     return asyncio.run(
@@ -232,6 +284,7 @@ def run_checks(
             namespace_dirs=namespace_dirs,
             library_dirs=library_dirs,
             plugin_dirs=plugin_dirs,
+            skip_map=skip_map,
         )
     )
 
@@ -249,16 +302,18 @@ def _run_checks_sync(
     namespace_dirs: list[str] | None = None,
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
+    skip_map: SkipMap | None = None,
 ) -> PreflightResult:
     """Sequential fallback when already inside a running event loop."""
     result = PreflightResult()
 
+    fp = _filter_pkgs
     _check_cycles(graph, result)
-    _check_self_deps(packages, result)
-    _check_orphan_deps(packages, result)
-    _check_missing_license(packages, result)
-    _check_missing_readme(packages, result)
-    _check_stale_artifacts(packages, result)
+    _check_self_deps(fp(packages, 'self_deps', skip_map), result)
+    _check_orphan_deps(fp(packages, 'orphan_deps', skip_map), result)
+    _check_missing_license(fp(packages, 'missing_license', skip_map), result)
+    _check_missing_readme(fp(packages, 'missing_readme', skip_map), result)
+    _check_stale_artifacts(fp(packages, 'stale_artifacts', skip_map), result)
     _check_ungrouped_packages(packages, groups or {}, result)
     if workspace_root is not None:
         _check_lockfile_staleness(workspace_root, result)
@@ -273,32 +328,36 @@ def _run_checks_sync(
         )
 
     if backend is not None and isinstance(backend, CheckBackend):
-        backend.check_type_markers(packages, result)
-        backend.check_version_consistency(packages, result)
-        backend.check_naming_convention(packages, result)
-        backend.check_metadata_completeness(packages, result)
-        backend.check_python_version_consistency(packages, result)
-        backend.check_python_classifiers(packages, result)
-        backend.check_dependency_resolution(packages, result)
-        backend.check_namespace_init(packages, result)
-        backend.check_readme_field(packages, result)
-        backend.check_changelog_url(packages, result)
-        backend.check_publish_classifier_consistency(packages, result, exclude_publish)
-        backend.check_test_filename_collisions(packages, result)
-        backend.check_build_system(packages, result)
-        backend.check_version_field(packages, result)
-        backend.check_duplicate_dependencies(packages, result)
-        backend.check_pinned_deps_in_libraries(packages, result)
-        backend.check_requires_python(packages, result)
-        backend.check_readme_content_type(packages, result)
-        backend.check_version_pep440(packages, result)
-        backend.check_placeholder_urls(packages, result)
-        backend.check_legacy_setup_files(packages, result)
-        backend.check_deprecated_classifiers(packages, result)
-        backend.check_license_classifier_mismatch(packages, result)
-        backend.check_unreachable_extras(packages, result)
-        backend.check_self_dependencies(packages, result)
-        backend.check_distro_deps(packages, result)
+        backend.check_type_markers(fp(packages, 'type_markers', skip_map), result)
+        backend.check_version_consistency(fp(packages, 'version_consistency', skip_map), result)
+        backend.check_naming_convention(fp(packages, 'naming_convention', skip_map), result)
+        backend.check_metadata_completeness(fp(packages, 'metadata_completeness', skip_map), result)
+        backend.check_python_version_consistency(fp(packages, 'python_version_consistency', skip_map), result)
+        backend.check_python_classifiers(fp(packages, 'python_classifiers', skip_map), result)
+        backend.check_dependency_resolution(fp(packages, 'dependency_resolution', skip_map), result)
+        backend.check_namespace_init(fp(packages, 'namespace_init', skip_map), result)
+        backend.check_readme_field(fp(packages, 'readme_field', skip_map), result)
+        backend.check_changelog_url(fp(packages, 'changelog_url', skip_map), result)
+        backend.check_publish_classifier_consistency(
+            fp(packages, 'publish_classifier_consistency', skip_map),
+            result,
+            exclude_publish,
+        )
+        backend.check_test_filename_collisions(fp(packages, 'test_filename_collisions', skip_map), result)
+        backend.check_build_system(fp(packages, 'build_system', skip_map), result)
+        backend.check_version_field(fp(packages, 'version_field', skip_map), result)
+        backend.check_duplicate_dependencies(fp(packages, 'duplicate_dependencies', skip_map), result)
+        backend.check_pinned_deps_in_libraries(fp(packages, 'pinned_deps_in_libraries', skip_map), result)
+        backend.check_requires_python(fp(packages, 'requires_python', skip_map), result)
+        backend.check_readme_content_type(fp(packages, 'readme_content_type', skip_map), result)
+        backend.check_version_pep440(fp(packages, 'version_pep440', skip_map), result)
+        backend.check_placeholder_urls(fp(packages, 'placeholder_urls', skip_map), result)
+        backend.check_legacy_setup_files(fp(packages, 'legacy_setup_files', skip_map), result)
+        backend.check_deprecated_classifiers(fp(packages, 'deprecated_classifiers', skip_map), result)
+        backend.check_license_classifier_mismatch(fp(packages, 'license_classifier_mismatch', skip_map), result)
+        backend.check_unreachable_extras(fp(packages, 'unreachable_extras', skip_map), result)
+        backend.check_self_dependencies(fp(packages, 'self_dependencies', skip_map), result)
+        backend.check_distro_deps(fp(packages, 'distro_deps', skip_map), result)
 
     logger.info('checks_complete', summary=result.summary())
     return result

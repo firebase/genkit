@@ -26,7 +26,7 @@ graph LR
     CLI --> REG
     REG --> ASCII & MERMAID & DOT & D2 & JSON & CSV & TABLE & LEVELS
 
-    style REG fill:#1976d2,color:#fff
+    style REG fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```
 
 ## Formats

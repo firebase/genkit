@@ -233,6 +233,7 @@ async def create_tags(
     release_body: str = '',
     release_title: str | None = None,
     manifest_path: Path | None = None,
+    provenance_path: Path | None = None,
     publish_from: str = 'local',
     prerelease: bool = False,
     dry_run: bool = False,
@@ -269,6 +270,8 @@ async def create_tags(
         release_title: Release title. Defaults to the umbrella tag.
         manifest_path: Path to the manifest JSON file. Attached as a
             release asset in CI mode.
+        provenance_path: Path to the SLSA provenance file
+            (``.intoto.jsonl``). Attached as a release asset if present.
         publish_from: ``"local"`` or ``"ci"``. Controls whether the
             release is published or draft.
         prerelease: Whether to mark the release as a prerelease.
@@ -382,6 +385,7 @@ async def create_tags(
         release_body=release_body,
         release_title=release_title,
         manifest_path=manifest_path,
+        provenance_path=provenance_path,
         publish_from=publish_from,
         prerelease=prerelease,
         dry_run=dry_run,
@@ -409,6 +413,7 @@ async def _create_release_if_available(
     release_body: str,
     release_title: str | None,
     manifest_path: Path | None,
+    provenance_path: Path | None = None,
     publish_from: str,
     prerelease: bool,
     dry_run: bool,
@@ -429,6 +434,7 @@ async def _create_release_if_available(
         release_body: Markdown body.
         release_title: Optional custom title.
         manifest_path: Path to manifest JSON (CI asset).
+        provenance_path: Path to SLSA provenance file (release asset).
         publish_from: ``"local"`` or ``"ci"``.
         prerelease: Mark as prerelease.
         dry_run: Preview mode.
@@ -453,6 +459,11 @@ async def _create_release_if_available(
     assets: list[Path] = []
     if is_ci and manifest_path is not None and await asyncio.to_thread(manifest_path.exists):
         assets.append(manifest_path)
+
+    # Attach SLSA provenance file as a release asset (all modes).
+    if provenance_path is not None and await asyncio.to_thread(provenance_path.exists):
+        assets.append(provenance_path)
+        logger.info('provenance_asset_attached', path=str(provenance_path))
 
     try:
         await forge.create_release(

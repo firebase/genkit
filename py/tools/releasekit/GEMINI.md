@@ -502,6 +502,9 @@
   | 9 | No `http://` URLs in runtime code | Plaintext traffic (no TLS) | Medium |
   | 10 | State files use `mkstemp` + `os.replace` | Crash corruption on partial writes | High |
   | 11 | `resolve()` on discovered paths | Symlink traversal attacks | Medium |
+  | 12 | No `${{ inputs.* }}` string interpolation in CI `run:` | GitHub Actions script injection | Critical |
+  | 13 | `hooks.py` uses `shlex.split` + `run_command` | Hook template command injection | High |
+  | 14 | No `os.system()` calls | Implicit `shell=True` command injection | Critical |
 
   **Manual Review Checklist** (for PR reviews):
 
@@ -516,6 +519,8 @@
   | Atomic writes | `write_text()` for state/config files | `mkstemp` + `os.write` + `os.replace` |
   | Exception swallowing | `except Exception` hiding real errors | Log exception; re-raise if not recoverable |
   | ReDoS | Regex with nested quantifiers on untrusted input | Avoid catastrophic backtracking patterns |
+  | CI `${{ inputs }}` | String-type inputs in `run:` blocks | Pass via `env:` block; reference as `$ENV_VAR` |
+  | Async/sync boundary | `asyncio.run()` wrapping async from sync | Make caller `async def` and `await` directly |
 
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is
@@ -1091,7 +1096,7 @@ if self._input_type is not None:
 * When working on model provider plugins such as Google Genai or Anthropic,
   ensure that model-spec.md is followed.
 
-* Update the roadmap.md file as and when features are implemented.
+* Update the docs/docs/roadmap.md file as and when features are implemented.
 
 * When a plugin such as a model provider is updated or changes, please also
   update relevant documentation and samples. **This is mandatory — every plugin

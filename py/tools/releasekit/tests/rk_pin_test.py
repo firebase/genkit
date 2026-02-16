@@ -19,9 +19,12 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import signal
 from pathlib import Path
 
+import pytest
+from releasekit.errors import ReleaseKitError
 from releasekit.pin import ephemeral_pin, pin_dependencies
 
 
@@ -300,18 +303,12 @@ class TestPinDependenciesErrors:
 
     def test_read_error(self, tmp_path: Path) -> None:
         """Raises ReleaseKitError when file cannot be read."""
-        import pytest
-        from releasekit.errors import ReleaseKitError
-
         nonexistent = tmp_path / 'nonexistent' / 'pyproject.toml'
         with pytest.raises(ReleaseKitError, match='Cannot read'):
             pin_dependencies(nonexistent, {'genkit': '0.5.0'})
 
     def test_parse_error(self, tmp_path: Path) -> None:
         """Raises ReleaseKitError when TOML is invalid."""
-        import pytest
-        from releasekit.errors import ReleaseKitError
-
         pyproject = tmp_path / 'pyproject.toml'
         pyproject.write_text('not valid toml {{{{', encoding='utf-8')
         with pytest.raises(ReleaseKitError, match='Cannot parse'):
@@ -371,11 +368,6 @@ class TestPinDependenciesNonListOptional:
 
     def test_write_error_raises(self, tmp_path: Path) -> None:
         """Write error during pin raises ReleaseKitError."""
-        import os
-
-        import pytest
-        from releasekit.errors import ReleaseKitError
-
         pyproject = tmp_path / 'pyproject.toml'
         pyproject.write_text(
             '[project]\nname = "x"\nversion = "1.0.0"\ndependencies = ["genkit"]\n',
@@ -395,11 +387,6 @@ class TestEphemeralPinErrors:
 
     def test_backup_creation_error(self, tmp_path: Path) -> None:
         """Raises ReleaseKitError when backup cannot be created."""
-        import os
-
-        import pytest
-        from releasekit.errors import ReleaseKitError
-
         # Create pyproject in a subdirectory, then make the dir read-only
         # so the backup file cannot be created.
         sub = tmp_path / 'readonly'

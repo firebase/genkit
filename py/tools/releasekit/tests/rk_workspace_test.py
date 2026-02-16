@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from releasekit.errors import ReleaseKitError
@@ -356,8 +357,6 @@ class TestDiscoverPackagesReadErrors:
 
     def test_js_ecosystem_dispatch(self, tmp_path: Path) -> None:
         """JS ecosystem dispatches to _discover_js_packages."""
-        from unittest.mock import patch
-
         with patch('releasekit.workspace._discover_js_packages', return_value=[]) as mock_js:
             result = discover_packages(tmp_path, ecosystem='js')
         assert result == []

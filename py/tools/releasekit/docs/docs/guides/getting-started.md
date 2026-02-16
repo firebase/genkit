@@ -49,11 +49,11 @@ graph LR
 
     B --> C
 
-    style A fill:#1976d2,color:#fff
-    style B fill:#1e88e5,color:#fff
-    style C fill:#42a5f5,color:#fff
-    style D fill:#42a5f5,color:#fff
-    style E fill:#42a5f5,color:#fff
+    style A fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style B fill:#64b5f6,stroke:#1565c0,color:#0d47a1
+    style C fill:#42a5f5,stroke:#1565c0,color:#0d47a1
+    style D fill:#42a5f5,stroke:#1565c0,color:#0d47a1
+    style E fill:#42a5f5,stroke:#1565c0,color:#0d47a1
 ```
 
 ## Step 1: Initialize Configuration
@@ -134,7 +134,7 @@ This runs all workspace validation checks:
 ✓ dependency_cycles         No circular dependencies
 ✓ lockfile_staleness        uv.lock is up to date
 ✓ type_markers              All packages have py.typed
-⚠ version_consistency       genkit-plugin-foo has version 0.4.0 (expected 0.5.0)
+⚠ version_consistency       genkit-plugin-ollama has version 0.4.0 (expected 0.5.0)
 ✓ naming_convention         All names match genkit-plugin-{dir} pattern
 ```
 
@@ -153,6 +153,11 @@ releasekit plan
 │ genkit-plugin-ollama         │  none    │ 0.5.0     │ (skip)    │
 └──────────────────────────────┴──────────┴───────────┴───────────┘
 ```
+
+Bumps are automatically calculated from your
+[Conventional Commits](https://www.conventionalcommits.org/) — a
+`feat:` commit triggers a **minor** bump, a `fix:` triggers a
+**patch**, and packages with no matching commits are skipped.
 
 ## Step 6: Publish
 
@@ -177,10 +182,31 @@ pin ──▶ build ──▶ publish ──▶ poll ──▶ verify ──▶ 
  │        │         │              version appears
  │        │         └─ Upload to PyPI/npm
  │        └─ uv build / pnpm build
- └─ Pin internal deps to exact versions
+ └─ Lock internal deps to exact versions
+    for a reproducible build
 ```
 
-## Step 7: Enable Shell Completions
+## Next Steps
+
+- [Configuration](configuration.md) — Customize `releasekit.toml`
+- [Versioning Schemes](versioning-schemes.md) — Understand semver vs PEP 440 vs CalVer
+- [Per-Package Config](per-package-config.md) — Override settings for individual packages
+- [Multi-Ecosystem](multi-ecosystem.md) — Python + JavaScript + Go in one monorepo
+- [Publish Pipeline](publish-pipeline.md) — The 6-stage publish pipeline explained
+- [Health Checks & Doctor](health-checks.md) — Validate your workspace
+- [Snapshots & Pre-Releases](snapshots.md) — Dev builds, RCs, and promoting to stable
+- [Signing & Verification](signing.md) — Sigstore keyless artifact signing
+- [CI/CD Integration](ci-cd.md) — Automate releases in CI
+- [Workflow Templates](workflow-templates.md) — Copy-paste GitHub Actions workflows
+- [Migration](migration.md) — Migrate from release-please, semantic-release, etc.
+- [FAQ](faq.md) — Common questions and edge cases
+- [Error Codes](error-codes.md) — Troubleshoot common issues
+
+---
+
+## Advanced Setup
+
+### Shell Completions
 
 === "Bash"
 
@@ -199,9 +225,3 @@ pin ──▶ build ──▶ publish ──▶ poll ──▶ verify ──▶ 
     ```bash
     releasekit completion fish | source
     ```
-
-## Next Steps
-
-- [Configuration](configuration.md) — Customize `releasekit.toml`
-- [CI/CD Integration](ci-cd.md) — Automate releases in CI
-- [Error Codes](error-codes.md) — Troubleshoot common issues

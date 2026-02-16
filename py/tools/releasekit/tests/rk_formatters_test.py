@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+import csv as csv_mod
+import io
+import json
 from pathlib import Path
 
 from releasekit.formatters import FORMATTERS, format_graph
@@ -354,8 +357,6 @@ class TestJsonFormat:
 
     def test_valid_json(self) -> None:
         """JSON output is valid JSON."""
-        import json
-
         pkgs = _make_packages()
         graph = _make_graph(pkgs)
         output = format_json(graph, pkgs)
@@ -367,8 +368,6 @@ class TestJsonFormat:
 
     def test_contains_edges(self) -> None:
         """JSON output includes edges."""
-        import json
-
         pkgs = _make_packages()
         graph = _make_graph(pkgs)
         output = format_json(graph, pkgs)
@@ -381,8 +380,6 @@ class TestJsonFormat:
 
     def test_contains_levels(self) -> None:
         """JSON output includes level groups."""
-        import json
-
         pkgs = _make_packages()
         graph = _make_graph(pkgs)
         output = format_json(graph, pkgs)
@@ -581,9 +578,6 @@ class TestCsvFormat:
 
         # app depends on plugin-a and plugin-b, so deps field contains a comma
         # csv.writer should quote it: "plugin-a,plugin-b"
-        import csv as csv_mod
-        import io
-
         reader = csv_mod.reader(io.StringIO(output))
         rows = list(reader)
         app_rows = [r for r in rows if len(r) >= 2 and r[1] == 'app']

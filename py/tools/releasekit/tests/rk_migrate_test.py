@@ -31,13 +31,18 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import tomlkit
 from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.migrate import (
+    MIGRATION_SOURCES,
     ClassifiedTag,
+    MigrationSource,
+    ReleasePleaseSource,
     classify_tags,
+    migrate_from_source,
     pick_latest,
     resolve_commit_shas,
     write_bootstrap_sha,
@@ -380,37 +385,25 @@ class TestReleasePleaseSource:
 
     def test_name(self) -> None:
         """Source name is 'release-please'."""
-        from releasekit.migrate import ReleasePleaseSource
-
         src = ReleasePleaseSource()
         assert src.name == 'release-please'
 
     def test_detect_manifest_only(self, tmp_path: Path) -> None:
         """Detects when only manifest exists."""
-        from releasekit.migrate import ReleasePleaseSource
-
         (tmp_path / '.release-please-manifest.json').write_text('{}')
         assert ReleasePleaseSource().detect(tmp_path) is True
 
     def test_detect_config_only(self, tmp_path: Path) -> None:
         """Detects when only config exists."""
-        from releasekit.migrate import ReleasePleaseSource
-
         (tmp_path / 'release-please-config.json').write_text('{}')
         assert ReleasePleaseSource().detect(tmp_path) is True
 
     def test_detect_nothing(self, tmp_path: Path) -> None:
         """Returns False when no release-please files exist."""
-        from releasekit.migrate import ReleasePleaseSource
-
         assert ReleasePleaseSource().detect(tmp_path) is False
 
     def test_convert_basic(self, tmp_path: Path) -> None:
         """Converts basic release-please config to releasekit.toml."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource
-
         config = {
             'packages': {
                 'packages/genkit': {},
@@ -443,10 +436,6 @@ class TestReleasePleaseSource:
 
     def test_convert_no_component_in_tag(self, tmp_path: Path) -> None:
         """Tag format without component produces v{version}."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource
-
         config = {
             'packages': {'.': {}},
             'include-component-in-tag': False,
@@ -461,10 +450,6 @@ class TestReleasePleaseSource:
 
     def test_convert_custom_separator(self, tmp_path: Path) -> None:
         """Custom tag separator is used in tag_format."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource
-
         config = {
             'packages': {'pkg/foo': {}},
             'tag-separator': '/',
@@ -479,10 +464,6 @@ class TestReleasePleaseSource:
 
     def test_convert_manifest_fallback(self, tmp_path: Path) -> None:
         """Uses manifest paths when config has no packages."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource
-
         (tmp_path / 'release-please-config.json').write_text('{}')
         (tmp_path / '.release-please-manifest.json').write_text(
             json.dumps({
@@ -500,8 +481,6 @@ class TestReleasePleaseSource:
 
     def test_convert_empty_config(self, tmp_path: Path) -> None:
         """Empty config files still produce valid TOML."""
-        from releasekit.migrate import ReleasePleaseSource
-
         (tmp_path / 'release-please-config.json').write_text('{}')
         (tmp_path / '.release-please-manifest.json').write_text('{}')
 
@@ -512,8 +491,6 @@ class TestReleasePleaseSource:
 
     def test_convert_malformed_json(self, tmp_path: Path) -> None:
         """Malformed JSON is handled gracefully."""
-        from releasekit.migrate import ReleasePleaseSource
-
         (tmp_path / 'release-please-config.json').write_text('not json')
         (tmp_path / '.release-please-manifest.json').write_text('{bad')
 
@@ -526,18 +503,12 @@ class TestMigrateFromSource:
 
     def test_source_not_detected(self, tmp_path: Path) -> None:
         """Returns empty report when source not found."""
-        from releasekit.migrate import ReleasePleaseSource, migrate_from_source
-
         report = migrate_from_source(tmp_path, ReleasePleaseSource())
         assert report.detected is False
         assert report.written is False
 
     def test_writes_config(self, tmp_path: Path) -> None:
         """Writes releasekit.toml when source detected."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource, migrate_from_source
-
         (tmp_path / 'release-please-config.json').write_text(
             json.dumps({'packages': {'pkg/foo': {}}}),
         )
@@ -549,10 +520,6 @@ class TestMigrateFromSource:
 
     def test_dry_run_no_write(self, tmp_path: Path) -> None:
         """Dry run does not write files."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource, migrate_from_source
-
         (tmp_path / 'release-please-config.json').write_text(
             json.dumps({'packages': {'pkg/foo': {}}}),
         )
@@ -569,10 +536,6 @@ class TestMigrateFromSource:
 
     def test_no_overwrite_without_force(self, tmp_path: Path) -> None:
         """Existing releasekit.toml is not overwritten without --force."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource, migrate_from_source
-
         (tmp_path / 'release-please-config.json').write_text(
             json.dumps({'packages': {'pkg/foo': {}}}),
         )
@@ -585,10 +548,6 @@ class TestMigrateFromSource:
 
     def test_force_overwrites(self, tmp_path: Path) -> None:
         """--force overwrites existing releasekit.toml."""
-        import json
-
-        from releasekit.migrate import ReleasePleaseSource, migrate_from_source
-
         (tmp_path / 'release-please-config.json').write_text(
             json.dumps({'packages': {'pkg/foo': {}}}),
         )
@@ -610,12 +569,8 @@ class TestMigrationSources:
 
     def test_release_please_registered(self) -> None:
         """Release-please source is in the registry."""
-        from releasekit.migrate import MIGRATION_SOURCES
-
         assert 'release-please' in MIGRATION_SOURCES
 
     def test_protocol_conformance(self) -> None:
         """ReleasePleaseSource conforms to MigrationSource protocol."""
-        from releasekit.migrate import MigrationSource, ReleasePleaseSource
-
         assert isinstance(ReleasePleaseSource(), MigrationSource)

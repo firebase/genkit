@@ -466,6 +466,9 @@
   | 9 | No `http://` URLs in runtime code | Plaintext traffic (no TLS) | Medium |
   | 10 | State files use `mkstemp` + `os.replace` | Crash corruption on partial writes | High |
   | 11 | `resolve()` on discovered paths | Symlink traversal attacks | Medium |
+  | 12 | No `${{ inputs.* }}` string interpolation in CI `run:` | GitHub Actions script injection | Critical |
+  | 13 | `hooks.py` uses `shlex.split` + `run_command` | Hook template command injection | High |
+  | 14 | No `os.system()` calls | Implicit `shell=True` command injection | Critical |
 
   **Manual Review Checklist** (for PR reviews):
 
@@ -480,6 +483,8 @@
   | Atomic writes | `write_text()` for state/config files | `mkstemp` + `os.write` + `os.replace` |
   | Exception swallowing | `except Exception` hiding real errors | Log exception; re-raise if not recoverable |
   | ReDoS | Regex with nested quantifiers on untrusted input | Avoid catastrophic backtracking patterns |
+  | CI `${{ inputs }}` | String-type inputs in `run:` blocks | Pass via `env:` block; reference as `$ENV_VAR` |
+  | Async/sync boundary | `asyncio.run()` wrapping async from sync | Make caller `async def` and `await` directly |
 
 * **Error Suppression Policy**: Avoid ignoring warnings from the type checker
   (`# type: ignore`, `# pyrefly: ignore`, etc.) or linter (`# noqa`) unless there is

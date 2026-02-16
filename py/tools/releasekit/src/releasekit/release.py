@@ -288,6 +288,14 @@ async def tag_release(
         manifest_file = Path(manifest_name)
         manifest.save(manifest_file)
 
+    # Look for SLSA provenance file to attach to the release.
+    provenance_file: Path | None = None
+    if ws_config.slsa_provenance:
+        prov_name = f'provenance-{ws_config.label}.intoto.jsonl' if ws_config.label else 'provenance.intoto.jsonl'
+        candidate = Path(ws_config.root) / prov_name
+        if candidate.exists():
+            provenance_file = candidate
+
     tag_result = await create_tags(
         manifest=manifest,
         vcs=vcs,
@@ -298,6 +306,7 @@ async def tag_release(
         release_body=release_body,
         release_title=f'Release v{umbrella_version}',
         manifest_path=manifest_file,
+        provenance_path=provenance_file,
         publish_from=config.publish_from,
         dry_run=dry_run,
     )

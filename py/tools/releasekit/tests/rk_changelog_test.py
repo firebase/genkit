@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 import pytest
@@ -553,8 +554,6 @@ class TestNullByteRegression:
         Literal null bytes in command-line arguments cause ValueError on
         Linux.  The format string should use git's ``%x00`` escape instead.
         """
-        import inspect
-
         sig = inspect.signature(generate_changelog)
         default_fmt = sig.parameters['log_format'].default
         if '\x00' in default_fmt:

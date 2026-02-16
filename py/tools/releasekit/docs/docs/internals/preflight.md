@@ -32,8 +32,8 @@ graph TD
     VERSION --> DIST --> TRUST --> AUDIT --> LANG
     LANG --> RESULT
 
-    style START fill:#1976d2,color:#fff
-    style RESULT fill:#4caf50,color:#fff
+    style START fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style RESULT fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
 ```
 
 ## Check Details

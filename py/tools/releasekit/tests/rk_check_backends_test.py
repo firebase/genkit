@@ -27,6 +27,7 @@ from releasekit.checks import (
     GoCheckBackend,
     JavaCheckBackend,
     JsCheckBackend,
+    PythonCheckBackend,
     RustCheckBackend,
     get_check_backend,
 )
@@ -76,8 +77,6 @@ class TestGetCheckBackend:
 
     def test_returns_python_for_python(self) -> None:
         """Test returns PythonCheckBackend for python ecosystem."""
-        from releasekit.checks import PythonCheckBackend
-
         backend = get_check_backend('python')
         assert isinstance(backend, PythonCheckBackend)
 

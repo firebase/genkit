@@ -73,7 +73,7 @@ def fix_publish_to_consistency(
         changes.append(action)
         if not dry_run:
             pubspec.write_text(''.join(new_lines), encoding='utf-8')
-            logger.info('fix_dart_publish_to', action=action, path=str(pubspec))
+            logger.warning('fix_dart_publish_to', action=action, path=str(pubspec))
         else:
             logger.info('fix_dart_publish_to_dry_run', action=action, path=str(pubspec))
 
@@ -160,7 +160,7 @@ def fix_duplicate_dependencies(
             changes.append(action)
             if not dry_run:
                 pubspec.write_text(new_text, encoding='utf-8')
-                logger.info('fix_dart_duplicate_deps', action=action, path=str(pubspec))
+                logger.warning('fix_dart_duplicate_deps', action=action, path=str(pubspec))
             else:
                 logger.info('fix_dart_duplicate_deps_dry_run', action=action, path=str(pubspec))
 
@@ -214,7 +214,7 @@ def fix_metadata_completeness(
         changes.append(action)
         if not dry_run:
             pubspec.write_text(new_text, encoding='utf-8')
-            logger.info('fix_dart_metadata', action=action, path=str(pubspec))
+            logger.warning('fix_dart_metadata', action=action, path=str(pubspec))
         else:
             logger.info('fix_dart_metadata_dry_run', action=action, path=str(pubspec))
 

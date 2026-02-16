@@ -66,7 +66,6 @@ Usage::
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
 import threading
 import warnings
@@ -81,10 +80,16 @@ from releasekit.backends._run import CommandResult, run_command
 from releasekit.backends.forge import Forge
 from releasekit.backends.pm import PackageManager
 from releasekit.backends.registry import Registry
+from releasekit.backends.validation.oidc import validate_oidc_environment
 from releasekit.backends.vcs import VCS
+from releasekit.compliance import ComplianceStatus, evaluate_compliance
 from releasekit.errors import E, ReleaseKitError, ReleaseKitWarning
 from releasekit.graph import DependencyGraph, detect_cycles
 from releasekit.logging import get_logger
+from releasekit.osv import OSVSeverity, check_osv_vulnerabilities
+from releasekit.provenance import BuildContext, SLSABuildLevel, is_ci
+from releasekit.sbom import _make_purl
+from releasekit.scorecard import run_scorecard_checks
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 
@@ -554,12 +559,11 @@ def _check_trusted_publisher(
     forge: Forge | None,
     result: PreflightResult,
 ) -> None:
-    """Warn if OIDC trusted publishing is not configured.
+    """Check OIDC trusted publishing configuration.
 
-    Trusted publishing (PyPI's OIDC integration) is the recommended
-    authentication method for CI. This check warns when publishing
-    locally without it — not blocking, since local publishing with
-    API tokens is still valid.
+    In CI, missing OIDC credentials are a **failure** because provenance
+    cannot be signed (SLSA Build L2 is impossible). Locally, it is a
+    warning since API-token publishing is still valid.
 
     See: https://docs.pypi.org/trusted-publishers/
 
@@ -569,27 +573,147 @@ def _check_trusted_publisher(
     """
     check_name = 'trusted_publisher'
 
-    # OIDC token presence is the signal that trusted publishing is active.
-    # Different CI platforms set different env vars for OIDC:
-    #   GitHub Actions: ACTIONS_ID_TOKEN_REQUEST_URL
-    #   GitLab CI:      CI_JOB_JWT / CI_JOB_JWT_V2
-    #   CircleCI:       CIRCLE_OIDC_TOKEN_V2
-    has_oidc = bool(
-        os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL')
-        or os.environ.get('CI_JOB_JWT_V2')
-        or os.environ.get('CI_JOB_JWT')
-        or os.environ.get('CIRCLE_OIDC_TOKEN_V2')
-    )
-    is_ci = bool(os.environ.get('CI'))
+    oidc_result = validate_oidc_environment()
+    if oidc_result.ok:
+        result.add_pass(check_name)
+        return
 
-    if is_ci and not has_oidc:
-        result.add_warning(
+    # In CI, missing OIDC is a failure — provenance cannot be signed.
+    if is_ci():
+        result.add_failure(
             check_name,
-            'Publishing from CI without OIDC trusted publisher. '
-            'Consider configuring trusted publishing for better security.',
+            f'CI environment missing OIDC credentials: {oidc_result.message}',
+            hint=(
+                'Configure OIDC trusted publishing for your CI platform. '
+                'GitHub Actions: add "id-token: write" permission. '
+                'GitLab CI: ensure CI_JOB_JWT_V2 is available. '
+                'To override, set sign_provenance = false in releasekit.toml.'
+            ),
         )
     else:
+        result.add_warning(
+            check_name,
+            oidc_result.message,
+            hint=oidc_result.hint,
+        )
+
+
+def _check_source_integrity(
+    result: PreflightResult,
+) -> None:
+    """Check that source integrity metadata is available.
+
+    SLSA provenance requires a source commit digest and ref to
+    establish what source was built. Missing values degrade the
+    provenance quality.
+
+    Args:
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'source_integrity'
+
+    ctx = BuildContext.from_env()
+
+    issues: list[str] = []
+    if not ctx.source_digest:
+        issues.append('source commit SHA not detected (GitHub: GITHUB_SHA, GitLab: CI_COMMIT_SHA)')
+    if not ctx.source_ref:
+        issues.append('source ref not detected (GitHub: GITHUB_REF, GitLab: CI_COMMIT_REF_NAME)')
+    if not ctx.source_repo:
+        issues.append('source repository not detected (GitHub: GITHUB_REPOSITORY, GitLab: CI_PROJECT_URL)')
+
+    if issues:
+        if is_ci():
+            result.add_failure(
+                check_name,
+                f'Source integrity metadata missing: {"; ".join(issues)}',
+                hint=(
+                    'Ensure your CI workflow exposes source metadata '
+                    'environment variables. These are required for '
+                    'SLSA provenance generation.'
+                ),
+            )
+        else:
+            result.add_warning(
+                check_name,
+                f'Source integrity metadata unavailable (local build): {"; ".join(issues)}',
+                hint='This is expected for local builds. Provenance will have limited source information.',
+            )
+    else:
         result.add_pass(check_name)
+
+
+def _check_build_as_code(
+    result: PreflightResult,
+) -> None:
+    """Check that the build is defined in version control (build-as-code).
+
+    SLSA Build L3 requires that the build configuration is defined in
+    the source repository, not by user parameters. This check verifies
+    that the build entry point (workflow file) is known.
+
+    Args:
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'build_as_code'
+
+    if not is_ci():
+        result.add_pass(check_name)
+        return
+
+    ctx = BuildContext.from_env()
+    if ctx.source_entry_point:
+        result.add_pass(check_name)
+    else:
+        result.add_warning(
+            check_name,
+            'Build entry point (workflow file) not detected. SLSA Build L3 requires build-as-code.',
+            hint=('GitHub Actions: ensure GITHUB_WORKFLOW_REF is set. GitLab CI: ensure CI_CONFIG_PATH is set.'),
+        )
+
+
+def _check_slsa_level(
+    result: PreflightResult,
+) -> None:
+    """Report the achievable SLSA Build level for this environment.
+
+    This is an informational check that always passes but emits
+    warnings when the environment cannot achieve L2 or L3.
+
+    Args:
+        result: Accumulator for check outcomes.
+    """
+    check_name = 'slsa_build_level'
+
+    if not is_ci():
+        result.add_warning(
+            check_name,
+            'Local build: SLSA Build L1 only (provenance exists but is not signed).',
+            hint='Run in CI with OIDC credentials for SLSA Build L2+.',
+        )
+        return
+
+    ctx = BuildContext.from_env()
+    level = ctx.slsa_build_level
+
+    if level >= SLSABuildLevel.L3:
+        result.add_pass(check_name)
+    elif level >= SLSABuildLevel.L2:
+        result.add_warning(
+            check_name,
+            f'SLSA Build L{int(level)}: signed provenance, but build isolation '
+            f'not verified (L3 requires github-hosted runners or equivalent).',
+            hint=(
+                'Use github-hosted runners (not self-hosted) for SLSA Build L3. '
+                f'Current runner environment: {ctx.runner_environment!r}.'
+            ),
+        )
+    else:
+        result.add_warning(
+            check_name,
+            f'SLSA Build L{int(level)}: provenance will not be signed.',
+            hint='Configure OIDC credentials for SLSA Build L2+.',
+        )
 
 
 async def _check_pip_audit(
@@ -638,6 +762,160 @@ async def _check_pip_audit(
         result.add_warning(
             check_name,
             f'pip-audit failed to run: {exc}',
+        )
+
+
+def _check_scorecard(
+    result: PreflightResult,
+    *,
+    workspace_root: Path,
+) -> None:
+    """Run OpenSSF Scorecard-aligned security checks.
+
+    These are local file-existence and configuration-pattern checks
+    that verify the repository follows security best practices.
+    Failures produce warnings (not blocking) since they are hygiene
+    checks, not correctness checks.
+
+    Args:
+        result: Accumulator for check outcomes.
+        workspace_root: Path to the workspace root.
+    """
+    scorecard_results = run_scorecard_checks(workspace_root)
+    failed = [r for r in scorecard_results if not r.passed]
+
+    if failed:
+        messages = [f'{r.check}: {r.message}' for r in failed]
+        hints = [r.hint for r in failed if r.hint]
+        result.add_warning(
+            'scorecard',
+            f'{len(failed)} Scorecard check(s) failed: {"; ".join(messages)}',
+            hint=hints[0] if hints else '',
+        )
+    else:
+        result.add_pass('scorecard')
+
+
+async def _check_osv(
+    result: PreflightResult,
+    *,
+    packages: list[Package],
+    ecosystem: str = 'python',
+    severity_threshold: str = 'HIGH',
+) -> None:
+    """Check for known vulnerabilities via the OSV.dev API.
+
+    Queries OSV with package purls for vulnerabilities at or above
+    the configured severity threshold.
+    Failures produce warnings in local builds and failures in CI.
+
+    Args:
+        result: Accumulator for check outcomes.
+        packages: Workspace packages to check.
+        ecosystem: Package ecosystem for purl generation.
+        severity_threshold: Minimum severity to report (CRITICAL,
+            HIGH, MEDIUM, LOW). Default: HIGH.
+    """
+    try:
+        threshold = OSVSeverity[severity_threshold.upper()]
+    except KeyError:
+        threshold = OSVSeverity.HIGH
+
+    purls = [_make_purl(pkg.name, pkg.version, ecosystem) for pkg in packages if pkg.version]
+    if not purls:
+        result.add_pass('osv_vulnerabilities')
+        return
+
+    vulns = await check_osv_vulnerabilities(
+        purls,
+        severity_threshold=threshold,
+    )
+
+    if vulns:
+        vuln_strs = [f'{v.purl}: {v.id} ({v.severity.name})' for v in vulns[:5]]
+        message = f'{len(vulns)} HIGH+ vulnerability(ies): {"; ".join(vuln_strs)}'
+        if is_ci():
+            result.add_failure(
+                'osv_vulnerabilities',
+                message,
+                hint='Review vulnerabilities at https://osv.dev and update affected dependencies.',
+            )
+        else:
+            result.add_warning(
+                'osv_vulnerabilities',
+                message,
+                hint='Review vulnerabilities at https://osv.dev and update affected dependencies.',
+            )
+    else:
+        result.add_pass('osv_vulnerabilities')
+
+
+def _check_security_insights(
+    result: PreflightResult,
+    *,
+    workspace_root: Path,
+) -> None:
+    """Check that SECURITY-INSIGHTS.yml exists at the repo root.
+
+    The OpenSSF Security Insights specification recommends a single
+    ``SECURITY-INSIGHTS.yml`` per repository.  This check warns when
+    the file is missing so maintainers can generate it with
+    ``releasekit init --security-insights``.
+
+    Args:
+        result: Accumulator for check outcomes.
+        workspace_root: Path to the workspace root.
+    """
+    check_name = 'security_insights'
+    candidates = [
+        workspace_root / 'SECURITY-INSIGHTS.yml',
+        workspace_root / 'SECURITY_INSIGHTS.yml',
+        workspace_root / '.github' / 'SECURITY-INSIGHTS.yml',
+    ]
+    for path in candidates:
+        if path.is_file():
+            result.add_pass(check_name)
+            return
+    result.add_warning(
+        check_name,
+        'No SECURITY-INSIGHTS.yml found.',
+        hint="Generate one with 'releasekit init --security-insights'.",
+    )
+
+
+def _check_compliance(
+    result: PreflightResult,
+    *,
+    workspace_root: Path,
+) -> None:
+    """Run OSPS Baseline compliance evaluation and report gaps.
+
+    Evaluates the repository against OpenSSF OSPS Baseline controls
+    and reports any gaps as warnings.  This is informational — gaps
+    do not block the release.
+
+    Args:
+        result: Accumulator for check outcomes.
+        workspace_root: Path to the workspace root.
+    """
+    check_name = 'compliance'
+    try:
+        controls = evaluate_compliance(workspace_root)
+        gaps = [c for c in controls if c.status == ComplianceStatus.GAP]
+        if gaps:
+            gap_strs = [f'{c.id} ({c.control})' for c in gaps[:5]]
+            suffix = f' and {len(gaps) - 5} more' if len(gaps) > 5 else ''
+            result.add_warning(
+                check_name,
+                f'{len(gaps)} OSPS Baseline gap(s): {"; ".join(gap_strs)}{suffix}',
+                hint="Run 'releasekit compliance' for the full report.",
+            )
+        else:
+            result.add_pass(check_name)
+    except Exception as exc:
+        result.add_warning(
+            check_name,
+            f'Compliance evaluation failed: {exc}',
         )
 
 
@@ -708,6 +986,8 @@ async def run_preflight(
     skip_version_check: bool = False,
     ecosystem: str = 'python',
     run_audit: bool = False,
+    osv_severity_threshold: str = 'HIGH',
+    skip_checks: list[str] | None = None,
 ) -> PreflightResult:
     """Run all preflight checks.
 
@@ -719,13 +999,29 @@ async def run_preflight(
 
     Universal checks:
         clean_worktree, lock_file, shallow_clone, cycle_detection,
-        forge_available, dist_clean, trusted_publisher, version_conflicts.
+        forge_available, dist_clean, trusted_publisher,
+        source_integrity, build_as_code, slsa_build_level,
+        version_conflicts, security_insights, compliance.
+
+    Security checks (safe-by-default):
+        trusted_publisher — **fails in CI** when OIDC is missing
+            (provenance cannot be signed). Warns locally.
+        source_integrity — **fails in CI** when source commit SHA,
+            ref, or repo URL is missing. Warns locally.
+        build_as_code — warns in CI when the build entry point
+            (workflow file) is not detected (L3 degradation).
+        slsa_build_level — informational: reports the achievable
+            SLSA Build level and warns when below L3.
+        security_insights — warns when ``SECURITY-INSIGHTS.yml``
+            is missing from the repository root.
+        compliance — warns when OSPS Baseline gaps are detected.
 
     Python-specific checks (``ecosystem='python'``):
         metadata_validation — validates pyproject.toml required fields.
-        pip_audit — runs ``pip-audit`` for known vulnerabilities (advisory).
-            Only runs when ``run_audit=True`` since it requires network
-            access and ``pip-audit`` to be installed.
+        pip_audit — runs ``pip-audit`` for known vulnerabilities.
+            Auto-enabled in CI, or when ``run_audit=True``.
+        osv_vulnerabilities — queries OSV.dev for known vulns.
+            Auto-enabled in CI, or when ``run_audit=True``.
 
     Args:
         vcs: Version control backend.
@@ -745,6 +1041,12 @@ async def run_preflight(
         run_audit: Whether to run vulnerability scanning (e.g.
             ``pip-audit``). Defaults to ``False`` because it
             requires network access and an external tool.
+            Auto-enabled in CI environments.
+        osv_severity_threshold: Minimum OSV severity level to report.
+            One of ``CRITICAL``, ``HIGH``, ``MEDIUM``, ``LOW``.
+        skip_checks: List of check names to skip. Skipped checks
+            are recorded as passed without running. Use this to
+            suppress checks that are not applicable to a workspace.
 
     Returns:
         A :class:`PreflightResult` with all check outcomes.
@@ -753,29 +1055,70 @@ async def run_preflight(
         ReleaseKitError: On the first blocking failure (dirty worktree).
     """
     result = PreflightResult()
+    _skip = frozenset(skip_checks or ())
 
-    await _check_clean_worktree(vcs, result, dry_run=dry_run)
-    if not result.ok:
-        raise ReleaseKitError(
-            E.PREFLIGHT_DIRTY_WORKTREE,
-            result.errors.get('clean_worktree', 'Working tree is dirty.'),
-            hint='Commit or stash your changes before publishing.',
-        )
+    def _skipped(name: str) -> bool:
+        """Return True and record a pass if the check should be skipped."""
+        if name in _skip:
+            result.add_pass(name)
+            logger.info('preflight_skipped', check=name)
+            return True
+        return False
 
-    await _check_lock_file(pm, result, workspace_root=workspace_root, dry_run=dry_run)
-    await _check_shallow_clone(vcs, result)
-    await _check_cycles(graph, result)
-    await _check_forge(forge, result)
-    _check_dist_artifacts(packages, result)
-    _check_trusted_publisher(forge, result)
+    if not _skipped('clean_worktree'):
+        await _check_clean_worktree(vcs, result, dry_run=dry_run)
+        if not result.ok:
+            raise ReleaseKitError(
+                E.PREFLIGHT_DIRTY_WORKTREE,
+                result.errors.get('clean_worktree', 'Working tree is dirty.'),
+                hint='Commit or stash your changes before publishing.',
+            )
 
-    if not skip_version_check:
+    if not _skipped('lock_file'):
+        await _check_lock_file(pm, result, workspace_root=workspace_root, dry_run=dry_run)
+    if not _skipped('shallow_clone'):
+        await _check_shallow_clone(vcs, result)
+    if not _skipped('cycle_detection'):
+        await _check_cycles(graph, result)
+    if not _skipped('forge_available'):
+        await _check_forge(forge, result)
+    if not _skipped('dist_clean'):
+        _check_dist_artifacts(packages, result)
+    if not _skipped('trusted_publisher'):
+        _check_trusted_publisher(forge, result)
+    if not _skipped('source_integrity'):
+        _check_source_integrity(result)
+    if not _skipped('build_as_code'):
+        _check_build_as_code(result)
+    if not _skipped('slsa_build_level'):
+        _check_slsa_level(result)
+
+    if not skip_version_check and not _skipped('version_conflicts'):
         await _check_version_conflicts(registry, versions, result)
 
+    if not _skipped('scorecard'):
+        _check_scorecard(result, workspace_root=workspace_root)
+    if not _skipped('security_insights'):
+        _check_security_insights(result, workspace_root=workspace_root)
+    if not _skipped('compliance'):
+        _check_compliance(result, workspace_root=workspace_root)
+
     if ecosystem == 'python':
-        _check_metadata_validation(packages, result)
-        if run_audit:
-            await _check_pip_audit(result, workspace_root=workspace_root)
+        if not _skipped('metadata_validation'):
+            _check_metadata_validation(packages, result)
+
+        # Auto-enable vulnerability scanning in CI, or when explicitly requested.
+        should_audit = run_audit or is_ci()
+        if should_audit:
+            if not _skipped('pip_audit'):
+                await _check_pip_audit(result, workspace_root=workspace_root)
+            if not _skipped('osv_vulnerabilities'):
+                await _check_osv(
+                    result,
+                    packages=packages,
+                    ecosystem=ecosystem,
+                    severity_threshold=osv_severity_threshold,
+                )
 
     logger.info('preflight_complete', summary=result.summary())
     return result

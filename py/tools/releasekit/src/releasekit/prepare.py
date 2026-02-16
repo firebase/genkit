@@ -110,7 +110,7 @@ from releasekit.backends.vcs import VCS
 from releasekit.branch import resolve_default_branch
 from releasekit.bump import BumpTarget, bump_file, bump_pyproject
 from releasekit.changelog import generate_changelog, render_changelog, write_changelog
-from releasekit.config import ReleaseConfig, WorkspaceConfig
+from releasekit.config import ReleaseConfig, WorkspaceConfig, build_package_configs
 from releasekit.graph import build_graph, topo_sort
 from releasekit.logging import get_logger
 from releasekit.preflight import run_preflight
@@ -227,6 +227,7 @@ async def prepare_release(
     # 2. Compute version bumps.
     # Pass the graph only when propagation is enabled and not in synchronized mode.
     propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
+    pkg_configs = build_package_configs(ws_config, [p.name for p in packages])
     versions = await compute_bumps(
         packages,
         vcs,
@@ -236,6 +237,8 @@ async def prepare_release(
         major_on_zero=ws_config.major_on_zero,
         max_commits=ws_config.max_commits,
         bootstrap_sha=ws_config.bootstrap_sha,
+        versioning_scheme=ws_config.versioning_scheme,
+        package_configs=pkg_configs,
     )
 
     bumped = [v for v in versions if not v.skipped]

@@ -107,7 +107,7 @@ def fix_publish_classifiers(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_classifier', action=action, path=str(pkg.manifest_path))
+            logger.warning('fix_classifier', action=action, path=str(pkg.manifest_path))
         else:
             logger.info('fix_classifier_dry_run', action=action, path=str(pkg.manifest_path))
 
@@ -159,7 +159,7 @@ def fix_readme_field(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_readme_field', action=action, path=str(pkg.manifest_path))
+            logger.warning('fix_readme_field', action=action, path=str(pkg.manifest_path))
 
     return changes
 
@@ -222,7 +222,7 @@ def fix_changelog_url(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_changelog_url', action=action, path=str(pkg.manifest_path))
+            logger.warning('fix_changelog_url', action=action, path=str(pkg.manifest_path))
 
     return changes
 
@@ -275,7 +275,7 @@ def fix_namespace_init(
                 changes.append(action)
                 if not dry_run:
                     init_file.unlink()
-                    logger.info('fix_namespace_init', action=action, path=str(init_file))
+                    logger.warning('fix_namespace_init', action=action, path=str(init_file))
 
     return changes
 
@@ -326,7 +326,7 @@ def fix_type_markers(
         changes.append(action)
         if not dry_run:
             marker_path.write_text('', encoding='utf-8')
-            logger.info('fix_type_markers', action=action, path=str(marker_path))
+            logger.warning('fix_type_markers', action=action, path=str(marker_path))
 
     return changes
 
@@ -386,7 +386,7 @@ def fix_deprecated_classifiers(
 
         if modified and not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_deprecated_classifiers', package=pkg.name)
+            logger.warning('fix_deprecated_classifiers', package=pkg.name)
 
     return changes
 
@@ -450,7 +450,7 @@ def fix_duplicate_dependencies(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_duplicate_dependencies', package=pkg.name, removed=len(to_remove))
+            logger.warning('fix_duplicate_dependencies', package=pkg.name, removed=len(to_remove))
 
     return changes
 
@@ -512,7 +512,7 @@ def fix_requires_python(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_requires_python', package=pkg.name, value=inferred)
+            logger.warning('fix_requires_python', package=pkg.name, value=inferred)
 
     return changes
 
@@ -572,7 +572,7 @@ def fix_build_system(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_build_system', package=pkg.name, backend=build_backend)
+            logger.warning('fix_build_system', package=pkg.name, backend=build_backend)
 
     return changes
 
@@ -628,7 +628,7 @@ def fix_version_field(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_version_field', package=pkg.name)
+            logger.warning('fix_version_field', package=pkg.name)
 
     return changes
 
@@ -692,7 +692,7 @@ def fix_readme_content_type(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_readme_content_type', package=pkg.name, old=ct_val, new=expected_ct)
+            logger.warning('fix_readme_content_type', package=pkg.name, old=ct_val, new=expected_ct)
 
     return changes
 
@@ -755,7 +755,7 @@ def fix_placeholder_urls(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_placeholder_urls', package=pkg.name, removed=to_remove)
+            logger.warning('fix_placeholder_urls', package=pkg.name, removed=to_remove)
 
     return changes
 
@@ -833,7 +833,7 @@ def fix_license_classifier_mismatch(
 
         if modified and not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_license_classifier_mismatch', package=pkg.name)
+            logger.warning('fix_license_classifier_mismatch', package=pkg.name)
 
     return changes
 
@@ -895,6 +895,6 @@ def fix_self_dependencies(
         changes.append(action)
         if not dry_run:
             pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
-            logger.info('fix_self_dependencies', package=pkg.name, removed=removed)
+            logger.warning('fix_self_dependencies', package=pkg.name, removed=removed)
 
     return changes

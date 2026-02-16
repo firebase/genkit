@@ -26,6 +26,7 @@ from typing import Any
 import pytest
 from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.release import ReleaseResult, extract_manifest, tag_release
+from releasekit.tags import TagResult
 from releasekit.versions import PackageVersion, ReleaseManifest
 from tests._fakes import FakeForge as _BaseFakeForge, FakeVCS
 
@@ -89,8 +90,6 @@ class TestReleaseResult:
 
     def test_tags_created_property(self) -> None:
         """Tags created property delegates to TagResult."""
-        from releasekit.tags import TagResult
-
         tag_result = TagResult(created=['v1.0.0', 'v2.0.0'])
         result = ReleaseResult(tag_result=tag_result)
         if result.tags_created != ['v1.0.0', 'v2.0.0']:

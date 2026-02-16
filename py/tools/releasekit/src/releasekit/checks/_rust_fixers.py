@@ -89,7 +89,7 @@ def fix_metadata_completeness(
         changes.append(action)
         if not dry_run:
             cargo_toml.write_text(''.join(new_lines), encoding='utf-8')
-            logger.info('fix_rust_metadata', action=action, path=str(cargo_toml))
+            logger.warning('fix_rust_metadata', action=action, path=str(cargo_toml))
         else:
             logger.info('fix_rust_metadata_dry_run', action=action, path=str(cargo_toml))
 
@@ -131,7 +131,7 @@ def fix_wildcard_dependencies(
         changes.append(action)
         if not dry_run:
             cargo_toml.write_text(new_text, encoding='utf-8')
-            logger.info('fix_rust_wildcard_deps', action=action, path=str(cargo_toml))
+            logger.warning('fix_rust_wildcard_deps', action=action, path=str(cargo_toml))
         else:
             logger.info('fix_rust_wildcard_deps_dry_run', action=action, path=str(cargo_toml))
 
@@ -201,7 +201,7 @@ def fix_duplicate_dependencies(
             changes.append(action)
             if not dry_run:
                 cargo_toml.write_text(new_text, encoding='utf-8')
-                logger.info('fix_rust_duplicate_deps', action=action, path=str(cargo_toml))
+                logger.warning('fix_rust_duplicate_deps', action=action, path=str(cargo_toml))
             else:
                 logger.info('fix_rust_duplicate_deps_dry_run', action=action, path=str(cargo_toml))
 

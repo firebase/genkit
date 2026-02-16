@@ -44,6 +44,7 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import fnmatch
 from pathlib import Path
 
 from releasekit.backends._run import CommandResult, run_command
@@ -304,8 +305,6 @@ class MercurialCLIBackend:
             return []
         tags = [t for t in result.stdout.strip().splitlines() if t != 'tip']
         if pattern:
-            import fnmatch
-
             tags = [t for t in tags if fnmatch.fnmatch(t, pattern)]
         return sorted(tags)
 
@@ -352,6 +351,84 @@ class MercurialCLIBackend:
             branch,
             dry_run=dry_run,
         )
+
+    async def tags_on_branch(self, branch: str) -> list[str]:
+        """Return tags reachable from a branch, in chronological order.
+
+        Uses ``hg log`` with a revset to find all tagged changesets
+        that are ancestors of the given bookmark/branch.
+        """
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            f'ancestors({branch!r}) and tag()',
+            '--template',
+            '{tags}\\n',
+        )
+        if not result.ok or not result.stdout.strip():
+            return []
+        tags: list[str] = []
+        for line in result.stdout.strip().splitlines():
+            for t in line.split():
+                if t and t != 'tip':
+                    tags.append(t)
+        return tags
+
+    async def commit_exists(self, sha: str) -> bool:
+        """Return ``True`` if the changeset exists in the repository."""
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            sha,
+            '--template',
+            '{node|short}',
+        )
+        return result.ok and bool(result.stdout.strip())
+
+    async def cherry_pick(
+        self,
+        sha: str,
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Graft (cherry-pick) a changeset onto the current working directory parent.
+
+        Mercurial's ``hg graft`` is the equivalent of ``git cherry-pick``.
+        """
+        log.info('graft', changeset=sha)
+        return await asyncio.to_thread(
+            self._hg,
+            'graft',
+            '-r',
+            sha,
+            dry_run=dry_run,
+        )
+
+    async def cherry_pick_abort(self) -> CommandResult:
+        """Abort an in-progress graft (cherry-pick) operation."""
+        return await asyncio.to_thread(
+            self._hg,
+            'graft',
+            '--abort',
+        )
+
+    async def tag_date(self, tag_name: str) -> str:
+        """Return the ISO 8601 date of a tag.
+
+        Queries the changeset that the tag points to and formats
+        its date in ISO 8601.
+        """
+        result = await asyncio.to_thread(
+            self._hg,
+            'log',
+            '-r',
+            f'tag({tag_name!r})',
+            '--template',
+            '{date|isodate}',
+        )
+        return result.stdout.strip() if result.ok else ''
 
 
 __all__ = [

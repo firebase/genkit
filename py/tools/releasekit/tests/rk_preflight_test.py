@@ -19,7 +19,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from releasekit.backends._run import CommandResult
@@ -29,6 +31,45 @@ from releasekit.preflight import PreflightResult, run_preflight
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 from tests._fakes import OK as _OK, FakeForge, FakePM as FakePackageManager, FakeRegistry, FakeVCS
+
+# CI environment variables that leak into tests when running in GitHub Actions
+# or other CI platforms. These must be cleared so preflight checks
+# (trusted_publisher, source_integrity, build_as_code, slsa_build_level)
+# don't detect a real CI environment and fail due to missing OIDC tokens.
+_CI_ENV_VARS = (
+    'CI',
+    'GITHUB_ACTIONS',
+    'GITHUB_SERVER_URL',
+    'GITHUB_REPOSITORY',
+    'GITHUB_SHA',
+    'GITHUB_REF',
+    'GITHUB_RUN_ID',
+    'GITHUB_RUN_ATTEMPT',
+    'GITHUB_WORKFLOW_REF',
+    'RUNNER_ENVIRONMENT',
+    'RUNNER_OS',
+    'RUNNER_ARCH',
+    'ACTIONS_ID_TOKEN_REQUEST_URL',
+    'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+    'GITLAB_CI',
+    'CI_COMMIT_SHA',
+    'CI_COMMIT_REF_NAME',
+    'CI_PROJECT_URL',
+    'CI_JOB_JWT_V2',
+    'CI_JOB_JWT',
+    'CIRCLECI',
+    'CIRCLE_SHA1',
+    'CIRCLE_BRANCH',
+    'CIRCLE_OIDC_TOKEN_V2',
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_from_ci(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove CI env vars so preflight checks don't detect a host CI environment."""
+    for var in _CI_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
 
 # ── PreflightResult tests ──
 
@@ -605,17 +646,22 @@ class TestPreflightTrustedPublisher:
             Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
         ]
 
-    def test_ci_without_oidc_warns(self, tmp_path: Path) -> None:
-        """CI environment without OIDC produces a warning."""
-        import os
-        from unittest.mock import patch
-
+    def test_ci_without_oidc_fails(self, tmp_path: Path) -> None:
+        """CI environment without OIDC is a failure (fail-closed for security)."""
         packages = self._make_packages(tmp_path)
         graph = build_graph(packages)
         versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
 
-        env = {**os.environ, 'CI': 'true'}
-        # Remove any OIDC env vars.
+        env = {
+            'CI': 'true',
+            'GITHUB_ACTIONS': 'true',
+            'GITHUB_SERVER_URL': 'https://github.com',
+            'GITHUB_REPOSITORY': 'firebase/genkit',
+            'GITHUB_SHA': 'abc123',
+            'GITHUB_REF': 'refs/heads/main',
+            'GITHUB_WORKFLOW_REF': 'firebase/genkit/.github/workflows/release.yml@refs/heads/main',
+        }
+        # Ensure no OIDC env vars.
         for key in ('ACTIONS_ID_TOKEN_REQUEST_URL', 'CI_JOB_JWT_V2', 'CI_JOB_JWT', 'CIRCLE_OIDC_TOKEN_V2'):
             env.pop(key, None)
 
@@ -633,8 +679,9 @@ class TestPreflightTrustedPublisher:
                 ),
             )
 
-        assert result.ok  # Warning, not failure.
-        assert 'trusted_publisher' in result.warnings
+        assert not result.ok  # Failure, not warning — fail-closed in CI.
+        assert 'trusted_publisher' in result.failed
+        assert 'OIDC' in result.errors['trusted_publisher']
 
 
 class TestPreflightResultHints:

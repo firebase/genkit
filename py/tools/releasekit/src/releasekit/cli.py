@@ -52,16 +52,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import concurrent.futures
 import dataclasses
 import fnmatch
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
+from rich.console import Console
 from rich_argparse import RichHelpFormatter
 
 from releasekit import __version__
+from releasekit.announce import send_announcements
 from releasekit.backends._run import CommandResult
 from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.forge.bitbucket import BitbucketAPIBackend
@@ -86,7 +88,12 @@ from releasekit.backends.registry import (
     PyPIBackend,
     Registry,
 )
+from releasekit.backends.validation.runner import (
+    detect_artifacts,
+    validate_artifacts,
+)
 from releasekit.backends.vcs import GitCLIBackend
+from releasekit.changelog import Changelog, generate_changelog, render_changelog, write_changelog
 from releasekit.checks import (
     PythonCheckBackend,
     fix_missing_license,
@@ -94,7 +101,22 @@ from releasekit.checks import (
     fix_stale_artifacts,
     run_checks,
 )
-from releasekit.config import ReleaseConfig, WorkspaceConfig, load_config, resolve_group_refs
+from releasekit.commit_parsing._types import BumpType
+from releasekit.compliance import (
+    ComplianceControl,
+    ComplianceStatus,
+    compliance_to_json,
+    evaluate_compliance,
+    print_compliance_table,
+)
+from releasekit.config import (
+    ReleaseConfig,
+    WorkspaceConfig,
+    build_package_configs,
+    build_skip_map,
+    load_config,
+    resolve_group_refs,
+)
 from releasekit.detection import (
     DetectedEcosystem,
     Ecosystem,
@@ -116,17 +138,56 @@ from releasekit.init import (
 from releasekit.lock import release_lock
 from releasekit.logging import get_logger
 from releasekit.migrate import MIGRATION_SOURCES, migrate_from_source
+from releasekit.osv import OSVSeverity, check_osv_vulnerabilities
 from releasekit.plan import build_plan
 from releasekit.preflight import PreflightResult, SourceContext, read_source_snippet, run_preflight
 from releasekit.prepare import prepare_release
+from releasekit.prerelease import is_prerelease as _is_pre, promote_to_stable
+from releasekit.provenance import is_ci, should_sign_provenance, verify_provenance
 from releasekit.publisher import PublishConfig, publish_workspace
 from releasekit.release import tag_release
+from releasekit.scorecard import run_scorecard_checks
+from releasekit.security_insights import (
+    SecurityInsightsConfig,
+    generate_security_insights,
+)
+from releasekit.should_release import ReleaseDecision, should_release
+from releasekit.signing import sign_artifacts, verify_artifact
+from releasekit.snapshot import (
+    SnapshotConfig,
+    apply_snapshot_versions,
+    compute_snapshot_version,
+    resolve_snapshot_identifier,
+)
+from releasekit.state import STATE_FILENAME, RunState
+from releasekit.tags import format_tag, parse_tag
 from releasekit.ui import create_progress_ui
+from releasekit.utils.date import utc_today
 from releasekit.versioning import compute_bumps
 from releasekit.versions import ReleaseManifest
 from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
+
+
+def _auto_slsa_provenance() -> bool:
+    """Auto-enable SLSA provenance when running in CI.
+
+    Returns ``True`` when the ``CI`` environment variable is set,
+    enabling SLSA Build L1 (provenance exists) by default for all
+    CI pipelines.
+    """
+    return is_ci()
+
+
+def _auto_sign_provenance() -> bool:
+    """Auto-enable signed provenance when CI has OIDC credentials.
+
+    Returns ``True`` when running in CI **and** an OIDC credential
+    is available, enabling SLSA Build L2 (signed provenance) by
+    default for properly configured CI pipelines.
+    """
+    return should_sign_provenance()
 
 
 def _find_workspace_root() -> Path:
@@ -488,6 +549,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
     graph = build_graph(packages)
     levels = topo_sort(graph)
     propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
+    pkg_configs = build_package_configs(ws_config, [p.name for p in packages])
     versions = await compute_bumps(
         packages,
         vcs,
@@ -500,6 +562,8 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         major_on_zero=ws_config.major_on_zero,
         max_commits=ws_config.max_commits,
         bootstrap_sha=ws_config.bootstrap_sha,
+        versioning_scheme=ws_config.versioning_scheme,
+        package_configs=pkg_configs,
     )
 
     # Filter out exclude_bump packages — they are discovered + checked but not bumped.
@@ -544,6 +608,10 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
 
     # Preflight.
     with release_lock(ws_root):
+        # Merge skip_checks from config and CLI --skip-check flags.
+        cli_skip = getattr(args, 'skip_check', []) or []
+        merged_skip = list({*ws_config.skip_checks, *cli_skip})
+
         preflight = await run_preflight(
             vcs=vcs,
             pm=pm,
@@ -555,6 +623,9 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             workspace_root=ws_root,
             dry_run=args.dry_run,
             skip_version_check=args.force,
+            ecosystem=ws_config.ecosystem,
+            osv_severity_threshold=ws_config.osv_severity_threshold,
+            skip_checks=merged_skip or None,
         )
         if not preflight.ok:
             for name, error in preflight.errors.items():
@@ -562,6 +633,39 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             return 1
 
         # Publish.
+        # Compute SLSA provenance and signing flags with safe defaults.
+        no_slsa = getattr(args, 'no_slsa_provenance', False)
+        want_slsa = not no_slsa and (
+            getattr(args, 'slsa_provenance', False)
+            or getattr(args, 'sign_provenance', False)
+            or ws_config.slsa_provenance
+            or ws_config.sign_provenance
+            or _auto_slsa_provenance()
+        )
+        want_sign = not no_slsa and (
+            getattr(args, 'sign_provenance', False) or ws_config.sign_provenance or _auto_sign_provenance()
+        )
+
+        # Emit security warnings for downgraded configurations.
+        if no_slsa and is_ci():
+            logger.warning(
+                'security_downgrade',
+                message='--no-slsa-provenance used in CI: provenance generation disabled.',
+                hint=(
+                    'SLSA provenance is a critical supply chain security control. '
+                    'Remove --no-slsa-provenance unless you have a specific reason.'
+                ),
+            )
+        if want_slsa and not want_sign and is_ci():
+            logger.warning(
+                'security_downgrade',
+                message='SLSA provenance will be generated but NOT signed (OIDC unavailable).',
+                hint=('Unsigned provenance only achieves SLSA Build L1. Configure OIDC trusted publishing for L2+.'),
+            )
+
+        no_pep740 = getattr(args, 'no_pep740', False)
+        want_pep740 = not no_pep740 and ws_config.pep740_attestations and ws_config.ecosystem == 'python'
+
         pub_config = PublishConfig(
             concurrency=args.concurrency,
             dry_run=args.dry_run,
@@ -577,7 +681,31 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             dist_tag=getattr(args, 'dist_tag', '') or ws_config.dist_tag,
             publish_branch=ws_config.publish_branch,
             provenance=ws_config.provenance,
+            slsa_provenance=want_slsa,
+            sign_provenance=want_sign,
+            pep740_attestations=want_pep740,
+            config_source=str(ws_root / 'releasekit.toml'),
+            ecosystem=ws_config.ecosystem,
         )
+
+        # Resume support: load state from previous interrupted run.
+        resume = getattr(args, 'resume', False)
+        fresh = getattr(args, 'fresh', False)
+        state_name = f'.releasekit-state--{ws_config.label}.json' if ws_config.label else STATE_FILENAME
+        state_path = ws_root / state_name
+        run_state: RunState | None = None
+
+        if resume and state_path.exists():
+            run_state = RunState.load(state_path)
+            logger.info(
+                'resume_from_state',
+                path=str(state_path),
+                pending=len(run_state.pending_packages()),
+                published=len(run_state.published_packages()),
+            )
+        elif fresh and state_path.exists():
+            state_path.unlink()
+            logger.info('fresh_start', deleted=str(state_path))
 
         # Create progress UI (Rich table for TTY, log lines for CI).
         progress_ui = create_progress_ui(
@@ -597,6 +725,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
                 levels=levels,
                 versions=versions,
                 config=pub_config,
+                state=run_state,
                 observer=progress_ui,
             )
 
@@ -638,6 +767,7 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
     graph = build_graph(packages)
     levels = topo_sort(graph)
     propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
+    pkg_configs = build_package_configs(ws_config, [p.name for p in packages])
     versions = await compute_bumps(
         packages,
         vcs,
@@ -649,13 +779,19 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
         major_on_zero=ws_config.major_on_zero,
         max_commits=ws_config.max_commits,
         bootstrap_sha=ws_config.bootstrap_sha,
+        versioning_scheme=ws_config.versioning_scheme,
+        package_configs=pkg_configs,
     )
 
-    # Check which versions are already published.
-    already_published: set[str] = set()
-    for v in versions:
-        if not v.skipped and await registry.check_published(v.name, v.new_version):
-            already_published.add(v.name)
+    # Check which versions are already published (concurrently).
+    async def _check_pub(v_name: str, v_version: str) -> str | None:
+        if await registry.check_published(v_name, v_version):
+            return v_name
+        return None
+
+    pub_checks = [_check_pub(v.name, v.new_version) for v in versions if not v.skipped]
+    pub_results = await asyncio.gather(*pub_checks)
+    already_published: set[str] = {name for name in pub_results if name is not None}
 
     plan = build_plan(
         versions,
@@ -682,7 +818,7 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_discover(args: argparse.Namespace) -> int:
+async def _cmd_discover(args: argparse.Namespace) -> int:
     """Handle the ``discover`` subcommand.
 
     Discovers packages across all detected ecosystems (or a
@@ -696,8 +832,19 @@ def _cmd_discover(args: argparse.Namespace) -> int:
     group = getattr(args, 'group', None)
     fmt = getattr(args, 'format', 'table')
 
+    eco_filter = _get_ecosystem_filter(args)
+
     if not ecosystems:
-        # Fall back to legacy uv-only discovery.
+        if eco_filter is not None:
+            # User explicitly requested an ecosystem that wasn't detected.
+            # Do NOT fall back to Python — that would be misleading.
+            logger.error(
+                'No %s ecosystem detected. Nothing to discover.',
+                eco_filter.value,
+            )
+            return 1
+
+        # No --ecosystem flag: fall back to legacy uv-only discovery.
         config_root = _find_workspace_root()
         ws_root = _effective_workspace_root(config_root, ws_config)
         all_packages = discover_packages(
@@ -709,7 +856,8 @@ def _cmd_discover(args: argparse.Namespace) -> int:
         _print_packages(packages, fmt, ecosystem_label=None)
         return 0
 
-    all_data: list[dict[str, object]] = []
+    # Discover all ecosystems concurrently.
+    valid_ecos = []
     for eco in ecosystems:
         if eco.workspace is None:
             logger.warning(
@@ -718,34 +866,44 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                 root=str(eco.root),
                 hint=f'{eco.ecosystem.value} workspace backend not yet implemented.',
             )
-            continue
+        else:
+            valid_ecos.append(eco)
 
+    async def _discover_eco(eco: DetectedEcosystem) -> tuple[DetectedEcosystem, list[Package]] | None:
         try:
-            eco_packages = asyncio.run(eco.workspace.discover(exclude_patterns=ws_config.exclude))
+            if eco.workspace is None:
+                return None
+            eco_packages = await eco.workspace.discover(exclude_patterns=ws_config.exclude)
+            legacy = [
+                Package(
+                    name=p.name,
+                    version=p.version,
+                    path=p.path,
+                    manifest_path=p.manifest_path,
+                    internal_deps=list(p.internal_deps),
+                    external_deps=list(p.external_deps),
+                    all_deps=list(p.all_deps),
+                    is_publishable=p.is_publishable,
+                )
+                for p in eco_packages
+            ]
+            return (eco, legacy)
         except ReleaseKitError as exc:
-            # Don't let one ecosystem's error block discovery of others.
             logger.warning(
                 'ecosystem_discover_failed',
                 ecosystem=eco.ecosystem.value,
                 root=str(eco.root),
                 error=str(exc),
             )
-            continue
+            return None
 
-        # Convert WsPackage → legacy Package for group filtering compatibility.
-        legacy = [
-            Package(
-                name=p.name,
-                version=p.version,
-                path=p.path,
-                manifest_path=p.manifest_path,
-                internal_deps=list(p.internal_deps),
-                external_deps=list(p.external_deps),
-                all_deps=list(p.all_deps),
-                is_publishable=p.is_publishable,
-            )
-            for p in eco_packages
-        ]
+    results = await asyncio.gather(*(_discover_eco(e) for e in valid_ecos))
+
+    all_data: list[dict[str, object]] = []
+    for result in results:
+        if result is None:
+            continue
+        eco, legacy = result
         filtered = _maybe_filter_group(legacy, ws_config, group)
         _print_packages(filtered, fmt, ecosystem_label=eco.ecosystem.value, data_acc=all_data)
 
@@ -766,7 +924,7 @@ def _print_packages(
 
     Args:
         packages: Packages to display.
-        fmt: Output format (``"table"`` or ``"json"``).
+        fmt: Output format — any key from :data:`FORMATTERS` or ``"json"``.
         ecosystem_label: If set, used to annotate output.
         data_acc: If fmt is json, append dicts here instead of printing.
     """
@@ -783,6 +941,12 @@ def _print_packages(
                 entry['ecosystem'] = ecosystem_label
             if data_acc is not None:
                 data_acc.append(entry)
+    elif fmt in FORMATTERS:
+        if ecosystem_label:
+            print(f'\n  ── {ecosystem_label} ({len(packages)} packages) ──')  # noqa: T201 - CLI output
+        graph = build_graph(packages)
+        output = format_graph(graph, packages, fmt=fmt)
+        print(output, end='')  # noqa: T201 - CLI output
     else:
         if ecosystem_label:
             print(f'\n  ── {ecosystem_label} ({len(packages)} packages) ──')  # noqa: T201 - CLI output
@@ -877,6 +1041,8 @@ def _check_one_workspace(
             )
             graph = build_graph(packages)
 
+    skip = build_skip_map(ws_config, [p.name for p in packages])
+
     result = run_checks(
         packages,
         graph,
@@ -888,6 +1054,7 @@ def _check_one_workspace(
         namespace_dirs=ws_config.namespace_dirs,
         library_dirs=ws_config.library_dirs,
         plugin_dirs=ws_config.plugin_dirs,
+        skip_map=skip or None,
     )
     return label, result
 
@@ -978,43 +1145,111 @@ def _print_check_result(label: str, result: PreflightResult, *, show_label: bool
     print(f'  {prefix}{result.summary()}')  # noqa: T201 - CLI output
 
 
-def _cmd_check(args: argparse.Namespace) -> int:
+async def _cmd_check(args: argparse.Namespace) -> int:
     """Handle the ``check`` subcommand.
 
     When ``--workspace`` is specified, checks that single workspace.
     Otherwise, checks **all** configured workspaces in parallel using
-    :class:`concurrent.futures.ThreadPoolExecutor`.
+    :func:`asyncio.gather` with :func:`asyncio.to_thread`.
     """
     config_root = _find_workspace_root()
     config = load_config(config_root)
     fix = getattr(args, 'fix', False)
     explicit_ws = getattr(args, 'workspace', None)
 
-    # Single workspace: original behaviour.
+    all_ok = True
+
+    # Resolve which workspaces to check.
     if explicit_ws or len(config.workspaces) <= 1:
         ws_config = _resolve_ws_config(config, explicit_ws)
-        label, result = _check_one_workspace(config_root, config, ws_config, fix=fix)
+        ws_configs = [ws_config]
+        label, result = await asyncio.to_thread(
+            _check_one_workspace,
+            config_root,
+            config,
+            ws_config,
+            fix=fix,
+        )
         _print_check_result(label, result)
-        return 0 if result.ok else 1
-
-    # Multiple workspaces: run in parallel.
-    ws_configs = list(config.workspaces.values())
-    results: list[tuple[str, PreflightResult]] = []
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(ws_configs)) as pool:
-        futures = {pool.submit(_check_one_workspace, config_root, config, wsc, fix=fix): wsc for wsc in ws_configs}
-        for future in concurrent.futures.as_completed(futures):
-            results.append(future.result())
-
-    # Sort by label for deterministic output.
-    results.sort(key=lambda r: r[0])
-
-    all_ok = True
-    for label, result in results:
-        print(f'\n--- workspace: {label} ---')  # noqa: T201 - CLI output
-        _print_check_result(label, result, show_label=False)
         if not result.ok:
             all_ok = False
+    else:
+        # Multiple workspaces: run in parallel via asyncio.
+        ws_configs = list(config.workspaces.values())
+        tasks = [asyncio.to_thread(_check_one_workspace, config_root, config, wsc, fix=fix) for wsc in ws_configs]
+        results: list[tuple[str, PreflightResult]] = list(await asyncio.gather(*tasks))
+
+        # Sort by label for deterministic output.
+        results.sort(key=lambda r: r[0])
+
+        for label, result in results:
+            print(f'\n--- workspace: {label} ---')  # noqa: T201 - CLI output
+            _print_check_result(label, result, show_label=False)
+            if not result.ok:
+                all_ok = False
+
+    # OpenSSF Scorecard checks (--scorecard flag).
+    if getattr(args, 'scorecard', False):
+        # Walk up to the repo root (where .git lives).
+        repo_root = config_root
+        while repo_root != repo_root.parent:
+            if (repo_root / '.git').exists():
+                break
+            repo_root = repo_root.parent
+
+        sc_results = run_scorecard_checks(repo_root=repo_root)
+        sc_total = len(sc_results)
+        sc_passed = sum(1 for r in sc_results if r.passed)
+
+        print('\n--- OpenSSF Scorecard ---')  # noqa: T201 - CLI output
+        for r in sc_results:
+            if r.passed:
+                print(f'  \u2705 {r.check}')  # noqa: T201 - CLI output
+            else:
+                icon = '\u274c' if r.severity == 'failure' else '\u26a0\ufe0f'
+                print(f'  {icon} {r.check}: {r.message}')  # noqa: T201 - CLI output
+                if r.hint:
+                    print(f'     = hint: {r.hint}')  # noqa: T201 - CLI output
+        print(f'\n  Scorecard: {sc_passed}/{sc_total}')  # noqa: T201 - CLI output
+        if sc_passed < sc_total:
+            all_ok = False
+
+    # OSV vulnerability scanning (--osv flag).
+    if getattr(args, 'osv', False):
+        severity_str = getattr(args, 'osv_severity', 'HIGH').upper()
+        try:
+            threshold = OSVSeverity[severity_str]
+        except KeyError:
+            logger.error('invalid_osv_severity', value=severity_str)
+            return 1
+
+        # Collect PURLs from all resolved workspaces.
+        all_purls: list[str] = []
+        for ws_cfg in ws_configs:
+            ws_root = _effective_workspace_root(config_root, ws_cfg)
+            ws_packages = discover_packages(
+                ws_root,
+                exclude_patterns=ws_cfg.exclude,
+                ecosystem=ws_cfg.ecosystem or 'python',
+            )
+            for pkg in ws_packages:
+                purl = f'pkg:pypi/{pkg.name}@{pkg.version}'
+                if purl not in all_purls:
+                    all_purls.append(purl)
+
+        print('\n--- OSV Vulnerability Scan ---')  # noqa: T201 - CLI output
+        vulns = await check_osv_vulnerabilities(all_purls, severity_threshold=threshold)
+        if vulns:
+            for v in vulns:
+                icon = '\U0001f534' if v.severity.value >= OSVSeverity.CRITICAL.value else '\U0001f7e0'
+                print(f'  {icon} {v.severity.name}: {v.id} in {v.purl}')  # noqa: T201 - CLI output
+                if v.summary:
+                    print(f'     {v.summary}')  # noqa: T201 - CLI output
+                if v.details_url:
+                    print(f'     {v.details_url}')  # noqa: T201 - CLI output
+            all_ok = False
+        else:
+            print(f'  \u2705 No vulnerabilities at or above {severity_str}.')  # noqa: T201 - CLI output
 
     return 0 if all_ok else 1
 
@@ -1043,6 +1278,7 @@ async def _cmd_version(args: argparse.Namespace) -> int:
 
     graph = build_graph(packages)
     propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
+    pkg_configs = build_package_configs(ws_config, [p.name for p in packages])
     versions = await compute_bumps(
         packages,
         vcs,
@@ -1054,6 +1290,8 @@ async def _cmd_version(args: argparse.Namespace) -> int:
         major_on_zero=ws_config.major_on_zero,
         max_commits=ws_config.max_commits,
         bootstrap_sha=ws_config.bootstrap_sha,
+        versioning_scheme=ws_config.versioning_scheme,
+        package_configs=pkg_configs,
     )
 
     fmt = getattr(args, 'format', 'table')
@@ -1087,10 +1325,6 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
     Generates per-package changelogs from Conventional Commits and
     writes them to ``CHANGELOG.md`` in each package directory.
     """
-    from releasekit.changelog import generate_changelog, render_changelog, write_changelog
-    from releasekit.tags import format_tag
-    from releasekit.utils.date import utc_today
-
     config_root = _find_workspace_root()
     config = load_config(config_root)
     ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
@@ -1108,15 +1342,11 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
     dry_run = getattr(args, 'dry_run', False)
     today = utc_today()
 
-    written = 0
-    skipped = 0
-
-    for pkg in packages:
-        # Find the last tag for this package to scope the log.
+    # Generate changelogs concurrently (git log is read-only).
+    async def _gen_one(pkg: Package) -> tuple[Package, Changelog | None]:
         tag = format_tag(ws_config.tag_format, name=pkg.name, version=pkg.version, label=ws_config.label)
         tag_exists = await vcs.tag_exists(tag)
         since_tag = tag if tag_exists else None
-
         changelog = await generate_changelog(
             vcs=vcs,
             version=pkg.version,
@@ -1124,14 +1354,18 @@ async def _cmd_changelog(args: argparse.Namespace) -> int:
             paths=[str(pkg.path)],
             date=today,
         )
+        return (pkg, changelog if changelog.sections else None)
 
-        if not changelog.sections:
+    gen_results = await asyncio.gather(*(_gen_one(pkg) for pkg in packages))
+
+    written = 0
+    skipped = 0
+    for pkg, changelog in gen_results:
+        if changelog is None:
             skipped += 1
             continue
-
         rendered = render_changelog(changelog)
         changelog_path = pkg.path / 'CHANGELOG.md'
-
         if write_changelog(changelog_path, rendered, dry_run=dry_run):
             written += 1
             print(f'  📝 {pkg.name}: {changelog_path}')  # noqa: T201 - CLI output
@@ -1199,6 +1433,25 @@ async def _cmd_init(args: argparse.Namespace) -> int:
     elif not dry_run:
         print('  ℹ️  releasekit.toml already exists (use --force to overwrite)')  # noqa: T201 - CLI output
 
+    # Generate SECURITY-INSIGHTS.yml if requested.
+    if getattr(args, 'security_insights', False):
+        si_path = monorepo_root / 'SECURITY-INSIGHTS.yml'
+        si_config = SecurityInsightsConfig(
+            project_name=monorepo_root.name,
+            repo_url=f'https://github.com/{monorepo_root.name}',
+        )
+        si_result = generate_security_insights(
+            si_config,
+            output_path=si_path,
+            dry_run=dry_run,
+        )
+        if si_result.generated:
+            print(f'  \u2705 SECURITY-INSIGHTS.yml written to {si_path}')  # noqa: T201
+        elif si_result.reason and 'dry-run' in si_result.reason:
+            print('  \U0001f50d Would generate SECURITY-INSIGHTS.yml')  # noqa: T201
+        else:
+            print(f'  \u274c SECURITY-INSIGHTS.yml: {si_result.reason}')  # noqa: T201
+
     # Scan existing git tags and write bootstrap_sha.
     config_path = monorepo_root / 'releasekit.toml'
     if config_path.exists():
@@ -1216,38 +1469,151 @@ async def _cmd_init(args: argparse.Namespace) -> int:
 
 
 async def _cmd_rollback(args: argparse.Namespace) -> int:
-    """Handle the ``rollback`` subcommand."""
+    """Handle the ``rollback`` subcommand.
+
+    Deletes git tags (local + remote) and platform releases. With
+    ``--all-tags``, discovers and deletes every tag pointing to the
+    same commit as the given tag (i.e. all per-package tags from the
+    same release). With ``--yank``, also yanks the released versions
+    from the package registry (where supported).
+    """
     config_root = _find_workspace_root()
     config = load_config(config_root)
-    vcs, _pm, forge, _registry = _create_backends(config_root, config)
+    ws_label = next(iter(config.workspaces), None)
+    ws_config = config.workspaces.get(ws_label) if ws_label else None
+    vcs, _pm, forge, registry = _create_backends(
+        config_root,
+        config,
+        ws_config=ws_config,
+    )
     dry_run = getattr(args, 'dry_run', False)
+    all_tags = getattr(args, 'all_tags', False)
+    yank = getattr(args, 'yank', False)
+    yank_reason = getattr(args, 'yank_reason', '')
     tag = args.tag
 
-    deleted: list[str] = []
+    # ── Determine which tags to delete ────────────────────────────
+    tags_to_delete: list[str] = []
 
-    # Delete the git tag (local + remote).
-    if await vcs.tag_exists(tag):
-        logger.info('Deleting tag %s', tag)
-        await vcs.delete_tag(tag, remote=True, dry_run=dry_run)
-        deleted.append(tag)
-    else:
-        logger.info('Tag %s does not exist locally', tag)
-
-    # Delete the platform release if forge is available.
-    if forge is not None and await forge.is_available():
-        logger.info('Deleting platform release for %s', tag)
+    if all_tags and await vcs.tag_exists(tag):
+        # Find the commit the given tag points to, then find all
+        # tags pointing to that same commit.
         try:
-            await forge.delete_release(tag, dry_run=dry_run)
-        except Exception as exc:
-            logger.warning('Release deletion failed: %s', exc)
+            commit_sha = await vcs.tag_commit_sha(tag)
+            if commit_sha:
+                all_repo_tags = await vcs.list_tags()
+                sibling_tags = []
+                for t in all_repo_tags:
+                    if await vcs.tag_commit_sha(t) == commit_sha:
+                        sibling_tags.append(t)
+                tags_to_delete = sibling_tags
+                logger.info(
+                    'Found %d tags at commit %s: %s',
+                    len(sibling_tags),
+                    commit_sha[:12],
+                    ', '.join(sibling_tags),
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('Could not discover sibling tags: %s', exc)
+
+    # Fallback: just the single tag the user specified.
+    if not tags_to_delete:
+        tags_to_delete = [tag]
+
+    # ── Delete tags ───────────────────────────────────────────────
+    deleted: list[str] = []
+    for t in tags_to_delete:
+        if await vcs.tag_exists(t):
+            logger.info('Deleting tag %s', t)
+            await vcs.delete_tag(t, remote=True, dry_run=dry_run)
+            deleted.append(t)
+        else:
+            logger.info('Tag %s does not exist locally', t)
+
+    # ── Delete platform releases (concurrently) ─────────────────
+    if forge is not None and await forge.is_available():
+
+        async def _delete_release(t: str) -> None:
+            logger.info('Deleting platform release for %s', t)
+            try:
+                await forge.delete_release(t, dry_run=dry_run)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning('Release deletion failed for %s: %s', t, exc)
+
+        await asyncio.gather(*(_delete_release(t) for t in deleted))
     else:
         logger.info('Forge not available, skipping release deletion')
 
+    # ── Yank from registry (opt-in, concurrently) ──────────────────
+    yanked: list[str] = []
+    yank_failed: list[str] = []
+    if yank:
+
+        async def _yank_one(pkg_name: str, pkg_version: str) -> tuple[str, bool]:
+            logger.info('Yanking %s@%s from registry', pkg_name, pkg_version)
+            ok = await registry.yank_version(
+                pkg_name,
+                pkg_version,
+                reason=yank_reason,
+                dry_run=dry_run,
+            )
+            return (f'{pkg_name}@{pkg_version}', ok)
+
+        yank_tasks = []
+        for t in deleted:
+            parsed = parse_tag(
+                t,
+                tag_format=ws_config.tag_format if ws_config else '{name}-v{version}',
+            )
+            if parsed is None:
+                logger.warning('Cannot parse tag %s for yank', t)
+                continue
+            yank_tasks.append(_yank_one(parsed[0], parsed[1]))
+
+        yank_results = await asyncio.gather(*yank_tasks)
+        for label, ok in yank_results:
+            if ok:
+                yanked.append(label)
+            else:
+                yank_failed.append(label)
+
+    # ── Summary ───────────────────────────────────────────────────
     for t in deleted:
         print(f'  \U0001f5d1\ufe0f  Deleted tag: {t}')  # noqa: T201 - CLI output
+    for y in yanked:
+        print(f'  \U0001f6ab  Yanked: {y}')  # noqa: T201 - CLI output
+    for y in yank_failed:
+        print(f'  \u26a0\ufe0f  Yank unsupported: {y}')  # noqa: T201 - CLI output
 
     if not deleted:
         print(f'  \u2139\ufe0f  Tag {tag} not found')  # noqa: T201 - CLI output
+
+    # ── Rollback announcement ────────────────────────────────────
+    announce_cfg = config.announcements
+    if deleted and announce_cfg and announce_cfg.enabled:
+        pkg_names = []
+        version = ''
+        for t in deleted:
+            parsed = parse_tag(
+                t,
+                tag_format=ws_config.tag_format if ws_config else '{name}-v{version}',
+            )
+            if parsed:
+                pkg_names.append(parsed[0])
+                if not version:
+                    version = parsed[1]
+
+        result = await send_announcements(
+            announce_cfg,
+            version=version,
+            packages=pkg_names,
+            event='rollback',
+            dry_run=dry_run,
+        )
+        if result.sent:
+            print(f'  \U0001f4e2  Announced rollback to {result.sent} channel(s)')  # noqa: T201 - CLI output
+        for err in result.errors:
+            print(f'  \u26a0\ufe0f  Announcement failed: {err}')  # noqa: T201 - CLI output
 
     return 0
 
@@ -1529,9 +1895,6 @@ def _cmd_migrate(args: argparse.Namespace) -> int:
     Migrates from an alternative release tool (e.g. release-please)
     by reading its config files and generating ``releasekit.toml``.
     """
-    from releasekit.detection import find_monorepo_root
-    from releasekit.init import print_scaffold_preview
-
     source_name = getattr(args, 'from_tool', None)
     dry_run = getattr(args, 'dry_run', False)
     force = getattr(args, 'force', False)
@@ -1575,8 +1938,6 @@ def _cmd_sign(args: argparse.Namespace) -> int:
 
     Signs release artifacts using Sigstore keyless signing.
     """
-    from releasekit.signing import sign_artifacts
-
     dry_run = getattr(args, 'dry_run', False)
     output_dir = getattr(args, 'output_dir', None)
     identity_token = getattr(args, 'identity_token', '') or ''
@@ -1622,12 +1983,11 @@ def _cmd_sign(args: argparse.Namespace) -> int:
 def _cmd_verify(args: argparse.Namespace) -> int:
     """Handle the ``verify`` subcommand.
 
-    Verifies Sigstore bundles for release artifacts.
+    Verifies Sigstore bundles and/or SLSA provenance for release artifacts.
     """
-    from releasekit.signing import verify_artifact
-
     identity = getattr(args, 'cert_identity', '') or ''
     issuer = getattr(args, 'cert_oidc_issuer', '') or ''
+    provenance_file = getattr(args, 'provenance', None)
 
     artifact_paths: list[Path] = []
     raw_paths: list[str] = getattr(args, 'artifacts', [])
@@ -1647,11 +2007,25 @@ def _cmd_verify(args: argparse.Namespace) -> int:
         return 1
 
     failures = 0
+
+    # Verify SLSA provenance if --provenance is provided.
+    if provenance_file:
+        prov_path = Path(provenance_file)
+        for artifact_path in artifact_paths:
+            ok, reason = verify_provenance(artifact_path, prov_path)
+            if ok:
+                print(f'  ✅ Provenance: {artifact_path.name}')  # noqa: T201
+            else:
+                print(f'  ❌ Provenance: {artifact_path.name}: {reason}')  # noqa: T201
+                failures += 1
+
+    # Verify Sigstore bundles.
     for artifact_path in artifact_paths:
         bundle_path = artifact_path.parent / f'{artifact_path.name}.sigstore.json'
         if not bundle_path.exists():
-            print(f'  ❌ Bundle not found: {bundle_path.name}')  # noqa: T201
-            failures += 1
+            if not provenance_file:
+                print(f'  ❌ Bundle not found: {bundle_path.name}')  # noqa: T201
+                failures += 1
             continue
 
         result = verify_artifact(
@@ -1661,12 +2035,300 @@ def _cmd_verify(args: argparse.Namespace) -> int:
             issuer=issuer,
         )
         if result.verified:
-            print(f'  ✅ Verified: {artifact_path.name}')  # noqa: T201
+            print(f'  ✅ Sigstore: {artifact_path.name}')  # noqa: T201
         else:
-            print(f'  ❌ {artifact_path.name}: {result.reason}')  # noqa: T201
+            print(f'  ❌ Sigstore: {artifact_path.name}: {result.reason}')  # noqa: T201
             failures += 1
 
     return 1 if failures else 0
+
+
+def _cmd_compliance(args: argparse.Namespace) -> int:
+    """Handle the ``compliance`` subcommand.
+
+    Prints an OSPS Baseline compliance report for the repository.
+    """
+    config_root = _find_workspace_root()
+    fmt = getattr(args, 'format', 'table')
+
+    _status_icons = {
+        ComplianceStatus.MET: '\u2705',
+        ComplianceStatus.PARTIAL: '\u26a0\ufe0f',
+        ComplianceStatus.GAP: '\u274c',
+    }
+
+    def _show_progress(c: ComplianceControl, current: int, total: int) -> None:
+        icon = _status_icons.get(c.status, '?')
+        sys.stderr.write(f'\r  [{current}/{total}] {icon} {c.id:<14} {c.control}')
+        sys.stderr.write('\033[K')  # clear to end of line
+        sys.stderr.flush()
+
+    on_progress = _show_progress if fmt != 'json' and sys.stderr.isatty() else None
+    controls = evaluate_compliance(config_root, on_progress=on_progress)
+
+    if on_progress is not None:
+        sys.stderr.write('\r\033[K')  # clear the progress line
+        sys.stderr.flush()
+
+    if fmt == 'json':
+        print(compliance_to_json(controls))  # noqa: T201
+    else:
+        print_compliance_table(controls, console=Console())
+
+    return 0
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    """Handle the ``validate`` subcommand.
+
+    Runs all available validators against generated release artifacts.
+    Auto-detects provenance, attestation, SBOM, and SECURITY-INSIGHTS
+    files in the workspace root.
+    """
+    config_root = _find_workspace_root()
+    fmt = getattr(args, 'format', 'table')
+
+    # Resolve explicit paths from CLI args.
+    raw_paths: list[str] = getattr(args, 'artifacts', []) or []
+    artifact_paths: list[Path] = []
+    for raw in raw_paths:
+        p = Path(raw)
+        if p.is_dir():
+            artifact_paths.extend(sorted(p.iterdir()))
+        elif p.exists():
+            artifact_paths.append(p)
+        else:
+            print(f'  \u274c Not found: {p}')  # noqa: T201
+            return 1
+
+    if not artifact_paths:
+        artifact_paths = detect_artifacts(config_root)
+
+    if not artifact_paths:
+        print('  \u2139\ufe0f  No artifacts found to validate.')  # noqa: T201
+        return 0
+
+    report = validate_artifacts(artifact_paths)
+
+    if fmt == 'json':
+        print(report.to_json())  # noqa: T201
+    else:
+        print(report.format_table())  # noqa: T201
+
+    return 1 if report.failures else 0
+
+
+async def _cmd_should_release(args: argparse.Namespace) -> int:
+    """Handle the ``should-release`` subcommand.
+
+    Checks whether a release should happen based on each workspace's
+    schedule config, releasable commits, and cooldown.
+
+    When ``--workspace`` is specified, checks only that workspace.
+    Otherwise, checks **every** workspace independently and exits 0
+    if **any** workspace should release.
+
+    Designed for CI cron integration::
+
+        releasekit should-release || exit 0
+        releasekit publish --if-needed
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+
+    # Determine which workspaces to check.
+    ws_label = getattr(args, 'workspace', None)
+    if ws_label:
+        ws_configs = [_resolve_ws_config(config, ws_label)]
+    elif config.workspaces:
+        ws_configs = list(config.workspaces.values())
+    else:
+        ws_configs = [_resolve_ws_config(config, None)]
+
+    async def _check_workspace(wsc: WorkspaceConfig | None) -> tuple[str, ReleaseDecision]:
+        label = wsc.label if wsc else 'default'
+        ws_root = _effective_workspace_root(config_root, wsc) if wsc else config_root
+        vcs, _pm, _forge, _registry = _create_backends(
+            config_root,
+            config,
+            ws_root=ws_root,
+            ws_config=wsc,
+        )
+
+        packages = discover_packages(
+            ws_root,
+            exclude_patterns=wsc.exclude if wsc else None,
+            ecosystem=wsc.ecosystem if wsc else 'python',
+        )
+
+        pkg_configs = build_package_configs(wsc, [p.name for p in packages]) if wsc else None
+        bump_results = await compute_bumps(
+            packages,
+            vcs,
+            tag_format=wsc.tag_format if wsc else '{name}-v{version}',
+            major_on_zero=wsc.major_on_zero if wsc else False,
+            max_commits=wsc.max_commits if wsc else 0,
+            versioning_scheme=wsc.versioning_scheme if wsc else 'semver',
+            package_configs=pkg_configs,
+        )
+
+        # Determine max bump level for this workspace.
+        has_releasable = False
+        max_bump_level = ''
+        bump_order = {'major': 3, 'minor': 2, 'patch': 1}
+        for br in bump_results:
+            if br.bump != BumpType.NONE:
+                has_releasable = True
+                level: str = br.bump.value  # type: ignore[union-attr]  # ty narrows Enum incorrectly
+                if bump_order.get(level, 0) > bump_order.get(max_bump_level, 0):
+                    max_bump_level = level
+
+        # Workspace-specific schedule (falls back to root).
+        schedule = wsc.schedule if wsc else config.schedule
+
+        # Get last release time from VCS tags.
+        last_release_time = None
+        if has_releasable and packages:
+            tag_format = wsc.tag_format if wsc else '{name}-v{version}'
+            sample_tag = tag_format.format(name=packages[0].name, version=packages[0].version)
+            try:
+                tag_date_result = await vcs.tag_date(sample_tag)
+                if tag_date_result:
+                    last_release_time = datetime.fromisoformat(tag_date_result).replace(
+                        tzinfo=timezone.utc,
+                    )
+            except Exception:  # noqa: BLE001
+                logger.debug('no_previous_release_tag', tag=sample_tag)
+
+        decision = should_release(
+            schedule,
+            has_releasable_commits=has_releasable,
+            max_bump_level=max_bump_level,
+            last_release_time=last_release_time,
+        )
+        return (label, decision)
+
+    decisions = list(await asyncio.gather(*(_check_workspace(wsc) for wsc in ws_configs)))
+
+    # Output results.
+    any_should = any(d.should for _, d in decisions)
+
+    if getattr(args, 'json_output', False):
+        results = [{'workspace': label, 'should': d.should, 'reason': d.reason} for label, d in decisions]
+        print(json.dumps(results if len(results) > 1 else results[0]))  # noqa: T201
+    else:
+        for label, decision in decisions:
+            status = '✅ YES' if decision.should else '⏭️  NO'
+            prefix = f'[{label}] ' if len(decisions) > 1 else ''
+            print(f'{prefix}{status}: {decision.reason}')  # noqa: T201
+
+    return 0 if any_should else 1
+
+
+async def _cmd_promote(args: argparse.Namespace) -> int:
+    """Handle the ``promote`` subcommand.
+
+    Promotes a pre-release version to stable by stripping the
+    pre-release suffix and creating a new stable release.
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, _pm, _forge, _registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
+
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
+
+    scheme = ws_config.versioning_scheme or 'semver'
+    promoted = 0
+
+    for pkg in packages:
+        if not _is_pre(pkg.version):
+            continue
+
+        stable = promote_to_stable(pkg.version, scheme=scheme)
+        print(f'  📦 {pkg.name}: {pkg.version} → {stable}')  # noqa: T201 - CLI output
+        promoted += 1
+
+    if not promoted:
+        print('  ℹ️  No pre-release packages to promote.')  # noqa: T201 - CLI output
+
+    print(f'\n  {promoted} package(s) promoted')  # noqa: T201 - CLI output
+    return 0
+
+
+async def _cmd_snapshot(args: argparse.Namespace) -> int:
+    """Handle the ``snapshot`` subcommand.
+
+    Computes snapshot versions for all packages using the current
+    git SHA or a timestamp.
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
+    ws_root = _effective_workspace_root(config_root, ws_config)
+    vcs, _pm, _forge, _registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
+
+    packages = discover_packages(
+        ws_root,
+        exclude_patterns=ws_config.exclude,
+        ecosystem=ws_config.ecosystem or 'python',
+    )
+
+    graph = build_graph(packages)
+    propagate_graph = graph if (ws_config.propagate_bumps and not ws_config.synchronize) else None
+    pkg_configs = build_package_configs(ws_config, [p.name for p in packages])
+    versions = await compute_bumps(
+        packages,
+        vcs,
+        tag_format=ws_config.tag_format,
+        graph=propagate_graph,
+        synchronize=ws_config.synchronize,
+        major_on_zero=ws_config.major_on_zero,
+        max_commits=ws_config.max_commits,
+        bootstrap_sha=ws_config.bootstrap_sha,
+        versioning_scheme=ws_config.versioning_scheme,
+        package_configs=pkg_configs,
+    )
+
+    snapshot_cfg = SnapshotConfig(
+        identifier=getattr(args, 'identifier', ''),
+        pr_number=getattr(args, 'pr', ''),
+        timestamp=getattr(args, 'timestamp', False),
+    )
+    snapshot_cfg = await resolve_snapshot_identifier(vcs, snapshot_cfg)
+
+    scheme = ws_config.versioning_scheme or 'semver'
+    snapshot_version = compute_snapshot_version(snapshot_cfg, scheme=scheme)
+    snapshot_versions = apply_snapshot_versions(versions, snapshot_version)
+
+    fmt = getattr(args, 'format', 'table')
+    if fmt == 'json':
+        data = [
+            {
+                'name': v.name,
+                'old_version': v.old_version,
+                'new_version': v.new_version,
+                'bump': v.bump,
+                'skipped': v.skipped,
+            }
+            for v in snapshot_versions
+        ]
+        print(json.dumps(data, indent=2))  # noqa: T201 - CLI output
+    else:
+        print(f'  Snapshot version: {snapshot_version}')  # noqa: T201 - CLI output
+        print()  # noqa: T201 - CLI output
+        for v in snapshot_versions:
+            if v.skipped:
+                print(f'  ⏭️  {v.name}: skipped')  # noqa: T201 - CLI output
+            else:
+                print(f'  📦 {v.name}: {v.old_version} → {v.new_version}')  # noqa: T201 - CLI output
+
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1800,6 +2462,51 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         help='Sign published artifacts with Sigstore after publishing.',
     )
+    publish_parser.add_argument(
+        '--slsa-provenance',
+        action='store_true',
+        help='Generate SLSA Provenance v1 in-toto statement for published artifacts (auto-enabled in CI).',
+    )
+    publish_parser.add_argument(
+        '--no-slsa-provenance',
+        action='store_true',
+        help='Disable SLSA provenance generation (overrides auto-detection and config).',
+    )
+    publish_parser.add_argument(
+        '--sign-provenance',
+        action='store_true',
+        help='Sign the SLSA provenance file with Sigstore (implies --slsa-provenance).',
+    )
+    publish_parser.add_argument(
+        '--no-pep740',
+        action='store_true',
+        help='Disable PEP 740 attestation generation for Python packages.',
+    )
+    publish_parser.add_argument(
+        '--skip-check',
+        action='append',
+        metavar='NAME',
+        help=(
+            'Skip a preflight check by name (repeatable). '
+            'E.g. --skip-check compliance --skip-check security_insights. '
+            'Also configurable via skip_checks in releasekit.toml.'
+        ),
+    )
+    publish_parser.add_argument(
+        '--if-needed',
+        action='store_true',
+        help='Exit 0 if no releasable changes (for continuous deploy mode).',
+    )
+    publish_parser.add_argument(
+        '--resume',
+        action='store_true',
+        help='Resume an interrupted publish run from the saved state file.',
+    )
+    publish_parser.add_argument(
+        '--fresh',
+        action='store_true',
+        help='Delete any saved state file and start a fresh publish run.',
+    )
 
     plan_parser = subparsers.add_parser(
         'plan',
@@ -1834,9 +2541,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover_parser.add_argument(
         '--format',
-        choices=['table', 'json'],
+        choices=sorted({*FORMATTERS, 'json'}),
         default='table',
-        help='Output format (default: table).',
+        help='Output format (default: table). Supports all graph formats plus json.',
     )
     discover_parser.add_argument(
         '--group',
@@ -1882,6 +2589,28 @@ def build_parser() -> argparse.ArgumentParser:
         action='store_true',
         default=False,
         help='Auto-fix issues that can be fixed (e.g. Private :: Do Not Upload classifiers).',
+    )
+    check_parser.add_argument(
+        '--skip-check',
+        action='append',
+        metavar='NAME',
+        help=('Skip a check by name (repeatable). Also configurable via skip_checks in releasekit.toml.'),
+    )
+    check_parser.add_argument(
+        '--scorecard',
+        action='store_true',
+        help='Run OpenSSF Scorecard-aligned security checks (SECURITY.md, CI, pinned deps, permissions).',
+    )
+    check_parser.add_argument(
+        '--osv',
+        action='store_true',
+        help='Scan workspace dependencies for known vulnerabilities via OSV.dev.',
+    )
+    check_parser.add_argument(
+        '--osv-severity',
+        default='HIGH',
+        metavar='LEVEL',
+        help='Minimum OSV severity to report: LOW, MEDIUM, HIGH, CRITICAL (default: HIGH).',
     )
 
     version_parser = subparsers.add_parser(
@@ -1957,6 +2686,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar='ECO',
         help='Only init for this ecosystem.',
     )
+    init_parser.add_argument(
+        '--security-insights',
+        action='store_true',
+        help='Also generate SECURITY-INSIGHTS.yml (OpenSSF Security Insights v2).',
+    )
 
     rollback_parser = subparsers.add_parser(
         'rollback',
@@ -1970,6 +2704,27 @@ def build_parser() -> argparse.ArgumentParser:
         '--dry-run',
         action='store_true',
         help='Preview mode: log commands without executing.',
+    )
+    rollback_parser.add_argument(
+        '--all-tags',
+        action='store_true',
+        help=(
+            'Delete ALL per-package tags that point to the same commit as the given tag, not just the one specified.'
+        ),
+    )
+    rollback_parser.add_argument(
+        '--yank',
+        action='store_true',
+        help=(
+            'Also yank (hide) the released versions from the package '
+            'registry. Not all registries support this. '
+            'Default: only delete tags and platform releases.'
+        ),
+    )
+    rollback_parser.add_argument(
+        '--yank-reason',
+        default='',
+        help='Human-readable reason for the yank (shown to users).',
     )
 
     prepare_parser = subparsers.add_parser(
@@ -2096,6 +2851,114 @@ def build_parser() -> argparse.ArgumentParser:
         '--cert-oidc-issuer',
         help='Expected OIDC issuer URL.',
     )
+    verify_parser.add_argument(
+        '--provenance',
+        metavar='FILE',
+        help='Verify artifacts against a SLSA provenance file (.intoto.jsonl).',
+    )
+
+    should_release_parser = subparsers.add_parser(
+        'should-release',
+        help='Check if a release should happen (for CI cron integration).',
+    )
+    should_release_parser.add_argument(
+        '--json',
+        action='store_true',
+        dest='json_output',
+        help='Output decision as JSON.',
+    )
+
+    subparsers.add_parser(
+        'promote',
+        help='Promote pre-release packages to stable versions.',
+    )
+
+    snapshot_parser = subparsers.add_parser(
+        'snapshot',
+        help='Compute snapshot versions for CI testing / PR previews.',
+    )
+    snapshot_parser.add_argument(
+        '--identifier',
+        default='',
+        help='Snapshot identifier (default: git SHA).',
+    )
+    snapshot_parser.add_argument(
+        '--pr',
+        default='',
+        help='PR number to include in the snapshot version.',
+    )
+    snapshot_parser.add_argument(
+        '--timestamp',
+        action='store_true',
+        help='Use a timestamp instead of git SHA.',
+    )
+    snapshot_parser.add_argument(
+        '--format',
+        choices=['table', 'json'],
+        default='table',
+        help='Output format (default: table).',
+    )
+
+    compliance_parser = subparsers.add_parser(
+        'compliance',
+        help='Print OSPS Baseline compliance report for the repository.',
+    )
+    compliance_parser.add_argument(
+        '--format',
+        choices=['table', 'json'],
+        default='table',
+        help='Output format (default: table).',
+    )
+
+    validate_parser = subparsers.add_parser(
+        'validate',
+        help='Run validators against generated release artifacts.',
+    )
+    validate_parser.add_argument(
+        'artifacts',
+        nargs='*',
+        help='Artifact files or directories to validate (default: auto-detect).',
+    )
+    validate_parser.add_argument(
+        '--format',
+        choices=['table', 'json'],
+        default='table',
+        help='Output format (default: table).',
+    )
+
+    # Add --prerelease to publish, plan, version.
+    for p in (publish_parser, plan_parser, version_parser):
+        p.add_argument(
+            '--prerelease',
+            default='',
+            metavar='LABEL',
+            help='Pre-release label (alpha, beta, rc, dev).',
+        )
+
+    # Add --base-branch and --since-tag to publish, plan, version.
+    for p in (publish_parser, plan_parser, version_parser):
+        p.add_argument(
+            '--base-branch',
+            default='',
+            help='Override the base branch for version computation (hotfix/maintenance).',
+        )
+        p.add_argument(
+            '--since-tag',
+            default='',
+            help='Override the starting tag for commit scanning.',
+        )
+
+    # Add --template to changelog.
+    changelog_parser.add_argument(
+        '--template',
+        default='',
+        help='Path to a Jinja2 template for changelog rendering.',
+    )
+    changelog_parser.add_argument(
+        '--incremental',
+        action='store_true',
+        help='Append to the end of CHANGELOG.md instead of prepending.',
+    )
 
     return parser
 
@@ -2116,11 +2979,11 @@ def main() -> int:
         if command == 'plan':
             return asyncio.run(_cmd_plan(args))
         if command == 'discover':
-            return _cmd_discover(args)
+            return asyncio.run(_cmd_discover(args))
         if command == 'graph':
             return _cmd_graph(args)
         if command == 'check':
-            return _cmd_check(args)
+            return asyncio.run(_cmd_check(args))
         if command == 'version':
             return asyncio.run(_cmd_version(args))
         if command == 'changelog':
@@ -2145,6 +3008,16 @@ def main() -> int:
             return _cmd_sign(args)
         if command == 'verify':
             return _cmd_verify(args)
+        if command == 'should-release':
+            return asyncio.run(_cmd_should_release(args))
+        if command == 'promote':
+            return asyncio.run(_cmd_promote(args))
+        if command == 'snapshot':
+            return asyncio.run(_cmd_snapshot(args))
+        if command == 'compliance':
+            return _cmd_compliance(args)
+        if command == 'validate':
+            return _cmd_validate(args)
 
         parser.print_help()  # noqa: T201 - CLI output
         print(  # noqa: T201 - CLI output

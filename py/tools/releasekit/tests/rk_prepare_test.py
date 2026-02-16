@@ -21,10 +21,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from releasekit.backends._run import CommandResult
 from releasekit.backends.registry import ChecksumResult
 from releasekit.config import ReleaseConfig, WorkspaceConfig
+from releasekit.preflight import PreflightResult
 from releasekit.prepare import PrepareResult, _build_pr_body, _embed_manifest, _package_paths, prepare_release
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
@@ -296,6 +299,21 @@ class _FakeRegistry:
         """Verify checksum."""
         return ChecksumResult()
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """List versions."""
+        return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Yank version."""
+        return False
+
 
 class TestPrepareLabelOnNewPR:
     """Tests that autorelease: pending label is added to new PRs."""
@@ -406,8 +424,6 @@ class TestPrepareNoBumps:
 
     def test_no_bumps_returns_early(self, tmp_path: Path) -> None:
         """No version bumps returns empty result with no errors."""
-        from unittest.mock import AsyncMock, patch
-
         vcs = _FakeVCS(log_lines=[])
         config = ReleaseConfig()
         ws_config = WorkspaceConfig()
@@ -607,10 +623,6 @@ class TestPreparePreflightFailure:
 
     def test_preflight_failure_returns_errors(self, tmp_path: Path) -> None:
         """Preflight failure populates result.errors and returns early."""
-        from unittest.mock import AsyncMock, patch
-
-        from releasekit.preflight import PreflightResult
-
         vcs = _FakeVCS()
         config = ReleaseConfig()
         ws_config = WorkspaceConfig()
@@ -757,7 +769,6 @@ class TestPreparePushFailure:
 
     def test_push_failure_raises(self, tmp_path: Path) -> None:
         """Push failure raises RuntimeError."""
-        import pytest
 
         class FailPushVCS(_FakeVCS):
             """VCS that fails on push."""
@@ -820,7 +831,6 @@ class TestPreparePRCreationFailure:
 
     def test_pr_creation_failure_raises(self, tmp_path: Path) -> None:
         """PR creation failure raises RuntimeError."""
-        import pytest
 
         class FailCreatePRForge(_FakeForge):
             """Forge that fails to create PR."""
@@ -949,8 +959,6 @@ class TestPreparePackageNotFound:
 
     def test_bumped_package_not_in_workspace(self, tmp_path: Path) -> None:
         """Bumped package missing from workspace records an error."""
-        from unittest.mock import AsyncMock, patch
-
         vcs = _FakeVCS()
         config = ReleaseConfig()
         ws_config = WorkspaceConfig()

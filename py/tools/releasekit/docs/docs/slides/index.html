@@ -1,0 +1,755 @@
+<!doctype html>
+<!--
+  Copyright 2026 Google LLC
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReleaseKit — Release Orchestration for Monorepo Workspaces</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" id="highlight-theme">
+  <style>
+    /* ── Dark mode (default) ── */
+    :root {
+      --r-background-color: #0d1117;
+      --r-main-color: #e6edf3;
+      --r-heading-color: #58a6ff;
+      --r-link-color: #58a6ff;
+      --r-link-color-hover: #79c0ff;
+      --r-selection-background-color: #1f6feb;
+      --r-heading-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      --r-main-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      --r-code-font: 'JetBrains Mono', 'Fira Code', monospace;
+      --rk-surface: #161b22;
+      --rk-border: #30363d;
+      --rk-dim: #8b949e;
+      --rk-accent: #58a6ff;
+      --rk-green: #3fb950;
+      --rk-red: #f85149;
+      --rk-orange: #d29922;
+      --rk-terminal-bg: #0d1117;
+      --rk-before-border: #f8514966;
+      --rk-after-border: #3fb95066;
+      --rk-table-even: #161b2288;
+    }
+    /* ── Light mode (OS preference fallback) ── */
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --r-background-color: #ffffff;
+        --r-main-color: #1f2328;
+        --r-heading-color: #0969da;
+        --r-link-color: #0969da;
+        --r-link-color-hover: #0550ae;
+        --r-selection-background-color: #ddf4ff;
+        --rk-surface: #f6f8fa;
+        --rk-border: #d0d7de;
+        --rk-dim: #656d76;
+        --rk-accent: #0969da;
+        --rk-green: #1a7f37;
+        --rk-red: #cf222e;
+        --rk-orange: #9a6700;
+        --rk-terminal-bg: #f6f8fa;
+        --rk-before-border: #cf222e66;
+        --rk-after-border: #1a7f3766;
+        --rk-table-even: #f6f8fa88;
+      }
+    }
+    /* ── Light mode (explicit toggle) ── */
+    :root[data-theme="light"] {
+      --r-background-color: #ffffff;
+      --r-main-color: #1f2328;
+      --r-heading-color: #0969da;
+      --r-link-color: #0969da;
+      --r-link-color-hover: #0550ae;
+      --r-selection-background-color: #ddf4ff;
+      --rk-surface: #f6f8fa;
+      --rk-border: #d0d7de;
+      --rk-dim: #656d76;
+      --rk-accent: #0969da;
+      --rk-green: #1a7f37;
+      --rk-red: #cf222e;
+      --rk-orange: #9a6700;
+      --rk-terminal-bg: #f6f8fa;
+      --rk-before-border: #cf222e66;
+      --rk-after-border: #1a7f3766;
+      --rk-table-even: #f6f8fa88;
+    }
+    .reveal { font-size: 32px; }
+    .reveal h1 { font-size: 2.2em; font-weight: 700; }
+    .reveal h2 { font-size: 1.6em; font-weight: 600; color: var(--r-heading-color); }
+    .reveal h3 { font-size: 1.2em; font-weight: 600; color: var(--rk-dim); }
+    .reveal code { font-size: 0.85em; }
+    .reveal pre { width: 100%; font-size: 0.55em; }
+    .reveal pre code { max-height: 500px; padding: 1em; }
+    .reveal .small { font-size: 0.7em; color: var(--rk-dim); }
+    .reveal .accent { color: var(--rk-accent); }
+    .reveal .green { color: var(--rk-green); }
+    .reveal .red { color: var(--rk-red); }
+    .reveal .orange { color: var(--rk-orange); }
+    .reveal .dim { color: var(--rk-dim); }
+    .reveal .emoji { font-size: 1.2em; }
+
+    /* Two-column layout */
+    .cols { display: flex; gap: 2em; align-items: flex-start; }
+    .cols > * { flex: 1; }
+
+    /* Metric cards */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; margin-top: 0.5em; }
+    .metric {
+      background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 8px;
+      padding: 0.8em; text-align: center;
+    }
+    .metric .number { font-size: 2em; font-weight: 700; color: var(--rk-accent); }
+    .metric .label { font-size: 0.6em; color: var(--rk-dim); margin-top: 0.2em; }
+
+    /* Before/After comparison */
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5em; }
+    .before, .after {
+      background: var(--rk-surface); border-radius: 8px; padding: 1em;
+      border: 2px solid var(--rk-border); text-align: left;
+    }
+    .before { border-color: var(--rk-before-border); }
+    .after { border-color: var(--rk-after-border); }
+    .before h3, .after h3 { margin-top: 0; font-size: 1em; }
+    .before h3 { color: var(--rk-red); }
+    .after h3 { color: var(--rk-green); }
+    .before ul, .after ul { font-size: 0.65em; margin: 0; padding-left: 1.2em; }
+
+    /* Feature grid */
+    .features { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8em; margin-top: 0.5em; }
+    .feature {
+      background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 8px;
+      padding: 0.6em 0.8em; text-align: left; font-size: 0.6em;
+    }
+    .feature .icon { font-size: 1.4em; margin-right: 0.3em; }
+
+    /* Pipeline diagram */
+    .pipeline {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin: 1em 0; flex-wrap: nowrap;
+    }
+    .pipeline .stage {
+      padding: 0.5em 1em; border-radius: 8px; font-weight: 600;
+      font-size: 0.7em; white-space: nowrap;
+    }
+    .pipeline .arrow { font-size: 1.2em; color: var(--rk-dim); margin: 0 0.3em; }
+    .stage-1 { background: #bbdefb; color: #0d47a1; }
+    .stage-2 { background: #90caf9; color: #0d47a1; }
+    .stage-3 { background: #64b5f6; color: #0d47a1; }
+    .stage-4 { background: #42a5f5; color: #0d47a1; }
+    .stage-5 { background: #1e88e5; color: #e3f2fd; }
+
+    /* Terminal mockup */
+    .terminal {
+      background: var(--rk-terminal-bg); border: 1px solid var(--rk-border); border-radius: 8px;
+      padding: 1em; text-align: left; font-family: var(--r-code-font);
+      font-size: 0.5em; line-height: 1.6; margin-top: 0.5em;
+    }
+    .terminal .prompt { color: var(--rk-dim); }
+    .terminal .cmd { color: var(--rk-accent); }
+    .terminal .output { color: var(--r-main-color); }
+    .terminal .success { color: var(--rk-green); }
+    .terminal .error { color: var(--rk-red); }
+    .terminal .warn { color: var(--rk-orange); }
+    .terminal .hint { color: var(--rk-dim); }
+
+    /* Competitive table */
+    .reveal table { font-size: 0.5em; margin: 0.5em auto; }
+    .reveal table th { background: var(--rk-surface); color: var(--rk-accent); font-weight: 600; }
+    .reveal table td, .reveal table th {
+      padding: 0.3em 0.5em; border: 1px solid var(--rk-border);
+    }
+    .reveal table tr:nth-child(even) { background: var(--rk-table-even); }
+
+    /* Timeline */
+    .timeline { text-align: left; font-size: 0.65em; margin-top: 0.5em; }
+    .timeline .item {
+      padding: 0.4em 0 0.4em 1.5em;
+      border-left: 2px solid var(--rk-border); position: relative;
+    }
+    .timeline .item::before {
+      content: ''; position: absolute; left: -6px; top: 0.6em;
+      width: 10px; height: 10px; border-radius: 50%; background: var(--rk-accent);
+    }
+    .timeline .item.done::before { background: var(--rk-green); }
+
+    /* Slide number styling */
+    .reveal .slide-number { font-size: 0.5em; color: var(--rk-dim); }
+
+    /* Theme toggle button */
+    #theme-toggle {
+      position: fixed; top: 12px; right: 12px; z-index: 100;
+      background: var(--rk-surface); border: 1px solid var(--rk-border);
+      border-radius: 6px; padding: 0.35em 0.6em; cursor: pointer;
+      font-size: 14px; line-height: 1; color: var(--r-main-color);
+      transition: background 0.2s, border-color 0.2s;
+    }
+    #theme-toggle:hover { border-color: var(--rk-accent); }
+  </style>
+</head>
+<body>
+<button id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">&#x1F319;</button>
+<div class="reveal">
+<div class="slides">
+
+<!-- ============================================================ -->
+<!-- TITLE SLIDE -->
+<!-- ============================================================ -->
+<section>
+  <h1 style="font-size:2.5em;">
+    <span style="color:var(--rk-accent);">Release</span><span style="color:var(--r-main-color);">Kit</span>
+  </h1>
+  <h3 style="color:var(--rk-dim); font-weight:400; margin-top:0.5em;">
+    Release Orchestration for Monorepo Workspaces
+  </h3>
+  <p class="small" style="margin-top:2em;">
+    Publish packages in topological order with dependency-triggered scheduling,<br>
+    crash-safe resume, SLSA provenance, and one-click rollback.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<!-- THE PROBLEM -->
+<!-- ============================================================ -->
+<section>
+  <section>
+    <h2>The Problem</h2>
+    <p style="font-size:0.8em;">
+      How do you publish <span class="accent">62 interdependent packages</span><br>
+      to PyPI in the correct order?
+    </p>
+    <div class="metrics" style="margin-top:1em;">
+      <div class="metric">
+        <div class="number">62</div>
+        <div class="label">packages in the workspace</div>
+      </div>
+      <div class="metric">
+        <div class="number">121</div>
+        <div class="label">dependency edges</div>
+      </div>
+      <div class="metric">
+        <div class="number">4</div>
+        <div class="label">topological levels</div>
+      </div>
+      <div class="metric">
+        <div class="number">6</div>
+        <div class="label">ecosystems (Py, JS, Go, Rust, Java, Dart)</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why Is This Hard?</h2>
+    <div style="text-align:left; font-size:0.75em;">
+      <p><span class="emoji">1&#xFE0F;&#x20E3;</span> <strong>Correct ordering</strong> &mdash; <code>genkit</code> (core) must publish <em>before</em> any plugin that depends on it</p>
+      <p><span class="emoji">2&#xFE0F;&#x20E3;</span> <strong>Ephemeral version pinning</strong> &mdash; workspace deps (<code>genkit = { workspace = true }</code>) must be rewritten to concrete versions for PyPI</p>
+      <p><span class="emoji">3&#xFE0F;&#x20E3;</span> <strong>Transitive propagation</strong> &mdash; if <code>genkit</code> bumps 0.5 &rarr; 0.6, all 61 dependents must also bump</p>
+      <p><span class="emoji">4&#xFE0F;&#x20E3;</span> <strong>Crash safety</strong> &mdash; if it fails at package #37, resume from there &mdash; not from scratch</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>No Existing Tool Does This</h2>
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>Monorepo?</th><th>Dep Graph?</th><th>Topo Publish?</th><th>Multi-Ecosystem?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>uv publish</code></td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+        <tr><td><code>twine</code> / <code>flit</code></td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+        <tr><td>release-please</td><td class="orange">Partial</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="orange">Partial</td></tr>
+        <tr><td>semantic-release</td><td class="red">&#x2718; (plugin)</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+        <tr><td>changesets</td><td class="green">&#x2714;</td><td class="orange">Partial</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+        <tr><td><strong>ReleaseKit</strong></td><td class="green">&#x2714;</td><td class="green">&#x2714;</td><td class="green">&#x2714;</td><td class="green">&#x2714;</td></tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<!-- THE SOLUTION -->
+<!-- ============================================================ -->
+<section>
+  <section>
+    <h2>The Solution: ReleaseKit</h2>
+    <p style="font-size:0.75em;">One command takes you from conventional commits<br>to published, signed, verified packages.</p>
+    <div class="pipeline">
+      <div class="stage stage-1">discover</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage stage-2">plan</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage stage-3">prepare</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage stage-4">publish</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage stage-5">release</div>
+    </div>
+    <table style="font-size:0.55em; margin-top:0.5em;">
+      <tr><td class="accent"><strong>discover</strong></td><td>Scan workspace for packages and dependencies</td></tr>
+      <tr><td class="accent"><strong>plan</strong></td><td>Compute version bumps from Conventional Commits</td></tr>
+      <tr><td class="accent"><strong>prepare</strong></td><td>Bump versions, generate changelogs, open Release PR</td></tr>
+      <tr><td class="accent"><strong>publish</strong></td><td>Build &amp; upload in topological dependency order</td></tr>
+      <tr><td class="accent"><strong>release</strong></td><td>Tag the repo, create GitHub Releases with notes</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Key Features</h2>
+    <div class="features">
+      <div class="feature"><span class="icon">&#x1F4CA;</span> <strong>Dependency-Aware Scheduling</strong><br>Packages publish as soon as deps finish</div>
+      <div class="feature"><span class="icon">&#x1F30D;</span> <strong>Multi-Ecosystem</strong><br>Python, JS, Go, Rust, Java, Dart</div>
+      <div class="feature"><span class="icon">&#x1F6E1;&#xFE0F;</span> <strong>Crash-Safe Resume</strong><br>Interrupted releases pick up where they left off</div>
+      <div class="feature"><span class="icon">&#x1F512;</span> <strong>SLSA Provenance (L0&ndash;L3)</strong><br>Sigstore signing + SBOM generation</div>
+      <div class="feature"><span class="icon">&#x2705;</span> <strong>33 Health Checks</strong><br>Catch issues at PR time, 17 auto-fixable</div>
+      <div class="feature"><span class="icon">&#x21A9;&#xFE0F;</span> <strong>One-Click Rollback</strong><br>Delete tags + releases with one command</div>
+      <div class="feature"><span class="icon">&#x1F500;</span> <strong>Multi-Forge</strong><br>GitHub, GitLab, Bitbucket</div>
+      <div class="feature"><span class="icon">&#x2696;&#xFE0F;</span> <strong>OSPS Compliance</strong><br>OpenSSF Baseline with Rust-style diagnostics</div>
+    </div>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEMO: DISCOVER -->
+<!-- ============================================================ -->
+<section>
+  <section>
+    <h2>Demo: Discover</h2>
+    <p class="dim" style="font-size:0.7em;">Auto-detect all packages and their dependencies</p>
+    <div class="terminal">
+      <span class="prompt">$</span> <span class="cmd">releasekit discover</span><br><br>
+      <span class="output">Found <span class="accent">62 packages</span> in uv workspace:</span><br>
+      <span class="output">&nbsp;&nbsp;Level 0: genkit (core)</span><br>
+      <span class="output">&nbsp;&nbsp;Level 1: genkit-plugin-firebase, genkit-plugin-google-ai, ...</span><br>
+      <span class="output">&nbsp;&nbsp;Level 2: genkit-plugin-vertex-ai, genkit-plugin-ollama, ...</span><br>
+      <span class="output">&nbsp;&nbsp;Level 3: genkit-sample-chatbot, genkit-sample-rag, ...</span><br><br>
+      <span class="output"><span class="accent">121</span> dependency edges across <span class="accent">4</span> topological levels.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Demo: Graph Visualization</h2>
+    <p class="dim" style="font-size:0.7em;">8 output formats: ASCII, Mermaid, DOT, D2, JSON, CSV, Table, Levels</p>
+    <div class="terminal">
+      <span class="prompt">$</span> <span class="cmd">releasekit graph --format ascii</span><br><br>
+      <span class="output">Level 0 ─── genkit</span><br>
+      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;┌─┴──────────────────┐</span><br>
+      <span class="output">Level 1 ── firebase &nbsp;&nbsp;google-ai &nbsp;&nbsp;ollama &nbsp;&nbsp;...</span><br>
+      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+      <span class="output">Level 2 ── vertex-ai &nbsp;pinecone &nbsp;&nbsp;chroma &nbsp;&nbsp;...</span><br>
+      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+      <span class="output">Level 3 ── chatbot &nbsp;&nbsp;&nbsp;rag-sample &nbsp;...</span><br>
+    </div>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEMO: HEALTH CHECKS -->
+<!-- ============================================================ -->
+<section>
+  <h2>Demo: Health Checks</h2>
+  <p class="dim" style="font-size:0.7em;">33 checks run on every PR &mdash; 17 are auto-fixable with <code>--fix</code></p>
+  <div class="terminal">
+    <span class="prompt">$</span> <span class="cmd">releasekit check</span><br><br>
+    <span class="success">&#x2714; license-file-exists</span><br>
+    <span class="success">&#x2714; readme-file-exists</span><br>
+    <span class="success">&#x2714; no-circular-dependencies</span><br>
+    <span class="success">&#x2714; version-consistency</span><br>
+    <span class="success">&#x2714; pep561-py-typed-markers</span><br>
+    <span class="error">&#x2718; requires-python-declared &nbsp;&nbsp;&nbsp;&nbsp;(auto-fixable)</span><br>
+    <span class="success">&#x2714; lockfile-up-to-date</span><br>
+    <span class="success">&#x2714; naming-conventions</span><br>
+    <span class="output">...</span><br><br>
+    <span class="output">32/33 checks passed. 1 auto-fixable.</span><br><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit check --fix</span><br>
+    <span class="success">&#x2714; Fixed: requires-python-declared</span><br>
+    <span class="success">33/33 checks passed.</span>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEMO: COMPLIANCE -->
+<!-- ============================================================ -->
+<section>
+  <h2>Demo: OSPS Compliance</h2>
+  <p class="dim" style="font-size:0.7em;">Rust-style diagnostics with actionable hints</p>
+  <div class="terminal">
+    <span class="prompt">$</span> <span class="cmd">releasekit compliance</span><br><br>
+    <span class="output">ID &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Level &nbsp;Status</span><br>
+    <span class="output">&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;</span><br>
+    <span class="success">OSPS-SCA-01 &nbsp;SBOM generation &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;L1 &nbsp;&nbsp;&nbsp;&#x2705; met</span><br>
+    <span class="error">OSPS-GOV-01 &nbsp;Security policy &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;L1 &nbsp;&nbsp;&nbsp;&#x274C; gap</span><br>
+    <span class="output">...</span><br><br>
+    <span class="error">error[OSPS-GOV-01]: Security policy (SECURITY.md)</span><br>
+    <span class="hint">&nbsp;&nbsp;--&gt; OSPS Baseline L1</span><br>
+    <span class="hint">&nbsp;&nbsp; = help: Create SECURITY.md at the repo root</span><br>
+    <span class="hint">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; describing how to report vulnerabilities.</span><br><br>
+    <span class="output">Found <span class="error">5 error(s)</span>, <span class="warn">3 warning(s)</span>.</span>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEMO: PUBLISH -->
+<!-- ============================================================ -->
+<section>
+  <section>
+    <h2>Demo: Publish</h2>
+    <p class="dim" style="font-size:0.7em;">Topological publish with dependency-triggered scheduling</p>
+    <div class="terminal">
+      <span class="prompt">$</span> <span class="cmd">releasekit publish</span><br><br>
+      <span class="output">[1/62] <span class="accent">genkit</span> 0.5.0 &rarr; 0.6.0</span><br>
+      <span class="output">&nbsp;&nbsp;&#x25B6; pin deps &rarr; build &rarr; upload &rarr; poll &rarr; verify &rarr; restore</span><br>
+      <span class="success">&nbsp;&nbsp;&#x2714; Published to PyPI (SHA-256 verified)</span><br><br>
+      <span class="output">[2/62] <span class="accent">genkit-plugin-firebase</span> 0.5.0 &rarr; 0.6.0</span><br>
+      <span class="output">&nbsp;&nbsp;&#x25B6; pin deps &rarr; build &rarr; upload &rarr; poll &rarr; verify &rarr; restore</span><br>
+      <span class="success">&nbsp;&nbsp;&#x2714; Published to PyPI (SHA-256 verified)</span><br><br>
+      <span class="output">...</span><br><br>
+      <span class="success">&#x2714; 62/62 packages published in 4m 32s.</span><br>
+      <span class="success">&#x2714; All checksums verified against PyPI.</span><br>
+      <span class="success">&#x2714; Sigstore signatures attached.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Publish Pipeline: 6 Stages</h2>
+    <p class="dim" style="font-size:0.7em;">Each package goes through 6 stages with automatic retry</p>
+    <div class="pipeline" style="flex-wrap: wrap; gap: 0.3em;">
+      <div class="stage" style="background:#bbdefb;color:#0d47a1;">1. Pin Deps</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage" style="background:#90caf9;color:#0d47a1;">2. Build</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage" style="background:#64b5f6;color:#0d47a1;">3. Upload</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage" style="background:#42a5f5;color:#0d47a1;">4. Poll</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage" style="background:#a5d6a7;color:#1b5e20;">5. Verify</div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage" style="background:#81c784;color:#1b5e20;">6. Restore</div>
+    </div>
+    <div style="font-size:0.6em; text-align:left; margin-top:1em;">
+      <p><strong>Pin</strong> &mdash; Rewrite <code>workspace = true</code> to concrete versions</p>
+      <p><strong>Build</strong> &mdash; <code>uv build</code> / <code>pnpm pack</code> / <code>cargo build --release</code></p>
+      <p><strong>Upload</strong> &mdash; Upload to registry with retry + exponential backoff</p>
+      <p><strong>Poll</strong> &mdash; Wait for registry to index the new version</p>
+      <p><strong>Verify</strong> &mdash; SHA-256 checksum match against registry</p>
+      <p><strong>Restore</strong> &mdash; Restore <code>pyproject.toml</code> to workspace form</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Crash Safety</h2>
+    <p class="dim" style="font-size:0.7em;">State is persisted after each package &mdash; resume from failure point</p>
+    <div class="terminal">
+      <span class="error">&#x2718; Package #37 (genkit-plugin-pinecone) failed: PyPI 502</span><br>
+      <span class="output">&nbsp;&nbsp;State saved to .releasekit-state.json</span><br><br>
+      <span class="dim"># Fix the issue, then resume:</span><br>
+      <span class="prompt">$</span> <span class="cmd">releasekit publish</span><br><br>
+      <span class="output">Resuming from package #37 (36 already published)...</span><br>
+      <span class="output">[37/62] <span class="accent">genkit-plugin-pinecone</span></span><br>
+      <span class="success">&nbsp;&nbsp;&#x2714; Published (retry 1/3, backoff 2.4s)</span><br>
+      <span class="output">...</span><br>
+      <span class="success">&#x2714; 62/62 packages published.</span>
+    </div>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<!-- BEFORE / AFTER -->
+<!-- ============================================================ -->
+<section>
+  <h2>Before &amp; After</h2>
+  <div class="comparison">
+    <div class="before">
+      <h3>&#x274C; Before ReleaseKit</h3>
+      <ul>
+        <li>Hours of manual work per release</li>
+        <li>Hardcoded package lists in shell scripts</li>
+        <li>No dependency ordering</li>
+        <li>No error recovery &mdash; start over on failure</li>
+        <li>No changelog generation</li>
+        <li>No preflight checks</li>
+        <li>No provenance or signing</li>
+        <li>No version preview</li>
+      </ul>
+    </div>
+    <div class="after">
+      <h3>&#x2705; After ReleaseKit</h3>
+      <ul>
+        <li>Minutes &mdash; fully automated</li>
+        <li>Auto-discovery via workspace</li>
+        <li>Topological publish order</li>
+        <li>Crash-safe resume from failure point</li>
+        <li>Auto-generated changelogs</li>
+        <li>33 health checks (17 auto-fixable)</li>
+        <li>SLSA provenance + Sigstore signing</li>
+        <li><code>releasekit plan</code> shows everything</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- IMPACT METRICS -->
+<!-- ============================================================ -->
+<section>
+  <h2>Impact</h2>
+  <table>
+    <thead>
+      <tr><th>Metric</th><th class="red">Before</th><th class="green">After</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Release time</strong></td><td>Hours (manual)</td><td>Minutes (automated)</td></tr>
+      <tr><td><strong>Wrong ordering risk</strong></td><td>High</td><td>Zero (topological sort)</td></tr>
+      <tr><td><strong>Crash recovery</strong></td><td>Start over</td><td>Resume from failure</td></tr>
+      <tr><td><strong>Version consistency</strong></td><td>Error-prone</td><td>Enforced by 33 checks</td></tr>
+      <tr><td><strong>Missing metadata</strong></td><td>Found after publish</td><td>Caught at PR time</td></tr>
+      <tr><td><strong>Changelog</strong></td><td>Manual</td><td>Auto-generated</td></tr>
+      <tr><td><strong>PyPI verification</strong></td><td>Manual spot-check</td><td>Automated checksum + smoke test</td></tr>
+      <tr><td><strong>Rollback</strong></td><td>Manual tag deletion</td><td>One command or one click</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<!-- SUPPLY CHAIN SECURITY -->
+<!-- ============================================================ -->
+<section>
+  <h2>Supply Chain Security</h2>
+  <p class="dim" style="font-size:0.7em;">Built-in compliance with OpenSSF and SLSA frameworks</p>
+  <div class="features">
+    <div class="feature"><span class="icon">&#x1F512;</span> <strong>Sigstore Signing</strong><br>Keyless signing via ambient OIDC credentials</div>
+    <div class="feature"><span class="icon">&#x1F4DC;</span> <strong>SLSA Provenance</strong><br>In-toto v1 attestations (L0&ndash;L3)</div>
+    <div class="feature"><span class="icon">&#x1F4E6;</span> <strong>SBOM Generation</strong><br>CycloneDX 1.5 + SPDX 2.3</div>
+    <div class="feature"><span class="icon">&#x2696;&#xFE0F;</span> <strong>OSPS Baseline</strong><br>L1&ndash;L3 compliance with actionable hints</div>
+    <div class="feature"><span class="icon">&#x1F50D;</span> <strong>Checksum Verification</strong><br>SHA-256 verified against registry</div>
+    <div class="feature"><span class="icon">&#x1F6AB;</span> <strong>Vulnerability Scanning</strong><br>OSV + ecosystem-specific tools</div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- CI INTEGRATION -->
+<!-- ============================================================ -->
+<section>
+  <h2>CI Integration</h2>
+  <p class="dim" style="font-size:0.7em;">Two-level integration: PR checks + publish workflow</p>
+  <div class="cols">
+    <div>
+      <h3 style="color:var(--rk-accent);">PR Checks</h3>
+      <pre><code class="language-yaml"># .github/workflows/lint.yml
+on: pull_request
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: releasekit check
+      - run: releasekit compliance</code></pre>
+    </div>
+    <div>
+      <h3 style="color:var(--rk-accent);">Publish</h3>
+      <pre><code class="language-yaml"># .github/workflows/publish.yml
+on:
+  push:
+    tags: ['v*']
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: releasekit publish</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- VS ALTERNATIVES -->
+<!-- ============================================================ -->
+<section>
+  <h2>vs. Alternatives</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Capability</th>
+        <th>ReleaseKit</th>
+        <th>release-please</th>
+        <th>semantic-release</th>
+        <th>changesets</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Monorepo</td><td class="green">&#x2714;</td><td class="green">&#x2714;</td><td class="red">&#x2718; (plugin)</td><td class="green">&#x2714;</td></tr>
+      <tr><td>Dep graph ordering</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+      <tr><td>Multi-ecosystem</td><td class="green">&#x2714; 6 langs</td><td class="orange">Partial</td><td class="red">JS only</td><td class="red">JS only</td></tr>
+      <tr><td>Health checks</td><td class="green">&#x2714; 33</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+      <tr><td>Rollback</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+      <tr><td>Retry + backoff</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+      <tr><td>SLSA provenance</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
+      <tr><td>Multi-forge</td><td class="green">GH/GL/BB</td><td class="red">GH only</td><td class="green">GH/GL/BB</td><td class="red">GH only</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<!-- ARCHITECTURE -->
+<!-- ============================================================ -->
+<section>
+  <h2>Architecture</h2>
+  <p class="dim" style="font-size:0.7em;">Pluggable backend protocols &mdash; add new ecosystems without touching core</p>
+  <pre><code class="language-text" style="font-size:0.9em;">src/releasekit/
+├── cli.py              # CLI entry point
+├── config.py           # releasekit.toml parser
+├── graph.py            # DAG + topological sort
+├── scheduler.py        # Dependency-triggered async scheduler
+├── versioning.py       # Conventional Commits → semver
+├── publisher.py        # Publish pipeline orchestration
+├── compliance.py       # OSPS Baseline compliance
+├── provenance.py       # SLSA provenance generation
+├── signing.py          # Sigstore keyless signing
+├── backends/
+│   ├── forge/          # GitHub, GitLab, Bitbucket
+│   ├── pm/             # uv, pnpm
+│   ├── registry/       # PyPI, npm
+│   ├── vcs/            # Git, Mercurial
+│   ├── workspace/      # uv, pnpm, Go, Cargo, Dart, Maven
+│   └── validation/     # OIDC, schema, SBOM, SLSA
+└── formatters/         # ASCII, Mermaid, DOT, D2, ...</code></pre>
+</section>
+
+<!-- ============================================================ -->
+<!-- QUICK START -->
+<!-- ============================================================ -->
+<section>
+  <h2>Quick Start</h2>
+  <div class="terminal" style="font-size:0.55em;">
+    <span class="dim"># Install</span><br>
+    <span class="prompt">$</span> <span class="cmd">uv tool install releasekit</span><br><br>
+    <span class="dim"># Initialize config</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit init</span><br><br>
+    <span class="dim"># Discover workspace packages</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit discover</span><br><br>
+    <span class="dim"># View the dependency graph</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit graph --format ascii</span><br><br>
+    <span class="dim"># Run health checks</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit check</span><br><br>
+    <span class="dim"># Preview what a release would look like</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit plan</span><br><br>
+    <span class="dim"># Publish all changed packages</span><br>
+    <span class="prompt">$</span> <span class="cmd">releasekit publish</span>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- ASK -->
+<!-- ============================================================ -->
+<section>
+  <h2>The Ask</h2>
+  <div style="text-align:left; font-size:0.75em;">
+    <p><span class="emoji">&#x1F680;</span> <strong>ReleaseKit is production-ready</strong> for the Genkit Python SDK (62 packages).</p>
+    <p><span class="emoji">&#x1F30D;</span> <strong>Multi-ecosystem support</strong> means it can replace the manual JS release scripts too.</p>
+    <p><span class="emoji">&#x1F512;</span> <strong>Supply chain security</strong> (SLSA, Sigstore, SBOM) is built in &mdash; not bolted on.</p>
+    <p><span class="emoji">&#x1F4C9;</span> <strong>No existing tool</strong> provides dependency-graph-aware topological publishing.</p>
+  </div>
+  <div style="margin-top:1.5em; padding:1em; background:var(--rk-surface); border:2px solid var(--rk-accent); border-radius:8px;">
+    <p style="font-size:0.9em; margin:0;">
+      <strong class="accent">Adopt ReleaseKit</strong> as the standard release tool<br>
+      for all Genkit SDK workspaces.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- THANK YOU -->
+<!-- ============================================================ -->
+<section>
+  <h1 style="font-size:2.5em;">
+    <span style="color:#58a6ff;">Release</span><span style="color:#e6edf3;">Kit</span>
+  </h1>
+  <p style="color:#8b949e; margin-top:1em;">Questions?</p>
+  <p class="small" style="margin-top:2em;">
+    <code>py/tools/releasekit/</code> &nbsp;|&nbsp;
+    <code>releasekit --help</code> &nbsp;|&nbsp;
+    Docs: <code>docs/</code>
+  </p>
+</section>
+
+</div><!-- .slides -->
+</div><!-- .reveal -->
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+  // ── Light / dark theme switching with toggle button ──
+  (function() {
+    var CDN = 'https://cdn.jsdelivr.net/npm/reveal.js@5.1.0';
+    var themeLink = document.getElementById('theme');
+    var hlLink    = document.getElementById('highlight-theme');
+    var btn       = document.getElementById('theme-toggle');
+    var root      = document.documentElement;
+
+    function applyScheme(dark) {
+      themeLink.href = CDN + '/dist/theme/' + (dark ? 'black' : 'white') + '.css';
+      hlLink.href    = CDN + '/plugin/highlight/' + (dark ? 'monokai' : 'github') + '.css';
+      root.setAttribute('data-theme', dark ? 'dark' : 'light');
+      btn.textContent = dark ? '\u2600\uFE0F' : '\uD83C\uDF19';
+      btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+
+    // Resolve initial state: localStorage > prefers-color-scheme.
+    var stored = localStorage.getItem('rk-slides-theme');
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark = stored ? stored === 'dark' : prefersDark;
+    applyScheme(isDark);
+
+    btn.addEventListener('click', function() {
+      isDark = !isDark;
+      localStorage.setItem('rk-slides-theme', isDark ? 'dark' : 'light');
+      applyScheme(isDark);
+    });
+
+    // Still respond to OS-level changes when no explicit preference is stored.
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('rk-slides-theme')) {
+        isDark = e.matches;
+        applyScheme(isDark);
+      }
+    });
+  })();
+
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    showSlideNumber: 'all',
+    transition: 'slide',
+    transitionSpeed: 'default',
+    backgroundTransition: 'fade',
+    center: true,
+    plugins: [RevealHighlight, RevealNotes],
+    // Keyboard shortcuts
+    keyboard: {
+      // 'f' for fullscreen
+      70: function() { document.documentElement.requestFullscreen(); }
+    }
+  });
+</script>
+</body>
+</html>

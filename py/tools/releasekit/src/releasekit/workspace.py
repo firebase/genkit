@@ -93,6 +93,7 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import fnmatch
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,12 @@ import tomlkit
 import tomlkit.exceptions
 
 from releasekit.backends.workspace._types import Package
+from releasekit.backends.workspace.bazel import BazelWorkspace
+from releasekit.backends.workspace.cargo import CargoWorkspace
+from releasekit.backends.workspace.dart import DartWorkspace
+from releasekit.backends.workspace.go import GoWorkspace
+from releasekit.backends.workspace.maven import MavenWorkspace
+from releasekit.backends.workspace.pnpm import PnpmWorkspace
 from releasekit.errors import E, ReleaseKitError
 from releasekit.logging import get_logger
 from releasekit.utils.packaging import normalize_name as _normalize_name, parse_dep_name as _parse_dep_name
@@ -259,8 +266,6 @@ def _discover_js_packages(
     The returned ``_types.Package`` objects are converted to the
     canonical :class:`Package` used throughout releasekit.
     """
-    from releasekit.backends.workspace.pnpm import PnpmWorkspace
-
     ws = PnpmWorkspace(workspace_root)
 
     async def _run() -> list[Package]:
@@ -288,8 +293,6 @@ def _discover_js_packages(
         # Already inside an event loop — use a helper thread.
         # The Future.result() type is generic; we know _run() returns
         # list[Package] so the cast is safe.
-        import concurrent.futures
-
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             result: list[Package] = pool.submit(asyncio.run, _run()).result()  # type: ignore[arg-type]
             return result
@@ -315,15 +318,17 @@ def _discover_via_backend(
     Returns:
         List of discovered packages.
     """
-    from releasekit.backends.workspace.cargo import CargoWorkspace
-    from releasekit.backends.workspace.dart import DartWorkspace
-    from releasekit.backends.workspace.go import GoWorkspace
-    from releasekit.backends.workspace.maven import MavenWorkspace
-
-    backend_map: dict[str, type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace]] = {
-        'go': GoWorkspace,
+    _ws_type = (
+        type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace] | type[BazelWorkspace]
+    )
+    backend_map: dict[str, _ws_type] = {
+        'bazel': BazelWorkspace,
+        'clojure': MavenWorkspace,
         'dart': DartWorkspace,
+        'go': GoWorkspace,
         'java': MavenWorkspace,
+        'jvm': MavenWorkspace,
+        'kotlin': MavenWorkspace,
         'rust': CargoWorkspace,
     }
     backend_cls = backend_map.get(ecosystem)
@@ -345,8 +350,6 @@ def _discover_via_backend(
         loop = None
 
     if loop is not None:
-        import concurrent.futures
-
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             result: list[Package] = pool.submit(asyncio.run, _run()).result()  # type: ignore[arg-type]
             return result
@@ -390,7 +393,7 @@ def discover_packages(
     if ecosystem == 'js':
         return _discover_js_packages(workspace_root, exclude_patterns=exclude_patterns)
 
-    if ecosystem in ('go', 'dart', 'java', 'rust'):
+    if ecosystem in ('go', 'dart', 'java', 'jvm', 'kotlin', 'clojure', 'rust', 'bazel'):
         return _discover_via_backend(workspace_root, ecosystem, exclude_patterns=exclude_patterns)
 
     root_pyproject = workspace_root / 'pyproject.toml'

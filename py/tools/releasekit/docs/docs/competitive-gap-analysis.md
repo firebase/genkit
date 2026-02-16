@@ -1,6 +1,6 @@
 # Releasekit Competitive Gap Analysis
 
-**Date:** 2026-02-15
+**Date:** 2026-02-16
 **Sources:** Issue trackers and documentation of:
 - [release-please](https://github.com/googleapis/release-please) (Google)
 - [semantic-release](https://github.com/semantic-release/semantic-release) (JS ecosystem)
@@ -40,17 +40,14 @@ these), **High** (frequent complaints / feature requests), and **Nice-to-have**
 | python-semantic-release [#817](https://github.com/python-semantic-release/python-semantic-release/issues/817) | Pre-release entries missing from final release changelog |
 | semantic-release [#563](https://github.com/semantic-release/semantic-release/issues/563) | Multi-branch + pre-release |
 
-**Current releasekit state:** The `compute_bumps` function accepts a
-`prerelease` parameter and the forge backends support `prerelease=True` on
-`create_release`. However, there is **no CLI flag** to trigger a pre-release
-workflow, no branch-to-channel mapping, and no changelog handling for
-collapsing pre-release entries into a final release.
-
-**Recommendation:**
-- Add `--prerelease <label>` flag to `publish` and `prepare` (e.g. `--prerelease rc`, `--prerelease alpha`).
-- Support PEP 440 pre-release suffixes (`a`, `b`, `rc`, `dev`) natively.
-- Implement changelog collapsing: when a stable release follows pre-releases, merge all pre-release sections into the stable entry.
-- Add `promote` subcommand to convert a pre-release tag to a stable release.
+**Current releasekit state:** ✅ **Done (2026-02-15).** `prerelease.py`
+implements the full pre-release lifecycle:
+- `--prerelease <label>` flag on `publish` and `prepare` (alpha, beta, rc, dev).
+- PEP 440 suffixes (`a1`, `b1`, `rc1`, `.dev1`) and semver (`-alpha.1`, `-rc.1`).
+- `releasekit promote` subcommand strips the suffix to produce stable versions.
+- `escalate_prerelease()` moves between stages (alpha → beta → rc).
+- Branch-to-channel mapping via `channels.py`.
+- Changelog collapsing for pre-release → stable transitions.
 
 ### 1.2 Revert Commit Handling
 | Alternative tool issue | Votes/Comments |
@@ -72,17 +69,12 @@ appear in a "Reverted" changelog section.
 | semantic-release [#1131](https://github.com/semantic-release/semantic-release/issues/1131) | Can't publish maintenance release |
 | semantic-release [#1487](https://github.com/semantic-release/semantic-release/issues/1487) | EINVALIDNEXTVERSION on maintenance branch |
 
-**Current releasekit state:** No explicit support for releasing from
-non-default branches. The `compute_bumps` function looks at tags from the
-current branch but doesn't handle the case where a hotfix branch needs to
-produce a patch release off an older version.
-
-**Recommendation:**
-- Support `--base-branch` or branch-to-channel configuration in `releasekit.toml`.
-- Allow version computation relative to a specific tag (e.g. `--since-tag genkit-v1.2.0`).
-- Prevent accidental double-bumps when hotfix branches merge back to main.
-- Add `releasekit cherry-pick` command (R38) to selectively backport commits
-  to release/maintenance branches with conflict detection and changelog updates.
+**Current releasekit state:** ✅ **Done (2026-02-15).** `hotfix.py`
+implements full hotfix/maintenance branch support:
+- Branch-to-channel mapping via `channels.py` (`[branches]` config section).
+- `cherry_pick_commits()` for backporting commits to release branches.
+- `--since-tag` flag for version computation relative to a specific tag.
+- `bootstrap_sha` config for mid-stream adoption on existing repos.
 
 ---
 
@@ -103,13 +95,10 @@ all dependents automatically get their dependency specifiers updated.
 | release-please [#292](https://github.com/googleapis/release-please/issues/292) | Feature request, many 👍 |
 | python-semantic-release [#187](https://github.com/python-semantic-release/python-semantic-release/issues/187) | Add release notes in commit_message |
 
-**Current releasekit state:** The changelog module generates sections by
-commit type but does **not** extract or display commit authors/contributors.
-
-**Recommendation:**
-- Parse `git log --format` to extract author names and GitHub usernames.
-- Add a "Contributors" section to generated changelogs.
-- Optionally link to GitHub profiles (configurable).
+**Current releasekit state:** ✅ **Done (2026-02-15).** `ChangelogEntry.author`
+extracts commit authors from `git log`. Generated changelogs include a
+"Contributors" section with author names. GitHub profile linking is
+configurable.
 
 ### 2.3 PEP 440 Version Compliance
 | Alternative tool issue | Votes/Comments |
@@ -117,15 +106,14 @@ commit type but does **not** extract or display commit authors/contributors.
 | python-semantic-release [#455](https://github.com/python-semantic-release/python-semantic-release/issues/455) | Top 👍 issue |
 | python-semantic-release [#1018](https://github.com/python-semantic-release/python-semantic-release/issues/1018) | Version variable not changed with PEP 440 |
 
-**Current releasekit state:** The `version_pep440` check validates PEP 440
-compliance, but version bumping itself uses SemVer. For Python packages,
-pre-release suffixes should follow PEP 440 (`1.0.0a1`, `1.0.0rc1`) not
-SemVer (`1.0.0-alpha.1`).
-
-**Recommendation:**
-- Support a `version_scheme = "pep440"` config option.
-- Ensure `compute_bumps` produces PEP 440-compliant versions for Python
-  packages and SemVer for JS/Go packages.
+**Current releasekit state:** ✅ **Done.** `versioning_scheme = "pep440"` config
+option added. `_apply_bump()` is now scheme-aware: produces PEP 440 suffixes
+(`1.0.1a1`, `1.0.1b1`, `1.0.1rc1`, `1.0.1.dev1`) when `versioning_scheme = "pep440"`
+and semver format (`1.0.1-alpha.1`, `1.0.1-rc.1`) when `versioning_scheme = "semver"`.
+`compute_bumps()` threads `versioning_scheme` from `WorkspaceConfig` through all
+7 call sites (cli.py ×5, prepare.py, api.py). `_parse_base_version()` correctly
+strips both semver and PEP 440 pre-release suffixes before bumping.
+`ALLOWED_VERSIONING_SCHEMES` now includes `semver`, `pep440`, and `calver`.
 
 ### 2.4 Dry-Run / "What Version Would Be Published" Mode
 | Alternative tool issue | Votes/Comments |
@@ -161,9 +149,9 @@ All forge API calls use exponential backoff with jitter.
 bounds changelog generation for large repos. `compute_bumps` Phase 1 uses
 `asyncio.gather` for ~10× speedup on 60+ packages (R32, done 2026-02-12).
 
-**Remaining:**
-- `bootstrap-sha` config option (R26) for repos with long histories.
-- Incremental changelog updates (append new entries rather than regenerating).
+**Remaining:** ✅ All done.
+- ✅ ~~`bootstrap-sha` config option (R26)~~ — Done (2026-02-13).
+- ✅ ~~Incremental changelog updates~~ — Done (2026-02-15). `write_changelog_incremental()`.
 
 ### 2.7 Stale State / "Stuck" Release Recovery
 | Alternative tool issue | Votes/Comments |
@@ -198,19 +186,19 @@ flag on `publish` for automatic post-publish signing.
 
 **Remaining:**
 - GPG signing (Sigstore only for now).
-- PyPI Trusted Publishers / attestation workflows.
+- ✅ ~~PyPI Trusted Publishers / attestation workflows~~ — Done (2026-02-16).
+  `id-token: write` and `attestations: write` permissions added to both
+  `releasekit-uv.yml` and `publish_python.yml` workflows. SBOM upload
+  steps added for both CycloneDX and SPDX formats.
 
 ### 3.2 Auto-Merge Release PRs
 | Alternative tool issue | Votes/Comments |
 |---|---|
 | release-please [#2299](https://github.com/googleapis/release-please/issues/2299) | Enable auto-merge on PR |
 
-**Current releasekit state:** The forge backends support `merge_pr` but
-there's no auto-merge configuration.
-
-**Recommendation:**
-- Add `auto_merge = true` config option for release PRs.
-- Support `--auto-merge` flag on `prepare`.
+**Current releasekit state:** ✅ **Done (2026-02-15).** `auto_merge` config
+option in `WorkspaceConfig` enables automatic merging of release PRs.
+The forge backends' `merge_pr` is invoked automatically when configured.
 
 ### 3.3 Disable/Customize Changelog Generation
 | Alternative tool issue | Votes/Comments |
@@ -219,13 +207,12 @@ there's no auto-merge configuration.
 | release-please [#2634](https://github.com/googleapis/release-please/issues/2634) | changelog-path has no effect |
 | python-semantic-release [#1132](https://github.com/python-semantic-release/python-semantic-release/issues/1132) | Custom changelog ignores update mode |
 
-**Current releasekit state:** ✅ **Partially done.** The `changelog = false`
-config option exists per-workspace in `WorkspaceConfig`. Customization via
-Jinja2 templates is not yet implemented.
-
-**Recommendation:**
-- Support custom Jinja2 templates for changelog rendering.
-- Add `changelog_path` config for non-standard locations.
+**Current releasekit state:** ✅ **Done (2026-02-15).** The `changelog = false`
+config option exists per-workspace in `WorkspaceConfig`. Custom Jinja2
+templates are supported via `changelog_template` config option in
+`WorkspaceConfig`. The `changelog.py` module renders changelogs through
+Jinja2 when a template path is configured. `changelog_path` config is
+also supported for non-standard locations.
 
 ### 3.4 Plugin / Extension System
 | Alternative tool issue | Votes/Comments |
@@ -233,15 +220,14 @@ Jinja2 templates is not yet implemented.
 | python-semantic-release [#321](https://github.com/python-semantic-release/python-semantic-release/issues/321) | Plugin-based releases |
 | semantic-release | Entire architecture is plugin-based |
 
-**Current releasekit state:** The backend architecture (VCS, PM, Forge,
-Registry) is already modular and swappable. But there's no user-facing
-plugin system for custom steps.
-
-**Recommendation (lower priority):**
-- Consider entry-point-based plugin discovery for custom fixers, checks,
-  and publish steps.
-- This is lower priority since the backend architecture already provides
-  extensibility for internal use.
+**Current releasekit state:** ✅ **Partially done (2026-02-15).** The backend
+architecture (VCS, PM, Forge, Registry) is modular and swappable. A
+lightweight **lifecycle hooks system** (`hooks.py`) provides 4 hook points
+(`before_publish`, `after_publish`, `before_tag`, `after_tag`) for running
+arbitrary shell commands at lifecycle points — matching the §8.4
+recommendation. A full entry-point-based plugin discovery system for custom
+fixers, checks, and publish steps remains a future consideration but is
+lower priority since hooks cover the most common use cases.
 
 ### 3.5 Multi-Forge Notifications
 | Alternative tool issue | Votes/Comments |
@@ -277,7 +263,7 @@ These are pain points in alternatives that releasekit **already solves**:
 | **uv workspace support** | release-please [#2561](https://github.com/googleapis/release-please/issues/2561) (feature request) | ✅ Native uv workspace discovery |
 | **Version preview** | semantic-release [#753](https://github.com/semantic-release/semantic-release/issues/753), [#1647](https://github.com/semantic-release/semantic-release/issues/1647) | ✅ `releasekit version` and `releasekit plan` |
 | **Multi-forge support** | release-please (GitHub only), python-semantic-release [#666](https://github.com/python-semantic-release/python-semantic-release/issues/666) (GitLab guide needed) | ✅ GitHub, GitLab, Bitbucket, none |
-| **Workspace health checks** | No equivalent in any alternative | ✅ 34 automated checks with `--fix` |
+| **Workspace health checks** | No equivalent in any alternative | ✅ 33+ automated checks with `--fix` |
 | **Shell completions** | Not available in alternatives | ✅ bash, zsh, fish |
 | **Error explainer** | Not available in alternatives | ✅ `releasekit explain <code>` |
 | **Rollback** | No built-in rollback in alternatives | ✅ `releasekit rollback <tag>` |
@@ -287,30 +273,37 @@ These are pain points in alternatives that releasekit **already solves**:
 | **Distro packaging sync** | No equivalent in any alternative | ✅ Auto-syncs Debian, Fedora, Homebrew deps from `pyproject.toml` via `releasekit check --fix` |
 | **Revert cancellation** | release-please [#296](https://github.com/googleapis/release-please/issues/296) (open since 2019) | ✅ Per-level bump counters with revert decrement |
 | **Sigstore signing** | release-please [#1314](https://github.com/googleapis/release-please/issues/1314) (GPG only) | ✅ Keyless Sigstore signing + verification via `releasekit sign`/`verify` |
-| **SBOM generation** | No equivalent in any alternative (except goreleaser) | ✅ CycloneDX + SPDX via `sbom.py` |
+| **SBOM generation** | No equivalent in any alternative (except goreleaser) | ✅ CycloneDX + SPDX via `sbom.py`, auto-generated during `publish` |
 | **Release state diagnostics** | No equivalent | ✅ `releasekit doctor` with 6 checks (config, tags, VCS, forge, branch) |
 
 ---
 
-## 5. PRIORITIZED ROADMAP RECOMMENDATION
+## 5. GAP RESOLUTION STATUS
 
-### Phase 1 (Next release)
-1. **Pre-release workflow** (`--prerelease` flag + PEP 440 suffixes)
-2. ✅ ~~**Revert commit handling**~~ — Done.
-3. ✅ ~~**`releasekit doctor`**~~ — Done.
+### Completed
 
-### Phase 2 (Following release)
-1. ✅ ~~**Internal dependency version propagation**~~ — Done.
-2. ✅ ~~**Contributor attribution in changelogs**~~ — Done.
-3. **Incremental changelog generation** (performance)
-4. **Hotfix branch support** (`--base-branch`)
+1. ✅ **Pre-release workflow** — `prerelease.py` (PEP 440 + semver, `promote` CLI, `escalate_prerelease`).
+2. ✅ **Revert commit handling** — Per-level bump counters with revert decrement.
+3. ✅ **`releasekit doctor`** — 6 diagnostic checks.
+4. ✅ **Internal dependency version propagation** — BFS via `graph.reverse_edges`.
+5. ✅ **Contributor attribution in changelogs** — `ChangelogEntry.author`.
+6. ✅ **Incremental changelog generation** — `write_changelog_incremental()`.
+7. ✅ **Hotfix branch support** — `hotfix.py` + `cherry_pick_commits()`.
+8. ✅ **Sigstore signing + verification** — `signing.py`.
+9. ✅ **Auto-merge release PRs** — `auto_merge` config.
+10. ✅ **SBOM generation** — CycloneDX + SPDX.
+11. ✅ **Custom changelog templates** — Jinja2 support in `changelog.py`.
+12. ✅ **Branch-to-channel mapping** — `channels.py`.
+13. ✅ **Lifecycle hooks** — `hooks.py` (4 hook points).
+14. ✅ **Scheduled releases** — `should_release.py`.
+15. ✅ **Continuous deploy mode** — `release_mode = "continuous"` + `--if-needed`.
 
-### Phase 3 (Future)
-1. ✅ ~~**Sigstore signing + verification**~~ — Done.
-2. ✅ ~~**Auto-merge release PRs**~~ — Done.
-3. ✅ ~~**SBOM generation**~~ — Done (CycloneDX + SPDX).
-4. **Custom changelog templates**
-5. **Plugin system for custom steps**
+### Remaining
+
+1. **Trunk-based development documentation** — How-to recipe (tooling exists, docs missing).
+2. **Interactive mode** — Prompt-based version selection (release-it advantage).
+3. **`--no-increment` re-run releases** — Republish existing tag without bumping (release-it advantage).
+4. **Full plugin system** — Entry-point discovery for custom steps (hooks cover most cases).
 
 ---
 
@@ -420,9 +413,9 @@ changesets are consumed to produce version bumps and changelogs.
 - ✅ Polyglot (not JS-only).
 - ✅ Individual package publishing.
 
-**Gap to consider:**
-- **Snapshot releases** — Useful for CI testing. Releasekit could add
-  `--snapshot` flag that publishes `0.0.0-dev.<sha>` versions.
+**Gap to consider:** ✅ Done.
+- ✅ ~~**Snapshot releases**~~ — Done (2026-02-15). `snapshot.py` with
+  `snapshot` CLI subcommand that publishes `0.0.0-dev.<sha>` versions.
 - **Intent files** — Could be a complementary approach to conventional
   commits for cases where commit messages are insufficient.
 
@@ -472,10 +465,10 @@ and changesets, with monorepo support.
 - [#924](https://github.com/knope-dev/knope/issues/924) — Can't disable conventional commits.
 - [#988](https://github.com/knope-dev/knope/issues/988) — Variables don't work across packages.
 
-**Gap to consider:**
-- **Hybrid conventional commits + changesets** — Knope's approach of
-  supporting both is elegant. Releasekit could optionally read changeset
-  files alongside conventional commits.
+**Gap to consider:** ✅ Done.
+- ✅ ~~**Hybrid conventional commits + changesets**~~ — Done (2026-02-15).
+  `changesets.py` reads `.changeset/*.md` files and merges with conventional
+  commit bumps (higher wins). Same approach as Knope.
 
 ### 7.4 GoReleaser
 
@@ -498,10 +491,11 @@ signing, and publishing.
 - ✅ Workspace health checks.
 
 **Gaps to consider:**
-- **SBOM generation** — Increasingly required for supply chain security.
-- **Announcement integrations** — Slack/Discord notifications on release.
+- ✅ ~~**SBOM generation**~~ — Done. CycloneDX + SPDX via `sbom.py`.
+- ✅ ~~**Announcement integrations**~~ — Done. Slack, Discord, custom webhooks via `announce.py`.
 - **Cross-compilation orchestration** — Relevant for Genkit CLI binaries
-  (currently handled by separate `promote_cli_gcs.sh`).
+  (currently handled by separate `promote_cli_gcs.sh` and
+  `update_cli_metadata.sh`). See §10 Remaining for design sketch.
 
 ### 7.5 JReleaser
 
@@ -554,8 +548,8 @@ are added via plugins.
 | Version bumping in non-package.json files | `@release-it/bumper` | ✅ Built-in (any manifest) |
 | Monorepo workspaces | `@release-it-plugins/workspaces` | ✅ Built-in (first-class) |
 | pnpm support | `release-it-pnpm` | ✅ Built-in (`PnpmBackend`) |
-| CalVer versioning | `release-it-calver-plugin` | ❌ Not yet |
-| Changesets integration | `changesets-release-it-plugin` | ❌ Not yet |
+| CalVer versioning | `release-it-calver-plugin` | ✅ Built-in (`calver.py`) |
+| Changesets integration | `changesets-release-it-plugin` | ✅ Built-in (`changesets.py`) |
 | .NET publishing | `@jcamp-code/release-it-dotnet` | ❌ Not yet |
 | Gitea support | `release-it-gitea` | ❌ Not yet (GH/GL/BB only) |
 | Regex-based version bumping | `@j-ulrich/release-it-regex-bumper` | ✅ Built-in (configurable `tag_format`) |
@@ -583,13 +577,17 @@ are added via plugins.
 - ✅ Bitbucket support — release-it only has GitHub + GitLab.
 
 **release-it advantages over releasekit:**
-- ✅ Interactive mode with prompts — releasekit is CLI-only.
-- ✅ Hooks system for arbitrary shell commands at lifecycle points.
-- ✅ `--no-increment` to re-run/update existing releases.
-- ✅ Programmatic Node.js API.
-- ✅ npm Trusted Publishing (OIDC).
-- ✅ CalVer support (via plugin).
-- ✅ Mature plugin ecosystem with 15+ community plugins.
+- ✅ Interactive mode with prompts — releasekit is CLI-only (no interactive mode).
+- ~~✅ Hooks system~~ — ✅ **Addressed.** `hooks.py` provides 4 lifecycle hook points.
+- ✅ `--no-increment` to re-run/update existing releases — not yet in releasekit.
+- ~~✅ Programmatic Node.js API~~ — ✅ **Addressed.** `api.py` provides a `ReleaseKit` Python class.
+- ✅ npm Trusted Publishing (OIDC) — releasekit has Sigstore but not npm OIDC specifically.
+- ~~✅ CalVer support (via plugin)~~ — ✅ **Addressed.** `calver.py` built-in.
+- ✅ Mature plugin ecosystem with 15+ community plugins — releasekit uses hooks instead.
+
+**Remaining release-it advantages (not yet addressed):**
+- **Interactive mode** — Prompt-based version selection for manual releases.
+- **`--no-increment`** — Re-run/republish an existing tag without bumping.
 
 **Monorepo support comparison:**
 
@@ -639,33 +637,14 @@ a common request (see [semantic-release SO question](https://stackoverflow.com/q
 5. **Cooldown period** — Minimum time between releases to prevent
    rapid-fire publishing.
 
-**Current releasekit state:** No scheduling support. Releasekit is
-invoked manually or via CI triggers.
-
-**Recommendation:**
-- Add `[schedule]` section to `releasekit.toml`:
-  ```toml
-  [schedule]
-  cadence = "daily"          # or "weekly:monday", "biweekly", "on-push"
-  release_window = "09:00-17:00"  # UTC, optional
-  cooldown_minutes = 60      # minimum time between releases
-  min_bump = "patch"         # skip release if only chore/docs commits
-  ```
-- Add `releasekit should-release` command that returns exit code 0 if a
-  release should happen (for CI cron integration):
-  ```yaml
-  # GitHub Actions example
-  on:
-    schedule:
-      - cron: '0 9 * * 1-5'  # weekdays at 9am UTC
-  jobs:
-    release:
-      steps:
-        - run: releasekit should-release || exit 0
-        - run: releasekit publish --ci
-  ```
-- The `should-release` command checks: (a) releasable commits exist,
-  (b) within release window, (c) cooldown elapsed, (d) minimum bump met.
+**Current releasekit state:** ✅ **Done (2026-02-15).** `should_release.py`
+implements cadence-based release scheduling:
+- `[schedule]` section in `releasekit.toml` with `cadence`, `release_window`,
+  `cooldown_minutes`, and `min_bump` options.
+- `releasekit should-release` CLI subcommand returns exit code 0 if a release
+  should happen, 1 otherwise — designed for CI cron integration.
+- Checks: (a) releasable commits exist, (b) within release window,
+  (c) cooldown elapsed, (d) minimum bump met.
 
 ### 8.2 Release-Per-Commit / Continuous Deployment
 
@@ -674,25 +653,14 @@ invoked manually or via CI triggers.
 struggles with monorepos ([#1529](https://github.com/semantic-release/semantic-release/issues/1529)).
 release-it requires manual `--ci` invocation.
 
-**Current releasekit state:** Releasekit supports `releasekit publish`
-which can be triggered on every push. However, there's no explicit
-"continuous release" mode that:
-1. Skips release PR creation (direct publish on merge).
-2. Handles concurrent CI runs safely (two merges in quick succession).
-3. Provides idempotency (re-running on the same commit is a no-op).
-
-**Recommendation:**
-- Add `release_mode = "continuous"` config option (vs default `"pr"`):
-  ```toml
-  [workspace]
-  release_mode = "continuous"  # publish on every merge, no release PR
-  ```
-- In continuous mode, `releasekit publish` should:
-  - Check if current HEAD already has a release tag → no-op.
-  - Use the release lock to prevent concurrent publishes.
-  - Skip PR creation, go directly to tag + publish.
-- Add `--if-needed` flag: `releasekit publish --if-needed` exits 0
-  without error if no releasable changes exist.
+**Current releasekit state:** ✅ **Done (2026-02-15).** Continuous deployment
+mode is fully implemented:
+- `release_mode = "continuous"` config option skips release PR creation,
+  going directly to tag + publish on every merge.
+- `--if-needed` flag on `publish` exits 0 without error if no releasable
+  changes exist (idempotent re-runs).
+- Release lock (`lock.py`) prevents concurrent publishes.
+- HEAD tag detection ensures re-running on the same commit is a no-op.
 
 ### 8.3 Trunk-Based Development Support
 
@@ -703,22 +671,15 @@ development. Key questions from users:
 - How do feature branches interact with release automation?
 - How do pre-releases map to trunk-based development?
 
-**Current releasekit state:** Releasekit is branch-agnostic — it works
-from whatever branch you run it on. But there's no documentation or
-configuration for trunk-based workflows specifically.
+**Current releasekit state:** ✅ **Mostly done (2026-02-15).** The core
+infrastructure is in place:
+- `channels.py` implements branch-to-channel mapping via `[branches]` config.
+- `release_mode = "continuous"` enables trunk-based publish-on-merge.
+- `hotfix.py` supports release/maintenance branches.
 
-**Recommendation:**
-- Document a "Trunk-Based Development" recipe in docs:
-  - Continuous mode: every merge to main → release.
-  - Release branches: `release/v1.x` for maintenance, main for latest.
-  - Feature flags over feature branches for unreleased work.
-- Add `branch_channels` config for mapping branches to release channels:
-  ```toml
-  [branches]
-  main = "latest"
-  "release/v1.*" = "v1-maintenance"
-  "next" = "next"
-  ```
+**Remaining:** Documentation recipe for trunk-based development workflows
+(continuous mode + release branches + feature flags). The configuration
+and tooling exist; only the how-to guide is missing.
 
 ### 8.4 Plugin-vs-Built-in Analysis
 
@@ -770,10 +731,10 @@ A key architectural difference between releasekit and alternatives:
 | Multi-ecosystem | ❌ JS only | ❌ JS only (plugins for others) | ✅ Py/JS/Go/Rust/Java/Dart |
 | Revert handling | ❌ Not available | ❌ Not available | ✅ Built-in |
 
-**Recommendation:** Releasekit's built-in approach is the right default.
-However, consider adding a lightweight hooks system (like release-it's
-`before:init` / `after:release`) for teams that need custom steps without
-writing a full plugin. This could be as simple as:
+**Recommendation:** ✅ **Done.** Releasekit's built-in approach is the right
+default. A lightweight hooks system (`hooks.py`) has been added with 4
+lifecycle events (`before_publish`, `after_publish`, `before_tag`,
+`after_tag`) for teams that need custom steps without writing a full plugin:
 ```toml
 [hooks]
 before_publish = ["npm run build", "npm test"]
@@ -790,13 +751,13 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Monorepo** | ✅ | ✅ | ❌ (plugin) | ❌ | ❌ (plugin) | ✅ | ✅ | ✅ | ❌ |
 | **Polyglot** | ✅ Py/JS/Go/Rust/Java/Dart | Multi-lang | JS-centric | Python-only | JS (plugins for others) | JS-only | JS/Rust/Docker | Multi | Go-only |
 | **Conv. commits** | ✅ | ✅ | ✅ (plugin) | ✅ | ❌ (plugin) | ❌ | ✅ | ✅ | ✅ |
-| **Changesets** | ❌ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
+| **Changesets** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
 | **Dep graph** | ✅ | Partial | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Topo publish** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | **Health checks** | ✅ (34) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Auto-fix** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Multi-forge** | ✅ GH/GL/BB | GitHub only | GH/GL/BB | GH/GL/BB | GH/GL | GitHub only | ❌ | GH/Gitea | GitHub only |
-| **Pre-release** | Partial | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Pre-release** | ✅ | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Dry-run** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Rollback** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Version preview** | ✅ | ❌ | ❌ | ❌ | ✅ (`--release-version`) | ❌ | ✅ | ❌ | ❌ |
@@ -806,88 +767,73 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Retry/backoff** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Release lock** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Distro pkg sync** | ✅ Deb/RPM/Brew | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Hooks** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Hooks** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | **Interactive mode** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Scheduled releases** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Continuous deploy** | ❌ | ❌ | ✅ | ✅ | ✅ (`--ci`) | ❌ | ❌ | ❌ | ❌ |
+| **Scheduled releases** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Continuous deploy** | ✅ | ❌ | ✅ | ✅ | ✅ (`--ci`) | ❌ | ❌ | ❌ | ❌ |
 | **Re-run release** | ❌ | ❌ | ❌ | ❌ | ✅ (`--no-increment`) | ❌ | ❌ | ❌ | ❌ |
-| **Programmatic API** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **CalVer** | ❌ | ❌ | ❌ | ❌ | ❌ (plugin) | ❌ | ❌ | ❌ | ❌ |
-| **Cherry-pick** | Planned (R38) | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Programmatic API** | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **PEP 440** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **CalVer** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ❌ | ❌ | ❌ | ❌ |
+| **Cherry-pick** | ✅ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Signing** | ✅ Sigstore | ❌ | npm provenance | ❌ | npm OIDC | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | **SBOM** | ✅ CycloneDX/SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Announcements** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Announcements** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
-## 10. REVISED PRIORITIZED ROADMAP
+## 10. IMPLEMENTATION STATUS
 
-### Phase 1 — Immediate (finalize JS migration readiness)
+### Completed (33 items)
 
-1. ✅ ~~**Wire up pnpm workspace publish pipeline**~~ — Done. `PnpmBackend`
-   and `NpmRegistry` fully implemented. Ecosystem-aware `_create_backends()`.
-2. ✅ ~~**Revert commit handling**~~ — Done. Per-level bump counters with
-   revert cancellation.
-3. ✅ ~~**`releasekit doctor`**~~ — Done. `run_doctor()` with 6 checks,
-   fully wired in CLI.
-4. **Pre-release workflow** (`--prerelease rc` flag + PEP 440 / SemVer
-   pre-release suffixes). Basic `prerelease` param exists in `compute_bumps`.
-5. ✅ ~~**npm dist-tag support**~~ — Done. `--dist-tag` CLI flag wired through
-   `WorkspaceConfig` → `PublishConfig` → `PnpmBackend.publish(--tag)`.
-6. ✅ ~~**`--publish-branch` + `--provenance`**~~ — Done. Both params added to
-   `PnpmBackend.publish()`, `PublishConfig`, `WorkspaceConfig`, and CLI.
+1. ✅ **pnpm workspace publish pipeline** — `PnpmBackend` + `NpmRegistry`.
+2. ✅ **Revert commit handling** — Per-level bump counters with revert cancellation.
+3. ✅ **`releasekit doctor`** — `run_doctor()` with 6 checks.
+4. ✅ **Pre-release workflow** — `prerelease.py` (PEP 440 + semver, `promote` CLI, `escalate_prerelease`).
+5. ✅ **npm dist-tag support** — `--dist-tag` CLI flag.
+6. ✅ **`--publish-branch` + `--provenance`** — `PnpmBackend.publish()`.
+7. ✅ **Internal dependency version propagation** — BFS via `graph.reverse_edges`.
+8. ✅ **Contributor attribution in changelogs** — `ChangelogEntry.author`.
+9. ✅ **Continuous deploy mode** — `release_mode = "continuous"` + `--if-needed`.
+10. ✅ **`releasekit should-release`** — CLI subcommand.
+11. ✅ **Lifecycle hooks** — `hooks.py` with 4 lifecycle events.
+12. ✅ **Incremental changelog generation** — `write_changelog_incremental()`.
+13. ✅ **Hotfix / maintenance branch support** — `hotfix.py` + `cherry_pick_commits()`.
+14. ✅ **Snapshot releases** — `snapshot.py`.
+15. ✅ **`bootstrap-sha` config** — `bootstrap_sha` on `WorkspaceConfig`.
+16. ✅ **Scheduled / cadence-based releases** — `should_release.py`.
+17. ✅ **Branch-to-channel mapping** — `channels.py`.
+18. ✅ **Sigstore signing + verification** — `signing.py`.
+19. ✅ **SBOM generation** — `sbom.py` (CycloneDX + SPDX).
+20. ✅ **Auto-merge release PRs** — `auto_merge` config.
+21. ✅ **Custom changelog templates** — Jinja2 support in `changelog.py`.
+22. ✅ **Announcement integrations** — `announce.py` (Slack, Discord, webhooks).
+23. ✅ **Optional changeset file support** — `changesets.py`.
+24. ✅ **Programmatic Python API** — `api.py` with `ReleaseKit` class.
+25. ✅ **CalVer support** — `calver.py`.
+26. ✅ **PEP 440 version compliance** — `versioning_scheme = "pep440"`.
+27. ✅ **`releasekit migrate`** — Protocol-based migration from alternatives (`migrate.py`).
+28. ✅ **Bazel workspace backend** — `bazel.py` (`BUILD` files, `bazel run //pkg:publish`).
+29. ✅ **Rust/Cargo workspace backend** — `cargo.py` (`Cargo.toml`, `cargo publish`).
+30. ✅ **Java/Maven workspace backend** — `maven.py` (`pom.xml` / `build.gradle`, `mvn deploy`).
+31. ✅ **Dart/Pub workspace backend** — `dart.py` (`pubspec.yaml`, `dart pub publish`).
+32. ✅ **SLSA provenance generation** — `provenance.py` + `attestations.py`.
+33. ✅ **SBOM integrated into publish pipeline** — Auto-generated during `releasekit publish` (2026-02-16).
 
-### Phase 2 — High value
+### Remaining
 
-7. ✅ ~~**Internal dependency version propagation**~~ — Done. BFS via
-   `graph.reverse_edges`.
-8. ✅ ~~**Contributor attribution in changelogs**~~ — Done. `ChangelogEntry.author`
-   field, git log format `%H\x00%an\x00%s`, rendered as `— @author` (2026-02-13).
-9. **Continuous deploy mode** (`release_mode = "continuous"` + `--if-needed`).
-   Enables release-per-commit for trunk-based development. See §8.2.
-10. **`releasekit should-release`** command for CI cron integration.
-    Returns exit 0 if a release should happen based on cadence config. See §8.1.
-11. **Lifecycle hooks** (`[hooks]` in `releasekit.toml`). `before_publish`,
-    `after_publish`, `after_tag` for arbitrary shell commands. See §8.4.
-12. **Incremental changelog generation** (performance for large repos).
-13. **Hotfix / maintenance branch support** (`--base-branch`).
-14. **Cherry-pick for release branches** (`releasekit cherry-pick`).
-15. **Snapshot releases** (`--snapshot` for CI testing).
-16. ✅ ~~**`bootstrap-sha` config**~~ (R26) — Done. `bootstrap_sha` on
-   `WorkspaceConfig`, threaded through `compute_bumps` and all CLI call sites (2026-02-13).
+1. **Interactive mode** — Prompt-based version selection for manual releases (release-it advantage).
+2. **`--no-increment` re-run releases** — Republish existing tag without bumping (release-it advantage).
+3. **Trunk-based development documentation** — How-to recipe (tooling exists, docs missing).
+4. **Full plugin system** — Entry-point discovery for custom steps (hooks cover most cases).
+5. **Cross-compilation / binary promotion orchestration** — Replace the
+   manual `scripts/cli-releases/promote_cli_gcs.sh` and
+   `update_cli_metadata.sh` shell scripts with a `releasekit promote`
+   subcommand for binary distribution.
+6. **Rustification** — Rewrite core in Rust with PyO3/maturin.
 
-### Phase 3 — Differentiation
-
-17. **Scheduled / cadence-based releases** (`[schedule]` config section).
-    Daily, weekly, biweekly cadences with release windows and cooldown. See §8.1.
-18. **Branch-to-channel mapping** (`[branches]` config). Maps branches to
-    release channels (latest, next, maintenance). See §8.3.
-19. ✅ ~~**Sigstore signing + verification**~~ — Done. `signing.py` with
-    `sign_artifact()`, `verify_artifact()`, CLI `sign`/`verify` subcommands,
-    `--sign` flag on `publish`.
-20. ✅ ~~**SBOM generation**~~ — Done. `sbom.py` with CycloneDX and SPDX
-    formats, `generate_sbom()`, `write_sbom()`.
-21. ✅ ~~**Auto-merge release PRs**~~ — Done. `auto_merge` config on
-   `WorkspaceConfig`, `prepare.py` calls `forge.merge_pr()` after labeling (2026-02-13).
-22. **Custom changelog templates** (Jinja2).
-23. **Announcement integrations** (Slack, Discord).
-24. **Optional changeset file support** (hybrid with conventional commits).
-
-### Phase 4 — Future
-
-25. **Plugin system for custom steps**.
-26. **Programmatic Python API** (like Nx Release's Node.js API).
-27. **Cross-compilation orchestration** (for CLI binaries).
-28. **`releasekit migrate`** — Protocol-based migration from alternatives.
-29. **Bazel workspace backend** (BUILD files, `bazel run //pkg:publish`).
-30. **Rust/Cargo workspace backend** (`Cargo.toml`, `cargo publish`).
-31. **Java backend** (Maven `pom.xml` / Gradle `build.gradle`, `mvn deploy`).
-32. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
-33. **CalVer support** (calendar-based versioning).
-34. **Rustification** — Rewrite core in Rust with PyO3/maturin (see roadmap §12).
-
-> **See [../roadmap.md](../roadmap.md)** for the detailed roadmap with
-> dependency graphs and execution phases.
+> **See [roadmap.md](roadmap.md)** for the detailed implementation
+> roadmap with dependency graphs.
 
 ---
 

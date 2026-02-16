@@ -26,12 +26,14 @@ Covers:
 
 from __future__ import annotations
 
+import unittest.mock
 from pathlib import Path
 
 from releasekit.signing import (
     SigningResult,
     VerificationResult,
     sign_artifact,
+    sign_artifacts,
     verify_artifact,
 )
 
@@ -107,8 +109,6 @@ class TestSignArtifact:
 
     def test_signing_error_caught(self, tmp_path: Path) -> None:
         """When signing fails, error is caught."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
 
@@ -132,8 +132,6 @@ class TestSignArtifact:
 
     def test_no_ambient_credential(self, tmp_path: Path) -> None:
         """No ambient credential returns a reason."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
 
@@ -145,8 +143,6 @@ class TestSignArtifact:
 
     def test_signing_success_mocked(self, tmp_path: Path) -> None:
         """Successful signing writes bundle and returns signed=True."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
 
@@ -203,8 +199,6 @@ class TestVerifyArtifact:
 
     def test_verification_error_caught(self, tmp_path: Path) -> None:
         """When verification fails, error is caught."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
         bundle = tmp_path / 'pkg-1.0.0.tar.gz.sigstore.json'
@@ -219,8 +213,6 @@ class TestVerifyArtifact:
 
     def test_verification_success_mocked(self, tmp_path: Path) -> None:
         """Successful verification returns verified=True."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
         bundle = tmp_path / 'pkg-1.0.0.tar.gz.sigstore.json'
@@ -242,8 +234,6 @@ class TestVerifyArtifact:
 
     def test_verification_with_identity(self, tmp_path: Path) -> None:
         """Verification with identity and issuer passes policy to verifier."""
-        import unittest.mock
-
         artifact = tmp_path / 'pkg-1.0.0.tar.gz'
         artifact.write_bytes(b'fake tarball')
         bundle = tmp_path / 'pkg-1.0.0.tar.gz.sigstore.json'
@@ -278,8 +268,6 @@ class TestSignArtifacts:
 
     def test_batch_signing(self, tmp_path: Path) -> None:
         """Signs multiple artifacts and returns list of results."""
-        from releasekit.signing import sign_artifacts
-
         a1 = tmp_path / 'pkg-1.0.0.tar.gz'
         a2 = tmp_path / 'pkg-1.0.0.whl'
         a1.write_bytes(b'tarball')
@@ -291,7 +279,5 @@ class TestSignArtifacts:
 
     def test_empty_list(self, tmp_path: Path) -> None:
         """Empty list returns empty results."""
-        from releasekit.signing import sign_artifacts
-
         results = sign_artifacts([])
         assert results == []

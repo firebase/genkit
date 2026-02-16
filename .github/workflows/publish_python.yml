@@ -90,7 +90,8 @@ jobs:
       name: ${{ inputs.target == 'testpypi' && 'testpypi' || 'pypi_github_publishing' }}
     permissions:
       contents: write  # For git tags and GitHub releases
-      id-token: write  # Trusted publishing (OIDC)
+      id-token: write  # Trusted publishing (OIDC) + Sigstore signing
+      attestations: write  # PEP 740 attestations
     steps:
       - uses: actions/checkout@v6
         with:
@@ -158,6 +159,26 @@ jobs:
           name: release-manifest
           path: ${{ env.WORKSPACE_DIR }}/.releasekit-state.json
           retention-days: 90
+
+      - name: Upload SLSA provenance
+        if: success() && inputs.dry_run != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: slsa-provenance
+          path: ${{ env.WORKSPACE_DIR }}/provenance*.intoto.jsonl
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload SBOMs
+        if: success() && inputs.dry_run != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            ${{ env.WORKSPACE_DIR }}/sbom.cdx.json
+            ${{ env.WORKSPACE_DIR }}/sbom.spdx.json
+          retention-days: 90
+          if-no-files-found: warn
 
   verify:
     name: Verify published packages

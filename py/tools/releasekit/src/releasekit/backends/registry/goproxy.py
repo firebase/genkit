@@ -202,6 +202,42 @@ class GoProxyCheck:
         )
         return ChecksumResult(missing=list(local_checksums.keys()))
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all known versions from the Go module proxy.
+
+        Uses the ``/@v/list`` endpoint which returns one version per line.
+        """
+        url = f'{self._base_url}/{package_name}/@v/list'
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            lines = response.text.strip().splitlines()
+            # Strip leading 'v' prefix from each version.
+            return [v.lstrip('v') for v in reversed(lines) if v.strip()]
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Go modules cannot be yanked from the module proxy.
+
+        Once a version is cached by ``proxy.golang.org``, it is
+        available forever. The only recourse is to retract the version
+        in ``go.mod`` (Go 1.16+) and publish a new version.
+        """
+        log.warning(
+            'goproxy_yank_unsupported',
+            module=package_name,
+            version=version,
+            hint=('Go modules cannot be yanked. Add a retract directive to go.mod and publish a new version instead.'),
+        )
+        return False
+
 
 __all__ = [
     'GoProxyCheck',

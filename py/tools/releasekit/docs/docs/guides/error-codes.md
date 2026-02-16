@@ -104,6 +104,6 @@ graph TD
 
     ERR --> CODE --> INFO --> RENDER --> TERM --> EXIT
 
-    style ERR fill:#f44336,color:#fff
-    style RENDER fill:#1976d2,color:#fff
+    style ERR fill:#ef9a9a,stroke:#c62828,color:#b71c1c
+    style RENDER fill:#90caf9,stroke:#1565c0,color:#0d47a1
 ```

@@ -64,11 +64,11 @@ graph TB
     B --> E
     D --> E
 
-    style A fill:#1976d2,color:#fff
-    style B fill:#1e88e5,color:#fff
-    style C fill:#1e88e5,color:#fff
-    style D fill:#1e88e5,color:#fff
-    style E fill:#42a5f5,color:#fff
+    style A fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style B fill:#64b5f6,stroke:#1565c0,color:#0d47a1
+    style C fill:#64b5f6,stroke:#1565c0,color:#0d47a1
+    style D fill:#64b5f6,stroke:#1565c0,color:#0d47a1
+    style E fill:#42a5f5,stroke:#1565c0,color:#0d47a1
 ```
 
 Packages within the same level have **no mutual dependencies** and can

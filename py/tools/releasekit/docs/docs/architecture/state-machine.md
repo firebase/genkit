@@ -85,9 +85,9 @@ graph TD
     SHA -->|yes| RESUME
     SHA -->|no| ERROR
 
-    style RESUME fill:#4caf50,color:#fff
-    style FRESH fill:#1976d2,color:#fff
-    style ERROR fill:#f44336,color:#fff
+    style RESUME fill:#a5d6a7,stroke:#2e7d32,color:#1b5e20
+    style FRESH fill:#90caf9,stroke:#1565c0,color:#0d47a1
+    style ERROR fill:#ef9a9a,stroke:#c62828,color:#b71c1c
 ```
 
 !!! warning "SHA Validation"

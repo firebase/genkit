@@ -104,8 +104,8 @@ class TestParseConventionalCommit:
         assert cc.bump == BumpType.MAJOR
 
     def test_breaking_change_footer(self) -> None:
-        """BREAKING CHANGE in message triggers MAJOR."""
-        cc = parse_conventional_commit('feat: new API BREAKING CHANGE')
+        """BREAKING CHANGE footer triggers MAJOR (spec rule 12)."""
+        cc = parse_conventional_commit('feat: new API\n\nBREAKING CHANGE: old API removed')
         assert cc is not None
         assert cc.breaking is True
         assert cc.bump == BumpType.MAJOR
@@ -168,13 +168,44 @@ class TestApplyBump:
         """No bump returns same version."""
         assert _apply_bump('1.2.3', BumpType.NONE) == '1.2.3'
 
-    def test_prerelease(self) -> None:
-        """Prerelease bump adds label."""
-        assert _apply_bump('1.2.3', BumpType.PRERELEASE, 'rc') == '1.2.4rc1'
+    def test_prerelease_patch(self) -> None:
+        """Patch bump with prerelease label adds semver suffix."""
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'rc') == '1.2.4-rc.1'
 
-    def test_prerelease_default_label(self) -> None:
-        """Prerelease with no label defaults to 'rc'."""
-        assert _apply_bump('1.2.3', BumpType.PRERELEASE) == '1.2.4rc1'
+    def test_prerelease_minor(self) -> None:
+        """Minor bump with prerelease label applies to bumped minor."""
+        assert _apply_bump('1.2.3', BumpType.MINOR, 'rc') == '1.3.0-rc.1'
+
+    def test_prerelease_major(self) -> None:
+        """Major bump with prerelease label applies to bumped major."""
+        assert _apply_bump('1.2.3', BumpType.MAJOR, 'rc') == '2.0.0-rc.1'
+
+    def test_prerelease_pep440(self) -> None:
+        """Prerelease with pep440 scheme uses PEP 440 suffixes on bumped version."""
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'rc', 'pep440') == '1.2.4rc1'
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'alpha', 'pep440') == '1.2.4a1'
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'beta', 'pep440') == '1.2.4b1'
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'dev', 'pep440') == '1.2.4.dev1'
+
+    def test_prerelease_pep440_minor(self) -> None:
+        """PEP 440 prerelease on minor bump applies to bumped minor."""
+        assert _apply_bump('1.2.3', BumpType.MINOR, 'rc', 'pep440') == '1.3.0rc1'
+        assert _apply_bump('0.5.0', BumpType.MINOR, 'beta', 'pep440') == '0.6.0b1'
+
+    def test_prerelease_pep440_major(self) -> None:
+        """PEP 440 prerelease on major bump applies to bumped major."""
+        assert _apply_bump('1.2.3', BumpType.MAJOR, 'alpha', 'pep440') == '2.0.0a1'
+
+    def test_prerelease_semver_labels(self) -> None:
+        """Prerelease with semver scheme uses dash-dot format."""
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'alpha', 'semver') == '1.2.4-alpha.1'
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'beta', 'semver') == '1.2.4-beta.1'
+        assert _apply_bump('1.2.3', BumpType.PATCH, 'dev', 'semver') == '1.2.4-dev.1'
+
+    def test_no_prerelease_label_means_stable(self) -> None:
+        """Empty prerelease label produces a stable version."""
+        assert _apply_bump('1.2.3', BumpType.PATCH) == '1.2.4'
+        assert _apply_bump('1.2.3', BumpType.MINOR) == '1.3.0'
 
     def test_zero_major(self) -> None:
         """Bumping from 0.x.y works correctly."""
@@ -195,6 +226,13 @@ class TestApplyBump:
         """Existing prerelease metadata is stripped before bumping."""
         assert _apply_bump('1.2.3-rc1', BumpType.PATCH) == '1.2.4'
         assert _apply_bump('1.2.3+build42', BumpType.MINOR) == '1.3.0'
+
+    def test_strips_pep440_prerelease(self) -> None:
+        """PEP 440 pre-release suffixes are stripped before bumping."""
+        assert _apply_bump('1.2.3rc1', BumpType.PATCH) == '1.2.4'
+        assert _apply_bump('1.2.3a2', BumpType.MINOR) == '1.3.0'
+        assert _apply_bump('1.2.3b1', BumpType.MAJOR) == '2.0.0'
+        assert _apply_bump('1.2.3.dev5', BumpType.PATCH) == '1.2.4'
 
 
 class TestComputeBumps:
@@ -277,7 +315,7 @@ class TestComputeBumps:
 
     @pytest.mark.asyncio
     async def test_prerelease_mode(self) -> None:
-        """Prerelease mode converts bumps to prerelease versions."""
+        """Prerelease mode applies suffix to the correctly bumped version."""
         vcs = FakeVCS(
             log_by_path={
                 '/workspace/packages/genkit': [
@@ -291,8 +329,8 @@ class TestComputeBumps:
 
         results = await compute_bumps(packages, vcs, prerelease='rc')
 
-        assert results[0].bump == 'prerelease'
-        assert results[0].new_version == '0.4.1rc1'
+        assert results[0].bump == 'minor'
+        assert results[0].new_version == '0.5.0-rc.1'
 
     @pytest.mark.asyncio
     async def test_breaking_change_major_bump(self) -> None:

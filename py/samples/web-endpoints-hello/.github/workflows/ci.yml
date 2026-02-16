@@ -28,15 +28,18 @@ defaults:
   run:
     working-directory: py/samples/web-endpoints-hello
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Python
         run: uv python install 3.13
@@ -67,10 +70,10 @@ jobs:
           - checker: pyright
             command: uv run pyright src/ tests/
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Python
         run: uv python install 3.13
@@ -89,10 +92,10 @@ jobs:
       matrix:
         python: ['3.10', '3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Python ${{ matrix.python }}
         run: uv python install ${{ matrix.python }}
@@ -107,10 +110,10 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
 
       - name: Install Python
         run: uv python install 3.13
@@ -125,3 +128,36 @@ jobs:
         run: >-
           uv run pip-licenses
           --allow-only="Apache-2.0;Apache Software License;MIT;MIT License;BSD License;BSD-3-Clause;BSD-2-Clause;PSF-2.0;ISC;Python-2.0;Python Software Foundation License;Mozilla Public License 2.0 (MPL 2.0)"
+
+  verify:
+    name: Verify
+    needs: [lint, typecheck, test, security]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          FAILED=0
+          for job in lint typecheck test security; do
+            result="${{ needs[job].result }}"
+            if [ "$result" = "success" ]; then
+              echo "✅ **$job**: passed" >> $GITHUB_STEP_SUMMARY
+            elif [ "$result" = "skipped" ]; then
+              echo "⏭️ **$job**: skipped" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **$job**: $result" >> $GITHUB_STEP_SUMMARY
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" = "1" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Some checks failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ All checks passed" >> $GITHUB_STEP_SUMMARY

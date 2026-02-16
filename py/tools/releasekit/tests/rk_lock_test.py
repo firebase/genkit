@@ -19,13 +19,18 @@
 from __future__ import annotations
 
 import json
+import os
+import socket
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from releasekit.errors import ReleaseKitError
 from releasekit.lock import (
     LOCK_FILENAME,
     LockInfo,
+    _atexit_cleanup,
+    _is_process_alive,
     acquire_lock,
     release_lock,
     release_lock_file,
@@ -177,8 +182,6 @@ class TestReleaseLockOwnership:
 
     def test_release_owned_by_other_process(self, tmp_path: Path) -> None:
         """Releasing a lock owned by another PID is a no-op."""
-        import os
-
         lock_path = tmp_path / LOCK_FILENAME
         other_lock = {
             'pid': os.getpid() + 99999,
@@ -194,8 +197,6 @@ class TestReleaseLockOwnership:
 
     def test_stale_lock_same_host_dead_pid(self, tmp_path: Path) -> None:
         """Lock from a dead process on the same host is stale."""
-        import socket
-
         lock_path = tmp_path / LOCK_FILENAME
         stale_lock = {
             'pid': 99999999,  # Almost certainly not running.
@@ -218,10 +219,6 @@ class TestAtexitCleanup:
 
     def test_atexit_cleanup_same_pid(self, tmp_path: Path) -> None:
         """Atexit cleanup removes lock when PID matches."""
-        import os
-
-        from releasekit.lock import _atexit_cleanup
-
         lock_path = tmp_path / LOCK_FILENAME
         lock_path.write_text('{}', encoding='utf-8')
 
@@ -230,10 +227,6 @@ class TestAtexitCleanup:
 
     def test_atexit_cleanup_different_pid(self, tmp_path: Path) -> None:
         """Atexit cleanup does NOT remove lock when PID differs (fork safety)."""
-        import os
-
-        from releasekit.lock import _atexit_cleanup
-
         lock_path = tmp_path / LOCK_FILENAME
         lock_path.write_text('{}', encoding='utf-8')
 
@@ -246,17 +239,11 @@ class TestIsPidAlive:
 
     def test_permission_error_means_alive(self) -> None:
         """PermissionError when signalling a process means it exists."""
-        from unittest.mock import patch
-
-        from releasekit.lock import _is_process_alive
-
         with patch('os.kill', side_effect=PermissionError):
             assert _is_process_alive(1) is True
 
     def test_process_lookup_error_means_dead(self) -> None:
         """ProcessLookupError means process does not exist."""
-        from releasekit.lock import _is_process_alive
-
         # Use a PID that almost certainly doesn't exist.
         assert _is_process_alive(2**30) is False
 
@@ -266,11 +253,6 @@ class TestAcquireLockWriteError:
 
     def test_write_error_raises(self, tmp_path: Path) -> None:
         """OSError writing lock file raises ReleaseKitError."""
-        import os
-
-        from releasekit.errors import ReleaseKitError
-        from releasekit.lock import acquire_lock
-
         lock_dir = tmp_path / 'readonly'
         lock_dir.mkdir()
         os.chmod(lock_dir, 0o555)  # noqa: S103

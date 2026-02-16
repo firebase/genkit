@@ -481,6 +481,113 @@ def write_changelog(
     return True
 
 
+def render_changelog_template(
+    changelog: Changelog,
+    template_path: Path,
+) -> str:
+    """Render a Changelog using a Jinja2 template.
+
+    The template receives the following context variables:
+
+    - ``version``: Version string.
+    - ``date``: Date string.
+    - ``sections``: List of :class:`ChangelogSection` objects.
+    - ``entries``: Flat list of all :class:`ChangelogEntry` objects.
+
+    Args:
+        changelog: The changelog to render.
+        template_path: Path to a Jinja2 template file.
+
+    Returns:
+        Rendered string from the template.
+
+    Raises:
+        ImportError: If Jinja2 is not installed.
+        FileNotFoundError: If the template file does not exist.
+    """
+    try:
+        from jinja2 import Environment, FileSystemLoader
+    except ImportError as exc:
+        raise ImportError(
+            'Jinja2 is required for custom changelog templates. Install it with: pip install jinja2'
+        ) from exc
+
+    if not template_path.exists():
+        raise FileNotFoundError(f'Changelog template not found: {template_path}')
+
+    template_dir = template_path.parent
+    template_name = template_path.name
+
+    env = Environment(
+        loader=FileSystemLoader(str(template_dir)),
+        autoescape=True,
+        keep_trailing_newline=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    tmpl = env.get_template(template_name)
+
+    all_entries = [e for s in changelog.sections for e in s.entries]
+
+    return tmpl.render(
+        version=changelog.version,
+        date=changelog.date,
+        sections=changelog.sections,
+        entries=all_entries,
+    )
+
+
+def write_changelog_incremental(
+    changelog_path: Path,
+    rendered: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """Append a rendered changelog section to the end of a CHANGELOG.md file.
+
+    Unlike :func:`write_changelog` which prepends new entries at the top,
+    this function appends to the bottom — useful for append-only changelog
+    workflows where the file is treated as a growing log.
+
+    Duplicate detection: if the version heading already appears in the
+    file, the write is skipped.
+
+    Args:
+        changelog_path: Path to the CHANGELOG.md file.
+        rendered: Rendered markdown section.
+        dry_run: If True, log what would happen without writing.
+
+    Returns:
+        True if the file was written (or would be in dry-run), False
+        if skipped (duplicate version).
+    """
+    first_line = rendered.split('\n', 1)[0].strip()
+
+    if changelog_path.exists():
+        existing = changelog_path.read_text(encoding='utf-8')
+
+        if first_line in existing:
+            logger.info(
+                'changelog_incremental_skip_duplicate',
+                path=str(changelog_path),
+                version_heading=first_line,
+            )
+            return False
+
+        new_content = existing.rstrip('\n') + '\n\n' + rendered + '\n'
+    else:
+        new_content = _CHANGELOG_HEADING + '\n' + rendered + '\n'
+
+    if dry_run:
+        logger.info('changelog_incremental_dry_run', path=str(changelog_path), version_heading=first_line)
+        return True
+
+    changelog_path.parent.mkdir(parents=True, exist_ok=True)
+    changelog_path.write_text(new_content, encoding='utf-8')
+    logger.info('changelog_incremental_written', path=str(changelog_path), version_heading=first_line)
+    return True
+
+
 __all__ = [
     'Changelog',
     'ChangelogEntry',
@@ -488,5 +595,7 @@ __all__ = [
     'generate_changelog',
     'generate_umbrella_changelog',
     'render_changelog',
+    'render_changelog_template',
     'write_changelog',
+    'write_changelog_incremental',
 ]

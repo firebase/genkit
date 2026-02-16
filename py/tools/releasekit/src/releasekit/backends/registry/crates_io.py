@@ -196,6 +196,54 @@ class CratesIoRegistry:
         )
         return ChecksumResult(missing=list(local_checksums.keys()))
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions from crates.io (newest first)."""
+        url = f'{self._base_url}/api/v1/crates/{package_name}/versions'
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            try:
+                data = response.json()
+                return [v['num'] for v in data.get('versions', []) if 'num' in v]
+            except (ValueError, KeyError):
+                log.warning('crates_io_list_versions_error', crate=package_name)
+                return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Yank a crate version via ``cargo yank``."""
+        cmd = ['cargo', 'yank', '--version', version, package_name]
+        if dry_run:
+            log.info('cargo_yank_dry_run', crate=package_name, version=version, cmd=cmd)
+            return True
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _stdout, stderr = await proc.communicate()
+            if proc.returncode == 0:
+                log.info('crate_yanked', crate=package_name, version=version)
+                return True
+            log.warning(
+                'cargo_yank_failed',
+                crate=package_name,
+                version=version,
+                stderr=stderr.decode(errors='replace'),
+            )
+            return False
+        except FileNotFoundError:
+            log.warning('cargo_not_found', hint='cargo CLI is required for yank')
+            return False
+
 
 __all__ = [
     'CratesIoRegistry',

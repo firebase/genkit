@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import dataclasses
+import io
+from unittest.mock import patch
 
 from releasekit.errors import (
     ERRORS,
@@ -28,6 +30,8 @@ from releasekit.errors import (
     ReleaseKitError,
     ReleaseKitWarning,
     explain,
+    render_error,
+    render_warning,
 )
 
 
@@ -181,10 +185,6 @@ class TestRenderError:
 
     def test_plain_text_with_hint(self) -> None:
         """render_error writes plain text to a non-TTY stream."""
-        import io
-
-        from releasekit.errors import render_error
-
         err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config found', hint='Run init')
         buf = io.StringIO()
         render_error(err, file=buf)
@@ -195,10 +195,6 @@ class TestRenderError:
 
     def test_plain_text_without_hint(self) -> None:
         """render_error without hint omits the hint line."""
-        import io
-
-        from releasekit.errors import render_error
-
         err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config found')
         buf = io.StringIO()
         render_error(err, file=buf)
@@ -212,10 +208,6 @@ class TestRenderWarning:
 
     def test_plain_text_with_hint(self) -> None:
         """render_warning writes plain text to a non-TTY stream."""
-        import io
-
-        from releasekit.errors import render_warning
-
         warn = ReleaseKitWarning(
             code=E.PREFLIGHT_SHALLOW_CLONE,
             message='Shallow clone',
@@ -230,10 +222,6 @@ class TestRenderWarning:
 
     def test_plain_text_without_hint(self) -> None:
         """render_warning without hint omits the hint line."""
-        import io
-
-        from releasekit.errors import render_warning
-
         warn = ReleaseKitWarning(
             code=E.PREFLIGHT_SHALLOW_CLONE,
             message='Shallow clone',
@@ -250,11 +238,6 @@ class TestRenderErrorRich:
 
     def test_rich_tty_with_hint(self) -> None:
         """render_error uses Rich when output is a TTY."""
-        import io
-        from unittest.mock import patch
-
-        from releasekit.errors import render_error
-
         err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config', hint='Run init')
         buf = io.StringIO()
         buf.isatty = lambda: True  # type: ignore[assignment]
@@ -267,11 +250,6 @@ class TestRenderErrorRich:
 
     def test_rich_tty_without_hint(self) -> None:
         """render_error Rich path without hint."""
-        import io
-        from unittest.mock import patch
-
-        from releasekit.errors import render_error
-
         err = ReleaseKitError(code=E.CONFIG_NOT_FOUND, message='No config')
         buf = io.StringIO()
         buf.isatty = lambda: True  # type: ignore[assignment]
@@ -288,11 +266,6 @@ class TestRenderWarningRich:
 
     def test_rich_tty_with_hint(self) -> None:
         """render_warning uses Rich when output is a TTY."""
-        import io
-        from unittest.mock import patch
-
-        from releasekit.errors import render_warning
-
         warn = ReleaseKitWarning(
             code=E.PREFLIGHT_SHALLOW_CLONE,
             message='Shallow clone',
@@ -309,11 +282,6 @@ class TestRenderWarningRich:
 
     def test_rich_tty_without_hint(self) -> None:
         """render_warning Rich path without hint."""
-        import io
-        from unittest.mock import patch
-
-        from releasekit.errors import render_warning
-
         warn = ReleaseKitWarning(
             code=E.PREFLIGHT_SHALLOW_CLONE,
             message='Shallow clone',

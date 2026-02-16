@@ -220,6 +220,45 @@ class PyPIBackend:
         )
         return result
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions from PyPI (newest first)."""
+        url = f'{self._base_url}/pypi/{package_name}/json'
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            try:
+                data = response.json()
+                versions = list(data.get('releases', {}).keys())
+                versions.reverse()
+                return versions
+            except (ValueError, KeyError):
+                log.warning('pypi_list_versions_error', package=package_name)
+                return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Yank a version on PyPI.
+
+        PyPI yank requires the web UI or an API token with ``yank``
+        scope via an endpoint that is not part of the public JSON API.
+        This method logs a warning with manual instructions and returns
+        ``False``.
+        """
+        log.warning(
+            'pypi_yank_not_automated',
+            package=package_name,
+            version=version,
+            hint=(f'Yank manually at {self._base_url}/manage/project/{package_name}/release/{version}/'),
+        )
+        return False
+
 
 __all__ = [
     'PyPIBackend',

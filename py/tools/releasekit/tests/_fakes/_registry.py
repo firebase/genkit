@@ -89,3 +89,23 @@ class FakeRegistry:
             mismatched={'bad.whl': ('aaa', 'bbb')},
             missing=[],
         )
+
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return versions from the published set."""
+        return [entry.split('==')[1] for entry in sorted(self._published) if entry.startswith(f'{package_name}==')]
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Simulate yank by removing from published set."""
+        key = f'{package_name}=={version}'
+        if key in self._published:
+            if not dry_run:
+                self._published.discard(key)
+            return True
+        return False
