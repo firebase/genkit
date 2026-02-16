@@ -120,6 +120,24 @@ class GenkitError(BaseModel):
     data: Data | None = None
 
 
+class MiddlewareDesc(BaseModel):
+    """Model for middlewaredesc data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str
+    description: str | None = None
+    config_schema: dict[str, Any] | None = Field(default=None)
+    metadata: dict[str, Any] | None = None
+
+
+class MiddlewareRef(BaseModel):
+    """Model for middlewareref data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str
+    config: Any | None = None
+
+
 class Code(StrEnum):
     """Code data type class."""
 
@@ -1002,6 +1020,7 @@ class GenerateActionOptions(BaseModel):
     return_tool_requests: bool | None = Field(default=None)
     max_turns: float | None = Field(default=None)
     step_name: str | None = Field(default=None)
+    use: list[MiddlewareRef] | None = None
 
 
 class GenerateRequest(BaseModel):
