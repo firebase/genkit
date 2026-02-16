@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -110,7 +111,7 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	}
 
 	for _, name := range models {
-		model := newModel(a.aclient, name, defaultClaudeOpts)
+		model := newModel(a.aclient, name, name, defaultClaudeOpts)
 		if actionDef, ok := model.(api.Action); ok {
 			actions = append(actions, actionDef.Desc())
 		}
@@ -133,7 +134,19 @@ func IsDefinedModel(g *genkit.Genkit, name string) bool {
 func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 	switch atype {
 	case api.ActionTypeModel:
-		return newModel(a.aclient, id, ai.ModelOptions{
+		models, err := listModels(context.Background(), &a.aclient)
+		if err != nil {
+			slog.Error("unable to list anthropic models from Anthropic API", "error", err)
+			return nil
+		}
+
+		realID, ok := resolveModelID(id, models)
+		if !ok {
+			// If not found, fall back to using id as is (legacy behavior, or for models not in list)
+			realID = id
+		}
+
+		return newModel(a.aclient, id, realID, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, id),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
@@ -144,7 +157,7 @@ func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 }
 
 // newModel creates a model wihout registering it
-func newModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
+func newModel(client anthropic.Client, name, apiModelName string, opts ai.ModelOptions) ai.Model {
 	config := &anthropic.MessageNewParams{}
 
 	meta := &ai.ModelOptions{
@@ -155,15 +168,44 @@ func newModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Mod
 		Stage:        opts.Stage,
 	}
 
+	targetModel := name
+	if apiModelName != "" {
+		targetModel = apiModelName
+	}
+
 	fn := func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return ant.Generate(ctx, client, name, input, cb)
+		return ant.Generate(ctx, client, targetModel, input, cb)
 	}
 
 	return ai.NewModel(api.NewName(provider, name), meta, fn)
+}
+
+func resolveModelID(id string, availableModels []string) (string, bool) {
+	for _, m := range availableModels {
+		if m == id {
+			return m, true
+		}
+	}
+
+	var bestMatch string
+	prefix := id + "-"
+	for _, m := range availableModels {
+		if strings.HasPrefix(m, prefix) {
+			if m > bestMatch {
+				bestMatch = m
+			}
+		}
+	}
+
+	if bestMatch != "" {
+		return bestMatch, true
+	}
+
+	return "", false
 }
 
 // configToMap converts a config struct to a map[string]any.
