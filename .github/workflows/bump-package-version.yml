@@ -70,8 +70,13 @@ jobs:
           git config --global user.name "genkit-releaser"
 
       - name: Bump and Tag
+        env:
+          # Pass user-controlled string inputs via env vars to prevent script injection.
+          INPUT_PACKAGE_DIR: ${{ inputs.packageDir }}
+          INPUT_PACKAGE_NAME: ${{ inputs.packageName }}
+          INPUT_PREID: ${{ inputs.preid }}
         run: |
-          js/scripts/bump_and_tag.sh ${{ inputs.packageDir }} ${{ inputs.packageName }} ${{ inputs.releaseType }} ${{ inputs.preid }}
+          js/scripts/bump_and_tag.sh "$INPUT_PACKAGE_DIR" "$INPUT_PACKAGE_NAME" "${{ inputs.releaseType }}" "$INPUT_PREID"
 
       - name: Push
         shell: bash
