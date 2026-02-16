@@ -72,6 +72,8 @@ func Generate(
 
 	req.Model = anthropic.Model(model)
 
+	isStructured := input.Output != nil && input.Output.Format == "json" && input.Output.Schema != nil
+
 	// no streaming
 	if cb == nil {
 		msg, err := client.Messages.New(ctx, *req)
@@ -85,6 +87,9 @@ func Generate(
 		}
 
 		r.Request = input
+		if isStructured {
+			handleStructuredOutput(r)
+		}
 		return r, nil
 	} else {
 		stream := client.Messages.NewStreaming(ctx, *req)
@@ -101,6 +106,8 @@ func Generate(
 			case anthropic.ContentBlockDeltaEvent:
 				if event.Delta.Type == "thinking_delta" {
 					content = append(content, ai.NewReasoningPart(event.Delta.Thinking, []byte(event.Delta.Signature)))
+				} else if isStructured && event.Delta.Type == "input_json_delta" {
+					content = append(content, ai.NewTextPart(event.Delta.PartialJSON))
 				} else {
 					content = append(content, ai.NewTextPart(event.Delta.Text))
 				}
@@ -116,6 +123,9 @@ func Generate(
 					return nil, err
 				}
 				r.Request = input
+				if isStructured {
+					handleStructuredOutput(r)
+				}
 				return r, nil
 			}
 		}
@@ -125,6 +135,17 @@ func Generate(
 	}
 
 	return nil, nil
+}
+
+func handleStructuredOutput(r *ai.ModelResponse) {
+	for i, part := range r.Message.Content {
+		if part.IsToolRequest() && part.ToolRequest.Name == "return_json_output" {
+			// Convert input to JSON
+			jsonBytes, _ := json.Marshal(part.ToolRequest.Input)
+			r.Message.Content[i] = ai.NewTextPart(string(jsonBytes))
+			r.FinishReason = ai.FinishReasonStop
+		}
+	}
 }
 
 func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
@@ -192,6 +213,26 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 		return nil, err
 	}
 	req.Tools = tools
+
+	if i.Output != nil && i.Output.Format == "json" && i.Output.Schema != nil {
+		schema, err := base.MapToStruct[anthropic.ToolInputSchemaParam](i.Output.Schema)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse output schema: %w", err)
+		}
+		req.Tools = append(req.Tools, anthropic.ToolUnionParam{
+			OfTool: &anthropic.ToolParam{
+				Name:        "return_json_output",
+				Description: anthropic.String("Return the output in JSON format"),
+				InputSchema: schema,
+			},
+		})
+		req.ToolChoice = anthropic.ToolChoiceUnionParam{
+			OfTool: &anthropic.ToolChoiceToolParam{
+				Name: "return_json_output",
+				Type: "tool",
+			},
+		}
+	}
 
 	return req, nil
 }

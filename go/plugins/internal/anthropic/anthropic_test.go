@@ -17,6 +17,7 @@
 package anthropic
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -415,5 +416,65 @@ func TestToAnthropicRequest(t *testing.T) {
 				t.Errorf("toAnthropicRequest() got Messages len = %d, want %d", len(got.Messages), len(tt.expected.Messages))
 			}
 		})
+	}
+}
+
+func TestToAnthropicRequest_StructuredOutput(t *testing.T) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"answer": map[string]any{"type": "string"},
+		},
+		"required": []string{"answer"},
+	}
+
+	req := &ai.ModelRequest{
+		Messages: []*ai.Message{
+			{
+				Role:    ai.RoleUser,
+				Content: []*ai.Part{ai.NewTextPart("hello")},
+			},
+		},
+		Config: map[string]any{
+			"max_tokens": 100,
+		},
+		Output: &ai.ModelOutputConfig{
+			Format: "json",
+			Schema: schema,
+		},
+	}
+
+	got, err := toAnthropicRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// We expect a tool named "return_json_output" (or similar) with the schema
+	var foundTool *anthropic.ToolParam
+	for _, toolUnion := range got.Tools {
+		if toolUnion.OfTool != nil && toolUnion.OfTool.Name == "return_json_output" {
+			foundTool = toolUnion.OfTool
+			break
+		}
+	}
+
+	if foundTool == nil {
+		t.Errorf("expected tool 'return_json_output' not found in tools: %+v", got.Tools)
+	} else {
+		// Verify schema
+		inputSchemaBytes, _ := json.Marshal(foundTool.InputSchema)
+		expectedSchemaBytes, _ := json.Marshal(schema)
+		if len(inputSchemaBytes) == 0 {
+			t.Errorf("tool input schema is empty")
+		}
+		t.Logf("Schema found: %s", string(inputSchemaBytes))
+		t.Logf("Expected: %s", string(expectedSchemaBytes))
+	}
+
+	// We expect ToolChoice to be set to force this tool
+	if got.ToolChoice.OfTool == nil {
+		t.Errorf("expected ToolChoice to be set to specific tool, got nil or auto")
+	} else if got.ToolChoice.OfTool.Name != "return_json_output" {
+		t.Errorf("expected ToolChoice name to be 'return_json_output', got %q", got.ToolChoice.OfTool.Name)
 	}
 }
