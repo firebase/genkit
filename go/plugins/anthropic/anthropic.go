@@ -111,6 +111,8 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	}
 
 	for _, name := range models {
+		// When listing discovered models, the Genkit action name and the 
+		// Anthropic API model ID are identical.
 		model := newModel(a.aclient, name, name, defaultClaudeOpts)
 		if actionDef, ok := model.(api.Action); ok {
 			actions = append(actions, actionDef.Desc())
@@ -146,6 +148,8 @@ func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 			realID = id
 		}
 
+		// We register the model using the ID requested by the user, but 
+		// use the resolved 'realID' (e.g. versioned) for actual API calls.
 		return newModel(a.aclient, id, realID, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, id),
 			Stage:    ai.ModelStageStable,
