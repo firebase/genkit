@@ -28,7 +28,14 @@ from releasekit.backends._run import CommandResult
 from releasekit.backends.registry import ChecksumResult
 from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.preflight import PreflightResult
-from releasekit.prepare import PrepareResult, _build_pr_body, _embed_manifest, _package_paths, prepare_release
+from releasekit.prepare import (
+    _GITHUB_BODY_LIMIT,
+    PrepareResult,
+    _build_pr_body,
+    _embed_manifest,
+    _package_paths,
+    prepare_release,
+)
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 from tests._fakes import OK as _OK, FakePM as _FakePM, FakeVCS as _BaseFakeVCS
@@ -112,7 +119,7 @@ class TestBuildPrBody:
             raise AssertionError('Missing version header')
 
     def test_includes_changelogs(self) -> None:
-        """PR body includes changelogs for all packages."""
+        """PR body includes changelogs for all packages in details blocks."""
         changelogs = {
             'a': '## a\n- fix',
             'b': '## b\n- feat',
@@ -122,12 +129,60 @@ class TestBuildPrBody:
             raise AssertionError('Missing changelog for a')
         if '## b' not in body:
             raise AssertionError('Missing changelog for b')
+        # Changelogs should be in collapsible details.
+        if '<details>' not in body:
+            raise AssertionError('Missing details block')
 
     def test_embeds_manifest(self) -> None:
         """PR body contains embedded release manifest."""
         body = _build_pr_body({}, '{"x":1}', '1.0.0')
         if '<!-- releasekit:manifest:start -->' not in body:
             raise AssertionError('Missing manifest')
+
+    def test_includes_summary_table(self) -> None:
+        """PR body includes a summary table with package names."""
+        changelogs = {
+            'genkit': '## 0.2.0 (2026-01-01)\n- feat: new',
+            'genkit-plugin-x': '## 0.2.0 (2026-01-01)\n- fix: bug',
+        }
+        body = _build_pr_body(changelogs, '{}', '0.2.0')
+        if '`genkit`' not in body:
+            raise AssertionError('Missing genkit in summary table')
+        if '`genkit-plugin-x`' not in body:
+            raise AssertionError('Missing genkit-plugin-x in summary table')
+        if '| Package |' not in body:
+            raise AssertionError('Missing table header')
+
+    def test_truncates_when_too_large(self) -> None:
+        """Body is truncated; largest changelogs are dropped first."""
+        # Create changelogs of varying sizes: most are small, a few are huge.
+        changelogs: dict[str, str] = {}
+        for i in range(80):
+            # Small changelogs (~30 chars each).
+            changelogs[f'small-{i:03d}'] = f'## 0.1.{i}\n\n- fix: minor\n'
+        for i in range(10):
+            # Huge changelogs (~10 KB each → 100 KB total, exceeds limit).
+            changelogs[f'huge-{i:02d}'] = f'## 1.0.{i}\n\n' + ('- feat: a very big change\n' * 400)
+
+        manifest = '{"test": true}'
+        body = _build_pr_body(changelogs, manifest, '1.0.0')
+
+        if len(body) > _GITHUB_BODY_LIMIT:
+            raise AssertionError(f'Body exceeds limit: {len(body)} > {_GITHUB_BODY_LIMIT}')
+        # Manifest must always be present.
+        if '<!-- releasekit:manifest:start -->' not in body:
+            raise AssertionError('Missing manifest in truncated body')
+        # Truncation notice should appear.
+        if 'omitted' not in body:
+            raise AssertionError('Missing truncation notice')
+        # Small changelogs should be included (they fit).
+        if '<b>small-000</b>' not in body:
+            raise AssertionError('Small changelog was dropped but should be included')
+        # Huge changelogs should be the ones dropped (largest first).
+        # At least some huge ones should be missing from the body.
+        huge_in_body = sum(1 for i in range(10) if f'<b>huge-{i:02d}</b>' in body)
+        if huge_in_body == 10:
+            raise AssertionError('All huge changelogs included — expected some to be dropped')
 
 
 class TestPackagePaths:

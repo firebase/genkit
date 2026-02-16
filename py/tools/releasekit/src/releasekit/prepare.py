@@ -166,17 +166,81 @@ def _embed_manifest(body: str, manifest_json: str) -> str:
     return body + '\n\n' + block
 
 
+# GitHub's maximum PR body size.
+_GITHUB_BODY_LIMIT: int = 65_536
+
+# Safety margin so the manifest + boilerplate always fit.
+_MANIFEST_RESERVE: int = 8_192
+
+
 def _build_pr_body(
     changelogs: dict[str, str],
     manifest_json: str,
     umbrella_version: str,
 ) -> str:
-    """Build the Release PR body with changelogs and embedded manifest."""
-    lines = [f'# Release v{umbrella_version}', '']
-    for _pkg_name, changelog_md in sorted(changelogs.items()):
-        lines.append(changelog_md)
-        lines.append('')
-    body = '\n'.join(lines)
+    """Build the Release PR body with changelogs and embedded manifest.
+
+    If the body would exceed GitHub's 65,536-character limit, changelogs
+    are progressively dropped (largest first) and replaced with a
+    truncation notice.  The embedded manifest is always preserved.
+    """
+    # Sort once, reuse for both table and detail blocks.
+    sorted_changelogs = sorted(changelogs.items())
+
+    # --- 1. Build a compact summary table. ---
+    header_lines = [
+        f'# Release v{umbrella_version}',
+        '',
+        f'This release includes **{len(changelogs)}** package(s).',
+        '',
+        '| Package | Version heading |',
+        '|---------|----------------|',
+    ]
+    for pkg_name, changelog_md in sorted_changelogs:
+        # Extract the first heading line (## x.y.z ...) as the summary.
+        first_heading = ''
+        for cl_line in changelog_md.splitlines():
+            if cl_line.startswith('## '):
+                first_heading = cl_line.lstrip('# ').strip()
+                break
+        header_lines.append(f'| `{pkg_name}` | {first_heading} |')
+    header_lines.append('')
+
+    # --- 2. Build collapsible changelog sections. ---
+    detail_blocks: list[tuple[str, str]] = []
+    for pkg_name, changelog_md in sorted_changelogs:
+        block = f'<details><summary><b>{pkg_name}</b></summary>\n\n{changelog_md}\n</details>\n'
+        detail_blocks.append((pkg_name, block))
+
+    # --- 3. Assemble and check size, truncating if needed. ---
+    header = '\n'.join(header_lines)
+    manifest_block = _embed_manifest('', manifest_json)
+    # Budget available for changelog details.
+    budget = _GITHUB_BODY_LIMIT - len(header) - len(manifest_block) - _MANIFEST_RESERVE
+
+    included: list[str] = []
+    dropped: list[str] = []
+    used = 0
+    # Sort smallest-first so the largest changelogs are dropped first.
+    for pkg_name, block in sorted(detail_blocks, key=lambda item: len(item[1])):
+        if used + len(block) <= budget:
+            included.append(block)
+            used += len(block)
+        else:
+            dropped.append(pkg_name)
+
+    parts = [header]
+    if included:
+        parts.append('## Changelogs\n')
+        parts.extend(included)
+    if dropped:
+        parts.append(
+            f'\n> **Note:** {len(dropped)} changelog(s) omitted to stay '
+            f'within the PR body size limit. See individual CHANGELOG.md '
+            f'files for full details.\n'
+        )
+
+    body = '\n'.join(parts)
     return _embed_manifest(body, manifest_json)
 
 
