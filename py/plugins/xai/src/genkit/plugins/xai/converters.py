@@ -46,10 +46,16 @@ __all__ = [
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
 
 FINISH_REASON_MAP: dict[str, FinishReason] = {
+    # OpenAI-style finish reasons (used by some SDK versions).
     'STOP': FinishReason.STOP,
     'LENGTH': FinishReason.LENGTH,
     'TOOL_CALLS': FinishReason.STOP,
     'CONTENT_FILTER': FinishReason.OTHER,
+    # xAI protobuf enum names (REASON_-prefixed).
+    'REASON_STOP': FinishReason.STOP,
+    'REASON_LENGTH': FinishReason.LENGTH,
+    'REASON_TOOL_CALLS': FinishReason.STOP,
+    'REASON_CONTENT_FILTER': FinishReason.OTHER,
 }
 
 

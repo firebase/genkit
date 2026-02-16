@@ -31,6 +31,10 @@ max-retries      = 2
 retry-base-delay = 1.0
 test-concurrency = 3
 
+# Runner type: auto (default), native, reflection, or in-process.
+# auto: uses the per-runtime default-runner (see below).
+runner = "auto"
+
 # Timeouts (seconds).  These are global defaults; override per-plugin
 # or per-model in the sections below.
 action-timeout  = 120.0 # Per LLM action call (model generate request)
@@ -93,15 +97,18 @@ cwd           = "../../.."
 entry-command = ["uv", "run", "--project", "py", "--active"]
 plugins-dir   = "../../plugins"
 specs-dir     = "."
+default-runner = "in-process"  # Python runs in-process by default
 
 [conform.runtimes.js]
 cwd           = "../../../js"
 entry-command = ["npx", "tsx"]
 plugins-dir   = "../../../js/plugins"
 specs-dir     = "."
+default-runner = "native"  # JS uses native JSONL-over-stdio executor
 
 [conform.runtimes.go]
 cwd           = "../../../go"
 entry-command = ["go", "run"]
 plugins-dir   = "../../../go/plugins"
 specs-dir     = "."
+default-runner = "native"  # Go uses native JSONL-over-stdio executor

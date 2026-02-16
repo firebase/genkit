@@ -187,6 +187,7 @@ CLI flags override TOML values.  All flags below are per-subcommand
 |------|----------|-------------|
 | `--config FILE` | — | Path to `conform.toml` (auto-discovered if omitted) |
 | `--runtime NAME` | — | Filter to a single runtime |
+| `--runner TYPE` | — | Runner type: `auto`, `native`, `reflection`, `in-process`, or `cli` |
 | `--specs-dir DIR` | `runtimes.<name>.specs-dir` | Override specs directory |
 | `--plugins-dir DIR` | `runtimes.<name>.plugins-dir` | Override plugins directory |
 | `-j N` | `concurrency` | Max concurrent plugins |

@@ -13,7 +13,7 @@ It uses a **native runner** by default:
 - **Python runtime** — imports the entry point in-process (no subprocess,
   no HTTP).  **No genkit CLI dependency.**
 - **JS/Go runtimes** — communicates with reflection servers via async HTTP.
-- **Legacy fallback** — `--use-cli` flag delegates to `genkit dev:test-model`.
+- **CLI fallback** — `--runner cli` delegates to `genkit dev:test-model`.
 
 ## Quick start
 
@@ -21,7 +21,7 @@ It uses a **native runner** by default:
 # From anywhere in the repo
 py/bin/conform check-model                 # Run all plugins (all runtimes)
 py/bin/conform check-model anthropic xai   # Run specific plugins
-py/bin/conform check-model --use-cli       # Legacy genkit CLI runner
+py/bin/conform check-model --runner cli     # Genkit CLI runner
 py/bin/conform --runtime python check-model  # Single runtime only
 py/bin/conform check-plugin                # Verify plugin files exist
 py/bin/conform list                        # Show runtimes and env-var readiness

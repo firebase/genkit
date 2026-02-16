@@ -939,6 +939,52 @@ Phase 9: Polyglot Backends ▼    ✅ COMPLETE
 │                                                         │
 │  ✓ Full polyglot support across 7 ecosystems            │
 │  ✓ Supply chain security (Sigstore, SLSA, SBOM, OIDC)   │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+Phase 10: AI Release Notes  ▼    🔲 PLANNED
+┌─────────────────────────────────────────────────────────┐
+│  summarize.py ──► genkit (ai.generate), changelog       │
+│    + Structured output via Pydantic schema               │
+│    + Configurable: Ollama (default) / Google GenAI /     │
+│      Vertex AI / Anthropic                               │
+│  prepare.py (update) ──► summarize.py                    │
+│    + Summarize-or-truncate fallback                      │
+│  release_notes.py (update) ──► summarize.py              │
+│    + AI summary for GitHub Release body                  │
+│                                                         │
+│  🟨 releasekit prepare --summarize                      │
+│  🟨 Default: ollama/gemma3:4b (CI-friendly, no API key) │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+Phase 11: AI Changelog &    ▼    🔲 PLANNED
+           Version Intel
+┌─────────────────────────────────────────────────────────┐
+│  enhance.py ──► summarize.py, changelog.py              │
+│    + Rewrite commit messages into user-friendly entries  │
+│  detect_breaking.py ──► summarize.py, versioning.py     │
+│    + AI diff analysis for missed breaking changes        │
+│  classify.py ──► summarize.py, versioning.py            │
+│    + Semantic version classification from diffs          │
+│  scope.py ──► summarize.py, versioning.py               │
+│    + AI commit scoping for multi-package commits         │
+│                                                         │
+│  🔲 releasekit version --ai-classify                    │
+│  🔲 releasekit check --detect-breaking                  │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+Phase 12: AI Content Gen    ▼    🔲 PLANNED
+┌─────────────────────────────────────────────────────────┐
+│  migration.py ──► summarize.py, release_notes.py        │
+│    + Auto-generate migration guides from breaking diffs  │
+│  announce_ai.py ──► summarize.py, announce.py           │
+│    + Platform-tailored announcements (Slack/X/LinkedIn)  │
+│  advisory.py ──► summarize.py, osv.py                   │
+│    + Draft security advisories from OSV data             │
+│  hints_ai.py ──► summarize.py, errors.py                │
+│    + Contextual error hints from config + state          │
+│                                                         │
+│  🔲 releasekit announce --ai-tailor                     │
+│  🔲 releasekit advisory --draft                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -1726,6 +1772,481 @@ Writing bootstrap_sha = "b71a3d20c74b71583edbc652e5b26117caad43f4" to releasekit
 - Works across multiple workspaces (e.g. `py` + `js` in the same repo).
 - The classification logic reuses `tag_format` parsing from
   `versioning.py`, ensuring consistency with how releasekit creates tags.
+
+### Phase 10: AI-Powered Release Notes  🔲 Planned
+
+Use Genkit to generate human-quality release summaries from raw
+changelogs, eliminating the 65,536-character PR body limit problem
+entirely and producing release notes comparable to hand-written ones
+like [Genkit Python SDK v0.5.0](https://github.com/firebase/genkit/releases/tag/py%2Fv0.5.0).
+
+**Problem**: With 67+ packages, raw changelogs concatenated into the
+PR body exceed GitHub's 65,536-character limit. The current fix
+(collapsible `<details>` blocks + progressive truncation) is a
+workaround. The real solution is to summarize the changelogs into a
+concise, structured release summary.
+
+**Approach**: Use Genkit's `ai.generate()` with a structured output
+schema to produce a release summary from the full changelog data.
+The model processes all package changelogs (no truncation) and outputs
+a structured summary with sections for overview, highlights, breaking
+changes, migration notes, and per-package summaries.
+
+| Module | Description | Est. Lines |
+|--------|-------------|-----------|
+| `summarize.py` | Genkit-based changelog summarization. Accepts full changelog data, produces structured release summary via `ai.generate()` with JSON output schema. Configurable model provider. Caching to avoid re-summarizing unchanged changelogs. | ~300 |
+| `prepare.py` (update) | Wire summarization into `_build_pr_body()`. When a model is configured, summarize instead of truncate. Fall back to current truncation logic if no model is available or summarization fails. | ~50 |
+| `release_notes.py` (update) | Use the same summarization for GitHub Release body (richer format, no character limit). Include per-package changelogs in collapsible sections below the summary. | ~50 |
+
+**Model configuration** (`releasekit.toml`):
+
+```toml
+[ai]
+# Provider: "ollama" (default, no API key), "google-genai", "vertex-ai"
+provider         = "ollama"
+# Model name (provider-specific)
+model            = "gemma3:4b"
+# Temperature for summarization (low = more factual)
+temperature      = 0.2
+# Max output tokens
+max_output_tokens = 4096
+```
+
+**Local models via Ollama** (no API key required):
+
+**CI-friendly models** (small download, fast inference, no API key):
+
+| Model | Download | Speed | Quality | Notes |
+|-------|----------|-------|---------|-------|
+| `gemma3:4b` | ~2.3 GB | ★★★★★ | ★★★★ | **Default.** Best CI trade-off: fast download, fast inference, good structured output. |
+| `gemma3:1b` | ~815 MB | ★★★★★ | ★★★ | Smallest download. Minimum viable quality. |
+| `qwen2.5:3b` | ~1.9 GB | ★★★★★ | ★★★★ | Strong at structured tasks. |
+| `llama3.2:3b` | ~2.0 GB | ★★★★★ | ★★★ | Meta's compact model. |
+
+**Local dev models** (higher quality, larger download):
+
+| Model | Download | Speed | Quality | Notes |
+|-------|----------|-------|---------|-------|
+| `gemma3:12b` | ~8 GB | ★★★ | ★★★★★ | Best local quality. Recommended for local dev. |
+| `llama3.1:8b` | ~4.7 GB | ★★★★ | ★★★★ | Strong general-purpose model. |
+| `qwen2.5:7b` | ~4.4 GB | ★★★★ | ★★★★ | Excellent at structured output. |
+
+**Ollama model caching in CI**: Ollama stores models as blob files
+under `~/.ollama/models/`. Cache this directory in GitHub Actions
+(`actions/cache@v4`) keyed on the model name. On cache hit, `ollama
+pull` is a no-op (~0s). On cache miss, `gemma3:4b` downloads in ~30s
+on GitHub's 10 Gbps runners.
+
+**Cloud models** (API key required, higher quality):
+
+| Provider | Model | Notes |
+|----------|-------|-------|
+| `google-genai` | `gemini-2.0-flash` | Fast, high quality, generous free tier. |
+| `vertex-ai` | `gemini-2.0-flash` | Same model, enterprise auth (ADC). |
+| `anthropic` | `claude-3-5-sonnet` | Excellent at structured summarization. |
+
+**Output schema** (Pydantic model for structured generation):
+
+```python
+class ReleaseSummary(BaseModel):
+    """Structured release summary generated by AI."""
+    overview: str                    # 2-3 sentence overview
+    highlights: list[str]            # Top 5-10 user-facing highlights
+    breaking_changes: list[str]      # Breaking changes with migration notes
+    new_plugins: list[str]           # New plugins/packages added
+    deprecations: list[str]          # Deprecated features
+    security_fixes: list[str]        # Security-related fixes
+    package_summaries: dict[str, str]  # Per-package one-line summary
+    contributors: list[str]          # Contributor handles (from commits)
+    stats: ReleaseStats              # Commit count, files changed, etc.
+
+class ReleaseStats(BaseModel):
+    """Quantitative release statistics."""
+    commit_count: int
+    packages_changed: int
+    files_changed: int
+    days_since_last_release: int
+```
+
+**Reference output** (modeled after [py/v0.5.0](https://github.com/firebase/genkit/releases/tag/py%2Fv0.5.0)):
+
+```markdown
+# Release: Genkit Python SDK v0.6.0
+
+## Overview
+This release includes 67 packages with 42 commits since v0.5.0.
+Key themes: new Cloudflare Workers AI plugin, improved structured
+output across all providers, and performance optimizations.
+
+## What's New
+### New Plugins
+- `genkit-plugin-cloudflare-workers-ai` — Cloudflare Workers AI
+### Core Framework
+- Structured output: array and enum formats (JS SDK parity)
+- Circuit breaker for LLM API protection
+- Response caching with stampede prevention
+
+## Breaking Changes
+- `PluginV2.initialize()` is now async (#4512)
+  **Migration**: Add `await` to all `initialize()` calls.
+
+## Package Summaries
+| Package | Summary |
+|---------|---------|
+| `genkit` | Core framework: async init, new output formats |
+| `genkit-plugin-google-genai` | Gemini 2.0 Flash support |
+| ... | ... |
+```
+
+**Fallback behavior**: If no model is configured or summarization
+fails (network error, Ollama not running, etc.), `_build_pr_body()`
+falls back to the current truncation logic (summary table +
+collapsible details + progressive dropping). The AI summary is a
+best-effort enhancement, never a hard dependency.
+
+**CLI integration**:
+
+```bash
+# Summarize with default model (ollama/gemma3:4b)
+releasekit prepare --summarize
+
+# Summarize with a specific model
+releasekit prepare --summarize --model google-genai/gemini-2.0-flash
+
+# Skip summarization (use truncation fallback)
+releasekit prepare --no-summarize
+
+# Preview summary without creating PR
+releasekit prepare --dry-run --summarize
+```
+
+**Implementation notes**:
+
+- Uses Genkit's `ai.generate()` with `output=ReleaseSummary` for
+  typed structured output — dogfooding the SDK.
+- Changelog data is passed as the user prompt (no retrieval needed,
+  all data is local).
+- System prompt instructs the model to be factual, avoid
+  hallucination, and preserve PR/issue references from commits.
+- Caches summaries by content hash to avoid re-summarizing on
+  `prepare` re-runs (idempotent).
+- Model selection follows the configurability principle:
+  `CLI flag > env var (RELEASEKIT_AI_MODEL) > releasekit.toml > default`.
+
+**Done when**: `releasekit prepare --summarize` produces a GitHub
+Release-quality summary from raw changelogs. PR body fits within
+the 65,536-character limit with room to spare. Release notes match
+the quality of hand-written ones like py/v0.5.0.
+
+**Milestone**: First release tool that uses AI to generate
+production-quality release notes, dogfooding the Genkit SDK.
+
+### Phase 11: AI Changelog & Version Intelligence  🔲 Planned
+
+Uses the Phase 10 AI infrastructure (`summarize.py`, `AiConfig`,
+Genkit lazy init) to improve changelog quality and version accuracy.
+All features share the same model config and caching layer.
+
+**Prerequisites**: Phase 10 complete (AI config, Genkit integration,
+`summarize.py` module with lazy import and fallback patterns).
+
+#### 11a. Changelog Enhancement (`enhance.py`)
+
+**Problem**: Raw conventional commit messages are terse developer-speak.
+Users want human-readable changelogs.
+
+**What it does**: Rewrites each `ChangelogEntry.description` into a
+user-friendly sentence. Preserves PR/issue references. Optionally
+groups related entries.
+
+```
+Input:  "fix(auth): handle null token edge case in refresh flow (#4521)"
+Output: "Fixed a crash that could occur when refreshing authentication
+         tokens after a session timeout. (#4521)"
+```
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **E1** | `enhance.py` | `enhance_changelog(changelog, config) -> Changelog`. Rewrites each entry description via `ai.generate()`. Batch: sends all entries in one prompt for efficiency + consistency. Returns enhanced `Changelog` with original preserved in metadata. | ~120 |
+| **E2** | `changelog.py` | Add `--enhance` flag to `generate_changelog()`. When set, pipes output through `enhance_changelog()` before rendering. | ~20 |
+| **E3** | `cli.py` | Add `--enhance-changelog` flag to `prepare` and `tag` subcommands. | ~15 |
+| **E4** | `tests/rk_enhance_test.py` | Mock model tests: batch rewrite, reference preservation, fallback on failure, empty changelog. | ~80 |
+
+**Fallback**: If AI fails, return the original changelog unchanged.
+
+**Done when**: `releasekit prepare --enhance-changelog` produces
+user-friendly changelogs. Raw entries preserved as fallback.
+
+#### 11b. Breaking Change Detection (`detect_breaking.py`)
+
+**Problem**: Developers forget `BREAKING CHANGE:` footers. A `feat:`
+commit might silently break the public API. Missed breaking changes
+cause surprise failures for downstream users.
+
+**What it does**: Analyzes the **diff** of each commit against the
+public API surface and classifies whether it's truly breaking:
+- Removed/renamed public function, class, or constant
+- Changed function signature (new required param, removed param)
+- Changed return type or exception types
+- Changed default values in ways that alter behavior
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **B1** | `detect_breaking.py` | `detect_breaking_changes(commits, vcs, config) -> list[BreakingChangeReport]`. For each commit, gets diff via `vcs.diff(sha)`, sends to AI with the prompt "classify this diff as breaking/non-breaking and explain why". Returns a `BreakingChangeReport` with confidence score. | ~180 |
+| **B2** | `detect_breaking.py` | `BreakingChangeReport` dataclass: `sha`, `message`, `is_breaking`, `confidence` (0.0–1.0), `reason`, `affected_symbols` (list of function/class names). | ~30 |
+| **B3** | `versioning.py` | Integrate as validation pass. After conventional commit parsing, run `detect_breaking_changes()` on commits classified as non-breaking. Warn (or upgrade bump) if AI detects a missed breaking change. | ~40 |
+| **B4** | `checks/` | Add `ai_breaking_change` health check to `releasekit check`. Scans unreleased commits for missed breaking changes. | ~50 |
+| **B5** | `cli.py` | Add `--detect-breaking` flag to `version` and `check` subcommands. | ~15 |
+| **B6** | `tests/rk_detect_breaking_test.py` | Mock model tests: signature change, removed function, renamed class, false positive (internal rename), confidence thresholds. | ~120 |
+
+**Key design**: The AI doesn't *decide* the version bump — it *warns*.
+The developer reviews the report and confirms. This avoids AI
+hallucinations from silently changing release versions.
+
+**Fallback**: If AI fails, skip detection (no warnings). Never block
+a release on AI availability.
+
+**Done when**: `releasekit check --detect-breaking` flags commits
+where a breaking change was likely missed. `releasekit version
+--detect-breaking` warns before computing bumps.
+
+#### 11c. Semantic Version Classification (`classify.py`)
+
+**Problem**: When conventional commit prefixes are missing or wrong,
+version bumps may be incorrect. A `chore:` commit that changes a
+public interface should be a minor bump, not skipped.
+
+**What it does**: Second-opinion classification. For each commit,
+analyzes the diff and message to independently classify as `patch`,
+`minor`, or `major`. Flags disagreements with the conventional commit
+classification.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **C1** | `classify.py` | `classify_commits(commits, vcs, config) -> list[ClassificationReport]`. Gets diff for each commit, sends to AI with "classify as patch/minor/major". Returns classification + confidence. | ~120 |
+| **C2** | `classify.py` | `ClassificationReport` dataclass: `sha`, `conventional_bump`, `ai_bump`, `confidence`, `reason`, `disagreement` (bool). | ~25 |
+| **C3** | `versioning.py` | Optional validation pass after bump computation. Log warnings for disagreements. `--ai-classify` flag enables it. | ~30 |
+| **C4** | `tests/rk_classify_test.py` | Mock model tests: agreement cases, disagreement cases, missing prefix, confidence filtering. | ~80 |
+
+**Fallback**: If AI fails, use conventional commit classification
+(the existing behavior). AI is advisory only.
+
+#### 11d. Commit Scoping (`scope.py`)
+
+**Problem**: When a commit touches files in multiple packages, which
+package gets the changelog entry? Path heuristics (longest prefix
+match) can be wrong for cross-cutting commits.
+
+**What it does**: Analyzes commit message + diff paths to determine
+the primary package affected. Returns a ranked list of packages.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **S1** | `scope.py` | `scope_commit(commit, packages, vcs, config) -> list[ScopeResult]`. Ranks packages by relevance. Uses diff paths + message content. | ~80 |
+| **S2** | `versioning.py` | Use `scope_commit()` when a commit touches multiple package paths. Replace longest-prefix heuristic with AI scoping (when enabled). | ~25 |
+| **S3** | `tests/rk_scope_test.py` | Mock tests: single-package commit, multi-package commit, cross-cutting refactor, utility file commit. | ~60 |
+
+**Fallback**: If AI fails, fall back to path heuristic (existing behavior).
+
+---
+
+**Phase 11 Totals**:
+
+| Sub-phase | Tasks | Est. Lines |
+|-----------|-------|-----------|
+| 11a: Changelog Enhancement | E1–E4 | ~235 |
+| 11b: Breaking Change Detection | B1–B6 | ~435 |
+| 11c: Version Classification | C1–C4 | ~255 |
+| 11d: Commit Scoping | S1–S3 | ~165 |
+| **Total** | **17 tasks** | **~1,090** |
+
+**Implementation order** (within Phase 11):
+
+```
+11a (Changelog Enhancement)
+    └── depends on Phase 10 only
+
+11b (Breaking Change Detection)
+    └── depends on Phase 10 only
+
+11c (Version Classification)
+    └── depends on 11b (shares BreakingChangeReport pattern)
+
+11d (Commit Scoping)
+    └── depends on Phase 10 only (independent)
+```
+
+All four sub-phases can be implemented in parallel after Phase 10.
+11c benefits from 11b's patterns but is not blocked by it.
+
+### Phase 12: AI Content Generation  🔲 Planned
+
+Uses Phase 10 infrastructure + Phase 11 data (breaking change reports,
+enhanced changelogs) to generate user-facing content.
+
+**Prerequisites**: Phase 10 complete. Phase 11 optional but enhances
+output quality (breaking change data feeds migration guides).
+
+#### 12a. Migration Guide Generation (`migration.py`)
+
+**Problem**: Breaking changes need migration guides. Hand-writing
+these for every release is labor-intensive and often skipped.
+
+**What it does**: For each breaking change (from 11b or conventional
+commit `BREAKING CHANGE:` footers), generates a migration snippet
+with before/after code examples.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **M1** | `migration.py` | `generate_migration_guide(breaking_changes, vcs, config) -> MigrationGuide`. For each breaking change, gets the diff and generates before/after code with explanation. Uses structured output: `MigrationEntry(change, before_code, after_code, explanation)`. | ~150 |
+| **M2** | `migration.py` | `MigrationGuide` + `MigrationEntry` dataclasses. `render_migration_guide(guide) -> str` as markdown. | ~40 |
+| **M3** | `release_notes.py` | Integrate migration guide into release notes. Add "Migration Guide" section after "Breaking Changes" when entries exist. | ~30 |
+| **M4** | `cli.py` | Add `--migration-guide` flag to `prepare` and `tag`. | ~10 |
+| **M5** | `tests/rk_migration_test.py` | Mock tests: function rename, param change, type change, no breaking changes (empty guide). | ~80 |
+
+**Fallback**: If AI fails, include raw breaking change descriptions
+without migration examples.
+
+**Done when**: `releasekit prepare --summarize --migration-guide`
+produces release notes with a migration guide section.
+
+#### 12b. Announcement Tailoring (`announce_ai.py`)
+
+**Problem**: The same template goes to Slack, Discord, Twitter,
+LinkedIn. Each platform has different conventions.
+
+**What it does**: Takes the `ReleaseSummary` from Phase 10 and
+generates platform-specific announcements.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **A1** | `announce_ai.py` | `tailor_announcement(summary, platform, config) -> str`. Platform-specific prompt templates. Supports: `slack` (markdown + emoji), `twitter` (280 chars), `discord` (community tone), `linkedin` (professional paragraph). | ~120 |
+| **A2** | `announce.py` | Wire `tailor_announcement()` into the existing `send_announcement()` flow. When `--ai-tailor` is set, replace template rendering with AI-generated content. | ~30 |
+| **A3** | `cli.py` | Add `--ai-tailor` flag to `announce` subcommand. | ~10 |
+| **A4** | `tests/rk_announce_ai_test.py` | Mock tests per platform: char limits (Twitter), markdown formatting (Slack), tone (LinkedIn). | ~80 |
+
+**Example outputs**:
+
+```
+Slack:  🚀 *Genkit Python SDK v0.6.0* — 67 packages, 42 commits
+        • New: Cloudflare Workers AI plugin
+        • Improved structured output across all providers
+        <https://github.com/firebase/genkit/releases/tag/py/v0.6.0|Full notes>
+
+Twitter: 🚀 Genkit Python SDK v0.6.0 is out! New Cloudflare Workers AI
+         plugin, improved structured output, and performance boosts
+         across 67 packages. Release notes → [link]
+
+LinkedIn: We're excited to announce Genkit Python SDK v0.6.0, a
+          significant update with 42 commits across 67 packages.
+          This release introduces the Cloudflare Workers AI plugin...
+```
+
+**Fallback**: If AI fails, use the existing template-based
+announcements (current behavior).
+
+#### 12c. Security Advisory Drafting (`advisory.py`)
+
+**Problem**: When `osv.py` finds vulnerabilities, someone has to
+write a GHSA advisory. These are formulaic but tedious.
+
+**What it does**: Generates a draft GitHub Security Advisory from
+OSV vulnerability data.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **V1** | `advisory.py` | `draft_advisory(osv_record, config) -> SecurityAdvisory`. Takes OSV data (CVE ID, affected versions, description) and generates: summary, impact description, affected package/versions, remediation steps, CVSS explanation in plain English. | ~120 |
+| **V2** | `advisory.py` | `SecurityAdvisory` dataclass + `render_advisory()` as GHSA-compatible markdown. | ~40 |
+| **V3** | `cli.py` | Add `releasekit advisory --draft` subcommand. Reads OSV scan results, generates drafts. | ~30 |
+| **V4** | `tests/rk_advisory_test.py` | Mock tests: critical CVE, moderate issue, multiple affected versions. | ~60 |
+
+**Fallback**: If AI fails, output raw OSV data in a structured
+template (no AI enhancement).
+
+#### 12d. Contextual Error Hints (`hints_ai.py`)
+
+**Problem**: Static error hints can't account for the user's specific
+config, environment, and what they were trying to do.
+
+**What it does**: When `--verbose` is set and an error occurs,
+generates a contextual hint based on the error, config state, and
+recent actions.
+
+| Task | Module | What | Est. Lines |
+|------|--------|------|-----------|
+| **H1** | `hints_ai.py` | `generate_hint(error, context, config) -> str`. Context includes: config values, recent log lines, environment (CI vs local), error code. Returns an actionable hint. | ~100 |
+| **H2** | `errors.py` | Wire `generate_hint()` into `render_error()` when `--verbose` is active and AI is available. Append AI hint below the static hint. | ~20 |
+| **H3** | `tests/rk_hints_ai_test.py` | Mock tests: publish failed (token expired), build failed (missing dep), config error (typo). | ~60 |
+
+**Example**:
+
+```
+error[RK-PUBLISH-FAILED]: uv publish failed for genkit-plugin-x (exit 1)
+  |
+  = hint: Check that your PyPI token is valid and has upload permissions.
+
+  AI analysis (--verbose):
+    Your PYPI_TOKEN was last rotated 47 days ago. The error output
+    mentions "403 Forbidden", which typically indicates an expired or
+    revoked token. Run 'pypi-token check' to verify, then update the
+    PYPI_TOKEN secret in your GitHub repository settings.
+```
+
+**Fallback**: If AI fails, show only the static hint (existing behavior).
+
+---
+
+**Phase 12 Totals**:
+
+| Sub-phase | Tasks | Est. Lines |
+|-----------|-------|-----------|
+| 12a: Migration Guides | M1–M5 | ~310 |
+| 12b: Announcement Tailoring | A1–A4 | ~240 |
+| 12c: Security Advisory Draft | V1–V4 | ~250 |
+| 12d: Contextual Error Hints | H1–H3 | ~180 |
+| **Total** | **16 tasks** | **~980** |
+
+**Implementation order** (within Phase 12):
+
+```
+12a (Migration Guides)
+    └── depends on Phase 10 + optionally 11b (breaking change data)
+
+12b (Announcement Tailoring)
+    └── depends on Phase 10 only (uses ReleaseSummary)
+
+12c (Security Advisory)
+    └── depends on Phase 10 only (uses OSV data)
+
+12d (Error Hints)
+    └── depends on Phase 10 only (independent)
+```
+
+All four sub-phases can be implemented in parallel after Phase 10.
+12a benefits from 11b's breaking change reports but can work with
+conventional commit `BREAKING CHANGE:` footers alone.
+
+---
+
+## AI Feature Summary (Phases 10–12)
+
+| Phase | Feature | Est. Lines | Key Module | Priority |
+|-------|---------|-----------|-----------|----------|
+| **10** | Release note summarization | ~1,090 | `summarize.py` | **Critical** |
+| **11a** | Changelog enhancement | ~235 | `enhance.py` | High |
+| **11b** | Breaking change detection | ~435 | `detect_breaking.py` | High |
+| **11c** | Version classification | ~255 | `classify.py` | Medium |
+| **11d** | Commit scoping | ~165 | `scope.py` | Low |
+| **12a** | Migration guide generation | ~310 | `migration.py` | Medium |
+| **12b** | Announcement tailoring | ~240 | `announce_ai.py` | Medium |
+| **12c** | Security advisory drafting | ~250 | `advisory.py` | Low |
+| **12d** | Contextual error hints | ~180 | `hints_ai.py` | Low |
+| | **Grand total** | **~3,160** | | |
+
+All features share the Phase 10 foundation: same `AiConfig`, same
+model selection, same Genkit lazy init, same caching layer, same
+fallback pattern. Each feature is independently deployable and
+independently testable with mock models.
 
 ---
 

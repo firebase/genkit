@@ -35,8 +35,8 @@ call, and validating the response with the same 10 validators and 12
 test cases as the JS canonical source.  No subprocess, no HTTP, no
 Node.js.  One process, zero overhead.
 
-The `--use-cli` flag is retained for cross-runtime parity checks (JS,
-Go), but the native runner is the default and recommended path.
+The `--runner cli` option is available for cross-runtime parity checks
+(JS, Go), but the native runner is the default and recommended path.
 
 ## Quick Start
 
@@ -50,8 +50,8 @@ conform check-model google-genai
 # Run all plugins across all runtimes (native runner)
 conform check-model
 
-# Run all plugins using the legacy genkit CLI runner
-conform check-model --use-cli
+# Run all plugins using the genkit CLI runner
+conform check-model --runner cli
 
 # Run against a specific runtime only
 conform --runtime python check-model google-genai
@@ -132,7 +132,7 @@ graph TD
 
 ### Native Runner vs CLI Runner
 
-The native runner (default) and the `--use-cli` runner take very
+The native runner (default) and the `--runner cli` runner take very
 different paths to execute the same tests.
 
 #### Native Runner (default) — In-Process
@@ -195,7 +195,7 @@ sequenceDiagram
     C->>C: Report results
 ```
 
-#### CLI Runner (`--use-cli`) — Subprocess + Reflection HTTP
+#### CLI Runner (`--runner cli`) — Subprocess + Reflection HTTP
 
 Three processes coordinate via subprocess spawning and HTTP.  The
 genkit CLI (Node.js) spawns a Python reflection server, then sends
@@ -210,7 +210,7 @@ each test as an HTTP request.
 > recommended for day-to-day use.
 
 ```
-conform check-model --use-cli google-genai
+conform check-model --runner cli google-genai
     │
     │  Python (conform)                     Node.js (genkit CLI)
     │  ────────────────                     ────────────────────
@@ -287,7 +287,7 @@ sequenceDiagram
 
 #### Comparison
 
-| | Native runner (default) | CLI runner (`--use-cli`) |
+| | Native runner (default) | CLI runner (`--runner cli`) |
 |---|---|---|
 | **Processes** | 1 | 3 (conform → genkit CLI → Python server) |
 | **Network hops per test** | 0 (direct function call) | 2 (HTTP to reflection server) |
@@ -318,8 +318,9 @@ Three implementations:
 | Runner | When | How |
 |--------|------|-----|
 | `InProcessRunner` | Python runtime (default) | Imports entry point, calls `action.arun_raw()` via Genkit SDK |
+| `NativeExecRunner` | `--runner native` | JSONL-over-stdio subprocess (Python/JS/Go) |
 | `ReflectionRunner` | JS/Go/other runtimes | Subprocess + async HTTP to reflection server |
-| genkit CLI (legacy) | `--use-cli` flag | Delegates to `genkit dev:test-model` via `runner.py` |
+| genkit CLI | `--runner cli` | Delegates to `genkit dev:test-model` via `runner.py` |
 
 ## Layout
 
@@ -412,7 +413,7 @@ exist.  Missing env vars cause the plugin to be skipped (not errored).
 
 | Flag | Description |
 |------|-------------|
-| `--use-cli` | Use legacy genkit CLI (`genkit dev:test-model`) instead of the native runner |
+| `--runner TYPE` | Runner type: `auto` (default), `native`, `reflection`, `in-process`, or `cli` |
 | `-j N` | Maximum concurrent plugins |
 | `-t N` | Maximum concurrent tests per model spec (default: 3) |
 | `-v` | Verbose mode: plain-text log lines (no live table), full output on failure |
@@ -534,6 +535,7 @@ CLI flags override TOML values:
 |------|----------|-------------|
 | `--config FILE` | — | Path to `conform.toml` (auto-discovered if omitted) |
 | `--runtime NAME` | — | Filter to a single runtime |
+| `--runner TYPE` | — | Runner type: `auto`, `native`, `reflection`, `in-process`, or `cli` |
 | `--specs-dir DIR` | `runtimes.<name>.specs-dir` | Override specs directory |
 | `--plugins-dir DIR` | `runtimes.<name>.plugins-dir` | Override plugins directory |
 | `-j N` | `concurrency` | Max concurrent plugins |

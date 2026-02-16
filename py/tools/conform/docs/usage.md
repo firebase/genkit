@@ -47,10 +47,10 @@ Plain-text log lines (no live table), full output on failure:
 conform check-model -v
 ```
 
-### Fallback to legacy genkit CLI
+### Fallback to genkit CLI
 
 ```bash
-conform check-model --use-cli
+conform check-model --runner cli
 ```
 
 This delegates to `genkit dev:test-model` via subprocess.

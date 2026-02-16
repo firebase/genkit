@@ -37,27 +37,25 @@ Canonical JS source (keep in sync):
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import json
 import logging
 import os
 import random
-import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, NamedTuple, Protocol, cast
+from typing import Any, NamedTuple, Protocol
 
 import yaml
 
-from conform.config import ConformConfig
+from conform.config import ConformConfig, RuntimeConfig
 from conform.display import console
+from conform.executors.in_process_runner import InProcessRunner
 from conform.plugins import entry_point, spec_file
 from conform.reflection import ReflectionClient
 from conform.util_test_cases import TEST_CASES
 from conform.validators import ValidationError, get_validator
-from genkit.codec import dump_dict
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +115,10 @@ class RunResult:
 class ActionRunner(Protocol):
     """Protocol for running model actions.
 
-    Two implementations:
+    Three implementations:
     - ``InProcessRunner``: Python-only, calls actions via ``ai.generate()``.
     - ``ReflectionRunner``: Any runtime, talks to reflection server via HTTP.
+    - ``NativeRunner``: Any runtime, communicates via JSONL-over-stdio.
     """
 
     async def run_action(
@@ -137,190 +136,8 @@ class ActionRunner(Protocol):
         ...
 
 
-class InProcessRunner:
-    """Run model actions in-process via ``ai.generate()``.
-
-    The entry point (e.g. ``conformance_entry.py``) creates a ``Genkit``
-    instance at module level, registering all model actions.  We import
-    it, grab the ``ai`` instance, and call ``ai.generate()`` so the full
-    framework pipeline (format parsing, ``extract_json``, output
-    processing) is exercised — matching the real user experience.
-    """
-
-    def __init__(self, entry_path: Path) -> None:
-        """Initialize with the path to the conformance entry point."""
-        self._entry_path = entry_path
-        self._ai: Any = None
-
-    async def _load(self) -> None:
-        """Import the entry point module and extract the Genkit instance."""
-        if self._ai is not None:
-            return
-
-        # Import the module by file path without executing __main__ block.
-        spec = importlib.util.spec_from_file_location(
-            '_conform_entry',
-            str(self._entry_path),
-        )
-        if spec is None or spec.loader is None:
-            raise RuntimeError(f'Cannot load entry point: {self._entry_path}')
-
-        module = importlib.util.module_from_spec(spec)
-
-        # Ensure the entry point's directory is on sys.path so relative
-        # imports work (e.g. if the entry point imports sibling modules).
-        entry_dir = str(self._entry_path.parent)
-        if entry_dir not in sys.path:
-            sys.path.insert(0, entry_dir)
-
-        spec.loader.exec_module(module)
-
-        # Find the Genkit instance — by convention it's named `ai`.
-        ai = getattr(module, 'ai', None)
-        if ai is None:
-            raise RuntimeError(
-                f'Entry point {self._entry_path} does not expose an `ai` (Genkit) instance at module level.'
-            )
-        self._ai = ai
-        console.print('[dim]Loaded entry point in-process.[/dim]')
-
-    async def run_action(
-        self,
-        key: str,
-        input_data: dict[str, Any],
-        *,
-        stream: bool = False,
-    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-        """Run a model action via ``ai.generate()`` in-process.
-
-        Converts the raw test input (GenerateRequest-shaped dict) into
-        ``ai.generate()`` keyword arguments so the full framework
-        pipeline is exercised, including output format handling
-        (``extract_json`` for JSON output) and streaming chunk wrapping.
-        """
-        await self._load()
-
-        # Extract model name from the action key.
-        # e.g. "/model/googleai/gemini-2.5-flash" -> "googleai/gemini-2.5-flash"
-        model_name = key.removeprefix('/model/')
-
-        # Extract fields from the GenerateRequest-shaped input.
-        messages = input_data.get('messages', [])
-        output_config = input_data.get('output')
-        tools_defs = input_data.get('tools')
-        config = input_data.get('config')
-
-        # Convert raw message dicts to Message objects.
-        from genkit.core.typing import Message, OutputConfig, Part
-
-        msg_objects = [Message.model_validate(m) for m in messages]
-
-        # Separate system messages from user/model messages.
-        # ai.generate() takes system as a separate argument.
-        system_parts: list[Part] | None = None
-        non_system_messages: list[Message] = []
-        for msg in msg_objects:
-            if msg.role == 'system':
-                system_parts = msg.content
-            else:
-                non_system_messages.append(msg)
-
-        # Build output config if present.
-        output_obj: OutputConfig | None = None
-        if output_config:
-            output_obj = OutputConfig.model_validate(output_config)
-
-        # For tool definitions: the test cases contain inline tool
-        # definitions (with inputSchema), but ai.generate() resolves
-        # tools by name from the registry.  We register ephemeral tools
-        # in the registry so generate() can resolve them.
-        tool_names: list[str] | None = None
-        if tools_defs:
-            tool_names = []
-            for tdef in tools_defs:
-                t_name = tdef['name']
-                tool_names.append(t_name)
-                # Register a no-op tool so the framework can resolve its
-                # definition.  The conformance tests only check that the
-                # model *requests* the tool — they never execute it.
-                _register_ephemeral_tool(self._ai, t_name, tdef)
-
-        chunks: list[dict[str, Any]] = []
-
-        if stream:
-            # Use generate_stream for streaming tests.
-            stream_iter, response_future = self._ai.generate_stream(
-                model=model_name,
-                system=system_parts,
-                messages=non_system_messages,
-                tools=tool_names,
-                config=config,
-                output=output_obj,
-                return_tool_requests=True,
-            )
-            # Consume the stream to collect chunks.
-            async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
-            result = await response_future
-        else:
-            result = await self._ai.generate(
-                model=model_name,
-                system=system_parts,
-                messages=non_system_messages,
-                tools=tool_names,
-                config=config,
-                output=output_obj,
-                return_tool_requests=True,
-            )
-
-        response = cast(dict[str, Any], dump_dict(result))
-        return response, chunks
-
-    async def close(self) -> None:
-        """No resources to clean up for in-process runner."""
-
-
-def _register_ephemeral_tool(
-    ai: Any,  # noqa: ANN401
-    name: str,
-    tool_def: dict[str, Any],
-) -> None:
-    """Register a no-op tool so generate() can resolve its definition.
-
-    Conformance tests provide inline tool definitions.  ``ai.generate()``
-    resolves tools by name from the registry, so we register lightweight
-    stubs whose only purpose is to carry the correct ``input_schema``
-    and ``description`` so ``to_tool_definition()`` can build the right
-    ``ToolDefinition`` for the model.
-    """
-    from genkit.core.action.types import ActionKind
-
-    registry = ai.registry
-
-    # Only register if not already present.
-    with registry._lock:  # pyright: ignore[reportPrivateUsage]
-        tool_entries = registry._entries.get(cast(ActionKind, ActionKind.TOOL), {})  # pyright: ignore[reportPrivateUsage]
-        if name in tool_entries:
-            return
-
-    description = tool_def.get('description', '')
-    input_schema = tool_def.get('inputSchema')
-
-    async def noop_tool(input_data: Any, ctx: Any) -> dict[str, str]:  # noqa: ANN401
-        """No-op tool stub for conformance testing."""
-        return {'result': 'noop'}
-
-    action = registry.register_action(
-        kind=cast(ActionKind, ActionKind.TOOL),
-        name=name,
-        fn=noop_tool,
-        description=description,
-        metadata={'tool': {'type': 'tool'}},
-    )
-    # Override input schema from the test definition so the model
-    # receives the correct JSON Schema for this tool.
-    if input_schema:
-        action._input_schema = input_schema  # pyright: ignore[reportPrivateUsage]
+# InProcessRunner is in conform.executors.conformance_native
+# (imported above) alongside the Go and JS executors.
 
 
 class ReflectionRunner:
@@ -407,6 +224,216 @@ class ReflectionRunner:
         if self._client:
             await self._client.close()
         if self._proc and self._proc.returncode is None:
+            self._proc.terminate()
+            try:
+                await asyncio.wait_for(self._proc.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                self._proc.kill()
+                await self._proc.wait()
+
+
+class NativeRunner:
+    r"""Run model actions via a native subprocess using JSONL-over-stdio.
+
+    Starts the native executor once per plugin.  The executor initializes
+    the plugin (``genkit.Init`` / ``genkit(...)``), then enters a read loop:
+
+    1. Reads one JSON line from **stdin** (a ``GenerateRequest``).
+    2. Calls ``generate()`` natively using the SDK.
+    3. Writes one JSON line to **stdout** (a ``GenerateResponse``).
+
+    Protocol (JSONL-over-stdio)::
+
+        --> {"model": "googleai/gemini-2.5-flash", "messages": [...], ...}\\n
+        <-- {"response": {...}, "chunks": [...], "error": null}\\n
+
+    Advantages over ``ReflectionRunner``:
+    - No HTTP server or port management.
+    - Lower latency (no network overhead).
+    - Simpler process lifecycle.
+
+    The executor is built/compiled once at start, then handles all test
+    cases for all models in that plugin.
+
+    Thread safety: an ``asyncio.Lock`` serializes access to the
+    subprocess pipes so concurrent test coroutines don't race on
+    ``readline()``.
+    """
+
+    # 100 MB — large enough for base64-encoded images in JSON responses.
+    _STREAM_LIMIT: int = 100 * 1024 * 1024
+
+    def __init__(
+        self,
+        entry_cmd: list[str],
+        cwd: str,
+        *,
+        action_timeout: float = 120.0,
+    ) -> None:
+        """Initialize with the command to start the native executor.
+
+        Args:
+            entry_cmd: Command to start the executor
+                (e.g. ``["go", "run", "conformance_native.go"]``).
+            cwd: Working directory for subprocess execution.
+            action_timeout: Timeout per generate() call in seconds.
+        """
+        self._entry_cmd = entry_cmd
+        self._cwd = cwd
+        self._action_timeout = action_timeout
+        self._proc: asyncio.subprocess.Process | None = None
+        self._lock = asyncio.Lock()
+        # Pre-resolve the NODE_PATH so the JS/TS executor can resolve
+        # workspace packages from the cwd (e.g. js/) even though the
+        # executor file lives outside the JS workspace tree.
+        cwd_path = Path(self._cwd).resolve()
+        self._node_path = str(cwd_path / 'node_modules')
+
+    async def start(self) -> None:
+        """Start the native executor subprocess."""
+        env = {**os.environ}
+        existing = env.get('NODE_PATH', '')
+        env['NODE_PATH'] = f'{self._node_path}:{existing}' if existing else self._node_path
+        console.print(f'[dim]Starting native executor: {" ".join(self._entry_cmd)}[/dim]')
+
+        self._proc = await asyncio.create_subprocess_exec(
+            *self._entry_cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=self._cwd,
+            env=env,
+            limit=self._STREAM_LIMIT,
+        )
+
+        # Wait for the "ready" signal from the executor.
+        # The executor prints a JSON line {"ready": true} when initialized.
+        if self._proc.stdout is None:
+            raise RuntimeError('Native executor stdout is not piped.')
+
+        try:
+            ready_line = await asyncio.wait_for(
+                self._proc.stdout.readline(),
+                timeout=60.0,  # Plugin init can be slow (Go compilation).
+            )
+        except asyncio.TimeoutError:
+            await self._kill()
+            raise RuntimeError(
+                f'Native executor did not send ready signal within 60s.\nCommand: {" ".join(self._entry_cmd)}'
+            ) from None
+
+        if not ready_line:
+            stderr_output = await self._drain_stderr()
+            await self._kill()
+            raise RuntimeError(f'Native executor exited before sending ready signal.\nstderr: {stderr_output}')
+
+        try:
+            ready_data = json.loads(ready_line)
+        except json.JSONDecodeError:
+            await self._kill()
+            raise RuntimeError(f'Native executor sent invalid ready signal: {ready_line!r}') from None
+
+        if not ready_data.get('ready'):
+            await self._kill()
+            raise RuntimeError(f'Native executor ready signal was not {{"ready": true}}: {ready_data}')
+
+        console.print('[dim]Native executor ready.[/dim]')
+
+    async def run_action(
+        self,
+        key: str,
+        input_data: dict[str, Any],
+        *,
+        stream: bool = False,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Send a generate request and read the response via stdio.
+
+        Access to the subprocess pipes is serialized with an asyncio
+        lock because the JSONL protocol is strictly request-response
+        and concurrent ``readline()`` calls on the same stream race.
+        """
+        async with self._lock:
+            return await self._run_action_locked(key, input_data, stream=stream)
+
+    async def _run_action_locked(
+        self,
+        key: str,
+        input_data: dict[str, Any],
+        *,
+        stream: bool = False,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Run a single action while holding the lock."""
+        if self._proc is None or self._proc.stdin is None or self._proc.stdout is None:
+            raise RuntimeError('Native executor not started. Call start() first.')
+
+        # Check if the process has already exited.
+        if self._proc.returncode is not None:
+            stderr_output = await self._drain_stderr()
+            raise RuntimeError(f'Native executor has exited (rc={self._proc.returncode}).\nstderr: {stderr_output}')
+
+        # Build the request payload.
+        model_name = key.removeprefix('/model/')
+        request = {
+            'model': model_name,
+            'input': input_data,
+            'stream': stream,
+        }
+
+        # Send request as a single JSON line.
+        line = json.dumps(request, separators=(',', ':')) + '\n'
+        self._proc.stdin.write(line.encode('utf-8'))
+        await self._proc.stdin.drain()
+
+        # Read response as a single JSON line.
+        try:
+            response_line = await asyncio.wait_for(
+                self._proc.stdout.readline(),
+                timeout=self._action_timeout,
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f'Native executor timed out after {self._action_timeout}s for model {model_name}'
+            ) from None
+
+        if not response_line:
+            stderr_output = await self._drain_stderr()
+            raise RuntimeError(f'Native executor closed stdout unexpectedly.\nstderr: {stderr_output}')
+
+        try:
+            result = json.loads(response_line)
+        except json.JSONDecodeError:
+            raise RuntimeError(f'Native executor returned invalid JSON: {response_line[:500]!r}') from None
+
+        # Check for executor-level error.
+        error = result.get('error')
+        if error:
+            raise RuntimeError(f'Native executor error: {error}')
+
+        response = result.get('response', {})
+        chunks = result.get('chunks', [])
+        return response, chunks
+
+    async def _drain_stderr(self) -> str:
+        """Read available stderr from the subprocess (non-blocking)."""
+        if self._proc is None or self._proc.stderr is None:
+            return ''
+        try:
+            stderr_bytes = await asyncio.wait_for(self._proc.stderr.read(8192), timeout=2.0)
+            return stderr_bytes.decode('utf-8', errors='replace')
+        except asyncio.TimeoutError:
+            return ''
+
+    async def _kill(self) -> None:
+        """Force-kill the executor subprocess."""
+        if self._proc and self._proc.returncode is None:
+            self._proc.kill()
+            await self._proc.wait()
+
+    async def close(self) -> None:
+        """Shut down the executor subprocess."""
+        if self._proc and self._proc.returncode is None:
+            if self._proc.stdin:
+                self._proc.stdin.close()
             self._proc.terminate()
             try:
                 await asyncio.wait_for(self._proc.wait(), timeout=5.0)
@@ -688,13 +715,20 @@ async def run_test_model(
     *,
     default_supports: list[str] | None = None,
     on_test_done: OnTestDone = None,
+    runner_type: str = 'auto',
 ) -> RunResult:
     """Run model conformance tests for a plugin.
 
     For the Python runtime, tests run in-process via ``ai.generate()`` so
-    the full framework pipeline is exercised.  For other runtimes, starts
-    the entry point subprocess and communicates via async HTTP with the
-    reflection server.
+    the full framework pipeline is exercised.  For other runtimes, the
+    runner type determines how tests are executed:
+
+    - ``auto`` (default): Python → in-process, others → native (if a
+      native executor exists), else reflection.
+    - ``native``: Use the JSONL-over-stdio native executor.  The entry
+      point must be a ``conformance_native.{go,ts}`` file.
+    - ``reflection``: Use the reflection server HTTP protocol.
+    - ``in-process``: Force in-process execution (Python only).
 
     Args:
         plugin: Plugin name (e.g. ``google-genai``).
@@ -703,6 +737,8 @@ async def run_test_model(
             in the suite.
         on_test_done: Optional callback invoked after each individual
             test completes, useful for incremental progress updates.
+        runner_type: Which runner to use: ``auto``, ``native``,
+            ``reflection``, or ``in-process``.
 
     Returns:
         Aggregate test results.
@@ -739,23 +775,51 @@ async def run_test_model(
     # Compute required action keys for readiness check.
     required_keys = {_model_to_action_key(s['model']) for s in suites if s.get('model')}
 
-    # Choose runner based on runtime.
+    # Choose runner based on runtime and runner_type.
     runtime = config.runtime
-    is_python = runtime.name == 'python'
 
     runner: ActionRunner
+    resolved_runner = _resolve_runner_type(runner_type, runtime, plugin, config)
 
-    if is_python:
+    # If native was selected but no executor exists, fall back to reflection.
+    if resolved_runner == 'native' and not _find_native_entry(plugin, config):
+        console.print(
+            f'[yellow]⚠ No native executor for {plugin} ({runtime.name}) — falling back to reflection runner.[/yellow]'
+        )
+        resolved_runner = 'reflection'
+
+    if resolved_runner == 'in-process':
         console.print('[dim]Using in-process runner (Python).[/dim]')
         runner = InProcessRunner(entry)
-    else:
-        entry_cmd = list(runtime.entry_command) + [str(entry)]
+
+    elif resolved_runner == 'native':
+        native_entry = _find_native_entry(plugin, config)
+        # At this point native_entry is guaranteed to exist (checked above).
+        entry_cmd = list(runtime.entry_command) + [str(native_entry), '--plugin', plugin]
         if not runtime.cwd:
-            raise SystemExit(
-                f"error: runtime '{runtime.name}' has no 'cwd' configured.  "
+            raise RuntimeError(
+                f"Runtime '{runtime.name}' has no 'cwd' configured.  "
                 f"Set 'cwd' in the [conform.runtimes.{runtime.name}] section."
             )
         cwd = str(runtime.cwd)
+        console.print(f'[dim]Using native runner ({runtime.name}).[/dim]')
+        runner = NativeRunner(
+            entry_cmd,
+            cwd,
+            action_timeout=config.action_timeout_for(plugin),
+        )
+        await runner.start()
+
+    elif resolved_runner == 'reflection':
+        # Reflection runner (original behavior).
+        entry_cmd = list(runtime.entry_command) + [str(entry)]
+        if not runtime.cwd:
+            raise RuntimeError(
+                f"Runtime '{runtime.name}' has no 'cwd' configured.  "
+                f"Set 'cwd' in the [conform.runtimes.{runtime.name}] section."
+            )
+        cwd = str(runtime.cwd)
+        console.print(f'[dim]Using reflection runner ({runtime.name}).[/dim]')
         runner = ReflectionRunner(
             entry_cmd,
             cwd,
@@ -765,6 +829,9 @@ async def run_test_model(
             startup_timeout=config.startup_timeout,
         )
         await runner.start()
+
+    else:
+        raise RuntimeError(f'Unknown runner type: {resolved_runner!r}')
 
     run_result = RunResult()
 
@@ -801,3 +868,77 @@ async def run_test_model(
         await runner.close()
 
     return run_result
+
+
+# Fallback native executor entry filenames per runtime (used when
+# ``native_entry_filename`` is not set in the runtime config).
+_NATIVE_ENTRY_FILENAMES: dict[str, str] = {
+    'go': 'conformance_native.go',
+    'js': 'conformance_native.ts',
+    'python': 'conformance_native.py',
+}
+
+# Directory containing the native executor files, relative to this module.
+_EXECUTORS_DIR = Path(__file__).resolve().parent / 'executors'
+
+
+def _find_native_entry(
+    plugin: str,
+    config: ConformConfig,
+) -> Path | None:
+    """Find the shared native executor in the conform tool package.
+
+    Looks for ``conformance_native.{go,ts}`` in the ``executors/``
+    directory within the conform package (``py/tools/conform/
+    src/conform/executors/``).  The executor is generic — it receives
+    ``--plugin <name>`` as a CLI argument and uses a built-in
+    plugin registry map to initialize the correct plugin.
+
+    Uses ``runtime.native_entry_filename`` from the config (set via
+    ``native-entry-filename`` in ``conform.toml``), falling back to
+    the hardcoded ``_NATIVE_ENTRY_FILENAMES`` map.
+    """
+    runtime = config.runtime
+    filename = runtime.native_entry_filename or _NATIVE_ENTRY_FILENAMES.get(runtime.name)
+    if not filename:
+        return None
+    candidate = _EXECUTORS_DIR / filename
+    return candidate if candidate.exists() else None
+
+
+def _resolve_runner_type(
+    runner_type: str,
+    runtime: RuntimeConfig,
+    plugin: str,
+    config: ConformConfig,
+) -> str:
+    """Resolve the effective runner type.
+
+    - ``in-process``: Always returns ``in-process``.
+    - ``native``: Always returns ``native`` (caller handles fallback
+      if no executor exists).
+    - ``reflection``: Always returns ``reflection``.
+    - ``auto``: Uses ``runtime.default_runner`` from config.
+      Python defaults to ``in-process``, Go/JS default to ``native``.
+      Falls back if the preferred runner isn't available.
+    """
+    if runner_type in ('in-process', 'native', 'reflection'):
+        return runner_type
+
+    # Auto: use the runtime's configured default runner.
+    preferred = runtime.default_runner
+
+    # If preferred is native, verify the executor exists.
+    if preferred == 'native' and _find_native_entry(plugin, config):
+        return 'native'
+
+    # If preferred is in-process (Python), use it directly.
+    if preferred == 'in-process':
+        return 'in-process'
+
+    # Fallback: try native if executor exists, else reflection.
+    if _find_native_entry(plugin, config):
+        return 'native'
+    if runtime.name == 'python':
+        return 'in-process'
+    return 'reflection'

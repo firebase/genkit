@@ -19,8 +19,8 @@ log_redact.py     ← Structlog processor to truncate data URIs in logs
    ↑
 ┌──────────────┬──────────────────┬──────────────────────┐
 │ checker.py   │ runner.py        │ util_test_model.py   │
-│ (check-plugin)│ (--use-cli)     │ (check-model default)│
-│              │ legacy CLI runner│ ActionRunner Protocol │
+│ (check-plugin)│ (--runner cli)  │ (check-model default)│
+│              │ genkit CLI runner│ ActionRunner Protocol │
 └──────────────┴──────────────────┴──────────────────────┘
    ↑                                      ↑
    │              ┌────────────┬──────────┘
@@ -67,8 +67,9 @@ Three implementations:
 | Runner | When | How |
 |--------|------|-----|
 | `InProcessRunner` | Python runtime (default) | Imports entry point, calls `action.arun_raw()` via Genkit SDK |
+| `NativeExecRunner` | `--runner native` | JSONL-over-stdio subprocess (Python/JS/Go) |
 | `ReflectionRunner` | JS/Go/other runtimes | Subprocess + async HTTP to reflection server |
-| genkit CLI (legacy) | `--use-cli` flag | Delegates to `genkit dev:test-model` via `runner.py` |
+| genkit CLI | `--runner cli` | Delegates to `genkit dev:test-model` via `runner.py` |
 
 ### Runtime Protocol
 

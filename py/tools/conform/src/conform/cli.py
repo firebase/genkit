@@ -18,8 +18,8 @@
 
 Provides subcommands::
 
-    conform [GLOBAL FLAGS] check-model [PLUGIN...] [-j N] [-v] [--use-cli]
-        Run model conformance tests (native runner, all runtimes).
+    conform [GLOBAL FLAGS] check-model [PLUGIN...] [-j N] [-v] [--runner TYPE]
+        Run model conformance tests (all runtimes).
 
     conform [GLOBAL FLAGS] check-plugin
         Verify that every model plugin has conformance files.
@@ -171,9 +171,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Run model conformance tests.',
         description=(
             'Run model conformance tests against one or more plugins using the\n'
-            'native runner.  By default runs all plugins across all configured\n'
+            'configured runner.  By default runs all plugins across all configured\n'
             'runtimes.  Results are displayed in a unified table.\n\n'
-            'Use --use-cli to fall back to genkit dev:test-model subprocess.'
+            'Use --runner cli to fall back to genkit dev:test-model subprocess.'
         ),
         formatter_class=formatter_class,
     )
@@ -222,10 +222,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help='Base delay in seconds for retry backoff (overrides config, default: 1.0).',
     )
     cm_parser.add_argument(
-        '--use-cli',
-        action='store_true',
-        default=False,
-        help='Use genkit CLI (genkit dev:test-model) instead of the native runner.',
+        '--runner',
+        choices=['auto', 'native', 'reflection', 'in-process', 'cli'],
+        default='auto',
+        metavar='TYPE',
+        help=(
+            'Runner type: auto (default), native (JSONL-over-stdio), '
+            'reflection (HTTP server), in-process (Python only), '
+            'or cli (genkit dev:test-model subprocess).'
+        ),
     )
 
     cp_parser = subparsers.add_parser(
@@ -265,6 +270,7 @@ async def _run_native_check(
     plugins_dir_override: Path | None,
     verbose: bool,
     config_path: Path | None = None,
+    runner_type: str = 'auto',
 ) -> dict[str, PluginResult]:
     """Run native conformance tests for all (plugin, runtime) pairs.
 
@@ -367,7 +373,12 @@ async def _run_native_check(
                 on_complete.set()
 
             try:
-                run_result = await run_test_model(plugin, config, on_test_done=_on_test_done)
+                run_result = await run_test_model(
+                    plugin,
+                    config,
+                    on_test_done=_on_test_done,
+                    runner_type=runner_type,
+                )
                 result.elapsed_s = time.monotonic() - start
                 result.tests_passed = run_result.total_passed
                 result.tests_failed = run_result.total_failed
@@ -522,8 +533,8 @@ def _cmd_check_model(
 ) -> int:
     """Handle ``conform check-model``.
 
-    Uses the native runner by default.  Falls back to the genkit CLI
-    subprocess when ``--use-cli`` is specified.
+    Uses the configured runner (default: auto).  Falls back to the
+    genkit CLI subprocess when ``--runner cli`` is specified.
     """
     specs_dir_raw: str | None = getattr(args, 'specs_dir', None)
     plugins_dir_raw: str | None = getattr(args, 'plugins_dir', None)
@@ -533,10 +544,10 @@ def _cmd_check_model(
     test_concurrency_override: int = getattr(args, 'test_concurrency', -1)
     max_retries_override: int = getattr(args, 'max_retries', -1)
     retry_base_delay_override: float = getattr(args, 'retry_base_delay', -1.0)
-    use_cli = getattr(args, 'use_cli', False)
     verbose = getattr(args, 'verbose', False)
+    runner_type = getattr(args, 'runner', 'auto')
 
-    if use_cli:
+    if runner_type == 'cli':
         return _cmd_check_model_cli(args, runtime_names, config_path=config_path)
 
     # Native runner path.
@@ -552,6 +563,7 @@ def _cmd_check_model(
             plugins_dir_override=resolved_plugins_dir,
             verbose=verbose,
             config_path=config_path,
+            runner_type=runner_type,
         )
     )
 
@@ -597,7 +609,7 @@ def _cmd_check_model_cli(
     runtime_names: list[str],
     config_path: Path | None = None,
 ) -> int:
-    """Handle ``conform check-model --use-cli`` (legacy genkit CLI path)."""
+    """Handle ``conform check-model --runner cli`` (genkit CLI path)."""
     specs_dir_override: str | None = getattr(args, 'specs_dir', None)
     concurrency_override: int = getattr(args, 'concurrency', -1)
     total_failures = 0

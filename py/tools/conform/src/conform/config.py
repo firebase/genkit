@@ -107,6 +107,8 @@ class RuntimeConfig:
     entry_command: list[str]
     cwd: Path | None = None
     entry_filename: str = 'conformance_entry.py'
+    native_entry_filename: str = ''
+    default_runner: str = 'auto'
     model_marker: str = 'model_info.py'
 
 
@@ -162,6 +164,7 @@ class ConformConfig:
             entry_command=[],
         )
     )
+    runner: str = 'auto'
 
     def test_concurrency_for(self, plugin: str) -> int:
         """Return the effective test concurrency for *plugin*.
@@ -216,9 +219,24 @@ def _resolve_path(raw: str, base_dir: Path) -> Path:
 
 # Default entry filenames and model markers per runtime.
 _RUNTIME_DEFAULTS: dict[str, dict[str, str]] = {
-    'python': {'entry_filename': 'conformance_entry.py', 'model_marker': 'model_info.py'},
-    'js': {'entry_filename': 'conformance_entry.ts', 'model_marker': 'models.ts'},
-    'go': {'entry_filename': 'conformance_entry.go', 'model_marker': 'model_info.go'},
+    'python': {
+        'entry_filename': 'conformance_entry.py',
+        'model_marker': 'model_info.py',
+        'native_entry_filename': 'conformance_native.py',
+        'default_runner': 'in-process',
+    },
+    'js': {
+        'entry_filename': 'conformance_entry.ts',
+        'model_marker': 'models.ts',
+        'native_entry_filename': 'conformance_native.ts',
+        'default_runner': 'native',
+    },
+    'go': {
+        'entry_filename': 'conformance_entry.go',
+        'model_marker': 'model_info.go',
+        'native_entry_filename': 'conformance_native.go',
+        'default_runner': 'native',
+    },
 }
 
 
@@ -259,6 +277,8 @@ def _parse_runtime(
     # Runtime-specific defaults, overridable via TOML.
     defaults = _RUNTIME_DEFAULTS.get(name, _RUNTIME_DEFAULTS['python'])
     entry_filename = str(raw.get('entry-filename', defaults['entry_filename']))
+    native_entry_filename = str(raw.get('native-entry-filename', defaults.get('native_entry_filename', '')))
+    default_runner = str(raw.get('default-runner', defaults.get('default_runner', 'auto')))
     model_marker = str(raw.get('model-marker', defaults['model_marker']))
 
     return RuntimeConfig(
@@ -268,6 +288,8 @@ def _parse_runtime(
         entry_command=entry_command,
         cwd=cwd,
         entry_filename=entry_filename,
+        native_entry_filename=native_entry_filename,
+        default_runner=default_runner,
         model_marker=model_marker,
     )
 
@@ -423,6 +445,12 @@ def load_config(
             f'in {config_path}.  Add it or pass --specs-dir / --plugins-dir.'
         )
 
+    # Parse runner type.
+    runner_raw = raw.get('runner', 'auto')
+    runner = str(runner_raw) if isinstance(runner_raw, str) else 'auto'
+    if runner not in ('auto', 'native', 'reflection', 'in-process'):
+        runner = 'auto'
+
     return ConformConfig(
         concurrency=concurrency,
         test_concurrency=test_concurrency,
@@ -436,6 +464,7 @@ def load_config(
         plugin_overrides=plugin_overrides,
         model_overrides=model_overrides,
         runtime=runtime,
+        runner=runner,
     )
 
 
