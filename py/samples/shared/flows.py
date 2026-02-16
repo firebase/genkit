@@ -207,11 +207,14 @@ async def generate_streaming_story_logic(ai: Genkit, name: str, ctx: ActionRunCo
     Returns:
         Complete story text.
     """
-    response = await ai.generate(
+    stream, response = ai.generate_stream(
         prompt=f'Tell me a short story about {name}',
-        on_chunk=ctx.send_chunk if ctx is not None else None,
     )
-    return response.text
+    async for chunk in stream:
+        if chunk.text:
+            if ctx is not None:
+                ctx.send_chunk(chunk.text)
+    return (await response).text
 
 
 async def generate_streaming_with_tools_logic(
@@ -236,12 +239,10 @@ async def generate_streaming_with_tools_logic(
         prompt=f'What is the weather in {location}? Describe it poetically.',
         tools=['get_weather'],
     )
-    full_text = ''
     async for chunk in stream:
         if chunk.text:
             if ctx is not None:
                 ctx.send_chunk(chunk.text)
-            full_text += chunk.text
     return (await response).text
 
 
