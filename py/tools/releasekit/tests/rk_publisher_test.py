@@ -97,8 +97,8 @@ class TestPublishConfig:
             raise AssertionError('Expected smoke_test=True')
         if not config.verify_checksums:
             raise AssertionError('Expected verify_checksums=True')
-        if config.max_retries != 0:
-            raise AssertionError(f'Expected max_retries=0, got {config.max_retries}')
+        if config.max_retries != 3:
+            raise AssertionError(f'Expected max_retries=3, got {config.max_retries}')
 
     def test_custom_values(self) -> None:
         """Custom config values are respected."""

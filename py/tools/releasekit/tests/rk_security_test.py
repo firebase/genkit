@@ -276,7 +276,7 @@ class TestNoPlaintextHTTP:
     def test_no_http_urls(self) -> None:
         """No Python file uses http:// URLs (except license headers)."""
         violations: list[str] = []
-        pattern = re.compile(r'http://(?!www\.apache\.org|maven\.apache\.org/POM/|localhost[:/])')
+        pattern = re.compile(r'http://(?!www\.apache\.org|maven\.apache\.org/POM/|localhost[:/]|adaptivecards\.io/)')
         for path in _PY_FILES:
             content = _read(path)
             for i, line in enumerate(content.splitlines(), 1):

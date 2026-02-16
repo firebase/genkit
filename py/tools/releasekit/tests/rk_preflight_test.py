@@ -605,8 +605,8 @@ class TestPreflightTrustedPublisher:
             Package(name='genkit', version='0.5.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml'),
         ]
 
-    def test_ci_without_oidc_warns(self, tmp_path: Path) -> None:
-        """CI environment without OIDC produces a warning."""
+    def test_ci_without_oidc_fails(self, tmp_path: Path) -> None:
+        """CI environment without OIDC is a failure (fail-closed for security)."""
         import os
         from unittest.mock import patch
 
@@ -614,8 +614,16 @@ class TestPreflightTrustedPublisher:
         graph = build_graph(packages)
         versions = [PackageVersion(name='genkit', old_version='0.5.0', new_version='0.6.0', bump='minor')]
 
-        env = {**os.environ, 'CI': 'true'}
-        # Remove any OIDC env vars.
+        env = {
+            'CI': 'true',
+            'GITHUB_ACTIONS': 'true',
+            'GITHUB_SERVER_URL': 'https://github.com',
+            'GITHUB_REPOSITORY': 'firebase/genkit',
+            'GITHUB_SHA': 'abc123',
+            'GITHUB_REF': 'refs/heads/main',
+            'GITHUB_WORKFLOW_REF': 'firebase/genkit/.github/workflows/release.yml@refs/heads/main',
+        }
+        # Ensure no OIDC env vars.
         for key in ('ACTIONS_ID_TOKEN_REQUEST_URL', 'CI_JOB_JWT_V2', 'CI_JOB_JWT', 'CIRCLE_OIDC_TOKEN_V2'):
             env.pop(key, None)
 
@@ -633,8 +641,9 @@ class TestPreflightTrustedPublisher:
                 ),
             )
 
-        assert result.ok  # Warning, not failure.
-        assert 'trusted_publisher' in result.warnings
+        assert not result.ok  # Failure, not warning — fail-closed in CI.
+        assert 'trusted_publisher' in result.failed
+        assert 'OIDC' in result.errors['trusted_publisher']
 
 
 class TestPreflightResultHints:

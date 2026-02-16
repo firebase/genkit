@@ -159,6 +159,44 @@ class PubDevRegistry:
         )
         return ChecksumResult(missing=list(local_checksums.keys()))
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions from pub.dev (newest first)."""
+        url = f'{self._base_url}/api/packages/{package_name}'
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            try:
+                data = response.json()
+                versions = [v['version'] for v in data.get('versions', []) if 'version' in v]
+                versions.reverse()
+                return versions
+            except (ValueError, KeyError):
+                log.warning('pubdev_list_versions_error', package=package_name)
+                return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """pub.dev does not support yanking or unpublishing.
+
+        Once a package version is published to pub.dev, it cannot be
+        removed. The only option is to publish a newer version or
+        mark the package as discontinued via the web UI.
+        """
+        log.warning(
+            'pubdev_yank_unsupported',
+            package=package_name,
+            version=version,
+            hint='pub.dev does not support yanking. Publish a new version instead.',
+        )
+        return False
+
 
 __all__ = [
     'PubDevRegistry',

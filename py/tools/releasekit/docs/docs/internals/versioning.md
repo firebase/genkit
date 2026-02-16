@@ -138,6 +138,65 @@ The `_apply_bump()` function applies semver rules:
     initial development don't jump to `1.0.0`. Set `major_on_zero = true`
     in `releasekit.toml` to allow `0.x → 1.0.0`.
 
+## Per-Package Versioning Schemes
+
+`compute_bumps()` accepts a `package_configs` dictionary
+that allows each package to use a different versioning scheme. The
+per-package scheme is resolved via `resolve_package_config()`:
+
+```mermaid
+graph TD
+    CB["compute_bumps()"] --> LOOP["For each package"]
+    LOOP --> RESOLVE{"package_configs<br/>has entry?"}
+    RESOLVE -->|yes| PKG_SCHEME["Use pkg_cfg.versioning_scheme"]
+    RESOLVE -->|no| WS_SCHEME["Use workspace versioning_scheme"]
+    PKG_SCHEME --> APPLY["_apply_bump(version, bump, scheme)"]
+    WS_SCHEME --> APPLY
+
+    style CB fill:#1976d2,color:#fff
+    style APPLY fill:#4caf50,color:#fff
+```
+
+### Scheme-Aware Version Application
+
+The `_apply_bump()` function formats pre-release versions differently
+based on the scheme:
+
+```
+┌───────────┬─────────┬──────────────┬──────────────────────────────┐
+│ Scheme    │ Bump    │ New          │ Format Rule                  │
+├───────────┼─────────┼──────────────┼──────────────────────────────┤
+│ semver    │ pre-rc  │ 1.2.4-rc.1   │ hyphen + dot separator       │
+│ pep440    │ pre-rc  │ 1.2.4rc1     │ no separator (PEP 440)       │
+│ semver    │ pre-alpha│ 1.2.4-alpha.1│ hyphen + dot separator      │
+│ pep440    │ pre-alpha│ 1.2.4a1     │ "a" suffix (PEP 440)         │
+│ semver    │ pre-beta│ 1.2.4-beta.1 │ hyphen + dot separator       │
+│ pep440    │ pre-beta│ 1.2.4b1      │ "b" suffix (PEP 440)         │
+│ pep440    │ pre-dev │ 1.2.4.dev1   │ dot-dev (PEP 440)            │
+│ pep440    │ post    │ 1.2.3.post1  │ dot-post (PEP 440 only)      │
+└───────────┴─────────┴──────────────┴──────────────────────────────┘
+```
+
+### Config Resolution Flow
+
+```mermaid
+graph LR
+    subgraph "resolve_package_config(ws, name)"
+        EXACT["Exact name<br/>match?"] -->|yes| MERGE1["Merge override"]
+        EXACT -->|no| GROUP["Group<br/>match?"]
+        GROUP -->|yes| MERGE2["Merge group override"]
+        GROUP -->|no| BASE["Workspace defaults"]
+    end
+
+    MERGE1 --> RESULT["PackageConfig"]
+    MERGE2 --> RESULT
+    BASE --> RESULT
+
+    style EXACT fill:#1976d2,color:#fff
+    style GROUP fill:#42a5f5,color:#fff
+    style BASE fill:#90caf9,color:#000
+```
+
 ## Data Types
 
 ### `ConventionalCommit`

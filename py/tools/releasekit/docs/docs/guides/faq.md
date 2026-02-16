@@ -295,6 +295,242 @@ on `0.x`.
 
 ---
 
+## Versioning Schemes
+
+### What versioning scheme does my project use?
+
+ReleaseKit auto-detects the right scheme based on your ecosystem:
+
+| Ecosystem | Default Scheme | Pre-release Example |
+|-----------|---------------|---------------------|
+| Python | `pep440` | `1.2.0rc1` |
+| JS, Go, Rust, Dart, Java | `semver` | `1.2.0-rc.1` |
+
+Python uses PEP 440 because PyPI **requires** it. Everything else uses
+semver. You almost never need to think about this.
+
+### Can I use semver for a Python package?
+
+Yes. Override the default in your workspace config:
+
+```toml
+[workspace.py]
+ecosystem = "python"
+versioning_scheme = "semver"
+```
+
+!!! warning
+    PyPI may reject semver pre-release versions like `1.0.0-rc.1`
+    (the hyphen is not PEP 440 compliant). Stable versions like
+    `1.2.3` work fine with either scheme.
+
+### What is CalVer and when should I use it?
+
+CalVer (Calendar Versioning) uses dates as version numbers, like
+`2026.02.3`. It's good for projects that release on a fixed schedule
+and don't make semver-style compatibility promises (e.g., Ubuntu,
+pip, Black).
+
+```toml
+[workspace.py]
+versioning_scheme = "calver"
+calver_format = "YYYY.MM.MICRO"
+```
+
+### Can different packages in the same workspace use different schemes?
+
+Yes! Use per-package configuration:
+
+```toml
+[workspace.mono]
+ecosystem = "python"
+versioning_scheme = "pep440"  # default for all
+
+[workspace.mono.packages."my-js-wrapper"]
+versioning_scheme = "semver"  # this one uses semver
+```
+
+See [Per-Package Configuration](per-package-config.md) for details.
+
+---
+
+## Per-Package Configuration
+
+### What can I override per-package?
+
+These fields: `versioning_scheme`, `calver_format`, `prerelease_label`,
+`changelog`, `changelog_template`, `smoke_test`, `major_on_zero`,
+`extra_files`, `dist_tag`, `registry_url`, `provenance`.
+
+### How does the override resolution work?
+
+Most specific wins:
+
+1. **Exact package name** — `[workspace.X.packages."my-pkg"]`
+2. **Group membership** — `[workspace.X.packages.my-group]`
+3. **Workspace default** — `[workspace.X]`
+
+### Can I override settings for a group of packages at once?
+
+Yes. Use the group name as the key:
+
+```toml
+[workspace.mono.groups]
+plugins = ["myorg-plugin-*"]
+
+[workspace.mono.packages.plugins]
+changelog = false
+provenance = true
+```
+
+All packages matching `myorg-plugin-*` get these overrides.
+
+### What happens if a package matches both an exact name and a group?
+
+The exact name match wins. Group overrides are only used when there
+is no exact match.
+
+---
+
+## Rollback
+
+### Can I rollback from the GitHub Release page?
+
+Yes, if you use the **Release with Rollback** workflow template.
+It adds a "Rollback this release" link to every GitHub Release that
+triggers a rollback workflow with one click.
+
+See [Workflow Templates](workflow-templates.md#template-5-release-with-rollback-button)
+for the full setup.
+
+### What does rollback actually do?
+
+`releasekit rollback --tag <tag>` does two things:
+
+1. Deletes the git tag (locally and on the remote)
+2. Deletes the associated GitHub/GitLab Release
+
+It does **not** yank or unpublish packages from registries. That
+requires manual action — see "Can I unpublish a package?" above.
+
+### Can I preview a rollback before running it?
+
+Yes:
+
+```bash
+releasekit rollback --tag genkit-v1.2.3 --dry-run
+```
+
+The rollback workflow template also defaults to dry-run mode.
+
+---
+
+## Snapshots & Pre-Releases
+
+### What's the difference between a snapshot and a pre-release?
+
+- **Snapshot** = throwaway dev build with git SHA in the version
+  (`0.6.0.dev20260215+g1a2b3c4`). Not published to production.
+- **Pre-release** = release candidate published to the real registry
+  (`0.6.0rc1`). Users opt in explicitly.
+
+### How do I create a PR preview build?
+
+```bash
+releasekit snapshot --pr 1234 --format json
+```
+
+This computes snapshot versions for all packages. Use the JSON output
+in CI to comment on the PR with version previews.
+
+See [Snapshots & Pre-Releases](snapshots.md) for a full CI workflow.
+
+### How do I promote a release candidate to stable?
+
+```bash
+releasekit promote
+```
+
+This strips pre-release suffixes: `0.6.0rc1` → `0.6.0`.
+
+---
+
+## Signing & Verification
+
+### Do I need to manage GPG keys?
+
+No. ReleaseKit uses **Sigstore keyless signing** — your CI identity
+(GitHub OIDC token) is the key. No secrets to manage or rotate.
+
+### How do I sign artifacts in CI?
+
+```bash
+releasekit sign dist/
+```
+
+Requires `id-token: write` permission in GitHub Actions. See
+[Signing & Verification](signing.md) for the full workflow.
+
+### How do I verify a signed artifact?
+
+```bash
+releasekit verify dist/ \
+  --cert-identity "https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/heads/main" \
+  --cert-oidc-issuer "https://token.actions.githubusercontent.com"
+```
+
+---
+
+## Migration
+
+### Can I migrate from release-please?
+
+Yes:
+
+```bash
+releasekit migrate --from release-please --dry-run  # preview first
+releasekit migrate --from release-please             # generate releasekit.toml
+```
+
+Your git tags and history are preserved. See [Migration Guide](migration.md).
+
+### What other tools can I migrate from?
+
+`release-please`, `semantic-release`, `changesets`, and `lerna`.
+
+### Do I need to re-tag my existing releases?
+
+No. ReleaseKit reads existing git tags to compute the next version.
+Your tag history is fully compatible.
+
+---
+
+## Doctor & Health Checks
+
+### What's the difference between `check` and `doctor`?
+
+- **`check`** = fast package metadata validation (seconds)
+- **`doctor`** = deep environment diagnostics including network checks
+  (VCS, forge auth, registry auth)
+
+Use `check` in CI on every commit. Use `doctor` when debugging or
+setting up for the first time.
+
+### Can `check` auto-fix issues?
+
+Yes, some checks:
+
+```bash
+releasekit check --fix
+```
+
+This can add missing `py.typed` markers, fix `Private :: Do Not Upload`
+classifiers, and remove stale namespace `__init__.py` files.
+
+See [Health Checks & Doctor](health-checks.md) for the full list.
+
+---
+
 ## Troubleshooting
 
 ### `releasekit plan` shows no changes but I know there are commits

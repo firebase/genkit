@@ -53,8 +53,9 @@ graph LR
 
     ---
 
-    Supports Python (uv), JavaScript (pnpm), and Go workspaces in
-    a single monorepo.
+    Supports Python (uv), JavaScript (pnpm), Go, Dart (Pub),
+    Java (Maven/Gradle), Kotlin, Clojure, Rust (Cargo), and Bazel
+    workspaces in a single monorepo.
 
 -   :material-shield-check:{ .lg .middle } **Crash-Safe Publishing**
 
@@ -84,14 +85,14 @@ graph LR
     Post-publish SHA-256 verification ensures uploaded artifacts
     match local builds.
 
--   :material-clock-outline:{ .lg .middle } **Cadence Releases** *(planned)*
+-   :material-clock-outline:{ .lg .middle } **Cadence Releases**
 
     ---
 
     Scheduled daily, weekly, or per-commit releases with built-in
     cooldown, release windows, and minimum-bump thresholds.
 
--   :material-hook:{ .lg .middle } **Lifecycle Hooks** *(planned)*
+-   :material-hook:{ .lg .middle } **Lifecycle Hooks**
 
     ---
 

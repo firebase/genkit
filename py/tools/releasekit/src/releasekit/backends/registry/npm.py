@@ -274,6 +274,63 @@ class NpmRegistry:
         )
         return result
 
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions from npm (newest first)."""
+        scoped = _encode_package_name(package_name)
+        url = f'{self._base_url}/{scoped}'
+        async with http_client(pool_size=self._pool_size, timeout=self._timeout) as client:
+            response = await request_with_retry(client, 'GET', url)
+            if response.status_code != 200:
+                return []
+            try:
+                data = response.json()
+                versions = list(data.get('versions', {}).keys())
+                versions.reverse()
+                return versions
+            except (ValueError, KeyError):
+                log.warning('npm_list_versions_error', package=package_name)
+                return []
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Deprecate a version on npm (npm's equivalent of yank).
+
+        Uses ``npm deprecate <pkg>@<version> "<reason>"``. This marks
+        the version with a deprecation warning but does not remove it.
+        For actual removal, use ``npm unpublish`` (only within 72h).
+        """
+        msg = reason or 'This version has been rolled back.'
+        cmd = ['npm', 'deprecate', f'{package_name}@{version}', msg]
+        if dry_run:
+            log.info('npm_yank_dry_run', package=package_name, version=version, cmd=cmd)
+            return True
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _stdout, stderr = await proc.communicate()
+            if proc.returncode == 0:
+                log.info('npm_version_deprecated', package=package_name, version=version)
+                return True
+            log.warning(
+                'npm_deprecate_failed',
+                package=package_name,
+                version=version,
+                stderr=stderr.decode(errors='replace'),
+            )
+            return False
+        except FileNotFoundError:
+            log.warning('npm_not_found', hint='npm CLI is required for yank')
+            return False
+
 
 __all__ = [
     'NpmRegistry',

@@ -177,11 +177,65 @@ class TestGoWorkspaceDiscover:
         assert 'genkit' in names
 
     @pytest.mark.asyncio
-    async def test_missing_go_work(self, tmp_path: Path) -> None:
-        """Missing go.work returns empty list."""
+    async def test_missing_go_work_and_go_mod(self, tmp_path: Path) -> None:
+        """Missing both go.work and go.mod returns empty list."""
         ws = GoWorkspace(tmp_path)
         pkgs = await ws.discover()
         assert pkgs == []
+
+    @pytest.mark.asyncio
+    async def test_single_module_go_mod(self, tmp_path: Path) -> None:
+        """Standalone go.mod (no go.work) discovers the root module."""
+        _create_go_module(tmp_path, '.', 'github.com/firebase/genkit/go')
+        ws = GoWorkspace(tmp_path)
+        pkgs = await ws.discover()
+        assert len(pkgs) == 1
+        assert pkgs[0].name == 'go'
+        assert pkgs[0].is_publishable is True
+
+    @pytest.mark.asyncio
+    async def test_single_module_with_sub_modules(self, tmp_path: Path) -> None:
+        """Standalone go.mod discovers root + nested sub-modules."""
+        _create_go_module(tmp_path, '.', 'github.com/firebase/genkit/go')
+        _create_go_module(
+            tmp_path,
+            'samples/mcp-demo',
+            'github.com/firebase/genkit/go/samples/mcp-demo',
+        )
+        ws = GoWorkspace(tmp_path)
+        pkgs = await ws.discover()
+        names = sorted(p.name for p in pkgs)
+        assert names == ['go', 'mcp-demo']
+
+    @pytest.mark.asyncio
+    async def test_single_module_sub_module_deps(self, tmp_path: Path) -> None:
+        """Sub-module depending on root is classified as internal dep."""
+        _create_go_module(tmp_path, '.', 'github.com/firebase/genkit/go')
+        _create_go_module(
+            tmp_path,
+            'samples/demo',
+            'github.com/firebase/genkit/go/samples/demo',
+            requires=['github.com/firebase/genkit/go'],
+        )
+        ws = GoWorkspace(tmp_path)
+        pkgs = await ws.discover()
+        demo = next(p for p in pkgs if p.name == 'demo')
+        assert len(demo.internal_deps) == 1
+
+    @pytest.mark.asyncio
+    async def test_single_module_exclude_patterns(self, tmp_path: Path) -> None:
+        """Exclude patterns work with single-module discovery."""
+        _create_go_module(tmp_path, '.', 'github.com/firebase/genkit/go')
+        _create_go_module(
+            tmp_path,
+            'samples/demo',
+            'github.com/firebase/genkit/go/samples/demo',
+        )
+        ws = GoWorkspace(tmp_path)
+        pkgs = await ws.discover(exclude_patterns=['demo'])
+        names = [p.name for p in pkgs]
+        assert 'demo' not in names
+        assert 'go' in names
 
     @pytest.mark.asyncio
     async def test_manifest_path(self, tmp_path: Path) -> None:

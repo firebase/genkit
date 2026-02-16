@@ -24,12 +24,17 @@ import pytest
 from releasekit.config import (
     ALLOWED_ECOSYSTEMS,
     CONFIG_FILENAME,
+    DEFAULT_VERSIONING_SCHEMES,
     VALID_KEYS,
+    VALID_PACKAGE_KEYS,
     VALID_WORKSPACE_KEYS,
+    PackageConfig,
     ReleaseConfig,
     WorkspaceConfig,
+    build_package_configs,
     load_config,
     resolve_group_refs,
+    resolve_package_config,
 )
 from releasekit.errors import ReleaseKitError
 
@@ -319,10 +324,25 @@ class TestValidKeys:
         for key in VALID_WORKSPACE_KEYS:
             assert '-' not in key, f'Key {key} uses hyphens'
 
-    def test_no_overlap_except_workspace(self) -> None:
-        """Test no overlap except workspace."""
-        overlap = (VALID_KEYS - {'workspace'}) & VALID_WORKSPACE_KEYS
-        assert overlap == set(), f'Keys in both global and workspace: {overlap}'
+    def test_no_overlap_except_allowed(self) -> None:
+        """Test no overlap except workspace and Phase 8 shared keys.
+
+        Phase 8 keys (release_mode, schedule, hooks, branches,
+        versioning_scheme, calver_format) intentionally exist in both
+        global and workspace scopes for the override hierarchy.
+        """
+        allowed_shared = {
+            'announcements',
+            'branches',
+            'calver_format',
+            'hooks',
+            'release_mode',
+            'schedule',
+            'versioning_scheme',
+            'workspace',
+        }
+        overlap = (VALID_KEYS - allowed_shared) & VALID_WORKSPACE_KEYS
+        assert overlap == set(), f'Unexpected keys in both global and workspace: {overlap}'
 
     def test_allowed_ecosystems_are_lowercase(self) -> None:
         """Test allowed ecosystems are lowercase."""
@@ -548,3 +568,233 @@ class TestWorkspaceOverlapValidation:
         config_path.write_text('[workspace.py]\npropagate_bumps = false\n', encoding='utf-8')
         cfg = load_config(tmp_path)
         assert cfg.workspaces['py'].propagate_bumps is False
+
+
+# ---------------------------------------------------------------------------
+# DEFAULT_VERSIONING_SCHEMES
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultVersioningSchemes:
+    """DEFAULT_VERSIONING_SCHEMES maps ecosystems to correct defaults."""
+
+    def test_python_defaults_to_pep440(self) -> None:
+        """Python ecosystem defaults to pep440."""
+        assert DEFAULT_VERSIONING_SCHEMES['python'] == 'pep440'
+
+    def test_js_defaults_to_semver(self) -> None:
+        """JS ecosystem defaults to semver."""
+        assert DEFAULT_VERSIONING_SCHEMES['js'] == 'semver'
+
+    def test_go_defaults_to_semver(self) -> None:
+        """Go ecosystem defaults to semver."""
+        assert DEFAULT_VERSIONING_SCHEMES['go'] == 'semver'
+
+    def test_rust_defaults_to_semver(self) -> None:
+        """Rust ecosystem defaults to semver."""
+        assert DEFAULT_VERSIONING_SCHEMES['rust'] == 'semver'
+
+    def test_dart_defaults_to_semver(self) -> None:
+        """Dart ecosystem defaults to semver."""
+        assert DEFAULT_VERSIONING_SCHEMES['dart'] == 'semver'
+
+    def test_java_defaults_to_semver(self) -> None:
+        """Java ecosystem defaults to semver."""
+        assert DEFAULT_VERSIONING_SCHEMES['java'] == 'semver'
+
+    def test_only_python_uses_pep440(self) -> None:
+        """Only python uses pep440; all others use semver."""
+        for eco, scheme in DEFAULT_VERSIONING_SCHEMES.items():
+            if eco == 'python':
+                assert scheme == 'pep440', f'{eco} should be pep440'
+            else:
+                assert scheme == 'semver', f'{eco} should be semver, got {scheme}'
+
+    def test_ecosystem_applied_on_load(self, tmp_path: Path) -> None:
+        """Ecosystem default is applied when versioning_scheme is not set."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.py]\necosystem = "python"\nroot = "py"\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert cfg.workspaces['py'].versioning_scheme == 'pep440'
+
+    def test_js_ecosystem_gets_semver(self, tmp_path: Path) -> None:
+        """JS ecosystem gets semver by default."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.js]\necosystem = "js"\nroot = "js"\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert cfg.workspaces['js'].versioning_scheme == 'semver'
+
+    def test_explicit_scheme_overrides_ecosystem_default(self, tmp_path: Path) -> None:
+        """Explicit versioning_scheme overrides the ecosystem default."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.py]\necosystem = "python"\nversioning_scheme = "semver"\nroot = "py"\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        assert cfg.workspaces['py'].versioning_scheme == 'semver'
+
+
+# ---------------------------------------------------------------------------
+# PackageConfig
+# ---------------------------------------------------------------------------
+
+
+class TestPackageConfigDefaults:
+    """PackageConfig has sensible defaults."""
+
+    def test_default_versioning_scheme_empty(self) -> None:
+        """Default versioning_scheme is empty (inherits from workspace)."""
+        pc = PackageConfig()
+        assert pc.versioning_scheme == ''
+
+    def test_default_booleans_are_none(self) -> None:
+        """Boolean fields default to None (inherit from workspace)."""
+        pc = PackageConfig()
+        assert pc.changelog is None
+        assert pc.smoke_test is None
+        assert pc.major_on_zero is None
+        assert pc.provenance is None
+
+
+class TestResolvePackageConfig:
+    """resolve_package_config merges workspace defaults with per-package overrides."""
+
+    def test_no_packages_returns_workspace_defaults(self) -> None:
+        """When no packages overrides exist, workspace defaults are returned."""
+        ws = WorkspaceConfig(versioning_scheme='pep440', major_on_zero=True)
+        result = resolve_package_config(ws, 'genkit')
+        assert result.versioning_scheme == 'pep440'
+        assert result.major_on_zero is True
+
+    def test_exact_package_override(self) -> None:
+        """Exact package name match overrides workspace defaults."""
+        ws = WorkspaceConfig(
+            versioning_scheme='pep440',
+            packages={'my-js-lib': PackageConfig(versioning_scheme='semver')},
+        )
+        result = resolve_package_config(ws, 'my-js-lib')
+        assert result.versioning_scheme == 'semver'
+
+    def test_unmatched_package_gets_workspace_defaults(self) -> None:
+        """Unmatched package inherits workspace defaults."""
+        ws = WorkspaceConfig(
+            versioning_scheme='pep440',
+            packages={'my-js-lib': PackageConfig(versioning_scheme='semver')},
+        )
+        result = resolve_package_config(ws, 'my-py-lib')
+        assert result.versioning_scheme == 'pep440'
+
+    def test_group_override(self) -> None:
+        """Group membership match overrides workspace defaults."""
+        ws = WorkspaceConfig(
+            versioning_scheme='pep440',
+            groups={'plugins': ['genkit-plugin-*']},
+            packages={'plugins': PackageConfig(versioning_scheme='semver')},
+        )
+        result = resolve_package_config(ws, 'genkit-plugin-foo')
+        assert result.versioning_scheme == 'semver'
+
+    def test_exact_match_beats_group(self) -> None:
+        """Exact package name match takes precedence over group match."""
+        ws = WorkspaceConfig(
+            versioning_scheme='pep440',
+            groups={'plugins': ['genkit-plugin-*']},
+            packages={
+                'genkit-plugin-foo': PackageConfig(versioning_scheme='calver'),
+                'plugins': PackageConfig(versioning_scheme='semver'),
+            },
+        )
+        result = resolve_package_config(ws, 'genkit-plugin-foo')
+        assert result.versioning_scheme == 'calver'
+
+    def test_empty_override_inherits_from_workspace(self) -> None:
+        """Empty override fields inherit from workspace."""
+        ws = WorkspaceConfig(
+            versioning_scheme='pep440',
+            dist_tag='latest',
+            major_on_zero=True,
+            packages={'genkit': PackageConfig(registry_url='https://test.pypi.org')},
+        )
+        result = resolve_package_config(ws, 'genkit')
+        assert result.versioning_scheme == 'pep440'
+        assert result.dist_tag == 'latest'
+        assert result.major_on_zero is True
+        assert result.registry_url == 'https://test.pypi.org'
+
+
+class TestBuildPackageConfigs:
+    """build_package_configs builds a dict for all packages."""
+
+    def test_builds_dict_for_all_packages(self) -> None:
+        """Returns a dict keyed by package name."""
+        ws = WorkspaceConfig(
+            versioning_scheme='semver',
+            packages={'pkg-a': PackageConfig(versioning_scheme='pep440')},
+        )
+        result = build_package_configs(ws, ['pkg-a', 'pkg-b'])
+        assert result['pkg-a'].versioning_scheme == 'pep440'
+        assert result['pkg-b'].versioning_scheme == 'semver'
+
+
+class TestPackageConfigParsing:
+    """TOML parsing of [workspace.<label>.packages.<name>] sections."""
+
+    def test_load_packages_section(self, tmp_path: Path) -> None:
+        """Packages section is parsed into PackageConfig dict."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.mono]\n'
+            'root = "."\n'
+            '\n'
+            '[workspace.mono.packages."my-js-lib"]\n'
+            'versioning_scheme = "semver"\n'
+            'dist_tag = "next"\n'
+            '\n'
+            '[workspace.mono.packages."my-py-lib"]\n'
+            'versioning_scheme = "pep440"\n'
+            'registry_url = "https://test.pypi.org"\n',
+            encoding='utf-8',
+        )
+        cfg = load_config(tmp_path)
+        ws = cfg.workspaces['mono']
+        assert 'my-js-lib' in ws.packages
+        assert 'my-py-lib' in ws.packages
+        assert ws.packages['my-js-lib'].versioning_scheme == 'semver'
+        assert ws.packages['my-js-lib'].dist_tag == 'next'
+        assert ws.packages['my-py-lib'].versioning_scheme == 'pep440'
+        assert ws.packages['my-py-lib'].registry_url == 'https://test.pypi.org'
+
+    def test_invalid_package_key_raises(self, tmp_path: Path) -> None:
+        """Unknown key in packages section raises ReleaseKitError."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.mono]\nroot = "."\n\n[workspace.mono.packages."my-lib"]\nbad_key = "oops"\n',
+            encoding='utf-8',
+        )
+        with pytest.raises(ReleaseKitError, match='Unknown key'):
+            load_config(tmp_path)
+
+    def test_invalid_versioning_scheme_in_package_raises(self, tmp_path: Path) -> None:
+        """Invalid versioning_scheme in packages section raises."""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(
+            '[workspace.mono]\nroot = "."\n\n[workspace.mono.packages."my-lib"]\nversioning_scheme = "invalid"\n',
+            encoding='utf-8',
+        )
+        with pytest.raises(ReleaseKitError, match='versioning_scheme'):
+            load_config(tmp_path)
+
+    def test_packages_key_in_valid_workspace_keys(self) -> None:
+        """'packages' is a valid workspace key."""
+        assert 'packages' in VALID_WORKSPACE_KEYS
+
+    def test_valid_package_keys_are_subset_of_workspace_keys(self) -> None:
+        """All VALID_PACKAGE_KEYS are also in VALID_WORKSPACE_KEYS."""
+        assert VALID_PACKAGE_KEYS <= VALID_WORKSPACE_KEYS

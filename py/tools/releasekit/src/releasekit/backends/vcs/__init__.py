@@ -234,3 +234,52 @@ class VCS(Protocol):
             dry_run: Log the command without executing.
         """
         ...
+
+    async def tags_on_branch(self, branch: str) -> list[str]:
+        """Return tags reachable from a branch, in chronological order.
+
+        Args:
+            branch: Branch name to scan for tags.
+
+        Returns:
+            List of tag names, oldest first.
+        """
+        ...
+
+    async def commit_exists(self, sha: str) -> bool:
+        """Return ``True`` if the commit SHA exists in the repository.
+
+        Args:
+            sha: Full or abbreviated commit SHA.
+        """
+        ...
+
+    async def cherry_pick(
+        self,
+        sha: str,
+        *,
+        dry_run: bool = False,
+    ) -> CommandResult:
+        """Cherry-pick a single commit onto the current branch.
+
+        Args:
+            sha: Commit SHA to cherry-pick.
+            dry_run: Log the command without executing.
+        """
+        ...
+
+    async def cherry_pick_abort(self) -> CommandResult:
+        """Abort an in-progress cherry-pick operation."""
+        ...
+
+    async def tag_date(self, tag_name: str) -> str:
+        """Return the ISO 8601 date of a tag.
+
+        Args:
+            tag_name: Tag name to query.
+
+        Returns:
+            ISO 8601 date string, or empty string if the tag
+            does not exist.
+        """
+        ...

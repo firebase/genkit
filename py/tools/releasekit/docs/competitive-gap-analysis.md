@@ -117,15 +117,14 @@ commit type but does **not** extract or display commit authors/contributors.
 | python-semantic-release [#455](https://github.com/python-semantic-release/python-semantic-release/issues/455) | Top 👍 issue |
 | python-semantic-release [#1018](https://github.com/python-semantic-release/python-semantic-release/issues/1018) | Version variable not changed with PEP 440 |
 
-**Current releasekit state:** The `version_pep440` check validates PEP 440
-compliance, but version bumping itself uses SemVer. For Python packages,
-pre-release suffixes should follow PEP 440 (`1.0.0a1`, `1.0.0rc1`) not
-SemVer (`1.0.0-alpha.1`).
-
-**Recommendation:**
-- Support a `version_scheme = "pep440"` config option.
-- Ensure `compute_bumps` produces PEP 440-compliant versions for Python
-  packages and SemVer for JS/Go packages.
+**Current releasekit state:** ✅ **Done.** `versioning_scheme = "pep440"` config
+option added. `_apply_bump()` is now scheme-aware: produces PEP 440 suffixes
+(`1.0.1a1`, `1.0.1b1`, `1.0.1rc1`, `1.0.1.dev1`) when `versioning_scheme = "pep440"`
+and semver format (`1.0.1-alpha.1`, `1.0.1-rc.1`) when `versioning_scheme = "semver"`.
+`compute_bumps()` threads `versioning_scheme` from `WorkspaceConfig` through all
+7 call sites (cli.py ×5, prepare.py, api.py). `_parse_base_version()` correctly
+strips both semver and PEP 440 pre-release suffixes before bumping.
+`ALLOWED_VERSIONING_SCHEMES` now includes `semver`, `pep440`, and `calver`.
 
 ### 2.4 Dry-Run / "What Version Would Be Published" Mode
 | Alternative tool issue | Votes/Comments |
@@ -161,9 +160,9 @@ All forge API calls use exponential backoff with jitter.
 bounds changelog generation for large repos. `compute_bumps` Phase 1 uses
 `asyncio.gather` for ~10× speedup on 60+ packages (R32, done 2026-02-12).
 
-**Remaining:**
-- `bootstrap-sha` config option (R26) for repos with long histories.
-- Incremental changelog updates (append new entries rather than regenerating).
+**Remaining:** ✅ All done.
+- ✅ ~~`bootstrap-sha` config option (R26)~~ — Done (2026-02-13).
+- ✅ ~~Incremental changelog updates~~ — Done (2026-02-15). `write_changelog_incremental()`.
 
 ### 2.7 Stale State / "Stuck" Release Recovery
 | Alternative tool issue | Votes/Comments |
@@ -292,25 +291,25 @@ These are pain points in alternatives that releasekit **already solves**:
 
 ---
 
-## 5. PRIORITIZED ROADMAP RECOMMENDATION
+## 5. GAP RESOLUTION STATUS
 
-### Phase 1 (Next release)
-1. **Pre-release workflow** (`--prerelease` flag + PEP 440 suffixes)
-2. ✅ ~~**Revert commit handling**~~ — Done.
-3. ✅ ~~**`releasekit doctor`**~~ — Done.
+### Completed
 
-### Phase 2 (Following release)
-1. ✅ ~~**Internal dependency version propagation**~~ — Done.
-2. ✅ ~~**Contributor attribution in changelogs**~~ — Done.
-3. **Incremental changelog generation** (performance)
-4. **Hotfix branch support** (`--base-branch`)
+1. ✅ **Pre-release workflow** — `prerelease.py`.
+2. ✅ **Revert commit handling** — Per-level bump counters with revert decrement.
+3. ✅ **`releasekit doctor`** — 6 diagnostic checks.
+4. ✅ **Internal dependency version propagation** — BFS via `graph.reverse_edges`.
+5. ✅ **Contributor attribution in changelogs** — `ChangelogEntry.author`.
+6. ✅ **Incremental changelog generation** — `write_changelog_incremental()`.
+7. ✅ **Hotfix branch support** — `hotfix.py`.
+8. ✅ **Sigstore signing + verification** — `signing.py`.
+9. ✅ **Auto-merge release PRs** — `auto_merge` config.
+10. ✅ **SBOM generation** — CycloneDX + SPDX.
+11. ✅ **Custom changelog templates** — Jinja2 support.
 
-### Phase 3 (Future)
-1. ✅ ~~**Sigstore signing + verification**~~ — Done.
-2. ✅ ~~**Auto-merge release PRs**~~ — Done.
-3. ✅ ~~**SBOM generation**~~ — Done (CycloneDX + SPDX).
-4. **Custom changelog templates**
-5. **Plugin system for custom steps**
+### Remaining
+
+1. **Plugin system for custom steps**
 
 ---
 
@@ -420,9 +419,9 @@ changesets are consumed to produce version bumps and changelogs.
 - ✅ Polyglot (not JS-only).
 - ✅ Individual package publishing.
 
-**Gap to consider:**
-- **Snapshot releases** — Useful for CI testing. Releasekit could add
-  `--snapshot` flag that publishes `0.0.0-dev.<sha>` versions.
+**Gap to consider:** ✅ Done.
+- ✅ ~~**Snapshot releases**~~ — Done (2026-02-15). `snapshot.py` with
+  `snapshot` CLI subcommand that publishes `0.0.0-dev.<sha>` versions.
 - **Intent files** — Could be a complementary approach to conventional
   commits for cases where commit messages are insufficient.
 
@@ -472,10 +471,10 @@ and changesets, with monorepo support.
 - [#924](https://github.com/knope-dev/knope/issues/924) — Can't disable conventional commits.
 - [#988](https://github.com/knope-dev/knope/issues/988) — Variables don't work across packages.
 
-**Gap to consider:**
-- **Hybrid conventional commits + changesets** — Knope's approach of
-  supporting both is elegant. Releasekit could optionally read changeset
-  files alongside conventional commits.
+**Gap to consider:** ✅ Done.
+- ✅ ~~**Hybrid conventional commits + changesets**~~ — Done (2026-02-15).
+  `changesets.py` reads `.changeset/*.md` files and merges with conventional
+  commit bumps (higher wins). Same approach as Knope.
 
 ### 7.4 GoReleaser
 
@@ -498,8 +497,8 @@ signing, and publishing.
 - ✅ Workspace health checks.
 
 **Gaps to consider:**
-- **SBOM generation** — Increasingly required for supply chain security.
-- **Announcement integrations** — Slack/Discord notifications on release.
+- ✅ ~~**SBOM generation**~~ — Done. CycloneDX + SPDX via `sbom.py`.
+- ✅ ~~**Announcement integrations**~~ — Done. Slack, Discord, custom webhooks via `announce.py`.
 - **Cross-compilation orchestration** — Relevant for Genkit CLI binaries
   (currently handled by separate `promote_cli_gcs.sh`).
 
@@ -554,8 +553,8 @@ are added via plugins.
 | Version bumping in non-package.json files | `@release-it/bumper` | ✅ Built-in (any manifest) |
 | Monorepo workspaces | `@release-it-plugins/workspaces` | ✅ Built-in (first-class) |
 | pnpm support | `release-it-pnpm` | ✅ Built-in (`PnpmBackend`) |
-| CalVer versioning | `release-it-calver-plugin` | ❌ Not yet |
-| Changesets integration | `changesets-release-it-plugin` | ❌ Not yet |
+| CalVer versioning | `release-it-calver-plugin` | ✅ Built-in (`calver.py`) |
+| Changesets integration | `changesets-release-it-plugin` | ✅ Built-in (`changesets.py`) |
 | .NET publishing | `@jcamp-code/release-it-dotnet` | ❌ Not yet |
 | Gitea support | `release-it-gitea` | ❌ Not yet (GH/GL/BB only) |
 | Regex-based version bumping | `@j-ulrich/release-it-regex-bumper` | ✅ Built-in (configurable `tag_format`) |
@@ -790,13 +789,13 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Monorepo** | ✅ | ✅ | ❌ (plugin) | ❌ | ❌ (plugin) | ✅ | ✅ | ✅ | ❌ |
 | **Polyglot** | ✅ Py/JS/Go/Rust/Java/Dart | Multi-lang | JS-centric | Python-only | JS (plugins for others) | JS-only | JS/Rust/Docker | Multi | Go-only |
 | **Conv. commits** | ✅ | ✅ | ✅ (plugin) | ✅ | ❌ (plugin) | ❌ | ✅ | ✅ | ✅ |
-| **Changesets** | ❌ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
+| **Changesets** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
 | **Dep graph** | ✅ | Partial | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Topo publish** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | **Health checks** | ✅ (34) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Auto-fix** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Multi-forge** | ✅ GH/GL/BB | GitHub only | GH/GL/BB | GH/GL/BB | GH/GL | GitHub only | ❌ | GH/Gitea | GitHub only |
-| **Pre-release** | Partial | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Pre-release** | ✅ | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Dry-run** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Rollback** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Version preview** | ✅ | ❌ | ❌ | ❌ | ✅ (`--release-version`) | ❌ | ✅ | ❌ | ❌ |
@@ -806,88 +805,65 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Retry/backoff** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Release lock** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Distro pkg sync** | ✅ Deb/RPM/Brew | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Hooks** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Hooks** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | **Interactive mode** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Scheduled releases** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Continuous deploy** | ❌ | ❌ | ✅ | ✅ | ✅ (`--ci`) | ❌ | ❌ | ❌ | ❌ |
+| **Scheduled releases** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Continuous deploy** | ✅ | ❌ | ✅ | ✅ | ✅ (`--ci`) | ❌ | ❌ | ❌ | ❌ |
 | **Re-run release** | ❌ | ❌ | ❌ | ❌ | ✅ (`--no-increment`) | ❌ | ❌ | ❌ | ❌ |
-| **Programmatic API** | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **CalVer** | ❌ | ❌ | ❌ | ❌ | ❌ (plugin) | ❌ | ❌ | ❌ | ❌ |
-| **Cherry-pick** | Planned (R38) | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Programmatic API** | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **PEP 440** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **CalVer** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ❌ | ❌ | ❌ | ❌ |
+| **Cherry-pick** | ✅ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Signing** | ✅ Sigstore | ❌ | npm provenance | ❌ | npm OIDC | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | **SBOM** | ✅ CycloneDX/SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Announcements** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Announcements** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
-## 10. REVISED PRIORITIZED ROADMAP
+## 10. IMPLEMENTATION STATUS
 
-### Phase 1 — Immediate (finalize JS migration readiness)
+### Completed (34 items)
 
-1. ✅ ~~**Wire up pnpm workspace publish pipeline**~~ — Done. `PnpmBackend`
-   and `NpmRegistry` fully implemented. Ecosystem-aware `_create_backends()`.
-2. ✅ ~~**Revert commit handling**~~ — Done. Per-level bump counters with
-   revert cancellation.
-3. ✅ ~~**`releasekit doctor`**~~ — Done. `run_doctor()` with 6 checks,
-   fully wired in CLI.
-4. **Pre-release workflow** (`--prerelease rc` flag + PEP 440 / SemVer
-   pre-release suffixes). Basic `prerelease` param exists in `compute_bumps`.
-5. ✅ ~~**npm dist-tag support**~~ — Done. `--dist-tag` CLI flag wired through
-   `WorkspaceConfig` → `PublishConfig` → `PnpmBackend.publish(--tag)`.
-6. ✅ ~~**`--publish-branch` + `--provenance`**~~ — Done. Both params added to
-   `PnpmBackend.publish()`, `PublishConfig`, `WorkspaceConfig`, and CLI.
+1. ✅ **pnpm workspace publish pipeline** — `PnpmBackend` + `NpmRegistry`.
+2. ✅ **Revert commit handling** — Per-level bump counters with revert cancellation.
+3. ✅ **`releasekit doctor`** — `run_doctor()` with 6 checks.
+4. ✅ **Pre-release workflow** — `prerelease.py` (PEP 440 + semver, `promote` CLI).
+5. ✅ **npm dist-tag support** — `--dist-tag` CLI flag.
+6. ✅ **`--publish-branch` + `--provenance`** — `PnpmBackend.publish()`.
+7. ✅ **Internal dependency version propagation** — BFS via `graph.reverse_edges`.
+8. ✅ **Contributor attribution in changelogs** — `ChangelogEntry.author`.
+9. ✅ **Continuous deploy mode** — `release_mode = "continuous"` + `--if-needed`.
+10. ✅ **`releasekit should-release`** — CLI subcommand.
+11. ✅ **Lifecycle hooks** — `hooks.py` with 4 lifecycle events.
+12. ✅ **Incremental changelog generation** — `write_changelog_incremental()`.
+13. ✅ **Hotfix / maintenance branch support** — `hotfix.py`.
+14. ✅ **Cherry-pick for release branches** — `cherry_pick_commits()`.
+15. ✅ **Snapshot releases** — `snapshot.py`.
+16. ✅ **`bootstrap-sha` config** — `bootstrap_sha` on `WorkspaceConfig`.
+17. ✅ **Scheduled / cadence-based releases** — `should_release.py`.
+18. ✅ **Branch-to-channel mapping** — `channels.py`.
+19. ✅ **Sigstore signing + verification** — `signing.py`.
+20. ✅ **SBOM generation** — `sbom.py` (CycloneDX + SPDX).
+21. ✅ **Auto-merge release PRs** — `auto_merge` config.
+22. ✅ **Custom changelog templates** — Jinja2 support.
+23. ✅ **Announcement integrations** — `announce.py` (Slack, Discord, webhooks).
+24. ✅ **Optional changeset file support** — `changesets.py`.
+25. ✅ **Programmatic Python API** — `api.py` with `ReleaseKit` class.
+26. ✅ **CalVer support** — `calver.py`.
 
-### Phase 2 — High value
+### Remaining
 
-7. ✅ ~~**Internal dependency version propagation**~~ — Done. BFS via
-   `graph.reverse_edges`.
-8. ✅ ~~**Contributor attribution in changelogs**~~ — Done. `ChangelogEntry.author`
-   field, git log format `%H\x00%an\x00%s`, rendered as `— @author` (2026-02-13).
-9. **Continuous deploy mode** (`release_mode = "continuous"` + `--if-needed`).
-   Enables release-per-commit for trunk-based development. See §8.2.
-10. **`releasekit should-release`** command for CI cron integration.
-    Returns exit 0 if a release should happen based on cadence config. See §8.1.
-11. **Lifecycle hooks** (`[hooks]` in `releasekit.toml`). `before_publish`,
-    `after_publish`, `after_tag` for arbitrary shell commands. See §8.4.
-12. **Incremental changelog generation** (performance for large repos).
-13. **Hotfix / maintenance branch support** (`--base-branch`).
-14. **Cherry-pick for release branches** (`releasekit cherry-pick`).
-15. **Snapshot releases** (`--snapshot` for CI testing).
-16. ✅ ~~**`bootstrap-sha` config**~~ (R26) — Done. `bootstrap_sha` on
-   `WorkspaceConfig`, threaded through `compute_bumps` and all CLI call sites (2026-02-13).
+1. **Plugin system for custom steps**.
+2. **Cross-compilation orchestration** (for CLI binaries).
+3. **`releasekit migrate`** — Protocol-based migration from alternatives.
+4. **Bazel workspace backend** (BUILD files, `bazel run //pkg:publish`).
+5. **Rust/Cargo workspace backend** (`Cargo.toml`, `cargo publish`).
+6. **Java backend** (Maven `pom.xml` / Gradle `build.gradle`, `mvn deploy`).
+7. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
+8. **Rustification** — Rewrite core in Rust with PyO3/maturin.
 
-### Phase 3 — Differentiation
-
-17. **Scheduled / cadence-based releases** (`[schedule]` config section).
-    Daily, weekly, biweekly cadences with release windows and cooldown. See §8.1.
-18. **Branch-to-channel mapping** (`[branches]` config). Maps branches to
-    release channels (latest, next, maintenance). See §8.3.
-19. ✅ ~~**Sigstore signing + verification**~~ — Done. `signing.py` with
-    `sign_artifact()`, `verify_artifact()`, CLI `sign`/`verify` subcommands,
-    `--sign` flag on `publish`.
-20. ✅ ~~**SBOM generation**~~ — Done. `sbom.py` with CycloneDX and SPDX
-    formats, `generate_sbom()`, `write_sbom()`.
-21. ✅ ~~**Auto-merge release PRs**~~ — Done. `auto_merge` config on
-   `WorkspaceConfig`, `prepare.py` calls `forge.merge_pr()` after labeling (2026-02-13).
-22. **Custom changelog templates** (Jinja2).
-23. **Announcement integrations** (Slack, Discord).
-24. **Optional changeset file support** (hybrid with conventional commits).
-
-### Phase 4 — Future
-
-25. **Plugin system for custom steps**.
-26. **Programmatic Python API** (like Nx Release's Node.js API).
-27. **Cross-compilation orchestration** (for CLI binaries).
-28. **`releasekit migrate`** — Protocol-based migration from alternatives.
-29. **Bazel workspace backend** (BUILD files, `bazel run //pkg:publish`).
-30. **Rust/Cargo workspace backend** (`Cargo.toml`, `cargo publish`).
-31. **Java backend** (Maven `pom.xml` / Gradle `build.gradle`, `mvn deploy`).
-32. **Dart/Pub workspace backend** (`pubspec.yaml`, `dart pub publish`).
-33. **CalVer support** (calendar-based versioning).
-34. **Rustification** — Rewrite core in Rust with PyO3/maturin (see roadmap §12).
-
-> **See [../roadmap.md](../roadmap.md)** for the detailed roadmap with
-> dependency graphs and execution phases.
+> **See [../roadmap.md](../roadmap.md)** for the detailed implementation
+> roadmap with dependency graphs.
 
 ---
 
