@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,281 +11,127 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package mcp
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// GetActiveResources fetches resources from the MCP server
 func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]ai.Resource, error) {
-	if !c.IsEnabled() || c.server == nil {
-		return nil, fmt.Errorf("MCP client is disabled or not connected")
+	if !c.IsEnabled() || c.server == nil || c.server.Session == nil {
+		return nil, nil
+	}
+	if c.server.Error != nil {
+		return nil, c.server.Error
 	}
 
 	var resources []ai.Resource
 
-	// Fetch static resources
-	staticResources, err := c.getStaticResources(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resources from %s: %w", c.options.Name, err)
+	// fetch static resources (URIs like "file:///logs/today.txt")
+	for res, err := range c.server.Session.Resources(ctx, nil) {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list resources: %w", err)
+		}
+		resources = append(resources, c.toGenkitResource(res))
 	}
-	resources = append(resources, staticResources...)
 
-	// Fetch template resources (optional - not all servers support templates)
-	templateResources, err := c.getTemplateResources(ctx)
-	if err != nil {
-		// Templates not supported by all servers, continue without them
-		return resources, nil
+	// fetch resource templates (dynamic URIS like "db://{table}/{id}")
+	for res, err := range c.server.Session.ResourceTemplates(ctx, nil) {
+		if err != nil {
+			return nil, fmt.Errorf("failed to list resource templates: %w", err)
+		}
+		resources = append(resources, c.toGenkitResourceTemplate(res))
 	}
-	resources = append(resources, templateResources...)
 
 	return resources, nil
 }
 
-// getStaticResources retrieves and converts static MCP resources to Genkit resources
-func (c *GenkitMCPClient) getStaticResources(ctx context.Context) ([]ai.Resource, error) {
-	mcpResources, err := c.getResources(ctx)
+func (c *GenkitMCPClient) toGenkitResource(r *mcp.Resource) ai.Resource {
+	name := fmt.Sprintf("%s_%s", c.options.Name, r.Name)
+
+	metadata := map[string]any{
+		"mcp_server": c.options.Name,
+		"mcp_uri":    r.URI,
+	}
+
+	if r.Annotations != nil {
+		if r.Annotations.Audience != nil {
+			metadata["audience"] = r.Annotations.Audience
+		}
+		if r.Annotations.Priority != 0 {
+			metadata["priority"] = r.Annotations.Priority
+		}
+		if r.Annotations.LastModified != "" {
+			metadata["last_modified"] = r.Annotations.LastModified
+		}
+	}
+
+	return ai.NewResource(name, &ai.ResourceOptions{
+		URI:         r.URI,
+		Description: r.Description,
+		Metadata:    metadata,
+	}, c.readResourceHandler)
+}
+
+func (c *GenkitMCPClient) toGenkitResourceTemplate(rt *mcp.ResourceTemplate) ai.Resource {
+	name := fmt.Sprintf("%s_%s", c.options.Name, rt.Name)
+
+	return ai.NewResource(name, &ai.ResourceOptions{
+		Template:    rt.URITemplate,
+		Description: rt.Description,
+	}, c.readResourceHandler)
+}
+
+func (c *GenkitMCPClient) readResourceHandler(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+	if c.server == nil || c.server.Session == nil {
+		return nil, fmt.Errorf("MCP session is closed")
+	}
+	if c.server.Error != nil {
+		return nil, c.server.Error
+	}
+
+	params := &mcp.ReadResourceParams{
+		URI: input.URI,
+	}
+
+	res, err := c.server.Session.ReadResource(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read MCP resource %s: %w", input.URI, err)
 	}
 
-	var resources []ai.Resource
-	for _, mcpResource := range mcpResources {
-		resource, err := c.toGenkitResource(mcpResource)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create resource %s: %w", mcpResource.Name, err)
-		}
-		resources = append(resources, resource)
-	}
-	return resources, nil
+	parts := c.toGenkitParts(res.Contents)
+
+	return &ai.ResourceOutput{
+		Content: parts,
+	}, nil
 }
 
-// getTemplateResources retrieves and converts MCP resource templates to Genkit resources
-func (c *GenkitMCPClient) getTemplateResources(ctx context.Context) ([]ai.Resource, error) {
-	mcpTemplates, err := c.getResourceTemplates(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var resources []ai.Resource
-	for _, mcpTemplate := range mcpTemplates {
-		resource, err := c.toGenkitResourceTemplate(mcpTemplate)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create resource template %s: %w", mcpTemplate.Name, err)
-		}
-		resources = append(resources, resource)
-	}
-	return resources, nil
-}
-
-// toGenkitResource creates a Genkit resource from an MCP static resource
-func (c *GenkitMCPClient) toGenkitResource(mcpResource mcp.Resource) (ai.Resource, error) {
-	// Create namespaced resource name
-	resourceName := c.GetResourceNameWithNamespace(mcpResource.Name)
-
-	// Create Genkit resource that bridges to MCP
-	return ai.NewResource(resourceName, &ai.ResourceOptions{
-		URI:         mcpResource.URI,
-		Description: mcpResource.Description,
-		Metadata: map[string]any{
-			"mcp_server": c.options.Name,
-			"mcp_name":   mcpResource.Name,
-			"source":     "mcp",
-			"mime_type":  mcpResource.MIMEType,
-		},
-	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
-		output, err := c.readMCPResource(ctx, input.URI)
-		if err != nil {
-			return nil, err
-		}
-		return &ai.ResourceOutput{Content: output.Content}, nil
-	}), nil
-}
-
-// toGenkitResourceTemplate creates a Genkit template resource from MCP template
-func (c *GenkitMCPClient) toGenkitResourceTemplate(mcpTemplate mcp.ResourceTemplate) (ai.Resource, error) {
-	resourceName := c.GetResourceNameWithNamespace(mcpTemplate.Name)
-
-	// Convert URITemplate to string - extract the raw template string
-	var templateStr string
-	if mcpTemplate.URITemplate != nil && mcpTemplate.URITemplate.Template != nil {
-		templateStr = mcpTemplate.URITemplate.Template.Raw()
-	}
-
-	// Validate template - return error instead of panicking
-	if templateStr == "" {
-		return nil, fmt.Errorf("MCP resource template %s has empty URI template", mcpTemplate.Name)
-	}
-
-	return ai.NewResource(resourceName, &ai.ResourceOptions{
-		Template:    templateStr,
-		Description: mcpTemplate.Description,
-		Metadata: map[string]any{
-			"mcp_server":   c.options.Name,
-			"mcp_name":     mcpTemplate.Name,
-			"mcp_template": templateStr,
-			"source":       "mcp",
-			"mime_type":    mcpTemplate.MIMEType,
-		},
-	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
-		output, err := c.readMCPResource(ctx, input.URI)
-		if err != nil {
-			return nil, err
-		}
-		return &ai.ResourceOutput{Content: output.Content}, nil
-	}), nil
-}
-
-// readMCPResource fetches content from MCP server for a given URI
-func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (ai.ResourceOutput, error) {
-	if !c.IsEnabled() || c.server == nil {
-		return ai.ResourceOutput{}, fmt.Errorf("MCP client is disabled or not connected")
-	}
-
-	// Create ReadResource request
-	readReq := mcp.ReadResourceRequest{
-		Params: struct {
-			URI       string                 `json:"uri"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-		}{
-			URI:       uri,
-			Arguments: nil,
-		},
-	}
-
-	// Call the MCP server to read the resource
-	readResp, err := c.server.Client.ReadResource(ctx, readReq)
-	if err != nil {
-		return ai.ResourceOutput{}, fmt.Errorf("failed to read resource from MCP server %s: %w", c.options.Name, err)
-	}
-
-	// Convert MCP ResourceContents to Genkit Parts
-	parts, err := convertMCPResourceContentsToGenkitParts(readResp.Contents)
-	if err != nil {
-		return ai.ResourceOutput{}, fmt.Errorf("failed to convert MCP resource contents to Genkit parts: %w", err)
-	}
-
-	return ai.ResourceOutput{Content: parts}, nil
-}
-
-// getResources retrieves all resources from the MCP server by paginating through results
-func (c *GenkitMCPClient) getResources(ctx context.Context) ([]mcp.Resource, error) {
-	var allResources []mcp.Resource
-	var cursor mcp.Cursor
-
-	// Paginate through all available resources from the MCP server
-	for {
-		// Fetch a page of resources
-		resources, nextCursor, err := c.fetchResourcesPage(ctx, cursor)
-		if err != nil {
-			return nil, err
-		}
-
-		allResources = append(allResources, resources...)
-
-		// Check if we've reached the last page
-		cursor = nextCursor
-		if cursor == "" {
-			break
-		}
-	}
-
-	return allResources, nil
-}
-
-// fetchResourcesPage retrieves a single page of resources from the MCP server
-func (c *GenkitMCPClient) fetchResourcesPage(ctx context.Context, cursor mcp.Cursor) ([]mcp.Resource, mcp.Cursor, error) {
-	// Build the list request - include cursor if we have one for pagination
-	listReq := mcp.ListResourcesRequest{}
-	listReq.PaginatedRequest = mcp.PaginatedRequest{
-		Params: struct {
-			Cursor mcp.Cursor `json:"cursor,omitempty"`
-		}{
-			Cursor: cursor,
-		},
-	}
-
-	// Ask the MCP server for resources
-	result, err := c.server.Client.ListResources(ctx, listReq)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to list resources from MCP server %s: %w", c.options.Name, err)
-	}
-
-	return result.Resources, result.NextCursor, nil
-}
-
-// getResourceTemplates retrieves all resource templates from the MCP server by paginating through results
-func (c *GenkitMCPClient) getResourceTemplates(ctx context.Context) ([]mcp.ResourceTemplate, error) {
-	var allTemplates []mcp.ResourceTemplate
-	var cursor mcp.Cursor
-
-	// Paginate through all available resource templates from the MCP server
-	for {
-		// Fetch a page of resource templates
-		templates, nextCursor, err := c.fetchResourceTemplatesPage(ctx, cursor)
-		if err != nil {
-			return nil, err
-		}
-
-		allTemplates = append(allTemplates, templates...)
-
-		// Check if we've reached the last page
-		cursor = nextCursor
-		if cursor == "" {
-			break
-		}
-	}
-
-	return allTemplates, nil
-}
-
-// fetchResourceTemplatesPage retrieves a single page of resource templates from the MCP server
-func (c *GenkitMCPClient) fetchResourceTemplatesPage(ctx context.Context, cursor mcp.Cursor) ([]mcp.ResourceTemplate, mcp.Cursor, error) {
-	listReq := mcp.ListResourceTemplatesRequest{
-		PaginatedRequest: mcp.PaginatedRequest{
-			Params: struct {
-				Cursor mcp.Cursor `json:"cursor,omitempty"`
-			}{
-				Cursor: cursor,
-			},
-		},
-	}
-
-	result, err := c.server.Client.ListResourceTemplates(ctx, listReq)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to list resource templates from MCP server %s: %w", c.options.Name, err)
-	}
-
-	return result.ResourceTemplates, result.NextCursor, nil
-}
-
-// convertMCPResourceContentsToGenkitParts converts MCP ResourceContents to Genkit Parts
-func convertMCPResourceContentsToGenkitParts(mcpContents []mcp.ResourceContents) ([]*ai.Part, error) {
+func (c *GenkitMCPClient) toGenkitParts(contents []*mcp.ResourceContents) []*ai.Part {
 	var parts []*ai.Part
 
-	for _, content := range mcpContents {
-		// Handle TextResourceContents
-		if textContent, ok := content.(mcp.TextResourceContents); ok {
-			parts = append(parts, ai.NewTextPart(textContent.Text))
+	for _, cont := range contents {
+		if cont.Text != "" {
+			if cont.MIMEType == "application/json" {
+				parts = append(parts, ai.NewDataPart(cont.Text))
+				continue
+			}
+			parts = append(parts, ai.NewTextPart(cont.Text))
 			continue
 		}
 
-		// Handle BlobResourceContents
-		if blobContent, ok := content.(mcp.BlobResourceContents); ok {
-			// Create media part using ai.NewMediaPart for binary data
-			parts = append(parts, ai.NewMediaPart(blobContent.MIMEType, blobContent.Blob))
-			continue
+		if len(cont.Blob) > 0 {
+			encodedString := base64.StdEncoding.EncodeToString(cont.Blob)
+			parts = append(parts, ai.NewMediaPart(cont.MIMEType, encodedString))
 		}
-
-		// Handle unknown resource content types as text
-		parts = append(parts, ai.NewTextPart(fmt.Sprintf("[Unknown MCP resource content type: %T]", content)))
 	}
 
-	return parts, nil
+	return parts
 }
