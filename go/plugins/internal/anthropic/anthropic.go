@@ -72,7 +72,7 @@ func Generate(
 
 	req.Model = anthropic.Model(model)
 
-	isStructured := input.Output != nil && input.Output.Format == "json" && input.Output.Schema != nil
+	isStructured := input.Output != nil && input.Output.Format == "json" && input.Output.Schema != nil && input.Output.Constrained
 
 	// no streaming
 	if cb == nil {
@@ -214,7 +214,7 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 	}
 	req.Tools = tools
 
-	if i.Output != nil && i.Output.Format == "json" && i.Output.Schema != nil {
+	if i.Output != nil && i.Output.Format == "json" && i.Output.Schema != nil && i.Output.Constrained {
 		schema, err := base.MapToStruct[anthropic.ToolInputSchemaParam](i.Output.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse output schema: %w", err)
