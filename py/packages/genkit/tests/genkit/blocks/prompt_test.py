@@ -854,3 +854,84 @@ async def test_variant_prompt_loading_does_not_recurse() -> None:
         robot_exec = await prompt(ai.registry, 'recipe', variant='robot')
         robot_response = await robot_exec({'food': 'pizza'})
         assert 'pizza' in robot_response.text
+
+
+async def _setup_static_prompts_test() -> Genkit:
+    ai, *_ = setup_test()
+
+    @ai.tool(name='toolA')
+    def tool_a() -> str:
+        return 'toolA'
+
+    @ai.tool(name='toolB')
+    def tool_b() -> str:
+        return 'toolB'
+
+    # Path to the static prompts directory
+    # genkit/tests/genkit/blocks/prompts
+    prompts_dir = Path(__file__).parent / 'prompts'
+
+    if not prompts_dir.exists():
+        pytest.skip(f'Static prompts directory not found at {prompts_dir}')
+
+    load_prompt_folder(ai.registry, prompts_dir)
+    return ai
+
+
+@pytest.mark.asyncio
+async def test_static_prompts_loaded() -> None:
+    """Test that all expected static prompts are loaded and resolvable."""
+    ai = await _setup_static_prompts_test()
+
+    # Verify prompts are loaded
+    for name in ['test', 'kitchensink', 'toolPrompt']:
+        prompt = await ai.registry.resolve_action(ActionKind.PROMPT, name)
+        assert prompt is not None, f"Prompt '{name}' should have been loaded."
+
+
+@pytest.mark.asyncio
+async def test_static_sub_test_prompt_rendering() -> None:
+    """Test rendering of the 'sub/test' static prompt."""
+    ai = await _setup_static_prompts_test()
+
+    sub_test_prompt = await ai.registry.resolve_action(ActionKind.PROMPT, 'sub/test')
+    assert sub_test_prompt is not None
+
+    sub_test_response = await sub_test_prompt.arun({})
+    sub_test_req = sub_test_response.response
+    assert sub_test_req.config.temperature == 12  # From config in sub/test.prompt
+    # Rendered text: "Hello from the sub folder prompt file"
+    # Default role user.
+    assert len(sub_test_req.messages) == 1
+    assert sub_test_req.messages[0].role == Role.USER
+    assert sub_test_req.messages[0].content[0].root.text == 'Hello from the sub folder prompt file'
+
+
+@pytest.mark.asyncio
+async def test_static_kitchensink_prompt_rendering() -> None:
+    """Test rendering of the 'kitchensink' static prompt."""
+    ai = await _setup_static_prompts_test()
+
+    # Use EXECUTABLE_PROMPT to verify model and other generation options
+    kitchensink_executable = await ai.registry.resolve_action(ActionKind.EXECUTABLE_PROMPT, 'kitchensink')
+    assert kitchensink_executable is not None
+
+    kitchensink_response = await kitchensink_executable.arun({'subject': 'banana'})
+    req = kitchensink_response.response
+
+    assert req.model == 'googleai/gemini-3-pro-preview'
+    assert req.config.temperature == 11
+    assert req.output.format == 'csv'
+    assert req.tool_choice == ToolChoice.REQUIRED
+    assert req.max_turns == 77
+    assert req.return_tool_requests is True
+    # Tools should be listed
+    assert set(req.tools) == {'toolA', 'toolB'}
+
+    # Verify messages structure
+    # Expected: System message " Hello " and maybe another message
+    assert len(req.messages) > 0
+    assert req.messages[0].role == Role.SYSTEM
+    assert 'Hello' in req.messages[0].content[0].root.text
+    # Check for the subject substitution
+    assert any('banana' in m.content[0].root.text for m in req.messages)
