@@ -195,8 +195,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
-      pr_url: ${{ steps.prepare.outputs.pr_url }}
+      has_bumps: ${{ steps.rk.outputs.has-bumps }}
+      pr_url: ${{ steps.rk.outputs.pr-url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -204,62 +204,22 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Run releasekit prepare
-        id: prepare
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace dart prepare)
-          if [ "${{ inputs.force_prepare }}" = "true" ]; then
-            cmd+=(--force)
-          fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
-            cmd+=(--bump "${{ inputs.bump_type }}")
-          fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
-          fi
-
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
-          if [ -n "$PR_URL" ]; then
-            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: prepare
+          workspace: dart
+          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          group: ${{ inputs.group }}
+          bump-type: ${{ inputs.bump_type }}
+          prerelease: ${{ inputs.prerelease }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
@@ -274,7 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      release_url: ${{ steps.release.outputs.release_url }}
+      release_url: ${{ steps.rk.outputs.release-url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -282,62 +242,16 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (Dart)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace dart plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no tags or releases will be created"
-          else
-            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run releasekit release
-        id: release
-        run: |
-          set -euo pipefail
-
-          DRY_RUN_FLAG=""
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace dart release $DRY_RUN_FLAG 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit release failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
-          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: release
+          workspace: dart
+          dry-run: ${{ env.DRY_RUN }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PUBLISH: Publish packages to pub.dev
-  #
-  # Publishes Dart/Flutter packages in topological order using
-  # `dart pub publish`. Requires a Google Cloud service account
-  # credential for authentication.
   # ═══════════════════════════════════════════════════════════════════════
   publish:
     name: Publish to pub.dev
@@ -351,12 +265,6 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -367,60 +275,22 @@ jobs:
         working-directory: ${{ env.WORKSPACE_DIR }}
         run: dart pub get
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
       - name: Configure pub.dev credentials
         run: |
-          # Write the service account credentials for dart pub publish.
-          # For Workload Identity Federation, replace this with OIDC setup.
           mkdir -p "$HOME/.config/dart"
           echo '${{ secrets.PUB_CREDENTIALS_JSON }}' > "$HOME/.config/dart/pub-credentials.json"
 
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (Dart)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace dart plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no packages will be published"
-          else
-            echo "::notice::LIVE RUN — packages will be published to pub.dev"
-          fi
-
       - name: Run releasekit publish
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace dart publish --force)
-
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            cmd+=(--dry-run)
-          fi
-
-          CONCURRENCY="${{ inputs.concurrency }}"
-          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
-            cmd+=(--concurrency "$CONCURRENCY")
-          fi
-
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-
-          MAX_RETRIES="${{ inputs.max_retries }}"
-          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
-            cmd+=(--max-retries "$MAX_RETRIES")
-          fi
-
-          echo "::group::Running: ${cmd[*]}"
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          echo "::endgroup::"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit publish failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: publish
+          workspace: dart
+          dry-run: ${{ env.DRY_RUN }}
+          force: "true"
+          group: ${{ inputs.group }}
+          concurrency: ${{ inputs.concurrency || '0' }}
+          max-retries: ${{ inputs.max_retries || '2' }}
 
       - name: Upload manifest artifact
         if: success() && env.DRY_RUN != 'true'

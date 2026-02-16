@@ -123,3 +123,57 @@ class Registry(Protocol):
             files missing from the registry.
         """
         ...
+
+    async def list_versions(self, package_name: str) -> list[str]:
+        """Return all published versions of a package.
+
+        Used by rollback to discover which versions are on the registry
+        and verify the release graph before yanking.
+
+        Args:
+            package_name: Package name to query.
+
+        Returns:
+            A list of version strings in registry order (newest first
+            when the registry supports it, otherwise unspecified order).
+            Returns an empty list if the project does not exist.
+        """
+        ...
+
+    async def yank_version(
+        self,
+        package_name: str,
+        version: str,
+        *,
+        reason: str = '',
+        dry_run: bool = False,
+    ) -> bool:
+        """Yank (hide) a version from the registry.
+
+        Yanking marks a version as unsuitable for new installs but does
+        **not** delete it. Existing lockfiles that pin the exact version
+        continue to resolve. This is the safest registry-side rollback.
+
+        Not all registries support yanking:
+
+        - **PyPI**: Yank via ``/manage/project/.../release/.../yank/``
+          (requires API token with ``yank`` scope).
+        - **npm**: ``npm deprecate <pkg>@<version> "<reason>"``
+          (deprecation, not true yank; ``npm unpublish`` is separate).
+        - **crates.io**: ``cargo yank --version <version>``
+        - **Maven Central**: Not supported (returns ``False``).
+        - **pub.dev**: Not supported (returns ``False``).
+        - **Go proxy**: Not supported (cached forever; returns ``False``).
+
+        Args:
+            package_name: Package name on the registry.
+            version: Version string to yank.
+            reason: Human-readable reason for the yank (shown to users
+                who try to install the yanked version).
+            dry_run: Log the action without executing.
+
+        Returns:
+            ``True`` if the version was yanked (or would be in dry-run),
+            ``False`` if the registry does not support yanking.
+        """
+        ...

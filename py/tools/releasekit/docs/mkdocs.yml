@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-site_name: ReleaseKit Engineering Docs
+site_name: ReleaseKit
 site_description: >-
-  Engineering documentation for ReleaseKit — release orchestration for
-  monorepo workspaces supporting Python (uv), JavaScript (pnpm), and Go.
+  ReleaseKit — release orchestration for polyglot monorepo workspaces
+  supporting Python (uv), JavaScript (pnpm), Go, Dart, Java, Kotlin,
+  Clojure, Rust, and Bazel ecosystems.
 site_url: https://firebase.github.io/genkit/releasekit/
 repo_url: https://github.com/firebase/genkit
 repo_name: firebase/genkit
@@ -126,8 +127,20 @@ nav:
       - guides/index.md
       - Getting Started: guides/getting-started.md
       - Configuration: guides/configuration.md
+      - Versioning Schemes: guides/versioning-schemes.md
+      - Per-Package Config: guides/per-package-config.md
       - Multi-Ecosystem: guides/multi-ecosystem.md
+      - Publish Pipeline: guides/publish-pipeline.md
+      - Health Checks & Doctor: guides/health-checks.md
+      - Snapshots & Pre-Releases: guides/snapshots.md
+      - Security & Compliance: guides/compliance.md
+      - Skipping Checks: guides/skip-checks.md
+      - Signing & Verification: guides/signing.md
+      - SLSA Provenance: guides/slsa-provenance.md
       - CI/CD Integration: guides/ci-cd.md
+      - Workflow Templates: guides/workflow-templates.md
+      - Rollback: guides/rollback.md
+      - Migration: guides/migration.md
       - Error Codes: guides/error-codes.md
       - FAQ: guides/faq.md
   - Reference:
@@ -136,6 +149,7 @@ nav:
       - Configuration File: reference/config-file.md
       - GitHub Action: reference/github-action.md
       - Graph Formatters: reference/formatters.md
+      - Compliance API: reference/compliance-api.md
   - Internals:
       - internals/index.md
       - Versioning Engine: internals/versioning.md
@@ -145,3 +159,6 @@ nav:
       - Changelog Generation: internals/changelog.md
       - Release Notes: internals/release-notes.md
       - Tags & Releases: internals/tags.md
+  - Planning:
+      - Roadmap: roadmap.md
+      - Competitive Gap Analysis: competitive-gap-analysis.md

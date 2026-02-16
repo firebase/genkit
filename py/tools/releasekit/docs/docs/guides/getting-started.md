@@ -203,5 +203,15 @@ pin ──▶ build ──▶ publish ──▶ poll ──▶ verify ──▶ 
 ## Next Steps
 
 - [Configuration](configuration.md) — Customize `releasekit.toml`
+- [Versioning Schemes](versioning-schemes.md) — Understand semver vs PEP 440 vs CalVer
+- [Per-Package Config](per-package-config.md) — Override settings for individual packages
+- [Multi-Ecosystem](multi-ecosystem.md) — Python + JavaScript + Go in one monorepo
+- [Publish Pipeline](publish-pipeline.md) — The 6-stage publish pipeline explained
+- [Health Checks & Doctor](health-checks.md) — Validate your workspace
+- [Snapshots & Pre-Releases](snapshots.md) — Dev builds, RCs, and promoting to stable
+- [Signing & Verification](signing.md) — Sigstore keyless artifact signing
 - [CI/CD Integration](ci-cd.md) — Automate releases in CI
+- [Workflow Templates](workflow-templates.md) — Copy-paste GitHub Actions workflows
+- [Migration](migration.md) — Migrate from release-please, semantic-release, etc.
+- [FAQ](faq.md) — Common questions and edge cases
 - [Error Codes](error-codes.md) — Troubleshoot common issues

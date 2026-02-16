@@ -28,12 +28,14 @@ Protocols (defined in subpackage ``__init__.py`` files):
 - :class:`Forge` — GitHub releases, PRs (default: :class:`GitHubCLIBackend`)
 - :class:`Registry` — PyPI queries (default: :class:`PyPIBackend`)
 - :class:`Workspace` — discover, classify deps, rewrite versions (default: :class:`UvWorkspace`)
+- :class:`Validator` — extensible validation (OIDC, schema, provenance digest)
 """
 
 from releasekit.backends._run import CommandResult, run_command
 from releasekit.backends.forge import Forge, GitHubAPIBackend, GitHubCLIBackend
 from releasekit.backends.pm import PackageManager, UvBackend
 from releasekit.backends.registry import ChecksumResult, PyPIBackend, Registry
+from releasekit.backends.validation import ValidationResult, Validator
 from releasekit.backends.vcs import VCS, GitCLIBackend
 from releasekit.backends.workspace import Package, UvWorkspace, Workspace
 
@@ -51,6 +53,8 @@ __all__ = [
     'UvBackend',
     'UvWorkspace',
     'VCS',
+    'ValidationResult',
+    'Validator',
     'Workspace',
     'run_command',
 ]

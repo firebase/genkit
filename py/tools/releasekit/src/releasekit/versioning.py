@@ -64,6 +64,7 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import re
 from collections import deque
 
 from releasekit.backends.vcs import VCS
@@ -76,6 +77,7 @@ from releasekit.commit_parsing import (
     max_bump as _max_bump,
     parse_conventional_commit,
 )
+from releasekit.config import PackageConfig
 from releasekit.errors import E, ReleaseKitError
 from releasekit.graph import DependencyGraph
 from releasekit.logging import get_logger
@@ -98,34 +100,49 @@ async def _last_tag(vcs: VCS, tag_format: str, name: str, version: str) -> str |
     return None
 
 
-def _apply_bump(version: str, bump: BumpType, prerelease: str = '') -> str:
-    """Apply a semver bump to a version string.
+# PEP 440 pre-release suffix mapping.
+_PEP440_SUFFIXES: dict[str, str] = {
+    'alpha': 'a',
+    'beta': 'b',
+    'rc': 'rc',
+    'dev': '.dev',
+}
+
+# Regex to strip PEP 440 pre-release suffixes from a base version.
+_PEP440_STRIP_RE = re.compile(r'^(\d+\.\d+\.\d+)(?:\.dev|a|b|rc)\d+$')
+
+
+def _parse_base_version(version: str) -> tuple[int, int, int]:
+    """Extract (major, minor, patch) from a version string.
+
+    Handles both semver (``1.2.3-rc.1``) and PEP 440 (``1.2.3rc1``) formats.
 
     Args:
-        version: Current version (e.g. ``"0.5.0"``).
-        bump: The bump type to apply.
-        prerelease: Prerelease label (e.g. ``"rc"``). Only used when
-            ``bump`` is ``PRERELEASE``.
+        version: Version string.
 
     Returns:
-        The new version string.
+        Tuple of (major, minor, patch).
 
     Raises:
-        ReleaseKitError: If the version string is not valid semver.
+        ReleaseKitError: If the version cannot be parsed.
     """
-    # Strip any existing prerelease/build metadata for parsing.
+    # Strip semver pre-release/build metadata.
     base = version.split('-')[0].split('+')[0]
+    # Strip PEP 440 pre-release suffixes.
+    m = _PEP440_STRIP_RE.match(base)
+    if m:
+        base = m.group(1)
     parts = base.split('.')
 
     if len(parts) < 3:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
-            message=f'Version {version!r} is not valid semver (expected X.Y.Z)',
+            message=f'Version {version!r} is not valid (expected X.Y.Z)',
             hint='Use a version string like "1.2.3" (MAJOR.MINOR.PATCH).',
         )
 
     try:
-        major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
+        return int(parts[0]), int(parts[1]), int(parts[2])
     except ValueError as exc:
         raise ReleaseKitError(
             code=E.VERSION_INVALID,
@@ -133,17 +150,58 @@ def _apply_bump(version: str, bump: BumpType, prerelease: str = '') -> str:
             hint='Each component of the version (MAJOR.MINOR.PATCH) must be a non-negative integer.',
         ) from exc
 
+
+def _apply_bump(
+    version: str,
+    bump: BumpType,
+    prerelease: str = '',
+    versioning_scheme: str = 'semver',
+) -> str:
+    """Apply a version bump to a version string.
+
+    When ``prerelease`` is set, the bump is applied first to compute the
+    new base version, then the prerelease suffix is appended.  For
+    example, a MINOR bump on ``0.5.0`` with ``prerelease='rc'`` yields
+    ``0.6.0rc1`` (PEP 440) or ``0.6.0-rc.1`` (semver), **not**
+    ``0.5.1rc1``.
+
+    Args:
+        version: Current version (e.g. ``"0.5.0"``).
+        bump: The bump type to apply.
+        prerelease: Prerelease label (e.g. ``"rc"``).  When non-empty
+            the result is a prerelease of the bumped version.
+        versioning_scheme: ``"semver"`` or ``"pep440"``.
+
+    Returns:
+        The new version string.
+
+    Raises:
+        ReleaseKitError: If the version string is not valid.
+    """
+    major, minor, patch = _parse_base_version(version)
+
+    # Compute the bumped base version.
     if bump == BumpType.MAJOR:
-        return f'{major + 1}.0.0'
-    if bump == BumpType.MINOR:
-        return f'{major}.{minor + 1}.0'
-    if bump == BumpType.PATCH:
-        return f'{major}.{minor}.{patch + 1}'
-    if bump == BumpType.PRERELEASE:
-        label = prerelease or 'rc'
-        return f'{major}.{minor}.{patch + 1}{label}1'
-    # BumpType.NONE
-    return version
+        major, minor, patch = major + 1, 0, 0
+    elif bump == BumpType.MINOR:
+        major, minor, patch = major, minor + 1, 0
+    elif bump == BumpType.PATCH:
+        major, minor, patch = major, minor, patch + 1
+    elif bump == BumpType.NONE:
+        return version
+
+    base = f'{major}.{minor}.{patch}'
+
+    # Append prerelease suffix if requested.
+    if prerelease:
+        label = prerelease
+        if versioning_scheme == 'pep440':
+            suffix = _PEP440_SUFFIXES.get(label, label)
+            return f'{base}{suffix}1'
+        # semver: 1.2.0-rc.1
+        return f'{base}-{label}.1'
+
+    return base
 
 
 async def compute_bumps(
@@ -160,6 +218,8 @@ async def compute_bumps(
     commit_parser: CommitParser | None = None,
     max_commits: int = 0,
     bootstrap_sha: str = '',
+    versioning_scheme: str = 'semver',
+    package_configs: dict[str, PackageConfig] | None = None,
 ) -> list[PackageVersion]:
     """Compute version bumps for all packages based on Conventional Commits.
 
@@ -209,6 +269,15 @@ async def compute_bumps(
             of releasekit on repos that already have versions but no
             releasekit tags. Only commits after this SHA are scanned.
             Empty string means scan the entire history.
+        versioning_scheme: ``"semver"`` or ``"pep440"``. Controls
+            the format of pre-release version strings. Used as the
+            fallback when ``package_configs`` does not contain an
+            entry for a given package.
+        package_configs: Optional per-package config overrides keyed
+            by package name. When present, each package's
+            ``versioning_scheme`` is looked up from its config entry.
+            Use :func:`releasekit.config.resolve_package_config` to
+            build these from ``WorkspaceConfig``.
 
     Returns:
         A list of :class:`PackageVersion` records, one per package.
@@ -317,9 +386,6 @@ async def compute_bumps(
                     hint='Set major_on_zero = true to allow 0.x → 1.0.0',
                 )
 
-        if prerelease and max_bump != BumpType.NONE:
-            max_bump = BumpType.PRERELEASE
-
         return pkg.name, max_bump, reason_commit
 
     bump_results = await asyncio.gather(*[_compute_pkg_bump(pkg) for pkg in packages])
@@ -378,7 +444,14 @@ async def compute_bumps(
             reason_commit = 'forced: --force-unchanged'
             skipped = False
 
-        new_version = _apply_bump(pkg.version, max_bump, prerelease)
+        # Resolve per-package versioning scheme.
+        pkg_scheme = versioning_scheme
+        if package_configs and pkg.name in package_configs:
+            pkg_cfg = package_configs[pkg.name]
+            if pkg_cfg.versioning_scheme:
+                pkg_scheme = pkg_cfg.versioning_scheme
+
+        new_version = _apply_bump(pkg.version, max_bump, prerelease, pkg_scheme)
         tag = format_tag(tag_format, name=pkg.name, version=new_version)
 
         results.append(

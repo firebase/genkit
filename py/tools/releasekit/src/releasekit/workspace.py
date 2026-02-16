@@ -315,15 +315,23 @@ def _discover_via_backend(
     Returns:
         List of discovered packages.
     """
+    from releasekit.backends.workspace.bazel import BazelWorkspace
     from releasekit.backends.workspace.cargo import CargoWorkspace
     from releasekit.backends.workspace.dart import DartWorkspace
     from releasekit.backends.workspace.go import GoWorkspace
     from releasekit.backends.workspace.maven import MavenWorkspace
 
-    backend_map: dict[str, type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace]] = {
-        'go': GoWorkspace,
+    _ws_type = (
+        type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace] | type[BazelWorkspace]
+    )
+    backend_map: dict[str, _ws_type] = {
+        'bazel': BazelWorkspace,
+        'clojure': MavenWorkspace,
         'dart': DartWorkspace,
+        'go': GoWorkspace,
         'java': MavenWorkspace,
+        'jvm': MavenWorkspace,
+        'kotlin': MavenWorkspace,
         'rust': CargoWorkspace,
     }
     backend_cls = backend_map.get(ecosystem)
@@ -390,7 +398,7 @@ def discover_packages(
     if ecosystem == 'js':
         return _discover_js_packages(workspace_root, exclude_patterns=exclude_patterns)
 
-    if ecosystem in ('go', 'dart', 'java', 'rust'):
+    if ecosystem in ('go', 'dart', 'java', 'jvm', 'kotlin', 'clojure', 'rust', 'bazel'):
         return _discover_via_backend(workspace_root, ecosystem, exclude_patterns=exclude_patterns)
 
     root_pyproject = workspace_root / 'pyproject.toml'

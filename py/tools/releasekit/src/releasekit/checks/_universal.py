@@ -384,6 +384,68 @@ def fix_missing_readme(
     return changes
 
 
+def fix_missing_security_insights(
+    workspace_root: Path,
+    *,
+    dry_run: bool = False,
+    project_name: str = '',
+    repo_url: str = '',
+) -> list[str]:
+    """Generate ``SECURITY-INSIGHTS.yml`` if it does not exist.
+
+    Uses :mod:`releasekit.security_insights` to produce an OpenSSF
+    Security Insights v2 file at the repository root.
+
+    Args:
+        workspace_root: Path to the repository root.
+        dry_run: If ``True``, report what would change without writing.
+        project_name: Project name for the generated file.
+            Defaults to the workspace directory name.
+        repo_url: Repository URL for the generated file.
+
+    Returns:
+        List of human-readable descriptions of changes made.
+    """
+    candidates = [
+        workspace_root / 'SECURITY-INSIGHTS.yml',
+        workspace_root / 'SECURITY_INSIGHTS.yml',
+        workspace_root / '.github' / 'SECURITY-INSIGHTS.yml',
+    ]
+    for path in candidates:
+        if path.is_file():
+            return []
+
+    from releasekit.security_insights import (
+        SecurityInsightsConfig,
+        generate_security_insights,
+    )
+
+    si_path = workspace_root / 'SECURITY-INSIGHTS.yml'
+    si_config = SecurityInsightsConfig(
+        project_name=project_name or workspace_root.name,
+        repo_url=repo_url,
+    )
+
+    changes: list[str] = []
+    action = f'created SECURITY-INSIGHTS.yml at {si_path.relative_to(workspace_root)}'
+
+    if dry_run:
+        changes.append(f'(dry-run) {action}')
+        logger.info('fix_missing_security_insights', action=action, dry_run=True)
+    else:
+        result = generate_security_insights(si_config, output_path=si_path)
+        if result.generated:
+            changes.append(action)
+            logger.info('fix_missing_security_insights', action=action, path=str(si_path))
+        elif result.reason:
+            logger.warning(
+                'fix_missing_security_insights_failed',
+                reason=result.reason,
+            )
+
+    return changes
+
+
 def _get_bundled_license() -> str:
     """Read the Apache 2.0 LICENSE bundled with the releasekit package.
 

@@ -22,6 +22,8 @@ The :class:`GoWorkspace` implements the
 
 Go workspace layout (directory name is arbitrary)::
 
+    Multi-module workspace (go.work):
+
     go/
     ├── go.work          ← workspace root (lists module dirs)
     ├── genkit/
@@ -33,6 +35,17 @@ Go workspace layout (directory name is arbitrary)::
     │       └── go.mod   ← module: github.com/firebase/genkit/go/plugins/vertexai
     └── samples/
         └── ...
+
+    Single-module repo (go.mod only, no go.work):
+
+    go/
+    ├── go.mod           ← module root: github.com/firebase/genkit/go
+    ├── ai/
+    ├── core/
+    ├── plugins/
+    └── samples/
+        └── mcp-git-pr-explainer/
+            └── go.mod   ← sub-module (discovered separately)
 
 Version handling:
 
@@ -74,11 +87,16 @@ _REQUIRE_RE = re.compile(r'^\s*(\S+)\s+v[\d.]+', re.MULTILINE)
 class GoWorkspace:
     """Go :class:`~releasekit.backends.workspace.Workspace` implementation.
 
-    Parses ``go.work`` to discover workspace modules and ``go.mod`` for
-    module metadata and dependencies.
+    Parses ``go.work`` (multi-module) or ``go.mod`` (single-module) to
+    discover workspace modules and their dependencies.
+
+    When ``go.work`` is present, modules are discovered from its ``use``
+    directives. When only ``go.mod`` is present, the root module is
+    discovered along with any sub-modules found by walking the tree.
 
     Args:
-        workspace_root: Path to the directory containing ``go.work``.
+        workspace_root: Path to the directory containing ``go.work``
+            or ``go.mod``.
     """
 
     def __init__(self, workspace_root: Path) -> None:
@@ -90,7 +108,12 @@ class GoWorkspace:
         *,
         exclude_patterns: list[str] | None = None,
     ) -> list[Package]:
-        """Discover all Go modules listed in ``go.work``.
+        """Discover all Go modules in the workspace.
+
+        When ``go.work`` exists, modules are discovered from its ``use``
+        directives. Otherwise, the root ``go.mod`` is used as the primary
+        module and any sub-module ``go.mod`` files found by walking the
+        directory tree are discovered as additional modules.
 
         Args:
             exclude_patterns: Glob patterns to exclude modules by name.
@@ -99,10 +122,16 @@ class GoWorkspace:
             Sorted list of discovered Go module packages.
         """
         go_work = self._root / 'go.work'
-        if not go_work.is_file():
-            log.warning('go_work_not_found', root=str(self._root))
-            return []
+        if go_work.is_file():
+            return self._discover_from_go_work(go_work, exclude_patterns)
+        return self._discover_from_go_mod(exclude_patterns)
 
+    def _discover_from_go_work(
+        self,
+        go_work: Path,
+        exclude_patterns: list[str] | None = None,
+    ) -> list[Package]:
+        """Discover modules from ``go.work`` ``use`` directives."""
         text = go_work.read_text(encoding='utf-8')
         use_dirs = _USE_RE.findall(text)
 
@@ -117,6 +146,48 @@ class GoWorkspace:
                 if m:
                     all_module_paths[m.group(1)] = mod_dir
 
+        return self._build_packages(all_module_paths, exclude_patterns)
+
+    def _discover_from_go_mod(
+        self,
+        exclude_patterns: list[str] | None = None,
+    ) -> list[Package]:
+        """Discover modules from a standalone ``go.mod`` (no ``go.work``).
+
+        Discovers the root module and any sub-modules found by walking
+        the directory tree for additional ``go.mod`` files.
+        """
+        root_go_mod = self._root / 'go.mod'
+        if not root_go_mod.is_file():
+            log.warning('go_mod_not_found', root=str(self._root))
+            return []
+
+        all_module_paths: dict[str, Path] = {}
+
+        # Root module.
+        root_text = root_go_mod.read_text(encoding='utf-8')
+        m = _MODULE_RE.search(root_text)
+        if m:
+            all_module_paths[m.group(1)] = self._root
+
+        # Walk for sub-modules (nested go.mod files).
+        for go_mod in sorted(self._root.rglob('go.mod')):
+            if go_mod == root_go_mod:
+                continue
+            mod_dir = go_mod.parent.resolve()
+            mod_text = go_mod.read_text(encoding='utf-8')
+            sub_m = _MODULE_RE.search(mod_text)
+            if sub_m:
+                all_module_paths[sub_m.group(1)] = mod_dir
+
+        return self._build_packages(all_module_paths, exclude_patterns)
+
+    def _build_packages(
+        self,
+        all_module_paths: dict[str, Path],
+        exclude_patterns: list[str] | None = None,
+    ) -> list[Package]:
+        """Build :class:`Package` list from a module-path-to-dir mapping."""
         packages: list[Package] = []
         exclude = exclude_patterns or []
 

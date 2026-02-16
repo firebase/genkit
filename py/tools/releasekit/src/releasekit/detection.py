@@ -178,8 +178,12 @@ def _is_pnpm_workspace(directory: Path) -> bool:
 
 
 def _is_go_workspace(directory: Path) -> bool:
-    """Check if ``directory`` contains a Go workspace root."""
-    return (directory / 'go.work').is_file()
+    """Check if ``directory`` contains a Go workspace or module root.
+
+    Detects both multi-module Go workspaces (``go.work``) and
+    standalone Go modules (``go.mod`` without ``go.work``).
+    """
+    return (directory / 'go.work').is_file() or (directory / 'go.mod').is_file()
 
 
 def _is_dart_workspace(directory: Path) -> bool:
@@ -440,7 +444,7 @@ def detect_ecosystems(
             monorepo_root=str(monorepo_root),
             hint=f'No workspace markers found{ecosystem_hint}. '
             'Expected pyproject.toml with [tool.uv.workspace], '
-            'pnpm-workspace.yaml, go.work, melos.yaml/pubspec.yaml, '
+            'pnpm-workspace.yaml, go.work/go.mod, melos.yaml/pubspec.yaml, '
             'or pom.xml/settings.gradle(.kts), project.clj/deps.edn, '
             'or Cargo.toml with [workspace].',
         )

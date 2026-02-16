@@ -187,9 +187,6 @@ env:
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
   # PREPARE: Compute bumps and open/update Release PRs
-  #
-  # Runs on every push to main that touches JS code.
-  # Creates separate Release PRs for js and js-cli workspaces.
   # ═══════════════════════════════════════════════════════════════════════
   prepare-js:
     name: "Prepare Release PR (JS)"
@@ -201,20 +198,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
-      pr_url: ${{ steps.prepare.outputs.pr_url }}
+      has_bumps: ${{ steps.rk.outputs.has-bumps }}
+      pr_url: ${{ steps.rk.outputs.pr-url }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
 
       - uses: pnpm/action-setup@v4
         with:
@@ -226,53 +217,16 @@ jobs:
           cache: pnpm
           cache-dependency-path: js/pnpm-lock.yaml
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Run releasekit prepare (JS workspace)
-        id: prepare
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js prepare)
-          if [ "${{ inputs.force_prepare }}" = "true" ]; then
-            cmd+=(--force)
-          fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
-            cmd+=(--bump "${{ inputs.bump_type }}")
-          fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
-          fi
-
-          # Run prepare — capture output even on failure so CI logs
-          # show diagnostics (set -e would exit before echo).
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          # Parse output for PR URL (sed is portable; grep -oP needs GNU grep).
-          PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
-          if [ -n "$PR_URL" ]; then
-            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run releasekit prepare
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: prepare
+          workspace: js
+          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          group: ${{ inputs.group }}
+          bump-type: ${{ inputs.bump_type }}
+          prerelease: ${{ inputs.prerelease }}
 
   prepare-js-cli:
     name: "Prepare Release PR (JS CLI)"
@@ -284,20 +238,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
-      pr_url: ${{ steps.prepare.outputs.pr_url }}
+      has_bumps: ${{ steps.rk.outputs.has-bumps }}
+      pr_url: ${{ steps.rk.outputs.pr-url }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
 
       - uses: pnpm/action-setup@v4
         with:
@@ -309,59 +257,19 @@ jobs:
           cache: pnpm
           cache-dependency-path: genkit-tools/pnpm-lock.yaml
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Run releasekit prepare (JS CLI workspace)
-        id: prepare
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js-cli prepare)
-          if [ "${{ inputs.force_prepare }}" = "true" ]; then
-            cmd+=(--force)
-          fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-          if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
-            cmd+=(--bump "${{ inputs.bump_type }}")
-          fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
-          fi
-
-          # Run prepare — capture output even on failure so CI logs
-          # show diagnostics (set -e would exit before echo).
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit prepare failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          # Parse output for PR URL (sed is portable; grep -oP needs GNU grep).
-          PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
-          if [ -n "$PR_URL" ]; then
-            echo "has_bumps=true" >> "$GITHUB_OUTPUT"
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_bumps=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run releasekit prepare
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: prepare
+          workspace: js-cli
+          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          group: ${{ inputs.group }}
+          bump-type: ${{ inputs.bump_type }}
+          prerelease: ${{ inputs.prerelease }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
-  #
-  # Runs when a Release PR (labeled "autorelease: pending") is merged,
-  # or on manual workflow_dispatch.
   # ═══════════════════════════════════════════════════════════════════════
   release-js:
     name: "Tag and Release (JS)"
@@ -373,7 +281,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      release_url: ${{ steps.release.outputs.release_url }}
+      release_url: ${{ steps.rk.outputs.release-url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -381,70 +289,20 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
-
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (JS)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no tags or releases will be created"
-          else
-            echo "::notice::LIVE RUN — tags and GitHub Release will be created"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run releasekit release
-        id: release
-        run: |
-          set -euo pipefail
-
-          DRY_RUN_FLAG=""
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            DRY_RUN_FLAG="--dry-run"
-          fi
-
-          # Run release — capture output even on failure so CI logs
-          # show diagnostics (set -e would exit before echo).
-          OUTPUT=$(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js release $DRY_RUN_FLAG 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit release failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
-
-          # Parse release URL (sed is portable; grep -oP needs GNU grep).
-          RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
-          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: release
+          workspace: js
+          dry-run: ${{ env.DRY_RUN }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PUBLISH: Build and publish packages to npm
-  #
-  # Runs after the release job completes. Publishes packages in
-  # topological order via Wombat Dressing Room.
   # ═══════════════════════════════════════════════════════════════════════
   publish-js:
     name: "Publish to npm"
     needs: release-js
-    # On PR-merge events, inputs.skip_publish is undefined (empty string),
-    # which is != 'true', so publish runs. This is intentional.
     if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -453,12 +311,6 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: "3.12"
 
       - uses: pnpm/action-setup@v4
         with:
@@ -478,54 +330,17 @@ jobs:
         working-directory: js
         run: pnpm build
 
-      - name: Install releasekit
-        working-directory: ${{ env.RELEASEKIT_DIR }}
-        run: uv sync
-
-      - name: Preview execution plan
-        run: |
-          echo "::group::Execution Plan (JS)"
-          uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js plan --format full 2>&1 || true
-          echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            echo "::notice::DRY RUN — no packages will be published"
-          else
-            echo "::notice::LIVE RUN — packages will be published to npm"
-          fi
-
-      - name: Run releasekit publish (JS)
-        run: |
-          set -euo pipefail
-
-          cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace js publish --force)
-
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
-            cmd+=(--dry-run)
-          fi
-
-          CONCURRENCY="${{ inputs.concurrency }}"
-          if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
-            cmd+=(--concurrency "$CONCURRENCY")
-          fi
-
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
-          fi
-
-          MAX_RETRIES="${{ inputs.max_retries }}"
-          if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
-            cmd+=(--max-retries "$MAX_RETRIES")
-          fi
-
-          # Capture output even on failure so CI logs show diagnostics.
-          echo "::group::Running: ${cmd[*]}"
-          OUTPUT=$("${cmd[@]}" 2>&1) || EXIT_CODE=$?
-          echo "$OUTPUT"
-          echo "::endgroup::"
-          if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-            echo "::error::releasekit publish failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+      - name: Run releasekit publish
+        id: rk
+        uses: ./py/tools/releasekit
+        with:
+          command: publish
+          workspace: js
+          dry-run: ${{ env.DRY_RUN }}
+          force: "true"
+          group: ${{ inputs.group }}
+          concurrency: ${{ inputs.concurrency || '0' }}
+          max-retries: ${{ inputs.max_retries || '2' }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -550,9 +365,6 @@ jobs:
       - name: Dispatch release event
         uses: peter-evans/repository-dispatch@v3
         with:
-          # NOTE: GITHUB_TOKEN is scoped to this repo only. For cross-repo
-          # dispatch (e.g. genkit-community-plugins), replace with a PAT
-          # or GitHub App token stored in secrets.
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: genkit-js-release
           client-payload: '{"release_url": "${{ needs.release-js.outputs.release_url }}"}'

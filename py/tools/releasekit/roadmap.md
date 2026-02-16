@@ -494,8 +494,9 @@ Remaining migration steps:
 | 4c: UI States | ✅ Complete | observer.py, sliding window, keyboard shortcuts, signal handlers |
 | 5: Release-Please | ✅ Complete | Orchestrators, CI workflow, workspace-sourced deps |
 | 6: UX Polish | ✅ Complete | init, formatters (9), rollback, completion, diagnostics, granular flags, TOML config migration |
-| 7: Quality + Ship | 🔶 In progress | 1,739 tests pass, 78 source modules, 64 test files (~28K test LOC), 91.07% coverage |
-| 8: Release Automation | ⬜ Planned | Continuous deploy, cadence releases, hooks, branch channels (from competitive analysis) |
+| 7: Quality + Ship | 🔶 In progress | 2,572 tests pass, 82+ source modules, 68+ test files, 91%+ coverage |
+| 8: Release Automation | ✅ Complete | hooks.py, should_release.py, calver.py, channels.py, config Phase 8 fields, CLI wiring, 73 new tests |
+| 9: Advanced Workflows | ✅ Complete | prerelease.py, hotfix.py, snapshot.py, announce.py, changesets.py, api.py, incremental changelog, Jinja2 templates, promote/snapshot CLI, 113 new tests |
 
 ### Phase 5 completion status
 
@@ -2896,6 +2897,344 @@ tests/
     rk_bazel_dispatch_test.py     ← dispatch routing tests
     rk_bazel_integration_test.py  ← dry-run integration test
 ```
+
+---
+
+## Supply Chain Security
+
+Goal: make releasekit the most secure release management system available.
+Every artifact published through releasekit should be traceable, signed,
+reproducible, and auditable. Every extension loaded by releasekit must be
+cryptographically verified before execution.
+
+### Current Security Posture
+
+| Control | Status | Module |
+|---------|--------|--------|
+| SLSA Build L1–L3 provenance | ✅ Full | `provenance.py` |
+| in-toto Attestation v1 envelope | ✅ Full | `provenance.py` |
+| Sigstore keyless signing | ✅ Full | `signing.py` |
+| CycloneDX 1.5 / SPDX 2.3 SBOM | ✅ Full | `sbom.py` |
+| OIDC detection (GitHub, GitLab, CircleCI) | ✅ Full | `backends/validation/oidc.py` |
+| SHA-256 checksum verification | ✅ Full | `registry.py`, `publisher.py` |
+| Safe-by-default config (provenance, signing, retries) | ✅ Full | `config.py`, `publisher.py` |
+| Fail-closed OIDC in CI | ✅ Full | `preflight.py` |
+| Source integrity + build-as-code checks | ✅ Full | `preflight.py` |
+| SLSA level assessment in preflight | ✅ Full | `preflight.py` |
+| OCI cosign signing + SBOM attest defaults | ✅ Full | `config.py` |
+| Security test suite (11 automated checks) | ✅ Full | `tests/rk_security_test.py` |
+| JWT cryptographic signature verification (JWKS) | ✅ Full | `backends/validation/jwks.py` |
+| Plugin trust verification (hook allowlist, script pinning) | ✅ Full | `trust.py` |
+| OpenSSF Scorecard-aligned preflight checks | ✅ Full | `scorecard.py` |
+| OSPS Baseline compliance tracker | ✅ Full | `compliance.py` |
+| OSV vulnerability scanning (universal) | ✅ Full | `osv.py` |
+
+### S-1: Signed Plugin Loading (Critical)
+
+**Status:** ✅ Done
+**Priority:** Critical — releasekit executes user-provided hooks and will
+load Python extension backends. Without signature verification, a
+compromised hook or backend is arbitrary code execution.
+
+**Threat model:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Plugin Trust Chain                                │
+│                                                                     │
+│  Untrusted                    Trust Boundary                        │
+│  ┌──────────────┐            ┌──────────────────────────────────┐  │
+│  │ PyPI package │──verify──▶│ Sigstore bundle + identity check │  │
+│  │ (backend)    │            │ (issuer + subject match)         │  │
+│  └──────────────┘            └──────────┬───────────────────────┘  │
+│                                         │                           │
+│  ┌──────────────┐            ┌──────────▼───────────────────────┐  │
+│  │ Hook script  │──verify──▶│ SHA-256 pinned in releasekit.toml│  │
+│  │ (shell cmd)  │            │ + allowlist of permitted commands│  │
+│  └──────────────┘            └──────────┬───────────────────────┘  │
+│                                         │                           │
+│                              ┌──────────▼───────────────────────┐  │
+│                              │ releasekit loads / executes      │  │
+│                              └──────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Design:**
+
+1. **Backend plugins** (Python packages implementing `PackageManager`,
+   `Workspace`, `Registry`, `Forge`, or `VCS` protocols):
+   - Must be published with PEP 740 Sigstore attestations on PyPI.
+   - releasekit verifies the attestation before importing the module.
+   - A `[trusted_publishers]` section in `releasekit.toml` specifies
+     allowed OIDC identities (issuer + subject) per backend package.
+   - Unsigned or untrusted backends are **refused** — releasekit will
+     not `import` them. This is fail-closed, not fail-open.
+
+2. **Hook scripts** (shell commands in `[hooks]`):
+   - Each hook command is checked against an allowlist of permitted
+     executables in `releasekit.toml` (`allowed_hook_commands`).
+   - Hook scripts referenced by path must have their SHA-256 digest
+     pinned in `releasekit.toml`.
+   - Hooks that reference unpinned scripts or disallowed commands are
+     **refused** in strict mode (default in CI).
+
+3. **Configuration:**
+
+   ```toml
+   [security]
+   plugin_verification = true          # Require Sigstore attestation for backends
+   hook_allowlist = ["uv", "pnpm", "go", "bazel", "cargo", "npm"]
+   strict_hooks = true                 # Refuse unpinned hook scripts in CI
+
+   [trusted_publishers]
+   # OIDC identity → list of allowed packages
+   "https://token.actions.githubusercontent.com" = [
+       { subject = "firebase/genkit", packages = ["releasekit-backend-*"] },
+   ]
+   ```
+
+**New files:**
+
+| File | Purpose | Est. Lines |
+|------|---------|------------|
+| `trust.py` | Plugin trust verification: Sigstore attestation check, OIDC identity matching, hook allowlist enforcement | ~250 |
+| `tests/rk_trust_test.py` | Tests for plugin trust chain | ~200 |
+
+### S-2: JWT Cryptographic Verification (Critical)
+
+**Status:** ✅ Done
+**Priority:** Critical — OIDC validators currently only do structural
+checks (base64 decode, expiry, issuer string match). They do **not**
+verify the cryptographic signature. This means a forged JWT with the
+correct issuer string would pass validation.
+
+**Current gap:**
+
+```
+Current:  token → base64 decode → check exp → check iss string  ← NO CRYPTO
+Target:   token → fetch JWKS → verify RS256/ES256 signature → check claims
+```
+
+**Implementation:**
+
+- Add `PyJWT[crypto]` dependency (works with all issuers: GitHub,
+  GitLab, CircleCI, Google).
+- Each validator fetches the issuer's JWKS URI via OIDC discovery
+  (`/.well-known/openid-configuration` → `jwks_uri`).
+- JWKS responses are cached for the token's lifetime (typically 10 min).
+- Signature verification uses `jwt.decode(token, key, algorithms=["RS256", "ES256"])`.
+- Falls back to structural-only validation if JWKS fetch fails
+  (network error), with a loud warning.
+
+**New files:**
+
+| File | Purpose | Est. Lines |
+|------|---------|------------|
+| `backends/validation/jwks.py` | JWKS fetching, caching, and JWT signature verification | ~200 |
+| `tests/backends/rk_jwks_test.py` | Tests with pre-generated RSA/EC test keys | ~250 |
+
+### S-3: OpenSSF Scorecard Preflight Checks (High)
+
+**Status:** ✅ Done
+**Priority:** High — auto-check repository security health before
+every release. Many Scorecard checks are file/config existence checks
+that we can run locally without the Scorecard API.
+
+**Checks to implement in `preflight.py`:**
+
+| Scorecard Check | What We Validate | Severity |
+|-----------------|------------------|----------|
+| Branch-Protection | Default branch requires PR reviews + status checks | Warning |
+| CI-Tests | CI workflow exists and runs tests | Warning |
+| Dependency-Update-Tool | Dependabot/Renovate config exists | Warning |
+| Pinned-Dependencies | CI workflows pin actions by SHA, not tag | Warning |
+| SECURITY.md | `SECURITY.md` exists at repo root | Warning |
+| Signed-Releases | Sigstore bundles exist for previous release | Warning |
+| Token-Permissions | CI workflows use least-privilege permissions | Warning |
+| Vulnerabilities | No known CVEs in dependencies (delegates to OSV) | Failure in CI |
+
+**New files:**
+
+| File | Purpose | Est. Lines |
+|------|---------|------------|
+| `scorecard.py` | OpenSSF Scorecard-aligned checks (local, no API needed) | ~300 |
+| `tests/rk_scorecard_test.py` | Tests for Scorecard checks | ~250 |
+
+### S-4: OSPS Baseline Compliance Tracker (Medium)
+
+**Status:** ✅ Done
+**Priority:** Medium — the OpenSSF OSPS Baseline is an umbrella
+framework mapping to NIST CSF, EU CRA, SSDF, and SLSA. We already
+meet many L3 controls. Adding a compliance reporter surfaces this.
+
+**Design:**
+
+- `compliance.py` maps releasekit capabilities to OSPS Baseline
+  levels (L1/L2/L3) and NIST SSDF tasks.
+- `releasekit compliance` subcommand outputs a compliance matrix
+  showing which controls are met, partially met, or missing.
+- Output formats: Rich table (TTY), JSON, CSV.
+
+**OSPS Baseline mapping (subset):**
+
+| OSPS Control | OSPS Level | Our Status | Module |
+|--------------|------------|------------|--------|
+| SBOM generation | L1 | ✅ Met | `sbom.py` |
+| Signed artifacts | L2 | ✅ Met | `signing.py` |
+| Provenance attestation | L2 | ✅ Met | `provenance.py` |
+| Vulnerability scanning | L2 | 🔶 Partial (`pip-audit`) | `preflight.py` |
+| SECURITY.md present | L1 | 🔶 Scorecard check (S-3) | `scorecard.py` |
+| Dependency pinning | L2 | ✅ Met (lockfile checks) | `preflight.py` |
+| Build isolation (SLSA L3) | L3 | ✅ Met | `provenance.py` |
+| Signed provenance | L3 | ✅ Met | `signing.py` |
+
+**New files:**
+
+| File | Purpose | Est. Lines |
+|------|---------|------------|
+| `compliance.py` | OSPS Baseline + NIST SSDF compliance matrix | ~250 |
+| `tests/rk_compliance_test.py` | Tests for compliance mapping | ~150 |
+
+### S-5: SECURITY_INSIGHTS.yml Generation (Low)
+
+**Status:** Not started
+**Priority:** Low — one-time generation of machine-readable security
+metadata per the [OpenSSF Security Insights spec](https://github.com/ossf/security-insights-spec).
+
+**Design:**
+
+- `releasekit init --security-insights` generates a
+  `SECURITY-INSIGHTS.yml` at the repo root.
+- Auto-populates fields from `releasekit.toml` and detected CI config:
+  `project-lifecycle`, `contribution-policy`, `security-contacts`,
+  `security-testing`, `dependencies`, `vulnerability-reporting`.
+- Validated against the Security Insights JSON Schema.
+
+### S-6: OSV Vulnerability Check in Preflight (Medium)
+
+**Status:** ✅ Done
+**Priority:** Medium — query [osv.dev](https://osv.dev) API for known
+vulnerabilities in dependencies before publishing. Complements
+`pip-audit` (which only covers Python) with a universal database.
+
+**Design:**
+
+- New preflight check `_check_osv_vulnerabilities()`.
+- Reads lockfile (uv.lock, pnpm-lock.yaml, go.sum, Cargo.lock) to
+  extract dependency versions.
+- Batch-queries `POST https://api.osv.dev/v1/querybatch` with purls.
+- Critical/High CVEs are **failures** in CI, Medium/Low are warnings.
+- Configurable via `osv_severity_threshold` in `releasekit.toml`.
+
+**New files:**
+
+| File | Purpose | Est. Lines |
+|------|---------|------------|
+| `osv.py` | OSV API client + lockfile parser | ~200 |
+| `tests/rk_osv_test.py` | Tests with mocked OSV responses | ~200 |
+
+### S-7: PEP 740 Attestations for PyPI (Medium)
+
+**Status:** Not started
+**Priority:** Medium — PyPI now supports Sigstore attestations natively
+via [PEP 740](https://peps.python.org/pep-0740/). We should generate
+them during publish so users can verify provenance on PyPI directly.
+
+**Design:**
+
+- After `uv publish`, generate PEP 740 attestation using
+  `pypi-attestations` library.
+- Upload attestation to PyPI via the attestations API.
+- Attestation links the Sigstore bundle to the PyPI distribution.
+- Preflight verifies that previous releases have attestations (S-3).
+
+**Dependencies:** `pypi-attestations>=0.0.11`
+
+### S-8: Hermetic Builds via Bazel (Medium)
+
+**Status:** Not started
+**Priority:** Medium — releasekit itself should be built hermetically
+using Bazel for reproducible, auditable builds. This is the gold
+standard for SLSA Build L3+ and closes the "build the builder" loop.
+
+**Design:**
+
+```
+py/tools/releasekit/
+  MODULE.bazel              ← Bazel module definition
+  BUILD.bazel               ← Top-level build targets
+  src/releasekit/
+    BUILD.bazel             ← py_library for each module
+  tests/
+    BUILD.bazel             ← py_test targets
+```
+
+**Key decisions:**
+
+1. **`rules_python`** for `py_library`, `py_binary`, `py_test`.
+2. **`rules_python` pip integration** for third-party deps — all
+   dependencies resolved from `pyproject.toml` and pinned by hash
+   in a `requirements_lock.txt`.
+3. **`py_wheel`** target for building the distribution wheel.
+4. **`oci_image`** (optional) for a distroless container image of
+   releasekit for CI usage.
+5. **Reproducibility:** `--stamp` flag injects git SHA and build
+   timestamp. `SOURCE_DATE_EPOCH` set for reproducible wheels.
+6. **Self-publish:** `releasekit publish` can publish itself via
+   `bazel run //:wheel.publish` — closing the bootstrap loop.
+
+**Hermetic guarantees:**
+
+| Property | How Bazel Enforces It |
+|----------|----------------------|
+| No network during build | Sandbox blocks network (all deps pre-fetched) |
+| Pinned toolchain | `rules_python` pins exact Python interpreter hash |
+| Pinned dependencies | `requirements_lock.txt` with SHA-256 hashes |
+| Reproducible output | `SOURCE_DATE_EPOCH` + `--stamp` |
+| Build isolation | Sandbox prevents reading host filesystem |
+
+**New files:**
+
+| File | Purpose |
+|------|---------|
+| `MODULE.bazel` | Bazel module with `rules_python`, `rules_oci` deps |
+| `BUILD.bazel` | Top-level: `py_binary`, `py_wheel`, `oci_image` |
+| `src/releasekit/BUILD.bazel` | `py_library` per module |
+| `tests/BUILD.bazel` | `py_test` per test file |
+| `requirements_lock.txt` | Pinned deps with SHA-256 hashes |
+
+### Implementation Priority
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  Security Implementation Order                       │
+│                                                                     │
+│  Critical (blocks L2/L3 trust)                                      │
+│  ├── S-1: Signed Plugin Loading                                     │
+│  └── S-2: JWT Cryptographic Verification                            │
+│                                                                     │
+│  High (Scorecard / compliance visibility)                           │
+│  └── S-3: OpenSSF Scorecard Preflight Checks                       │
+│                                                                     │
+│  Medium (defense in depth)                                          │
+│  ├── S-4: OSPS Baseline Compliance Tracker                          │
+│  ├── S-6: OSV Vulnerability Check                                   │
+│  ├── S-7: PEP 740 Attestations                                     │
+│  └── S-8: Hermetic Builds via Bazel                                 │
+│                                                                     │
+│  Low (one-time generation)                                          │
+│  └── S-5: SECURITY_INSIGHTS.yml                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What We Explicitly Do NOT Target
+
+| Framework | Why Not |
+|-----------|---------|
+| FedRAMP certification | Not applicable to build tools. Our SLSA + SBOM output helps *users* meet FedRAMP, but releasekit itself is not a cloud service provider. |
+| EU CRA certification | Our SBOM + SECURITY.md + vulnerability reporting helps users comply. Not directly applicable to us as a tool. |
+| ISO/IEC 18974 (OpenChain Security) | Organizational-level spec, not tool-level. |
+| Full in-toto layout verification | Overkill for a single-tool pipeline. Worth revisiting if releasekit orchestrates multi-party builds. |
 
 ---
 
