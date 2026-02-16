@@ -116,6 +116,7 @@ export interface PromptConfig<
   input?: {
     schema?: I;
     jsonSchema?: JSONSchema7;
+    default?: Record<string, any>;
   };
   system?: string | Part | Part[] | PartsResolver<z.infer<I>>;
   prompt?: string | Part | Part[] | PartsResolver<z.infer<I>>;
@@ -331,8 +332,8 @@ function definePromptAsync<
           },
           metadata: resolvedOptions.metadata?.metadata
             ? {
-                prompt: resolvedOptions.metadata?.metadata,
-              }
+              prompt: resolvedOptions.metadata?.metadata,
+            }
             : undefined,
         });
 
@@ -432,6 +433,7 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       ...options.metadata?.prompt,
       config: options.config,
       input: {
+        default: options.input?.default,
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
       name: options.name.includes('.')
@@ -855,6 +857,7 @@ function loadPrompt(
           format: promptMetadata.output?.format,
         },
         input: {
+          default: promptMetadata.input?.default,
           jsonSchema: promptMetadata.input?.schema,
         },
         metadata,
