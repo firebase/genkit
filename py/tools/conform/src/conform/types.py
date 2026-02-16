@@ -106,6 +106,15 @@ class Runtime(Protocol):
 
 
 @dataclass
+class FailedTest:
+    """A single failed test case — used for the end-of-run error summary."""
+
+    test_name: str
+    model: str
+    error: str
+
+
+@dataclass
 class PluginResult:
     """Result of running conformance tests for a single plugin.
 
@@ -128,3 +137,4 @@ class PluginResult:
     tests_custom: int = 0
     tests_passed: int = 0
     tests_failed: int = 0
+    failed_tests: list[FailedTest] = field(default_factory=list)

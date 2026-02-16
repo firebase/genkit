@@ -236,6 +236,7 @@ jobs:
           INPUT_BUMP_TYPE: ${{ inputs.bump_type }}
           INPUT_PRERELEASE: ${{ inputs.prerelease }}
           INPUT_FORCE_PREPARE: ${{ inputs.force_prepare }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -270,8 +271,6 @@ jobs:
           else
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
@@ -411,6 +410,9 @@ jobs:
           INPUT_GROUP: ${{ inputs.group }}
           INPUT_CONCURRENCY: ${{ inputs.concurrency }}
           INPUT_MAX_RETRIES: ${{ inputs.max_retries }}
+          # For trusted publishing (OIDC), no token needed.
+          # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
+          UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -448,10 +450,6 @@ jobs:
             echo "::error::releasekit publish failed with exit code $EXIT_CODE"
             exit $EXIT_CODE
           fi
-        env:
-          # For trusted publishing (OIDC), no token needed.
-          # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
-          UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
 
       - name: Upload manifest artifact
         if: success()

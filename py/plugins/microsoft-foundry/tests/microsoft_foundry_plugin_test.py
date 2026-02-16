@@ -32,6 +32,7 @@ from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from openai import AsyncAzureOpenAI
 
 from genkit.core.registry import ActionKind
 from genkit.plugins.microsoft_foundry import (
@@ -48,6 +49,7 @@ from genkit.plugins.microsoft_foundry.models.converters import (
 )
 from genkit.plugins.microsoft_foundry.models.model import MicrosoftFoundryModel
 from genkit.plugins.microsoft_foundry.models.model_info import get_model_info
+from genkit.plugins.microsoft_foundry.plugin import _sanitize_credential
 from genkit.types import (
     GenerateRequest,
     GenerateResponseChunk,
@@ -439,3 +441,61 @@ class TestMicrosoftFoundryModelInfo:
         assert info is not None
         assert info.label is not None
         assert 'unknown-model-xyz' in info.label
+
+
+class TestSanitizeCredential:
+    """Tests for the _sanitize_credential() defense against copy-paste Unicode artifacts.
+
+    Credentials copied from web UIs (e.g., Azure Portal) often contain
+    invisible Unicode characters like zero-width spaces (U+200B) that cause
+    ``UnicodeEncodeError: 'ascii' codec can't encode character`` failures
+    deep inside HTTP transport layers.
+    """
+
+    def test_none_returns_none(self) -> None:
+        """None input passes through unchanged."""
+        assert _sanitize_credential(None) is None
+
+    def test_clean_string_unchanged(self) -> None:
+        """Clean ASCII strings pass through unchanged."""
+        assert _sanitize_credential('https://test.openai.azure.com/') == 'https://test.openai.azure.com/'
+
+    def test_strips_zero_width_space(self) -> None:
+        """Zero-width spaces (U+200B) are removed."""
+        assert _sanitize_credential('abc\u200bdef') == 'abcdef'
+
+    def test_strips_bom(self) -> None:
+        """Byte-order marks (U+FEFF) are removed."""
+        assert _sanitize_credential('\ufeffhttps://example.com') == 'https://example.com'
+
+    def test_strips_non_breaking_space(self) -> None:
+        """Non-breaking spaces (U+00A0) are removed."""
+        assert _sanitize_credential('key\u00a0value') == 'keyvalue'
+
+    def test_strips_multiple_invisible_chars(self) -> None:
+        """All types of invisible characters are removed in one pass."""
+        dirty = '\u200bhttps://\u200ctest\u200d.\u200eopenai\u200f.azure.com/\ufeff'
+        assert _sanitize_credential(dirty) == 'https://test.openai.azure.com/'
+
+    def test_strips_whitespace(self) -> None:
+        """Leading and trailing whitespace is stripped."""
+        assert _sanitize_credential('  https://test.com  ') == 'https://test.com'
+
+    def test_strips_whitespace_and_invisible_chars(self) -> None:
+        """Both whitespace and invisible characters are handled together."""
+        assert _sanitize_credential(' \u200b api-key \u200b ') == 'api-key'
+
+    def test_init_sanitizes_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Plugin __init__ strips invisible chars from environment variables."""
+        monkeypatch.setenv('AZURE_OPENAI_API_KEY', 'test-key\u200b')
+        monkeypatch.setenv('AZURE_OPENAI_ENDPOINT', 'https://test.openai.azure.com/\u200b')
+        monkeypatch.setenv('AZURE_OPENAI_API_VERSION', '2024-10-21\u200b')
+
+        plugin = MicrosoftFoundry()
+
+        # The client should have been created with sanitized credentials.
+        # We verify this by checking the attributes on the created client.
+        assert isinstance(plugin._openai_client, AsyncAzureOpenAI)
+        assert plugin._openai_client.api_key == 'test-key'
+        assert str(plugin._openai_client._azure_endpoint) == 'https://test.openai.azure.com/'
+        assert plugin._openai_client._api_version == '2024-10-21'

@@ -527,8 +527,28 @@ _install_ollama() {
             fi
             ;;
         Linux)
-            echo -e "  ${BLUE}→${NC} Installing Ollama..."
-            curl -fsSL https://ollama.com/install.sh | sh
+            # Prefer system package manager when the package is available,
+            # then fall back to the official curl installer.
+            local installed_via_pkg=false
+            if [[ "$PKG_MGR" == "apt" ]]; then
+                if apt-cache show ollama &>/dev/null 2>&1; then
+                    echo -e "  ${BLUE}→${NC} Installing Ollama via apt..."
+                    sudo apt-get update -qq
+                    sudo apt-get install -y -qq ollama
+                    installed_via_pkg=true
+                fi
+            elif [[ "$PKG_MGR" == "dnf" ]]; then
+                if dnf info ollama &>/dev/null 2>&1; then
+                    echo -e "  ${BLUE}→${NC} Installing Ollama via dnf..."
+                    sudo dnf install -y -q ollama
+                    installed_via_pkg=true
+                fi
+            fi
+
+            if ! $installed_via_pkg; then
+                echo -e "  ${BLUE}→${NC} Installing Ollama via official installer..."
+                curl -fsSL https://ollama.com/install.sh | sh
+            fi
             ;;
         *)
             echo "  Visit: https://ollama.com/download"

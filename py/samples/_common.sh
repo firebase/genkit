@@ -196,6 +196,57 @@ _watch_for_devui_url() {
 # Set GENKIT_NO_BROWSER=1 or pass --no-browser to any run.sh to
 # disable automatic browser opening (useful for CI/headless).
 genkit_start_with_browser() {
+    # Pre-flight: ensure the genkit CLI is installed.
+    # If missing, offer to install pnpm + genkit interactively.
+    if ! command -v genkit &> /dev/null; then
+        echo -e "${YELLOW}genkit CLI is not installed.${NC}"
+        echo ""
+
+        # Attempt interactive installation if we have a TTY.
+        if [[ -t 0 ]] && [ -c /dev/tty ]; then
+            # Step 1: ensure we have a JS package manager (pnpm preferred).
+            if ! command -v pnpm &> /dev/null && ! command -v npm &> /dev/null; then
+                if command -v node &> /dev/null && command -v corepack &> /dev/null; then
+                    if _confirm "Install pnpm via corepack?"; then
+                        corepack enable
+                        corepack prepare pnpm@latest --activate
+                    fi
+                elif command -v node &> /dev/null; then
+                    echo -e "${BLUE}Installing pnpm via standalone installer...${NC}"
+                    curl -fsSL https://get.pnpm.io/install.sh | sh -
+                    export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
+                    export PATH="$PNPM_HOME:$PATH"
+                fi
+            fi
+
+            # Step 2: install genkit CLI.
+            if command -v pnpm &> /dev/null; then
+                if _confirm "Install genkit CLI via pnpm?"; then
+                    pnpm install -g genkit-cli
+                fi
+            elif command -v npm &> /dev/null; then
+                if _confirm "Install genkit CLI via npm?"; then
+                    npm install -g genkit-cli
+                fi
+            fi
+        fi
+
+        # Final check — if genkit is still not available, exit with guidance.
+        if ! command -v genkit &> /dev/null; then
+            echo -e "${RED}Error: genkit CLI is required but could not be installed.${NC}"
+            echo ""
+            echo "The genkit CLI requires Node.js + pnpm. Install manually:"
+            echo "  https://nodejs.org/           (Node.js)"
+            echo "  pnpm install -g genkit-cli    (genkit CLI)"
+            echo ""
+            echo "Or run the setup script to install all tools:"
+            echo "  ${_COMMON_DIR}/setup.sh"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ genkit CLI installed${NC}"
+        echo ""
+    fi
+
     if [[ "${GENKIT_NO_BROWSER:-}" == "1" ]]; then
         echo -e "${BLUE}Starting Genkit Dev UI (browser disabled)...${NC}"
         echo ""
@@ -217,19 +268,28 @@ genkit_start_with_browser() {
     fi
 }
 
+# Prompt the user with a yes/no question. Default is yes.
+# Usage: _confirm "Install uv?" && do_thing
+_confirm() {
+    local prompt="$1"
+    if [[ -t 0 ]] && [ -c /dev/tty ]; then
+        echo -en "${BLUE}${prompt} [Y/n]:${NC} "
+        local response
+        read -r response < /dev/tty
+        [[ -z "$response" || "$response" =~ ^[Yy] ]]
+    else
+        return 0  # Default to yes in non-interactive environments
+    fi
+}
+
 # Prompt the user to run setup.sh interactively.
 # Returns 0 if setup was run successfully, 1 otherwise.
 # Usage: _prompt_run_setup "/path/to/setup.sh" && return
 _prompt_run_setup() {
     local setup_script="$1"
-    if [[ -t 0 ]] && [ -c /dev/tty ]; then
-        echo -en "${BLUE}Run setup.sh now? [Y/n]:${NC} "
-        local response
-        read -r response < /dev/tty
-        if [[ -z "$response" || "$response" =~ ^[Yy] ]]; then
-            bash "$setup_script"
-            return $?
-        fi
+    if _confirm "Run setup.sh now?"; then
+        bash "$setup_script"
+        return $?
     fi
     return 1
 }
@@ -238,6 +298,11 @@ _prompt_run_setup() {
 # This is called automatically by install_deps.
 check_setup() {
     local setup_script="${_COMMON_DIR}/setup.sh"
+
+    # Auto-discover tools that setup.sh installs but may not be on PATH yet.
+    # This handles the common case where the user ran setup.sh but hasn't
+    # opened a new terminal or sourced ~/.environment.
+    _ensure_tool_paths
 
     # Quick checks: is uv available? Does the workspace .venv exist?
     if ! command -v uv &>/dev/null; then
@@ -254,6 +319,47 @@ check_setup() {
         _prompt_run_setup "$setup_script" && return
         echo -e "${YELLOW}Continuing without setup — uv sync will create .venv...${NC}"
     fi
+}
+
+# Ensure common tool install directories are on PATH.
+# setup.sh installs tools to ~/.local/bin (uv, just), npm global bins,
+# and ~/.cargo/bin — but a fresh shell won't have these on PATH until
+# ~/.environment (or the shell RC) is sourced.
+_ensure_tool_paths() {
+    # Source ~/.environment if it exists (setup.sh writes env vars there).
+    local env_file="$HOME/.environment"
+    if [[ -f "$env_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$env_file"
+    fi
+
+    # Common directories where setup.sh installs tools.
+    local -a extra_dirs=(
+        "$HOME/.local/bin"          # uv, just, grpcurl
+        "$HOME/.cargo/bin"          # older uv installs
+    )
+
+    # pnpm global bin directory (for genkit CLI installed via pnpm).
+    if [[ -n "${PNPM_HOME:-}" && -d "$PNPM_HOME" ]]; then
+        extra_dirs+=("$PNPM_HOME")
+    elif [[ -d "$HOME/.local/share/pnpm" ]]; then
+        extra_dirs+=("$HOME/.local/share/pnpm")
+    fi
+
+    # npm global bin directory (for genkit CLI installed via npm).
+    if command -v npm &>/dev/null; then
+        local npm_prefix
+        npm_prefix="$(npm config get prefix 2>/dev/null || true)"
+        if [[ -n "$npm_prefix" && -d "$npm_prefix/bin" ]]; then
+            extra_dirs+=("$npm_prefix/bin")
+        fi
+    fi
+
+    for dir in "${extra_dirs[@]}"; do
+        if [[ -d "$dir" ]] && [[ ":$PATH:" != *":$dir:"* ]]; then
+            export PATH="$dir:$PATH"
+        fi
+    done
 }
 
 # Install dependencies with uv
@@ -491,8 +597,26 @@ check_ollama_installed() {
                         fi
                         ;;
                     Linux)
-                        echo -e "${BLUE}Installing via official script...${NC}"
-                        curl -fsSL https://ollama.com/install.sh | sh
+                        # Prefer system package manager when available.
+                        local installed_via_pkg=false
+                        if command -v apt-get &>/dev/null; then
+                            if apt-cache show ollama &>/dev/null 2>&1; then
+                                echo -e "${BLUE}Installing via apt...${NC}"
+                                sudo apt-get update -qq
+                                sudo apt-get install -y -qq ollama
+                                installed_via_pkg=true
+                            fi
+                        elif command -v dnf &>/dev/null; then
+                            if dnf info ollama &>/dev/null 2>&1; then
+                                echo -e "${BLUE}Installing via dnf...${NC}"
+                                sudo dnf install -y -q ollama
+                                installed_via_pkg=true
+                            fi
+                        fi
+                        if ! $installed_via_pkg; then
+                            echo -e "${BLUE}Installing via official script...${NC}"
+                            curl -fsSL https://ollama.com/install.sh | sh
+                        fi
                         ;;
                     *)
                         echo "Visit: https://ollama.com/download"

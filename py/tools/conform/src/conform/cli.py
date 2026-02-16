@@ -67,7 +67,7 @@ from conform.display import (
 )
 from conform.plugins import check_env, discover_plugins, entry_point, spec_file
 from conform.runner import run_all
-from conform.types import PluginResult, Status
+from conform.types import FailedTest, PluginResult, Status
 from conform.util_test_model import TestResult, count_spec_tests, run_test_model
 
 
@@ -374,6 +374,17 @@ async def _run_native_check(
                 if run_result.total_failed > 0:
                     result.status = Status.FAILED
                     result.error_message = f'{run_result.total_failed} test(s) failed'
+                    # Collect per-test failure details for the error summary.
+                    for suite in run_result.suites:
+                        for tr in suite.tests:
+                            if not tr.passed:
+                                result.failed_tests.append(
+                                    FailedTest(
+                                        test_name=tr.name,
+                                        model=suite.model,
+                                        error=tr.error,
+                                    )
+                                )
                 else:
                     result.status = Status.PASSED
             except Exception as exc:
@@ -461,6 +472,49 @@ def _log_native_result(
         )
 
 
+def _print_error_summary(results: dict[str, PluginResult]) -> None:
+    """Print a consolidated error log at the end of the run.
+
+    Groups all individual test failures by plugin so the user doesn't
+    have to scroll through the full log to find them.  Only prints
+    when there are actual failures.
+    """
+    # Collect all failures across all plugins.
+    has_failures = any(r.failed_tests for r in results.values())
+    if not has_failures:
+        return
+
+    table = Table(
+        title='🔍 Failed Tests',
+        box=box.ROUNDED,
+        title_style='bold red',
+        border_style='dim',
+        header_style='bold',
+        expand=False,
+        pad_edge=True,
+        show_lines=True,
+    )
+    table.add_column('Plugin', style='bold', min_width=18)
+    table.add_column('Runtime', style='cyan', min_width=8)
+    table.add_column('Model', style='yellow', min_width=20)
+    table.add_column('Test', min_width=24)
+    table.add_column('Error', ratio=1, style='red')
+
+    for _key, result in results.items():
+        for ft in result.failed_tests:
+            table.add_row(
+                result.plugin,
+                result.runtime,
+                ft.model,
+                ft.test_name,
+                ft.error or '(no details)',
+            )
+
+    console.print()
+    console.print(table)
+    console.print()
+
+
 def _cmd_check_model(
     args: argparse.Namespace,
     runtime_names: list[str],
@@ -530,6 +584,9 @@ def _cmd_check_model(
                 note=result.error_message,
                 hint=f'run: conform check-model {result.plugin} -v',
             )
+
+    # Consolidated error log — all individual test failures in one place.
+    _print_error_summary(results)
 
     failed = sum(1 for r in results.values() if r.status in (Status.FAILED, Status.ERROR))
     return 1 if failed > 0 else 0
