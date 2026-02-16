@@ -102,7 +102,15 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 			}
 			if baseType.Kind() == reflect.Struct {
 				if seen[baseType] {
+					// check if the type implements json.Marshaler since it might serialize to a non-object
+					marshalerType := reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+					if baseType.Implements(marshalerType) || reflect.PointerTo(baseType).Implements(marshalerType) {
+						return &jsonschema.Schema{
+							AdditionalProperties: jsonschema.TrueSchema,
+						}
+					}
 					return &jsonschema.Schema{
+						Type:                 "object",
 						AdditionalProperties: jsonschema.TrueSchema,
 					}
 				}
