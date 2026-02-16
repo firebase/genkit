@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -45,9 +46,11 @@ type Anthropic struct {
 	APIKey  string // If not provided, defaults to ANTHROPIC_API_KEY
 	BaseURL string // Optional. If not provided, defaults to ANTHROPIC_BASE_URL
 
-	aclient anthropic.Client // Anthropic client
-	mu      sync.Mutex       // Mutex to control access
-	initted bool             // Whether the plugin has been initialized
+	aclient     anthropic.Client // Anthropic client
+	mu          sync.Mutex       // Mutex to control access
+	initted     bool             // Whether the plugin has been initialized
+	models      []string         // Cached list of models
+	lastUpdated time.Time        // When the cache was last updated
 }
 
 // Name returns the name of the plugin
@@ -104,14 +107,14 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOpt
 func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 
-	models, err := listModels(ctx, &a.aclient)
+	models, err := a.getModels(ctx)
 	if err != nil {
 		slog.Error("unable to list anthropic models from Anthropic API", "error", err)
 		return nil
 	}
 
 	for _, name := range models {
-		// When listing discovered models, the Genkit action name and the 
+		// When listing discovered models, the Genkit action name and the
 		// Anthropic API model ID are identical.
 		model := newModel(a.aclient, name, name, defaultClaudeOpts)
 		if actionDef, ok := model.(api.Action); ok {
@@ -136,7 +139,7 @@ func IsDefinedModel(g *genkit.Genkit, name string) bool {
 func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 	switch atype {
 	case api.ActionTypeModel:
-		models, err := listModels(context.Background(), &a.aclient)
+		models, err := a.getModels(context.Background())
 		if err != nil {
 			slog.Error("unable to list anthropic models from Anthropic API", "error", err)
 			return nil
@@ -148,7 +151,7 @@ func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 			realID = id
 		}
 
-		// We register the model using the ID requested by the user, but 
+		// We register the model using the ID requested by the user, but
 		// use the resolved 'realID' (e.g. versioned) for actual API calls.
 		return newModel(a.aclient, id, realID, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, id),
@@ -158,6 +161,25 @@ func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 		}).(api.Action)
 	}
 	return nil
+}
+
+// getModels returns the list of available models, using a cache if available.
+func (a *Anthropic) getModels(ctx context.Context) ([]string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if !a.lastUpdated.IsZero() && time.Since(a.lastUpdated) < time.Hour {
+		return a.models, nil
+	}
+
+	models, err := listModels(ctx, &a.aclient)
+	if err != nil {
+		return nil, err
+	}
+
+	a.models = models
+	a.lastUpdated = time.Now()
+	return models, nil
 }
 
 // newModel creates a model wihout registering it
