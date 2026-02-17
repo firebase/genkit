@@ -236,3 +236,101 @@ After editing `licenses.toml` or `license_compatibility.toml`:
 
 3. Commit.  CI will run both the unit tests and the network integration
    tests on your PR.
+
+## SPDX `WITH` exceptions and linking semantics
+
+### What are `WITH` exceptions?
+
+SPDX expressions can include a `WITH` clause that attaches a license
+exception to a base license, relaxing certain terms.  Common examples:
+
+| Expression | What it means |
+|------------|---------------|
+| `GPL-2.0-only WITH Classpath-exception-2.0` | GPL-2.0 but classpath linking doesn't trigger copyleft |
+| `GPL-2.0-only WITH GCC-exception-3.1` | GPL-2.0 but GCC output isn't covered |
+| `LGPL-2.1-only WITH OCaml-LGPL-linking-exception` | LGPL-2.1 with OCaml-specific linking relaxation |
+
+These exceptions exist because **copyleft licenses trigger their
+obligations through "linking"** — creating a combined work.  The
+exception says: "even though you're linking, the copyleft terms don't
+apply to your code."
+
+### How ReleaseKit handles `WITH`
+
+**ReleaseKit uses the conservative approach**: strip the exception and
+check compatibility against the **base license only**.
+
+```
+GPL-2.0 WITH Classpath-exception-2.0
+  └── checked as: GPL-2.0  (exception ignored)
+```
+
+This means:
+
+- If the base license is **compatible** (e.g. MIT, Apache-2.0), the
+  result is correct — exceptions only relax further.
+- If the base license is **incompatible** (e.g. GPL-2.0 with an
+  Apache-2.0 project), ReleaseKit reports it as incompatible **even if**
+  the exception might make it compatible in your ecosystem.
+
+This is a deliberate design choice.  See "Why conservative?" below.
+
+### Linking semantics by language
+
+The concept of "linking" — and thus when copyleft obligations are
+triggered — varies dramatically by language and runtime:
+
+| Language | Linking model | Copyleft risk | Exception relevance |
+|----------|---------------|---------------|---------------------|
+| **C/C++** | Static linking creates a single binary; dynamic linking creates a runtime dependency | **High** — static clearly creates "combined work" | **Critical** — GCC exception, linking exception directly applicable |
+| **Java** | Classpath loading via classloader; JARs are separate artifacts | **Medium** — Classpath Exception exists specifically for this | **High** — Classpath-exception-2.0 is the canonical example |
+| **Python** | `import` at runtime; packages installed as site-packages; no compilation linking | **Low** — but legally debated; FSF considers `import` similar to dynamic linking | **Ambiguous** — LGPL linking exceptions were written for C; application to Python is unclear |
+| **Go** | Always statically compiled into a single binary | **High** — every Go binary is a single combined work | **Critical** — any linking exception is important |
+| **Rust** | Statically compiled by default; dynamic linking rare | **High** — same as Go | **Critical** — same as Go |
+| **JavaScript** | Bundled (webpack/esbuild create a single file) or loaded as modules | **Varies** — bundling ≈ static linking; module loading ≈ dynamic | **Context-dependent** |
+
+### Why conservative?
+
+1. **Legal safety** — False negatives (saying "compatible" when it's not)
+   are worse than false positives (saying "incompatible" when it might be
+   OK).  A false negative exposes the project to license violations.
+
+2. **Language-agnostic** — ReleaseKit works across Python, JavaScript,
+   Go, and Rust ecosystems.  What counts as "linking" depends on the
+   ecosystem, the build toolchain, and sometimes the specific deployment
+   model.  Automating this requires legal judgments we can't make.
+
+3. **User escape hatches** — When a WITH exception makes a dependency
+   compatible for your specific ecosystem, you can explicitly allow it:
+
+   ```toml
+   # In releasekit.toml
+
+   [license]
+   # Option 1: Allow the base license globally (for any dep).
+   allow_licenses = ["GPL-2.0-only"]
+
+   # Option 2: Override the detected license for a specific dep.
+   [license.overrides]
+   "some-gpl-lib" = "GPL-2.0-only WITH Classpath-exception-2.0"
+
+   # Option 3: Exempt the package entirely.
+   exempt_packages = ["some-gpl-lib"]
+   ```
+
+### Future: ecosystem-aware exception handling
+
+A future enhancement could add ecosystem-aware exception evaluation:
+
+- **Python**: Treat LGPL as effectively compatible with permissive
+  licenses (since `import` ≠ linking in the traditional sense).
+- **Go/Rust**: Be stricter (all linking is static).
+- **Java**: Recognize Classpath-exception-2.0 as making GPL compatible
+  with permissive licenses.
+
+This would be opt-in via configuration and would require clear
+documentation of the legal assumptions being made.  Until then, the
+conservative approach ensures safety, and the escape hatches
+(`allow_licenses`, `license_overrides`, `exempt_packages`) provide
+flexibility for ecosystems where exceptions are well-understood.
+

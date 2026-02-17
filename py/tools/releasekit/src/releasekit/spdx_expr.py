@@ -56,6 +56,22 @@ Key Concepts (ELI5)::
     ├─────────────────────┼──────────────────────────────────────────────┤
     │ WITH (exception)     │ License + exception that relaxes terms.     │
     │                      │ Treat as the base license for compat.       │
+    │                      │                                              │
+    │                      │ Examples:                                    │
+    │                      │   GPL-2.0 WITH Classpath-exception-2.0      │
+    │                      │   GPL-2.0 WITH GCC-exception-3.1            │
+    │                      │   LGPL-2.1 WITH OCaml-LGPL-linking-exception│
+    │                      │                                              │
+    │                      │ **Design decision**: We use the CONSERVATIVE│
+    │                      │ approach — strip the exception and check     │
+    │                      │ compat against the BASE license only.        │
+    │                      │ This is language-agnostic and safe: if the   │
+    │                      │ base license is compat, so is base+exception.│
+    │                      │ If base is NOT compat, the exception may     │
+    │                      │ relax terms enough (e.g. for Java classpath  │
+    │                      │ linking), but that requires ecosystem-aware  │
+    │                      │ legal analysis. Failing conservatively is    │
+    │                      │ safer than false-positive compatibility.     │
     ├─────────────────────┼──────────────────────────────────────────────┤
     │ + (or-later)         │ "This version or any later version."        │
     │                      │ Expands the set of acceptable versions.     │
@@ -547,7 +563,28 @@ def _eval_compat(
         # Pass the full node so the checker can inspect or_later / document_ref.
         return check(project_license, node)
     if isinstance(node, With):
-        # Exceptions only relax — check the base license.
+        # WITH exceptions (e.g. Classpath-exception-2.0, GCC-exception-3.1)
+        # only RELAX the base license's terms — they never make a license
+        # MORE restrictive. The conservative approach is to check compat
+        # against the base license only.
+        #
+        # Why not model exceptions explicitly?
+        #   1. Exceptions are language/linking-model dependent:
+        #      - C/C++: static linking creates combined works → exception matters
+        #      - Java: classpath loading → Classpath-exception-2.0 is critical
+        #      - Python: `import` ≠ linking (no static/dynamic distinction) →
+        #        LGPL/GPL linking exceptions are legally ambiguous
+        #      - Go/Rust: always statically compiled → exception matters
+        #   2. If the base license is already compatible (e.g. MIT, Apache-2.0),
+        #      the exception is irrelevant — it only relaxes further.
+        #   3. If the base license is incompatible (e.g. GPL-2.0 with an
+        #      Apache-2.0 project), the exception *might* make it compatible
+        #      for certain linking models, but that requires ecosystem-specific
+        #      legal analysis that we intentionally do not automate.
+        #
+        # Users who need exception-aware checking can use `allow_licenses`
+        # or `license_overrides` in releasekit.toml to explicitly allow
+        # specific WITH expressions for their ecosystem.
         return _eval_compat(node.license, check, project_license)
     if isinstance(node, Or):
         # Disjunctive: compatible if EITHER branch is compatible.

@@ -45,14 +45,36 @@ from pathlib import Path
 from typing import Any
 
 import jsonschema
+import referencing
 
 from releasekit.backends.validation import ValidationResult
+
+
+def _build_registry_from_dir(schema_dir: Path) -> referencing.Registry:
+    """Build a ``referencing.Registry`` from all ``.schema.json`` files in *schema_dir*.
+
+    This allows ``jsonschema`` to resolve ``$ref`` links between sibling
+    schema files (e.g. ``bom-1.5.schema.json`` references
+    ``spdx.schema.json``).
+    """
+    registry: referencing.Registry = referencing.Registry()  # type: ignore[type-arg]
+    for path in schema_dir.glob('*.schema.json'):
+        contents = json.loads(path.read_text(encoding='utf-8'))
+        resource = referencing.Resource.from_contents(contents)
+        # Register under the filename so relative $ref resolves.
+        registry = registry.with_resource(path.name, resource)
+        # Also register under the $id if present, for absolute $ref.
+        if '$id' in contents:
+            registry = registry.with_resource(contents['$id'], resource)
+    return registry
 
 
 def _validate_against_schema(
     validator_name: str,
     data: Any,  # noqa: ANN401
     schema: dict[str, Any],
+    *,
+    registry: referencing.Registry | None = None,  # type: ignore[type-arg]
 ) -> ValidationResult:
     """Validate data against a JSON Schema.
 
@@ -63,6 +85,8 @@ def _validate_against_schema(
         validator_name: Name for the :class:`ValidationResult`.
         data: Parsed JSON data (dict or list).
         schema: JSON Schema dict.
+        registry: Optional ``referencing.Registry`` for resolving
+            ``$ref`` links between sibling schemas.
 
     Returns:
         A :class:`ValidationResult`.
@@ -76,7 +100,10 @@ def _validate_against_schema(
             validator_cls = jsonschema.Draft4Validator
         else:
             validator_cls = jsonschema.Draft202012Validator
-        validator = validator_cls(schema)
+        kwargs: dict[str, Any] = {}
+        if registry is not None:
+            kwargs['registry'] = registry
+        validator = validator_cls(schema, **kwargs)
         errors = sorted(
             validator.iter_errors(data),
             key=lambda e: list(e.absolute_path),
@@ -157,10 +184,14 @@ class CycloneDXSchemaValidator:
         schema: The CycloneDX JSON Schema dict. If empty, only
             lightweight structural checks are performed.
         validator_id: Override the default validator name.
+        registry: Optional ``referencing.Registry`` for resolving
+            ``$ref`` links between sibling schemas (e.g.
+            ``spdx.schema.json`` referenced by the CycloneDX schema).
     """
 
     schema: dict[str, Any] = field(default_factory=dict)
     validator_id: str = 'schema.cyclonedx'
+    registry: referencing.Registry | None = None  # type: ignore[type-arg]
 
     @staticmethod
     def from_schema_file(
@@ -170,6 +201,10 @@ class CycloneDXSchemaValidator:
     ) -> CycloneDXSchemaValidator:
         """Create a validator from a schema file.
 
+        Automatically builds a ``referencing.Registry`` from all
+        sibling ``.schema.json`` files in the same directory so that
+        ``$ref`` links (e.g. ``spdx.schema.json``) resolve correctly.
+
         Args:
             path: Path to ``bom-1.5.schema.json``.
             validator_id: Override the default validator name.
@@ -178,7 +213,12 @@ class CycloneDXSchemaValidator:
             A :class:`CycloneDXSchemaValidator` with the loaded schema.
         """
         schema = json.loads(path.read_text(encoding='utf-8'))
-        return CycloneDXSchemaValidator(schema=schema, validator_id=validator_id)
+        registry = _build_registry_from_dir(path.parent)
+        return CycloneDXSchemaValidator(
+            schema=schema,
+            validator_id=validator_id,
+            registry=registry,
+        )
 
     @property
     def name(self) -> str:
@@ -213,7 +253,12 @@ class CycloneDXSchemaValidator:
 
         # Full schema validation if schema is available.
         if self.schema:
-            return _validate_against_schema(self.name, data, self.schema)
+            return _validate_against_schema(
+                self.name,
+                data,
+                self.schema,
+                registry=self.registry,
+            )
 
         return ValidationResult.passed(
             self.name,
@@ -252,10 +297,13 @@ class SPDXSchemaValidator:
         schema: The SPDX JSON Schema dict. If empty, only
             lightweight structural checks are performed.
         validator_id: Override the default validator name.
+        registry: Optional ``referencing.Registry`` for resolving
+            ``$ref`` links between sibling schemas.
     """
 
     schema: dict[str, Any] = field(default_factory=dict)
     validator_id: str = 'schema.spdx'
+    registry: referencing.Registry | None = None  # type: ignore[type-arg]
 
     @staticmethod
     def from_schema_file(
@@ -265,6 +313,9 @@ class SPDXSchemaValidator:
     ) -> SPDXSchemaValidator:
         """Create a validator from a schema file.
 
+        Automatically builds a ``referencing.Registry`` from all
+        sibling ``.schema.json`` files in the same directory.
+
         Args:
             path: Path to ``spdx-2.3.schema.json``.
             validator_id: Override the default validator name.
@@ -273,7 +324,12 @@ class SPDXSchemaValidator:
             A :class:`SPDXSchemaValidator` with the loaded schema.
         """
         schema = json.loads(path.read_text(encoding='utf-8'))
-        return SPDXSchemaValidator(schema=schema, validator_id=validator_id)
+        registry = _build_registry_from_dir(path.parent)
+        return SPDXSchemaValidator(
+            schema=schema,
+            validator_id=validator_id,
+            registry=registry,
+        )
 
     @property
     def name(self) -> str:
@@ -308,7 +364,12 @@ class SPDXSchemaValidator:
 
         # Full schema validation if schema is available.
         if self.schema:
-            return _validate_against_schema(self.name, data, self.schema)
+            return _validate_against_schema(
+                self.name,
+                data,
+                self.schema,
+                registry=self.registry,
+            )
 
         return ValidationResult.passed(
             self.name,

@@ -357,6 +357,21 @@ class LicenseGraph:
     ) -> bool:
         """Check if a project can depend on code under *dep*.
 
+        This method checks **single license IDs** (with optional
+        ``or_later`` expansion).  Compound SPDX expressions (``OR``,
+        ``AND``, ``WITH``) are handled at a higher level by
+        :func:`releasekit.spdx_expr.is_compatible`, which walks the
+        AST and calls this method for each leaf ``LicenseId`` node.
+
+        ``WITH`` (linking exception) handling:
+            Exceptions like ``Classpath-exception-2.0`` relax the base
+            license's terms but are **not modeled in the graph**.
+            The SPDX expression evaluator strips the exception and
+            checks compat against the base license only (conservative
+            approach).  See ``spdx_expr._eval_compat`` and
+            ``docs/internals/license-data.md`` for the full rationale
+            on why this is language-agnostic and intentional.
+
         Args:
             project_license: The SPDX ID of the project's own license.
             dep: The dependency's license — either a parsed AST node

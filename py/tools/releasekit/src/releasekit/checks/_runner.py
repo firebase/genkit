@@ -30,6 +30,7 @@ from pathlib import Path
 from releasekit.checks._protocol import CheckBackend
 from releasekit.checks._python import PythonCheckBackend
 from releasekit.checks._universal import (
+    LicenseExemptions,
     _check_cycles,
     _check_deep_license_scan,
     _check_dual_license_choice,
@@ -85,6 +86,8 @@ async def run_checks_async(
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
     color: bool | None = None,
+    project_license: str = '',
+    exemptions: LicenseExemptions | None = None,
 ) -> PreflightResult:
     """Run all workspace health checks concurrently.
 
@@ -124,6 +127,10 @@ async def run_checks_async(
             values are frozensets of check names to skip for that
             package. Built from ``PackageConfig.skip_checks``.
         color: Whether to use colored output. ``None`` means auto-detect.
+        project_license: Override for the project's SPDX license ID
+            (e.g. ``'Apache-2.0'``).
+        exemptions: License exemption configuration from
+            ``releasekit.toml`` (overrides, allow-lists, etc.).
 
     Returns:
         A :class:`PreflightResult` with all check outcomes.
@@ -180,6 +187,8 @@ async def run_checks_async(
                 _check_license_compatibility,
                 fp(packages, 'license_compatibility', skip_map),
                 result,
+                project_license=project_license,
+                exemptions=exemptions,
                 color=color,
                 workspace_root=workspace_root,
             ),
@@ -314,6 +323,8 @@ def run_checks(
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
     color: bool | None = None,
+    project_license: str = '',
+    exemptions: LicenseExemptions | None = None,
 ) -> PreflightResult:
     """Synchronous wrapper around :func:`run_checks_async`.
 
@@ -343,6 +354,8 @@ def run_checks(
             plugin_dirs=plugin_dirs,
             skip_map=skip_map,
             color=color,
+            project_license=project_license,
+            exemptions=exemptions,
         )
 
     return asyncio.run(
@@ -360,6 +373,8 @@ def run_checks(
             plugin_dirs=plugin_dirs,
             skip_map=skip_map,
             color=color,
+            project_license=project_license,
+            exemptions=exemptions,
         )
     )
 
@@ -379,6 +394,8 @@ def _run_checks_sync(
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
     color: bool | None = None,
+    project_license: str = '',
+    exemptions: LicenseExemptions | None = None,
 ) -> PreflightResult:
     """Sequential fallback when already inside a running event loop."""
     result = PreflightResult()
@@ -396,6 +413,8 @@ def _run_checks_sync(
     _check_license_compatibility(
         fp(packages, 'license_compatibility', skip_map),
         result,
+        project_license=project_license,
+        exemptions=exemptions,
         color=color,
         workspace_root=workspace_root,
     )

@@ -34,6 +34,7 @@ from releasekit.backends.validation import Validator, all_passed, run_validators
 from releasekit.backends.validation.sbom import (
     CycloneDXSchemaValidator,
     SPDXSchemaValidator,
+    _build_registry_from_dir,
 )
 from releasekit.sbom import SBOMFormat, generate_sbom
 from releasekit.versions import PackageVersion, ReleaseManifest
@@ -316,7 +317,11 @@ class TestCycloneDXFullSchema:
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             pytest.skip('CycloneDX 1.5 schema not available')
-        return CycloneDXSchemaValidator(schema=schema)
+        registry = _build_registry_from_dir(_SCHEMA_DIR)
+        return CycloneDXSchemaValidator(
+            schema=schema,
+            registry=registry,
+        )
 
     def test_valid_passes(self, validator: CycloneDXSchemaValidator) -> None:
         """Test valid passes."""
@@ -377,7 +382,11 @@ class TestSPDXFullSchema:
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             pytest.skip('SPDX 2.3 schema not available')
-        return SPDXSchemaValidator(schema=schema)
+        registry = _build_registry_from_dir(_SCHEMA_DIR)
+        return SPDXSchemaValidator(
+            schema=schema,
+            registry=registry,
+        )
 
     def test_valid_passes(self, validator: SPDXSchemaValidator) -> None:
         """Test valid passes."""

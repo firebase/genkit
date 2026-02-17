@@ -51,7 +51,7 @@ dependencies = [
   "pypi-attestations>=0.0.20",                # PEP 740 attestation generation + verification
   "sigstore>=3.0.0",                          # Keyless artifact signing via Sigstore OIDC
   "strenum>=0.4.15; python_version < '3.11'", # StrEnum backport for 3.10
-  "tomli>=2.0.0; python_version < '3.11'",   # tomllib backport for 3.10
+  "tomli>=2.0.0; python_version < '3.11'",    # tomllib backport for 3.10
   "genkit",                                   # Genkit AI SDK (core dep for AI features)
 ]
 description = "Release orchestration for polyglot monorepos"
@@ -91,10 +91,12 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts    = "--cov=releasekit --cov-config=pyproject.toml --cov-report=term-missing -m 'not network'"
-markers    = ["network: requires internet access (deselected by default, run with: pytest -m network)"]
+addopts = "--cov=releasekit --cov-config=pyproject.toml --cov-report=term-missing -m 'not network'"
+markers = [
+  "network: requires internet access (deselected by default, run with: pytest -m network)",
+]
 pythonpath = ["."]
-testpaths  = ["tests"]
+testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true

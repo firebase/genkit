@@ -108,6 +108,7 @@ from releasekit.checks._license_tree import (
     format_license_tree_as,
     should_use_color,
 )
+from releasekit.checks._universal import LicenseExemptions
 from releasekit.commit_parsing._types import BumpType
 from releasekit.compliance import (
     ComplianceControl,
@@ -1058,6 +1059,17 @@ def _check_one_workspace(
 
     skip = build_skip_map(ws_config, [p.name for p in packages])
 
+    # Build license exemptions from config so overrides are applied.
+    lic_cfg = config.license
+    exemptions = LicenseExemptions(
+        exempt_packages=frozenset(lic_cfg.exempt_packages),
+        allow_licenses=frozenset(lic_cfg.allow_licenses),
+        deny_licenses=frozenset(lic_cfg.deny_licenses),
+        license_overrides=dict(lic_cfg.overrides),
+        workspace_exceptions=frozenset(lic_cfg.workspace_exceptions),
+        project_exceptions={k: frozenset(v) for k, v in lic_cfg.project_exceptions.items()},
+    )
+
     result = run_checks(
         packages,
         graph,
@@ -1070,6 +1082,8 @@ def _check_one_workspace(
         library_dirs=ws_config.library_dirs,
         plugin_dirs=ws_config.plugin_dirs,
         skip_map=skip or None,
+        project_license=lic_cfg.project,
+        exemptions=exemptions,
     )
     return label, result
 
@@ -2424,8 +2438,6 @@ def _cmd_licenses(args: argparse.Namespace) -> int:
         build_graph(packages)
 
         # Build exemptions from [license] config.
-        from releasekit.checks._universal import LicenseExemptions  # noqa: PLC0415
-
         lic_cfg = config.license
         exemptions = LicenseExemptions(
             exempt_packages=frozenset(lic_cfg.exempt_packages),
