@@ -35,6 +35,10 @@ from genkit.core.typing import (
     Part,
     Role,
     TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
 )
 from genkit.testing import (
     ProgrammableModel,
@@ -469,3 +473,206 @@ def clean_schema(d: object) -> object:
         return [clean_schema(i) for i in d]
     else:
         return d
+
+
+@pytest.mark.asyncio
+async def test_handles_multipart_tool_responses(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """Multipart tool response has output and content extracted separately.
+
+    Mirrors JS SDK test: 'handles multipart tool responses' in generate_test.ts.
+    """
+    ai, pm = setup_test
+
+    @ai.tool(name='multiTool', multipart=True)
+    def multi_tool() -> dict:
+        """A tool with multiple parts."""
+        return {
+            'output': 'main output',
+            'content': [{'text': 'part 1'}],
+        }
+
+    # First model call: return a tool request for multiTool
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='multiTool', input={}),
+                        )
+                    ),
+                ],
+            ),
+        )
+    )
+    # Second model call: return final text after tool response
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='go'))],
+                ),
+            ],
+            tools=['multiTool'],
+        ),
+    )
+
+    assert response.text == 'done'
+
+    # Verify the tool message has output and content extracted separately
+    messages = response.messages
+    assert len(messages) == 4
+
+    # messages[0]: user prompt
+    assert messages[0].role == Role.USER
+
+    # messages[1]: model tool request
+    assert messages[1].role == Role.MODEL
+
+    # messages[2]: tool response with separated output + content
+    tool_msg = messages[2]
+    assert tool_msg.role == Role.TOOL
+    assert len(tool_msg.content) == 1
+    tool_resp_part = tool_msg.content[0]
+    assert isinstance(tool_resp_part.root, ToolResponsePart)
+    tr = tool_resp_part.root.tool_response
+    assert tr.name == 'multiTool'
+    assert tr.output == 'main output'
+    assert tr.content == [{'text': 'part 1'}]
+
+    # messages[3]: final model response
+    assert messages[3].role == Role.MODEL
+    assert messages[3].content[0].root.text == 'done'
+
+
+@pytest.mark.asyncio
+async def test_handles_multipart_tool_content_only(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """Multipart tool with content only (no output) works correctly."""
+    ai, pm = setup_test
+
+    @ai.tool(name='contentTool', multipart=True)
+    def content_tool() -> dict:
+        """A tool that returns content only."""
+        return {
+            'content': [{'text': 'part 1'}],
+        }
+
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='contentTool', input={}),
+                        )
+                    ),
+                ],
+            ),
+        )
+    )
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='go'))],
+                ),
+            ],
+            tools=['contentTool'],
+        ),
+    )
+
+    tool_msg = response.messages[2]
+    assert tool_msg.role == Role.TOOL
+    tool_resp_part = tool_msg.content[0]
+    assert isinstance(tool_resp_part.root, ToolResponsePart)
+    tr = tool_resp_part.root.tool_response
+    assert tr.name == 'contentTool'
+    assert tr.output is None
+    assert tr.content == [{'text': 'part 1'}]
+
+
+@pytest.mark.asyncio
+async def test_regular_tool_v2_wrapper_in_generate(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """Regular tool called via tool.v2 wrapper wraps output in {output: result}.
+
+    Mirrors JS SDK test: 'should wrap v1 tool output when called as v2'.
+    """
+    ai, pm = setup_test
+
+    # testTool is already defined in setup_test as a regular (non-multipart) tool
+
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='testTool', input={}),
+                        )
+                    ),
+                ],
+            ),
+        )
+    )
+    pm.responses.append(
+        GenerateResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='go'))],
+                ),
+            ],
+            tools=['testTool'],
+        ),
+    )
+
+    tool_msg = response.messages[2]
+    assert tool_msg.role == Role.TOOL
+    tool_resp_part = tool_msg.content[0]
+    assert isinstance(tool_resp_part.root, ToolResponsePart)
+    tr = tool_resp_part.root.tool_response
+    assert tr.name == 'testTool'
+    # Regular tool output is dumped directly (not wrapped in {output:...})
+    assert tr.output == 'tool called'
+    assert tr.content is None
