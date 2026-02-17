@@ -153,6 +153,7 @@ samples = [
   "framework-evaluator-demo",
   "framework-format-demo",
   "framework-middleware-demo",
+  "framework-multipart-tools",
   "framework-prompt-demo",
   "framework-realtime-tracing-demo",
   "framework-restaurant-demo",
