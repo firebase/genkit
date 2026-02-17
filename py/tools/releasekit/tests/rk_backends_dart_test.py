@@ -43,9 +43,7 @@ from releasekit.backends.registry.pubdev import PubDevRegistry
 from releasekit.backends.workspace import Workspace
 from releasekit.backends.workspace.dart import DartWorkspace
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _create_melos(root: Path, patterns: list[str]) -> None:
@@ -82,9 +80,7 @@ def _create_pubspec(
     return directory
 
 
-# ---------------------------------------------------------------------------
 # Protocol conformance
-# ---------------------------------------------------------------------------
 
 
 class TestDartProtocolConformance:
@@ -106,9 +102,7 @@ class TestDartProtocolConformance:
         assert isinstance(reg, Registry)
 
 
-# ---------------------------------------------------------------------------
 # DartWorkspace.discover()
-# ---------------------------------------------------------------------------
 
 
 class TestDartWorkspaceDiscover:
@@ -204,9 +198,7 @@ class TestDartWorkspaceDiscover:
         assert pkgs[0].manifest_path.name == 'pubspec.yaml'
 
 
-# ---------------------------------------------------------------------------
 # DartWorkspace.rewrite_version()
-# ---------------------------------------------------------------------------
 
 
 class TestDartWorkspaceRewriteVersion:
@@ -223,9 +215,7 @@ class TestDartWorkspaceRewriteVersion:
         assert 'version: 2.0.0' in text
 
 
-# ---------------------------------------------------------------------------
 # DartWorkspace.rewrite_dependency_version()
-# ---------------------------------------------------------------------------
 
 
 class TestDartWorkspaceRewriteDependencyVersion:
@@ -256,15 +246,14 @@ class TestDartWorkspaceRewriteDependencyVersion:
         await ws.rewrite_dependency_version(pkg_dir / 'pubspec.yaml', 'nonexistent', '1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # PubDevRegistry
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN401
     """Create a mock transport."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         for suffix, (status, body) in responses.items():
             if url.endswith(suffix):
@@ -279,6 +268,7 @@ def _make_client_cm(transport: Any) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 

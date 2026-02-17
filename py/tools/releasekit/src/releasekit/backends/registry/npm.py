@@ -67,6 +67,25 @@ class NpmRegistry:
     Implements the :class:`~releasekit.backends.registry.Registry`
     protocol using the npm registry JSON API.
 
+    This backend handles **read-side** operations: checking whether
+    a version is published, polling for availability, listing versions,
+    and verifying checksums.
+
+    When ``registry_url`` is set in ``releasekit.toml``, it overrides
+    the base URL for both this backend (polling/verification) **and**
+    the publish path (``pnpm publish --registry``).  This works with:
+
+    - **Full mirrors** like `Verdaccio <https://verdaccio.org/>`_
+    - **Managed registries** like `Google Cloud Artifact Registry
+      <https://cloud.google.com/artifact-registry>`_ (private npm
+      hosting with IAM-based access control)
+    - **Security proxies** like Google's `Wombat Dressing Room
+      <https://github.com/GoogleCloudPlatform/wombat-dressing-room>`_,
+      which proxies both reads (``GET /<package>`` → npmjs.org) and
+      writes (``PUT /<package>`` with auth/2FA enforcement → npmjs.org)
+
+    See the configuration guide for a worked example.
+
     Args:
         base_url: Base URL for the npm registry API. Defaults to
             public npm. Use :data:`TEST_BASE_URL` for a local

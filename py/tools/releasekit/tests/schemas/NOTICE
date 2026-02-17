@@ -10,3 +10,8 @@ spdx-2.3.schema.json
   Source: https://github.com/spdx/spdx-spec
   License: Creative Commons Attribution 3.0 Unported (CC-BY-3.0)
   Copyright: The SPDX Workgroup, a Linux Foundation project
+
+spdx.schema.json
+  Source: https://github.com/CycloneDX/specification
+  License: Apache License 2.0
+  Copyright: OWASP Foundation

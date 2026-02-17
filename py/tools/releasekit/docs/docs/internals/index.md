@@ -56,4 +56,11 @@ decisions behind each ReleaseKit subsystem.
     Git tag creation, GitHub Release management, and CI-mode
     draft releases.
 
+-   :material-license:{ .lg .middle } **[License Data Verification](license-data.md)**
+
+    ---
+
+    How the license database is verified against SPDX and Google
+    licenseclassifier, including CI integration tests.
+
 </div>

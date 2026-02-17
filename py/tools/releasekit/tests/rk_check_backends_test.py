@@ -38,9 +38,7 @@ from releasekit.workspace import Package
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _pkg(
@@ -67,9 +65,7 @@ def _pkg(
     )
 
 
-# ---------------------------------------------------------------------------
 # Factory tests
-# ---------------------------------------------------------------------------
 
 
 class TestGetCheckBackend:
@@ -122,9 +118,7 @@ class TestGetCheckBackend:
         assert backend._core_package == 'core'
 
 
-# ---------------------------------------------------------------------------
 # BaseCheckBackend tests
-# ---------------------------------------------------------------------------
 
 
 class TestBaseCheckBackend:
@@ -151,9 +145,7 @@ class TestBaseCheckBackend:
         assert backend.run_fixes([]) == []
 
 
-# ---------------------------------------------------------------------------
 # JavaCheckBackend tests
-# ---------------------------------------------------------------------------
 
 _POM_COMPLETE = """\
 <?xml version="1.0" encoding="UTF-8"?>
@@ -347,9 +339,7 @@ class TestJavaCheckBackend:
         assert result.ok
 
 
-# ---------------------------------------------------------------------------
 # GoCheckBackend tests
-# ---------------------------------------------------------------------------
 
 
 class TestGoCheckBackend:
@@ -428,9 +418,7 @@ class TestGoCheckBackend:
         assert not result.ok
 
 
-# ---------------------------------------------------------------------------
 # RustCheckBackend tests
-# ---------------------------------------------------------------------------
 
 
 class TestRustCheckBackend:
@@ -519,9 +507,7 @@ class TestRustCheckBackend:
         assert result.ok
 
 
-# ---------------------------------------------------------------------------
 # JsCheckBackend tests
-# ---------------------------------------------------------------------------
 
 
 class TestJsCheckBackend:
@@ -627,9 +613,7 @@ class TestJsCheckBackend:
         assert len(result.warnings) > 0
 
 
-# ---------------------------------------------------------------------------
 # DartCheckBackend tests
-# ---------------------------------------------------------------------------
 
 
 class TestDartCheckBackend:

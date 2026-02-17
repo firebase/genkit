@@ -300,7 +300,7 @@ Publishing myproject-utils@0.1.1...
     pre-releases, rollback, security, and CI/CD automation. Read them
     at your own pace.
 
-    Hit a problem? Jump to [Common Pitfalls](#common-pitfalls) above
+    Hit a problem? Check the [Troubleshooting](#troubleshooting) section
     or the [FAQ](faq.md).
 
 ---
@@ -1059,22 +1059,23 @@ For more details, see:
 **In this section:**
 
 - [The Two Approaches](#the-two-approaches) — Composite Action vs Template Workflows
-- [Using the Composite Action](#using-the-composite-action) — Minimal workflow example
+- [Using the Composite Actions](#using-the-composite-actions) — Minimal workflow example
 - [Using Template Workflows](#using-template-workflows) — Copy-paste templates for every ecosystem
 - [Dissecting the Python Workflow](#dissecting-the-python-uv-workflow) — Job-by-job walkthrough
 - [Dissecting the Rollback Workflow](#dissecting-the-rollback-workflow) — One-click rollback
-- [Security: Script Injection](#security-script-injection-prevention) — Protecting against CI attacks
+- Security: Script Injection — Protecting against CI attacks *(planned)*
 
 ### The Two Approaches
 
 | Approach | Configuration | Best For |
 |----------|--------------|----------|
-| **Composite Action** | `uses: ./py/tools/releasekit` | Maximum flexibility |
+| **Composite Actions** | `setup-releasekit` + `run-releasekit` | Maximum flexibility |
 | **Template Workflows** | Copy from `github/workflows/` | Quick start |
 
-### Using the Composite Action
+### Using the Composite Actions
 
-ReleaseKit ships as a reusable GitHub Action. Add it to your workflow:
+ReleaseKit ships as two composite GitHub Actions that work together.
+Add them to your workflow:
 
 ```yaml
 jobs:
@@ -1086,15 +1087,21 @@ jobs:
       attestations: write    # PEP 740 attestations
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0     # Full history for changelog
 
-      - uses: ./py/tools/releasekit
+      - uses: ./.github/actions/setup-releasekit
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          releasekit-dir: py/tools/releasekit
+          git-user-name: github-actions[bot]
+          git-user-email: github-actions[bot]@users.noreply.github.com
+
+      - uses: ./.github/actions/run-releasekit
         with:
           command: publish
           workspace: py
+          releasekit-dir: py/tools/releasekit
         env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Using Template Workflows
@@ -1188,11 +1195,21 @@ prepare:
   if: github.event_name == 'push' && !startsWith(...)
   steps:
     - uses: actions/checkout@v6
-      with: { fetch-depth: 0 }       # Full git history for changelog
-    - uses: ./py/tools/releasekit
+    - uses: ./.github/actions/setup-releasekit
+      with:
+        token: ${{ env.RESOLVED_TOKEN }}
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+        git-user-name: ${{ needs.auth.outputs.git-user-name }}
+        git-user-email: ${{ needs.auth.outputs.git-user-email }}
+
+    - uses: ./.github/actions/run-releasekit
+      id: prepare
       with:
         command: prepare
         workspace: py
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+      env:
+        GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
 ```
 
 This job reads all commits since the last release, computes version
@@ -1208,10 +1225,20 @@ release:
     github.event.pull_request.merged == true &&
     contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
   steps:
-    - uses: ./py/tools/releasekit
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/setup-releasekit
+      with:
+        token: ${{ env.RESOLVED_TOKEN }}
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+
+    - uses: ./.github/actions/run-releasekit
+      id: release
       with:
         command: release
         workspace: py
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+      env:
+        GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
 ```
 
 When you merge the Release PR, this job creates git tags and a GitHub
@@ -1222,17 +1249,26 @@ for Release PRs — not every merged PR.
 
 ```yaml
 publish:
-  needs: release                     # Waits for tags to be created
+  needs: [auth, release]             # Waits for tags to be created
   environment: pypi                  # GitHub deployment protection rules
   permissions:
     id-token: write                  # OIDC trusted publishing
+    attestations: write              # PEP 740 attestations
   steps:
-    - uses: ./py/tools/releasekit
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/setup-releasekit
+      with:
+        token: ${{ env.RESOLVED_TOKEN }}
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+        enable-ollama: "false"
+
+    - uses: ./.github/actions/run-releasekit
       with:
         command: publish
         workspace: py
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
       env:
-        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
 ```
 
 Key details:
@@ -1399,8 +1435,6 @@ Here's the complete workflow from setup to production release:
 
 Having issues? Start here:
 
-- [Common Pitfalls](#common-pitfalls) — the 6 most frequent beginner
-  mistakes (shallow clones, missing commits, expired tokens, etc.)
 - [Error Codes](error-codes.md) — full error code reference with
   actionable hints
 - [FAQ](faq.md) — common questions and edge cases

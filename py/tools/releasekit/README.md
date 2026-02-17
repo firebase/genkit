@@ -46,12 +46,12 @@ implementation plan.
 | Feature | releasekit | release-please | semantic-release | release-it | changesets | nx release | knope | goreleaser |
 |---------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | 🏗️ Monorepo | ✅ | ✅ | ❌ | ⚠️ | ✅ | ✅ | ✅ | ❌ |
-| 🌐 Polyglot (Py/JS/Go/Bazel/Rust/Java/Dart) | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
+| 🌐 Polyglot (Py/JS/Go/Rust/Java/Dart/Bazel + more planned) | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ |
 | 📝 Conventional Commits | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | 📦 Changeset files | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| 🩺 Health checks (33) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🩺 Health checks (42) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ✅ GH/GL | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
 | 🏷️ Pre-release | ✅ | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -65,7 +65,10 @@ implementation plan.
 | 🔒 Release lock | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | ✍️ Signing / provenance | ✅ Sigstore | ❌ | ⚠️ npm | ❌ | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | 📋 SBOM | ✅ CycloneDX+SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| 📢 Announcements | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 📢 Announcements (6 channels) | ✅ Slack/Discord/Teams/Twitter/LinkedIn/Webhook | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 🤖 AI release notes | ✅ Genkit | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🏷️ AI release codenames | ✅ 28 themes | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🛡️ AI safety guardrails | ✅ 3-layer | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 📊 Plan profiling | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔭 OpenTelemetry tracing | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔄 Migrate from alternatives | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -77,6 +80,7 @@ implementation plan.
 | 🛡️ OSPS Baseline compliance | ✅ L1–L3 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🌍 Ecosystem-specific security | ✅ 6 ecosystems | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | ⏭️ Per-package check skipping | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🤖 AI-powered features | ✅ Genkit | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 **Legend:** ✅ = supported, ⚠️ = partial, ❌ = not supported, 🔜 = planned
 
@@ -131,7 +135,7 @@ $ releasekit check
   ✓ naming_convention         All names match pattern
   ✓ metadata_completeness     All required fields present
 
-  33 checks run: 32 passed, 1 warning, 0 errors
+  42 checks run: 41 passed, 1 warning, 0 errors
 ```
 
 <!-- Compliance report -->
@@ -203,6 +207,90 @@ See the [sample workflows](github/workflows/) for production-ready
 templates for Python/uv, Go, JS/pnpm, Rust/Cargo, Dart/pub, and
 Java/Gradle.
 
+### CI Authentication
+
+The workflow `auth` job supports three authentication modes in
+priority order. Use the `auth_method` dropdown in the workflow
+dispatch UI to override auto-detection (default: `auto`).
+
+| Mode | Priority | Secrets/Variables | CLA | CI Trigger |
+|------|:--------:|-------------------|:---:|:----------:|
+| **GitHub App** | 1st | `RELEASEKIT_APP_ID` (variable) + `RELEASEKIT_APP_PRIVATE_KEY` (secret) | ✅ | ✅ |
+| **PAT** | 2nd | `RELEASEKIT_TOKEN` (secret) | ✅ | ✅ |
+| **GITHUB_TOKEN** | 3rd | Built-in (no setup) | ⚠️ | ❌ |
+
+**Auto** (`auth_method: auto`) tries App first, then PAT, then
+GITHUB_TOKEN — based on which secrets/variables are configured.
+
+#### Option A: GitHub App (recommended)
+
+1. Create a GitHub App at your org settings → Developer settings → GitHub Apps
+2. Permissions: **Contents** (Read & write), **Pull requests** (Read & write)
+3. Install the App on the target repository
+4. Add repo **variable**: `RELEASEKIT_APP_ID` = the App ID
+5. Add repo **secret**: `RELEASEKIT_APP_PRIVATE_KEY` = the PEM private key
+
+#### Option B: Personal Access Token
+
+1. Create a fine-grained PAT scoped to the repository
+2. Permissions: **Contents** (Read & write), **Pull requests** (Read & write)
+3. Add repo **secret**: `RELEASEKIT_TOKEN` = the PAT
+
+#### Option C: GITHUB_TOKEN with CLA-signed identity
+
+If you can't set up an App or PAT, set these repo **variables** so
+that Release PR commits use your CLA-signed identity:
+
+```
+RELEASEKIT_GIT_USER_NAME  = Your Name
+RELEASEKIT_GIT_USER_EMAIL = your-email@example.com
+```
+
+The GITHUB_TOKEN fallback reads these variables and uses them for
+`git config user.name` and `user.email`, so CLA checks pass on
+the Release PR. Without these variables, commits are attributed to
+`github-actions[bot]` which may fail CLA.
+
+> **Note:** GITHUB_TOKEN PRs will **not** trigger downstream CI
+> workflows (GitHub limitation). Use App or PAT for full CI integration.
+
+#### `auth_method` dropdown
+
+The workflow dispatch UI includes an `auth_method` choice:
+
+| Value | Behavior |
+|-------|----------|
+| `auto` | Auto-detect from configured secrets (default) |
+| `app` | Force GitHub App token (fails if not configured) |
+| `pat` | Force PAT (fails if not configured) |
+| `github-token` | Force built-in GITHUB_TOKEN |
+
+### Bootstrap Tags
+
+When adopting releasekit on a repo that already has releases,
+`releasekit init` automatically creates bootstrap tags so version
+bumps start from the correct baseline. The init command:
+
+1. Scans existing git tags and classifies them by workspace
+2. Picks the latest tag per workspace and writes `bootstrap_sha`
+3. Discovers all packages and creates per-package tags at the
+   bootstrap commit for any package that doesn't already have one
+4. Creates the umbrella tag if configured and missing
+
+```bash
+# Preview what init will do
+releasekit init --dry-run
+
+# Run init — scaffolds config, scans tags, creates bootstrap tags
+releasekit init
+
+# Push the created tags to the remote
+git push origin --tags
+```
+
+Tags are created locally. After verifying them with `git tag -l`,
+push to the remote with `git push origin --tags`.
+
 ## Commands
 
 | Command | Description |
@@ -213,7 +301,7 @@ Java/Gradle.
 | `publish` | Build and publish packages to registries in dependency order |
 | `prepare` | Bump versions, generate changelogs, open a Release PR |
 | `release` | Tag a merged Release PR and create a GitHub Release |
-| `check` | Run 33 workspace health checks (`--fix` to auto-fix 17 issues) |
+| `check` | Run 42 workspace health checks (`--fix` to auto-fix 22 issues) |
 | `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
 | `validate` | Run validators against release artifacts (provenance, SBOM, attestations) |
 | `compliance` | Evaluate OSPS Baseline compliance (L1–L3) across all ecosystems |
@@ -261,6 +349,55 @@ releasekit graph --format dot | dot -Tsvg -o deps.svg
 # Show as a Markdown table
 releasekit graph --format table
 ```
+
+### AI-Powered Features (Genkit)
+
+ReleaseKit uses [Genkit](https://github.com/firebase/genkit) for AI-powered
+release intelligence. All AI features are **on by default** and degrade
+gracefully when no model is available.
+
+| Feature | What It Does | Module |
+|---------|-------------|--------|
+| **AI release summaries** | Structured changelog → highlights, breaking changes, stats | `summarize.py` |
+| **AI release codenames** | Themed codenames (28 built-in themes) with history tracking | `codename.py` |
+| **Dotprompt templates** | `.prompt` files with Handlebars templates + YAML frontmatter | `prompts/` |
+| **3-layer safety** | Prompt rules + curated themes + Aho-Corasick blocklist filter | `_wordfilter.py` |
+| **Custom blocklist** | Extend built-in blocked words with a project-specific file | `_wordfilter.py` |
+| **10 AI feature toggles** | Per-feature on/off: summarize, codename, enhance, detect_breaking, classify, scope, migration_guide, tailor_announce, draft_advisory, ai_hints | `config.py` |
+| **Model fallback chain** | Try models in order (Ollama → Google GenAI) | `ai.py` |
+| **Content-hash caching** | Skip re-summarization when changelog hasn't changed | `summarize.py` |
+
+```toml
+# releasekit.toml
+[ai]
+models = ["ollama/gemma3:4b", "google-genai/gemini-3.0-flash-preview"]
+codename_theme = "mountains"   # 28 built-in themes or any custom string
+blocklist_file = ""             # custom blocked-words file (extends built-in list)
+
+[ai.features]
+summarize       = true   # AI release note summarization
+codename        = true   # AI-generated release codenames
+enhance         = true   # Changelog entry enhancement
+detect_breaking = true   # Breaking change detection
+classify        = false  # Semantic version classification
+scope           = false  # Commit scoping
+migration_guide = true   # Migration guide generation
+tailor_announce = false  # Announcement tailoring per channel
+draft_advisory  = false  # Security advisory drafting
+ai_hints        = false  # Contextual error hints
+```
+
+```bash
+# CLI overrides
+releasekit publish --no-ai              # Disable all AI features
+releasekit publish --model ollama/gemma3:12b  # Override model
+releasekit publish --codename-theme galaxies  # Override theme
+```
+
+**Safety guardrails** (3 layers):
+1. **Prompt rules** — System prompt enforces "safe for all audiences" with explicit constraints
+2. **Curated themes** — 28 built-in themes (mountains, animals, galaxies, flowers, ...)
+3. **Post-generation blocklist** — Aho-Corasick trie-based filter with word-boundary semantics rejects unsafe codenames/summaries in O(n) time. Supports exact and prefix/stem matches. Configurable via `ai.blocklist_file` to extend the built-in list
 
 ### Publish Pipeline
 
@@ -364,9 +501,9 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 
 ### Health Checks
 
-`releasekit check` runs 33 checks split into two categories:
+`releasekit check` runs 42 checks split into two categories:
 
-**Universal checks** (8 — always run):
+**Universal checks** (15 — always run):
 - `cycles` — circular dependency chains
 - `self_deps` — package depends on itself
 - `orphan_deps` — internal dep not in workspace
@@ -375,8 +512,15 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `stale_artifacts` — leftover .bak or dist/ files
 - `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
 - `lockfile_staleness` — `uv.lock` is in sync with `pyproject.toml`
+- `spdx_headers` — SPDX license identifier headers in source files
+- `license_compatibility` — dependency licenses compatible with project license (with transitive dep resolution via `uv.lock`)
+- `deep_license_scan` — embedded/vendored code license detection
+- `license_changes` — detect license changes between dependency versions
+- `dual_license_choice` — dual-licensed deps (SPDX `OR`) have a documented choice
+- `patent_clauses` — flag deps with patent grant/retaliation clauses (data-driven from `licenses.toml`)
+- `license_text_completeness` — LICENSE file text matches declared SPDX ID
 
-**Language-specific checks** (25 — via `CheckBackend` protocol):
+**Language-specific checks** (27 — via `CheckBackend` protocol):
 - `type_markers` — py.typed PEP 561 marker
 - `version_consistency` — plugin version matches core
 - `naming_convention` — directory matches package name
@@ -402,11 +546,13 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `license_classifier_mismatch` — license classifiers match LICENSE file
 - `unreachable_extras` — optional-dependencies reference valid packages
 - `self_dependencies` — no package lists itself in dependencies
+- `typing_classifier` — `Typing :: Typed` and `License :: OSI Approved` classifiers present
+- `keywords_and_urls` — `keywords` and standard `[project.urls]` entries present
 - `distro_deps` — distro packaging dep sync
 
-The `CheckBackend` protocol allows adding language-specific checks
-for other runtimes (Go, JS, Rust, Java, Dart) without modifying the
-core check runner.
+The `CheckBackend` protocol enables language-specific checks across
+6 ecosystems — Python, Go, JS/TS, Rust, Java/Kotlin, and Dart — each
+with its own check backend and auto-fixers.
 
 #### Source-Level Diagnostics
 
@@ -435,14 +581,17 @@ Helpers for check authors:
 
 ### Auto-Fixers
 
-`releasekit check --fix` runs 17 auto-fixers:
+`releasekit check --fix` runs 22 auto-fixers:
 
-**Universal fixers** (3):
+**Universal fixers** (6):
 - `fix_missing_readme` — create empty README.md
 - `fix_missing_license` — copy bundled Apache 2.0 LICENSE
 - `fix_stale_artifacts` — delete .bak files and dist/ directories
+- `fix_missing_spdx_headers` — add SPDX license headers to source files (via `addlicense`)
+- `fix_missing_license_files` — async fetch LICENSE text from SPDX list / GitHub for packages missing them
+- `fix_missing_notice` — generate NOTICE file with attribution for all deps (including transitive)
 
-**Python-specific fixers** (14 — via `PythonCheckBackend.run_fixes()`):
+**Python-specific fixers** (16 — via `PythonCheckBackend.run_fixes()`):
 - `fix_publish_classifiers` — sync `Private :: Do Not Upload` with `exclude_publish`
 - `fix_readme_field` — add `readme = "README.md"` to `[project]`
 - `fix_changelog_url` — add `Changelog` to `[project.urls]`
@@ -457,6 +606,8 @@ Helpers for check authors:
 - `fix_placeholder_urls` — remove placeholder URLs
 - `fix_license_classifier_mismatch` — fix license classifier to match LICENSE file
 - `fix_self_dependencies` — remove self-referencing dependencies
+- `fix_typing_classifier` — add `Typing :: Typed` and `License :: OSI Approved` classifiers
+- `fix_keywords_and_urls` — add `keywords` and standard `[project.urls]` entries
 
 ### Preflight Checks
 
@@ -610,6 +761,10 @@ appropriate default based on the workspace ecosystem:
 | `kotlin` | `semver` | Maven Central | Same as Java |
 | `clojure` | `semver` | Clojars | [Leiningen versioning](https://codeberg.org/leiningen/leiningen) |
 | `bazel` | `semver` | BCR | [Bazel Central Registry](https://registry.bazel.build/) |
+| `swift` | `semver` | Swift Package Index | Git-tag-based versioning (🔜 planned) |
+| `ruby` | `semver` | RubyGems.org | [RubyGems versioning](https://guides.rubygems.org/patterns/) (🔜 planned) |
+| `dotnet` | `semver` | NuGet Gallery | [NuGet versioning](https://learn.microsoft.com/en-us/nuget/concepts/package-versioning) (🔜 planned) |
+| `php` | `semver` | Packagist | [Composer versioning](https://getcomposer.org/doc/articles/versions.md) (🔜 planned) |
 
 Python is the only ecosystem that defaults to PEP 440 because PyPI
 requires it. All other registries use or recommend Semantic Versioning.
@@ -694,11 +849,16 @@ releasekit
 │   │   ├── pnpm.py        PnpmWorkspace (JS)
 │   │   ├── go.py          GoWorkspace (Go)
 │   │   ├── dart.py        DartWorkspace (Dart)
-│   │   ├── maven.py       MavenWorkspace (Java/Kotlin)
-│   │   └── cargo.py       CargoWorkspace (Rust)
+│   │   ├── maven.py       MavenWorkspace (Java/Kotlin/Gradle)
+│   │   ├── cargo.py       CargoWorkspace (Rust)
+│   │   └── bazel.py       BazelWorkspace (Bazel)
 │   ├── Registry         package registry queries
 │   │   ├── pypi.py        PyPIBackend (default)
-│   │   └── npm.py         NpmRegistry
+│   │   ├── npm.py         NpmRegistry
+│   │   ├── crates_io.py   CratesIoBackend
+│   │   ├── goproxy.py     GoProxyBackend
+│   │   ├── maven_central.py MavenCentralBackend
+│   │   └── pubdev.py      PubDevBackend
 │   └── Forge            release / PR management
 │       ├── github.py      GitHubCLIBackend (default)
 │       ├── github_api.py  GitHubAPIBackend (REST, for CI)
@@ -717,10 +877,21 @@ releasekit
 │   ├── checks/          standalone workspace health checks (subpackage)
 │   │   ├── __init__.py    re-exports public API
 │   │   ├── _protocol.py   CheckBackend protocol
+│   │   ├── _base.py       BaseCheckBackend (shared defaults)
 │   │   ├── _constants.py  shared regex, classifiers, patterns
 │   │   ├── _universal.py  universal checks + universal fixers
-│   │   ├── _python.py     PythonCheckBackend (25 checks + run_fixes)
-│   │   ├── _python_fixers.py  14 Python-specific fixer functions
+│   │   ├── _python.py     PythonCheckBackend (27 checks + run_fixes)
+│   │   ├── _python_fixers.py  16 Python-specific fixer functions
+│   │   ├── _dart.py       DartCheckBackend (pubspec, analysis_options)
+│   │   ├── _dart_fixers.py    Dart-specific fixers
+│   │   ├── _go.py         GoCheckBackend (go.mod, go.sum)
+│   │   ├── _go_fixers.py      Go-specific fixers
+│   │   ├── _java.py       JavaCheckBackend (pom.xml, build.gradle)
+│   │   ├── _java_fixers.py    Java/Kotlin-specific fixers
+│   │   ├── _js.py         JsCheckBackend (package.json, npm)
+│   │   ├── _js_fixers.py      JS/TS-specific fixers
+│   │   ├── _rust.py       RustCheckBackend (Cargo.toml, Cargo.lock)
+│   │   ├── _rust_fixers.py    Rust-specific fixers
 │   │   └── _runner.py     run_checks() orchestrator
 │   ├── scheduler.py     dependency-triggered queue dispatcher
 │   ├── publisher.py     async publish orchestration
@@ -760,6 +931,17 @@ releasekit
 │   ├── config.py        TOML config loading + validation (workspace-aware)
 │   ├── init.py          workspace config scaffolding
 │   └── cli.py           argparse + rich-argparse + shell completion
+│
+├── AI (Genkit-powered)
+│   ├── ai.py            Genkit init, model fallback, load_prompt_folder
+│   ├── _wordfilter.py   Aho-Corasick trie-based blocked-word filter
+│   ├── prompts.py       PROMPTS_DIR, inline fallback constants
+│   ├── prompts/         Dotprompt .prompt files (source of truth)
+│   │   ├── summarize.prompt   changelog → ReleaseSummary JSON
+│   │   └── codename.prompt    theme → ReleaseCodename JSON (with safety rules)
+│   ├── schemas_ai.py    ReleaseSummary, ReleaseStats, ReleaseCodename
+│   ├── summarize.py     AI changelog summarization + content-hash caching
+│   └── codename.py      AI codenames, SAFE_BUILTIN_THEMES, safety filter
 │
 ├── Observer
 │   └── observer.py      PublishStage, SchedulerState, PublishObserver
@@ -821,8 +1003,10 @@ All I/O goes through protocol-defined backends. This enables:
 # Concrete implementations:
 #   VCS:            GitCLIBackend, MercurialCLIBackend
 #   PackageManager: UvBackend, PnpmBackend
-#   Workspace:      UvWorkspaceBackend, PnpmWorkspaceBackend
-#   Registry:       PyPIBackend, NpmRegistry
+#   Workspace:      UvWorkspace, PnpmWorkspace, GoWorkspace, DartWorkspace,
+#                   MavenWorkspace, CargoWorkspace, BazelWorkspace, ClojureWorkspace
+#   Registry:       PyPIBackend, NpmRegistry, CratesIoBackend, GoProxyBackend,
+#                   MavenCentralBackend, PubDevBackend
 #   Forge:          GitHubCLIBackend, GitHubAPIBackend, GitLabCLIBackend, BitbucketAPIBackend
 ```
 
@@ -841,7 +1025,7 @@ enables multi-ecosystem support:
 
 ## Testing
 
-The test suite has **3,300+ tests** across 110+ test files:
+The test suite has **4,500+ tests** across 137 test files:
 
 ```bash
 # Run all tests
@@ -1052,9 +1236,9 @@ interfaces:
 | Protocol | Abstraction | Default Backend | Alternatives |
 |----------|-------------|-----------------|-------------|
 | 🔀 `VCS` | Version control (commit, tag, push) | `GitCLIBackend` | `MercurialCLIBackend` |
-| 📦 `PackageManager` | Build, publish, lock | `UvBackend` | `PnpmBackend` |
-| 🔍 `Workspace` | Package discovery, version rewrite | `UvWorkspace` | `PnpmWorkspace` |
-| 🌐 `Registry` | Package registry queries | `PyPIBackend` | `NpmRegistry` |
+| 📦 `PackageManager` | Build, publish, lock | `UvBackend` | `PnpmBackend`, `CargoBackend`, `DartBackend`, `GoBackend`, `MavenBackend`, `BazelBackend`, `MaturinBackend` |
+| 🔍 `Workspace` | Package discovery, version rewrite | `UvWorkspace` | `PnpmWorkspace`, `CargoWorkspace`, `DartWorkspace`, `GoWorkspace`, `MavenWorkspace`, `BazelWorkspace` |
+| 🌐 `Registry` | Package registry queries | `PyPIBackend` | `NpmRegistry`, `CratesIoBackend`, `GoProxyBackend`, `MavenCentralBackend`, `PubDevBackend` |
 | 🏭 `Forge` | Releases, PRs, labels | `GitHubCLIBackend` | `GitHubAPIBackend`, `GitLabCLIBackend`, `BitbucketAPIBackend` |
 | 🔭 `Telemetry` | Tracing spans, metrics | `NullTelemetry` | `OTelTelemetry` (OpenTelemetry) |
 

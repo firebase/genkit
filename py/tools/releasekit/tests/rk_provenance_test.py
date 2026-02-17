@@ -57,23 +57,21 @@ from releasekit.provenance import (
     verify_provenance,
 )
 
-# ── Constants ──
-
 
 class TestConstants:
     """Tests for module-level constants."""
 
     def test_in_toto_statement_type(self) -> None:
+        """Test in toto statement type."""
         assert IN_TOTO_STATEMENT_TYPE == 'https://in-toto.io/Statement/v1'
 
     def test_slsa_predicate_type(self) -> None:
+        """Test slsa predicate type."""
         assert SLSA_PROVENANCE_PREDICATE_TYPE == 'https://slsa.dev/provenance/v1'
 
     def test_releasekit_build_type(self) -> None:
+        """Test releasekit build type."""
         assert RELEASEKIT_BUILD_TYPE == 'https://firebase.google.com/releasekit/v1'
-
-
-# ── SubjectDigest ──
 
 
 class TestSubjectDigest:
@@ -96,9 +94,6 @@ class TestSubjectDigest:
             raise AssertionError('Should be frozen')
         except AttributeError:
             pass
-
-
-# ── BuildContext ──
 
 
 class TestBuildContext:
@@ -202,9 +197,6 @@ class TestBuildContext:
         assert ctx.builder_id.startswith('local://')
 
 
-# ── ProvenanceStatement ──
-
-
 class TestProvenanceStatement:
     """Tests for ProvenanceStatement serialization."""
 
@@ -267,9 +259,6 @@ class TestProvenanceStatement:
         stmt = ProvenanceStatement(subjects=[], predicate={})
         d = stmt.to_dict()
         assert d['subject'] == []
-
-
-# ── Digest helpers ──
 
 
 class TestComputeSha256:
@@ -357,9 +346,6 @@ class TestSubjectsFromChecksums:
     def test_empty(self) -> None:
         """Empty input returns empty list."""
         assert subjects_from_checksums({}) == []
-
-
-# ── Provenance generation ──
 
 
 class TestGenerateProvenance:
@@ -482,9 +468,6 @@ class TestGenerateProvenance:
         assert 'resolvedDependencies' not in build_def
 
 
-# ── Workspace provenance ──
-
-
 class TestGenerateWorkspaceProvenance:
     """Tests for generate_workspace_provenance."""
 
@@ -523,9 +506,6 @@ class TestGenerateWorkspaceProvenance:
         )
         params = stmt.predicate['buildDefinition']['externalParameters']
         assert params['ecosystem'] == 'python'
-
-
-# ── Provenance verification ──
 
 
 class TestVerifyProvenance:
@@ -679,17 +659,16 @@ class TestVerifyProvenance:
         assert reason == 'OK'
 
 
-# ── Auto-detection helpers ──
-
-
 class TestIsCi:
     """Tests for is_ci()."""
 
     def test_true_when_ci_set(self) -> None:
+        """Test true when ci set."""
         with mock.patch.dict(os.environ, {'CI': 'true'}, clear=True):
             assert is_ci() is True
 
     def test_false_when_ci_not_set(self) -> None:
+        """Test false when ci not set."""
         with mock.patch.dict(os.environ, {}, clear=True):
             assert is_ci() is False
 
@@ -698,27 +677,33 @@ class TestHasOidcCredential:
     """Tests for has_oidc_credential()."""
 
     def test_github_actions_oidc(self) -> None:
+        """Test github actions oidc."""
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert has_oidc_credential() is True
 
     def test_gitlab_ci_jwt_v2(self) -> None:
+        """Test gitlab ci jwt v2."""
         with mock.patch.dict(os.environ, {'CI_JOB_JWT_V2': 'eyJ...'}, clear=True):
             assert has_oidc_credential() is True
 
     def test_gitlab_ci_jwt(self) -> None:
+        """Test gitlab ci jwt."""
         with mock.patch.dict(os.environ, {'CI_JOB_JWT': 'eyJ...'}, clear=True):
             assert has_oidc_credential() is True
 
     def test_circleci_oidc(self) -> None:
+        """Test circleci oidc."""
         with mock.patch.dict(os.environ, {'CIRCLE_OIDC_TOKEN_V2': 'eyJ...'}, clear=True):
             assert has_oidc_credential() is True
 
     def test_no_oidc(self) -> None:
+        """Test no oidc."""
         with mock.patch.dict(os.environ, {}, clear=True):
             assert has_oidc_credential() is False
 
     def test_ci_without_oidc(self) -> None:
+        """Test ci without oidc."""
         with mock.patch.dict(os.environ, {'CI': 'true'}, clear=True):
             assert has_oidc_credential() is False
 
@@ -747,9 +732,6 @@ class TestShouldSignProvenance:
         """Local without OIDC → False."""
         with mock.patch.dict(os.environ, {}, clear=True):
             assert should_sign_provenance() is False
-
-
-# ── Round-trip: generate → write → verify ──
 
 
 class TestRoundTrip:
@@ -818,32 +800,31 @@ class TestRoundTrip:
         assert 'not found in provenance' in reason
 
 
-# ── Supported versions ──
-
-
 class TestSupportedVersions:
     """Tests for SLSA_SUPPORTED_SPEC_VERSIONS constant."""
 
     def test_includes_v1_1(self) -> None:
+        """Test includes v1 1."""
         assert '1.1' in SLSA_SUPPORTED_SPEC_VERSIONS
 
     def test_includes_v1_2(self) -> None:
+        """Test includes v1 2."""
         assert '1.2' in SLSA_SUPPORTED_SPEC_VERSIONS
 
     def test_includes_draft(self) -> None:
+        """Test includes draft."""
         assert 'draft' in SLSA_SUPPORTED_SPEC_VERSIONS
 
     def test_is_tuple(self) -> None:
+        """Test is tuple."""
         assert isinstance(SLSA_SUPPORTED_SPEC_VERSIONS, tuple)
-
-
-# ── Schema validation ──
 
 
 class TestSchemaExport:
     """Tests for the exported JSON schema constant."""
 
     def test_schema_has_required_fields(self) -> None:
+        """Test schema has required fields."""
         assert '$schema' in SLSA_PROVENANCE_V1_SCHEMA
         assert 'required' in SLSA_PROVENANCE_V1_SCHEMA
         required = SLSA_PROVENANCE_V1_SCHEMA['required']
@@ -853,10 +834,12 @@ class TestSchemaExport:
         assert 'predicate' in required
 
     def test_schema_enforces_statement_type(self) -> None:
+        """Test schema enforces statement type."""
         props = SLSA_PROVENANCE_V1_SCHEMA['properties']
         assert props['_type']['const'] == IN_TOTO_STATEMENT_TYPE
 
     def test_schema_enforces_predicate_type(self) -> None:
+        """Test schema enforces predicate type."""
         props = SLSA_PROVENANCE_V1_SCHEMA['properties']
         assert props['predicateType']['const'] == SLSA_PROVENANCE_PREDICATE_TYPE
 
@@ -883,16 +866,19 @@ class TestValidateProvenanceSchema:
         }
 
     def test_valid_statement_passes(self) -> None:
+        """Test valid statement passes."""
         stmt = self._make_valid_statement()
         errors = validate_provenance_schema(stmt)
         assert errors == []
 
     def test_valid_json_string_passes(self) -> None:
+        """Test valid json string passes."""
         stmt = self._make_valid_statement()
         errors = validate_provenance_schema(json.dumps(stmt))
         assert errors == []
 
     def test_valid_file_passes(self, tmp_path: Path) -> None:
+        """Test valid file passes."""
         stmt = self._make_valid_statement()
         p = tmp_path / 'prov.intoto.jsonl'
         p.write_text(json.dumps(stmt), encoding='utf-8')
@@ -900,76 +886,89 @@ class TestValidateProvenanceSchema:
         assert errors == []
 
     def test_missing_type_fails(self) -> None:
+        """Test missing type fails."""
         stmt = self._make_valid_statement()
         del stmt['_type']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_wrong_type_fails(self) -> None:
+        """Test wrong type fails."""
         stmt = self._make_valid_statement()
         stmt['_type'] = 'wrong'
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_subject_fails(self) -> None:
+        """Test missing subject fails."""
         stmt = self._make_valid_statement()
         del stmt['subject']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_empty_subject_fails(self) -> None:
+        """Test empty subject fails."""
         stmt = self._make_valid_statement()
         stmt['subject'] = []
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_predicate_fails(self) -> None:
+        """Test missing predicate fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_build_definition_fails(self) -> None:
+        """Test missing build definition fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']['buildDefinition']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_run_details_fails(self) -> None:
+        """Test missing run details fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']['runDetails']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_builder_id_fails(self) -> None:
+        """Test missing builder id fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']['runDetails']['builder']['id']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_build_type_fails(self) -> None:
+        """Test missing build type fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']['buildDefinition']['buildType']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_missing_external_parameters_fails(self) -> None:
+        """Test missing external parameters fails."""
         stmt = self._make_valid_statement()
         del stmt['predicate']['buildDefinition']['externalParameters']
         errors = validate_provenance_schema(stmt)
         assert len(errors) > 0
 
     def test_invalid_json_string_fails(self) -> None:
+        """Test invalid json string fails."""
         errors = validate_provenance_schema('{bad json')
         assert len(errors) > 0
         assert 'Invalid JSON' in errors[0]
 
     def test_missing_file_fails(self, tmp_path: Path) -> None:
+        """Test missing file fails."""
         errors = validate_provenance_schema(tmp_path / 'nonexistent.json')
         assert len(errors) > 0
         assert 'File not found' in errors[0]
 
     def test_subject_missing_digest_sha256_fails(self) -> None:
+        """Test subject missing digest sha256 fails."""
         stmt = self._make_valid_statement()
         stmt['subject'] = [{'name': 'a.tar.gz', 'digest': {}}]
         errors = validate_provenance_schema(stmt)

@@ -32,15 +32,14 @@ import httpx
 import pytest
 from releasekit.backends.forge.github_api import GitHubAPIBackend
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> object:
     """Create a mock transport handler keyed by URL suffix."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         for suffix, (status, body) in responses.items():
             if suffix in url:
@@ -55,6 +54,7 @@ def _make_client_cm(transport: Any) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 
@@ -67,9 +67,7 @@ def gh() -> GitHubAPIBackend:
     return GitHubAPIBackend(owner='firebase', repo='genkit', token='fake-token')
 
 
-# ---------------------------------------------------------------------------
 # Init / Auth
-# ---------------------------------------------------------------------------
 
 
 class TestInit:
@@ -116,9 +114,7 @@ class TestDryRunResult:
         assert result.command == ['POST', 'https://api.github.com/test']
 
 
-# ---------------------------------------------------------------------------
 # is_available
-# ---------------------------------------------------------------------------
 
 
 class TestIsAvailable:
@@ -139,9 +135,7 @@ class TestIsAvailable:
         assert await gh.is_available() is False
 
 
-# ---------------------------------------------------------------------------
 # create_release
-# ---------------------------------------------------------------------------
 
 
 class TestCreateRelease:
@@ -180,9 +174,7 @@ class TestCreateRelease:
         assert result.ok is False
 
 
-# ---------------------------------------------------------------------------
 # delete_release
-# ---------------------------------------------------------------------------
 
 
 class TestDeleteRelease:
@@ -215,9 +207,7 @@ class TestDeleteRelease:
         assert result.dry_run is True
 
 
-# ---------------------------------------------------------------------------
 # promote_release
-# ---------------------------------------------------------------------------
 
 
 class TestPromoteRelease:
@@ -250,9 +240,7 @@ class TestPromoteRelease:
         assert result.dry_run is True
 
 
-# ---------------------------------------------------------------------------
 # list_releases
-# ---------------------------------------------------------------------------
 
 
 class TestListReleases:
@@ -283,9 +271,7 @@ class TestListReleases:
         assert await gh.list_releases() == []
 
 
-# ---------------------------------------------------------------------------
 # create_pr
-# ---------------------------------------------------------------------------
 
 
 class TestCreatePR:
@@ -315,9 +301,7 @@ class TestCreatePR:
         assert result.ok is False
 
 
-# ---------------------------------------------------------------------------
 # pr_data
-# ---------------------------------------------------------------------------
 
 
 class TestPRData:
@@ -360,9 +344,7 @@ class TestPRData:
         assert await gh.pr_data(42) == {}
 
 
-# ---------------------------------------------------------------------------
 # list_prs
-# ---------------------------------------------------------------------------
 
 
 class TestListPRs:
@@ -469,9 +451,7 @@ class TestListPRs:
         assert await gh.list_prs() == []
 
 
-# ---------------------------------------------------------------------------
 # add_labels
-# ---------------------------------------------------------------------------
 
 
 class TestAddLabels:
@@ -493,9 +473,7 @@ class TestAddLabels:
         assert result.dry_run is True
 
 
-# ---------------------------------------------------------------------------
 # remove_labels
-# ---------------------------------------------------------------------------
 
 
 class TestRemoveLabels:
@@ -524,9 +502,7 @@ class TestRemoveLabels:
         assert result.dry_run is True
 
 
-# ---------------------------------------------------------------------------
 # update_pr
-# ---------------------------------------------------------------------------
 
 
 class TestUpdatePR:
@@ -548,9 +524,7 @@ class TestUpdatePR:
         assert result.dry_run is True
 
 
-# ---------------------------------------------------------------------------
 # merge_pr
-# ---------------------------------------------------------------------------
 
 
 class TestMergePR:

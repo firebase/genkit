@@ -71,7 +71,7 @@ class UvBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -82,7 +82,7 @@ class UvBackend:
         Args:
             dist_dir: Directory containing built distributions.
             check_url: Index URL to check for existing files (skips duplicates).
-            index_url: Upload endpoint URL. Mapped to ``uv publish --publish-url``
+            registry_url: Upload endpoint URL. Mapped to ``uv publish --publish-url``
                 (``uv publish`` has no ``--index-url`` flag). Defaults to PyPI
                 if not specified.
             dist_tag: Ignored (npm-only, accepted for protocol compat).
@@ -93,10 +93,10 @@ class UvBackend:
         cmd = ['uv', 'publish']
         if check_url:
             cmd.extend(['--check-url', check_url])
-        if index_url:
+        if registry_url:
             # uv publish uses --publish-url (not --index-url) for the
             # upload endpoint.
-            cmd.extend(['--publish-url', index_url])
+            cmd.extend(['--publish-url', registry_url])
         cmd.append(str(dist_dir))
 
         log.info('publish', dist_dir=str(dist_dir))
@@ -139,14 +139,14 @@ class UvBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a published package resolves using ``uv pip install --dry-run``."""
         cmd = ['uv', 'pip', 'install', '--dry-run', f'{package_name}=={version}']
-        if index_url:
+        if registry_url:
             # --index-url is deprecated; use --default-index.
-            cmd.extend(['--default-index', index_url])
+            cmd.extend(['--default-index', registry_url])
 
         log.info('resolve_check', package=package_name, version=version)
         return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)

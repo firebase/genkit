@@ -31,8 +31,6 @@ from releasekit.net import (
     request_with_retry,
 )
 
-# ── Tests: constants ──
-
 
 class TestConstants:
     """Tests for module-level constants."""
@@ -59,9 +57,6 @@ class TestConstants:
             raise AssertionError(f'Expected {expected}, got {RETRYABLE_STATUS_CODES}')
 
 
-# ── Tests: http_client ──
-
-
 class TestHttpClient:
     """Tests for http_client async context manager."""
 
@@ -69,6 +64,7 @@ class TestHttpClient:
         """Creates a properly configured httpx.AsyncClient."""
 
         async def _test() -> None:
+            """Test."""
             async with http_client() as client:
                 if not isinstance(client, httpx.AsyncClient):
                     raise AssertionError(f'Expected AsyncClient, got {type(client)}')
@@ -79,6 +75,7 @@ class TestHttpClient:
         """Respects custom pool size without error."""
 
         async def _test() -> None:
+            """Test."""
             async with http_client(pool_size=20) as client:
                 if not isinstance(client, httpx.AsyncClient):
                     raise AssertionError(f'Expected AsyncClient, got {type(client)}')
@@ -89,6 +86,7 @@ class TestHttpClient:
         """Respects custom timeout."""
 
         async def _test() -> None:
+            """Test."""
             async with http_client(timeout=60.0) as client:
                 if client.timeout.connect != 60.0:
                     raise AssertionError(f'Expected 60.0, got {client.timeout.connect}')
@@ -99,6 +97,7 @@ class TestHttpClient:
         """Respects custom headers."""
 
         async def _test() -> None:
+            """Test."""
             async with http_client(headers={'X-Test': 'hello'}) as client:
                 if client.headers.get('X-Test') != 'hello':
                     raise AssertionError('Custom header not set')
@@ -109,14 +108,12 @@ class TestHttpClient:
         """Respects base_url."""
 
         async def _test() -> None:
+            """Test."""
             async with http_client(base_url='https://example.com') as client:
                 if str(client.base_url) != 'https://example.com':
                     raise AssertionError(f'Unexpected base_url: {client.base_url}')
 
         asyncio.run(_test())
-
-
-# ── Tests: request_with_retry ──
 
 
 class TestRequestWithRetry:
@@ -126,6 +123,7 @@ class TestRequestWithRetry:
         """Successful request returns immediately."""
 
         async def _test() -> None:
+            """Test."""
             transport = httpx.MockTransport(
                 lambda request: httpx.Response(200, json={'ok': True}),
             )
@@ -145,6 +143,7 @@ class TestRequestWithRetry:
         """Non-retryable status code (404) returns immediately."""
 
         async def _test() -> None:
+            """Test."""
             transport = httpx.MockTransport(
                 lambda request: httpx.Response(404, text='not found'),
             )
@@ -164,6 +163,7 @@ class TestRequestWithRetry:
         """Retryable status code exhausts retries then raises."""
 
         async def _test() -> None:
+            """Test."""
             transport = httpx.MockTransport(
                 lambda request: httpx.Response(503, text='unavailable'),
             )
@@ -184,6 +184,7 @@ class TestRequestWithRetry:
         call_count = 0
 
         async def _test() -> None:
+            """Test."""
             nonlocal call_count
 
             def handler(request: httpx.Request) -> httpx.Response:
@@ -215,6 +216,7 @@ class TestRequestWithRetry:
         call_count = 0
 
         async def _test() -> None:
+            """Test."""
             nonlocal call_count
 
             def handler(request: httpx.Request) -> httpx.Response:
@@ -243,6 +245,8 @@ class TestRequestWithRetry:
         """Connection errors exhaust retries then raise."""
 
         async def _test() -> None:
+            """Test."""
+
             def handler(request: httpx.Request) -> httpx.Response:
                 """Handler."""
                 raise httpx.ConnectError('connection refused')

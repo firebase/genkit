@@ -91,8 +91,6 @@ class SLSALevelValidator:
             hint='Pass a BuildContext or provenance dict.',
         )
 
-    # ── BuildContext validation ──
-
     def _validate_context(self, ctx: Any) -> ValidationResult:  # noqa: ANN401
         """Validate build environment against SLSA requirements."""
         issues: list[str] = []
@@ -144,8 +142,6 @@ class SLSALevelValidator:
                 'achieved_level': achieved,
             },
         )
-
-    # ── Provenance document validation ──
 
     def _validate_provenance(self, stmt: dict[str, Any]) -> ValidationResult:
         """Validate provenance document structure for SLSA compliance."""

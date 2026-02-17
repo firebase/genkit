@@ -163,7 +163,7 @@ Most samples require environment variables for API keys. Configure these before 
 
 | Variable | Sample | Required | Description | Get Credentials |
 |----------|--------|----------|-------------|-----------------|
-| `GOOGLE_GENAI_API_KEY` | provider-google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GEMINI_API_KEY` | provider-google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | provider-anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
 | `AWS_REGION` | provider-amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
 | `AWS_ACCESS_KEY_ID` | provider-amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
@@ -240,7 +240,7 @@ Sites: `datadoghq.com`, `datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`
 
 ```bash
 # Google AI (provider-google-genai-hello)
-export GOOGLE_GENAI_API_KEY="AIza..."
+export GEMINI_API_KEY="AIza..."
 
 # Anthropic (provider-anthropic-hello)
 export ANTHROPIC_API_KEY="sk-ant-..."

@@ -41,9 +41,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # gradle.properties helpers
-# ---------------------------------------------------------------------------
 
 
 class TestReadGradlePropertiesVersion:
@@ -109,9 +107,7 @@ class TestWriteGradlePropertiesVersion:
         assert props.read_text() == 'VERSION_NAME=1.0.0\n'
 
 
-# ---------------------------------------------------------------------------
 # Version catalog helpers
-# ---------------------------------------------------------------------------
 
 
 class TestReadVersionCatalogVersion:
@@ -205,9 +201,7 @@ class TestWriteVersionCatalogVersion:
         assert catalog.read_text() == original
 
 
-# ---------------------------------------------------------------------------
 # Settings parsing (Kotlin DSL and multi-include)
-# ---------------------------------------------------------------------------
 
 
 class TestParseSettingsGradleKts:
@@ -244,9 +238,7 @@ class TestParseSettingsGradleKts:
         assert includes == []
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.discover() with gradle.properties version
-# ---------------------------------------------------------------------------
 
 
 def _setup_gradle_props_workspace(root: Path) -> None:
@@ -292,9 +284,7 @@ class TestMavenWorkspaceDiscoverGradleProperties:
         assert core.version == '2.0.0'
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.discover() with version catalog
-# ---------------------------------------------------------------------------
 
 
 def _setup_version_catalog_workspace(root: Path) -> None:
@@ -331,9 +321,7 @@ class TestMavenWorkspaceDiscoverVersionCatalog:
         assert packages[0].version == '3.0.0'
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.rewrite_version() with new formats
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceRewriteVersionGradleProperties:
@@ -366,9 +354,7 @@ class TestMavenWorkspaceRewriteVersionCatalog:
         assert 'kotlin = "1.9.22"' in text
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.discover() with Kotlin DSL settings
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceDiscoverKotlinDsl:

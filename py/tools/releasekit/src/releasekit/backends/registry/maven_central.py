@@ -41,6 +41,20 @@ log = get_logger('releasekit.backends.registry.maven_central')
 class MavenCentralRegistry:
     """Maven Central :class:`~releasekit.backends.registry.Registry` implementation.
 
+    This backend polls for artifact availability using the Maven Central
+    Solr Search API (``search.maven.org``).  It works out of the box
+    when publishing to Maven Central (via Sonatype OSSRH or the Central
+    Portal).
+
+    When ``registry_url`` is set in ``releasekit.toml``, the publish
+    path (``MavenBackend``) is redirected to the custom repository
+    (e.g. `Google Cloud Artifact Registry
+    <https://cloud.google.com/artifact-registry>`_), but this polling
+    backend still queries ``search.maven.org``.  For private
+    registries that don't index on Maven Central, polling will not
+    detect the artifact — verify publication via ``gcloud artifacts
+    versions list`` or similar.
+
     Args:
         base_url: Base URL for the Maven Central Search API. Defaults
             to ``search.maven.org``. Use :data:`TEST_BASE_URL` for a

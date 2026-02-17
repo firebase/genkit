@@ -332,10 +332,12 @@ class TestValidKeys:
         global and workspace scopes for the override hierarchy.
         """
         allowed_shared = {
+            'ai',
             'announcements',
             'branches',
             'calver_format',
             'hooks',
+            'license_headers',
             'release_mode',
             'schedule',
             'versioning_scheme',
@@ -570,9 +572,7 @@ class TestWorkspaceOverlapValidation:
         assert cfg.workspaces['py'].propagate_bumps is False
 
 
-# ---------------------------------------------------------------------------
 # DEFAULT_VERSIONING_SCHEMES
-# ---------------------------------------------------------------------------
 
 
 class TestDefaultVersioningSchemes:
@@ -641,9 +641,7 @@ class TestDefaultVersioningSchemes:
         assert cfg.workspaces['py'].versioning_scheme == 'semver'
 
 
-# ---------------------------------------------------------------------------
 # PackageConfig
-# ---------------------------------------------------------------------------
 
 
 class TestPackageConfigDefaults:

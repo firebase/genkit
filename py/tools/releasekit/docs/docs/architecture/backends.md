@@ -24,23 +24,38 @@ graph TB
     subgraph "Concrete Implementations"
         GIT["GitBackend"]
         HG["MercurialBackend"]
-        UV_PM["UvPackageManager"]
-        PNPM_PM["PnpmPackageManager"]
+        UV_PM["UvBackend"]
+        PNPM_PM["PnpmBackend"]
+        CARGO_PM["CargoBackend"]
+        DART_PM["DartBackend"]
+        GO_PM["GoBackend"]
+        MVN_PM["MavenBackend"]
+        BAZEL_PM["BazelBackend"]
+        MATURIN_PM["MaturinBackend"]
         GH_CLI["GitHubCLIBackend"]
         GH_API["GitHubAPIBackend"]
         GL["GitLabCLIBackend"]
         BB["BitbucketAPIBackend"]
         PYPI["PyPIBackend"]
         NPM["NpmBackend"]
+        CRATES["CratesIoBackend"]
+        GOPROXY["GoProxyBackend"]
+        MAVEN["MavenCentralBackend"]
+        PUBDEV["PubDevBackend"]
         UV_WS["UvWorkspace"]
         PNPM_WS["PnpmWorkspace"]
+        CARGO_WS["CargoWorkspace"]
+        DART_WS["DartWorkspace"]
+        GO_WS["GoWorkspace"]
+        MVN_WS["MavenWorkspace"]
+        BAZEL_WS["BazelWorkspace"]
     end
 
     VCS_P --> GIT & HG
-    PM_P --> UV_PM & PNPM_PM
+    PM_P --> UV_PM & PNPM_PM & CARGO_PM & DART_PM & GO_PM & MVN_PM & BAZEL_PM & MATURIN_PM
     FORGE_P --> GH_CLI & GH_API & GL & BB
-    REG_P --> PYPI & NPM
-    WS_P --> UV_WS & PNPM_WS
+    REG_P --> PYPI & NPM & CRATES & GOPROXY & MAVEN & PUBDEV
+    WS_P --> UV_WS & PNPM_WS & CARGO_WS & DART_WS & GO_WS & MVN_WS & BAZEL_WS
 
     style VCS_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
     style PM_P fill:#90caf9,stroke:#1565c0,color:#0d47a1
@@ -86,10 +101,24 @@ class PackageManager(Protocol):
     async def smoke_test(self, package_dir: Path, *, dry_run: bool) -> CommandResult: ...
 ```
 
-| Implementation | Tool | Ecosystem |
-|---|---|---|
-| `UvPackageManager` | uv | Python |
-| `PnpmPackageManager` | pnpm | JavaScript |
+| Implementation | Tool | Ecosystem | Status |
+|---|---|---|---|
+| `UvBackend` | uv | Python | ✅ Shipped |
+| `PnpmBackend` | pnpm | JavaScript | ✅ Shipped |
+| `CargoBackend` | cargo | Rust | ✅ Shipped |
+| `DartBackend` | dart pub | Dart | ✅ Shipped |
+| `GoBackend` | go | Go | ✅ Shipped |
+| `MavenBackend` | mvn / gradle | Java / Kotlin | ✅ Shipped |
+| `BazelBackend` | bazel | Polyglot (Bazel) | ✅ Shipped |
+| `MaturinBackend` | maturin | Rust + Python | ✅ Shipped |
+| `KotlinBackend` | gradle (KMP) | Kotlin Multiplatform | 🔜 Planned |
+| `SwiftBackend` | swift / pod | Swift / CocoaPods | 🔜 Planned |
+| `RubyBackend` | gem / bundler | Ruby | 🔜 Planned |
+| `DotnetBackend` | dotnet | .NET (C#/F#) | 🔜 Planned |
+| `PhpBackend` | composer | PHP | 🔜 Planned |
+| `VscodeBackend` | vsce | VS Code Extension | 🔜 Planned |
+| `IntelliJBackend` | gradle | IntelliJ Plugin | 🔜 Planned |
+| `BrowserExtBackend` | web-ext / zip | Chrome / Firefox | 🔜 Planned |
 
 ## Forge Protocol
 
@@ -135,10 +164,23 @@ class Registry(Protocol):
     def poll_version(self, name: str, version: str, *, timeout: float) -> bool: ...
 ```
 
-| Implementation | Registry | Notes |
-|---|---|---|
-| `PyPIBackend` | PyPI | Uses JSON API, async `httpx` |
-| `NpmBackend` | npm | Uses npm registry API |
+| Implementation | Registry | Notes | Status |
+|---|---|---|---|
+| `PyPIBackend` | PyPI | Uses JSON API, async `httpx` | ✅ Shipped |
+| `NpmRegistry` | npm | Uses npm registry API | ✅ Shipped |
+| `CratesIoBackend` | crates.io | Uses crates.io API | ✅ Shipped |
+| `GoProxyBackend` | Go module proxy | Uses `/@v/list` API | ✅ Shipped |
+| `MavenCentralBackend` | Maven Central | Uses Solr search API | ✅ Shipped |
+| `PubDevBackend` | pub.dev | Uses pub.dev API | ✅ Shipped |
+| `NuGetBackend` | NuGet Gallery | Uses NuGet v3 API | 🔜 Planned |
+| `RubyGemsBackend` | RubyGems.org | Uses RubyGems API | 🔜 Planned |
+| `PackagistBackend` | Packagist | Uses Packagist API | 🔜 Planned |
+| `SwiftRegistry` | Swift Package Index | Git-tag-based | 🔜 Planned |
+| `CocoaPodsRegistry` | CocoaPods trunk | Uses trunk API | 🔜 Planned |
+| `VscodeMarketplace` | VS Code Marketplace | Uses Gallery API | 🔜 Planned |
+| `JetBrainsMarketplace` | JetBrains Marketplace | Uses plugins API | 🔜 Planned |
+| `ChromeWebStore` | Chrome Web Store | Uses CWS API | 🔜 Planned |
+| `FirefoxAddons` | Firefox Add-ons | Uses AMO API | 🔜 Planned |
 
 ## Workspace Protocol
 
@@ -150,10 +192,22 @@ class Workspace(Protocol):
     async def discover(self) -> list[Package]: ...
 ```
 
-| Implementation | Tool | Discovery Source |
-|---|---|---|
-| `UvWorkspace` | uv | `pyproject.toml` `[tool.uv.workspace]` |
-| `PnpmWorkspace` | pnpm | `pnpm-workspace.yaml` |
+| Implementation | Tool | Discovery Source | Status |
+|---|---|---|---|
+| `UvWorkspace` | uv | `pyproject.toml` `[tool.uv.workspace]` | ✅ Shipped |
+| `PnpmWorkspace` | pnpm | `pnpm-workspace.yaml` | ✅ Shipped |
+| `CargoWorkspace` | cargo | `Cargo.toml` `[workspace]` | ✅ Shipped |
+| `DartWorkspace` | dart/melos | `pubspec.yaml` files | ✅ Shipped |
+| `GoWorkspace` | go | `go.work` / `go.mod` | ✅ Shipped |
+| `MavenWorkspace` | mvn/gradle | `pom.xml` / `settings.gradle.kts` | ✅ Shipped |
+| `BazelWorkspace` | bazel | `MODULE.bazel` / `BUILD` files | ✅ Shipped |
+| `KotlinWorkspace` | gradle | `settings.gradle.kts` with KMP targets | 🔜 Planned |
+| `SwiftWorkspace` | swift | `Package.swift` files | 🔜 Planned |
+| `CocoaPodsWorkspace` | cocoapods | `*.podspec` files | 🔜 Planned |
+| `RubyWorkspace` | bundler | `*.gemspec` + `Gemfile` | 🔜 Planned |
+| `DotnetWorkspace` | dotnet | `*.sln` / `Directory.Build.props` | 🔜 Planned |
+| `PhpWorkspace` | composer | `composer.json` files | 🔜 Planned |
+| `BrowserExtWorkspace` | — | `manifest.json` files | 🔜 Planned |
 
 ## Testing with Fake Backends
 

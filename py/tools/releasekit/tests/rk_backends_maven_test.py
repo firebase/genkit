@@ -42,9 +42,7 @@ from releasekit.backends.registry.maven_central import MavenCentralRegistry
 from releasekit.backends.workspace import Workspace
 from releasekit.backends.workspace.maven import MavenWorkspace
 
-# ---------------------------------------------------------------------------
 # Helpers — Maven
-# ---------------------------------------------------------------------------
 
 _POM_TEMPLATE = """\
 <?xml version="1.0" encoding="UTF-8"?>
@@ -103,9 +101,7 @@ def _create_module_pom(
     return mod_dir
 
 
-# ---------------------------------------------------------------------------
 # Helpers — Gradle
-# ---------------------------------------------------------------------------
 
 
 def _create_settings_gradle(root: Path, includes: list[str]) -> None:
@@ -130,9 +126,7 @@ def _create_gradle_project(
     return proj_dir
 
 
-# ---------------------------------------------------------------------------
 # Protocol conformance
-# ---------------------------------------------------------------------------
 
 
 class TestMavenProtocolConformance:
@@ -154,9 +148,7 @@ class TestMavenProtocolConformance:
         assert isinstance(reg, Registry)
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.discover() — Maven
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceDiscoverMaven:
@@ -223,9 +215,7 @@ class TestMavenWorkspaceDiscoverMaven:
         assert pkgs[0].manifest_path.name == 'pom.xml'
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.discover() — Gradle
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceDiscoverGradle:
@@ -272,9 +262,7 @@ class TestMavenWorkspaceDiscoverGradle:
         assert pkgs == []
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.rewrite_version()
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceRewriteVersion:
@@ -301,9 +289,7 @@ class TestMavenWorkspaceRewriteVersion:
         assert "'2.0.0'" in text
 
 
-# ---------------------------------------------------------------------------
 # MavenWorkspace.rewrite_dependency_version()
-# ---------------------------------------------------------------------------
 
 
 class TestMavenWorkspaceRewriteDependencyVersion:
@@ -338,15 +324,14 @@ class TestMavenWorkspaceRewriteDependencyVersion:
         await ws.rewrite_dependency_version(mod_dir / 'pom.xml', 'nonexistent', '1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # MavenCentralRegistry
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN401
     """Create a mock transport."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         for suffix, (status, body) in responses.items():
             if url.endswith(suffix):
@@ -361,6 +346,7 @@ def _make_client_cm(transport: Any) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 
@@ -371,6 +357,7 @@ def _maven_transport(body: str, status: int = 200) -> Any:  # noqa: ANN401
     """Create a transport that always returns the given response for solrsearch URLs."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         if 'solrsearch/select' in url:
             return httpx.Response(status, text=body)

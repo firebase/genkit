@@ -104,6 +104,11 @@ _run_actionlint() {
     fi
   fi
   local workflow_files=()
+  # Workflow directories (actionlint validates workflow syntax).
+  # NOTE: actionlint does NOT support composite action.yml files —
+  # it only validates workflow files.  Composite actions in
+  # .github/actions/ are validated indirectly when referenced by
+  # workflows via `uses:`.
   local workflow_dirs=(
     "${TOP_DIR}/.github/workflows"
     "${TOP_DIR}/py/tools/releasekit/github/workflows"

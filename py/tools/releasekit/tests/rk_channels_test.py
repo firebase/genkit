@@ -24,9 +24,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # resolve_channel
-# ---------------------------------------------------------------------------
 
 
 class TestResolveChannel:
@@ -74,9 +72,7 @@ class TestResolveChannel:
         assert resolve_channel('main', {}, default='stable') == 'stable'
 
 
-# ---------------------------------------------------------------------------
 # channel_to_dist_tag
-# ---------------------------------------------------------------------------
 
 
 class TestChannelToDistTag:
@@ -99,9 +95,7 @@ class TestChannelToDistTag:
         assert channel_to_dist_tag('v1-maintenance') == 'v1-maintenance'
 
 
-# ---------------------------------------------------------------------------
 # channel_to_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestChannelToPrerelease:

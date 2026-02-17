@@ -209,6 +209,7 @@ class MercurialCLIBackend:
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -219,13 +220,14 @@ class MercurialCLIBackend:
         tags, which are refs.
         """
         tag_message = message or tag_name
-        log.info('tag', tag=tag_name)
+        log.info('tag', tag=tag_name, ref=ref or '.')
+        args = ['tag', '-m', tag_message]
+        if ref:
+            args.extend(['-r', ref])
+        args.append(tag_name)
         return await asyncio.to_thread(
             self._hg,
-            'tag',
-            '-m',
-            tag_message,
-            tag_name,
+            *args,
             dry_run=dry_run,
         )
 
@@ -263,6 +265,7 @@ class MercurialCLIBackend:
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push changesets to a remote path.
@@ -274,12 +277,18 @@ class MercurialCLIBackend:
             ``set_upstream`` is accepted for protocol compatibility but
             ignored — Mercurial does not have Git-style upstream tracking
             branches.
+
+            ``force`` is accepted for protocol compatibility but
+            ignored — Mercurial push uses ``--force`` which has different
+            semantics (allows pushing new heads).
         """
         # Mercurial uses "default" as the default remote, not "origin".
         hg_remote = 'default' if remote == 'origin' else remote
         cmd_parts = ['push', hg_remote]
+        if force:
+            cmd_parts.append('--force')
 
-        log.info('push', remote=hg_remote, tags=tags, set_upstream=set_upstream)
+        log.info('push', remote=hg_remote, tags=tags, set_upstream=set_upstream, force=force)
         return await asyncio.to_thread(self._hg, *cmd_parts, dry_run=dry_run)
 
     async def tag_commit_sha(self, tag_name: str) -> str:

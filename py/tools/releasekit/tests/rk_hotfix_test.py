@@ -29,9 +29,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # resolve_base_branch
-# ---------------------------------------------------------------------------
 
 
 class TestResolveBaseBranch:
@@ -62,9 +60,7 @@ class TestResolveBaseBranch:
         assert result == 'develop'
 
 
-# ---------------------------------------------------------------------------
 # CherryPickResult
-# ---------------------------------------------------------------------------
 
 
 class TestCherryPickResult:
@@ -102,9 +98,7 @@ class TestCherryPickResult:
         assert 'dry-run' in result.summary()
 
 
-# ---------------------------------------------------------------------------
 # HotfixContext
-# ---------------------------------------------------------------------------
 
 
 class TestHotfixContext:

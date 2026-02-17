@@ -48,9 +48,7 @@ from releasekit.distro import (
     parse_pyproject_deps,
 )
 
-# ---------------------------------------------------------------------------
 # Dep dataclass
-# ---------------------------------------------------------------------------
 
 
 class TestDep:
@@ -69,9 +67,7 @@ class TestDep:
         assert a == b
 
 
-# ---------------------------------------------------------------------------
 # DistroDepDiff
-# ---------------------------------------------------------------------------
 
 
 class TestDistroDepDiff:
@@ -100,9 +96,7 @@ class TestDistroDepDiff:
         assert d.ok is False
 
 
-# ---------------------------------------------------------------------------
 # parse_pyproject_deps
-# ---------------------------------------------------------------------------
 
 
 class TestParsePyprojectDeps:
@@ -174,9 +168,7 @@ class TestParsePyprojectDeps:
         assert parse_pyproject_deps(pyproject) == []
 
 
-# ---------------------------------------------------------------------------
 # Debian name conversion (pure)
-# ---------------------------------------------------------------------------
 
 
 class TestDebianPkgName:
@@ -203,9 +195,7 @@ class TestDebianPkgName:
         assert _debian_pkg_name('rich-argparse') == 'python3-rich-argparse'
 
 
-# ---------------------------------------------------------------------------
 # expected_debian_deps (pure)
-# ---------------------------------------------------------------------------
 
 
 class TestExpectedDebianDeps:
@@ -234,9 +224,7 @@ class TestExpectedDebianDeps:
         assert expected_debian_deps([]) == []
 
 
-# ---------------------------------------------------------------------------
 # _parse_debian_runtime_deps (pure — operates on text)
-# ---------------------------------------------------------------------------
 
 
 class TestParseDebianRuntimeDeps:
@@ -291,9 +279,7 @@ class TestParseDebianRuntimeDeps:
         assert deps == ['python3-aiofiles', 'python3-zlib']
 
 
-# ---------------------------------------------------------------------------
 # Fedora helpers (pure)
-# ---------------------------------------------------------------------------
 
 
 class TestStripTrailingZeros:
@@ -399,9 +385,7 @@ class TestParseFedoraRequires:
         assert _parse_fedora_requires('') == []
 
 
-# ---------------------------------------------------------------------------
 # check_debian_deps (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestCheckDebianDeps:
@@ -459,9 +443,7 @@ class TestCheckDebianDeps:
         assert 'python3-aiofiles' in diff.version_mismatch[0]
 
 
-# ---------------------------------------------------------------------------
 # check_fedora_deps (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestCheckFedoraDeps:
@@ -523,9 +505,7 @@ class TestCheckFedoraDeps:
         assert len(diff.version_mismatch) == 1
 
 
-# ---------------------------------------------------------------------------
 # fix_debian_control (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestFixDebianControl:
@@ -603,9 +583,7 @@ class TestFixDebianControl:
         assert 'python3-old' not in text
 
 
-# ---------------------------------------------------------------------------
 # fix_fedora_spec (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestFixFedoraSpec:
@@ -657,9 +635,7 @@ class TestFixFedoraSpec:
         assert spec.read_text(encoding='utf-8') == original
 
 
-# ---------------------------------------------------------------------------
 # check_distro_deps (high-level, file I/O)
-# ---------------------------------------------------------------------------
 
 
 def _write_pyproject(path: Path, deps: list[str]) -> None:
@@ -753,9 +729,7 @@ class TestCheckDistroDeps:
         assert 'python3-rich (>= 13.0.0)' in results[0].missing
 
 
-# ---------------------------------------------------------------------------
 # fix_distro_deps (high-level, file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestFixDistroDeps:
@@ -825,9 +799,7 @@ class TestFixDistroDeps:
         assert (deb / 'control').read_text(encoding='utf-8') == original
 
 
-# ---------------------------------------------------------------------------
 # Homebrew helpers (pure)
-# ---------------------------------------------------------------------------
 
 
 class TestBrewResourceName:
@@ -896,9 +868,7 @@ class TestParseBrewResources:
         assert _parse_brew_resources(text) == ['aiofiles', 'zlib']
 
 
-# ---------------------------------------------------------------------------
 # check_brew_deps (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestCheckBrewDeps:
@@ -962,9 +932,7 @@ class TestCheckBrewDeps:
         assert 'obsolete' in diff.extra
 
 
-# ---------------------------------------------------------------------------
 # fix_brew_formula (file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestFixBrewFormula:
@@ -1060,9 +1028,7 @@ class TestFixBrewFormula:
         assert 'obsolete' not in new_text
 
 
-# ---------------------------------------------------------------------------
 # check_distro_deps with homebrew (high-level, file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestCheckDistroDepsWithHomebrew:
@@ -1131,9 +1097,7 @@ class TestCheckDistroDepsWithHomebrew:
         assert results[0].ok is True
 
 
-# ---------------------------------------------------------------------------
 # fix_distro_deps with homebrew (high-level, file I/O)
-# ---------------------------------------------------------------------------
 
 
 class TestFixDistroDepsWithHomebrew:

@@ -39,8 +39,6 @@ from releasekit.provenance import (
     generate_provenance,
 )
 
-# ── Helpers ──
-
 
 def _github_l3_context() -> BuildContext:
     """BuildContext simulating a GitHub Actions github-hosted runner."""
@@ -156,44 +154,44 @@ def _l3_provenance_dict() -> dict:
     }
 
 
-# ── SLSABuildLevel enum ──
-
-
 class TestSLSABuildLevel:
     """Tests for the SLSABuildLevel enum."""
 
     def test_values(self) -> None:
+        """Test values."""
         assert SLSABuildLevel.L0 == 0
         assert SLSABuildLevel.L1 == 1
         assert SLSABuildLevel.L2 == 2
         assert SLSABuildLevel.L3 == 3
 
     def test_ordering(self) -> None:
+        """Test ordering."""
         assert SLSABuildLevel.L0 < SLSABuildLevel.L1
         assert SLSABuildLevel.L1 < SLSABuildLevel.L2
         assert SLSABuildLevel.L2 < SLSABuildLevel.L3
 
     def test_int_conversion(self) -> None:
+        """Test int conversion."""
         assert int(SLSABuildLevel.L3) == 3
-
-
-# ── BuildContext.slsa_build_level ──
 
 
 class TestBuildContextSLSALevel:
     """Tests for BuildContext.slsa_build_level property."""
 
     def test_local_build_is_l1(self) -> None:
+        """Test local build is l1."""
         ctx = _local_context()
         assert ctx.slsa_build_level == SLSABuildLevel.L1
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_github_hosted_is_l3(self) -> None:
+        """Test github hosted is l3."""
         ctx = _github_l3_context()
         assert ctx.slsa_build_level == SLSABuildLevel.L3
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_github_self_hosted_is_l2(self) -> None:
+        """Test github self hosted is l2."""
         ctx = _github_self_hosted_context()
         assert ctx.slsa_build_level == SLSABuildLevel.L2
 
@@ -205,6 +203,7 @@ class TestBuildContextSLSALevel:
         },
     )
     def test_gitlab_shared_is_l3(self) -> None:
+        """Test gitlab shared is l3."""
         ctx = _gitlab_context()
         assert ctx.slsa_build_level == SLSABuildLevel.L3
 
@@ -216,6 +215,7 @@ class TestBuildContextSLSALevel:
         },
     )
     def test_gitlab_self_managed_is_l2(self) -> None:
+        """Test gitlab self managed is l2."""
         ctx = _gitlab_context()
         assert ctx.slsa_build_level == SLSABuildLevel.L2
 
@@ -235,6 +235,7 @@ class TestBuildContextSLSALevel:
             assert ctx.slsa_build_level == SLSABuildLevel.L1
 
     def test_unknown_platform_is_l1(self) -> None:
+        """Test unknown platform is l1."""
         ctx = BuildContext(
             builder_id='https://example.com/builder',
             is_ci=True,
@@ -243,48 +244,47 @@ class TestBuildContextSLSALevel:
         assert ctx.slsa_build_level == SLSABuildLevel.L1
 
 
-# ── Hosted build platforms map ──
-
-
 class TestHostedBuildPlatforms:
     """Tests for the _HOSTED_BUILD_PLATFORMS constant."""
 
     def test_github_actions_is_l3(self) -> None:
+        """Test github actions is l3."""
         assert _HOSTED_BUILD_PLATFORMS['github-actions'] == SLSABuildLevel.L3
 
     def test_gitlab_ci_is_l3(self) -> None:
+        """Test gitlab ci is l3."""
         assert _HOSTED_BUILD_PLATFORMS['gitlab-ci'] == SLSABuildLevel.L3
 
     def test_circleci_is_l2(self) -> None:
+        """Test circleci is l2."""
         assert _HOSTED_BUILD_PLATFORMS['circleci'] == SLSABuildLevel.L2
 
     def test_gcb_is_l3(self) -> None:
+        """Test gcb is l3."""
         assert _HOSTED_BUILD_PLATFORMS['google-cloud-build'] == SLSABuildLevel.L3
-
-
-# ── SLSALevelValidator protocol conformance ──
 
 
 class TestSLSAValidatorProtocol:
     """SLSALevelValidator implements the Validator protocol."""
 
     def test_is_validator(self) -> None:
+        """Test is validator."""
         assert isinstance(SLSALevelValidator(), Validator)
 
     def test_name(self) -> None:
+        """Test name."""
         assert SLSALevelValidator().name == 'slsa.build-level'
 
     def test_custom_name(self) -> None:
+        """Test custom name."""
         v = SLSALevelValidator(validator_id='custom.slsa')
         assert v.name == 'custom.slsa'
 
     def test_unsupported_type(self) -> None:
+        """Test unsupported type."""
         r = SLSALevelValidator().validate(42)
         assert r.ok is False
         assert 'Unsupported subject type' in r.message
-
-
-# ── SLSALevelValidator context validation ──
 
 
 class TestSLSAContextValidation:
@@ -292,6 +292,7 @@ class TestSLSAContextValidation:
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_l3_github_hosted_passes(self) -> None:
+        """Test l3 github hosted passes."""
         v = SLSALevelValidator(target_level=3)
         r = v.validate(_github_l3_context())
         assert r.ok is True
@@ -299,6 +300,7 @@ class TestSLSAContextValidation:
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_l3_self_hosted_fails(self) -> None:
+        """Test l3 self hosted fails."""
         v = SLSALevelValidator(target_level=3)
         r = v.validate(_github_self_hosted_context())
         assert r.ok is False
@@ -306,11 +308,13 @@ class TestSLSAContextValidation:
         assert any('github-hosted' in i for i in r.details['issues'])
 
     def test_l1_local_passes(self) -> None:
+        """Test l1 local passes."""
         v = SLSALevelValidator(target_level=1)
         r = v.validate(_local_context())
         assert r.ok is True
 
     def test_l2_local_fails(self) -> None:
+        """Test l2 local fails."""
         v = SLSALevelValidator(target_level=2)
         r = v.validate(_local_context())
         assert r.ok is False
@@ -318,11 +322,13 @@ class TestSLSAContextValidation:
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_l2_github_hosted_passes(self) -> None:
+        """Test l2 github hosted passes."""
         v = SLSALevelValidator(target_level=2)
         r = v.validate(_github_l3_context())
         assert r.ok is True
 
     def test_l3_missing_entry_point_fails(self) -> None:
+        """Test l3 missing entry point fails."""
         ctx = BuildContext(
             builder_id='https://github.com/actions/runner',
             source_repo='https://github.com/firebase/genkit',
@@ -344,6 +350,7 @@ class TestSLSAContextValidation:
             assert any('source_entry_point' in i for i in r.details['issues'])
 
     def test_l3_missing_invocation_id_fails(self) -> None:
+        """Test l3 missing invocation id fails."""
         ctx = BuildContext(
             builder_id='https://github.com/actions/runner',
             source_repo='https://github.com/firebase/genkit',
@@ -365,19 +372,18 @@ class TestSLSAContextValidation:
             assert any('invocation_id' in i for i in r.details['issues'])
 
 
-# ── SLSALevelValidator provenance validation ──
-
-
 class TestSLSAProvenanceValidation:
     """SLSALevelValidator with provenance dict subjects."""
 
     def test_l3_valid_passes(self) -> None:
+        """Test l3 valid passes."""
         v = SLSALevelValidator(target_level=3)
         r = v.validate(_l3_provenance_dict())
         assert r.ok is True
         assert r.details['achieved_level'] == 3
 
     def test_l1_minimal_passes(self) -> None:
+        """Test l1 minimal passes."""
         stmt = {
             'subject': [{'name': 'foo.tar.gz', 'digest': {'sha256': 'abc'}}],
             'predicate': {
@@ -395,6 +401,7 @@ class TestSLSAProvenanceValidation:
         assert r.ok is True
 
     def test_l1_missing_build_type_fails(self) -> None:
+        """Test l1 missing build type fails."""
         stmt = {
             'subject': [{'name': 'foo.tar.gz', 'digest': {'sha256': 'abc'}}],
             'predicate': {
@@ -408,6 +415,7 @@ class TestSLSAProvenanceValidation:
         assert any('buildType' in i for i in r.details['issues'])
 
     def test_l1_empty_subjects_fails(self) -> None:
+        """Test l1 empty subjects fails."""
         stmt = {
             'subject': [],
             'predicate': {
@@ -423,6 +431,7 @@ class TestSLSAProvenanceValidation:
         assert r.ok is False
 
     def test_l2_missing_builder_version_fails(self) -> None:
+        """Test l2 missing builder version fails."""
         stmt = _l3_provenance_dict()
         del stmt['predicate']['runDetails']['builder']['version']
         v = SLSALevelValidator(target_level=2)
@@ -431,6 +440,7 @@ class TestSLSAProvenanceValidation:
         assert any('version' in i for i in r.details['issues'])
 
     def test_l3_missing_repository_fails(self) -> None:
+        """Test l3 missing repository fails."""
         stmt = _l3_provenance_dict()
         del stmt['predicate']['buildDefinition']['externalParameters']['repository']
         v = SLSALevelValidator(target_level=3)
@@ -439,6 +449,7 @@ class TestSLSAProvenanceValidation:
         assert any('repository' in i for i in r.details['issues'])
 
     def test_l3_missing_ref_fails(self) -> None:
+        """Test l3 missing ref fails."""
         stmt = _l3_provenance_dict()
         del stmt['predicate']['buildDefinition']['externalParameters']['ref']
         v = SLSALevelValidator(target_level=3)
@@ -447,6 +458,7 @@ class TestSLSAProvenanceValidation:
         assert any('ref' in i for i in r.details['issues'])
 
     def test_l3_missing_source_dep_fails(self) -> None:
+        """Test l3 missing source dep fails."""
         stmt = _l3_provenance_dict()
         stmt['predicate']['buildDefinition']['resolvedDependencies'] = []
         v = SLSALevelValidator(target_level=3)
@@ -455,6 +467,7 @@ class TestSLSAProvenanceValidation:
         assert any('resolvedDependencies' in i for i in r.details['issues'])
 
     def test_l3_missing_runner_env_fails(self) -> None:
+        """Test l3 missing runner env fails."""
         stmt = _l3_provenance_dict()
         del stmt['predicate']['runDetails']['builder']['version']['runnerEnvironment']
         v = SLSALevelValidator(target_level=3)
@@ -463,6 +476,7 @@ class TestSLSAProvenanceValidation:
         assert any('runnerEnvironment' in i for i in r.details['issues'])
 
     def test_l3_low_recorded_level_fails(self) -> None:
+        """Test l3 low recorded level fails."""
         stmt = _l3_provenance_dict()
         stmt['predicate']['buildDefinition']['internalParameters']['slsaBuildLevel'] = 2
         v = SLSALevelValidator(target_level=3)
@@ -471,6 +485,7 @@ class TestSLSAProvenanceValidation:
         assert any('slsaBuildLevel' in i for i in r.details['issues'])
 
     def test_l3_missing_invocation_id_fails(self) -> None:
+        """Test l3 missing invocation id fails."""
         stmt = _l3_provenance_dict()
         del stmt['predicate']['runDetails']['metadata']['invocationId']
         v = SLSALevelValidator(target_level=3)
@@ -479,19 +494,18 @@ class TestSLSAProvenanceValidation:
         assert any('invocationId' in i for i in r.details['issues'])
 
     def test_invalid_predicate_fails(self) -> None:
+        """Test invalid predicate fails."""
         v = SLSALevelValidator(target_level=1)
         r = v.validate({'predicate': 'not a dict'})
         assert r.ok is False
         assert 'predicate' in r.message
 
 
-# ── Provenance generation L3 fields ──
-
-
 class TestProvenanceL3Fields:
     """Verify generate_provenance includes L3 fields."""
 
     def test_builder_version_populated(self) -> None:
+        """Test builder version populated."""
         ctx = _github_l3_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc')],
@@ -506,6 +520,7 @@ class TestProvenanceL3Fields:
         assert 'python' in v
 
     def test_slsa_build_level_in_internal_params(self) -> None:
+        """Test slsa build level in internal params."""
         ctx = _github_l3_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc')],
@@ -516,6 +531,7 @@ class TestProvenanceL3Fields:
         assert isinstance(internal['slsaBuildLevel'], int)
 
     def test_byproducts_with_config_source(self) -> None:
+        """Test byproducts with config source."""
         ctx = _github_l3_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc')],
@@ -527,6 +543,7 @@ class TestProvenanceL3Fields:
         assert byproducts[0]['name'] == 'releasekit.toml'
 
     def test_byproducts_absent_without_config(self) -> None:
+        """Test byproducts absent without config."""
         ctx = _github_l3_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc')],
@@ -548,6 +565,7 @@ class TestProvenanceL3Fields:
         assert r.ok is True, f'L3 validation failed: {r.details}'
 
     def test_local_provenance_passes_l1_validation(self) -> None:
+        """Test local provenance passes l1 validation."""
         ctx = _local_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc123')],
@@ -558,6 +576,7 @@ class TestProvenanceL3Fields:
         assert r.ok is True
 
     def test_local_provenance_fails_l3_validation(self) -> None:
+        """Test local provenance fails l3 validation."""
         ctx = _local_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc123')],
@@ -568,14 +587,12 @@ class TestProvenanceL3Fields:
         assert r.ok is False
 
 
-# ── run_validators integration ──
-
-
 class TestRunValidatorsIntegration:
     """Test running SLSA validator via run_validators."""
 
     @mock.patch.dict(os.environ, {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://token.actions.githubusercontent.com'})
     def test_context_and_provenance_both_pass(self) -> None:
+        """Test context and provenance both pass."""
         ctx = _github_l3_context()
         stmt = generate_provenance(
             subjects=[SubjectDigest(name='foo.tar.gz', sha256='abc')],

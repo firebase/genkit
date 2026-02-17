@@ -55,8 +55,6 @@ from releasekit.tags import TagResult, format_tag
 from releasekit.versions import PackageVersion, ReleaseManifest
 from releasekit.workspace import discover_packages
 
-# ── Helpers ─────────────────────────────────────────────────────────
-
 
 def _write_root_pyproject(
     root: Path,
@@ -103,9 +101,6 @@ def _write_releasekit_toml(root: Path, content: str) -> Path:
     config_path = root / CONFIG_FILENAME
     config_path.write_text(content, encoding='utf-8')
     return config_path
-
-
-# ── Pipeline: Config → Discover → Graph → Plan ─────────────────────
 
 
 class TestConfigDiscoverGraphPlanPipeline:
@@ -219,9 +214,6 @@ class TestConfigDiscoverGraphPlanPipeline:
             assert len(output) > 10, f'{fmt_name} format too short: {output!r}'
 
 
-# ── Pipeline: Version Bump → Pin → Restore ─────────────────────────
-
-
 class TestBumpPinRestorePipeline:
     """End-to-end: bump version, pin deps, restore original."""
 
@@ -295,9 +287,6 @@ class TestBumpPinRestorePipeline:
             assert 'version = "0.6.0"' in content
 
 
-# ── Pipeline: State Save → Load → Resume ───────────────────────────
-
-
 class TestStateSaveLoadResumePipeline:
     """End-to-end: create state, save, load, resume, verify."""
 
@@ -356,9 +345,6 @@ class TestStateSaveLoadResumePipeline:
 
         with pytest.raises(ReleaseKitError):
             loaded.validate_sha('different_sha')
-
-
-# ── Pipeline: Manifest → SBOM ──────────────────────────────────────
 
 
 class TestManifestSBOMPipeline:
@@ -457,9 +443,6 @@ class TestManifestSBOMPipeline:
         assert comp_names == {'core', 'plugin-a'}
 
 
-# ── Pipeline: Init Scaffold → Config Load ──────────────────────────
-
-
 class TestInitScaffoldConfigLoadPipeline:
     """End-to-end: scaffold config, then load it back."""
 
@@ -507,9 +490,6 @@ class TestInitScaffoldConfigLoadPipeline:
         assert ws_config.exclude == ['sample-*']
 
 
-# ── Pipeline: Lock Acquire → Release ───────────────────────────────
-
-
 class TestLockAcquireReleasePipeline:
     """End-to-end: acquire lock, verify exclusion, release."""
 
@@ -540,9 +520,6 @@ class TestLockAcquireReleasePipeline:
                 acquire_lock(tmp_path)
         finally:
             release_lock_file(lock_path)
-
-
-# ── Pipeline: Tag Formatting ────────────────────────────────────────
 
 
 class TestTagFormattingPipeline:
@@ -601,9 +578,6 @@ class TestTagFormattingPipeline:
             failed={'plugin-a-v1.0.0': 'tag already exists'},
         )
         assert not result.ok
-
-
-# ── Pipeline: Discover → Graph → Cycle Detection ───────────────────
 
 
 class TestCycleDetectionPipeline:
@@ -675,9 +649,6 @@ class TestCycleDetectionPipeline:
         assert 'd' in level_0
 
 
-# ── Pipeline: Config Validation ─────────────────────────────────────
-
-
 class TestConfigValidationPipeline:
     """End-to-end: config loading with validation errors."""
 
@@ -721,9 +692,6 @@ class TestConfigValidationPipeline:
         assert config.workspaces['js'].ecosystem == 'js'
         assert config.forge == 'github'
         assert config.repo_owner == 'org'
-
-
-# ── Pipeline: Ephemeral Pin Crash Safety ────────────────────────────
 
 
 class TestEphemeralPinCrashSafety:
@@ -776,9 +744,6 @@ class TestEphemeralPinCrashSafety:
             pass
 
         assert pp.read_text(encoding='utf-8') == original
-
-
-# ── Pipeline: Full Workspace Discovery Variants ─────────────────────
 
 
 class TestWorkspaceDiscoveryVariants:
@@ -841,9 +806,6 @@ class TestWorkspaceDiscoveryVariants:
         packages = discover_packages(ws)
         assert len(packages) == 1
         assert packages[0].is_publishable is False
-
-
-# ── Pipeline: Plan → State → Resume Consistency ────────────────────
 
 
 class TestPlanStateConsistency:

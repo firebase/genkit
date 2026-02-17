@@ -52,6 +52,7 @@ from pathlib import Path
 import tomlkit
 import tomlkit.exceptions
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._io import read_file, write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.logging import get_logger
@@ -295,6 +296,33 @@ class CargoWorkspace:
                 manifest=str(manifest_path),
                 dep=dep_name,
             )
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect license from ``Cargo.toml`` ``[package].license``."""
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        cargo = pkg_path / 'Cargo.toml'
+        if not cargo.is_file():
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+        try:
+            text = await read_file(cargo)
+            doc = tomlkit.parse(text)
+        except Exception:  # noqa: BLE001
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+
+        package = doc.get('package', {})
+        lic = package.get('license')
+        if isinstance(lic, str) and lic.strip():
+            return DetectedLicense(
+                value=lic.strip(),
+                source='Cargo.toml [package].license',
+                package_name=pkg_name,
+            )
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
 
 def _parse_member_globs(root_text: str) -> list[str]:

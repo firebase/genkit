@@ -15,7 +15,7 @@ and dependencies.
 | | |
 |---|---|
 | **Lines** | ~1,280 |
-| **Purpose** | Argparse-based CLI with 11 subcommands |
+| **Purpose** | Argparse-based CLI with 17 subcommands |
 | **Key functions** | `_cmd_publish`, `_cmd_plan`, `_cmd_discover`, `_cmd_graph`, `_cmd_check`, `_cmd_version`, `_cmd_explain`, `_cmd_init`, `_cmd_rollback`, `_cmd_completion` |
 | **Entry point** | `_main()` → registered as `releasekit` console_script |
 
@@ -117,7 +117,7 @@ and dependencies.
 | | |
 |---|---|
 | **Lines** | ~246 |
-| **Purpose** | Auto-detect Python/JS/Go ecosystems in a monorepo |
+| **Purpose** | Auto-detect ecosystems (Python, JS, Go, Rust, Dart, Java, Kotlin, Bazel, and more) in a monorepo |
 | **Key types** | `Ecosystem` (enum), `DetectedEcosystem` |
 | **Key functions** | `find_monorepo_root()`, `detect_ecosystems()` |
 
@@ -127,7 +127,7 @@ and dependencies.
 |--------|-------|---------|
 | `bump.py` | ~200 | Rewrite `version = "..."` in `pyproject.toml` |
 | `changelog.py` | ~300 | Generate per-package changelogs from commits |
-| `checks/` | ~2,900 | Workspace health checks subpackage: `_protocol.py` (CheckBackend), `_constants.py`, `_universal.py` (8 checks + 3 fixers), `_python.py` (PythonCheckBackend, 25 checks), `_python_fixers.py` (14 fixers), `_runner.py` (run_checks orchestrator) |
+| `checks/` | ~2,900 | Workspace health checks subpackage: `_protocol.py` (CheckBackend), `_constants.py`, `_universal.py` (8 checks + 3 fixers), `_python.py` (PythonCheckBackend, 27 checks), `_python_fixers.py` (16 fixers), `_runner.py` (run_checks orchestrator) |
 | `commitback.py` | ~230 | Commit and push changes back to the repo |
 | `groups.py` | ~190 | Package group filtering from config |
 | `init.py` | ~200 | Scaffold `releasekit.toml` with auto-detected groups |
@@ -162,6 +162,12 @@ and dependencies.
 |--------|---------|----------|
 | `uv.py` | uv | Build, publish, lock check |
 | `pnpm.py` | pnpm | Build, publish, lock check |
+| `cargo.py` | cargo | Build, publish, lock check |
+| `dart.py` | dart pub | Build, publish, lock check |
+| `go.py` | go | Build, publish (via git tags) |
+| `maven.py` | mvn / gradle | Build, publish, deploy |
+| `bazel.py` | bazel | Build, publish (polyglot) |
+| `maturin.py` | maturin | Build, publish (Rust+Python) |
 | `__init__.py` | — | `PackageManager` protocol |
 
 ### `backends/registry/` — Package Registries
@@ -170,6 +176,10 @@ and dependencies.
 |--------|----------|----------|
 | `pypi.py` | PyPI | Version check, checksum verify |
 | `npm.py` | npm | Version check, checksum verify |
+| `crates_io.py` | crates.io | Version check, yank |
+| `goproxy.py` | Go module proxy | Version check |
+| `maven_central.py` | Maven Central | Version check |
+| `pubdev.py` | pub.dev | Version check |
 | `__init__.py` | — | `Registry` protocol |
 
 ### `backends/vcs/` — Version Control
@@ -186,6 +196,12 @@ and dependencies.
 |--------|------|----------|
 | `uv.py` | uv | Discover packages from `uv` workspace |
 | `pnpm.py` | pnpm | Discover packages from `pnpm-workspace.yaml` |
+| `cargo.py` | cargo | Discover crates from `Cargo.toml` workspace |
+| `dart.py` | dart/melos | Discover packages from `pubspec.yaml` files |
+| `go.py` | go | Discover modules from `go.work` / `go.mod` |
+| `maven.py` | mvn/gradle | Discover modules from `pom.xml` / `settings.gradle.kts` |
+| `bazel.py` | bazel | Discover targets from `MODULE.bazel` / `BUILD` files |
+| `_edn.py` | — | EDN parser for Clojure `deps.edn` / `project.clj` |
 | `__init__.py` | — | `Workspace` protocol |
 
 ### `formatters/` — Graph Output

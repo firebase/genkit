@@ -162,6 +162,7 @@ class FakeVCS:
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -187,6 +188,7 @@ class FakeVCS:
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """No-op push."""

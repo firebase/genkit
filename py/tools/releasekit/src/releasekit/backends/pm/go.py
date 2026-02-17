@@ -77,7 +77,7 @@ class GoBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -161,7 +161,7 @@ class GoBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a Go module version is fetchable via ``go list``."""

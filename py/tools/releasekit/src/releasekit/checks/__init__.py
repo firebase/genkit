@@ -81,6 +81,8 @@ Check catalogue::
     │ python_classifiers       │ warning  │ language   │ Missing version classif. │
     │ dependency_resolution    │ warning  │ language   │ Broken dependency tree   │
     │ namespace_init           │ error    │ language   │ __init__.py in namespace │
+    │ typing_classifier        │ warning  │ language   │ Missing Typing :: Typed  │
+    │ keywords_and_urls        │ warning  │ language   │ Missing keywords/URLs    │
     └──────────────────────────┴──────────┴────────────┴──────────────────────────┘
 
 Usage::
@@ -108,6 +110,15 @@ from releasekit.checks._dart import DartCheckBackend
 from releasekit.checks._go import GoCheckBackend
 from releasekit.checks._java import JavaCheckBackend
 from releasekit.checks._js import JsCheckBackend
+from releasekit.checks._license_fix import (
+    FixAction,
+    LicenseFixChoice,
+    LicenseFixReport,
+    apply_fixes,
+    collect_fixable_deps,
+    interactive_license_fix,
+    prompt_for_fix,
+)
 from releasekit.checks._protocol import CheckBackend
 from releasekit.checks._python import PythonCheckBackend
 from releasekit.checks._python_fixers import (
@@ -115,6 +126,7 @@ from releasekit.checks._python_fixers import (
     fix_changelog_url,
     fix_deprecated_classifiers,
     fix_duplicate_dependencies,
+    fix_keywords_and_urls,
     fix_license_classifier_mismatch,
     fix_namespace_init,
     fix_placeholder_urls,
@@ -124,13 +136,16 @@ from releasekit.checks._python_fixers import (
     fix_requires_python,
     fix_self_dependencies,
     fix_type_markers,
+    fix_typing_classifier,
     fix_version_field,
 )
 from releasekit.checks._runner import run_checks, run_checks_async
 from releasekit.checks._rust import RustCheckBackend
 from releasekit.checks._universal import (
     fix_missing_license,
+    fix_missing_license_files,
     fix_missing_readme,
+    fix_missing_spdx_headers,
     fix_stale_artifacts,
 )
 from releasekit.distro import fix_distro_deps
@@ -184,17 +199,28 @@ __all__ = [
     'fix_duplicate_dependencies',
     'fix_license_classifier_mismatch',
     'fix_missing_license',
+    'fix_missing_license_files',
     'fix_missing_readme',
+    'fix_missing_spdx_headers',
     'fix_namespace_init',
     'fix_placeholder_urls',
     'fix_publish_classifiers',
     'fix_readme_content_type',
     'fix_readme_field',
     'fix_requires_python',
+    'fix_keywords_and_urls',
     'fix_self_dependencies',
     'fix_stale_artifacts',
     'fix_type_markers',
+    'fix_typing_classifier',
     'fix_version_field',
     'run_checks',
     'run_checks_async',
+    'FixAction',
+    'LicenseFixChoice',
+    'LicenseFixReport',
+    'apply_fixes',
+    'collect_fixable_deps',
+    'interactive_license_fix',
+    'prompt_for_fix',
 ]

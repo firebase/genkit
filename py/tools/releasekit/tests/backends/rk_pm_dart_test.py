@@ -76,12 +76,12 @@ class TestDartBackendPublish:
         assert '--dry-run' in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_with_index_url(self, tmp_path: Path) -> None:
+    async def test_publish_with_registry_url(self, tmp_path: Path) -> None:
         """Test publish with index url."""
         backend = DartBackend(workspace_root=tmp_path)
         result = await backend.publish(
             tmp_path / 'pkg',
-            index_url='https://my-pub-server.example.com',
+            registry_url='https://my-pub-server.example.com',
             dry_run=True,
         )
         assert '--server' in result.command

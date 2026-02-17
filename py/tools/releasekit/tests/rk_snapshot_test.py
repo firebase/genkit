@@ -29,9 +29,7 @@ from releasekit.versions import PackageVersion
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # compute_snapshot_version
-# ---------------------------------------------------------------------------
 
 
 class TestComputeSnapshotVersion:
@@ -92,9 +90,7 @@ class TestComputeSnapshotVersion:
         assert 'T' in ts_part
 
 
-# ---------------------------------------------------------------------------
 # apply_snapshot_versions
-# ---------------------------------------------------------------------------
 
 
 class TestApplySnapshotVersions:

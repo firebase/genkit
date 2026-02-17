@@ -33,9 +33,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # read_changesets
-# ---------------------------------------------------------------------------
 
 
 class TestReadChangesets:
@@ -105,9 +103,7 @@ class TestReadChangesets:
         assert 'genkit' in result[0].bumps
 
 
-# ---------------------------------------------------------------------------
 # merge_changeset_bumps
-# ---------------------------------------------------------------------------
 
 
 class TestMergeChangesetBumps:
@@ -152,9 +148,7 @@ class TestMergeChangesetBumps:
         assert merged['pkg-a'] == BumpType.MINOR
 
 
-# ---------------------------------------------------------------------------
 # changeset_summaries
-# ---------------------------------------------------------------------------
 
 
 class TestChangesetSummaries:
@@ -179,9 +173,7 @@ class TestChangesetSummaries:
         assert result == {}
 
 
-# ---------------------------------------------------------------------------
 # consume_changesets
-# ---------------------------------------------------------------------------
 
 
 class TestConsumeChangesets:

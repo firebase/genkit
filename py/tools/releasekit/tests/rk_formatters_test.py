@@ -76,9 +76,6 @@ def _make_graph(packages: list[Package] | None = None) -> DependencyGraph:
     return build_graph(packages)
 
 
-# ── Registry ────────────────────────────────────────────────────────
-
-
 class TestRegistry:
     """Tests for the formatter registry."""
 
@@ -118,9 +115,6 @@ class TestRegistry:
         else:
             msg = 'Expected ValueError'
             raise AssertionError(msg)
-
-
-# ── DOT format ──────────────────────────────────────────────────────
 
 
 class TestDotFormat:
@@ -165,9 +159,6 @@ class TestDotFormat:
 
         if 'core\\n1.0.0' not in output:
             raise AssertionError('Missing version in node label')
-
-
-# ── Mermaid format ──────────────────────────────────────────────────
 
 
 class TestMermaidFormat:
@@ -235,9 +226,6 @@ class TestMermaidFormat:
         assert 'orphan["orphan"]' in output
 
 
-# ── D2 format ───────────────────────────────────────────────────────
-
-
 class TestD2Format:
     """Tests for the D2 formatter."""
 
@@ -295,9 +283,6 @@ class TestD2Format:
         assert 'orphan: "orphan" {' in output
 
 
-# ── ASCII art format ────────────────────────────────────────────────
-
-
 class TestAsciiFormat:
     """Tests for the ASCII art formatter."""
 
@@ -349,9 +334,6 @@ class TestAsciiFormat:
         assert '()' not in output
 
 
-# ── JSON format ─────────────────────────────────────────────────────
-
-
 class TestJsonFormat:
     """Tests for the JSON formatter."""
 
@@ -390,9 +372,6 @@ class TestJsonFormat:
             raise AssertionError(msg)
 
 
-# ── Levels format ───────────────────────────────────────────────────
-
-
 class TestLevelsFormat:
     """Tests for the levels formatter."""
 
@@ -415,9 +394,6 @@ class TestLevelsFormat:
 
         if '1.0.0' not in output:
             raise AssertionError('Missing version')
-
-
-# ── Empty graph ─────────────────────────────────────────────────────
 
 
 class TestEmptyGraph:

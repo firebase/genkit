@@ -7,6 +7,19 @@ has a test spec (`model-conformance.yaml`) and a minimal entry point
 ## Quick start
 
 ```bash
+# First-time setup: install tools + configure API keys interactively
+./setup.sh
+
+# Check what's installed without making changes
+./setup.sh --check
+
+# Skip tools, just configure API keys
+./setup.sh --keys-only
+```
+
+Once set up:
+
+```bash
 # Test a single plugin (native runner, all runtimes)
 py/bin/conform check-model anthropic
 

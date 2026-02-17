@@ -177,14 +177,14 @@ class TestBazelBackendPublish:
         assert '//custom:my_deploy' in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_with_index_url(self, tmp_path: Path) -> None:
-        """publish() with index_url should pass --define REGISTRY_URL."""
+    async def test_publish_with_registry_url(self, tmp_path: Path) -> None:
+        """publish() with registry_url should pass --define REGISTRY_URL."""
         pkg = tmp_path / 'core'
         pkg.mkdir()
         backend = BazelBackend(workspace_root=tmp_path)
         result = await backend.publish(
             pkg,
-            index_url='https://custom-registry.example.com',
+            registry_url='https://custom-registry.example.com',
             dry_run=True,
         )
         assert '--define' in result.command

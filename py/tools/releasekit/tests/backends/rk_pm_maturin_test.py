@@ -113,12 +113,12 @@ class TestMaturinBackendDryRun:
         assert '--check-url' in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_with_index_url(self, tmp_path: Path) -> None:
-        """publish() should include --publish-url when index_url is set."""
+    async def test_publish_with_registry_url(self, tmp_path: Path) -> None:
+        """publish() should include --publish-url when registry_url is set."""
         backend = MaturinBackend(workspace_root=tmp_path)
         result = await backend.publish(
             tmp_path / 'dist',
-            index_url='https://test.pypi.org/legacy/',
+            registry_url='https://test.pypi.org/legacy/',
             dry_run=True,
         )
         assert '--publish-url' in result.command

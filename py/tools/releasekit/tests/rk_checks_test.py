@@ -75,9 +75,13 @@ def _make_packages(tmp_path: Path) -> list[Package]:
         'description = "Genkit SDK"\n'
         'license = {text = "Apache-2.0"}\n'
         'authors = [{name = "Google"}]\n'
-        'classifiers = ["License :: OSI Approved :: Apache Software License"]\n\n'
+        'classifiers = ["License :: OSI Approved :: Apache Software License", "Typing :: Typed"]\n'
+        'keywords = ["python"]\n\n'
         '[project.urls]\n'
-        'Changelog = "https://github.com/example/genkit/CHANGELOG.md"\n',
+        'Changelog = "https://github.com/example/genkit/CHANGELOG.md"\n'
+        'Homepage = "https://github.com/example/genkit"\n'
+        'Repository = "https://github.com/example/genkit"\n'
+        '"Bug Tracker" = "https://github.com/example/genkit/issues"\n',
         encoding='utf-8',
     )
     (core_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
@@ -93,9 +97,13 @@ def _make_packages(tmp_path: Path) -> list[Package]:
         'description = "Foo plugin"\n'
         'license = {text = "Apache-2.0"}\n'
         'authors = [{name = "Google"}]\n'
-        'classifiers = ["License :: OSI Approved :: Apache Software License"]\n\n'
+        'classifiers = ["License :: OSI Approved :: Apache Software License", "Typing :: Typed"]\n'
+        'keywords = ["python"]\n\n'
         '[project.urls]\n'
-        'Changelog = "https://github.com/example/genkit/CHANGELOG.md"\n',
+        'Changelog = "https://github.com/example/genkit/CHANGELOG.md"\n'
+        'Homepage = "https://github.com/example/genkit"\n'
+        'Repository = "https://github.com/example/genkit"\n'
+        '"Bug Tracker" = "https://github.com/example/genkit/issues"\n',
         encoding='utf-8',
     )
     (plugin_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
@@ -717,6 +725,7 @@ class TestFixPublishClassifiers:
         *,
         is_publishable: bool = True,
     ) -> Package:
+        """Make pkg."""
         pkg_dir = tmp_path / name
         pkg_dir.mkdir(parents=True, exist_ok=True)
         pyproject = pkg_dir / 'pyproject.toml'
@@ -1367,9 +1376,7 @@ class TestTestFilenameCollisions:
         assert 'test_filename_collisions' in result.warnings
 
 
-# ---------------------------------------------------------------------------
 # Helper to create a minimal publishable package for new check tests.
-# ---------------------------------------------------------------------------
 
 
 def _pub_pkg(
@@ -1390,11 +1397,18 @@ def _pub_pkg(
         'description = "test"\n'
         'license = {text = "Apache-2.0"}\n'
         'authors = [{name = "Test"}]\n'
-        'classifiers = ["License :: OSI Approved :: Apache Software License"]\n'
+        'classifiers = ["License :: OSI Approved :: Apache Software License", "Typing :: Typed"]\n'
+        'keywords = ["python"]\n'
     )
     # Only append default [project.urls] if pyproject_extra doesn't define its own.
     if '[project.urls]' not in pyproject_extra:
-        urls_section = '\n[project.urls]\nChangelog = "https://github.com/test/test/blob/main/CHANGELOG.md"\n'
+        urls_section = (
+            '\n[project.urls]\n'
+            'Changelog = "https://github.com/test/test/blob/main/CHANGELOG.md"\n'
+            'Homepage = "https://github.com/test/test"\n'
+            'Repository = "https://github.com/test/test"\n'
+            '"Bug Tracker" = "https://github.com/test/test/issues"\n'
+        )
     else:
         urls_section = ''
     # Insert pyproject_extra between [project] keys and [project.urls]
@@ -2378,3 +2392,274 @@ class TestRunFixes:
         backend = PythonCheckBackend()
         changes = backend.run_fixes([pkg])
         assert changes == []
+
+
+class TestTypingClassifierCheck:
+    """Tests for check_typing_classifier."""
+
+    def test_passes_with_both_classifiers(self, tmp_path: Path) -> None:
+        """Package with Typing :: Typed and License :: OSI Approved passes."""
+        pkg = _pub_pkg(tmp_path, 'good')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_typing_classifier([pkg], result)
+        assert 'typing_classifier' in result.passed
+
+    def test_warns_missing_typing_typed(self, tmp_path: Path) -> None:
+        """Package missing Typing :: Typed triggers warning."""
+        pkg_dir = tmp_path / 'notyping'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "notyping"\nversion = "1.0"\n'
+            'classifiers = ["License :: OSI Approved :: Apache Software License"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='notyping', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_typing_classifier([pkg], result)
+        assert 'typing_classifier' in result.warnings
+
+    def test_warns_missing_license_osi(self, tmp_path: Path) -> None:
+        """Package missing License :: OSI Approved triggers warning."""
+        pkg_dir = tmp_path / 'nolicense'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "nolicense"\nversion = "1.0"\nclassifiers = ["Typing :: Typed"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='nolicense', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_typing_classifier([pkg], result)
+        assert 'typing_classifier' in result.warnings
+
+    def test_skips_unpublishable(self, tmp_path: Path) -> None:
+        """Unpublishable packages are skipped."""
+        pkg_dir = tmp_path / 'private'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "private"\nversion = "1.0"\nclassifiers = []\n',
+            encoding='utf-8',
+        )
+        pkg = Package(
+            name='private',
+            version='1.0',
+            path=pkg_dir,
+            manifest_path=pkg_dir / 'pyproject.toml',
+            is_publishable=False,
+        )
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_typing_classifier([pkg], result)
+        assert 'typing_classifier' in result.passed
+
+
+class TestKeywordsAndUrlsCheck:
+    """Tests for check_keywords_and_urls."""
+
+    def test_passes_with_keywords_and_urls(self, tmp_path: Path) -> None:
+        """Package with keywords and all standard URLs passes."""
+        pkg = _pub_pkg(tmp_path, 'good')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_keywords_and_urls([pkg], result)
+        assert 'keywords_and_urls' in result.passed
+
+    def test_warns_missing_keywords(self, tmp_path: Path) -> None:
+        """Package missing keywords triggers warning."""
+        pkg_dir = tmp_path / 'nokw'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "nokw"\nversion = "1.0"\n\n'
+            '[project.urls]\n'
+            'Homepage = "https://example.com"\n'
+            'Repository = "https://example.com"\n'
+            '"Bug Tracker" = "https://example.com/issues"\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='nokw', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_keywords_and_urls([pkg], result)
+        assert 'keywords_and_urls' in result.warnings
+
+    def test_warns_missing_urls(self, tmp_path: Path) -> None:
+        """Package missing [project.urls] triggers warning."""
+        pkg_dir = tmp_path / 'nourls'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "nourls"\nversion = "1.0"\nkeywords = ["test"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='nourls', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_keywords_and_urls([pkg], result)
+        assert 'keywords_and_urls' in result.warnings
+
+    def test_warns_missing_standard_url_keys(self, tmp_path: Path) -> None:
+        """Package with urls but missing Homepage/Repository triggers warning."""
+        pkg_dir = tmp_path / 'partialurls'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "partialurls"\nversion = "1.0"\nkeywords = ["test"]\n\n'
+            '[project.urls]\nChangelog = "https://example.com/CHANGELOG.md"\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='partialurls', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        backend = PythonCheckBackend()
+        result = PreflightResult()
+        backend.check_keywords_and_urls([pkg], result)
+        assert 'keywords_and_urls' in result.warnings
+
+
+class TestFixTypingClassifier:
+    """Tests for fix_typing_classifier."""
+
+    def test_adds_typing_typed(self, tmp_path: Path) -> None:
+        """Adds Typing :: Typed when missing."""
+        from releasekit.checks import fix_typing_classifier
+
+        pkg_dir = tmp_path / 'mypkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "mypkg"\nversion = "1.0"\n'
+            'classifiers = ["License :: OSI Approved :: Apache Software License"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
+        pkg = Package(name='mypkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_typing_classifier([pkg])
+        assert len(changes) == 1
+        assert 'Typing :: Typed' in changes[0]
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert 'Typing :: Typed' in data['project']['classifiers']
+
+    def test_adds_license_osi(self, tmp_path: Path) -> None:
+        """Adds License :: OSI Approved when missing."""
+        from releasekit.checks import fix_typing_classifier
+
+        pkg_dir = tmp_path / 'mypkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "mypkg"\nversion = "1.0"\nclassifiers = ["Typing :: Typed"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
+        pkg = Package(name='mypkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_typing_classifier([pkg])
+        assert len(changes) == 1
+        assert 'License :: OSI Approved' in changes[0]
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert any(c.startswith('License :: OSI Approved') for c in data['project']['classifiers'])
+
+    def test_noop_when_both_present(self, tmp_path: Path) -> None:
+        """No changes when both classifiers already present."""
+        from releasekit.checks import fix_typing_classifier
+
+        pkg = _pub_pkg(tmp_path, 'clean')
+        changes = fix_typing_classifier([pkg])
+        assert changes == []
+
+    def test_dry_run(self, tmp_path: Path) -> None:
+        """Dry run reports changes without writing."""
+        from releasekit.checks import fix_typing_classifier
+
+        pkg_dir = tmp_path / 'drpkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "drpkg"\nversion = "1.0"\nclassifiers = []\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License\nVersion 2.0', encoding='utf-8')
+        pkg = Package(name='drpkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_typing_classifier([pkg], dry_run=True)
+        assert len(changes) == 1
+        # File should NOT be modified.
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert 'Typing :: Typed' not in data['project']['classifiers']
+
+
+class TestFixKeywordsAndUrls:
+    """Tests for fix_keywords_and_urls."""
+
+    def test_adds_keywords(self, tmp_path: Path) -> None:
+        """Adds keywords when missing."""
+        from releasekit.checks import fix_keywords_and_urls
+
+        pkg_dir = tmp_path / 'mypkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "mypkg"\nversion = "1.0"\n\n'
+            '[project.urls]\nHomepage = "https://example.com"\n'
+            'Repository = "https://example.com"\n'
+            '"Bug Tracker" = "https://example.com/issues"\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='mypkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_keywords_and_urls([pkg])
+        assert len(changes) == 1
+        assert 'keywords' in changes[0]
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert data['project']['keywords'] == ['python']
+
+    def test_adds_urls(self, tmp_path: Path) -> None:
+        """Adds standard URLs when missing."""
+        from releasekit.checks import fix_keywords_and_urls
+
+        pkg_dir = tmp_path / 'mypkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "mypkg"\nversion = "1.0"\nkeywords = ["test"]\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='mypkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_keywords_and_urls([pkg], repo_owner='firebase', repo_name='genkit')
+        assert len(changes) == 1
+        assert 'urls' in changes[0]
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert 'Homepage' in data['project']['urls']
+        assert 'Repository' in data['project']['urls']
+        assert 'Bug Tracker' in data['project']['urls']
+
+    def test_noop_when_complete(self, tmp_path: Path) -> None:
+        """No changes when keywords and all URLs already present."""
+        from releasekit.checks import fix_keywords_and_urls
+
+        pkg = _pub_pkg(tmp_path, 'clean')
+        changes = fix_keywords_and_urls([pkg])
+        assert changes == []
+
+    def test_dry_run(self, tmp_path: Path) -> None:
+        """Dry run reports changes without writing."""
+        from releasekit.checks import fix_keywords_and_urls
+
+        pkg_dir = tmp_path / 'drpkg'
+        pkg_dir.mkdir()
+        (pkg_dir / 'pyproject.toml').write_text(
+            '[project]\nname = "drpkg"\nversion = "1.0"\n',
+            encoding='utf-8',
+        )
+        (pkg_dir / 'LICENSE').write_text('Apache License', encoding='utf-8')
+        (pkg_dir / 'README.md').write_text('', encoding='utf-8')
+        pkg = Package(name='drpkg', version='1.0', path=pkg_dir, manifest_path=pkg_dir / 'pyproject.toml')
+        changes = fix_keywords_and_urls([pkg], dry_run=True)
+        assert len(changes) == 1
+        # File should NOT be modified.
+        data = _read_toml(pkg_dir / 'pyproject.toml')
+        assert 'keywords' not in data['project']

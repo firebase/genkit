@@ -104,6 +104,7 @@ import tomlkit.exceptions
 from releasekit.backends.workspace._types import Package
 from releasekit.backends.workspace.bazel import BazelWorkspace
 from releasekit.backends.workspace.cargo import CargoWorkspace
+from releasekit.backends.workspace.clojure import ClojureWorkspace
 from releasekit.backends.workspace.dart import DartWorkspace
 from releasekit.backends.workspace.go import GoWorkspace
 from releasekit.backends.workspace.maven import MavenWorkspace
@@ -319,11 +320,16 @@ def _discover_via_backend(
         List of discovered packages.
     """
     _ws_type = (
-        type[GoWorkspace] | type[DartWorkspace] | type[MavenWorkspace] | type[CargoWorkspace] | type[BazelWorkspace]
+        type[GoWorkspace]
+        | type[DartWorkspace]
+        | type[MavenWorkspace]
+        | type[CargoWorkspace]
+        | type[BazelWorkspace]
+        | type[ClojureWorkspace]
     )
     backend_map: dict[str, _ws_type] = {
         'bazel': BazelWorkspace,
-        'clojure': MavenWorkspace,
+        'clojure': ClojureWorkspace,
         'dart': DartWorkspace,
         'go': GoWorkspace,
         'java': MavenWorkspace,

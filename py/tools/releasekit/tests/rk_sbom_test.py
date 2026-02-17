@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 
 import jsonschema
+import referencing
 from releasekit.sbom import (
     SBOMComponent,
     SBOMFormat,
@@ -51,9 +52,6 @@ def _manifest(*names_versions: tuple[str, str]) -> ReleaseManifest:
     )
 
 
-# ── SBOMFormat ──
-
-
 class TestSBOMFormat:
     """Tests for SBOMFormat enum."""
 
@@ -69,9 +67,6 @@ class TestSBOMFormat:
         """Enum values are correct strings."""
         assert SBOMFormat.CYCLONEDX.value == 'cyclonedx'
         assert SBOMFormat.SPDX.value == 'spdx'
-
-
-# ── SBOMComponent ──
 
 
 class TestSBOMComponent:
@@ -94,9 +89,6 @@ class TestSBOMComponent:
             raise AssertionError('Should be frozen')
         except AttributeError:
             pass
-
-
-# ── _make_purl ──
 
 
 class TestMakePurl:
@@ -125,9 +117,6 @@ class TestMakePurl:
     def test_javascript_ecosystem(self) -> None:
         """Javascript maps to npm purl."""
         assert _make_purl('pkg', '1.0.0', 'javascript') == 'pkg:npm/pkg@1.0.0'
-
-
-# ── _build_components ──
 
 
 class TestBuildComponents:
@@ -165,9 +154,6 @@ class TestBuildComponents:
         m = _manifest(('react', '18.0.0'))
         comps = _build_components(m, ecosystem='js')
         assert comps[0].purl == 'pkg:npm/react@18.0.0'
-
-
-# ── _render_cyclonedx ──
 
 
 class TestRenderCycloneDX:
@@ -225,9 +211,6 @@ class TestRenderCycloneDX:
         doc = _render_cyclonedx(comps)
         assert doc['serialNumber'].startswith('urn:uuid:')
         assert doc['metadata']['timestamp'] != ''
-
-
-# ── _render_spdx ──
 
 
 class TestRenderSPDX:
@@ -294,9 +277,6 @@ class TestRenderSPDX:
         assert doc['creationInfo']['created'] != ''
 
 
-# ── generate_sbom ──
-
-
 class TestGenerateSBOM:
     """Tests for generate_sbom."""
 
@@ -338,9 +318,6 @@ class TestGenerateSBOM:
         assert 'pkg:npm/react@18.0.0' in result
 
 
-# ── write_sbom ──
-
-
 class TestWriteSBOM:
     """Tests for write_sbom."""
 
@@ -379,9 +356,28 @@ class TestWriteSBOM:
         assert comp['supplier'] == {'name': 'Acme Corp'}
 
 
-# ── Schema validation against official specs ──
-
 _SCHEMA_DIR = Path(__file__).parent / 'schemas'
+
+
+def _build_schema_registry() -> referencing.Registry:
+    """Build a referencing.Registry from all .schema.json files in the schemas dir.
+
+    This allows jsonschema to resolve $ref links between sibling schema files
+    (e.g., bom-1.5.schema.json references spdx.schema.json).
+    """
+    registry = referencing.Registry()
+    for path in _SCHEMA_DIR.glob('*.schema.json'):
+        contents = json.loads(path.read_text(encoding='utf-8'))
+        resource = referencing.Resource.from_contents(contents)
+        # Register under the filename so that relative $ref resolves.
+        registry = registry.with_resource(path.name, resource)
+        # Also register under the $id if present, for absolute $ref.
+        if '$id' in contents:
+            registry = registry.with_resource(contents['$id'], resource)
+    return registry
+
+
+_SCHEMA_REGISTRY = _build_schema_registry()
 
 
 def _load_schema(name: str) -> dict:
@@ -402,7 +398,7 @@ class TestCycloneDXSchemaValidation:
             return  # Schema file not available; skip gracefully.
         m = _manifest(('genkit', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_multiple_packages(self) -> None:
         """Multi-package SBOM validates against CycloneDX 1.5 schema."""
@@ -415,7 +411,7 @@ class TestCycloneDXSchemaValidation:
             ('genkit-plugin-vertex-ai', '0.5.0'),
         )
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_minimal_no_supplier(self) -> None:
         """Minimal SBOM without supplier validates."""
@@ -424,7 +420,7 @@ class TestCycloneDXSchemaValidation:
             return
         m = _manifest(('foo', '1.0.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_js_ecosystem(self) -> None:
         """JS ecosystem SBOM validates against CycloneDX 1.5 schema."""
@@ -433,7 +429,7 @@ class TestCycloneDXSchemaValidation:
             return
         m = _manifest(('react', '18.0.0'), ('@genkit/core', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, ecosystem='js'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
 
 class TestSPDXSchemaValidation:

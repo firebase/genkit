@@ -21,14 +21,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from releasekit.backends.workspace.clojure import ClojureWorkspace
 from releasekit.detection import (
     Ecosystem,
     detect_ecosystems,
     find_monorepo_root,
 )
 from releasekit.errors import ReleaseKitError
-
-# ── Helpers ──────────────────────────────────────────────────────────
 
 
 def _create_git_repo(root: Path) -> Path:
@@ -138,9 +137,6 @@ def _create_cargo_workspace(directory: Path) -> Path:
     return directory
 
 
-# ── find_monorepo_root ───────────────────────────────────────────────
-
-
 class TestFindMonorepoRoot:
     """Tests for :func:`find_monorepo_root`."""
 
@@ -175,9 +171,6 @@ class TestFindMonorepoRoot:
         result = find_monorepo_root()
         if result != tmp_path:
             pytest.fail(f'Expected {tmp_path}, got {result}')
-
-
-# ── detect_ecosystems ────────────────────────────────────────────────
 
 
 class TestDetectEcosystems:
@@ -302,8 +295,6 @@ class TestDetectEcosystems:
         if len(result) != 0:
             pytest.fail(f'Expected 0 ecosystems, got {len(result)}')
 
-    # ── Filtering ────────────────────────────────────────────────────
-
     def test_filter_python_only(self, tmp_path: Path) -> None:
         """--ecosystem=python returns only python ecosystems."""
         _create_git_repo(tmp_path)
@@ -334,8 +325,6 @@ class TestDetectEcosystems:
         result = detect_ecosystems(tmp_path, ecosystem_filter=Ecosystem.GO)
         if len(result) != 0:
             pytest.fail(f'Expected 0 ecosystems, got {len(result)}')
-
-    # ── Edge cases ───────────────────────────────────────────────────
 
     def test_pyproject_without_uv_workspace_ignored(self, tmp_path: Path) -> None:
         """A pyproject.toml without [tool.uv.workspace] is not a uv workspace."""
@@ -380,8 +369,6 @@ class TestDetectEcosystems:
         if types != expected:
             pytest.fail(f'Expected {expected}, got {types}')
 
-    # ── Dart detection ─────────────────────────────────────────────────
-
     def test_detects_dart_in_subdir(self, tmp_path: Path) -> None:
         """Detects a Dart workspace in a subdirectory."""
         _create_git_repo(tmp_path)
@@ -402,8 +389,6 @@ class TestDetectEcosystems:
         assert result[0].ecosystem == Ecosystem.DART
         assert result[0].workspace is not None
 
-    # ── Java detection ─────────────────────────────────────────────────
-
     def test_detects_java_in_subdir(self, tmp_path: Path) -> None:
         """Detects a Java workspace in a subdirectory."""
         _create_git_repo(tmp_path)
@@ -423,8 +408,6 @@ class TestDetectEcosystems:
         assert len(result) == 1
         assert result[0].ecosystem == Ecosystem.JAVA
         assert result[0].workspace is not None
-
-    # ── Rust detection ─────────────────────────────────────────────────
 
     def test_detects_rust_in_subdir(self, tmp_path: Path) -> None:
         """Detects a Rust/Cargo workspace in a subdirectory."""
@@ -468,8 +451,6 @@ class TestDetectEcosystems:
         assert len(result) == 1
         assert result[0].ecosystem == Ecosystem.RUST
 
-    # ── Kotlin detection ──────────────────────────────────────────────
-
     def test_detects_kotlin_in_subdir(self, tmp_path: Path) -> None:
         """Detects a Kotlin workspace in a subdirectory."""
         _create_git_repo(tmp_path)
@@ -510,8 +491,6 @@ class TestDetectEcosystems:
         assert len(result) == 1
         assert result[0].ecosystem == Ecosystem.KOTLIN
 
-    # ── Clojure detection ─────────────────────────────────────────────
-
     def test_detects_clojure_lein_in_subdir(self, tmp_path: Path) -> None:
         """Detects a Clojure/Leiningen workspace in a subdirectory."""
         _create_git_repo(tmp_path)
@@ -520,8 +499,7 @@ class TestDetectEcosystems:
         result = detect_ecosystems(tmp_path)
         assert len(result) == 1
         assert result[0].ecosystem == Ecosystem.CLOJURE
-        # No workspace backend yet.
-        assert result[0].workspace is None
+        assert isinstance(result[0].workspace, ClojureWorkspace)
 
     def test_detects_clojure_deps_edn(self, tmp_path: Path) -> None:
         """Detects a Clojure/tools.deps workspace via deps.edn."""
@@ -540,8 +518,6 @@ class TestDetectEcosystems:
         result = detect_ecosystems(tmp_path, ecosystem_filter=Ecosystem.CLOJURE)
         assert len(result) == 1
         assert result[0].ecosystem == Ecosystem.CLOJURE
-
-    # ── All ecosystems together ───────────────────────────────────────
 
     def test_detects_all_eight_ecosystems(self, tmp_path: Path) -> None:
         """Detects all eight ecosystems in a polyglot monorepo."""

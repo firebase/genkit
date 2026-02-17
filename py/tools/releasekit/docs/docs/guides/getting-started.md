@@ -11,8 +11,10 @@ configuration, and publishing your first release.
 ## Prerequisites
 
 - **Python 3.10+**
-- **uv** (for Python workspaces) or **pnpm** (for JS workspaces)
 - **Git** with Conventional Commits
+- One or more ecosystem tools: **uv** (Python), **pnpm** (JS), **go** (Go),
+  **cargo** (Rust), **dart** / **melos** (Dart), **mvn** / **gradle** (Java/Kotlin),
+  **bazel** (Bazel)
 
 ## Installation
 

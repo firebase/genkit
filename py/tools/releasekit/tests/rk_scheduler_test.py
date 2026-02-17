@@ -874,6 +874,7 @@ class TestSchedulerNoSeeds:
         sched = Scheduler(nodes=nodes, concurrency=2)
 
         async def publish_fn(name: str) -> None:
+            """Publish fn."""
             pass
 
         result = await sched.run(publish_fn)
@@ -906,6 +907,7 @@ class TestSchedulerObserverNotify:
 
         class SpyObserver(PublishObserver):
             def on_stage(self, name: str, stage: PublishStage) -> None:
+                """On stage."""
                 stages.append((name, stage))
 
         nodes = {'a': PackageNode(name='a', remaining_deps=0)}
@@ -928,6 +930,7 @@ class TestSchedulerObserverNotify:
 
         class SpyObserver(PublishObserver):
             def on_scheduler_state(self, state: SchedulerState) -> None:
+                """On scheduler state."""
                 states.append(state)
 
         nodes = {'a': PackageNode(name='a', remaining_deps=0)}
@@ -963,6 +966,7 @@ class TestSchedulerBlockDependents:
 
         class SpyObserver(PublishObserver):
             def on_stage(self, name: str, stage: PublishStage) -> None:
+                """On stage."""
                 if stage == PublishStage.BLOCKED:
                     blocked.append(name)
 
@@ -1045,6 +1049,7 @@ class TestSchedulerCancelledPackage:
         published: list[str] = []
 
         async def fake_publish(name: str) -> None:
+            """Fake publish."""
             published.append(name)
 
         # Remove 'b' before running.
@@ -1069,6 +1074,7 @@ class TestSchedulerCancelledPackage:
         call_count = 0
 
         async def failing_publish(name: str) -> None:
+            """Failing publish."""
             nonlocal call_count
             call_count += 1
             raise asyncio.CancelledError

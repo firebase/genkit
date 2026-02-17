@@ -66,6 +66,7 @@ import tomlkit
 import tomlkit.exceptions
 import tomlkit.items
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._io import read_file, write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.logging import get_logger
@@ -652,6 +653,40 @@ class MavenWorkspace:
                 return text[:ver_pos] + new_tag + text[ver_pos + len(old_tag) :]
 
         return text
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect license from ``pom.xml`` ``<licenses><license><name>``."""
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        pom = pkg_path / 'pom.xml'
+        if not pom.is_file():
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+        try:
+            text = await read_file(pom)
+            root = ET.fromstring(text)  # noqa: S314
+        except Exception:  # noqa: BLE001
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+
+        # Try with Maven namespace first, then without.
+        for ns in (_POM_NS, ''):
+            licenses_elem = root.find(f'{ns}licenses')
+            if licenses_elem is None:
+                continue
+            license_elem = licenses_elem.find(f'{ns}license')
+            if license_elem is None:
+                continue
+            name_elem = license_elem.find(f'{ns}name')
+            if name_elem is not None and name_elem.text:
+                return DetectedLicense(
+                    value=name_elem.text.strip(),
+                    source='pom.xml',
+                    package_name=pkg_name,
+                )
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
 
 __all__ = [

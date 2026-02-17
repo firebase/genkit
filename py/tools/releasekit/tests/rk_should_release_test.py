@@ -32,9 +32,7 @@ def _utc(year: int, month: int, day: int, hour: int = 12, minute: int = 0) -> da
     return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
 
 
-# ---------------------------------------------------------------------------
 # No releasable commits
-# ---------------------------------------------------------------------------
 
 
 class TestNoReleasableCommits:
@@ -51,9 +49,7 @@ class TestNoReleasableCommits:
         assert 'No releasable commits' in decision.reason
 
 
-# ---------------------------------------------------------------------------
 # Minimum bump level
-# ---------------------------------------------------------------------------
 
 
 class TestMinBump:
@@ -101,9 +97,7 @@ class TestMinBump:
         assert decision.should
 
 
-# ---------------------------------------------------------------------------
 # Cadence
-# ---------------------------------------------------------------------------
 
 
 class TestCadence:
@@ -172,9 +166,7 @@ class TestCadence:
         assert 'odd' in decision.reason.lower()
 
 
-# ---------------------------------------------------------------------------
 # Release window
-# ---------------------------------------------------------------------------
 
 
 class TestReleaseWindow:
@@ -245,9 +237,7 @@ class TestReleaseWindow:
         assert decision.should
 
 
-# ---------------------------------------------------------------------------
 # Cooldown
-# ---------------------------------------------------------------------------
 
 
 class TestCooldown:
@@ -301,9 +291,7 @@ class TestCooldown:
         assert decision.should
 
 
-# ---------------------------------------------------------------------------
 # Combined checks
-# ---------------------------------------------------------------------------
 
 
 class TestCombined:

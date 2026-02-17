@@ -58,6 +58,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 from rich_argparse import RichHelpFormatter
@@ -101,6 +102,13 @@ from releasekit.checks import (
     fix_stale_artifacts,
     run_checks,
 )
+from releasekit.checks._license_tree import (
+    LICENSE_TREE_FORMATS,
+    LicenseTree,
+    format_license_tree_as,
+    should_use_color,
+)
+from releasekit.checks._universal import LicenseExemptions
 from releasekit.commit_parsing._types import BumpType
 from releasekit.compliance import (
     ComplianceControl,
@@ -110,6 +118,7 @@ from releasekit.compliance import (
     print_compliance_table,
 )
 from releasekit.config import (
+    CONFIG_FILENAME,
     ReleaseConfig,
     WorkspaceConfig,
     build_package_configs,
@@ -398,6 +407,13 @@ def _create_backends(
     base URL for the registry backend (e.g. for Test PyPI, a local
     Verdaccio, or a staging crates.io).
 
+    For npm workspaces, ``registry_url`` flows to both the
+    ``NpmRegistry`` backend (polling/verification) **and** the publish
+    path (``pnpm publish --registry``).  This works with full mirrors
+    like Verdaccio and with Google's `Wombat Dressing Room
+    <https://github.com/GoogleCloudPlatform/wombat-dressing-room>`_
+    (which proxies both reads and writes).
+
     Args:
         config_root: Directory containing ``releasekit.toml`` (repo root).
         config: Release configuration.
@@ -670,7 +686,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             concurrency=args.concurrency,
             dry_run=args.dry_run,
             check_url=args.check_url,
-            index_url=args.index_url,
+            registry_url=ws_config.registry_url or None,
             smoke_test=ws_config.smoke_test,
             max_retries=args.max_retries,
             retry_base_delay=args.retry_base_delay,
@@ -1043,6 +1059,17 @@ def _check_one_workspace(
 
     skip = build_skip_map(ws_config, [p.name for p in packages])
 
+    # Build license exemptions from config so overrides are applied.
+    lic_cfg = config.license
+    exemptions = LicenseExemptions(
+        exempt_packages=frozenset(lic_cfg.exempt_packages),
+        allow_licenses=frozenset(lic_cfg.allow_licenses),
+        deny_licenses=frozenset(lic_cfg.deny_licenses),
+        license_overrides=dict(lic_cfg.overrides),
+        workspace_exceptions=frozenset(lic_cfg.workspace_exceptions),
+        project_exceptions={k: frozenset(v) for k, v in lic_cfg.project_exceptions.items()},
+    )
+
     result = run_checks(
         packages,
         graph,
@@ -1055,6 +1082,8 @@ def _check_one_workspace(
         library_dirs=ws_config.library_dirs,
         plugin_dirs=ws_config.plugin_dirs,
         skip_map=skip or None,
+        project_license=lic_cfg.project,
+        exemptions=exemptions,
     )
     return label, result
 
@@ -1119,6 +1148,14 @@ def _print_check_result(label: str, result: PreflightResult, *, show_label: bool
            = hint: actionable suggestion
     """
     prefix = f'[{label}] ' if show_label else ''
+
+    # Print the license dependency tree if the license check produced one.
+    for tree_text in result.context.get('license_tree', []):
+        if isinstance(tree_text, str):
+            for line in tree_text.splitlines():
+                print(f'  {line}')  # noqa: T201 - CLI output
+            print()  # noqa: T201 - CLI output
+
     if result.passed:
         for name in result.passed:
             print(f'  ✅ {prefix}{name}')  # noqa: T201 - CLI output
@@ -1492,7 +1529,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     yank_reason = getattr(args, 'yank_reason', '')
     tag = args.tag
 
-    # ── Determine which tags to delete ────────────────────────────
     tags_to_delete: list[str] = []
 
     if all_tags and await vcs.tag_exists(tag):
@@ -1520,7 +1556,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     if not tags_to_delete:
         tags_to_delete = [tag]
 
-    # ── Delete tags ───────────────────────────────────────────────
     deleted: list[str] = []
     for t in tags_to_delete:
         if await vcs.tag_exists(t):
@@ -1530,7 +1565,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
         else:
             logger.info('Tag %s does not exist locally', t)
 
-    # ── Delete platform releases (concurrently) ─────────────────
     if forge is not None and await forge.is_available():
 
         async def _delete_release(t: str) -> None:
@@ -1544,7 +1578,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     else:
         logger.info('Forge not available, skipping release deletion')
 
-    # ── Yank from registry (opt-in, concurrently) ──────────────────
     yanked: list[str] = []
     yank_failed: list[str] = []
     if yank:
@@ -1577,7 +1610,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
             else:
                 yank_failed.append(label)
 
-    # ── Summary ───────────────────────────────────────────────────
     for t in deleted:
         print(f'  \U0001f5d1\ufe0f  Deleted tag: {t}')  # noqa: T201 - CLI output
     for y in yanked:
@@ -1588,7 +1620,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     if not deleted:
         print(f'  \u2139\ufe0f  Tag {tag} not found')  # noqa: T201 - CLI output
 
-    # ── Rollback announcement ────────────────────────────────────
     announce_cfg = config.announcements
     if deleted and announce_cfg and announce_cfg.enabled:
         pkg_names = []
@@ -1779,19 +1810,35 @@ async def _cmd_prepare(args: argparse.Namespace) -> int:
     config = load_config(config_root)
     ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
     ws_root = _effective_workspace_root(config_root, ws_config)
-    vcs, pm, forge, registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
-
-    result = await prepare_release(
-        vcs=vcs,
-        pm=pm,
-        forge=forge,
-        registry=registry,
-        workspace_root=ws_root,
-        config=config,
+    forge_backend = getattr(args, 'forge_backend', 'cli')
+    vcs, pm, forge, registry = _create_backends(
+        config_root,
+        config,
+        ws_root=ws_root,
         ws_config=ws_config,
-        dry_run=args.dry_run,
-        force=args.force,
+        forge_backend=forge_backend,
     )
+
+    try:
+        result = await prepare_release(
+            vcs=vcs,
+            pm=pm,
+            forge=forge,
+            registry=registry,
+            workspace_root=ws_root,
+            config=config,
+            ws_config=ws_config,
+            dry_run=args.dry_run,
+            force=args.force,
+            prerelease=getattr(args, 'prerelease', ''),
+            bump_override=getattr(args, 'bump', ''),
+        )
+    except RuntimeError as exc:
+        logger.error('prepare_error', step='prepare_release', error=str(exc))
+        return 1
+    except Exception as exc:  # noqa: BLE001
+        logger.error('prepare_error', step='prepare_release', error=str(exc), exc_type=type(exc).__name__)
+        return 1
 
     if not result.ok:
         for step, error in result.errors.items():
@@ -2331,6 +2378,154 @@ async def _cmd_snapshot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_licenses(args: argparse.Namespace) -> int:
+    """Handle the ``licenses`` subcommand.
+
+    Discovers packages across all workspaces (or a single workspace
+    selected via ``--workspace``), runs the license compatibility check,
+    and renders a tree with repo-root → workspace → package hierarchy.
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    explicit_ws: str | None = getattr(args, 'workspace', None)
+    fmt = getattr(args, 'format', 'tree')
+    output_file = getattr(args, 'output', None)
+    fix_mode = getattr(args, 'fix', False)
+    dry_run = getattr(args, 'dry_run', False)
+    use_color = should_use_color(force=config.color)
+
+    from releasekit.checks._universal import _check_license_compatibility
+
+    # Determine which workspaces to scan.
+    if explicit_ws:
+        ws_configs = [_resolve_ws_config(config, explicit_ws)]
+    elif config.workspaces:
+        ws_configs = list(config.workspaces.values())
+        # Auto-discover ecosystems not already configured so that
+        # `releasekit licenses` scans everything by default (e.g. JS
+        # workspaces that aren't set up for release management yet).
+        configured_roots = {ws.root for ws in ws_configs}
+        detected = detect_ecosystems(config_root)
+        for eco in detected:
+            rel_root = str(eco.root.relative_to(config_root))
+            if rel_root == '.':
+                rel_root = '.'
+            if rel_root not in configured_roots:
+                ws_configs.append(
+                    WorkspaceConfig(
+                        label=rel_root,
+                        ecosystem=eco.ecosystem.value,
+                        root=rel_root,
+                    )
+                )
+    else:
+        # Single-workspace project — use the default.
+        ws_configs = [_resolve_ws_config(config, None)]
+
+    all_sections: list[str] = []
+    all_trees: list[LicenseTree] = []
+    repo_name = config_root.name
+
+    for ws_config in ws_configs:
+        ws_label = ws_config.label or ws_config.ecosystem or 'default'
+        ws_root = _effective_workspace_root(config_root, ws_config)
+
+        try:
+            packages = discover_packages(
+                ws_root,
+                exclude_patterns=ws_config.exclude,
+                ecosystem=ws_config.ecosystem or 'python',
+            )
+        except Exception:  # noqa: BLE001
+            all_sections.append(f'  workspace: {ws_label} — no packages found')
+            continue
+
+        if not packages:
+            all_sections.append(f'  workspace: {ws_label} — no packages found')
+            continue
+
+        build_graph(packages)
+
+        # Build exemptions from [license] config.
+        lic_cfg = config.license
+        exemptions = LicenseExemptions(
+            exempt_packages=frozenset(lic_cfg.exempt_packages),
+            allow_licenses=frozenset(lic_cfg.allow_licenses),
+            deny_licenses=frozenset(lic_cfg.deny_licenses),
+            license_overrides=dict(lic_cfg.overrides),
+            workspace_exceptions=frozenset(lic_cfg.workspace_exceptions),
+            project_exceptions={k: frozenset(v) for k, v in lic_cfg.project_exceptions.items()},
+        )
+
+        result = PreflightResult()
+        _check_license_compatibility(
+            packages,
+            result,
+            project_license=lic_cfg.project,
+            exemptions=exemptions,
+            color=config.color,
+            workspace_root=ws_root,
+            ecosystem=ws_config.ecosystem or 'python',
+        )
+
+        tree_objs = result.context.get('license_tree_obj', [])
+        if not tree_objs:
+            all_sections.append(f'  workspace: {ws_label} — no publishable packages')
+            continue
+
+        ltree: LicenseTree = cast(LicenseTree, tree_objs[0])
+        all_trees.append(ltree)
+
+        if fmt == 'tree':
+            # Render with workspace header indented under repo root.
+            tree_text = format_license_tree_as(ltree, 'tree', color=use_color)
+            # Indent tree lines under the workspace node.
+            indented = '\n'.join(f'    {line}' for line in tree_text.splitlines())
+            all_sections.append(f'  [{ws_label}] ({ws_config.ecosystem or "python"})')
+            all_sections.append(indented)
+        else:
+            # For structured formats, render per-workspace.
+            all_sections.append(format_license_tree_as(ltree, fmt, color=False))
+
+    if fmt == 'tree':
+        output_lines = [f'{repo_name}/ (repo root)']
+        output_lines.extend(all_sections)
+        text = '\n'.join(output_lines) + '\n'
+    else:
+        text = '\n'.join(all_sections) + '\n'
+
+    if output_file:
+        Path(output_file).write_text(text, encoding='utf-8')
+        print(f'License tree written to {output_file}')  # noqa: T201 - CLI output
+    else:
+        print(text)  # noqa: T201 - CLI output
+
+    # ── Interactive fix mode ──────────────────────────────────────
+    if fix_mode and all_trees:
+        from releasekit.checks._license_fix import interactive_license_fix  # noqa: PLC0415
+
+        config_path = config_root / CONFIG_FILENAME
+        if not config_path.is_file():
+            print('  \u274c Cannot fix: no releasekit.toml found.')  # noqa: T201
+            return 1
+
+        # Merge all trees into a single tree for the fix session.
+        merged = LicenseTree(project_license=all_trees[0].project_license)
+        for t in all_trees:
+            merged.packages.extend(t.packages)
+
+        report = interactive_license_fix(
+            merged,
+            config_path,
+            color=use_color,
+            dry_run=dry_run,
+        )
+        if report.written:
+            return 0
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -2354,6 +2549,28 @@ def build_parser() -> argparse.ArgumentParser:
         metavar='LABEL',
         default=None,
         help='Workspace label from releasekit.toml (e.g. py, js). Defaults to the first workspace.',
+    )
+    parser.add_argument(
+        '--no-ai',
+        action='store_true',
+        default=False,
+        help='Disable all AI features for this run.',
+    )
+    parser.add_argument(
+        '--model',
+        metavar='PROVIDER/MODEL',
+        default=None,
+        help='Override the AI model (e.g. ollama/gemma3:4b, google-genai/gemini-3.0-flash-preview).',
+    )
+    parser.add_argument(
+        '--codename-theme',
+        metavar='THEME',
+        default=None,
+        help=(
+            'Theme for AI-generated release codenames '
+            '(e.g. mountains, animals, space, mythology, gems, '
+            'weather, cities, or any custom theme).'
+        ),
     )
 
     subparsers = parser.add_subparsers(dest='command')
@@ -2394,12 +2611,12 @@ def build_parser() -> argparse.ArgumentParser:
         help='URL to check for already-published versions.',
     )
     publish_parser.add_argument(
-        '--index-url',
-        help='Custom registry index URL (passed to the package manager).',
-    )
-    publish_parser.add_argument(
         '--registry-url',
-        help='Custom registry URL for polling/verification (e.g. Test PyPI, local Verdaccio).',
+        '--index-url',
+        dest='registry_url',
+        help='Custom registry URL for both publishing and polling/verification '
+        '(e.g. Test PyPI, local Verdaccio, Wombat Dressing Room). '
+        'Overrides registry_url in releasekit.toml.',
     )
     publish_parser.add_argument(
         '--dist-tag',
@@ -2613,6 +2830,41 @@ def build_parser() -> argparse.ArgumentParser:
         help='Minimum OSV severity to report: LOW, MEDIUM, HIGH, CRITICAL (default: HIGH).',
     )
 
+    licenses_parser = subparsers.add_parser(
+        'licenses',
+        help='Show license compatibility tree for all workspaces.',
+    )
+    licenses_parser.add_argument(
+        '--workspace',
+        '-w',
+        metavar='NAME',
+        help='Check only the named workspace (default: all).',
+    )
+    licenses_parser.add_argument(
+        '--format',
+        choices=sorted(LICENSE_TREE_FORMATS),
+        default='tree',
+        help='Output format (default: tree). Choices: d2, dot, json, mermaid, table, tree.',
+    )
+    licenses_parser.add_argument(
+        '--output',
+        '-o',
+        metavar='FILE',
+        help='Write output to FILE instead of stdout.',
+    )
+    licenses_parser.add_argument(
+        '--fix',
+        action='store_true',
+        default=False,
+        help='Interactively fix license issues (exempt, allow, deny, override).',
+    )
+    licenses_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        default=False,
+        help='Show what --fix would change without writing releasekit.toml.',
+    )
+
     version_parser = subparsers.add_parser(
         'version',
         help='Show computed version bumps.',
@@ -2752,6 +3004,13 @@ def build_parser() -> argparse.ArgumentParser:
         choices=['cli', 'api'],
         default='cli',
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
+    )
+    prepare_parser.add_argument(
+        '--bump',
+        choices=['patch', 'minor', 'major'],
+        default='',
+        metavar='TYPE',
+        help='Override auto-detected bump type (patch, minor, major). Empty means auto-detect.',
     )
 
     release_parser = subparsers.add_parser(
@@ -2926,8 +3185,8 @@ def build_parser() -> argparse.ArgumentParser:
         help='Output format (default: table).',
     )
 
-    # Add --prerelease to publish, plan, version.
-    for p in (publish_parser, plan_parser, version_parser):
+    # Add --prerelease to publish, plan, version, prepare.
+    for p in (publish_parser, plan_parser, version_parser, prepare_parser):
         p.add_argument(
             '--prerelease',
             default='',
@@ -2984,6 +3243,8 @@ def main() -> int:
             return _cmd_graph(args)
         if command == 'check':
             return asyncio.run(_cmd_check(args))
+        if command == 'licenses':
+            return _cmd_licenses(args)
         if command == 'version':
             return asyncio.run(_cmd_version(args))
         if command == 'changelog':

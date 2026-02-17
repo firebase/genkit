@@ -37,7 +37,7 @@ Detection Signals::
     ├──────────────┼─────────────────────────────────┼───────────────┤
     │  kotlin      │  build.gradle.kts (Kotlin DSL)  │ MavenWorkspace│
     ├──────────────┼─────────────────────────────────┼───────────────┤
-    │  clojure     │  project.clj / deps.edn         │ (None)        │
+    │  clojure     │  project.clj / deps.edn         │ ClojureWS     │
     ├──────────────┼─────────────────────────────────┼───────────────┤
     │  rust        │  Cargo.toml with [workspace]    │ CargoWorkspace│
     └──────────────┴─────────────────────────────────┴───────────────┘
@@ -89,6 +89,7 @@ else:
 
 from releasekit.backends.workspace import (
     CargoWorkspace,
+    ClojureWorkspace,
     DartWorkspace,
     GoWorkspace,
     MavenWorkspace,
@@ -402,7 +403,7 @@ def detect_ecosystems(
                 DetectedEcosystem(
                     ecosystem=Ecosystem.CLOJURE,
                     root=candidate,
-                    workspace=None,
+                    workspace=ClojureWorkspace(candidate),
                 )
             )
         if _is_cargo_workspace(candidate):

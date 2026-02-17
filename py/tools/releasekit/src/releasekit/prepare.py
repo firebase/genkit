@@ -260,6 +260,8 @@ async def prepare_release(
     ws_config: WorkspaceConfig,
     dry_run: bool = False,
     force: bool = False,
+    prerelease: str = '',
+    bump_override: str = '',
 ) -> PrepareResult:
     """Run the prepare step: bump versions, generate changelogs, open Release PR.
 
@@ -277,6 +279,10 @@ async def prepare_release(
         ws_config: Per-workspace configuration.
         dry_run: If True, skip all side effects.
         force: If True, skip preflight and force bumps.
+        prerelease: Prerelease label (e.g. ``"rc.1"``). If set, all bumps
+            produce prerelease versions.
+        bump_override: Override bump type (``"patch"``, ``"minor"``,
+            ``"major"``). Empty string means auto-detect from commits.
 
     Returns:
         A :class:`PrepareResult` with bumped packages and PR URL.
@@ -296,6 +302,8 @@ async def prepare_release(
         packages,
         vcs,
         tag_format=ws_config.tag_format,
+        prerelease=prerelease,
+        force_unchanged=bool(bump_override),
         graph=propagate_graph,
         synchronize=ws_config.synchronize,
         major_on_zero=ws_config.major_on_zero,
@@ -421,7 +429,11 @@ async def prepare_release(
     if not dry_run:
         await vcs.checkout_branch(release_branch, create=True)
         await vcs.commit(commit_msg, paths=['.'])
-        push_result = await vcs.push()
+        # Force-push because the release branch is recreated from
+        # scratch on each prepare run (checkout -B resets to HEAD).
+        # If the remote already has the branch from a previous run,
+        # a normal push fails with non-fast-forward.
+        push_result = await vcs.push(force=True)
         if not push_result.ok:
             raise RuntimeError(f'Failed to push release branch {release_branch!r}: {push_result.stderr.strip()}')
     logger.info('release_branch_pushed', branch=release_branch, sha=git_sha)

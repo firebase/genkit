@@ -33,6 +33,8 @@ Checks:
     8. Atomic file creation: lock files use O_EXCL to prevent TOCTOU.
     9. Log injection: no user-controlled data in structlog keys.
    10. Symlink safety: resolve() before trusting paths.
+   15. No API key/secret logging: no log/print of env vars containing
+       keys, tokens, or secrets.
 """
 
 from __future__ import annotations
@@ -59,9 +61,6 @@ def _relpath(path: Path) -> str:
     return str(path.relative_to(_SRC_ROOT))
 
 
-# ── 1. Shell Injection ──────────────────────────────────────────────
-
-
 class TestNoShellInjection:
     """Verify no subprocess calls use shell=True."""
 
@@ -75,9 +74,6 @@ class TestNoShellInjection:
                 if pattern.search(line) and not line.strip().startswith('#'):
                     violations.append(f'{_relpath(path)}:{i}: {line.strip()}')
         assert not violations, 'shell=True found (command injection risk):\n' + '\n'.join(violations)
-
-
-# ── 2. Unsafe Deserialization ───────────────────────────────────────
 
 
 class TestNoUnsafeDeserialization:
@@ -108,9 +104,6 @@ class TestNoUnsafeDeserialization:
                             continue
                         violations.append(f'{_relpath(path)}:{i}: {desc}: {stripped}')
         assert not violations, 'Unsafe deserialization found:\n' + '\n'.join(violations)
-
-
-# ── 3. Hardcoded Secrets ────────────────────────────────────────────
 
 
 class TestNoHardcodedSecrets:
@@ -153,9 +146,6 @@ class TestNoHardcodedSecrets:
         assert not violations, 'Possible hardcoded secrets found:\n' + '\n'.join(violations)
 
 
-# ── 4. TLS Verification ────────────────────────────────────────────
-
-
 class TestTLSVerification:
     """Verify TLS certificate verification is never disabled."""
 
@@ -179,9 +169,6 @@ class TestTLSVerification:
         assert not violations, 'TLS verification disabled:\n' + '\n'.join(violations)
 
 
-# ── 5. Temp File Cleanup ───────────────────────────────────────────
-
-
 class TestTempFileCleanup:
     """Verify NamedTemporaryFile(delete=False) is always cleaned up."""
 
@@ -202,9 +189,6 @@ class TestTempFileCleanup:
         assert not violations, 'Temp file leak risk:\n' + '\n'.join(violations)
 
 
-# ── 6. Bare Except Clauses ─────────────────────────────────────────
-
-
 class TestNoBareExcept:
     """Verify no bare ``except:`` clauses that swallow all errors."""
 
@@ -219,9 +203,6 @@ class TestNoBareExcept:
                 if pattern.match(line):
                     violations.append(f'{_relpath(path)}:{i}: {line.strip()}')
         assert not violations, 'Bare except: found (swallows KeyboardInterrupt, SystemExit):\n' + '\n'.join(violations)
-
-
-# ── 7. Credential Repr Safety ──────────────────────────────────────
 
 
 class TestCredentialReprSafety:
@@ -250,9 +231,6 @@ class TestCredentialReprSafety:
         assert not violations, 'Credential repr safety:\n' + '\n'.join(violations)
 
 
-# ── 8. Atomic Lock File Creation ───────────────────────────────────
-
-
 class TestAtomicLockCreation:
     """Verify lock file uses O_EXCL for atomic creation."""
 
@@ -265,9 +243,6 @@ class TestAtomicLockCreation:
         content = _read(lock_path)
         assert 'O_EXCL' in content, 'lock.py does not use O_EXCL for atomic lock creation (TOCTOU race condition)'
         assert 'O_CREAT' in content, 'lock.py does not use O_CREAT for lock creation'
-
-
-# ── 9. No HTTP URLs in Runtime Code ────────────────────────────────
 
 
 class TestNoPlaintextHTTP:
@@ -288,9 +263,6 @@ class TestNoPlaintextHTTP:
         assert not violations, 'Plaintext http:// URLs found (use https://):\n' + '\n'.join(violations)
 
 
-# ── 10. Atomic State File Writes ───────────────────────────────────
-
-
 class TestAtomicStateWrites:
     """Verify state files use atomic write (mkstemp + os.replace)."""
 
@@ -303,9 +275,6 @@ class TestAtomicStateWrites:
         content = _read(state_path)
         assert 'mkstemp' in content, 'state.py does not use mkstemp for atomic temp file creation'
         assert 'os.replace' in content, 'state.py does not use os.replace for atomic rename'
-
-
-# ── 11. No Symlink Following Without Resolve ───────────────────────
 
 
 class TestPathResolution:
@@ -330,9 +299,6 @@ class TestPathResolution:
 
         content = _read(pin_path)
         assert '.resolve()' in content, 'pin.py does not call resolve() on pyproject paths (symlink traversal risk)'
-
-
-# ── 12. CI Workflow Script Injection ──────────────────────────────
 
 
 # Root of the repository (walk up from tests/ to find .github/).
@@ -394,9 +360,6 @@ class TestCIWorkflowScriptInjection:
         )
 
 
-# ── 13. Hook Template Safety ──────────────────────────────────────
-
-
 class TestHookTemplateSafety:
     """Verify hooks.py uses safe command parsing (shlex.split)."""
 
@@ -426,9 +389,6 @@ class TestHookTemplateSafety:
         )
 
 
-# ── 14. No os.system() ────────────────────────────────────────────
-
-
 class TestNoOsSystem:
     """Verify no code uses os.system() (shell=True equivalent)."""
 
@@ -445,4 +405,129 @@ class TestNoOsSystem:
 
         assert not violations, 'os.system() found (uses shell=True internally, command injection risk):\n' + '\n'.join(
             violations
+        )
+
+
+# Sensitive environment variable names that must never be logged or printed.
+_SENSITIVE_ENV_VARS: list[str] = [
+    'GEMINI_API_KEY',
+    'GOOGLE_API_KEY',
+    'GOOGLE_APPLICATION_CREDENTIALS',
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
+    'PYPI_TOKEN',
+    'TESTPYPI_TOKEN',
+    'UV_PUBLISH_TOKEN',
+    'NPM_TOKEN',
+    'GITHUB_TOKEN',
+    'GH_TOKEN',
+    'BITBUCKET_TOKEN',
+    'BITBUCKET_APP_PASSWORD',
+    'GITLAB_TOKEN',
+    'AWS_SECRET_ACCESS_KEY',
+    'CARGO_REGISTRY_TOKEN',
+    'PUB_TOKEN',
+    'MAVEN_GPG_PASSPHRASE',
+]
+
+
+class TestNoSecretLogging:
+    """Verify no code logs, prints, or echoes sensitive env vars.
+
+    API keys and tokens passed via environment variables must never
+    appear in log output, print statements, or CI workflow echo
+    commands. GitHub Actions masks secrets in workflow logs, but
+    defense-in-depth requires that the code itself never attempts
+    to output them.
+    """
+
+    # Patterns that would expose a secret env var's value.
+    # Matches: print(os.environ['KEY']), logger.info(KEY), echo $KEY, etc.
+    _PY_LOG_PATTERNS: list[re.Pattern[str]] = [
+        # print/log/logger calls containing the env var name as a variable
+        re.compile(r'(?:print|log(?:ger)?\.(?:debug|info|warning|error|critical))\s*\(.*\b{var}\b'),
+        # f-string or format containing the env var name
+        re.compile(r"""f['"].*\{{\s*{var}\s*\}}"""),
+        # os.environ[KEY] or os.getenv(KEY) inside print/log
+        re.compile(r'(?:print|log(?:ger)?\.(?:debug|info|warning|error|critical))\s*\(.*os\.(?:environ|getenv).*{var}'),
+    ]
+
+    _SHELL_ECHO_PATTERN = re.compile(
+        r'echo\s+.*\$(?:\{{)?({vars})(?:\}})?',
+    )
+
+    def test_no_secret_logging_in_python(self) -> None:
+        """No Python file logs or prints sensitive env var values."""
+        violations: list[str] = []
+        for path in _PY_FILES:
+            content = _read(path)
+            for line_no, line in enumerate(content.splitlines(), start=1):
+                stripped = line.strip()
+                if stripped.startswith('#'):
+                    continue
+                for var in _SENSITIVE_ENV_VARS:
+                    for pattern_template in self._PY_LOG_PATTERNS:
+                        pattern = re.compile(pattern_template.pattern.format(var=re.escape(var)))
+                        if pattern.search(line):
+                            violations.append(f'{_relpath(path)}:{line_no}: logs/prints {var}: {stripped[:120]}')
+        assert not violations, 'Sensitive env var logged/printed in Python code (API key leak risk):\n' + '\n'.join(
+            violations
+        )
+
+    def test_no_secret_echo_in_workflows(self) -> None:
+        """No CI workflow echoes sensitive env vars in run: blocks."""
+        all_yml: list[Path] = []
+        for d in [_WORKFLOW_DIR, _REPO_ROOT / '.github' / 'actions']:
+            if d.exists():
+                all_yml.extend(sorted(d.rglob('*.yml')))
+                all_yml.extend(sorted(d.rglob('*.yaml')))
+
+        if not all_yml:
+            pytest.skip('No workflow/action files found')
+
+        vars_alternation = '|'.join(re.escape(v) for v in _SENSITIVE_ENV_VARS)
+        echo_pattern = re.compile(rf'echo\s+.*\$(?:\{{\{{)?({vars_alternation})(?:\}}\}})?')
+
+        violations: list[str] = []
+        for wf_path in all_yml:
+            content = _read(wf_path)
+            in_run_block = False
+            for line_no, line in enumerate(content.splitlines(), start=1):
+                stripped = line.strip()
+                if stripped.startswith('run:'):
+                    in_run_block = True
+                    continue
+                if in_run_block and stripped and not line.startswith(' '):
+                    in_run_block = False
+                if in_run_block and echo_pattern.search(line):
+                    violations.append(f'{wf_path.name}:{line_no}: echoes secret env var: {stripped[:120]}')
+
+        assert not violations, 'CI workflow echoes sensitive env var in run: block (API key leak risk):\n' + '\n'.join(
+            violations
+        )
+
+    def test_no_secret_in_github_output(self) -> None:
+        """No CI workflow writes sensitive env vars to GITHUB_OUTPUT."""
+        all_yml: list[Path] = []
+        for d in [_WORKFLOW_DIR, _REPO_ROOT / '.github' / 'actions']:
+            if d.exists():
+                all_yml.extend(sorted(d.rglob('*.yml')))
+                all_yml.extend(sorted(d.rglob('*.yaml')))
+
+        if not all_yml:
+            pytest.skip('No workflow/action files found')
+
+        vars_alternation = '|'.join(re.escape(v) for v in _SENSITIVE_ENV_VARS)
+        output_pattern = re.compile(rf'GITHUB_OUTPUT.*\$(?:\{{\{{)?({vars_alternation})(?:\}}\}})?')
+
+        violations: list[str] = []
+        for wf_path in all_yml:
+            content = _read(wf_path)
+            for line_no, line in enumerate(content.splitlines(), start=1):
+                if output_pattern.search(line):
+                    violations.append(f'{wf_path.name}:{line_no}: writes secret to GITHUB_OUTPUT: {line.strip()[:120]}')
+
+        assert not violations, (
+            'CI workflow writes sensitive env var to GITHUB_OUTPUT '
+            '(secret exposed as step output):\n' + '\n'.join(violations)
         )

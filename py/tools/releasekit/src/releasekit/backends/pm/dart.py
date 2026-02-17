@@ -77,7 +77,7 @@ class DartBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -88,7 +88,7 @@ class DartBackend:
         Args:
             dist_dir: Path to the package directory (contains ``pubspec.yaml``).
             check_url: Ignored (pub.dev has no check URL).
-            index_url: Custom pub server URL (``--server``).
+            registry_url: Custom pub server URL (``--server``).
             dist_tag: Ignored (pub.dev has no dist-tag concept).
             publish_branch: Ignored.
             provenance: Ignored.
@@ -97,8 +97,8 @@ class DartBackend:
         cmd = ['dart', 'pub', 'publish', '--force']
         if dry_run:
             cmd.append('--dry-run')
-        if index_url:
-            cmd.extend(['--server', index_url])
+        if registry_url:
+            cmd.extend(['--server', registry_url])
 
         log.info('publish', package=dist_dir.name, dry_run=dry_run)
         return await asyncio.to_thread(
@@ -169,7 +169,7 @@ class DartBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a Dart package is available via ``dart pub cache add``."""

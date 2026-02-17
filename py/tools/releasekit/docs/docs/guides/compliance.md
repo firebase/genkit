@@ -180,6 +180,45 @@ evaluated when that ecosystem is detected in your repo.
 | **pubspec.lock** | Committed lockfile for reproducible builds |
 | **analysis_options.yaml** | Strict static analysis catches type errors and security issues |
 
+### Kotlin / KMP (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **build.gradle.kts** | Required build manifest for Kotlin projects |
+| **Gradle dep verification** | `verification-metadata.xml` verifies checksums/signatures |
+| **Maven Central signing** | GPG-signed artifacts required for Maven Central publication |
+
+### Swift (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **Package.swift** | Required manifest for Swift packages |
+| **Package.resolved** | Committed lockfile for reproducible builds |
+
+### Ruby (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| ***.gemspec** | Required manifest for Ruby gems |
+| **Gemfile.lock** | Committed lockfile for reproducible builds |
+| **bundler-audit** | Scans against the Ruby Advisory Database |
+
+### .NET (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| ***.csproj / *.fsproj** | Required project manifest |
+| **NuGet signing** | Signed packages for NuGet Gallery publication |
+| **dotnet list package --vulnerable** | Scans for known vulnerabilities |
+
+### PHP (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **composer.json** | Required manifest for PHP packages |
+| **composer.lock** | Committed lockfile for reproducible builds |
+| **local-php-security-checker** | Scans against the PHP Security Advisories Database |
+
 ## Improving Your Score
 
 ### From Gap to Met
@@ -240,3 +279,84 @@ Add a compliance gate to your CI pipeline:
     print('✅ All L1 controls met')
     "
 ```
+
+## Interactive License Fix
+
+When `releasekit licenses` reports incompatible, denied, or unresolved
+dependencies, use `--fix` to interactively resolve each issue and
+automatically update `releasekit.toml`.
+
+### Quick Start
+
+```bash
+# Show the license tree (all workspaces)
+releasekit licenses
+
+# Interactively fix license issues
+releasekit licenses --fix
+
+# Preview changes without writing
+releasekit licenses --fix --dry-run
+
+# Fix only a specific workspace
+releasekit licenses --fix --workspace py
+```
+
+### Available Actions
+
+For each problematic dependency, you choose one of five actions:
+
+| Action | What It Does | Config Key |
+|--------|-------------|------------|
+| **exempt** | Skip license checks for this package | `[license].exempt_packages` |
+| **allow** | Allow this SPDX ID globally | `[license].allow_licenses` |
+| **deny** | Block this SPDX ID globally | `[license].deny_licenses` |
+| **override** | Set a manual SPDX expression | `[license.overrides]` |
+| **skip** | Leave unchanged (do nothing) | — |
+
+### Example Session
+
+```text
+$ releasekit licenses --fix
+
+Found 2 license issue(s) to resolve.
+
+✗ myapp → gpl-lib (GPL-3.0-only) — incompatible with Apache-2.0
+
+How should releasekit handle gpl-lib?
+  [1] exempt   — skip license checks for this package
+  [2] allow    — allow GPL-3.0-only globally
+  [3] deny     — block GPL-3.0-only globally
+  [4] override — set a different SPDX expression for gpl-lib
+  [5] skip     — do nothing (leave as-is)
+Choice [1-5]: 1
+
+✘ myapp → agpl-lib (AGPL-3.0-only) — denied
+
+Choice [1-5]: 3
+
+✓ Applied 2 fix(es) to releasekit.toml.
+  exempt: gpl-lib
+  deny: agpl-lib
+```
+
+### Resulting Config
+
+After running `--fix`, your `releasekit.toml` is updated:
+
+```toml
+[license]
+project = "Apache-2.0"
+exempt_packages = ["gpl-lib"]
+deny_licenses = ["AGPL-3.0-only"]
+
+[license.overrides]
+# mystery-lib = "MIT"  # if you used override
+```
+
+### Roadmap: AI-Powered Guidance
+
+A future enhancement will add AI-powered license guidance using Genkit.
+When enabled, releasekit will explain what each license means, why it
+is incompatible, and recommend the best action — all before you choose.
+See the [roadmap](../roadmap.md) for details.

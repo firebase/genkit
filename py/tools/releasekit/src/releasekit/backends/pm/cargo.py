@@ -92,7 +92,7 @@ class CargoBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -104,7 +104,7 @@ class CargoBackend:
             dist_dir: Path to the crate directory (not a dist folder —
                 Cargo publishes from source).
             check_url: Unused for Cargo.
-            index_url: Alternative registry URL (``--index``).
+            registry_url: Alternative registry URL (``--index``).
             dist_tag: Unused for Cargo (no dist-tag concept).
             publish_branch: Unused for Cargo.
             provenance: Unused for Cargo.
@@ -117,8 +117,8 @@ class CargoBackend:
         if crate_name:
             cmd.extend(['-p', crate_name])
 
-        if index_url:
-            cmd.extend(['--index', index_url])
+        if registry_url:
+            cmd.extend(['--index', registry_url])
 
         if dry_run:
             cmd.append('--dry-run')
@@ -194,14 +194,14 @@ class CargoBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a crate version is fetchable via ``cargo search``."""
         cmd = ['cargo', 'search', package_name, '--limit', '1']
 
-        if index_url:
-            cmd.extend(['--index', index_url])
+        if registry_url:
+            cmd.extend(['--index', registry_url])
 
         log.info('resolve_check', crate=package_name, version=version)
         return await asyncio.to_thread(

@@ -71,9 +71,6 @@ def _isolate_from_ci(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(var, raising=False)
 
 
-# ── PreflightResult tests ──
-
-
 class TestPreflightResult:
     """Tests for PreflightResult."""
 
@@ -136,9 +133,6 @@ class TestPreflightResult:
             raise AssertionError(f'Expected 1 warnings in: {summary}')
         if '1 failed' not in summary:
             raise AssertionError(f'Expected 1 failed in: {summary}')
-
-
-# ── run_preflight tests ──
 
 
 class TestRunPreflight:
@@ -460,6 +454,7 @@ class TestPreflightLockFile:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [
@@ -481,6 +476,7 @@ class TestPreflightLockFile:
                 cwd: Path | None = None,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Lock."""
                 if check_only:
                     raise RuntimeError('Lock out of date')
                 return _OK
@@ -507,6 +503,7 @@ class TestPreflightForgeAvailable:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [
@@ -543,6 +540,7 @@ class TestPreflightForgeAvailable:
 
         class UnavailableForge(FakeForge):
             async def is_available(self) -> bool:
+                """Is available."""
                 return False
 
         result = asyncio.run(
@@ -567,6 +565,7 @@ class TestPreflightVersionConflicts:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [
@@ -601,6 +600,7 @@ class TestPreflightStaleDist:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [
@@ -640,6 +640,7 @@ class TestPreflightTrustedPublisher:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [
@@ -759,6 +760,7 @@ class TestPreflightSkippedVersion:
 
     @staticmethod
     def _make_packages(tmp_path: Path) -> list[Package]:
+        """Make packages."""
         pkg_dir = tmp_path / 'packages' / 'genkit'
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return [

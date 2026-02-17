@@ -97,7 +97,7 @@ class PnpmBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -110,7 +110,7 @@ class PnpmBackend:
                 ``package.json``). Unlike uv, pnpm publishes from
                 the package directory, not a dist directory.
             check_url: Unused for npm (accepted for protocol compat).
-            index_url: Custom registry URL (maps to ``--registry``).
+            registry_url: Custom registry URL (maps to ``--registry``).
             dist_tag: npm dist-tag (maps to ``--tag``).
             publish_branch: Allow publishing from a non-default branch
                 (maps to ``--publish-branch``).
@@ -121,8 +121,8 @@ class PnpmBackend:
         See: https://pnpm.io/cli/publish
         """
         cmd = ['pnpm', 'publish', '--no-git-checks', '--access', 'public']
-        if index_url:
-            cmd.extend(['--registry', index_url])
+        if registry_url:
+            cmd.extend(['--registry', registry_url])
         if dist_tag:
             cmd.extend(['--tag', dist_tag])
         if publish_branch:
@@ -190,7 +190,7 @@ class PnpmBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a published package resolves using ``pnpm view``.
@@ -199,8 +199,8 @@ class PnpmBackend:
         npm registry by querying package metadata.
         """
         cmd = ['pnpm', 'view', f'{package_name}@{version}', 'version']
-        if index_url:
-            cmd.extend(['--registry', index_url])
+        if registry_url:
+            cmd.extend(['--registry', registry_url])
 
         log.info('resolve_check', package=package_name, version=version)
         return await asyncio.to_thread(run_command, cmd, cwd=self._root, dry_run=dry_run)

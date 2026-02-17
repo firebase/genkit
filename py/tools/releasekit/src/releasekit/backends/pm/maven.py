@@ -94,7 +94,7 @@ class MavenBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -105,7 +105,7 @@ class MavenBackend:
         Args:
             dist_dir: Path to the package directory.
             check_url: Ignored.
-            index_url: Custom Maven repository URL.  For Gradle projects
+            registry_url: Custom Maven repository URL.  For Gradle projects
                 this is passed as ``-PmavenUrl=<url>`` (the ``build.gradle``
                 must read the property to configure the repository).
             dist_tag: Ignored (Maven has no dist-tag concept).
@@ -116,12 +116,12 @@ class MavenBackend:
         if self._is_gradle(dist_dir):
             gradle = self._gradle_cmd(dist_dir)
             cmd = [gradle, 'publish']
-            if index_url:
-                cmd.append(f'-PmavenUrl={index_url}')
+            if registry_url:
+                cmd.append(f'-PmavenUrl={registry_url}')
         else:
             cmd = ['mvn', 'deploy', '-DskipTests']
-            if index_url:
-                cmd.append(f'-DaltDeploymentRepository=releasekit::default::{index_url}')
+            if registry_url:
+                cmd.append(f'-DaltDeploymentRepository=releasekit::default::{registry_url}')
 
         log.info('publish', package=dist_dir.name, dry_run=dry_run)
         return await asyncio.to_thread(
@@ -217,7 +217,7 @@ class MavenBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a Maven/Gradle artifact is resolvable.

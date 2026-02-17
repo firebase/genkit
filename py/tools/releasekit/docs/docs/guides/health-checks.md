@@ -36,9 +36,9 @@ releasekit doctor
 
 ### What Gets Checked
 
-`releasekit check` runs **33 checks** split into two categories:
+`releasekit check` runs **42 checks** split into two categories:
 
-**Universal checks (8 — always run):**
+**Universal checks (15 — always run):**
 
 - `cycles` — circular dependency chains
 - `self_deps` — package depends on itself
@@ -48,8 +48,15 @@ releasekit doctor
 - `stale_artifacts` — leftover .bak or dist/ files
 - `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
 - `lockfile_staleness` — lock file is in sync with manifest
+- `spdx_headers` — SPDX license identifier headers in source files
+- `license_compatibility` — dependency licenses compatible with project license (with transitive dep resolution via `uv.lock`)
+- `deep_license_scan` — embedded/vendored code license detection
+- `license_changes` — detect license changes between dependency versions
+- `dual_license_choice` — dual-licensed deps (SPDX `OR`) have a documented choice
+- `patent_clauses` — flag deps with patent grant/retaliation clauses (data-driven from `licenses.toml`)
+- `license_text_completeness` — LICENSE file text matches declared SPDX ID
 
-**Language-specific checks (25 — via `CheckBackend` protocol):**
+**Language-specific checks (27 — via `CheckBackend` protocol):**
 
 - `type_markers` — py.typed PEP 561 marker
 - `version_consistency` — plugin version matches core
@@ -76,6 +83,8 @@ releasekit doctor
 - `license_classifier_mismatch` — license classifiers match LICENSE file
 - `unreachable_extras` — optional-dependencies reference valid packages
 - `self_dependencies` — no package lists itself in dependencies
+- `typing_classifier` — `Typing :: Typed` and `License :: OSI Approved` classifiers present
+- `keywords_and_urls` — `keywords` and standard `[project.urls]` entries present
 
 ### Per-Ecosystem Checks
 
@@ -95,7 +104,7 @@ Different ecosystems run different checks:
 
 ### Auto-Fix
 
-`releasekit check --fix` runs **17 auto-fixers**:
+`releasekit check --fix` runs **19 auto-fixers**:
 
 **Universal fixers (3):**
 
@@ -103,7 +112,7 @@ Different ecosystems run different checks:
 - `fix_missing_license` — copy bundled Apache 2.0 LICENSE
 - `fix_stale_artifacts` — delete .bak files and dist/ directories
 
-**Python-specific fixers (14 — via `PythonCheckBackend.run_fixes()`):**
+**Python-specific fixers (16 — via `PythonCheckBackend.run_fixes()`):**
 
 - `fix_publish_classifiers` — sync `Private :: Do Not Upload` with `exclude_publish`
 - `fix_readme_field` — add `readme = "README.md"` to `[project]`
@@ -119,6 +128,8 @@ Different ecosystems run different checks:
 - `fix_placeholder_urls` — remove placeholder URLs
 - `fix_license_classifier_mismatch` — fix license classifier to match LICENSE file
 - `fix_self_dependencies` — remove self-referencing dependencies
+- `fix_typing_classifier` — add `Typing :: Typed` and `License :: OSI Approved` classifiers
+- `fix_keywords_and_urls` — add `keywords` and standard `[project.urls]` entries
 
 ### Reading Check Output
 

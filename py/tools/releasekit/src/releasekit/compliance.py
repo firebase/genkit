@@ -802,7 +802,6 @@ def print_compliance_table(
         ComplianceStatus.GAP: ('\u274c', 'red'),
     }
 
-    # ── Summary table ──
     table = Table(
         show_header=True,
         header_style='bold',
@@ -829,7 +828,6 @@ def print_compliance_table(
 
     console.print(table)
 
-    # ── Summary counts ──
     met = sum(1 for c in controls if c.status == ComplianceStatus.MET)
     partial = sum(1 for c in controls if c.status == ComplianceStatus.PARTIAL)
     gap = sum(1 for c in controls if c.status == ComplianceStatus.GAP)
@@ -839,7 +837,6 @@ def print_compliance_table(
     else:
         console.print(f'\n{met}/{len(controls)} controls met.')
 
-    # ── Rust-style diagnostics for gaps and partials ──
     issues = [c for c in controls if c.status != ComplianceStatus.MET]
     if issues:
         console.print()

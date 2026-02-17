@@ -24,9 +24,7 @@ import pytest
 from releasekit.backends.workspace import Workspace
 from releasekit.backends.workspace.bazel import BazelWorkspace
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 _MODULE_BAZEL = """\
 module(
@@ -89,9 +87,7 @@ def _create_bazel_workspace(root: Path) -> None:
     (internal / 'BUILD.bazel').write_text(_BUILD_NO_PUBLISH, encoding='utf-8')
 
 
-# ---------------------------------------------------------------------------
 # Protocol compliance
-# ---------------------------------------------------------------------------
 
 
 class TestBazelWorkspaceProtocol:
@@ -103,9 +99,7 @@ class TestBazelWorkspaceProtocol:
         assert isinstance(ws, Workspace)
 
 
-# ---------------------------------------------------------------------------
 # Discover
-# ---------------------------------------------------------------------------
 
 
 class TestBazelWorkspaceDiscover:
@@ -203,9 +197,7 @@ class TestBazelWorkspaceDiscover:
         assert len(packages) == 1
 
 
-# ---------------------------------------------------------------------------
 # Rewrite version
-# ---------------------------------------------------------------------------
 
 
 class TestBazelWorkspaceRewriteVersion:
@@ -258,9 +250,7 @@ class TestBazelWorkspaceRewriteVersion:
         assert text_after_first == text_after_second
 
 
-# ---------------------------------------------------------------------------
 # Rewrite dependency version
-# ---------------------------------------------------------------------------
 
 
 class TestBazelWorkspaceRewriteDependencyVersion:

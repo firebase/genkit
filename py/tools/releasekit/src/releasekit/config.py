@@ -117,13 +117,17 @@ _LABEL_RE = re.compile(r'[a-z][a-z0-9-]*')
 
 # All recognized top-level keys in releasekit.toml.
 VALID_KEYS: frozenset[str] = frozenset({
+    'ai',
     'announcements',
     'branches',
     'calver_format',
+    'color',
     'default_branch',
     'forge',
     'hooks',
     'http_pool_size',
+    'license',
+    'license_headers',
     'pr_title_template',
     'publish_from',
     'release_mode',
@@ -136,6 +140,7 @@ VALID_KEYS: frozenset[str] = frozenset({
 
 # Recognized keys inside each [workspace.<label>] section.
 VALID_WORKSPACE_KEYS: frozenset[str] = frozenset({
+    'ai',
     'announcements',
     'auto_merge',
     'bootstrap_sha',
@@ -155,6 +160,7 @@ VALID_WORKSPACE_KEYS: frozenset[str] = frozenset({
     'hooks',
     'hooks_replace',
     'library_dirs',
+    'license_headers',
     'major_on_zero',
     'max_commits',
     'namespace_dirs',
@@ -310,6 +316,133 @@ VALID_SCHEDULE_KEYS: frozenset[str] = frozenset({
     'release_window',
 })
 
+# Valid keys inside an [ai] section.
+VALID_AI_KEYS: frozenset[str] = frozenset({
+    'blocklist_file',
+    'codename_theme',
+    'enabled',
+    'features',
+    'max_output_tokens',
+    'models',
+    'plugins',
+    'temperature',
+})
+
+# Valid keys inside [ai.features].
+VALID_AI_FEATURES_KEYS: frozenset[str] = frozenset({
+    'ai_hints',
+    'announce',
+    'classify',
+    'codename',
+    'detect_breaking',
+    'draft_advisory',
+    'enhance',
+    'migration_guide',
+    'scope',
+    'summarize',
+    'tailor_announce',
+})
+
+# Default model fallback chain: local Ollama first, then Google GenAI cloud.
+_DEFAULT_AI_MODELS: list[str] = [
+    'ollama/gemma3:4b',
+    'ollama/gemma3:1b',
+    'google-genai/gemini-3.0-flash-preview',
+]
+
+
+@dataclass(frozen=True)
+class AiFeaturesConfig:
+    """Per-feature AI toggles.
+
+    Controls which AI features are active. Features default to the
+    values shown below. All features respect the global ``--no-ai``
+    kill switch regardless of their individual setting.
+
+    Attributes:
+        summarize: AI release note summarization (Phase 10).
+        codename: AI-generated release codename (Phase 10).
+        enhance: Changelog entry enhancement (Phase 11a).
+        detect_breaking: Breaking change detection (Phase 11b).
+        classify: Semantic version classification (Phase 11c).
+        scope: Commit scoping (Phase 11d).
+        migration_guide: Migration guide generation (Phase 12a).
+        tailor_announce: Announcement tailoring (Phase 12b).
+        announce: AI-generated per-channel announcements (Phase 12b).
+            When enabled, AI generates tailored messages for each
+            channel (Slack, Discord, Twitter, LinkedIn, etc.) from
+            the release notes.  Falls back to templates when disabled
+            or when AI fails.
+        draft_advisory: Security advisory drafting (Phase 12c).
+        ai_hints: Contextual error hints (Phase 12d).
+    """
+
+    summarize: bool = True
+    codename: bool = True
+    enhance: bool = True
+    detect_breaking: bool = True
+    classify: bool = False
+    scope: bool = False
+    migration_guide: bool = True
+    tailor_announce: bool = False
+    announce: bool = False
+    draft_advisory: bool = False
+    ai_hints: bool = False
+
+
+@dataclass(frozen=True)
+class AiConfig:
+    """AI configuration for Genkit-powered features.
+
+    Controls model selection, generation parameters, and feature
+    toggles. AI is **on by default**. Disable globally via
+    ``--no-ai`` CLI flag, ``RELEASEKIT_NO_AI=1`` env var, or
+    ``ai.enabled = false`` in ``releasekit.toml``.
+
+    The ``models`` list is a **fallback chain**: each model is tried
+    in order. If a model is unavailable (not pulled, provider down,
+    API key missing), the next one is tried. If ALL models fail,
+    the feature falls back to non-AI behavior and logs a warning.
+
+    Model strings use ``provider/model`` format (e.g.
+    ``"ollama/gemma3:4b"``, ``"google-genai/gemini-3.0-flash-preview"``).
+
+    Attributes:
+        enabled: Master switch for all AI features.
+        models: Ordered list of ``provider/model`` strings to try.
+        temperature: Generation temperature (0.0-1.0). Lower is
+            more factual.
+        max_output_tokens: Maximum tokens in the generated response.
+        codename_theme: Theme for AI-generated release codenames.
+            Built-in themes: ``"mountains"``, ``"animals"``,
+            ``"space"``, ``"mythology"``, ``"gems"``,
+            ``"weather"``, ``"cities"``. Any custom string is
+            also accepted (e.g. ``"deep sea creatures"``). Empty
+            string means no codename generation.
+        blocklist_file: Path or URL to a custom blocked-words file
+            that **extends** the built-in ``data/blocked_words.txt``.
+            Local paths are resolved relative to the workspace root.
+            HTTP/HTTPS URLs are fetched asynchronously at runtime.
+            When set, words from both the built-in and custom files
+            are merged into a single filter.  Empty string (default)
+            means only the built-in list is used.
+        plugins: Explicit list of Genkit plugin names to load (e.g.
+            ``["ollama", "google-genai"]``).  When empty (default),
+            plugins are auto-discovered from model string prefixes.
+            Use this to force-load a plugin that doesn't match a
+            model prefix, or to restrict which plugins are loaded.
+        features: Per-feature toggles.
+    """
+
+    enabled: bool = True
+    models: list[str] = field(default_factory=lambda: list(_DEFAULT_AI_MODELS))
+    temperature: float = 0.2
+    max_output_tokens: int = 4096
+    codename_theme: str = 'mountains'
+    blocklist_file: str = ''
+    plugins: list[str] = field(default_factory=list)
+    features: AiFeaturesConfig = field(default_factory=AiFeaturesConfig)
+
 
 @dataclass(frozen=True)
 class ScheduleConfig:
@@ -357,6 +490,84 @@ class HooksConfig:
     before_publish: list[str] = field(default_factory=list)
     after_publish: list[str] = field(default_factory=list)
     after_tag: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class LicenseHeaderConfig:
+    """Configuration for license header enforcement via ``addlicense``.
+
+    Maps directly to `google/addlicense <https://github.com/google/addlicense>`_
+    CLI flags. Can be set at the global level (``[license_headers]``) or
+    per-workspace (``[workspace.<label>.license_headers]``).
+
+    When ``releasekit check --fix`` is run, files missing license headers
+    are fixed by shelling out to ``addlicense`` with these settings.
+
+    Example ``releasekit.toml``::
+
+        [license_headers]
+        copyright_holder = 'Google LLC'
+        license_type = 'apache'
+        spdx_only = true
+        year = '2025'
+        ignore = ['**/vendor/**', '**/node_modules/**', '**/.venv/**']
+
+        [workspace.py.license_headers]
+        copyright_holder = 'Google LLC'
+        year = '2025'
+
+    Attributes:
+        copyright_holder: Copyright holder string (``-c`` flag).
+            Default: ``"Google LLC"``.
+        license_type: License type: ``"apache"``, ``"bsd"``, ``"mit"``,
+            ``"mpl"`` (``-l`` flag). Default: ``"apache"``.
+        license_file: Path to a custom license header file (``-f`` flag).
+            When set, ``license_type`` is ignored.
+        spdx_only: If ``True``, only add the SPDX identifier line
+            (``-s=only``). If ``False`` but SPDX is desired, the full
+            header plus SPDX line is added (``-s``). Default: ``False``.
+        year: Copyright year(s) string (``-y`` flag). Default: current
+            year. Use ``"2024-2025"`` for ranges.
+        ignore: List of doublestar glob patterns to ignore
+            (``-ignore`` flags). Default includes common vendor/build
+            directories.
+        check_only: If ``True``, only check (don't modify files).
+            Maps to ``-check`` flag. Default: ``False`` (fix mode).
+        verbose: Print names of modified files (``-v`` flag).
+    """
+
+    copyright_holder: str = 'Google LLC'
+    license_type: str = 'apache'
+    license_file: str = ''
+    spdx_only: bool = False
+    year: str = ''
+    ignore: list[str] = field(
+        default_factory=lambda: [
+            '**/vendor/**',
+            '**/node_modules/**',
+            '**/.venv/**',
+            '**/venv/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/__pycache__/**',
+            '**/*.egg-info/**',
+        ]
+    )
+    check_only: bool = False
+    verbose: bool = False
+
+
+# Valid keys inside a [license_headers] section.
+VALID_LICENSE_HEADER_KEYS: frozenset[str] = frozenset({
+    'check_only',
+    'copyright_holder',
+    'ignore',
+    'license_file',
+    'license_type',
+    'spdx_only',
+    'verbose',
+    'year',
+})
 
 
 @dataclass(frozen=True)
@@ -561,6 +772,11 @@ class WorkspaceConfig:
             ``['security_insights', 'compliance']``). Check names
             correspond to the identifiers used in
             :class:`~releasekit.preflight.PreflightResult`.
+        ai: Per-workspace AI configuration override.  When set,
+            fields are merged on top of the global ``[ai]`` config.
+            Non-default fields in the workspace override win; unset
+            fields inherit from the global config.  ``None`` means
+            use the global config as-is.
         announcements: Announcement configuration for this workspace.
     """
 
@@ -616,7 +832,9 @@ class WorkspaceConfig:
     hooks_replace: bool = False
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     branches: dict[str, str] = field(default_factory=dict)
+    ai: AiConfig | None = None
     announcements: AnnouncementConfig = field(default_factory=AnnouncementConfig)
+    license_headers: LicenseHeaderConfig = field(default_factory=LicenseHeaderConfig)
     packages: dict[str, PackageConfig] = field(default_factory=dict)
 
 
@@ -752,6 +970,101 @@ def build_skip_map(
     return result
 
 
+def resolve_workspace_ai_config(
+    global_ai: AiConfig,
+    ws: WorkspaceConfig,
+) -> AiConfig:
+    """Resolve the effective AI config for a workspace.
+
+    Merges the workspace-level ``[workspace.<label>.ai]`` overrides
+    on top of the global ``[ai]`` config.  Non-default workspace
+    fields win; unset fields inherit from the global config.
+
+    If the workspace has no ``ai`` override (``ws.ai is None``),
+    the global config is returned as-is.
+
+    Args:
+        global_ai: The global ``[ai]`` config from :class:`ReleaseConfig`.
+        ws: The workspace configuration.
+
+    Returns:
+        Merged :class:`AiConfig` for this workspace.
+    """
+    if ws.ai is None:
+        return global_ai
+
+    override = ws.ai
+    default = AiConfig()
+
+    ov, df, gl = override, default, global_ai
+
+    return AiConfig(
+        enabled=ov.enabled if ov.enabled != df.enabled else gl.enabled,
+        models=ov.models if ov.models != df.models else gl.models,
+        temperature=(ov.temperature if ov.temperature != df.temperature else gl.temperature),
+        max_output_tokens=(
+            ov.max_output_tokens if ov.max_output_tokens != df.max_output_tokens else gl.max_output_tokens
+        ),
+        codename_theme=(ov.codename_theme if ov.codename_theme != df.codename_theme else gl.codename_theme),
+        blocklist_file=ov.blocklist_file or gl.blocklist_file,
+        plugins=ov.plugins if ov.plugins else gl.plugins,
+        features=_merge_ai_features(gl.features, ov.features),
+    )
+
+
+def _merge_ai_features(
+    base: AiFeaturesConfig,
+    override: AiFeaturesConfig,
+) -> AiFeaturesConfig:
+    """Merge workspace AI feature toggles on top of global ones.
+
+    Non-default override values win; default values inherit from base.
+    """
+    default = AiFeaturesConfig()
+    kwargs: dict[str, bool] = {}
+    for f in (
+        'summarize',
+        'codename',
+        'enhance',
+        'detect_breaking',
+        'classify',
+        'scope',
+        'migration_guide',
+        'tailor_announce',
+        'announce',
+        'draft_advisory',
+        'ai_hints',
+    ):
+        override_val = getattr(override, f)
+        base_val = getattr(base, f)
+        default_val = getattr(default, f)
+        kwargs[f] = override_val if override_val != default_val else base_val
+    return AiFeaturesConfig(**kwargs)
+
+
+@dataclass(frozen=True)
+class LicenseConfig:
+    """Configuration for the ``[license]`` section.
+
+    Attributes:
+        project: SPDX ID of the project's license.
+        exempt_packages: Packages unconditionally exempt from checks.
+        allow_licenses: SPDX IDs always considered compatible.
+        deny_licenses: SPDX IDs unconditionally blocked.
+        overrides: Package name → SPDX expression overrides.
+        workspace_exceptions: SPDX IDs exempt from deny-list workspace-wide.
+        project_exceptions: Package name → list of SPDX IDs exempt from deny.
+    """
+
+    project: str = ''
+    exempt_packages: list[str] = field(default_factory=list)
+    allow_licenses: list[str] = field(default_factory=list)
+    deny_licenses: list[str] = field(default_factory=list)
+    overrides: dict[str, str] = field(default_factory=dict)
+    workspace_exceptions: list[str] = field(default_factory=list)
+    project_exceptions: dict[str, list[str]] = field(default_factory=dict)
+
+
 @dataclass(frozen=True)
 class ReleaseConfig:
     """Validated configuration for a releasekit run.
@@ -772,8 +1085,10 @@ class ReleaseConfig:
         workspaces: Per-workspace configs keyed by label
             (e.g. ``{"py": WorkspaceConfig(...), "js": ...}``).
         config_path: Path to the releasekit.toml that was loaded.
+        license: License compatibility configuration.
     """
 
+    color: bool | None = None
     forge: str = 'github'
     repo_owner: str = ''
     repo_name: str = ''
@@ -784,10 +1099,13 @@ class ReleaseConfig:
     release_mode: str = 'pr'
     versioning_scheme: str = 'semver'
     calver_format: str = 'YYYY.MM.MICRO'
+    ai: AiConfig = field(default_factory=AiConfig)
     hooks: HooksConfig = field(default_factory=HooksConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     branches: dict[str, str] = field(default_factory=dict)
     announcements: AnnouncementConfig = field(default_factory=AnnouncementConfig)
+    license: LicenseConfig = field(default_factory=LicenseConfig)
+    license_headers: LicenseHeaderConfig = field(default_factory=LicenseHeaderConfig)
     workspaces: dict[str, WorkspaceConfig] = field(default_factory=dict)
     config_path: Path | None = None
 
@@ -799,13 +1117,17 @@ def _suggest_key(unknown: str) -> str | None:
 
 
 _GLOBAL_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
+    'ai': dict,
     'announcements': dict,
     'branches': dict,
     'calver_format': str,
+    'color': bool,
     'default_branch': str,
     'forge': str,
     'hooks': dict,
     'http_pool_size': int,
+    'license': dict,
+    'license_headers': dict,
     'pr_title_template': str,
     'publish_from': str,
     'release_mode': str,
@@ -816,6 +1138,7 @@ _GLOBAL_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
 }
 
 _WORKSPACE_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
+    'ai': dict,
     'announcements': dict,
     'auto_merge': bool,
     'bootstrap_sha': str,
@@ -835,6 +1158,7 @@ _WORKSPACE_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
     'hooks': dict,
     'hooks_replace': bool,
     'library_dirs': list,
+    'license_headers': dict,
     'major_on_zero': bool,
     'max_commits': int,
     'namespace_dirs': list,
@@ -981,6 +1305,139 @@ def _validate_versioning_scheme(value: str, context: str = 'releasekit.toml') ->
             message=f"versioning_scheme must be one of {sorted(ALLOWED_VERSIONING_SCHEMES)}, got '{value}'",
             hint=f"Use 'semver', 'pep440', or 'calver'. Check {context}.",
         )
+
+
+def _parse_ai(
+    raw: dict[str, Any],  # noqa: ANN401
+    context: str = 'releasekit.toml',
+) -> AiConfig:
+    """Parse and validate an ``[ai]`` section."""
+    for key in raw:
+        if key not in VALID_AI_KEYS:
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_KEY,
+                message=f"Unknown key '{key}' in {context} [ai]",
+                hint=f'Valid ai keys: {sorted(VALID_AI_KEYS)}',
+            )
+
+    enabled = raw.get('enabled', True)
+    if not isinstance(enabled, bool):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.enabled must be a boolean, got {type(enabled).__name__}',
+            hint=f'Use enabled = true or enabled = false in {context} [ai].',
+        )
+
+    models = raw.get('models', list(_DEFAULT_AI_MODELS))
+    if not isinstance(models, list):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.models must be a list of strings, got {type(models).__name__}',
+            hint=f'Use models = ["ollama/gemma3:4b", ...] in {context} [ai].',
+        )
+    for i, m in enumerate(models):
+        if not isinstance(m, str):
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_VALUE,
+                message=f'ai.models[{i}] must be a string, got {type(m).__name__}: {m!r}',
+                hint='Each model must be a "provider/model" string (e.g. "ollama/gemma3:4b").',
+            )
+        if '/' not in m:
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_VALUE,
+                message=f"ai.models[{i}] must use 'provider/model' format, got '{m}'",
+                hint='Use "ollama/gemma3:4b" or "google-genai/gemini-3.0-flash-preview".',
+            )
+
+    temperature = raw.get('temperature', 0.2)
+    if not isinstance(temperature, int | float):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.temperature must be a number, got {type(temperature).__name__}',
+            hint=f'Use a value between 0.0 and 1.0 in {context} [ai].',
+        )
+    if not 0.0 <= float(temperature) <= 1.0:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.temperature must be between 0.0 and 1.0, got {temperature}',
+            hint='Lower values (e.g. 0.2) produce more factual output.',
+        )
+
+    max_output_tokens = raw.get('max_output_tokens', 4096)
+    if not isinstance(max_output_tokens, int) or max_output_tokens <= 0:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.max_output_tokens must be a positive integer, got {max_output_tokens!r}',
+            hint=f'Use a value like 4096 in {context} [ai].',
+        )
+
+    codename_theme = raw.get('codename_theme', 'mountains')
+    if not isinstance(codename_theme, str):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.codename_theme must be a string, got {type(codename_theme).__name__}',
+            hint=f'Use a theme like "mountains", "animals", "space", or any custom string in {context} [ai].',
+        )
+
+    blocklist_file = raw.get('blocklist_file', '')
+    if not isinstance(blocklist_file, str):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.blocklist_file must be a string, got {type(blocklist_file).__name__}',
+            hint=f'Use a relative path like "custom_blocklist.txt" in {context} [ai].',
+        )
+
+    plugins = raw.get('plugins', [])
+    if not isinstance(plugins, list):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ai.plugins must be a list of strings, got {type(plugins).__name__}',
+            hint=f'Use plugins = ["ollama", "google-genai"] in {context} [ai].',
+        )
+    for i, p in enumerate(plugins):
+        if not isinstance(p, str):
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_VALUE,
+                message=f'ai.plugins[{i}] must be a string, got {type(p).__name__}: {p!r}',
+                hint='Each plugin must be a provider name string (e.g. "ollama", "google-genai").',
+            )
+
+    # Parse [ai.features] sub-section.
+    features = AiFeaturesConfig()
+    raw_features = raw.get('features')
+    if raw_features is not None:
+        if not isinstance(raw_features, dict):
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_VALUE,
+                message=f'ai.features must be a table, got {type(raw_features).__name__}',
+                hint=f'Use [ai.features] with boolean keys in {context}.',
+            )
+        for key in raw_features:
+            if key not in VALID_AI_FEATURES_KEYS:
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_KEY,
+                    message=f"Unknown key '{key}' in {context} [ai.features]",
+                    hint=f'Valid ai.features keys: {sorted(VALID_AI_FEATURES_KEYS)}',
+                )
+        for key, value in raw_features.items():
+            if not isinstance(value, bool):
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_VALUE,
+                    message=f'ai.features.{key} must be a boolean, got {type(value).__name__}',
+                    hint=f'Use {key} = true or {key} = false in {context} [ai.features].',
+                )
+        features = AiFeaturesConfig(**raw_features)
+
+    return AiConfig(
+        enabled=enabled,
+        models=list(models),
+        temperature=float(temperature),
+        max_output_tokens=max_output_tokens,
+        codename_theme=codename_theme,
+        blocklist_file=blocklist_file,
+        plugins=list(plugins),
+        features=features,
+    )
 
 
 def _parse_schedule(
@@ -1148,6 +1605,56 @@ def _parse_announcements(
     )
 
 
+def _parse_license_headers(
+    raw: dict[str, Any],  # noqa: ANN401
+    context: str = 'releasekit.toml',
+) -> LicenseHeaderConfig:
+    """Parse and validate a ``[license_headers]`` section.
+
+    Validates keys against :data:`VALID_LICENSE_HEADER_KEYS` and
+    returns a :class:`LicenseHeaderConfig`.
+    """
+    for key in raw:
+        if key not in VALID_LICENSE_HEADER_KEYS:
+            suggestion = difflib.get_close_matches(key, VALID_LICENSE_HEADER_KEYS, n=1, cutoff=0.6)
+            hint = (
+                f"Did you mean '{suggestion[0]}'?" if suggestion else f'Valid keys: {sorted(VALID_LICENSE_HEADER_KEYS)}'
+            )
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_KEY,
+                message=f"Unknown key '{key}' in {context} [license_headers]",
+                hint=hint,
+            )
+
+    license_type = raw.get('license_type', 'apache')
+    allowed_types = frozenset({'apache', 'bsd', 'mit', 'mpl'})
+    if license_type not in allowed_types:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f"license_type must be one of {sorted(allowed_types)}, got '{license_type}'",
+            hint=f'Check the license_type value in {context} [license_headers].',
+        )
+
+    ignore = raw.get('ignore', LicenseHeaderConfig().ignore)
+    if ignore and not isinstance(ignore, list):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ignore must be a list of glob patterns, got {type(ignore).__name__}',
+            hint=f'Use ignore = ["**/vendor/**"] in {context} [license_headers].',
+        )
+
+    return LicenseHeaderConfig(
+        copyright_holder=raw.get('copyright_holder', 'Google LLC'),
+        license_type=license_type,
+        license_file=raw.get('license_file', ''),
+        spdx_only=raw.get('spdx_only', False),
+        year=str(raw.get('year', '')),
+        ignore=list(ignore) if ignore else [],
+        check_only=raw.get('check_only', False),
+        verbose=raw.get('verbose', False),
+    )
+
+
 def _validate_prerelease_label(value: str, context: str = 'releasekit.toml') -> None:
     """Raise if prerelease_label is not a recognized value."""
     if value and value not in ALLOWED_PRERELEASE_LABELS:
@@ -1156,6 +1663,47 @@ def _validate_prerelease_label(value: str, context: str = 'releasekit.toml') -> 
             message=f"prerelease_label must be one of {sorted(ALLOWED_PRERELEASE_LABELS)}, got '{value}'",
             hint=f"Use 'alpha', 'beta', 'rc', or 'dev'. Check {context}.",
         )
+
+
+def _parse_license_section(
+    raw: dict[str, Any],  # noqa: ANN401
+    context: str = 'releasekit.toml [license]',
+) -> LicenseConfig:
+    """Parse and validate the ``[license]`` section."""
+    project = raw.get('project', '')
+    exempt_packages = list(raw.get('exempt_packages', []))
+    allow_licenses = list(raw.get('allow_licenses', []))
+    deny_licenses = list(raw.get('deny_licenses', []))
+    workspace_exceptions = list(raw.get('workspace_exceptions', []))
+
+    overrides: dict[str, str] = {}
+    raw_overrides = raw.get('overrides', {})
+    if isinstance(raw_overrides, dict):
+        for k, v in raw_overrides.items():
+            if not isinstance(v, str):
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_VALUE,
+                    message=f'license override for {k!r} must be a string, got {type(v).__name__}',
+                    hint=f'Use [license.overrides] "{k}" = "SPDX-ID" in {context}.',
+                )
+            overrides[k] = v
+
+    project_exceptions: dict[str, list[str]] = {}
+    raw_pe = raw.get('project_exceptions', {})
+    if isinstance(raw_pe, dict):
+        for k, v in raw_pe.items():
+            if isinstance(v, list):
+                project_exceptions[k] = [str(x) for x in v]
+
+    return LicenseConfig(
+        project=project,
+        exempt_packages=exempt_packages,
+        allow_licenses=allow_licenses,
+        deny_licenses=deny_licenses,
+        overrides=overrides,
+        workspace_exceptions=workspace_exceptions,
+        project_exceptions=project_exceptions,
+    )
 
 
 def _parse_packages(
@@ -1277,8 +1825,12 @@ def _parse_workspace_section(
         kwargs['hooks'] = _parse_hooks(dict(kwargs['hooks']), context)
     if 'branches' in kwargs:
         kwargs['branches'] = dict(kwargs['branches'])
+    if 'ai' in kwargs:
+        kwargs['ai'] = _parse_ai(dict(kwargs['ai']), context)
     if 'announcements' in kwargs:
         kwargs['announcements'] = _parse_announcements(dict(kwargs['announcements']), context)
+    if 'license_headers' in kwargs:
+        kwargs['license_headers'] = _parse_license_headers(dict(kwargs['license_headers']), context)
     if 'packages' in kwargs:
         kwargs['packages'] = _parse_packages(dict(kwargs['packages']), context)
 
@@ -1398,8 +1950,14 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
         global_kwargs['hooks'] = _parse_hooks(dict(global_kwargs['hooks']))
     if 'branches' in global_kwargs:
         global_kwargs['branches'] = dict(global_kwargs['branches'])
+    if 'ai' in global_kwargs:
+        global_kwargs['ai'] = _parse_ai(dict(global_kwargs['ai']))
     if 'announcements' in global_kwargs:
         global_kwargs['announcements'] = _parse_announcements(dict(global_kwargs['announcements']))
+    if 'license_headers' in global_kwargs:
+        global_kwargs['license_headers'] = _parse_license_headers(dict(global_kwargs['license_headers']))
+    if 'license' in global_kwargs:
+        global_kwargs['license'] = _parse_license_section(dict(global_kwargs['license']))
 
     return ReleaseConfig(**global_kwargs, workspaces=workspaces, config_path=config_path)
 
@@ -1602,6 +2160,7 @@ __all__ = [
     'VALID_WORKSPACE_KEYS',
     'AnnouncementConfig',
     'HooksConfig',
+    'LicenseConfig',
     'PackageConfig',
     'ReleaseConfig',
     'ScheduleConfig',
@@ -1611,4 +2170,5 @@ __all__ = [
     'load_config',
     'resolve_group_refs',
     'resolve_package_config',
+    'resolve_workspace_ai_config',
 ]

@@ -51,9 +51,6 @@ def _config(forge: str = 'none') -> ReleaseConfig:
     return ReleaseConfig(forge=forge)
 
 
-# ── Tool → Backend Dispatch ──────────────────────────────────────────
-
-
 class TestCreateBackendsDispatch:
     """_create_backends selects the right PM + Registry for each tool."""
 
@@ -113,9 +110,6 @@ class TestCreateBackendsDispatch:
         assert isinstance(registry, CratesIoRegistry)
 
 
-# ── registry_url Override ────────────────────────────────────────────
-
-
 class TestRegistryUrlOverride:
     """registry_url on WorkspaceConfig overrides the default base URL."""
 
@@ -169,9 +163,6 @@ class TestRegistryUrlOverride:
         assert registry._base_url == 'http://localhost:3000'
 
 
-# ── Test Registry Constants ──────────────────────────────────────────
-
-
 class TestRegistryConstants:
     """Each registry backend exposes DEFAULT_BASE_URL and TEST_BASE_URL."""
 
@@ -205,9 +196,6 @@ class TestRegistryConstants:
         """TEST_BASE_URL is defined and non-empty."""
         assert hasattr(cls, 'TEST_BASE_URL')
         assert cls.TEST_BASE_URL
-
-
-# ── Config registry_url Field ────────────────────────────────────────
 
 
 class TestConfigRegistryUrl:

@@ -32,6 +32,7 @@ from typing import Any
 import tomlkit
 import tomlkit.exceptions
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._io import read_file as _read_file, write_file as _write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.errors import E, ReleaseKitError
@@ -346,6 +347,62 @@ class UvWorkspace:
             all_deps=[spec.strip() for spec in dep_specs],
             is_publishable=_is_publishable(classifiers),
         )
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect license from ``pyproject.toml``.
+
+        Checks (in order):
+            1. ``project.license`` as a string (PEP 639 SPDX expression).
+            2. ``project.license.text`` (legacy table form).
+            3. ``project.classifiers`` containing ``License ::`` entries.
+        """
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        pyproject = pkg_path / 'pyproject.toml'
+        if not pyproject.is_file():
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+        try:
+            text = await _read_file(pyproject)
+            doc = _parse_toml(text, pyproject)
+        except Exception:  # noqa: BLE001
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+
+        project: dict[str, Any] = dict(doc.get('project', {}))  # noqa: ANN401
+
+        # PEP 639: project.license as a plain SPDX string.
+        lic = project.get('license')
+        if isinstance(lic, str) and lic.strip():
+            return DetectedLicense(
+                value=lic.strip(),
+                source='pyproject.toml [project].license',
+                package_name=pkg_name,
+            )
+
+        # Legacy: project.license = { text = "..." }
+        if isinstance(lic, dict):
+            text_val = lic.get('text', '')
+            if isinstance(text_val, str) and text_val.strip():
+                return DetectedLicense(
+                    value=text_val.strip(),
+                    source='pyproject.toml [project].license.text',
+                    package_name=pkg_name,
+                )
+
+        # Fallback: classifiers.
+        classifiers: list[str] = list(project.get('classifiers', []))
+        lic_classifiers = [c for c in classifiers if isinstance(c, str) and c.startswith('License ::')]
+        if lic_classifiers:
+            return DetectedLicense(
+                value=lic_classifiers[0],
+                source='pyproject.toml classifier',
+                package_name=pkg_name,
+            )
+
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
 
 __all__ = [

@@ -129,6 +129,7 @@ class VCS(Protocol):
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -136,6 +137,7 @@ class VCS(Protocol):
 
         Args:
             tag_name: Tag name (e.g. ``"genkit-v0.5.0"``).
+            ref: Commit SHA to tag. Defaults to HEAD if ``None``.
             message: Tag message. Defaults to the tag name.
             dry_run: Log the command without executing.
         """
@@ -171,6 +173,7 @@ class VCS(Protocol):
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags.
@@ -179,6 +182,10 @@ class VCS(Protocol):
             tags: Also push tags.
             remote: Remote name.
             set_upstream: Set upstream tracking for new branches.
+            force: Force-push using ``--force-with-lease`` (safe
+                force-push that fails if the remote has unexpected
+                changes). Used when release branches are recreated
+                from scratch on each prepare run.
             dry_run: Log the command without executing.
         """
         ...
