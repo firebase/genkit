@@ -1,6 +1,6 @@
 # API Audit: Resolved Decisions
 
-The documentation audit surfaced 10 API issues. The items below had clear Pythonic answers and are resolved. The remaining issues — streaming, public API surface, output configuration, async support, method signatures, and class structure — are open design questions covered in [PYTHON_API_REVIEW.md](./PYTHON_API_REVIEW.md).
+The documentation audit surfaced various API issues. The items below had clear Pythonic answers and are resolved. The remaining issues — streaming, public API surface, output configuration, async support, method signatures, and class structure — are open design questions covered in [PYTHON_API_REVIEW.md](./PYTHON_API_REVIEW.md).
 
 ---
 
@@ -22,7 +22,9 @@ This is standard Python convention. OpenAI, Anthropic, and most modern Python AP
 
 ## Decorator shorthands
 
-Already implemented. `@ai.tool()`, `@ai.flow()` exist alongside imperative `define_*` methods. App developers use decorators; plugin authors use the imperative API. This also resolved the handler signature discoverability issue — decorators make expected signatures clear through type hints, while the imperative `define_*` methods accept generic callables with no signature guidance.
+`@ai.tool()`, `@ai.flow()` exist alongside imperative `define_*` methods. App developers use decorators; plugin authors use the imperative API. This also resolved the handler signature discoverability issue — decorators make expected signatures clear through type hints, while the imperative `define_*` methods accept generic callables with no signature guidance.
+
+^^ Need decorators for other primitives as well.
 
 ## Part constructor
 
@@ -66,12 +68,6 @@ response = await ai.generate(model="googleai/imagen3", prompt="a cat")
 image = response.media  # Media | None
 ```
 
-## Veneer naming
-
-The SDK has auto-generated schema types (`GenerateResponse` from `genkit-schemas.json`) and hand-written wrappers that add convenience methods (`GenerateResponseWrapper`). Users interact with the wrapper but see the "Wrapper" suffix in type hints and docs.
-
-**Decision:** Alias the wrapper under the clean name at the public surface: `GenerateResponseWrapper` exported as `GenerateResponse` from `from genkit import ...`. The auto-generated schema type remains available as `GenerateResponse` in `genkit.plugin` for plugin authors. See [python_beta_api_proposal.md](./python_beta_api_proposal.md) for the full type architecture.
-
 ## Type consolidation
 
 Two nearly-identical types existed: `BaseDataPoint` (generic) and `BaseEvalDataPoint` (evaluator-specific). The audit found samples using them interchangeably.
@@ -82,11 +78,15 @@ Two nearly-identical types existed: `BaseDataPoint` (generic) and `BaseEvalDataP
 
 Several symbols were in the public `__all__` that don't belong:
 
-- **`tool_response`** — only 3 sample usages. JS and Go use a method on the tool instance. Removed.
-- **`dump_dict` / `dump_json`** — internal serialization utilities. Removed.
-- **`get_logger`** — thin wrapper around `logging.getLogger("genkit")`. Python developers know the stdlib. Removed.
-- **`GenkitRegistry`, `FlowWrapper`, `SimpleRetrieverOptions`** — internal implementation types. Removed.
+- **`tool_response`** — only 3 sample usages. JS and Go use a method on the tool instance.
+- **`dump_dict` / `dump_json`** — internal serialization utilities.
+- **`get_logger`** — thin wrapper around `logging.getLogger("genkit")`. Python developers know the stdlib.
+- **`GenkitRegistry`, `FlowWrapper`, `SimpleRetrieverOptions`** — internal implementation types.
+
+^^ Need to audit __all__ in all packages and see what comes up. 
 
 ## Evaluator API
 
 The evaluator API (`GenkitMetricType`, `MetricConfig`, `PluginOptions`) has its own design issues — the audit found the API shape diverges significantly from what the naming suggests. Not addressed in this review; flagged for separate follow-up.
+
+^^ Follow up

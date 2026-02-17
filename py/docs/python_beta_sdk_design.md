@@ -55,6 +55,10 @@ The full proposal — including the type architecture (auto-generated schema typ
 
 ^^^ Upon dicsussion, no clear reason to separate from genkit import vs from genkit.types import
 
+^^^ Audit what's exposed via __all__ in all the packages (there are some random helpers for example)
+
+^^^ Consider internal code organization as well, what goes in blocks? core? web? types? Internal code organization is somewhat generic/sprawling/unopinionated 
+
 ## 5. Output configuration
 
 The `generate()` method currently accepts output configuration multiple ways:
