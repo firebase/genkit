@@ -1025,7 +1025,7 @@ wheels = [
 
 [[package]]
 name = "conform"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "tools/conform" }
 dependencies = [
     { name = "httpx" },
@@ -1467,7 +1467,7 @@ wheels = [
 
 [[package]]
 name = "dev-local-vectorstore-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/dev-local-vectorstore-hello" }
 dependencies = [
     { name = "genkit" },
@@ -1796,7 +1796,7 @@ wheels = [
 
 [[package]]
 name = "framework-context-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-context-demo" }
 dependencies = [
     { name = "genkit" },
@@ -1826,7 +1826,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-custom-evaluators"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "samples/framework-custom-evaluators" }
 dependencies = [
     { name = "genkit" },
@@ -1856,7 +1856,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-dynamic-tools-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-dynamic-tools-demo" }
 dependencies = [
     { name = "genkit" },
@@ -1886,7 +1886,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-evaluator-demo"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "samples/framework-evaluator-demo" }
 dependencies = [
     { name = "genkit" },
@@ -1922,7 +1922,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-format-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-format-demo" }
 dependencies = [
     { name = "genkit" },
@@ -1952,7 +1952,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-middleware-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-middleware-demo" }
 dependencies = [
     { name = "genkit" },
@@ -1982,7 +1982,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-prompt-demo"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "samples/framework-prompt-demo" }
 dependencies = [
     { name = "genkit" },
@@ -2012,7 +2012,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-realtime-tracing-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-realtime-tracing-demo" }
 dependencies = [
     { name = "genkit" },
@@ -2042,7 +2042,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-restaurant-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-restaurant-demo" }
 dependencies = [
     { name = "genkit" },
@@ -2080,7 +2080,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "framework-tool-interrupts"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/framework-tool-interrupts" }
 dependencies = [
     { name = "genkit" },
@@ -2238,7 +2238,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -2322,7 +2322,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-cloud", "google-gen
 
 [[package]]
 name = "genkit-plugin-amazon-bedrock"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/amazon-bedrock" }
 dependencies = [
     { name = "aioboto3" },
@@ -2349,7 +2349,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-anthropic"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/anthropic" }
 dependencies = [
     { name = "anthropic" },
@@ -2364,7 +2364,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-checks"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/checks" }
 dependencies = [
     { name = "genkit" },
@@ -2385,7 +2385,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-cloudflare-workers-ai"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/cloudflare-workers-ai" }
 dependencies = [
     { name = "genkit" },
@@ -2410,7 +2410,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-cohere"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/cohere" }
 dependencies = [
     { name = "cohere" },
@@ -2425,7 +2425,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -2442,7 +2442,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-deepseek"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/deepseek" }
 dependencies = [
     { name = "genkit" },
@@ -2459,7 +2459,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "aiofiles" },
@@ -2480,7 +2480,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-evaluators"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/evaluators" }
 dependencies = [
     { name = "aiofiles" },
@@ -2501,7 +2501,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-fastapi"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/fastapi" }
 dependencies = [
     { name = "fastapi" },
@@ -2518,7 +2518,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -2544,7 +2544,7 @@ provides-extras = ["telemetry"]
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -2563,7 +2563,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -2584,7 +2584,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -2605,7 +2605,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-huggingface"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/huggingface" }
 dependencies = [
     { name = "genkit" },
@@ -2620,7 +2620,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-mcp"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/mcp" }
 dependencies = [
     { name = "genkit" },
@@ -2635,7 +2635,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-microsoft-foundry"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/microsoft-foundry" }
 dependencies = [
     { name = "azure-identity" },
@@ -2656,7 +2656,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-mistral"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/mistral" }
 dependencies = [
     { name = "genkit" },
@@ -2671,7 +2671,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-observability"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/observability" }
 dependencies = [
     { name = "genkit" },
@@ -2701,7 +2701,7 @@ provides-extras = ["sentry"]
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -2718,7 +2718,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "anthropic" },
@@ -2747,7 +2747,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-xai"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "plugins/xai" }
 dependencies = [
     { name = "genkit" },
@@ -2762,7 +2762,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-tools-model-config-test"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "tools/model-config-test" }
 dependencies = [
     { name = "datamodel-code-generator" },
@@ -2835,7 +2835,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-tools-sample-flows"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "tools/sample-flows" }
 dependencies = [
     { name = "genkit" },
@@ -6705,7 +6705,7 @@ wheels = [
 
 [[package]]
 name = "provider-amazon-bedrock-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-amazon-bedrock-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6735,7 +6735,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-anthropic-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-anthropic-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6765,7 +6765,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-checks-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-checks-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6786,7 +6786,7 @@ requires-dist = [
 
 [[package]]
 name = "provider-cloudflare-workers-ai-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-cloudflare-workers-ai-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6803,7 +6803,7 @@ requires-dist = [
 
 [[package]]
 name = "provider-cohere-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-cohere-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6833,7 +6833,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-compat-oai-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-compat-oai-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6865,7 +6865,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-deepseek-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-deepseek-hello" }
 dependencies = [
     { name = "genkit" },
@@ -6895,7 +6895,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-firestore-retriever"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-firestore-retriever" }
 dependencies = [
     { name = "genkit" },
@@ -6925,7 +6925,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-code-execution"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-code-execution" }
 dependencies = [
     { name = "genkit" },
@@ -6955,7 +6955,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-context-caching"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-context-caching" }
 dependencies = [
     { name = "genkit" },
@@ -6987,7 +6987,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7021,7 +7021,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-media-models-demo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-media-models-demo" }
 dependencies = [
     { name = "genkit" },
@@ -7045,7 +7045,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-vertexai-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-vertexai-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7075,7 +7075,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-google-genai-vertexai-image"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-google-genai-vertexai-image" }
 dependencies = [
     { name = "genkit" },
@@ -7105,7 +7105,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-huggingface-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-huggingface-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7135,7 +7135,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-microsoft-foundry-hello"
-version = "0.0.0"
+version = "0.1.0"
 source = { editable = "samples/provider-microsoft-foundry-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7154,7 +7154,7 @@ requires-dist = [
 
 [[package]]
 name = "provider-mistral-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-mistral-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7184,7 +7184,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-observability-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-observability-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7203,7 +7203,7 @@ requires-dist = [
 
 [[package]]
 name = "provider-ollama-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-ollama-hello" }
 dependencies = [
     { name = "genkit" },
@@ -7233,7 +7233,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-vertex-ai-model-garden"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-vertex-ai-model-garden" }
 dependencies = [
     { name = "genkit" },
@@ -7263,7 +7263,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-vertex-ai-rerank-eval"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-vertex-ai-rerank-eval" }
 dependencies = [
     { name = "genkit" },
@@ -7293,7 +7293,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-vertex-ai-vector-search-bigquery"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-vertex-ai-vector-search-bigquery" }
 dependencies = [
     { name = "genkit" },
@@ -7331,7 +7331,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-vertex-ai-vector-search-firestore"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-vertex-ai-vector-search-firestore" }
 dependencies = [
     { name = "genkit" },
@@ -7369,7 +7369,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "provider-xai-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/provider-xai-hello" }
 dependencies = [
     { name = "genkit" },
@@ -8305,7 +8305,7 @@ wheels = [
 
 [[package]]
 name = "releasekit"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "tools/releasekit" }
 dependencies = [
     { name = "aiofiles" },
@@ -9711,7 +9711,7 @@ wheels = [
 
 [[package]]
 name = "web-endpoints-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/web-endpoints-hello" }
 dependencies = [
     { name = "fastapi" },
@@ -9839,7 +9839,7 @@ provides-extras = ["aws", "azure", "dev", "docs", "gcp", "observability", "sentr
 
 [[package]]
 name = "web-fastapi-bugbot"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/web-fastapi-bugbot" }
 dependencies = [
     { name = "genkit" },
@@ -9867,7 +9867,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "web-flask-hello"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/web-flask-hello" }
 dependencies = [
     { name = "flask" },
@@ -9897,7 +9897,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "web-multi-server"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/web-multi-server" }
 dependencies = [
     { name = "asgiref" },
@@ -9931,7 +9931,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "web-short-n-long"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "samples/web-short-n-long" }
 dependencies = [
     { name = "genkit" },

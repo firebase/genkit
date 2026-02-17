@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0 (2026-02-17)
+
+### Features
+
+- **releasekit**: add Forge protocol extensions, transitive propagation, and multi-backend conformance (d6dbb44, #4577) — @Yesudeep Mangalapilly
+- **py/samples**: add web-endpoints-hello — REST + gRPC kitchen-sink sample (8614e5e, #4498) — @Yesudeep Mangalapilly
+
+### Bug Fixes
+
+- **py**: correct evaluator scoring bug (40bbdbc, #4573) — @Elisa Shen
+- **py/plugins**: fix wheel build duplicate files in PEP 420 namespace packages (0c396b6, #4441) — @Yesudeep Mangalapilly
+
+### Refactoring
+
+- **py**: rename aws-bedrock plugin to amazon-bedrock (8acd6b0, #4448) — @Yesudeep Mangalapilly
+
 All notable changes to `genkit-plugin-evaluators` will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
