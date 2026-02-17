@@ -13,7 +13,7 @@ These audiences have separate entry points.
 
 ## Methodology
 
-Every import across 30+ samples, 20+ plugins, and the test suite was audited to understand what symbols people actually use. The symbol lists and usage counts below come from that audit. The documentation audit ([DOCUMENTATION_AUDIT.md](./DOCUMENTATION_AUDIT.md)) independently confirmed the import path confusion — the verification agent used internal paths because no public boundary existed.
+Every import across 30+ samples, 20+ plugins, and the test suite was audited to understand what symbols people actually use. The symbol lists and usage counts below come from that audit.
 
 ---
 
