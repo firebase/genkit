@@ -7,14 +7,14 @@ A step-by-step guide to setting up a Google Cloud Platform VM, authenticating wi
 First, provision a virtual machine in the Google Cloud Console with the following specifications:
 
 ```
-| Category      | Configuration
-|---------------|--------------------------------------------------
-| Machine Name  | genkit
-| Region / Zone | us-central1 / us-central1-a
-| Machine Type  | E2 (General Purpose)
-| OS            | Debian GNU/Linux 12 (bookworm)
-| Storage       | 30 GB Balanced Persistent Disk
-| Firewall      | Allow HTTP, HTTPS, and Load Balancer health checks
+| Category      | Configuration                                      |
+|---------------|----------------------------------------------------|
+| Machine Name  | genkit                                             |
+| Region / Zone | us-central1 / us-central1-a                        |
+| Machine Type  | E2 (General Purpose)                               |
+| OS            | Debian GNU/Linux 12 (bookworm)                     |
+| Storage       | 30 GB Balanced Persistent Disk                     |
+| Firewall      | Allow HTTP, HTTPS, and Load Balancer health checks |
 ```
 
 ## Access the VM via SSH
@@ -26,17 +26,13 @@ gcloud compute ssh genkit --zone us-central1-a
 ```
 Once connected, switch to the root user to ensure permanent permissions for global installations:
 
-```bash
-sudo -i
-```
-
 ## Configure Git and GitHub Authentication
 <Steps>
   
   1. Install Git:
      
      ```bash
-     apt update && apt install git -y
+     sudo apt update && sudo apt install git -y
      ```
      
   2. Set your Identity:
@@ -69,7 +65,6 @@ sudo -i
      ```bash
      ssh -T git@github.com
      ```
-     Type 'yes' when prompted
          
 </Steps>
 
@@ -80,7 +75,6 @@ Navigate to the Genkit repository and run the automated setup script for Python 
 git clone git@github.com:firebase/genkit.git
 cd genkit/py/samples
 ./setup.sh
-export PATH="/root/.local/bin:$PATH"
 ```
 
   <b>During setup:</b>
@@ -106,24 +100,18 @@ cd provider-google-genai-hello
 ```
 
 ## Access the Developer UI
-To view the Genkit Developer UI from your local browser, you must open port `4000` in the GCP Firewall.
+To view the Genkit Developer UI from your local browser, use SSH port forwarding. This is more secure than opening a firewall port.
 
-<b> Create Firewall Rule</b>
-1. Go to <b>VPC Network > Firewall</b> in the GCP Console.
+1.  Disconnect from your current SSH session if you are still connected.
+2.  From your **local machine's terminal**, run the following command to connect to your VM and forward the port:
 
-2. Click <b>Create Firewall Rule</b>.
+    ```bash
+    gcloud compute ssh genkit --zone us-central1-a -- -L 4000:localhost:4000
+    ```
 
-3. <b>Name</b>: allow-genkit
+3.  Keep this terminal window open. The SSH connection must remain active for port forwarding to work.
+4.  Now, open your local web browser and navigate to:
 
-4. <b>Targets</b>: All instances in the network
+    `http://localhost:4000`
 
-5. <b>Source IPv4 range</b>: 0.0.0.0/0 (Note: Use your specific IP for better security).
-
-6. <b>Protocols and ports</b>: Check TCP and enter 4000.
-
-7. Click <b>Create</b>.
-
-<b>Launching the UI</b>
-Find your VM's <b>External IP</b> address in the VM Instances list and navigate to it in your browser:
-
-`http://[YOUR_EXTERNAL_IP]:4000`
+You should see the Genkit Developer UI.
