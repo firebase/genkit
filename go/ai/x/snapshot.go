@@ -34,8 +34,8 @@ type SessionState[State any] struct {
 	// Custom is the user-defined state associated with this conversation.
 	Custom State `json:"custom,omitempty"`
 	// Artifacts are named collections of parts produced during the conversation.
-	Artifacts []*SessionFlowArtifact `json:"artifacts,omitempty"`
-	// PromptInput is the input used for prompt rendering in prompt-backed session flows.
+	Artifacts []*AgentArtifact `json:"artifacts,omitempty"`
+	// PromptInput is the input used for prompt rendering in prompt-backed agent flows.
 	// Stored as any to support type-erased persistence across snapshot boundaries.
 	PromptInput any `json:"promptInput,omitempty"`
 }
@@ -82,29 +82,29 @@ type SnapshotContext[State any] struct {
 // If not provided and a store is configured, snapshots are always created.
 type SnapshotCallback[State any] = func(ctx context.Context, sc *SnapshotContext[State]) bool
 
-// SnapshotStore persists and retrieves snapshots.
-type SnapshotStore[State any] interface {
+// SessionStore persists and retrieves snapshots.
+type SessionStore[State any] interface {
 	// GetSnapshot retrieves a snapshot by ID. Returns nil if not found.
 	GetSnapshot(ctx context.Context, snapshotID string) (*SessionSnapshot[State], error)
 	// SaveSnapshot persists a snapshot.
 	SaveSnapshot(ctx context.Context, snapshot *SessionSnapshot[State]) error
 }
 
-// InMemorySnapshotStore provides a thread-safe in-memory snapshot store.
-type InMemorySnapshotStore[State any] struct {
+// InMemorySessionStore provides a thread-safe in-memory snapshot store.
+type InMemorySessionStore[State any] struct {
 	snapshots map[string]*SessionSnapshot[State]
 	mu        sync.RWMutex
 }
 
-// NewInMemorySnapshotStore creates a new in-memory snapshot store.
-func NewInMemorySnapshotStore[State any]() *InMemorySnapshotStore[State] {
-	return &InMemorySnapshotStore[State]{
+// NewInMemorySessionStore creates a new in-memory snapshot store.
+func NewInMemorySessionStore[State any]() *InMemorySessionStore[State] {
+	return &InMemorySessionStore[State]{
 		snapshots: make(map[string]*SessionSnapshot[State]),
 	}
 }
 
 // GetSnapshot retrieves a snapshot by ID. Returns nil if not found.
-func (s *InMemorySnapshotStore[State]) GetSnapshot(_ context.Context, snapshotID string) (*SessionSnapshot[State], error) {
+func (s *InMemorySessionStore[State]) GetSnapshot(_ context.Context, snapshotID string) (*SessionSnapshot[State], error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -121,7 +121,7 @@ func (s *InMemorySnapshotStore[State]) GetSnapshot(_ context.Context, snapshotID
 }
 
 // SaveSnapshot persists a snapshot.
-func (s *InMemorySnapshotStore[State]) SaveSnapshot(_ context.Context, snapshot *SessionSnapshot[State]) error {
+func (s *InMemorySessionStore[State]) SaveSnapshot(_ context.Context, snapshot *SessionSnapshot[State]) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -150,8 +150,8 @@ func copySnapshot[State any](snap *SessionSnapshot[State]) (*SessionSnapshot[Sta
 }
 
 // SnapshotOn returns a SnapshotCallback that only allows snapshots for the
-// specified events. For example, SnapshotOn[MyState](TurnEnd) will skip the
-// invocation-end snapshot.
+// specified events. For example, SnapshotOn[MyState](SnapshotEventTurnEnd)
+// will skip the invocation-end snapshot.
 func SnapshotOn[State any](events ...SnapshotEvent) SnapshotCallback[State] {
 	set := make(map[SnapshotEvent]struct{}, len(events))
 	for _, e := range events {

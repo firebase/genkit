@@ -65,7 +65,7 @@ func setupPromptTestRegistry(t *testing.T) *registry.Registry {
 	return reg
 }
 
-func TestPromptSessionFlow_Basic(t *testing.T) {
+func TestPromptAgent_Basic(t *testing.T) {
 	ctx := context.Background()
 	reg := setupPromptTestRegistry(t)
 
@@ -74,11 +74,11 @@ func TestPromptSessionFlow_Basic(t *testing.T) {
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testState](
+	af := DefinePromptAgent[testState](
 		reg, "promptFlow", prompt, nil,
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestPromptSessionFlow_Basic(t *testing.T) {
 	}
 }
 
-func TestPromptSessionFlow_PromptInputOverride(t *testing.T) {
+func TestPromptAgent_PromptInputOverride(t *testing.T) {
 	ctx := context.Background()
 	reg := setupPromptTestRegistry(t)
 
@@ -146,12 +146,12 @@ func TestPromptSessionFlow_PromptInputOverride(t *testing.T) {
 		ai.WithPrompt("Hello {{name}}!"),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testState](
+	af := DefinePromptAgent[testState](
 		reg, "promptInputFlow", prompt, greetInput{Name: "default"},
 	)
 
 	// Use WithPromptInput to override.
-	conn, err := sf.StreamBidi(ctx,
+	conn, err := af.StreamBidi(ctx,
 		WithPromptInput[testState](greetInput{Name: "override"}),
 	)
 	if err != nil {
@@ -194,7 +194,7 @@ func TestPromptSessionFlow_PromptInputOverride(t *testing.T) {
 	}
 }
 
-func TestPromptSessionFlow_MultiTurnHistory(t *testing.T) {
+func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 	ctx := context.Background()
 	reg := setupPromptTestRegistry(t)
 
@@ -223,11 +223,11 @@ func TestPromptSessionFlow_MultiTurnHistory(t *testing.T) {
 		ai.WithSystem("system prompt"),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testState](
+	af := DefinePromptAgent[testState](
 		reg, "historyFlow", prompt, nil,
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -289,23 +289,23 @@ func TestPromptSessionFlow_MultiTurnHistory(t *testing.T) {
 	}
 }
 
-func TestPromptSessionFlow_SnapshotPersistsPromptInput(t *testing.T) {
+func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 	ctx := context.Background()
 	reg := setupPromptTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
 	prompt := ai.DefinePrompt(reg, "snapPrompt",
 		ai.WithModelName("test/echo"),
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	sf := DefineSessionFlowFromPrompt[testState](
+	af := DefinePromptAgent(
 		reg, "snapPromptFlow", prompt, nil,
-		WithSnapshotStore(store),
+		WithSessionStore(store),
 	)
 
 	// Start with prompt input.
-	conn, err := sf.StreamBidi(ctx,
+	conn, err := af.StreamBidi(ctx,
 		WithPromptInput[testState](map[string]any{"key": "value"}),
 	)
 	if err != nil {
@@ -342,7 +342,7 @@ func TestPromptSessionFlow_SnapshotPersistsPromptInput(t *testing.T) {
 	}
 
 	// Resume from snapshot — the PromptInput should be preserved.
-	conn2, err := sf.StreamBidi(ctx, WithSnapshotID[testState](resp.SnapshotID))
+	conn2, err := af.StreamBidi(ctx, WithSnapshotID[testState](resp.SnapshotID))
 	if err != nil {
 		t.Fatalf("StreamBidi with snapshot failed: %v", err)
 	}

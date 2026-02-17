@@ -39,14 +39,13 @@ func newTestRegistry(t *testing.T) *registry.Registry {
 	return registry.New()
 }
 
-func TestSessionFlow_BasicMultiTurn(t *testing.T) {
+func TestAgentFlow_BasicMultiTurn(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "basicFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "basicFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				resp.SendStatus(testStatus{Phase: "generating"})
 				// Echo back the user's message.
 				if len(input.Messages) > 0 {
@@ -63,7 +62,7 @@ func TestSessionFlow_BasicMultiTurn(t *testing.T) {
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -115,15 +114,14 @@ func TestSessionFlow_BasicMultiTurn(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_WithSnapshotStore(t *testing.T) {
+func TestAgentFlow_WithSessionStore(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
-	sf := DefineSessionFlow(reg, "snapshotFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "snapshotFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				if len(input.Messages) > 0 {
 					sess.AddMessages(ai.NewModelTextMessage("reply"))
 				}
@@ -134,10 +132,10 @@ func TestSessionFlow_WithSnapshotStore(t *testing.T) {
 				return nil
 			})
 		},
-		WithSnapshotStore[testState](store),
+		WithSessionStore[testState](store),
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -149,8 +147,8 @@ func TestSessionFlow_WithSnapshotStore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.SnapshotCreated != "" {
-			snapshotIDs = append(snapshotIDs, chunk.SnapshotCreated)
+		if chunk.SnapshotID != "" {
+			snapshotIDs = append(snapshotIDs, chunk.SnapshotID)
 		}
 		if chunk.EndTurn {
 			break
@@ -189,15 +187,14 @@ func TestSessionFlow_WithSnapshotStore(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
+func TestAgentFlow_ResumeFromSnapshot(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
-	sf := DefineSessionFlow(reg, "resumeFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "resumeFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				if len(input.Messages) > 0 {
 					sess.AddMessages(ai.NewModelTextMessage("reply"))
 				}
@@ -208,11 +205,11 @@ func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
 				return nil
 			})
 		},
-		WithSnapshotStore[testState](store),
+		WithSessionStore[testState](store),
 	)
 
 	// First invocation: create a snapshot.
-	conn1, err := sf.StreamBidi(ctx)
+	conn1, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -235,7 +232,7 @@ func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
 	}
 
 	// Second invocation: resume from snapshot.
-	conn2, err := sf.StreamBidi(ctx, WithSnapshotID[testState](resp1.SnapshotID))
+	conn2, err := af.StreamBidi(ctx, WithSnapshotID[testState](resp1.SnapshotID))
 	if err != nil {
 		t.Fatalf("StreamBidi with snapshot failed: %v", err)
 	}
@@ -280,14 +277,13 @@ func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_ClientManagedState(t *testing.T) {
+func TestAgentFlow_ClientManagedState(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "clientStateFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "clientStateFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				if len(input.Messages) > 0 {
 					sess.AddMessages(ai.NewModelTextMessage("reply"))
 				}
@@ -309,7 +305,7 @@ func TestSessionFlow_ClientManagedState(t *testing.T) {
 		Custom: testState{Counter: 5},
 	}
 
-	conn, err := sf.StreamBidi(ctx, WithState(clientState))
+	conn, err := af.StreamBidi(ctx, WithState(clientState))
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -344,28 +340,27 @@ func TestSessionFlow_ClientManagedState(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_Artifacts(t *testing.T) {
+func TestAgentFlow_Artifacts(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "artifactFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "artifactFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 
-				resp.SendArtifact(&SessionFlowArtifact{
+				resp.SendArtifact(&AgentArtifact{
 					Name:  "code.go",
 					Parts: []*ai.Part{ai.NewTextPart("package main")},
 				})
 
 				// Replace artifact with same name.
-				resp.SendArtifact(&SessionFlowArtifact{
+				resp.SendArtifact(&AgentArtifact{
 					Name:  "code.go",
 					Parts: []*ai.Part{ai.NewTextPart("package main\nfunc main() {}")},
 				})
 
 				// Add another artifact.
-				resp.SendArtifact(&SessionFlowArtifact{
+				resp.SendArtifact(&AgentArtifact{
 					Name:  "readme.md",
 					Parts: []*ai.Part{ai.NewTextPart("# README")},
 				})
@@ -376,13 +371,13 @@ func TestSessionFlow_Artifacts(t *testing.T) {
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
 
 	conn.SendText("generate code")
-	var receivedArtifacts []*SessionFlowArtifact
+	var receivedArtifacts []*AgentArtifact
 	for chunk, err := range conn.Receive() {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
@@ -411,17 +406,16 @@ func TestSessionFlow_Artifacts(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SnapshotCallback(t *testing.T) {
+func TestAgentFlow_SnapshotCallback(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
 	// Only snapshot on even turns.
 	callbackCalls := 0
-	sf := DefineSessionFlow(reg, "callbackFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "callbackFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				sess.AddMessages(ai.NewModelTextMessage("reply"))
 				sess.UpdateCustom(func(s testState) testState {
 					s.Counter++
@@ -430,14 +424,14 @@ func TestSessionFlow_SnapshotCallback(t *testing.T) {
 				return nil
 			})
 		},
-		WithSnapshotStore[testState](store),
+		WithSessionStore[testState](store),
 		WithSnapshotCallback(func(ctx context.Context, sc *SnapshotContext[testState]) bool {
 			callbackCalls++
 			return sc.TurnIndex%2 == 0 // only snapshot on even turns
 		}),
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -449,8 +443,8 @@ func TestSessionFlow_SnapshotCallback(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Receive error on turn %d: %v", i, err)
 			}
-			if chunk.SnapshotCreated != "" {
-				snapshotIDs = append(snapshotIDs, chunk.SnapshotCreated)
+			if chunk.SnapshotID != "" {
+				snapshotIDs = append(snapshotIDs, chunk.SnapshotID)
 			}
 			if chunk.EndTurn {
 				break
@@ -471,19 +465,19 @@ func TestSessionFlow_SnapshotCallback(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SendMessages(t *testing.T) {
+func TestAgentFlow_SendMessages(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "sendMsgsFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+	af := DefineCustomAgent(reg, "sendMsgsFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				return nil
 			})
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -517,31 +511,31 @@ func TestSessionFlow_SendMessages(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SessionContext(t *testing.T) {
+func TestAgentFlow_SessionContext(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
 	var retrievedCounter int
-	sf := DefineSessionFlow(reg, "contextFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+	af := DefineCustomAgent(reg, "contextFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				// Session should be retrievable from context.
-				sess := SessionFromContext[testState](ctx)
-				if sess == nil {
+				ctxSess := SessionFromContext[testState](ctx)
+				if ctxSess == nil {
 					t.Error("expected session from context")
 					return nil
 				}
-				sess.UpdateCustom(func(s testState) testState {
+				ctxSess.UpdateCustom(func(s testState) testState {
 					s.Counter = 42
 					return s
 				})
-				retrievedCounter = sess.Custom().Counter
+				retrievedCounter = ctxSess.Custom().Counter
 				return nil
 			})
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -563,19 +557,19 @@ func TestSessionFlow_SessionContext(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_ErrorInTurn(t *testing.T) {
+func TestAgentFlow_ErrorInTurn(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "errorFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+	af := DefineCustomAgent(reg, "errorFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				return fmt.Errorf("turn failed")
 			})
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -589,14 +583,13 @@ func TestSessionFlow_ErrorInTurn(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SetMessages(t *testing.T) {
+func TestAgentFlow_SetMessages(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
 
-	sf := DefineSessionFlow(reg, "setMsgsFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "setMsgsFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				// Replace all messages with just one.
 				sess.SetMessages([]*ai.Message{ai.NewModelTextMessage("replaced")})
 				return nil
@@ -604,7 +597,7 @@ func TestSessionFlow_SetMessages(t *testing.T) {
 		},
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -631,23 +624,22 @@ func TestSessionFlow_SetMessages(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SnapshotIDInMessageMetadata(t *testing.T) {
+func TestAgentFlow_SnapshotIDInMessageMetadata(t *testing.T) {
 	ctx := context.Background()
 	reg := newTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
-	sf := DefineSessionFlow(reg, "metadataFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
-			return params.Session.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
-				sess := params.Session
+	af := DefineCustomAgent(reg, "metadataFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				sess.AddMessages(ai.NewModelTextMessage("reply"))
 				return nil
 			})
 		},
-		WithSnapshotStore[testState](store),
+		WithSessionStore[testState](store),
 	)
 
-	conn, err := sf.StreamBidi(ctx)
+	conn, err := af.StreamBidi(ctx)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
 	}
@@ -682,9 +674,9 @@ func TestSessionFlow_SnapshotIDInMessageMetadata(t *testing.T) {
 	}
 }
 
-func TestInMemorySnapshotStore(t *testing.T) {
+func TestInMemorySessionStore(t *testing.T) {
 	ctx := context.Background()
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
 	// Get non-existent.
 	snap, err := store.GetSnapshot(ctx, "nonexistent")
@@ -726,20 +718,20 @@ func TestInMemorySnapshotStore(t *testing.T) {
 	}
 }
 
-func TestSessionFlow_SnapshotStoreReflectionAction(t *testing.T) {
+func TestAgentFlow_SessionStoreReflectionAction(t *testing.T) {
 	_ = context.Background()
 	reg := newTestRegistry(t)
-	store := NewInMemorySnapshotStore[testState]()
+	store := NewInMemorySessionStore[testState]()
 
-	DefineSessionFlow(reg, "reflectFlow",
-		func(ctx context.Context, resp Responder[testStatus], params *SessionFlowParams[testState]) error {
+	DefineCustomAgent(reg, "reflectFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
 			return nil
 		},
-		WithSnapshotStore[testState](store),
+		WithSessionStore[testState](store),
 	)
 
 	// The getSnapshot action should be registered.
-	action := reg.LookupAction("/snapshot-store/reflectFlow/getSnapshot")
+	action := reg.LookupAction("/session-store/reflectFlow/getSnapshot")
 	if action == nil {
 		t.Fatal("expected getSnapshot action to be registered")
 	}

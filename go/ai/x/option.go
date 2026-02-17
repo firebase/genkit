@@ -18,22 +18,22 @@ package aix
 
 import "errors"
 
-// --- SessionFlowOption ---
+// --- AgentFlowOption ---
 
-// SessionFlowOption configures a SessionFlow.
-type SessionFlowOption[State any] interface {
-	applySessionFlow(*sessionFlowOptions[State]) error
+// AgentFlowOption configures an AgentFlow.
+type AgentFlowOption[State any] interface {
+	applyAgentFlow(*agentFlowOptions[State]) error
 }
 
-type sessionFlowOptions[State any] struct {
-	store    SnapshotStore[State]
+type agentFlowOptions[State any] struct {
+	store    SessionStore[State]
 	callback SnapshotCallback[State]
 }
 
-func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[State]) error {
+func (o *agentFlowOptions[State]) applyAgentFlow(opts *agentFlowOptions[State]) error {
 	if o.store != nil {
 		if opts.store != nil {
-			return errors.New("cannot set snapshot store more than once (WithSnapshotStore)")
+			return errors.New("cannot set session store more than once (WithSessionStore)")
 		}
 		opts.store = o.store
 	}
@@ -46,15 +46,15 @@ func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[St
 	return nil
 }
 
-// WithSnapshotStore sets the store for persisting snapshots.
-func WithSnapshotStore[State any](store SnapshotStore[State]) SessionFlowOption[State] {
-	return &sessionFlowOptions[State]{store: store}
+// WithSessionStore sets the store for persisting snapshots.
+func WithSessionStore[State any](store SessionStore[State]) AgentFlowOption[State] {
+	return &agentFlowOptions[State]{store: store}
 }
 
 // WithSnapshotCallback configures when snapshots are created.
 // If not provided and a store is configured, snapshots are always created.
-func WithSnapshotCallback[State any](cb SnapshotCallback[State]) SessionFlowOption[State] {
-	return &sessionFlowOptions[State]{callback: cb}
+func WithSnapshotCallback[State any](cb SnapshotCallback[State]) AgentFlowOption[State] {
+	return &agentFlowOptions[State]{callback: cb}
 }
 
 // --- StreamBidiOption ---
@@ -75,11 +75,17 @@ func (o *streamBidiOptions[State]) applyStreamBidi(opts *streamBidiOptions[State
 		if opts.state != nil {
 			return errors.New("cannot set state more than once (WithState)")
 		}
+		if opts.snapshotID != "" {
+			return errors.New("WithState and WithSnapshotID are mutually exclusive")
+		}
 		opts.state = o.state
 	}
 	if o.snapshotID != "" {
 		if opts.snapshotID != "" {
 			return errors.New("cannot set snapshot ID more than once (WithSnapshotID)")
+		}
+		if opts.state != nil {
+			return errors.New("WithSnapshotID and WithState are mutually exclusive")
 		}
 		opts.snapshotID = o.snapshotID
 	}
@@ -104,8 +110,8 @@ func WithSnapshotID[State any](id string) StreamBidiOption[State] {
 	return &streamBidiOptions[State]{snapshotID: id}
 }
 
-// WithPromptInput overrides the default prompt input for a prompt-backed session flow.
-// Used with DefineSessionFlowFromPrompt to customize the prompt rendering per invocation.
+// WithPromptInput overrides the default prompt input for a prompt-backed agent flow.
+// Used with DefinePromptAgent to customize the prompt rendering per invocation.
 func WithPromptInput[State any](input any) StreamBidiOption[State] {
 	return &streamBidiOptions[State]{promptInput: input}
 }
