@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 
 import jsonschema
+import referencing
 from releasekit.sbom import (
     SBOMComponent,
     SBOMFormat,
@@ -358,6 +359,27 @@ class TestWriteSBOM:
 _SCHEMA_DIR = Path(__file__).parent / 'schemas'
 
 
+def _build_schema_registry() -> referencing.Registry:
+    """Build a referencing.Registry from all .schema.json files in the schemas dir.
+
+    This allows jsonschema to resolve $ref links between sibling schema files
+    (e.g., bom-1.5.schema.json references spdx.schema.json).
+    """
+    registry = referencing.Registry()
+    for path in _SCHEMA_DIR.glob('*.schema.json'):
+        contents = json.loads(path.read_text(encoding='utf-8'))
+        resource = referencing.Resource.from_contents(contents)
+        # Register under the filename so that relative $ref resolves.
+        registry = registry.with_resource(path.name, resource)
+        # Also register under the $id if present, for absolute $ref.
+        if '$id' in contents:
+            registry = registry.with_resource(contents['$id'], resource)
+    return registry
+
+
+_SCHEMA_REGISTRY = _build_schema_registry()
+
+
 def _load_schema(name: str) -> dict:
     """Load a JSON schema from the schemas directory."""
     path = _SCHEMA_DIR / name
@@ -376,7 +398,7 @@ class TestCycloneDXSchemaValidation:
             return  # Schema file not available; skip gracefully.
         m = _manifest(('genkit', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_multiple_packages(self) -> None:
         """Multi-package SBOM validates against CycloneDX 1.5 schema."""
@@ -389,7 +411,7 @@ class TestCycloneDXSchemaValidation:
             ('genkit-plugin-vertex-ai', '0.5.0'),
         )
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_minimal_no_supplier(self) -> None:
         """Minimal SBOM without supplier validates."""
@@ -398,7 +420,7 @@ class TestCycloneDXSchemaValidation:
             return
         m = _manifest(('foo', '1.0.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
     def test_js_ecosystem(self) -> None:
         """JS ecosystem SBOM validates against CycloneDX 1.5 schema."""
@@ -407,7 +429,7 @@ class TestCycloneDXSchemaValidation:
             return
         m = _manifest(('react', '18.0.0'), ('@genkit/core', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, ecosystem='js'))
-        jsonschema.validate(doc, schema)
+        jsonschema.validate(doc, schema, registry=_SCHEMA_REGISTRY)
 
 
 class TestSPDXSchemaValidation:
