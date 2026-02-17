@@ -55,7 +55,7 @@ export GEMINI_API_KEY='<your-api-key>'
 Or create a `.env` file:
 
 ```bash
-GEMINI_API_KEY=your-key
+GEMINI_API_KEY=<your-api-key>
 ```
 
 ### Build and Install
