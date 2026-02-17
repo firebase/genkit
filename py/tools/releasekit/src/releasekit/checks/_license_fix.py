@@ -237,6 +237,7 @@ def prompt_for_fix(
             raw = _input('Choice [1-5]: ')
         except EOFError:
             _print('')
+            _print('  Input stream ended, skipping remaining fixes.')
             return LicenseFixChoice(
                 dep_name=dep.name,
                 dep_license=lic,
@@ -257,6 +258,7 @@ def prompt_for_fix(
                 override_value = _input(f'SPDX expression for {dep.name}: ').strip()
             except EOFError:
                 _print('')
+                _print('  Input stream ended, skipping override.')
                 action = FixAction.SKIP
                 break
             if override_value:
