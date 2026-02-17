@@ -1810,7 +1810,14 @@ async def _cmd_prepare(args: argparse.Namespace) -> int:
     config = load_config(config_root)
     ws_config = _resolve_ws_config(config, getattr(args, 'workspace', None))
     ws_root = _effective_workspace_root(config_root, ws_config)
-    vcs, pm, forge, registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
+    forge_backend = getattr(args, 'forge_backend', 'cli')
+    vcs, pm, forge, registry = _create_backends(
+        config_root,
+        config,
+        ws_root=ws_root,
+        ws_config=ws_config,
+        forge_backend=forge_backend,
+    )
 
     try:
         result = await prepare_release(
@@ -1823,6 +1830,8 @@ async def _cmd_prepare(args: argparse.Namespace) -> int:
             ws_config=ws_config,
             dry_run=args.dry_run,
             force=args.force,
+            prerelease=getattr(args, 'prerelease', ''),
+            bump_override=getattr(args, 'bump', ''),
         )
     except RuntimeError as exc:
         logger.error('prepare_error', step='prepare_release', error=str(exc))
@@ -2996,6 +3005,13 @@ def build_parser() -> argparse.ArgumentParser:
         default='cli',
         help="Forge transport: 'cli' (forge CLI tool) or 'api' (REST API).",
     )
+    prepare_parser.add_argument(
+        '--bump',
+        choices=['patch', 'minor', 'major'],
+        default='',
+        metavar='TYPE',
+        help='Override auto-detected bump type (patch, minor, major). Empty means auto-detect.',
+    )
 
     release_parser = subparsers.add_parser(
         'release',
@@ -3169,8 +3185,8 @@ def build_parser() -> argparse.ArgumentParser:
         help='Output format (default: table).',
     )
 
-    # Add --prerelease to publish, plan, version.
-    for p in (publish_parser, plan_parser, version_parser):
+    # Add --prerelease to publish, plan, version, prepare.
+    for p in (publish_parser, plan_parser, version_parser, prepare_parser):
         p.add_argument(
             '--prerelease',
             default='',
