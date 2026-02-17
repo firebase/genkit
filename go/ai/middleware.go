@@ -26,7 +26,7 @@ import (
 )
 
 // middlewareConfigFunc creates a Middleware instance from JSON config.
-type middlewareConfigFunc = func([]byte) (Middleware, error)
+type middlewareConfigFunc = func(configBytes []byte) (Middleware, error)
 
 // Middleware provides hooks for different stages of generation.
 type Middleware interface {
@@ -110,7 +110,7 @@ func NewMiddleware[T Middleware](description string, prototype T) *MiddlewareDes
 	return &MiddlewareDesc{
 		Name:         prototype.Name(),
 		Description:  description,
-		ConfigSchema: core.InferSchemaMap(*new(T)),
+		ConfigSchema: core.InferSchemaMap(prototype),
 		configFromJSON: func(configJSON []byte) (Middleware, error) {
 			inst := prototype.New()
 			if len(configJSON) > 0 {
