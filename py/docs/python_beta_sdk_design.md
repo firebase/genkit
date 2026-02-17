@@ -36,7 +36,7 @@ ai.generate(model="gemini", prompt="Hi", tools=["search"])
 
 While working on updated docs, we identified several friction points in the developer experience. 
 
-For many of these friction points, there was a clear Pythonic standard to follow — keyword-only arguments on all methods, sequence protocol on `RetrieverResponse`, convenience properties like `response.media`, veneer aliasing (`GenerateResponseWrapper` → `GenerateResponse`), and cleanup of internal utilities from the public surface. More details here: [API_AUDIT.md](./API_AUDIT.md)
+For many of these friction points, there was a clear Pythonic standard to follow — keyword-only arguments on all methods, sequence protocol on `RetrieverResponse`, convenience properties like `response.media`, veneer aliasing (`GenerateResponseWrapper` → `GenerateResponse`), and cleanup of internal utilities from the public surface. More details here: [python_beta_sdk_audit.md](./py/docs/python_beta_sdk_audit.md)
 
 The remaining sections in this doc are open questions that need some discussion to resolve.
 
