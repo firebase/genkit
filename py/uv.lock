@@ -8324,6 +8324,7 @@ dependencies = [
     { name = "sigstore" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "tomlkit" },
 ]
 
@@ -8378,9 +8379,10 @@ requires-dist = [
     { name = "sigstore", specifier = ">=3.0.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.1.0" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
     { name = "tomlkit", specifier = ">=0.13.0" },
 ]
-provides-extras = ["ollama", "google-genai", "vertex-ai", "anthropic", "all-ai"]
+provides-extras = ["all-ai", "anthropic", "google-genai", "ollama", "vertex-ai"]
 
 [package.metadata.requires-dev]
 dev = [

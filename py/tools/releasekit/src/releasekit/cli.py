@@ -58,6 +58,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 from rich_argparse import RichHelpFormatter
@@ -101,6 +102,12 @@ from releasekit.checks import (
     fix_stale_artifacts,
     run_checks,
 )
+from releasekit.checks._license_tree import (
+    LICENSE_TREE_FORMATS,
+    LicenseTree,
+    format_license_tree_as,
+    should_use_color,
+)
 from releasekit.commit_parsing._types import BumpType
 from releasekit.compliance import (
     ComplianceControl,
@@ -110,6 +117,7 @@ from releasekit.compliance import (
     print_compliance_table,
 )
 from releasekit.config import (
+    CONFIG_FILENAME,
     ReleaseConfig,
     WorkspaceConfig,
     build_package_configs,
@@ -1126,6 +1134,14 @@ def _print_check_result(label: str, result: PreflightResult, *, show_label: bool
            = hint: actionable suggestion
     """
     prefix = f'[{label}] ' if show_label else ''
+
+    # Print the license dependency tree if the license check produced one.
+    for tree_text in result.context.get('license_tree', []):
+        if isinstance(tree_text, str):
+            for line in tree_text.splitlines():
+                print(f'  {line}')  # noqa: T201 - CLI output
+            print()  # noqa: T201 - CLI output
+
     if result.passed:
         for name in result.passed:
             print(f'  ✅ {prefix}{name}')  # noqa: T201 - CLI output
@@ -2339,6 +2355,156 @@ async def _cmd_snapshot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_licenses(args: argparse.Namespace) -> int:
+    """Handle the ``licenses`` subcommand.
+
+    Discovers packages across all workspaces (or a single workspace
+    selected via ``--workspace``), runs the license compatibility check,
+    and renders a tree with repo-root → workspace → package hierarchy.
+    """
+    config_root = _find_workspace_root()
+    config = load_config(config_root)
+    explicit_ws: str | None = getattr(args, 'workspace', None)
+    fmt = getattr(args, 'format', 'tree')
+    output_file = getattr(args, 'output', None)
+    fix_mode = getattr(args, 'fix', False)
+    dry_run = getattr(args, 'dry_run', False)
+    use_color = should_use_color(force=config.color)
+
+    from releasekit.checks._universal import _check_license_compatibility
+
+    # Determine which workspaces to scan.
+    if explicit_ws:
+        ws_configs = [_resolve_ws_config(config, explicit_ws)]
+    elif config.workspaces:
+        ws_configs = list(config.workspaces.values())
+        # Auto-discover ecosystems not already configured so that
+        # `releasekit licenses` scans everything by default (e.g. JS
+        # workspaces that aren't set up for release management yet).
+        configured_roots = {ws.root for ws in ws_configs}
+        detected = detect_ecosystems(config_root)
+        for eco in detected:
+            rel_root = str(eco.root.relative_to(config_root))
+            if rel_root == '.':
+                rel_root = '.'
+            if rel_root not in configured_roots:
+                ws_configs.append(
+                    WorkspaceConfig(
+                        label=rel_root,
+                        ecosystem=eco.ecosystem.value,
+                        root=rel_root,
+                    )
+                )
+    else:
+        # Single-workspace project — use the default.
+        ws_configs = [_resolve_ws_config(config, None)]
+
+    all_sections: list[str] = []
+    all_trees: list[LicenseTree] = []
+    repo_name = config_root.name
+
+    for ws_config in ws_configs:
+        ws_label = ws_config.label or ws_config.ecosystem or 'default'
+        ws_root = _effective_workspace_root(config_root, ws_config)
+
+        try:
+            packages = discover_packages(
+                ws_root,
+                exclude_patterns=ws_config.exclude,
+                ecosystem=ws_config.ecosystem or 'python',
+            )
+        except Exception:  # noqa: BLE001
+            all_sections.append(f'  workspace: {ws_label} — no packages found')
+            continue
+
+        if not packages:
+            all_sections.append(f'  workspace: {ws_label} — no packages found')
+            continue
+
+        build_graph(packages)
+
+        # Build exemptions from [license] config.
+        from releasekit.checks._universal import LicenseExemptions  # noqa: PLC0415
+
+        lic_cfg = config.license
+        exemptions = LicenseExemptions(
+            exempt_packages=frozenset(lic_cfg.exempt_packages),
+            allow_licenses=frozenset(lic_cfg.allow_licenses),
+            deny_licenses=frozenset(lic_cfg.deny_licenses),
+            license_overrides=dict(lic_cfg.overrides),
+            workspace_exceptions=frozenset(lic_cfg.workspace_exceptions),
+            project_exceptions={k: frozenset(v) for k, v in lic_cfg.project_exceptions.items()},
+        )
+
+        result = PreflightResult()
+        _check_license_compatibility(
+            packages,
+            result,
+            project_license=lic_cfg.project,
+            exemptions=exemptions,
+            color=config.color,
+            workspace_root=ws_root,
+            ecosystem=ws_config.ecosystem or 'python',
+        )
+
+        tree_objs = result.context.get('license_tree_obj', [])
+        if not tree_objs:
+            all_sections.append(f'  workspace: {ws_label} — no publishable packages')
+            continue
+
+        ltree: LicenseTree = cast(LicenseTree, tree_objs[0])
+        all_trees.append(ltree)
+
+        if fmt == 'tree':
+            # Render with workspace header indented under repo root.
+            tree_text = format_license_tree_as(ltree, 'tree', color=use_color)
+            # Indent tree lines under the workspace node.
+            indented = '\n'.join(f'    {line}' for line in tree_text.splitlines())
+            all_sections.append(f'  [{ws_label}] ({ws_config.ecosystem or "python"})')
+            all_sections.append(indented)
+        else:
+            # For structured formats, render per-workspace.
+            all_sections.append(format_license_tree_as(ltree, fmt, color=False))
+
+    if fmt == 'tree':
+        output_lines = [f'{repo_name}/ (repo root)']
+        output_lines.extend(all_sections)
+        text = '\n'.join(output_lines) + '\n'
+    else:
+        text = '\n'.join(all_sections) + '\n'
+
+    if output_file:
+        Path(output_file).write_text(text, encoding='utf-8')
+        print(f'License tree written to {output_file}')  # noqa: T201 - CLI output
+    else:
+        print(text)  # noqa: T201 - CLI output
+
+    # ── Interactive fix mode ──────────────────────────────────────
+    if fix_mode and all_trees:
+        from releasekit.checks._license_fix import interactive_license_fix  # noqa: PLC0415
+
+        config_path = config_root / CONFIG_FILENAME
+        if not config_path.is_file():
+            print('  \u274c Cannot fix: no releasekit.toml found.')  # noqa: T201
+            return 1
+
+        # Merge all trees into a single tree for the fix session.
+        merged = LicenseTree(project_license=all_trees[0].project_license)
+        for t in all_trees:
+            merged.packages.extend(t.packages)
+
+        report = interactive_license_fix(
+            merged,
+            config_path,
+            color=use_color,
+            dry_run=dry_run,
+        )
+        if report.written:
+            return 0
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -2641,6 +2807,41 @@ def build_parser() -> argparse.ArgumentParser:
         default='HIGH',
         metavar='LEVEL',
         help='Minimum OSV severity to report: LOW, MEDIUM, HIGH, CRITICAL (default: HIGH).',
+    )
+
+    licenses_parser = subparsers.add_parser(
+        'licenses',
+        help='Show license compatibility tree for all workspaces.',
+    )
+    licenses_parser.add_argument(
+        '--workspace',
+        '-w',
+        metavar='NAME',
+        help='Check only the named workspace (default: all).',
+    )
+    licenses_parser.add_argument(
+        '--format',
+        choices=sorted(LICENSE_TREE_FORMATS),
+        default='tree',
+        help='Output format (default: tree). Choices: d2, dot, json, mermaid, table, tree.',
+    )
+    licenses_parser.add_argument(
+        '--output',
+        '-o',
+        metavar='FILE',
+        help='Write output to FILE instead of stdout.',
+    )
+    licenses_parser.add_argument(
+        '--fix',
+        action='store_true',
+        default=False,
+        help='Interactively fix license issues (exempt, allow, deny, override).',
+    )
+    licenses_parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        default=False,
+        help='Show what --fix would change without writing releasekit.toml.',
     )
 
     version_parser = subparsers.add_parser(
@@ -3014,6 +3215,8 @@ def main() -> int:
             return _cmd_graph(args)
         if command == 'check':
             return asyncio.run(_cmd_check(args))
+        if command == 'licenses':
+            return _cmd_licenses(args)
         if command == 'version':
             return asyncio.run(_cmd_version(args))
         if command == 'changelog':

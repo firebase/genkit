@@ -31,11 +31,18 @@ from releasekit.checks._protocol import CheckBackend
 from releasekit.checks._python import PythonCheckBackend
 from releasekit.checks._universal import (
     _check_cycles,
+    _check_deep_license_scan,
+    _check_dual_license_choice,
+    _check_license_changes,
+    _check_license_compatibility,
+    _check_license_text_completeness,
     _check_lockfile_staleness,
     _check_missing_license,
     _check_missing_readme,
     _check_orphan_deps,
+    _check_patent_clauses,
     _check_self_deps,
+    _check_spdx_headers,
     _check_stale_artifacts,
     _check_ungrouped_packages,
 )
@@ -77,6 +84,7 @@ async def run_checks_async(
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
+    color: bool | None = None,
 ) -> PreflightResult:
     """Run all workspace health checks concurrently.
 
@@ -115,6 +123,7 @@ async def run_checks_async(
         skip_map: Per-package check skip map. Keys are package names,
             values are frozensets of check names to skip for that
             package. Built from ``PackageConfig.skip_checks``.
+        color: Whether to use colored output. ``None`` means auto-detect.
 
     Returns:
         A :class:`PreflightResult` with all check outcomes.
@@ -165,6 +174,67 @@ async def run_checks_async(
                 _t(_check_lockfile_staleness, workspace_root, result),
             )
         )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_license_compatibility,
+                fp(packages, 'license_compatibility', skip_map),
+                result,
+                color=color,
+                workspace_root=workspace_root,
+            ),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(_check_spdx_headers, fp(packages, 'spdx_headers', skip_map), result),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_deep_license_scan,
+                fp(packages, 'deep_license_scan', skip_map),
+                result,
+            ),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_license_changes,
+                fp(packages, 'license_changes', skip_map),
+                result,
+            ),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_dual_license_choice,
+                fp(packages, 'dual_license_choice', skip_map),
+                result,
+            ),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_patent_clauses,
+                fp(packages, 'patent_clauses', skip_map),
+                result,
+            ),
+        )
+    )
+    tasks.append(
+        asyncio.create_task(
+            _t(
+                _check_license_text_completeness,
+                fp(packages, 'license_text_completeness', skip_map),
+                result,
+            ),
+        )
+    )
 
     if backend is _USE_DEFAULT:
         backend = PythonCheckBackend(
@@ -243,6 +313,7 @@ def run_checks(
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
+    color: bool | None = None,
 ) -> PreflightResult:
     """Synchronous wrapper around :func:`run_checks_async`.
 
@@ -271,6 +342,7 @@ def run_checks(
             library_dirs=library_dirs,
             plugin_dirs=plugin_dirs,
             skip_map=skip_map,
+            color=color,
         )
 
     return asyncio.run(
@@ -287,6 +359,7 @@ def run_checks(
             library_dirs=library_dirs,
             plugin_dirs=plugin_dirs,
             skip_map=skip_map,
+            color=color,
         )
     )
 
@@ -305,6 +378,7 @@ def _run_checks_sync(
     library_dirs: list[str] | None = None,
     plugin_dirs: list[str] | None = None,
     skip_map: SkipMap | None = None,
+    color: bool | None = None,
 ) -> PreflightResult:
     """Sequential fallback when already inside a running event loop."""
     result = PreflightResult()
@@ -319,6 +393,33 @@ def _run_checks_sync(
     _check_ungrouped_packages(packages, groups or {}, result)
     if workspace_root is not None:
         _check_lockfile_staleness(workspace_root, result)
+    _check_license_compatibility(
+        fp(packages, 'license_compatibility', skip_map),
+        result,
+        color=color,
+        workspace_root=workspace_root,
+    )
+    _check_spdx_headers(fp(packages, 'spdx_headers', skip_map), result)
+    _check_deep_license_scan(
+        fp(packages, 'deep_license_scan', skip_map),
+        result,
+    )
+    _check_license_changes(
+        fp(packages, 'license_changes', skip_map),
+        result,
+    )
+    _check_dual_license_choice(
+        fp(packages, 'dual_license_choice', skip_map),
+        result,
+    )
+    _check_patent_clauses(
+        fp(packages, 'patent_clauses', skip_map),
+        result,
+    )
+    _check_license_text_completeness(
+        fp(packages, 'license_text_completeness', skip_map),
+        result,
+    )
 
     if backend is _USE_DEFAULT:
         backend = PythonCheckBackend(

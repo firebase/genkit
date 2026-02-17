@@ -36,9 +36,9 @@ releasekit doctor
 
 ### What Gets Checked
 
-`releasekit check` runs **35 checks** split into two categories:
+`releasekit check` runs **42 checks** split into two categories:
 
-**Universal checks (8 — always run):**
+**Universal checks (15 — always run):**
 
 - `cycles` — circular dependency chains
 - `self_deps` — package depends on itself
@@ -48,6 +48,13 @@ releasekit doctor
 - `stale_artifacts` — leftover .bak or dist/ files
 - `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
 - `lockfile_staleness` — lock file is in sync with manifest
+- `spdx_headers` — SPDX license identifier headers in source files
+- `license_compatibility` — dependency licenses compatible with project license (with transitive dep resolution via `uv.lock`)
+- `deep_license_scan` — embedded/vendored code license detection
+- `license_changes` — detect license changes between dependency versions
+- `dual_license_choice` — dual-licensed deps (SPDX `OR`) have a documented choice
+- `patent_clauses` — flag deps with patent grant/retaliation clauses (data-driven from `licenses.toml`)
+- `license_text_completeness` — LICENSE file text matches declared SPDX ID
 
 **Language-specific checks (27 — via `CheckBackend` protocol):**
 

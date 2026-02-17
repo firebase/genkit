@@ -238,7 +238,7 @@
   <section>
     <h2>Why ReleaseKit?</h2>
     <p class="dim" style="font-size:0.75em;">
-      It&rsquo;s not about making an SDK. It&rsquo;s about solving problems.
+      It&rsquo;s not just about making an SDK. It&rsquo;s about solving problems and building a brand.
     </p>
     <div style="text-align:left; font-size:0.7em; max-width:38em; margin:0 auto;">
       <p><span class="emoji">&#x1F3AF;</span> <strong>Find a big problem. Nail it.</strong> &mdash; Releasing software is painful for millions of developers. Version bumps, changelogs, dependency ordering, registry auth, broken releases. Nobody&rsquo;s solved it end-to-end. That&rsquo;s the problem.</p>
@@ -439,6 +439,139 @@
 </section>
 
 <!-- ============================================================ -->
+<!-- AI-POWERED FEATURES (Genkit Dogfooding) -->
+<!-- ============================================================ -->
+<section>
+  <section>
+    <h2>AI-Powered Release Intelligence</h2>
+    <p class="dim" style="font-size:0.7em;">
+      Built on <strong class="accent">Genkit</strong> &mdash; ReleaseKit is a production dogfooding app for the Genkit Python SDK
+    </p>
+    <div class="features">
+      <div class="feature"><span class="icon">&#x1F4DD;</span> <strong>AI Release Notes</strong><br>Summarize 67-package changelogs into human-quality release notes</div>
+      <div class="feature"><span class="icon">&#x2728;</span> <strong>Changelog Enhancement</strong><br>Rewrite terse commit messages into user-friendly entries</div>
+      <div class="feature"><span class="icon">&#x26A0;&#xFE0F;</span> <strong>Breaking Change Detection</strong><br>AI analyzes diffs to catch missed BREAKING CHANGE footers</div>
+      <div class="feature"><span class="icon">&#x1F4CB;</span> <strong>Migration Guides</strong><br>Auto-generate before/after code examples for breaking changes</div>
+      <div class="feature"><span class="icon">&#x1F4E3;</span> <strong>Announcement Tailoring</strong><br>6 channels: Slack, Discord, Teams, Twitter, LinkedIn, Webhooks</div>
+      <div class="feature"><span class="icon">&#x1F6E1;&#xFE0F;</span> <strong>Security Advisories</strong><br>Draft GHSA advisories from OSV vulnerability data</div>
+      <div class="feature"><span class="icon">&#x1F4F0;</span> <strong>Automatic Blog Generation</strong><br>AI-generated release blog posts from changelogs, ready to publish</div>
+      <div class="feature"><span class="icon">&#x1F6AB;</span> <strong>Aho-Corasick Safety Filter</strong><br>O(n) trie-based blocklist with word-boundary semantics</div>
+      <div class="feature"><span class="icon">&#x2699;&#xFE0F;</span> <strong>10 Feature Toggles</strong><br>Per-feature on/off + custom blocklist via <code>ai.blocklist_file</code></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How It Works: Genkit Integration</h2>
+    <p class="dim" style="font-size:0.7em;">
+      <code>genkit</code> + <code>genkit-plugin-ollama</code> + <code>genkit-plugin-google-genai</code> are <strong>core dependencies</strong> &mdash; AI is on by default
+    </p>
+    <pre><code class="language-python">from genkit import Genkit
+from genkit.plugins.ollama import Ollama
+from genkit.plugins.google_genai import GoogleGenai
+
+ai = Genkit(plugins=[Ollama(), GoogleGenai()])
+
+class ReleaseSummary(BaseModel):
+    overview: str                    # 2-3 sentence overview
+    highlights: list[str]            # Top user-facing highlights
+    breaking_changes: list[str]      # Breaking changes + migration notes
+    package_summaries: dict[str, str]  # Per-package one-liner
+
+response = await ai.generate(
+    model='ollama/gemma3:4b',
+    prompt=f"Summarize this changelog:\n{changelog}",
+    output=Output(schema=ReleaseSummary),
+    config={'temperature': 0.2},
+)
+summary: ReleaseSummary = response.output</code></pre>
+  </section>
+
+  <section>
+    <h2>AI Configuration</h2>
+    <p class="dim" style="font-size:0.7em;">CI-friendly defaults, cloud models available, disable with one flag</p>
+    <div class="cols">
+      <div>
+        <h3 style="color:var(--rk-accent);">Config</h3>
+        <pre><code class="language-toml"># releasekit.toml
+[ai]
+enabled = true          # default
+models  = [             # fallback chain
+  "ollama/gemma3:4b",   # try first (local)
+  "ollama/gemma3:1b",   # smaller fallback
+  "google-genai/gemini-3.0-flash-preview",
+]
+temperature = 0.2
+codename_theme = "mountains"
+blocklist_file = ""  # extend built-in
+
+[ai.features]
+summarize       = true
+codename        = true
+enhance         = true
+detect_breaking = true
+migration_guide = true
+blog_post       = true</code></pre>
+      </div>
+      <div>
+        <h3 style="color:var(--rk-accent);">CLI</h3>
+        <pre><code class="language-bash"># AI on by default
+releasekit prepare
+
+# Disable AI for this run
+releasekit prepare --no-ai
+
+# Use cloud model
+releasekit prepare \
+  --model google-genai/gemini-3.0-flash-preview
+
+# Custom codename theme
+releasekit prepare \
+  --codename-theme animals</code></pre>
+      </div>
+    </div>
+    <p class="small" style="margin-top:0.5em;">
+      Fallback chain: Ollama models tried first, then Google GenAI. If all fail, falls back to non-AI behavior. <strong>Never blocks a release.</strong>
+    </p>
+  </section>
+
+  <section>
+    <h2>Demo: AI Release Notes</h2>
+    <div class="terminal">
+      <span class="prompt">$</span> <span class="cmd">releasekit prepare</span><br><br>
+      <span class="output">Scanning 67 packages for changes...</span><br>
+      <span class="output">Found 42 commits across 23 packages.</span><br><br>
+      <span class="output"><span class="accent">&#x1F916; AI summarizing changelog</span>...</span><br>
+      <span class="warn">&nbsp;&nbsp;&#x26A0; ollama/gemma3:4b unavailable, trying ollama/gemma3:1b...</span><br>
+      <span class="success">&nbsp;&nbsp;&#x2714; Using ollama/gemma3:1b</span><br><br>
+      <span class="success">&#x2714; Release summary generated:</span><br>
+      <span class="output">&nbsp;&nbsp;<strong>Codename:</strong> <em>Denali</em> &mdash; towering performance improvements</span><br>
+      <span class="output">&nbsp;&nbsp;<strong>Overview:</strong> Genkit Python SDK v0.6.0 introduces the</span><br>
+      <span class="output">&nbsp;&nbsp;Cloudflare Workers AI plugin, improves structured output</span><br>
+      <span class="output">&nbsp;&nbsp;across all providers, and fixes 12 bugs.</span><br><br>
+      <span class="output">&nbsp;&nbsp;<strong>Highlights:</strong></span><br>
+      <span class="output">&nbsp;&nbsp;&bull; New: Cloudflare Workers AI plugin</span><br>
+      <span class="output">&nbsp;&nbsp;&bull; Improved structured output for Ollama + Vertex AI</span><br>
+      <span class="output">&nbsp;&nbsp;&bull; 3x faster streaming for large responses</span><br><br>
+      <span class="warn">&nbsp;&nbsp;&#x26A0; AI detected 1 missed breaking change:</span><br>
+      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;abc1234 &mdash; removed `legacy_format` param from generate()</span><br><br>
+      <span class="output"><span class="accent">&#x1F4F0; Blog post generated:</span> release-v0.6.0.md</span><br><br>
+      <span class="success">&#x2714; Release PR created: #1847</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why Genkit for This?</h2>
+    <div style="text-align:left; font-size:0.75em;">
+      <p><span class="emoji">&#x1F436;</span> <strong>Production dogfooding</strong> &mdash; ReleaseKit exercises <code>ai.generate()</code> with Pydantic structured output on every release</p>
+      <p><span class="emoji">&#x1F3E0;</span> <strong>Local-first</strong> &mdash; <a href="https://ollama.com" target="_blank" style="color:inherit;">Ollama</a> means no API keys, no cloud accounts, no egress in CI</p>
+      <p><span class="emoji">&#x1F504;</span> <strong>Multi-provider</strong> &mdash; Same code works with <a href="https://ollama.com" target="_blank" style="color:inherit;">Ollama</a>, Google GenAI, Vertex AI, Anthropic</p>
+      <p><span class="emoji">&#x1F4CA;</span> <strong>Structured output</strong> &mdash; <a href="https://docs.pydantic.dev" target="_blank" style="color:inherit;">Pydantic</a> schemas guarantee parseable JSON from any model</p>
+      <p><span class="emoji">&#x1F6E1;&#xFE0F;</span> <strong>Graceful fallback</strong> &mdash; AI enhances but never blocks &mdash; every feature has a non-AI path</p>
+    </div>
+  </section>
+</section>
+
+<!-- ============================================================ -->
 <!-- THE SOLUTION -->
 <!-- ============================================================ -->
 <section>
@@ -472,7 +605,7 @@
       <div class="feature"><span class="icon">&#x1F30D;</span> <strong>Multi-Ecosystem</strong><br>Python, JS, Go, Rust, Java, Dart, Bazel + more planned</div>
       <div class="feature"><span class="icon">&#x1F6E1;&#xFE0F;</span> <strong>Crash-Safe Resume</strong><br>Interrupted releases pick up where they left off</div>
       <div class="feature"><span class="icon">&#x1F512;</span> <strong><a href="https://slsa.dev" target="_blank" style="color:inherit;">SLSA</a> Provenance (L0&ndash;L3)</strong><br><a href="https://www.sigstore.dev" target="_blank" style="color:inherit;">Sigstore</a> signing + <a href="https://cyclonedx.org" target="_blank" style="color:inherit;">SBOM</a> generation</div>
-      <div class="feature"><span class="icon">&#x2705;</span> <strong>35 Health Checks</strong><br>Catch issues at PR time, 19 auto-fixable</div>
+      <div class="feature"><span class="icon">&#x2705;</span> <strong>42 Health Checks</strong><br>Catch issues at PR time, 22 auto-fixable</div>
       <div class="feature"><span class="icon">&#x21A9;&#xFE0F;</span> <strong>One-Click Rollback</strong><br>Delete tags + releases with one command</div>
       <div class="feature"><span class="icon">&#x1F500;</span> <strong>Multi-Forge</strong><br>GitHub, GitLab, Bitbucket</div>
       <div class="feature"><span class="icon">&#x2696;&#xFE0F;</span> <strong>OSPS Compliance</strong><br><a href="https://openssf.org" target="_blank" style="color:inherit;">OpenSSF</a> Baseline with Rust-style diagnostics</div>
@@ -521,7 +654,7 @@
 <!-- ============================================================ -->
 <section>
   <h2>Demo: Health Checks</h2>
-  <p class="dim" style="font-size:0.7em;">35 checks run on every PR &mdash; 19 are auto-fixable with <code>--fix</code></p>
+  <p class="dim" style="font-size:0.7em;">42 checks run on every PR &mdash; 22 are auto-fixable with <code>--fix</code></p>
   <div class="terminal">
     <span class="prompt">$</span> <span class="cmd">releasekit check</span><br><br>
     <span class="success">&#x2714; license-file-exists</span><br>
@@ -533,10 +666,10 @@
     <span class="success">&#x2714; lockfile-up-to-date</span><br>
     <span class="success">&#x2714; naming-conventions</span><br>
     <span class="output">...</span><br><br>
-    <span class="output">34/35 checks passed. 1 auto-fixable.</span><br><br>
+    <span class="output">41/42 checks passed. 1 auto-fixable.</span><br><br>
     <span class="prompt">$</span> <span class="cmd">releasekit check --fix</span><br>
     <span class="success">&#x2714; Fixed: requires-python-declared</span><br>
-    <span class="success">35/35 checks passed.</span>
+    <span class="success">42/42 checks passed.</span>
   </div>
 </section>
 
@@ -559,6 +692,39 @@
     <span class="hint">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; describing how to report vulnerabilities.</span><br><br>
     <span class="output">Found <span class="error">5 error(s)</span>, <span class="warn">3 warning(s)</span>.</span>
   </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- DEMO: LICENSE FIX -->
+<!-- ============================================================ -->
+<section>
+  <h2>Demo: Interactive License Fix</h2>
+  <p class="dim" style="font-size:0.7em;">Resolve license issues interactively &mdash; updates <code>releasekit.toml</code> automatically</p>
+  <div class="terminal">
+    <span class="prompt">$</span> <span class="cmd">releasekit licenses --fix</span><br><br>
+    <span class="output">Found <span class="accent">3</span> license issue(s) to resolve.</span><br><br>
+    <span class="error">&#x2717; myapp &#x2192; gpl-lib (GPL-3.0-only) &#x2014; incompatible with Apache-2.0</span><br><br>
+    <span class="output">How should releasekit handle gpl-lib?</span><br>
+    <span class="output">&nbsp;&nbsp;[1] exempt &nbsp;&nbsp;&mdash; skip license checks for this package</span><br>
+    <span class="output">&nbsp;&nbsp;[2] allow &nbsp;&nbsp;&mdash; allow GPL-3.0-only globally</span><br>
+    <span class="output">&nbsp;&nbsp;[3] deny &nbsp;&nbsp;&nbsp;&mdash; block GPL-3.0-only globally</span><br>
+    <span class="output">&nbsp;&nbsp;[4] override &mdash; set a different SPDX expression</span><br>
+    <span class="output">&nbsp;&nbsp;[5] skip &nbsp;&nbsp;&nbsp;&mdash; do nothing</span><br>
+    <span class="output">Choice [1-5]: <span class="cmd">1</span></span><br><br>
+    <span class="error">&#x2718; myapp &#x2192; agpl-lib (AGPL-3.0-only) &#x2014; denied</span><br>
+    <span class="output">Choice [1-5]: <span class="cmd">3</span></span><br><br>
+    <span class="warn">? myapp &#x2192; mystery-lib ((unknown)) &#x2014; no_license</span><br>
+    <span class="output">Choice [1-5]: <span class="cmd">4</span></span><br>
+    <span class="output">SPDX expression for mystery-lib: <span class="cmd">MIT</span></span><br><br>
+    <span class="success">&#x2713; Applied 3 fix(es) to releasekit.toml.</span><br>
+    <span class="output">&nbsp;&nbsp;exempt: gpl-lib</span><br>
+    <span class="output">&nbsp;&nbsp;deny: agpl-lib</span><br>
+    <span class="output">&nbsp;&nbsp;override: mystery-lib = MIT</span>
+  </div>
+  <p class="small" style="margin-top:0.5em;">
+    <code>--dry-run</code> previews changes without writing &bull;
+    AI-powered guidance planned (Genkit integration on roadmap)
+  </p>
 </section>
 
 <!-- ============================================================ -->
@@ -653,7 +819,7 @@
         <li>Topological publish order</li>
         <li>Crash-safe resume from failure point</li>
         <li>Auto-generated changelogs</li>
-        <li>35 health checks (19 auto-fixable)</li>
+        <li>42 health checks (22 auto-fixable)</li>
         <li>SLSA provenance + Sigstore signing</li>
         <li><code>releasekit plan</code> shows everything</li>
       </ul>
@@ -665,23 +831,69 @@
 <!-- IMPACT METRICS -->
 <!-- ============================================================ -->
 <section>
-  <h2>Impact</h2>
-  <table>
-    <thead>
-      <tr><th>Metric</th><th class="red">Before</th><th class="green">After</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>Release time</strong></td><td>Hours (manual)</td><td>Minutes (automated)</td></tr>
-      <tr><td><strong>Wrong ordering risk</strong></td><td>High</td><td>Zero (topological sort)</td></tr>
-      <tr><td><strong>Crash recovery</strong></td><td>Start over</td><td>Resume from failure</td></tr>
-      <tr><td><strong>Version consistency</strong></td><td>Error-prone</td><td>Enforced by 35 checks</td></tr>
-      <tr><td><strong>Missing metadata</strong></td><td>Found after publish</td><td>Caught at PR time</td></tr>
-      <tr><td><strong>Changelog</strong></td><td>Manual</td><td>Auto-generated</td></tr>
-      <tr><td><strong>PyPI verification</strong></td><td>Manual spot-check</td><td>Automated checksum + smoke test</td></tr>
-      <tr><td><strong>Rollback</strong></td><td>Manual tag deletion</td><td>One command or one click</td></tr>
-      <tr><td><strong>Release notes</strong></td><td>Hand-written</td><td>AI-generated via Genkit</td></tr>
-    </tbody>
-  </table>
+  <section>
+    <h2>Impact</h2>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th class="red">Before</th><th class="green">After</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Release time</strong></td><td>Hours (manual)</td><td>Minutes (automated)</td></tr>
+        <tr><td><strong>Wrong ordering risk</strong></td><td>High</td><td>Zero (topological sort)</td></tr>
+        <tr><td><strong>Crash recovery</strong></td><td>Start over</td><td>Resume from failure</td></tr>
+        <tr><td><strong>Version consistency</strong></td><td>Error-prone</td><td>Enforced by 42 checks</td></tr>
+        <tr><td><strong>Missing metadata</strong></td><td>Found after publish</td><td>Caught at PR time</td></tr>
+        <tr><td><strong>Changelog</strong></td><td>Manual</td><td>Auto-generated</td></tr>
+        <tr><td><strong>PyPI verification</strong></td><td>Manual spot-check</td><td>Automated checksum + smoke test</td></tr>
+        <tr><td><strong>Rollback</strong></td><td>Manual tag deletion</td><td>One command or one click</td></tr>
+        <tr><td><strong>Release notes</strong></td><td>Hand-written</td><td>AI-generated via Genkit</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Risks Lowered by ReleaseKit</h2>
+    <p class="dim" style="font-size:0.65em;">Every manual step is a risk. ReleaseKit eliminates them systematically.</p>
+    <table style="font-size:0.5em;">
+      <thead>
+        <tr><th>Risk Category</th><th>Risk</th><th>How ReleaseKit Mitigates</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>&#x1F4E6; Release</strong></td><td>Wrong publish order breaks dependents</td><td>Topological sort guarantees correct ordering</td></tr>
+        <tr><td><strong>&#x1F4E6; Release</strong></td><td>Partial release (crash mid-publish)</td><td>Crash-safe state file &mdash; resume from failure point</td></tr>
+        <tr><td><strong>&#x1F4E6; Release</strong></td><td>Version mismatch across packages</td><td>Transitive propagation + 35 preflight checks</td></tr>
+        <tr><td><strong>&#x1F512; Security</strong></td><td>Supply chain tampering</td><td>SLSA L3 provenance + Sigstore signing</td></tr>
+        <tr><td><strong>&#x1F512; Security</strong></td><td>Compromised artifacts on registry</td><td>SHA-256 checksum verification post-publish</td></tr>
+        <tr><td><strong>&#x1F512; Security</strong></td><td>Missing SBOM for compliance audits</td><td>CycloneDX 1.5 + SPDX 2.3 auto-generated</td></tr>
+        <tr><td><strong>&#x2696;&#xFE0F; Legal</strong></td><td>License incompatibility in deps</td><td>SPDX expression parser + 140+ license graph</td></tr>
+        <tr><td><strong>&#x2696;&#xFE0F; Legal</strong></td><td>Undeclared licenses in dependencies</td><td>Async registry lookup with disk-backed cache</td></tr>
+        <tr><td><strong>&#x2696;&#xFE0F; Legal</strong></td><td>Copyleft contamination undetected</td><td>Google classifier categories + deny-list enforcement</td></tr>
+        <tr><td><strong>&#x1F4CB; Compliance</strong></td><td>Failing OpenSSF Baseline</td><td>OSPS L1&ndash;L3 checks with Rust-style diagnostics</td></tr>
+        <tr><td><strong>&#x1F4CB; Compliance</strong></td><td>Missing security policy / CODEOWNERS</td><td>Auto-detected + auto-fixable health checks</td></tr>
+        <tr><td><strong>&#x1F4AC; Communication</strong></td><td>No changelog for users</td><td>AI-generated changelogs + blog posts via Genkit</td></tr>
+        <tr><td><strong>&#x1F4AC; Communication</strong></td><td>Missed breaking changes</td><td>AI diff analysis catches missed BREAKING CHANGE footers</td></tr>
+        <tr><td><strong>&#x21A9;&#xFE0F; Operational</strong></td><td>Bad release with no way back</td><td>One-click rollback (tags + registry yank)</td></tr>
+        <tr><td><strong>&#x21A9;&#xFE0F; Operational</strong></td><td>Human error in manual steps</td><td>Full automation &mdash; zero manual steps in CI</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Continuous Releases in the AI Age</h2>
+    <p class="dim" style="font-size:0.7em;">
+      AI-generated code means more commits, faster iteration, and higher release frequency.<br>
+      <strong class="accent">Manual release processes can&rsquo;t keep up.</strong>
+    </p>
+    <div style="text-align:left; font-size:0.65em; max-width:38em; margin:0 auto;">
+      <p><span class="emoji">&#x26A1;</span> <strong>AI accelerates development</strong> &mdash; Copilot, Gemini Code Assist, and agentic coding tools generate PRs faster than humans can review them. Release cadence must match.</p>
+      <p><span class="emoji">&#x1F504;</span> <strong>Continuous delivery demands automation</strong> &mdash; When you merge 20 PRs/day across 62 packages, you need a tool that can release all of them in the right order, every time, without human intervention.</p>
+      <p><span class="emoji">&#x1F6E1;&#xFE0F;</span> <strong>Speed without safety is reckless</strong> &mdash; ReleaseKit pairs speed with guardrails: license checks, provenance, SBOM, rollback. Ship fast <em>and</em> ship safe.</p>
+      <p><span class="emoji">&#x1F916;</span> <strong>AI-native release intelligence</strong> &mdash; Genkit-powered summaries, blog posts, breaking change detection, and migration guides turn raw commits into polished communication &mdash; automatically.</p>
+    </div>
+    <div style="margin-top:0.8em; padding:0.5em 0.8em; background:var(--rk-surface); border:2px solid var(--rk-accent); border-radius:8px; font-size:0.7em;">
+      <strong class="accent">ReleaseKit enables continuous releases</strong> &mdash; the missing piece between continuous integration and continuous delivery for library authors.
+    </div>
+  </section>
 </section>
 
 <!-- ============================================================ -->
@@ -738,35 +950,6 @@ jobs:
 </section>
 
 <!-- ============================================================ -->
-<!-- VS ALTERNATIVES -->
-<!-- ============================================================ -->
-<section>
-  <h2>vs. Alternatives</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Capability</th>
-        <th>ReleaseKit</th>
-        <th>release-please</th>
-        <th>semantic-release</th>
-        <th>changesets</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>Monorepo</td><td class="green">&#x2714;</td><td class="green">&#x2714;</td><td class="red">&#x2718; (plugin)</td><td class="green">&#x2714;</td></tr>
-      <tr><td>Dep graph ordering</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-      <tr><td>Multi-ecosystem</td><td class="green">&#x2714; 7+ langs</td><td class="orange">Partial</td><td class="red">JS only</td><td class="red">JS only</td></tr>
-      <tr><td>Health checks</td><td class="green">&#x2714; 35</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-      <tr><td>Rollback</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-      <tr><td>Retry + backoff</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-      <tr><td>SLSA provenance</td><td class="green">&#x2714;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-      <tr><td>Multi-forge</td><td class="green">GH/GL/BB</td><td class="red">GH only</td><td class="green">GH/GL/BB</td><td class="red">GH only</td></tr>
-      <tr><td>AI release notes</td><td class="green">&#x2714; Genkit</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td><td class="red">&#x2718;</td></tr>
-    </tbody>
-  </table>
-</section>
-
-<!-- ============================================================ -->
 <!-- ARCHITECTURE -->
 <!-- ============================================================ -->
 <section>
@@ -815,136 +998,6 @@ jobs:
     <span class="dim"># Publish all changed packages</span><br>
     <span class="prompt">$</span> <span class="cmd">releasekit publish</span>
   </div>
-</section>
-
-<!-- ============================================================ -->
-<!-- AI-POWERED FEATURES (Genkit Dogfooding) -->
-<!-- ============================================================ -->
-<section>
-  <section>
-    <h2>AI-Powered Release Intelligence</h2>
-    <p class="dim" style="font-size:0.7em;">
-      Built on <strong class="accent">Genkit</strong> &mdash; ReleaseKit is a production dogfooding app for the Genkit Python SDK
-    </p>
-    <div class="features">
-      <div class="feature"><span class="icon">&#x1F4DD;</span> <strong>AI Release Notes</strong><br>Summarize 67-package changelogs into human-quality release notes</div>
-      <div class="feature"><span class="icon">&#x2728;</span> <strong>Changelog Enhancement</strong><br>Rewrite terse commit messages into user-friendly entries</div>
-      <div class="feature"><span class="icon">&#x26A0;&#xFE0F;</span> <strong>Breaking Change Detection</strong><br>AI analyzes diffs to catch missed BREAKING CHANGE footers</div>
-      <div class="feature"><span class="icon">&#x1F4CB;</span> <strong>Migration Guides</strong><br>Auto-generate before/after code examples for breaking changes</div>
-      <div class="feature"><span class="icon">&#x1F4E3;</span> <strong>Announcement Tailoring</strong><br>6 channels: Slack, Discord, Teams, Twitter, LinkedIn, Webhooks</div>
-      <div class="feature"><span class="icon">&#x1F6E1;&#xFE0F;</span> <strong>Security Advisories</strong><br>Draft GHSA advisories from OSV vulnerability data</div>
-      <div class="feature"><span class="icon">&#x1F6AB;</span> <strong>Aho-Corasick Safety Filter</strong><br>O(n) trie-based blocklist with word-boundary semantics</div>
-      <div class="feature"><span class="icon">&#x2699;&#xFE0F;</span> <strong>10 Feature Toggles</strong><br>Per-feature on/off + custom blocklist via <code>ai.blocklist_file</code></div>
-    </div>
-  </section>
-
-  <section>
-    <h2>How It Works: Genkit Integration</h2>
-    <p class="dim" style="font-size:0.7em;">
-      <code>genkit</code> + <code>genkit-plugin-ollama</code> + <code>genkit-plugin-google-genai</code> are <strong>core dependencies</strong> &mdash; AI is on by default
-    </p>
-    <pre><code class="language-python">from genkit import Genkit
-from genkit.plugins.ollama import Ollama
-from genkit.plugins.google_genai import GoogleGenai
-
-ai = Genkit(plugins=[Ollama(), GoogleGenai()])
-
-class ReleaseSummary(BaseModel):
-    overview: str                    # 2-3 sentence overview
-    highlights: list[str]            # Top user-facing highlights
-    breaking_changes: list[str]      # Breaking changes + migration notes
-    package_summaries: dict[str, str]  # Per-package one-liner
-
-response = await ai.generate(
-    model='ollama/gemma3:4b',
-    prompt=f"Summarize this changelog:\n{changelog}",
-    output=Output(schema=ReleaseSummary),
-    config={'temperature': 0.2},
-)
-summary: ReleaseSummary = response.output</code></pre>
-  </section>
-
-  <section>
-    <h2>AI Configuration</h2>
-    <p class="dim" style="font-size:0.7em;">CI-friendly defaults, cloud models available, disable with one flag</p>
-    <div class="cols">
-      <div>
-        <h3 style="color:var(--rk-accent);">Config</h3>
-        <pre><code class="language-toml"># releasekit.toml
-[ai]
-enabled = true          # default
-models  = [             # fallback chain
-  "ollama/gemma3:4b",   # try first (local)
-  "ollama/gemma3:1b",   # smaller fallback
-  "google-genai/gemini-3.0-flash-preview",
-]
-temperature = 0.2
-codename_theme = "mountains"
-blocklist_file = ""  # extend built-in
-
-[ai.features]
-summarize       = true
-codename        = true
-enhance         = true
-detect_breaking = true
-migration_guide = true</code></pre>
-      </div>
-      <div>
-        <h3 style="color:var(--rk-accent);">CLI</h3>
-        <pre><code class="language-bash"># AI on by default
-releasekit prepare
-
-# Disable AI for this run
-releasekit prepare --no-ai
-
-# Use cloud model
-releasekit prepare \
-  --model google-genai/gemini-3.0-flash-preview
-
-# Custom codename theme
-releasekit prepare \
-  --codename-theme animals</code></pre>
-      </div>
-    </div>
-    <p class="small" style="margin-top:0.5em;">
-      Fallback chain: Ollama models tried first, then Google GenAI. If all fail, falls back to non-AI behavior. <strong>Never blocks a release.</strong>
-    </p>
-  </section>
-
-  <section>
-    <h2>Demo: AI Release Notes</h2>
-    <div class="terminal">
-      <span class="prompt">$</span> <span class="cmd">releasekit prepare</span><br><br>
-      <span class="output">Scanning 67 packages for changes...</span><br>
-      <span class="output">Found 42 commits across 23 packages.</span><br><br>
-      <span class="output"><span class="accent">&#x1F916; AI summarizing changelog</span>...</span><br>
-      <span class="warn">&nbsp;&nbsp;&#x26A0; ollama/gemma3:4b unavailable, trying ollama/gemma3:1b...</span><br>
-      <span class="success">&nbsp;&nbsp;&#x2714; Using ollama/gemma3:1b</span><br><br>
-      <span class="success">&#x2714; Release summary generated:</span><br>
-      <span class="output">&nbsp;&nbsp;<strong>Codename:</strong> <em>Denali</em> &mdash; towering performance improvements</span><br>
-      <span class="output">&nbsp;&nbsp;<strong>Overview:</strong> Genkit Python SDK v0.6.0 introduces the</span><br>
-      <span class="output">&nbsp;&nbsp;Cloudflare Workers AI plugin, improves structured output</span><br>
-      <span class="output">&nbsp;&nbsp;across all providers, and fixes 12 bugs.</span><br><br>
-      <span class="output">&nbsp;&nbsp;<strong>Highlights:</strong></span><br>
-      <span class="output">&nbsp;&nbsp;&bull; New: Cloudflare Workers AI plugin</span><br>
-      <span class="output">&nbsp;&nbsp;&bull; Improved structured output for Ollama + Vertex AI</span><br>
-      <span class="output">&nbsp;&nbsp;&bull; 3x faster streaming for large responses</span><br><br>
-      <span class="warn">&nbsp;&nbsp;&#x26A0; AI detected 1 missed breaking change:</span><br>
-      <span class="output">&nbsp;&nbsp;&nbsp;&nbsp;abc1234 &mdash; removed `legacy_format` param from generate()</span><br><br>
-      <span class="success">&#x2714; Release PR created: #1847</span>
-    </div>
-  </section>
-
-  <section>
-    <h2>Why Genkit for This?</h2>
-    <div style="text-align:left; font-size:0.75em;">
-      <p><span class="emoji">&#x1F436;</span> <strong>Production dogfooding</strong> &mdash; ReleaseKit exercises <code>ai.generate()</code> with Pydantic structured output on every release</p>
-      <p><span class="emoji">&#x1F3E0;</span> <strong>Local-first</strong> &mdash; <a href="https://ollama.com" target="_blank" style="color:inherit;">Ollama</a> means no API keys, no cloud accounts, no egress in CI</p>
-      <p><span class="emoji">&#x1F504;</span> <strong>Multi-provider</strong> &mdash; Same code works with <a href="https://ollama.com" target="_blank" style="color:inherit;">Ollama</a>, Google GenAI, Vertex AI, Anthropic</p>
-      <p><span class="emoji">&#x1F4CA;</span> <strong>Structured output</strong> &mdash; <a href="https://docs.pydantic.dev" target="_blank" style="color:inherit;">Pydantic</a> schemas guarantee parseable JSON from any model</p>
-      <p><span class="emoji">&#x1F6E1;&#xFE0F;</span> <strong>Graceful fallback</strong> &mdash; AI enhances but never blocks &mdash; every feature has a non-AI path</p>
-    </div>
-  </section>
 </section>
 
 <!-- ============================================================ -->

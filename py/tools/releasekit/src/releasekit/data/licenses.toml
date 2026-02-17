@@ -1,0 +1,1430 @@
+# License registry for releasekit's license compatibility checker.
+#
+# Each top-level key is a canonical SPDX identifier (the graph node key).
+# Fields:
+#   name            — Human-readable full name.
+#   category        — One of: permissive, weak-copyleft, strong-copyleft,
+#                     network-copyleft, source-available, proprietary.
+#   google_category — Google licenseclassifier category. One of:
+#                     restricted, reciprocal, notice, permissive,
+#                     unencumbered, by_exception_only, forbidden.
+#                     See: github.com/google/licenseclassifier
+#   osi_approved    — Whether the OSI has approved this license.
+#   aliases         — Case-insensitive strings that resolve to this SPDX ID.
+#   patent_grant    — (optional, default false) Whether this license contains
+#                     an explicit patent grant clause.
+#   patent_retaliation — (optional, default false) Whether this license
+#                     terminates rights upon patent litigation.
+#
+# Sources:
+#   - SPDX License List:        https://spdx.org/licenses/
+#   - GNU license list:         https://www.gnu.org/licenses/license-list.html
+#   - OSI approved list:        https://opensource.org/licenses/
+#   - Google licenseclassifier: https://github.com/google/licenseclassifier
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ═══════════════════════════════════════════════════════════════════════
+# Permissive licenses
+# ═══════════════════════════════════════════════════════════════════════
+
+[MIT]
+name = "MIT License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "mit license", "the mit license", "the mit license (mit)",
+    "expat license", "expat", "x11", "x11 license",
+    "License :: OSI Approved :: MIT License",
+]
+
+["MIT-CMU"]
+name = "CMU License (MIT variant)"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = [
+    "mit-cmu", "cmu license", "mit cmu license",
+    "pillow license", "pil license (mit variant)",
+]
+
+[ISC]
+name = "ISC License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "isc license", "openbsd license",
+    "License :: OSI Approved :: ISC License (ISCL)",
+]
+
+["BSD-2-Clause"]
+name = "BSD 2-Clause \"Simplified\" License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "bsd 2-clause license", "bsd 2-clause", "simplified bsd license",
+    "freebsd license", "2-clause bsd", "bsd 2 clause", "bsd2",
+]
+
+["BSD-3-Clause"]
+name = "BSD 3-Clause \"New\" or \"Revised\" License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "bsd 3-clause license", "bsd 3-clause", "modified bsd license",
+    "new bsd license", "revised bsd license", "3-clause bsd",
+    "bsd 3 clause", "bsd3", "bsd license", "bsd",
+    "License :: OSI Approved :: BSD License",
+]
+
+["BSD-4-Clause"]
+name = "BSD 4-Clause \"Original\" License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = [
+    "bsd 4-clause license", "bsd 4-clause", "original bsd license",
+    "old bsd license", "4-clause bsd",
+]
+
+["Apache-2.0"]
+name = "Apache License 2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+patent_grant = true        # §3 explicit patent grant
+patent_retaliation = true  # §3 terminates on patent litigation
+aliases = [
+    "apache license 2.0", "apache license, version 2.0",
+    "apache license version 2.0", "apache-2", "apache 2", "apache2",
+    "apache 2.0", "apache software license 2.0", "asl 2.0", "asl2",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+["0BSD"]
+name = "BSD Zero Clause License"
+category = "permissive"
+google_category = "unencumbered"
+osi_approved = true
+aliases = [
+    "zero-clause bsd", "bsd zero clause license", "bsd-0-clause",
+]
+
+[Unlicense]
+name = "The Unlicense"
+category = "permissive"
+google_category = "unencumbered"
+osi_approved = true
+aliases = [
+    "the unlicense", "unlicensed",
+    "License :: OSI Approved :: The Unlicense (Unlicense)",
+]
+
+["CC0-1.0"]
+name = "Creative Commons Zero v1.0 Universal"
+category = "permissive"
+google_category = "unencumbered"
+osi_approved = false
+aliases = [
+    "cc0", "cc0 1.0", "cc zero", "creative commons zero",
+    "creative commons cc0", "public domain",
+    "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+]
+
+[Zlib]
+name = "zlib License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "zlib license", "zlib/libpng license",
+    "License :: OSI Approved :: zlib/libpng License",
+]
+
+["BSL-1.0"]
+name = "Boost Software License 1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "boost software license 1.0", "boost software license",
+    "boost license", "boost", "bsl 1.0",
+]
+
+[NCSA]
+name = "University of Illinois/NCSA Open Source License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "ncsa license", "ncsa open source license",
+    "university of illinois license", "uiuc license",
+]
+
+["Artistic-2.0"]
+name = "Artistic License 2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "artistic license 2.0", "artistic license 2", "artistic 2.0",
+    "License :: OSI Approved :: Artistic License",
+]
+
+[PostgreSQL]
+name = "PostgreSQL License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["postgresql license", "postgres license"]
+
+[HPND]
+name = "Historical Permission Notice and Disclaimer"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["historical permission notice and disclaimer"]
+
+["ECL-2.0"]
+name = "Educational Community License v2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["educational community license 2.0", "ecl 2.0"]
+
+[EUDatagrid]
+name = "EU DataGrid Software License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["eu datagrid software license"]
+
+["Python-2.0"]
+name = "Python License 2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = [
+    "python license 2.0", "python license",
+    "python software foundation license", "psf license", "psfl",
+    "License :: OSI Approved :: Python Software Foundation License",
+]
+
+["PSF-2.0"]
+name = "Python Software Foundation License 2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = [
+    "psf-2.0", "psf 2.0", "psf license 2.0", "psf",
+    "python software foundation license 2.0",
+]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Weak copyleft licenses
+# ═══════════════════════════════════════════════════════════════════════
+
+["LGPL-2.1-only"]
+name = "GNU Lesser General Public License v2.1 only"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later"]
+aliases = [
+    "lgpl 2.1", "lgplv2.1", "lgpl v2.1",
+    "gnu lesser general public license v2.1", "gnu lgpl v2.1",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+]
+
+["LGPL-2.1-or-later"]
+name = "GNU Lesser General Public License v2.1 or later"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later"]
+aliases = ["lgpl-2.1+", "lgpl 2.1 or later", "lgplv2.1+"]
+
+["LGPL-3.0-only"]
+name = "GNU Lesser General Public License v3.0 only"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-3.0-only", "LGPL-3.0-or-later"]
+aliases = [
+    "lgpl 3", "lgpl-3", "lgplv3", "lgpl v3",
+    "gnu lesser general public license v3", "gnu lgpl v3",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+]
+
+["LGPL-3.0-or-later"]
+name = "GNU Lesser General Public License v3.0 or later"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-3.0-or-later"]
+aliases = [
+    "lgpl-3.0+", "lgpl 3.0 or later", "lgplv3+",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+]
+
+["MPL-2.0"]
+name = "Mozilla Public License 2.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+patent_grant = true        # §2.1 patent grant
+patent_retaliation = true  # §5.2 terminates on patent litigation
+aliases = [
+    "mozilla public license 2.0", "mozilla public license 2",
+    "mpl-2", "mpl2", "mpl 2.0", "mpl 2",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+]
+
+["EPL-1.0"]
+name = "Eclipse Public License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+patent_grant = true        # §2(b) patent grant
+patent_retaliation = true  # §7 terminates on patent litigation
+aliases = [
+    "eclipse public license 1.0", "eclipse public license",
+    "epl 1.0", "epl1",
+]
+
+["EPL-2.0"]
+name = "Eclipse Public License 2.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+patent_grant = true        # §2(b) patent grant
+patent_retaliation = true  # §7 terminates on patent litigation
+aliases = [
+    "eclipse public license 2.0", "epl 2.0", "epl2",
+    "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
+]
+
+["CDDL-1.0"]
+name = "Common Development and Distribution License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+patent_grant = true        # §2.1 patent grant
+aliases = [
+    "common development and distribution license 1.0",
+    "cddl 1.0", "cddl", "cddl1",
+]
+
+["CPL-1.0"]
+name = "Common Public License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+patent_grant = true        # §2(b) patent grant
+patent_retaliation = true  # §7 terminates on patent litigation
+aliases = ["common public license 1.0", "cpl 1.0", "cpl"]
+
+["OSL-3.0"]
+name = "Open Software License 3.0"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["open software license 3.0", "osl 3.0", "osl3"]
+
+["MS-PL"]
+name = "Microsoft Public License"
+category = "weak-copyleft"
+google_category = "notice"
+osi_approved = true
+aliases = ["microsoft public license", "mspl"]
+
+["MS-RL"]
+name = "Microsoft Reciprocal License"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["microsoft reciprocal license", "msrl"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Strong copyleft licenses
+# ═══════════════════════════════════════════════════════════════════════
+
+["GPL-2.0-only"]
+name = "GNU General Public License v2.0 only"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later"]
+aliases = [
+    "gpl 2", "gpl-2", "gplv2", "gpl v2",
+    "gnu general public license v2", "gnu gpl v2",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+]
+
+["GPL-2.0-or-later"]
+name = "GNU General Public License v2.0 or later"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later"]
+aliases = [
+    "gpl-2.0+", "gpl 2.0 or later", "gplv2+", "gpl v2+",
+    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+]
+
+["GPL-3.0-only"]
+name = "GNU General Public License v3.0 only"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["GPL-3.0-only", "GPL-3.0-or-later"]
+aliases = [
+    "gpl 3", "gpl-3", "gplv3", "gpl v3",
+    "gnu general public license v3", "gnu gpl v3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
+["GPL-3.0-or-later"]
+name = "GNU General Public License v3.0 or later"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["GPL-3.0-or-later"]
+aliases = [
+    "gpl-3.0+", "gpl 3.0 or later", "gplv3+", "gpl v3+",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Network copyleft licenses
+# ═══════════════════════════════════════════════════════════════════════
+
+["AGPL-3.0-only"]
+name = "GNU Affero General Public License v3.0 only"
+category = "network-copyleft"
+google_category = "forbidden"
+osi_approved = true
+or_later_chain = ["AGPL-3.0-only", "AGPL-3.0-or-later"]
+aliases = [
+    "agpl 3", "agpl-3", "agplv3", "agpl v3",
+    "gnu affero general public license v3", "gnu agpl v3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+]
+
+["AGPL-3.0-or-later"]
+name = "GNU Affero General Public License v3.0 or later"
+category = "network-copyleft"
+google_category = "forbidden"
+osi_approved = true
+or_later_chain = ["AGPL-3.0-or-later"]
+aliases = ["agpl-3.0+", "agpl 3.0 or later", "agplv3+"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Copyleft with relicensing provisions
+# ═══════════════════════════════════════════════════════════════════════
+
+["EUPL-1.1"]
+name = "European Union Public License 1.1"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = [
+    "european union public licence 1.1", "eupl 1.1",
+    "License :: OSI Approved :: European Union Public Licence 1.1 (EUPL 1.1)",
+]
+
+["EUPL-1.2"]
+name = "European Union Public License 1.2"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = [
+    "european union public licence 1.2", "eupl 1.2",
+    "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
+]
+
+["CECILL-2.1"]
+name = "CeCILL Free Software License Agreement v2.1"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["cecill 2.1", "cecill", "cecill license"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Source-available / non-free licenses (always flagged)
+# ═══════════════════════════════════════════════════════════════════════
+
+["SSPL-1.0"]
+name = "Server Side Public License v1"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["server side public license", "sspl", "sspl 1.0"]
+
+["BUSL-1.1"]
+name = "Business Source License 1.1"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = [
+    "business source license 1.1", "bsl-1.1", "bsl 1.1",
+    "busl 1.1", "mariadb business source license",
+]
+
+[Proprietary]
+name = "Proprietary License"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = [
+    "proprietary", "all rights reserved", "commercial",
+    "closed source", "not open source",
+]
+
+[JSON]
+name = "JSON License"
+category = "proprietary"
+google_category = "by_exception_only"
+osi_approved = false
+aliases = ["json license", "the json license"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Additional licenses from Google licenseclassifier
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── Creative Commons family ──────────────────────────────────────────
+
+["CC-BY-1.0"]
+name = "Creative Commons Attribution 1.0 Generic"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["cc-by 1.0", "creative commons attribution 1.0"]
+
+["CC-BY-2.0"]
+name = "Creative Commons Attribution 2.0 Generic"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["cc-by 2.0", "creative commons attribution 2.0"]
+
+["CC-BY-2.5"]
+name = "Creative Commons Attribution 2.5 Generic"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["cc-by 2.5", "creative commons attribution 2.5"]
+
+["CC-BY-3.0"]
+name = "Creative Commons Attribution 3.0 Unported"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["cc-by 3.0", "creative commons attribution 3.0"]
+
+["CC-BY-4.0"]
+name = "Creative Commons Attribution 4.0 International"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = [
+    "cc-by 4.0", "cc by 4.0", "creative commons attribution 4.0",
+    "creative commons attribution 4.0 international",
+]
+
+["CC-BY-SA-1.0"]
+name = "Creative Commons Attribution Share Alike 1.0 Generic"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-sa 1.0"]
+
+["CC-BY-SA-2.0"]
+name = "Creative Commons Attribution Share Alike 2.0 Generic"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-sa 2.0"]
+
+["CC-BY-SA-2.5"]
+name = "Creative Commons Attribution Share Alike 2.5 Generic"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-sa 2.5"]
+
+["CC-BY-SA-3.0"]
+name = "Creative Commons Attribution Share Alike 3.0 Unported"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-sa 3.0"]
+
+["CC-BY-SA-4.0"]
+name = "Creative Commons Attribution Share Alike 4.0 International"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-sa 4.0", "creative commons attribution share alike 4.0"]
+
+["CC-BY-NC-1.0"]
+name = "Creative Commons Attribution Non Commercial 1.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc 1.0"]
+
+["CC-BY-NC-2.0"]
+name = "Creative Commons Attribution Non Commercial 2.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc 2.0"]
+
+["CC-BY-NC-2.5"]
+name = "Creative Commons Attribution Non Commercial 2.5 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc 2.5"]
+
+["CC-BY-NC-3.0"]
+name = "Creative Commons Attribution Non Commercial 3.0 Unported"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc 3.0"]
+
+["CC-BY-NC-4.0"]
+name = "Creative Commons Attribution Non Commercial 4.0 International"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc 4.0"]
+
+["CC-BY-ND-1.0"]
+name = "Creative Commons Attribution No Derivatives 1.0 Generic"
+category = "proprietary"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-nd 1.0"]
+
+["CC-BY-ND-2.0"]
+name = "Creative Commons Attribution No Derivatives 2.0 Generic"
+category = "proprietary"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-nd 2.0"]
+
+["CC-BY-ND-2.5"]
+name = "Creative Commons Attribution No Derivatives 2.5 Generic"
+category = "proprietary"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-nd 2.5"]
+
+["CC-BY-ND-3.0"]
+name = "Creative Commons Attribution No Derivatives 3.0 Unported"
+category = "proprietary"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-nd 3.0"]
+
+["CC-BY-ND-4.0"]
+name = "Creative Commons Attribution No Derivatives 4.0 International"
+category = "proprietary"
+google_category = "restricted"
+osi_approved = false
+aliases = ["cc-by-nd 4.0"]
+
+["CC-BY-NC-SA-1.0"]
+name = "Creative Commons Attribution Non Commercial Share Alike 1.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-sa 1.0"]
+
+["CC-BY-NC-SA-2.0"]
+name = "Creative Commons Attribution Non Commercial Share Alike 2.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-sa 2.0"]
+
+["CC-BY-NC-SA-2.5"]
+name = "Creative Commons Attribution Non Commercial Share Alike 2.5 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-sa 2.5"]
+
+["CC-BY-NC-SA-3.0"]
+name = "Creative Commons Attribution Non Commercial Share Alike 3.0 Unported"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-sa 3.0"]
+
+["CC-BY-NC-SA-4.0"]
+name = "Creative Commons Attribution Non Commercial Share Alike 4.0 International"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-sa 4.0"]
+
+["CC-BY-NC-ND-1.0"]
+name = "Creative Commons Attribution Non Commercial No Derivatives 1.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-nd 1.0"]
+
+["CC-BY-NC-ND-2.0"]
+name = "Creative Commons Attribution Non Commercial No Derivatives 2.0 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-nd 2.0"]
+
+["CC-BY-NC-ND-2.5"]
+name = "Creative Commons Attribution Non Commercial No Derivatives 2.5 Generic"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-nd 2.5"]
+
+["CC-BY-NC-ND-3.0"]
+name = "Creative Commons Attribution Non Commercial No Derivatives 3.0 Unported"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-nd 3.0"]
+
+["CC-BY-NC-ND-4.0"]
+name = "Creative Commons Attribution Non Commercial No Derivatives 4.0 International"
+category = "proprietary"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["cc-by-nc-nd 4.0"]
+
+# ── Additional notice/permissive licenses ────────────────────────────
+
+["AFL-1.1"]
+name = "Academic Free License v1.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["academic free license 1.1", "afl 1.1"]
+
+["AFL-1.2"]
+name = "Academic Free License v1.2"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["academic free license 1.2", "afl 1.2"]
+
+["AFL-2.0"]
+name = "Academic Free License v2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["academic free license 2.0", "afl 2.0"]
+
+["AFL-2.1"]
+name = "Academic Free License v2.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["academic free license 2.1", "afl 2.1"]
+
+["AFL-3.0"]
+name = "Academic Free License v3.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["academic free license 3.0", "afl 3.0", "afl3"]
+
+["Apache-1.0"]
+name = "Apache License 1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["apache license 1.0", "apache 1.0"]
+
+["Apache-1.1"]
+name = "Apache License 1.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["apache license 1.1", "apache 1.1"]
+
+["Artistic-1.0"]
+name = "Artistic License 1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["artistic license 1.0", "artistic 1.0"]
+
+[FTL]
+name = "Freetype Project License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["freetype project license", "freetype license", "ftl"]
+
+[ImageMagick]
+name = "ImageMagick License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["imagemagick license"]
+
+[Libpng]
+name = "libpng License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["libpng license"]
+
+[OpenSSL]
+name = "OpenSSL License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["openssl license"]
+
+["PHP-3.0"]
+name = "PHP License v3.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["php license 3.0", "php 3.0"]
+
+["PHP-3.01"]
+name = "PHP License v3.01"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["php license 3.01", "php 3.01"]
+
+["SGI-B-2.0"]
+name = "SGI Free Software License B v2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["sgi free software license b 2.0", "sgi-b 2.0"]
+
+["Unicode-DFS-2016"]
+name = "Unicode License Agreement - Data Files and Software (2016)"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["unicode dfs 2016", "unicode license 2016"]
+
+["UPL-1.0"]
+name = "Universal Permissive License v1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["universal permissive license 1.0", "upl 1.0"]
+
+[W3C]
+name = "W3C Software Notice and License (2002-12-31)"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["w3c license", "w3c software license"]
+
+[X11]
+name = "X11 License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["x11 license variant"]
+
+[Xnet]
+name = "X.Net License"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["x.net license", "xnet license"]
+
+["Zend-2.0"]
+name = "Zend License v2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["zend license 2.0", "zend 2.0"]
+
+["ZPL-2.0"]
+name = "Zope Public License 2.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["zope public license 2.0", "zpl 2.0"]
+
+["ZPL-2.1"]
+name = "Zope Public License 2.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["zope public license 2.1", "zpl 2.1"]
+
+["Linux-OpenIB"]
+name = "Linux Kernel Variant of OpenIB.org license"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["linux-openib", "linux openib license"]
+
+# ── Additional reciprocal licenses ───────────────────────────────────
+
+["APSL-2.0"]
+name = "Apple Public Source License 2.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["apple public source license 2.0", "apsl 2.0"]
+
+["CDDL-1.1"]
+name = "Common Development and Distribution License 1.1"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = false
+patent_grant = true        # §2.1 patent grant
+aliases = ["common development and distribution license 1.1", "cddl 1.1"]
+
+["IPL-1.0"]
+name = "IBM Public License v1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["ibm public license 1.0", "ipl 1.0"]
+
+["MPL-1.0"]
+name = "Mozilla Public License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["mozilla public license 1.0", "mpl 1.0"]
+
+["MPL-1.1"]
+name = "Mozilla Public License 1.1"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["mozilla public license 1.1", "mpl 1.1"]
+
+[Ruby]
+name = "Ruby License"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = false
+aliases = ["ruby license"]
+
+# ── Additional restricted licenses ───────────────────────────────────
+
+["GPL-1.0-only"]
+name = "GNU General Public License v1.0 only"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 1", "gpl-1", "gplv1", "gpl v1"]
+
+["NPL-1.0"]
+name = "Netscape Public License v1.0"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["netscape public license 1.0", "npl 1.0"]
+
+["NPL-1.1"]
+name = "Netscape Public License v1.1"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["netscape public license 1.1", "npl 1.1"]
+
+["QPL-1.0"]
+name = "Q Public License 1.0"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["q public license 1.0", "qpl 1.0"]
+
+[Sleepycat]
+name = "Sleepycat License"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["sleepycat license", "berkeley db license"]
+
+# ── Forbidden licenses ───────────────────────────────────────────────
+
+["AGPL-1.0-only"]
+name = "Affero General Public License v1.0"
+category = "network-copyleft"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["agpl 1", "agpl-1", "agplv1", "affero general public license 1.0"]
+
+[WTFPL]
+name = "Do What The F*ck You Want To Public License"
+category = "permissive"
+google_category = "forbidden"
+osi_approved = false
+aliases = [
+    "wtfpl", "do what the f*ck you want to public license",
+    "do what you want public license",
+]
+
+["Commons-Clause"]
+name = "Commons Clause License Condition v1.0"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["commons clause", "commons clause license"]
+
+# ── By-exception-only licenses ───────────────────────────────────────
+
+[Beerware]
+name = "Beerware License"
+category = "permissive"
+google_category = "by_exception_only"
+osi_approved = false
+aliases = ["beerware", "beerware license"]
+
+["OFL-1.1"]
+name = "SIL Open Font License 1.1"
+category = "permissive"
+google_category = "by_exception_only"
+osi_approved = true
+aliases = [
+    "sil open font license 1.1", "ofl 1.1", "sil ofl 1.1",
+    "open font license",
+]
+
+["LPPL-1.3c"]
+name = "LaTeX Project Public License v1.3c"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["latex project public license 1.3c", "lppl 1.3c"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Remaining Google licenseclassifier licenses
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── APSL family (reciprocal) ─────────────────────────────────────────
+
+["APSL-1.0"]
+name = "Apple Public Source License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["apple public source license 1.0", "apsl 1.0"]
+
+["APSL-1.1"]
+name = "Apple Public Source License 1.1"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["apple public source license 1.1", "apsl 1.1"]
+
+["APSL-1.2"]
+name = "Apple Public Source License 1.2"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["apple public source license 1.2", "apsl 1.2"]
+
+# ── Artistic variants (notice) ───────────────────────────────────────
+
+["Artistic-1.0-cl8"]
+name = "Artistic License 1.0 w/clause 8"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["artistic license 1.0 cl8", "artistic 1.0 cl8"]
+
+["Artistic-1.0-Perl"]
+name = "Artistic License 1.0 (Perl)"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["artistic license 1.0 perl", "artistic 1.0 perl"]
+
+# ── BCL (restricted) ─────────────────────────────────────────────────
+
+[BCL]
+name = "BCL License"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["bcl", "bcl license"]
+
+# ── BSD variants (notice) ────────────────────────────────────────────
+
+["BSD-2-Clause-FreeBSD"]
+name = "BSD 2-Clause FreeBSD License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd 2-clause freebsd", "freebsd bsd license"]
+
+["BSD-2-Clause-NetBSD"]
+name = "BSD 2-Clause NetBSD License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd 2-clause netbsd", "netbsd bsd license"]
+
+["BSD-3-Clause-Attribution"]
+name = "BSD with attribution"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd 3-clause attribution"]
+
+["BSD-3-Clause-Clear"]
+name = "BSD 3-Clause Clear License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd 3-clause clear", "clear bsd license"]
+
+["BSD-3-Clause-LBNL"]
+name = "Lawrence Berkeley National Labs BSD variant license"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["bsd 3-clause lbnl"]
+
+["BSD-4-Clause-UC"]
+name = "BSD-4-Clause (University of California-Specific)"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd 4-clause uc"]
+
+["BSD-Protection"]
+name = "BSD Protection License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["bsd protection license"]
+
+# ── CPAL (notice) ────────────────────────────────────────────────────
+
+["CPAL-1.0"]
+name = "Common Public Attribution License 1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["common public attribution license 1.0", "cpal 1.0"]
+
+# ── eGenix ───────────────────────────────────────────────────────────
+
+[eGenix]
+name = "eGenix.com Public License 1.1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["egenix", "egenix public license", "egenix.com public license"]
+
+# ── EUPL-1.0 ─────────────────────────────────────────────────────────
+
+["EUPL-1.0"]
+name = "European Union Public License 1.0"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["european union public licence 1.0", "eupl 1.0"]
+
+# ── Facebook licenses (forbidden) ────────────────────────────────────
+
+["Facebook-2-Clause"]
+name = "Facebook 2-Clause License"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["facebook 2-clause", "facebook 2 clause"]
+
+["Facebook-3-Clause"]
+name = "Facebook 3-Clause License"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["facebook 3-clause", "facebook 3 clause"]
+
+["Facebook-Examples"]
+name = "Facebook Examples License"
+category = "source-available"
+google_category = "forbidden"
+osi_approved = false
+aliases = ["facebook examples", "facebook examples license"]
+
+# ── FreeImage (reciprocal) ───────────────────────────────────────────
+
+[FreeImage]
+name = "FreeImage Public License v1.0"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = false
+aliases = ["freeimage public license", "freeimage license", "fipl"]
+
+# ── GPL-with-exception variants (restricted) ─────────────────────────
+
+["GPL-2.0-with-autoconf-exception"]
+name = "GNU General Public License v2.0 w/Autoconf exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 2.0 with autoconf exception"]
+
+["GPL-2.0-with-bison-exception"]
+name = "GNU General Public License v2.0 w/Bison exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 2.0 with bison exception"]
+
+["GPL-2.0-with-classpath-exception"]
+name = "GNU General Public License v2.0 w/Classpath exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 2.0 with classpath exception"]
+
+["GPL-2.0-with-font-exception"]
+name = "GNU General Public License v2.0 w/Font exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 2.0 with font exception"]
+
+["GPL-2.0-with-GCC-exception"]
+name = "GNU General Public License v2.0 w/GCC Runtime Library exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 2.0 with gcc exception"]
+
+["GPL-3.0-with-autoconf-exception"]
+name = "GNU General Public License v3.0 w/Autoconf exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["gpl 3.0 with autoconf exception"]
+
+["GPL-3.0-with-GCC-exception"]
+name = "GNU General Public License v3.0 w/GCC Runtime Library exception"
+category = "strong-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["gpl 3.0 with gcc exception"]
+
+# ── GUST Font License ────────────────────────────────────────────────
+
+["GUST-Font-License"]
+name = "GUST Font License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["gust font license", "gust font"]
+
+# ── LGPL-2.0 (deprecated bare ID) ───────────────────────────────────
+
+["LGPL-2.0-only"]
+name = "GNU Library General Public License v2 only"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-2.0-only", "LGPL-2.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later"]
+aliases = ["lgpl 2.0", "lgpl-2.0", "lgplv2.0", "lgpl v2.0", "gnu library general public license v2"]
+
+["LGPL-2.0-or-later"]
+name = "GNU Library General Public License v2 or later"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+or_later_chain = ["LGPL-2.0-or-later", "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later"]
+aliases = ["lgpl-2.0+", "lgpl 2.0 or later", "lgplv2.0+"]
+
+# ── LGPLLR ───────────────────────────────────────────────────────────
+
+[LGPLLR]
+name = "Lesser General Public License For Linguistic Resources"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["lgpllr", "lgpl for linguistic resources"]
+
+# ── Lil-1.0 ──────────────────────────────────────────────────────────
+
+["Lil-1.0"]
+name = "Lil License v1"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["lil license 1.0", "lil 1.0"]
+
+# ── LPL family (notice) ─────────────────────────────────────────────
+
+["LPL-1.0"]
+name = "Lucent Public License Version 1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["lucent public license 1.0", "lpl 1.0"]
+
+["LPL-1.02"]
+name = "Lucent Public License v1.02"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["lucent public license 1.02", "lpl 1.02"]
+
+# ── OpenVision (by_exception_only) ───────────────────────────────────
+
+[OpenVision]
+name = "OpenVision License"
+category = "permissive"
+google_category = "by_exception_only"
+osi_approved = false
+aliases = ["openvision license", "openvision"]
+
+# ── OSL family (restricted) ──────────────────────────────────────────
+
+["OSL-1.0"]
+name = "Open Software License 1.0"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["open software license 1.0", "osl 1.0"]
+
+["OSL-1.1"]
+name = "Open Software License 1.1"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = false
+aliases = ["open software license 1.1", "osl 1.1"]
+
+["OSL-2.0"]
+name = "Open Software License 2.0"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["open software license 2.0", "osl 2.0"]
+
+["OSL-2.1"]
+name = "Open Software License 2.1"
+category = "weak-copyleft"
+google_category = "restricted"
+osi_approved = true
+aliases = ["open software license 2.1", "osl 2.1"]
+
+# ── PIL (notice) ─────────────────────────────────────────────────────
+
+[PIL]
+name = "PIL Software License"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["pil license", "pil software license", "python imaging library license"]
+
+# ── Python-2.0-complete (notice) ─────────────────────────────────────
+
+["Python-2.0-complete"]
+name = "Python License 2.0 (complete)"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["python license 2.0 complete", "python 2.0 complete"]
+
+# ── SGI-B family (notice) ────────────────────────────────────────────
+
+["SGI-B-1.0"]
+name = "SGI Free Software License B v1.0"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["sgi free software license b 1.0", "sgi-b 1.0"]
+
+["SGI-B-1.1"]
+name = "SGI Free Software License B v1.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["sgi free software license b 1.1", "sgi-b 1.1"]
+
+# ── SISSL family ─────────────────────────────────────────────────────
+
+[SISSL]
+name = "Sun Industry Standards Source License v1.1"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = true
+aliases = ["sissl", "sun industry standards source license"]
+
+["SISSL-1.2"]
+name = "Sun Industry Standards Source License v1.2"
+category = "weak-copyleft"
+google_category = "reciprocal"
+osi_approved = false
+aliases = ["sissl 1.2", "sun industry standards source license 1.2"]
+
+# ── Unicode variants (notice) ────────────────────────────────────────
+
+["Unicode-DFS-2015"]
+name = "Unicode License Agreement - Data Files and Software (2015)"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["unicode dfs 2015", "unicode license 2015"]
+
+["Unicode-TOU"]
+name = "Unicode Terms of Use"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["unicode tou", "unicode terms of use"]
+
+# ── W3C variants (notice) ────────────────────────────────────────────
+
+["W3C-19980720"]
+name = "W3C Software Notice and License (1998-07-20)"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["w3c 1998", "w3c license 1998"]
+
+["W3C-20150513"]
+name = "W3C Software and Document Notice and License (2015-05-13)"
+category = "permissive"
+google_category = "notice"
+osi_approved = true
+aliases = ["w3c 2015", "w3c license 2015"]
+
+# ── zlib-acknowledgement (notice) ────────────────────────────────────
+
+["zlib-acknowledgement"]
+name = "zlib/libpng License with Acknowledgement"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["zlib acknowledgement", "zlib-acknowledgement license"]
+
+# ── ZPL-1.1 (notice) ────────────────────────────────────────────────
+
+["ZPL-1.1"]
+name = "Zope Public License 1.1"
+category = "permissive"
+google_category = "notice"
+osi_approved = false
+aliases = ["zope public license 1.1", "zpl 1.1"]

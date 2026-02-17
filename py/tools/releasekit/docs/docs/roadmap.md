@@ -787,7 +787,7 @@ Phase 4: Harden            ▼    ✅ COMPLETE
 │  observer.py ──► PublishStage, SchedulerState, Observer │
 │  ui.py ──► observer.py, logging.py                      │
 │  checks/ ──► graph.py, preflight.py, workspace.py       │
-│    + 35 health checks in subpackage (protocol-based)    │
+│    + 42 health checks in subpackage (protocol-based)    │
 │  preflight.py (full) ──► + pip-audit,                   │
 │                            metadata validation          │
 │  publisher.py (full) ──► + staging, manifest, Test PyPI,│
@@ -4384,6 +4384,42 @@ file).
 directory walking and recursive logic. Converting to async touches many
 callers and test files, making it too large to combine with the critical
 credential refresh and vectorstore fixes.
+
+### AI-Powered License Guidance (Genkit Integration)
+
+**Status:** Planned
+**Priority:** Medium (enhances `releasekit licenses --fix`)
+
+The interactive `licenses --fix` command currently prompts users to choose
+between exempt, allow, deny, override, or skip for each problematic
+dependency. Adding AI-powered guidance would help users make informed
+decisions by:
+
+1. **License summary** — Use `ai.generate()` to explain what a license
+   means in plain English (e.g. "GPL-3.0-only requires you to release
+   your source code under the same license").
+2. **Compatibility analysis** — AI explains *why* a license is
+   incompatible with the project license and what the legal implications
+   are.
+3. **Web lookup** — Register a Genkit tool that queries SPDX, FOSSA,
+   or choosealicense.com APIs to fetch authoritative license metadata
+   (permissions, conditions, limitations).
+4. **Recommendation** — Based on the license category (permissive,
+   copyleft, proprietary) and the project's license, suggest the most
+   appropriate action (exempt vs. deny vs. override).
+
+**Implementation plan:**
+
+- Add a `LicenseAdvisor` class in `checks/_license_advisor.py` that
+  wraps Genkit `ai.generate()` with a structured output schema.
+- Register a `lookup_license` Genkit tool that fetches license metadata
+  from SPDX JSON (https://spdx.org/licenses/licenses.json) and
+  choosealicense.com GitHub API.
+- Wire into `prompt_for_fix()` — show AI guidance before the menu
+  when `--ai` flag is passed (or when AI is enabled in config).
+- Graceful fallback: if AI is unavailable, skip guidance silently.
+
+**Dependencies:** Genkit Python SDK with tool registration support.
 
 ### CI: Add Path Filters to JS Workflows
 

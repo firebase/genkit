@@ -318,6 +318,11 @@ jobs:
           cd py/tools/${{ matrix.tool }}
           uv run pytest tests/ -xvs
 
+      - name: Run network integration tests
+        run: |
+          cd py/tools/${{ matrix.tool }}
+          uv run pytest tests/ -xvs -m network --no-cov
+
   # =============================================================================
   # Conform tool tests (workspace member — needs root uv sync)
   # =============================================================================

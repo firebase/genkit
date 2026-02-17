@@ -35,6 +35,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from releasekit._types import DetectedLicense as DetectedLicense
 from releasekit.backends.workspace._types import Package as Package
 from releasekit.backends.workspace.bazel import BazelWorkspace as BazelWorkspace
 from releasekit.backends.workspace.cargo import CargoWorkspace as CargoWorkspace
@@ -50,6 +51,7 @@ __all__ = [
     'CargoWorkspace',
     'ClojureWorkspace',
     'DartWorkspace',
+    'DetectedLicense',
     'GoWorkspace',
     'MavenWorkspace',
     'Package',
@@ -117,5 +119,36 @@ class Workspace(Protocol):
             manifest_path: Path to the manifest file.
             dep_name: Dependency name to update.
             new_version: New version to pin to (``==new_version``).
+        """
+        ...
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect the license of a package from its manifest files.
+
+        Each ecosystem backend knows which manifest fields contain
+        license information:
+
+        - **Python**: ``pyproject.toml`` — PEP 639 ``license``,
+          ``license.text``, or classifiers.
+        - **JS/TS**: ``package.json`` — ``license`` field.
+        - **Rust**: ``Cargo.toml`` — ``[package].license``.
+        - **Java**: ``pom.xml`` — ``<licenses><license><name>``.
+        - **Go/Dart**: Falls through to LICENSE file scanning.
+
+        Backends that don't have a manifest-level license field should
+        return a :class:`DetectedLicense` with ``found=False`` so the
+        caller can fall back to LICENSE file content matching.
+
+        Args:
+            pkg_path: Path to the package root directory.
+            pkg_name: Package name (for diagnostics).
+
+        Returns:
+            A :class:`DetectedLicense`. Check ``.found`` to see if
+            detection succeeded.
         """
         ...

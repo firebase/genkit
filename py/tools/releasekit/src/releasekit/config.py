@@ -121,10 +121,13 @@ VALID_KEYS: frozenset[str] = frozenset({
     'announcements',
     'branches',
     'calver_format',
+    'color',
     'default_branch',
     'forge',
     'hooks',
     'http_pool_size',
+    'license',
+    'license_headers',
     'pr_title_template',
     'publish_from',
     'release_mode',
@@ -157,6 +160,7 @@ VALID_WORKSPACE_KEYS: frozenset[str] = frozenset({
     'hooks',
     'hooks_replace',
     'library_dirs',
+    'license_headers',
     'major_on_zero',
     'max_commits',
     'namespace_dirs',
@@ -489,6 +493,84 @@ class HooksConfig:
 
 
 @dataclass(frozen=True)
+class LicenseHeaderConfig:
+    """Configuration for license header enforcement via ``addlicense``.
+
+    Maps directly to `google/addlicense <https://github.com/google/addlicense>`_
+    CLI flags. Can be set at the global level (``[license_headers]``) or
+    per-workspace (``[workspace.<label>.license_headers]``).
+
+    When ``releasekit check --fix`` is run, files missing license headers
+    are fixed by shelling out to ``addlicense`` with these settings.
+
+    Example ``releasekit.toml``::
+
+        [license_headers]
+        copyright_holder = 'Google LLC'
+        license_type = 'apache'
+        spdx_only = true
+        year = '2025'
+        ignore = ['**/vendor/**', '**/node_modules/**', '**/.venv/**']
+
+        [workspace.py.license_headers]
+        copyright_holder = 'Google LLC'
+        year = '2025'
+
+    Attributes:
+        copyright_holder: Copyright holder string (``-c`` flag).
+            Default: ``"Google LLC"``.
+        license_type: License type: ``"apache"``, ``"bsd"``, ``"mit"``,
+            ``"mpl"`` (``-l`` flag). Default: ``"apache"``.
+        license_file: Path to a custom license header file (``-f`` flag).
+            When set, ``license_type`` is ignored.
+        spdx_only: If ``True``, only add the SPDX identifier line
+            (``-s=only``). If ``False`` but SPDX is desired, the full
+            header plus SPDX line is added (``-s``). Default: ``False``.
+        year: Copyright year(s) string (``-y`` flag). Default: current
+            year. Use ``"2024-2025"`` for ranges.
+        ignore: List of doublestar glob patterns to ignore
+            (``-ignore`` flags). Default includes common vendor/build
+            directories.
+        check_only: If ``True``, only check (don't modify files).
+            Maps to ``-check`` flag. Default: ``False`` (fix mode).
+        verbose: Print names of modified files (``-v`` flag).
+    """
+
+    copyright_holder: str = 'Google LLC'
+    license_type: str = 'apache'
+    license_file: str = ''
+    spdx_only: bool = False
+    year: str = ''
+    ignore: list[str] = field(
+        default_factory=lambda: [
+            '**/vendor/**',
+            '**/node_modules/**',
+            '**/.venv/**',
+            '**/venv/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/__pycache__/**',
+            '**/*.egg-info/**',
+        ]
+    )
+    check_only: bool = False
+    verbose: bool = False
+
+
+# Valid keys inside a [license_headers] section.
+VALID_LICENSE_HEADER_KEYS: frozenset[str] = frozenset({
+    'check_only',
+    'copyright_holder',
+    'ignore',
+    'license_file',
+    'license_type',
+    'spdx_only',
+    'verbose',
+    'year',
+})
+
+
+@dataclass(frozen=True)
 class AnnouncementConfig:
     """Release announcement configuration.
 
@@ -752,6 +834,7 @@ class WorkspaceConfig:
     branches: dict[str, str] = field(default_factory=dict)
     ai: AiConfig | None = None
     announcements: AnnouncementConfig = field(default_factory=AnnouncementConfig)
+    license_headers: LicenseHeaderConfig = field(default_factory=LicenseHeaderConfig)
     packages: dict[str, PackageConfig] = field(default_factory=dict)
 
 
@@ -960,6 +1043,29 @@ def _merge_ai_features(
 
 
 @dataclass(frozen=True)
+class LicenseConfig:
+    """Configuration for the ``[license]`` section.
+
+    Attributes:
+        project: SPDX ID of the project's license.
+        exempt_packages: Packages unconditionally exempt from checks.
+        allow_licenses: SPDX IDs always considered compatible.
+        deny_licenses: SPDX IDs unconditionally blocked.
+        overrides: Package name → SPDX expression overrides.
+        workspace_exceptions: SPDX IDs exempt from deny-list workspace-wide.
+        project_exceptions: Package name → list of SPDX IDs exempt from deny.
+    """
+
+    project: str = ''
+    exempt_packages: list[str] = field(default_factory=list)
+    allow_licenses: list[str] = field(default_factory=list)
+    deny_licenses: list[str] = field(default_factory=list)
+    overrides: dict[str, str] = field(default_factory=dict)
+    workspace_exceptions: list[str] = field(default_factory=list)
+    project_exceptions: dict[str, list[str]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class ReleaseConfig:
     """Validated configuration for a releasekit run.
 
@@ -979,8 +1085,10 @@ class ReleaseConfig:
         workspaces: Per-workspace configs keyed by label
             (e.g. ``{"py": WorkspaceConfig(...), "js": ...}``).
         config_path: Path to the releasekit.toml that was loaded.
+        license: License compatibility configuration.
     """
 
+    color: bool | None = None
     forge: str = 'github'
     repo_owner: str = ''
     repo_name: str = ''
@@ -996,6 +1104,8 @@ class ReleaseConfig:
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     branches: dict[str, str] = field(default_factory=dict)
     announcements: AnnouncementConfig = field(default_factory=AnnouncementConfig)
+    license: LicenseConfig = field(default_factory=LicenseConfig)
+    license_headers: LicenseHeaderConfig = field(default_factory=LicenseHeaderConfig)
     workspaces: dict[str, WorkspaceConfig] = field(default_factory=dict)
     config_path: Path | None = None
 
@@ -1011,10 +1121,13 @@ _GLOBAL_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
     'announcements': dict,
     'branches': dict,
     'calver_format': str,
+    'color': bool,
     'default_branch': str,
     'forge': str,
     'hooks': dict,
     'http_pool_size': int,
+    'license': dict,
+    'license_headers': dict,
     'pr_title_template': str,
     'publish_from': str,
     'release_mode': str,
@@ -1045,6 +1158,7 @@ _WORKSPACE_TYPE_MAP: dict[str, type | tuple[type, ...]] = {
     'hooks': dict,
     'hooks_replace': bool,
     'library_dirs': list,
+    'license_headers': dict,
     'major_on_zero': bool,
     'max_commits': int,
     'namespace_dirs': list,
@@ -1491,6 +1605,56 @@ def _parse_announcements(
     )
 
 
+def _parse_license_headers(
+    raw: dict[str, Any],  # noqa: ANN401
+    context: str = 'releasekit.toml',
+) -> LicenseHeaderConfig:
+    """Parse and validate a ``[license_headers]`` section.
+
+    Validates keys against :data:`VALID_LICENSE_HEADER_KEYS` and
+    returns a :class:`LicenseHeaderConfig`.
+    """
+    for key in raw:
+        if key not in VALID_LICENSE_HEADER_KEYS:
+            suggestion = difflib.get_close_matches(key, VALID_LICENSE_HEADER_KEYS, n=1, cutoff=0.6)
+            hint = (
+                f"Did you mean '{suggestion[0]}'?" if suggestion else f'Valid keys: {sorted(VALID_LICENSE_HEADER_KEYS)}'
+            )
+            raise ReleaseKitError(
+                code=E.CONFIG_INVALID_KEY,
+                message=f"Unknown key '{key}' in {context} [license_headers]",
+                hint=hint,
+            )
+
+    license_type = raw.get('license_type', 'apache')
+    allowed_types = frozenset({'apache', 'bsd', 'mit', 'mpl'})
+    if license_type not in allowed_types:
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f"license_type must be one of {sorted(allowed_types)}, got '{license_type}'",
+            hint=f'Check the license_type value in {context} [license_headers].',
+        )
+
+    ignore = raw.get('ignore', LicenseHeaderConfig().ignore)
+    if ignore and not isinstance(ignore, list):
+        raise ReleaseKitError(
+            code=E.CONFIG_INVALID_VALUE,
+            message=f'ignore must be a list of glob patterns, got {type(ignore).__name__}',
+            hint=f'Use ignore = ["**/vendor/**"] in {context} [license_headers].',
+        )
+
+    return LicenseHeaderConfig(
+        copyright_holder=raw.get('copyright_holder', 'Google LLC'),
+        license_type=license_type,
+        license_file=raw.get('license_file', ''),
+        spdx_only=raw.get('spdx_only', False),
+        year=str(raw.get('year', '')),
+        ignore=list(ignore) if ignore else [],
+        check_only=raw.get('check_only', False),
+        verbose=raw.get('verbose', False),
+    )
+
+
 def _validate_prerelease_label(value: str, context: str = 'releasekit.toml') -> None:
     """Raise if prerelease_label is not a recognized value."""
     if value and value not in ALLOWED_PRERELEASE_LABELS:
@@ -1499,6 +1663,47 @@ def _validate_prerelease_label(value: str, context: str = 'releasekit.toml') -> 
             message=f"prerelease_label must be one of {sorted(ALLOWED_PRERELEASE_LABELS)}, got '{value}'",
             hint=f"Use 'alpha', 'beta', 'rc', or 'dev'. Check {context}.",
         )
+
+
+def _parse_license_section(
+    raw: dict[str, Any],  # noqa: ANN401
+    context: str = 'releasekit.toml [license]',
+) -> LicenseConfig:
+    """Parse and validate the ``[license]`` section."""
+    project = raw.get('project', '')
+    exempt_packages = list(raw.get('exempt_packages', []))
+    allow_licenses = list(raw.get('allow_licenses', []))
+    deny_licenses = list(raw.get('deny_licenses', []))
+    workspace_exceptions = list(raw.get('workspace_exceptions', []))
+
+    overrides: dict[str, str] = {}
+    raw_overrides = raw.get('overrides', {})
+    if isinstance(raw_overrides, dict):
+        for k, v in raw_overrides.items():
+            if not isinstance(v, str):
+                raise ReleaseKitError(
+                    code=E.CONFIG_INVALID_VALUE,
+                    message=f'license override for {k!r} must be a string, got {type(v).__name__}',
+                    hint=f'Use [license.overrides] "{k}" = "SPDX-ID" in {context}.',
+                )
+            overrides[k] = v
+
+    project_exceptions: dict[str, list[str]] = {}
+    raw_pe = raw.get('project_exceptions', {})
+    if isinstance(raw_pe, dict):
+        for k, v in raw_pe.items():
+            if isinstance(v, list):
+                project_exceptions[k] = [str(x) for x in v]
+
+    return LicenseConfig(
+        project=project,
+        exempt_packages=exempt_packages,
+        allow_licenses=allow_licenses,
+        deny_licenses=deny_licenses,
+        overrides=overrides,
+        workspace_exceptions=workspace_exceptions,
+        project_exceptions=project_exceptions,
+    )
 
 
 def _parse_packages(
@@ -1624,6 +1829,8 @@ def _parse_workspace_section(
         kwargs['ai'] = _parse_ai(dict(kwargs['ai']), context)
     if 'announcements' in kwargs:
         kwargs['announcements'] = _parse_announcements(dict(kwargs['announcements']), context)
+    if 'license_headers' in kwargs:
+        kwargs['license_headers'] = _parse_license_headers(dict(kwargs['license_headers']), context)
     if 'packages' in kwargs:
         kwargs['packages'] = _parse_packages(dict(kwargs['packages']), context)
 
@@ -1747,6 +1954,10 @@ def load_config(workspace_root: Path) -> ReleaseConfig:
         global_kwargs['ai'] = _parse_ai(dict(global_kwargs['ai']))
     if 'announcements' in global_kwargs:
         global_kwargs['announcements'] = _parse_announcements(dict(global_kwargs['announcements']))
+    if 'license_headers' in global_kwargs:
+        global_kwargs['license_headers'] = _parse_license_headers(dict(global_kwargs['license_headers']))
+    if 'license' in global_kwargs:
+        global_kwargs['license'] = _parse_license_section(dict(global_kwargs['license']))
 
     return ReleaseConfig(**global_kwargs, workspaces=workspaces, config_path=config_path)
 
@@ -1949,6 +2160,7 @@ __all__ = [
     'VALID_WORKSPACE_KEYS',
     'AnnouncementConfig',
     'HooksConfig',
+    'LicenseConfig',
     'PackageConfig',
     'ReleaseConfig',
     'ScheduleConfig',

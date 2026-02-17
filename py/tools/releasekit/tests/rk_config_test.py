@@ -337,6 +337,7 @@ class TestValidKeys:
             'branches',
             'calver_format',
             'hooks',
+            'license_headers',
             'release_mode',
             'schedule',
             'versioning_scheme',

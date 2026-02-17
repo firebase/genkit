@@ -263,7 +263,7 @@ These are pain points in alternatives that releasekit **already solves**:
 | **uv workspace support** | release-please [#2561](https://github.com/googleapis/release-please/issues/2561) (feature request) | ✅ Native uv workspace discovery |
 | **Version preview** | semantic-release [#753](https://github.com/semantic-release/semantic-release/issues/753), [#1647](https://github.com/semantic-release/semantic-release/issues/1647) | ✅ `releasekit version` and `releasekit plan` |
 | **Multi-forge support** | release-please (GitHub only), python-semantic-release [#666](https://github.com/python-semantic-release/python-semantic-release/issues/666) (GitLab guide needed) | ✅ GitHub, GitLab, Bitbucket, none |
-| **Workspace health checks** | No equivalent in any alternative | ✅ 35+ automated checks with `--fix` |
+| **Workspace health checks** | No equivalent in any alternative | ✅ 42 automated checks with `--fix` |
 | **Shell completions** | Not available in alternatives | ✅ bash, zsh, fish |
 | **Error explainer** | Not available in alternatives | ✅ `releasekit explain <code>` |
 | **Rollback** | No built-in rollback in alternatives | ✅ `releasekit rollback <tag>` |
@@ -356,7 +356,7 @@ intended to replace it.
 | **No dependency ordering** — Packages published in hardcoded order, not topological | High | ✅ Topo-sorted publish via `graph.py` |
 | **No error recovery** — If `pnpm publish` fails mid-way, no rollback or retry | High | ✅ Retry with backoff, rollback command |
 | **No changelog generation** — Version bumps have no associated changelogs | High | ✅ `releasekit changelog` from conventional commits |
-| **No preflight checks** — Dirty worktree, unpushed commits, etc. not validated | High | ✅ 34 preflight checks |
+| **No preflight checks** — Dirty worktree, unpushed commits, etc. not validated | High | ✅ 42 preflight checks |
 | **No dry-run for publish** — Can only test by actually publishing | High | ✅ `--dry-run` on all commands |
 | **Sequential publishing** — No parallelism within dependency levels | Medium | ✅ Concurrent publish with configurable parallelism |
 | **No provenance** — `--provenance=false` hardcoded | Medium | ✅ `--provenance` flag on `PnpmBackend.publish()` + `WorkspaceConfig` |
@@ -575,7 +575,7 @@ are added via plugins.
 - ✅ Polyglot out-of-the-box (Python, JS, Go, Rust, Java, Dart, Bazel) — no plugins needed. Kotlin, Swift, Ruby, .NET, PHP planned.
 - ✅ Monorepo-native with dependency graph — release-it needs `@release-it-plugins/workspaces` and manual `@release-it/bumper` config per package.
 - ✅ Topological publish ordering — release-it publishes in hardcoded order.
-- ✅ 34 workspace health checks + auto-fix — no equivalent.
+- ✅ 42 workspace health checks + auto-fix — no equivalent.
 - ✅ Rollback command — no equivalent.
 - ✅ Conventional commits built-in — release-it needs a plugin.
 - ✅ Changelog built-in — release-it's default is raw `git log`.
@@ -609,7 +609,7 @@ Releasekit's monorepo support is **automatic**:
 1. Auto-discovers all packages via workspace backend.
 2. Builds dependency graph, publishes in topological order.
 3. Internal dependency versions propagated automatically via BFS.
-4. 34 health checks catch misconfigurations before publish.
+4. 42 health checks catch misconfigurations before publish.
 
 ---
 
@@ -760,7 +760,7 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Changesets** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
 | **Dep graph** | ✅ | Partial | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Topo publish** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Health checks** | ✅ (34) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Health checks** | ✅ (42) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Auto-fix** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Multi-forge** | ✅ GH/GL/BB | GitHub only | GH/GL/BB | GH/GL/BB | GH/GL | GitHub only | ❌ | GH/Gitea | GitHub only |
 | **Pre-release** | ✅ | Partial | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -794,7 +794,7 @@ after_tag = ["echo 'Tagged ${version}'"]
 
 ## 10. IMPLEMENTATION STATUS
 
-### Completed (40 items)
+### Completed (47 items)
 
 1. ✅ **pnpm workspace publish pipeline** — `PnpmBackend` + `NpmRegistry`.
 2. ✅ **Revert commit handling** — Per-level bump counters with revert cancellation.
@@ -836,6 +836,13 @@ after_tag = ["echo 'Tagged ${version}'"]
 38. ✅ **Aho-Corasick word filter** — `_wordfilter.py` with O(n) trie-based multi-pattern matching, word-boundary semantics, exact + prefix/stem matches (2026-02-16).
 39. ✅ **Custom blocklist configuration** — `ai.blocklist_file` config option merges project-specific blocked words with built-in list, cached by resolved path (2026-02-16).
 40. ✅ **Multi-ecosystem check backends** — `DartCheckBackend`, `GoCheckBackend`, `JavaCheckBackend`, `JsCheckBackend`, `RustCheckBackend` with per-ecosystem auto-fixers (2026-02-16).
+41. ✅ **License compatibility with transitive deps** — `_check_license_compatibility` resolves full transitive dependency tree from `uv.lock` via `LockGraph` BFS (2026-02-17).
+42. ✅ **Dual-license OR choice enforcement** — `_check_dual_license_choice` flags SPDX `OR` expressions without a documented choice in `[license.choices]` config (2026-02-17).
+43. ✅ **Patent clause flagging** — `_check_patent_clauses` warns about deps with patent grant/retaliation clauses, data-driven from `licenses.toml` `patent_grant`/`patent_retaliation` fields (2026-02-17).
+44. ✅ **License text completeness** — `_check_license_text_completeness` verifies LICENSE file content matches declared SPDX ID (2026-02-17).
+45. ✅ **NOTICE file generation** — `generate_notice_file` + `fix_missing_notice` with transitive dep attribution from lockfile (2026-02-17).
+46. ✅ **Async LICENSE file fetching** — `fix_missing_license_files` fetches LICENSE text from SPDX list and GitHub for packages missing them (2026-02-17).
+47. ✅ **License graph database** — 140+ licenses in `licenses.toml` with `patent_grant`/`patent_retaliation` boolean fields, queried via `LicenseGraph` (2026-02-17).
 
 ### Remaining
 

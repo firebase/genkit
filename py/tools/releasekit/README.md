@@ -51,7 +51,7 @@ implementation plan.
 | 📦 Changeset files | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | 🔀 Dependency graph | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | 📊 Topo-sorted publish | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| 🩺 Health checks (35) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| 🩺 Health checks (42) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🔧 Auto-fix (`--fix`) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 🏭 Multi-forge | ✅ GH/GL/BB | ❌ GH | ✅ GH/GL/BB | ✅ GH/GL | ❌ GH | ❌ | ⚠️ GH/Gitea | ❌ GH |
 | 🏷️ Pre-release | ✅ | ⚠️ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -135,7 +135,7 @@ $ releasekit check
   ✓ naming_convention         All names match pattern
   ✓ metadata_completeness     All required fields present
 
-  35 checks run: 34 passed, 1 warning, 0 errors
+  42 checks run: 41 passed, 1 warning, 0 errors
 ```
 
 <!-- Compliance report -->
@@ -301,7 +301,7 @@ push to the remote with `git push origin --tags`.
 | `publish` | Build and publish packages to registries in dependency order |
 | `prepare` | Bump versions, generate changelogs, open a Release PR |
 | `release` | Tag a merged Release PR and create a GitHub Release |
-| `check` | Run 35 workspace health checks (`--fix` to auto-fix 19 issues) |
+| `check` | Run 42 workspace health checks (`--fix` to auto-fix 22 issues) |
 | `doctor` | Diagnose inconsistent state between workspace, git tags, and platform releases |
 | `validate` | Run validators against release artifacts (provenance, SBOM, attestations) |
 | `compliance` | Evaluate OSPS Baseline compliance (L1–L3) across all ecosystems |
@@ -501,9 +501,9 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 
 ### Health Checks
 
-`releasekit check` runs 35 checks split into two categories:
+`releasekit check` runs 42 checks split into two categories:
 
-**Universal checks** (8 — always run):
+**Universal checks** (15 — always run):
 - `cycles` — circular dependency chains
 - `self_deps` — package depends on itself
 - `orphan_deps` — internal dep not in workspace
@@ -512,6 +512,13 @@ releasekit completion fish > ~/.config/fish/completions/releasekit.fish
 - `stale_artifacts` — leftover .bak or dist/ files
 - `ungrouped_packages` — all packages appear in at least one `[groups]` pattern
 - `lockfile_staleness` — `uv.lock` is in sync with `pyproject.toml`
+- `spdx_headers` — SPDX license identifier headers in source files
+- `license_compatibility` — dependency licenses compatible with project license (with transitive dep resolution via `uv.lock`)
+- `deep_license_scan` — embedded/vendored code license detection
+- `license_changes` — detect license changes between dependency versions
+- `dual_license_choice` — dual-licensed deps (SPDX `OR`) have a documented choice
+- `patent_clauses` — flag deps with patent grant/retaliation clauses (data-driven from `licenses.toml`)
+- `license_text_completeness` — LICENSE file text matches declared SPDX ID
 
 **Language-specific checks** (27 — via `CheckBackend` protocol):
 - `type_markers` — py.typed PEP 561 marker
@@ -574,12 +581,15 @@ Helpers for check authors:
 
 ### Auto-Fixers
 
-`releasekit check --fix` runs 19 auto-fixers:
+`releasekit check --fix` runs 22 auto-fixers:
 
-**Universal fixers** (3):
+**Universal fixers** (6):
 - `fix_missing_readme` — create empty README.md
 - `fix_missing_license` — copy bundled Apache 2.0 LICENSE
 - `fix_stale_artifacts` — delete .bak files and dist/ directories
+- `fix_missing_spdx_headers` — add SPDX license headers to source files (via `addlicense`)
+- `fix_missing_license_files` — async fetch LICENSE text from SPDX list / GitHub for packages missing them
+- `fix_missing_notice` — generate NOTICE file with attribution for all deps (including transitive)
 
 **Python-specific fixers** (16 — via `PythonCheckBackend.run_fixes()`):
 - `fix_publish_classifiers` — sync `Private :: Do Not Upload` with `exclude_publish`
@@ -1015,7 +1025,7 @@ enables multi-ecosystem support:
 
 ## Testing
 
-The test suite has **3,500+ tests** across 110+ test files:
+The test suite has **4,500+ tests** across 137 test files:
 
 ```bash
 # Run all tests

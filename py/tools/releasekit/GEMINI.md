@@ -282,6 +282,7 @@
   | `py/bin/fix_classifiers.py` | Missing `Typing :: Typed` and `License :: OSI Approved` classifiers in `pyproject.toml` | `python py/bin/fix_classifiers.py` |
   | `py/bin/fix_inline_imports.py` | In-function imports → moves them to top of file (AST-based) | `python py/bin/fix_inline_imports.py <dir_or_file>` |
   | `py/bin/fix_missing_test_docstrings.py` | Missing docstrings on test methods and private functions (D102/D103) | `python py/bin/fix_missing_test_docstrings.py <dir_or_file>` |
+  | `py/bin/fix_missing_class_docstrings.py` | Missing docstrings on test classes (D101) | `python py/bin/fix_missing_class_docstrings.py <dir_or_file>` |
   | `py/bin/fix_package_metadata.py` | Missing keywords and `project.urls` in plugin `pyproject.toml` files | `python py/bin/fix_package_metadata.py` |
 
   **Workflow**: Run `ruff check --fix` first (handles unused imports, formatting,

@@ -35,6 +35,7 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import random
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Final
@@ -52,6 +53,7 @@ DEFAULT_TIMEOUT: Final[float] = 30.0
 # Retry configuration for transient errors.
 MAX_RETRIES: Final[int] = 3
 RETRY_BACKOFF_BASE: Final[float] = 1.0
+RETRY_JITTER_MAX: Final[float] = 0.5
 
 # HTTP status codes that trigger a retry.
 RETRYABLE_STATUS_CODES: Final[frozenset[int]] = frozenset({429, 500, 502, 503, 504})
@@ -131,26 +133,26 @@ async def request_with_retry(
             if response.status_code not in RETRYABLE_STATUS_CODES:
                 return response
 
-            # Retryable status code -- backoff and retry.
-            delay = backoff_base * (2**attempt)
+            # Retryable status code -- backoff with jitter and retry.
+            delay = backoff_base * (2**attempt) + random.uniform(0, RETRY_JITTER_MAX)
             log.warning(
                 'http_retry',
                 url=url,
                 status=response.status_code,
                 attempt=attempt + 1,
-                delay=delay,
+                delay=round(delay, 3),
             )
             await asyncio.sleep(delay)
 
         except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as exc:
             last_exception = exc
-            delay = backoff_base * (2**attempt)
+            delay = backoff_base * (2**attempt) + random.uniform(0, RETRY_JITTER_MAX)
             log.warning(
                 'http_retry_error',
                 url=url,
                 error=str(exc),
                 attempt=attempt + 1,
-                delay=delay,
+                delay=round(delay, 3),
             )
             if attempt < max_retries:
                 await asyncio.sleep(delay)
@@ -174,6 +176,8 @@ __all__ = [
     'DEFAULT_TIMEOUT',
     'MAX_RETRIES',
     'RETRYABLE_STATUS_CODES',
+    'RETRY_BACKOFF_BASE',
+    'RETRY_JITTER_MAX',
     'http_client',
     'request_with_retry',
 ]

@@ -59,6 +59,7 @@ import fnmatch
 import xml.etree.ElementTree as ET  # noqa: N817, S405
 from pathlib import Path
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._edn import EdnReader, parse_edn
 from releasekit.backends.workspace._io import read_file, write_file
 from releasekit.backends.workspace._types import Package
@@ -761,6 +762,21 @@ class ClojureWorkspace:
                 manifest=str(manifest_path),
                 dep=dep_name,
             )
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect license from Clojure manifests.
+
+        ``project.clj`` may contain ``:license {"name" "..."}`` but
+        parsing it reliably is complex. Returns empty so the caller
+        falls back to LICENSE file scanning.
+        """
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
 
 def _rewrite_pom_dep_version_text(text: str, dep_name: str, new_version: str) -> str:

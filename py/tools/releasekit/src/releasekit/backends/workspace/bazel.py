@@ -65,6 +65,7 @@ import fnmatch
 import re
 from pathlib import Path
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._io import read_file, write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.logging import get_logger
@@ -391,6 +392,19 @@ class BazelWorkspace:
                 new=new_version,
             )
         return old_version
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Bazel has no standard manifest-level license field.
+
+        Returns empty so the caller falls back to LICENSE file scanning.
+        """
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
 
 __all__ = [

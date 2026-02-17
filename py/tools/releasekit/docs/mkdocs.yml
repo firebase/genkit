@@ -192,6 +192,7 @@ nav:
       - Changelog Generation: internals/changelog.md
       - Release Notes: internals/release-notes.md
       - Tags & Releases: internals/tags.md
+      - License Data Verification: internals/license-data.md
   - Planning:
       - Roadmap: roadmap.md
       - Competitive Gap Analysis: competitive-gap-analysis.md

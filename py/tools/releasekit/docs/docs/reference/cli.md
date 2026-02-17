@@ -92,8 +92,8 @@ Runs all workspace validation checks. Returns exit code 1 if any check fails.
 |------|---------|-------------|
 | `--fix` | `false` | Auto-fix issues that can be fixed (e.g. `Private :: Do Not Upload` classifiers) |
 
-Runs 35 checks (8 universal + 27 language-specific via `CheckBackend`
-protocol). With `--fix`, auto-fixes 19 issues. See the
+Runs 42 checks (15 universal + 27 language-specific via `CheckBackend`
+protocol). With `--fix`, auto-fixes 22 issues. See the
 [Health Checks](../guides/health-checks.md) guide for the full list.
 
 ## `publish` — Build & Publish

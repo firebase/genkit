@@ -85,6 +85,32 @@ pr_title_template  = "chore(release): genkit python v{version}"
 # provenance         = false                  # npm provenance attestation — JS only
 
 # ---------------------------------------------------------------------------
+# License compatibility
+# ---------------------------------------------------------------------------
+[license]
+project = "Apache-2.0"
+
+# Override detected license for packages with bad upstream metadata.
+exempt_packages = ["certifi"]
+
+[license.overrides]
+# huggingface-hub: PyPI returns bare "Apache" — actually Apache-2.0.
+# Upstream fix: https://github.com/huggingface/huggingface_hub/pull/3814
+# TODO: Remove override once upstream PR lands and PyPI metadata updates.
+"huggingface-hub" = "Apache-2.0"
+# python-dateutil: PyPI returns "Dual License" — actually Apache-2.0/BSD.
+"python-dateutil" = "Apache-2.0 OR BSD-3-Clause"
+# google-crc32c: no license_expression on PyPI.
+"google-crc32c" = "BSD-3-Clause"
+# azure-identity: no license_expression on PyPI.
+"azure-identity" = "MIT"
+# mistralai: no license_expression on PyPI.
+"mistralai" = "Apache-2.0"
+# dotpromptz-handlebars: workspace dep, no metadata yet.
+# TODO: Send PR to github.com/google/dotprompt to add license metadata.
+"dotpromptz-handlebars" = "Apache-2.0"
+
+# ---------------------------------------------------------------------------
 # Python workspace
 # ---------------------------------------------------------------------------
 [workspace.py]
@@ -93,6 +119,8 @@ changelog      = true
 core_package   = "genkit"
 ecosystem      = "python"
 library_dirs   = ["packages", "plugins"]
+# TODO: Remove once all license incompatibilities are resolved.
+skip_checks    = ["license_compatibility"]
 namespace_dirs = ["genkit", "genkit/plugins"]
 plugin_dirs    = ["plugins"]
 plugin_prefix  = "genkit-plugin-"

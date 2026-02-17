@@ -54,6 +54,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from releasekit._types import DetectedLicense
 from releasekit.backends.workspace._io import read_file as _read_file, write_file as _write_file
 from releasekit.backends.workspace._types import Package
 from releasekit.errors import E, ReleaseKitError
@@ -318,6 +319,57 @@ class PnpmWorkspace:
         if found:
             new_text = json.dumps(data, indent=2, ensure_ascii=False) + '\n'
             await _write_file(manifest_path, new_text)
+
+    async def detect_license(
+        self,
+        pkg_path: Path,
+        pkg_name: str = '',
+    ) -> DetectedLicense:
+        """Detect license from ``package.json``."""
+        if not pkg_name:
+            pkg_name = pkg_path.name
+        pj = pkg_path / 'package.json'
+        if not pj.is_file():
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+        try:
+            text = await _read_file(pj)
+            data = _parse_json(text, pj)
+        except Exception:  # noqa: BLE001
+            return DetectedLicense(value='', source='', package_name=pkg_name)
+
+        # Standard: "license": "MIT" or "license": "MIT OR Apache-2.0"
+        lic = data.get('license')
+        if isinstance(lic, str) and lic.strip():
+            return DetectedLicense(
+                value=lic.strip(),
+                source='package.json',
+                package_name=pkg_name,
+            )
+
+        # Legacy: "license": { "type": "MIT" }
+        if isinstance(lic, dict):
+            lic_type = lic.get('type', '')
+            if isinstance(lic_type, str) and lic_type.strip():
+                return DetectedLicense(
+                    value=lic_type.strip(),
+                    source='package.json license.type',
+                    package_name=pkg_name,
+                )
+
+        # Array form (deprecated): "licenses": [{"type": "MIT"}]
+        licenses = data.get('licenses')
+        if isinstance(licenses, list) and licenses:
+            first = licenses[0]
+            if isinstance(first, dict):
+                lic_type = first.get('type', '')
+                if isinstance(lic_type, str) and lic_type.strip():
+                    return DetectedLicense(
+                        value=lic_type.strip(),
+                        source='package.json licenses[0].type',
+                        package_name=pkg_name,
+                    )
+
+        return DetectedLicense(value='', source='', package_name=pkg_name)
 
     def _expand_member_globs(
         self,
