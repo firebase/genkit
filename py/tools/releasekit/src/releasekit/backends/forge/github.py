@@ -288,15 +288,19 @@ class GitHubCLIBackend:
         """
         # Ensure all labels exist before adding them to the PR.
         # gh pr edit --add-label fails if the label doesn't exist.
-        for label in labels:
-            await asyncio.to_thread(
-                self._gh,
-                'label',
-                'create',
-                label,
-                '--force',
-                dry_run=dry_run,
+        await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    self._gh,
+                    'label',
+                    'create',
+                    label,
+                    '--force',
+                    dry_run=dry_run,
+                )
+                for label in labels
             )
+        )
 
         cmd_parts = ['pr', 'edit', str(pr_number)]
         for label in labels:

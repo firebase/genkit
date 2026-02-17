@@ -110,6 +110,53 @@ logger = get_logger(__name__)
 # Semver-ish pattern: digits.digits.digits with optional pre-release/build.
 _SEMVER_RE = re.compile(r'(\d+\.\d+\.\d+(?:[-+].+)?)')
 
+# Characters and patterns forbidden in git ref names (see git-check-ref-format).
+_INVALID_TAG_PATTERNS: list[tuple[str, str]] = [
+    ('//', 'contains consecutive slashes'),
+    ('..', 'contains ..'),
+    (' ', 'contains space'),
+    ('~', 'contains ~'),
+    ('^', 'contains ^'),
+    (':', 'contains :'),
+    ('\\', 'contains a backslash'),
+    ('@{', 'contains an invalid sequence "@{"'),
+    ('/.', 'contains an invalid sequence "/.", path component starts with dot'),
+]
+
+
+def validate_tag_name(tag: str) -> str | None:
+    """Validate that a tag name is a valid git ref.
+
+    Returns ``None`` if valid, or an error description if invalid.
+    This catches common format-string bugs (e.g. empty ``{label}``
+    producing a leading ``/``) before any git operations happen.
+
+    Args:
+        tag: The tag name to validate.
+
+    Returns:
+        ``None`` if the tag is valid, otherwise a human-readable
+        error message explaining why it is invalid.
+    """
+    if not tag:
+        return 'tag name is empty'
+    if tag == '@':
+        return 'tag name cannot be "@"'
+    if tag.startswith('.'):
+        return f'starts with . (got {tag!r})'
+    if tag.startswith('/'):
+        return f'starts with / (got {tag!r}) — likely a missing {{label}} value'
+    if tag.endswith('/'):
+        return f'ends with / (got {tag!r})'
+    if tag.endswith('.'):
+        return f'ends with . (got {tag!r})'
+    if tag.endswith('.lock'):
+        return f'ends with .lock (got {tag!r})'
+    for pattern, desc in _INVALID_TAG_PATTERNS:
+        if pattern in tag:
+            return f'{desc} (got {tag!r})'
+    return None
+
 
 @dataclass(frozen=True)
 class TagResult:
@@ -292,54 +339,53 @@ async def create_tags(
         return result
 
     umbrella_version = resolve_umbrella_version(bumped, core_package=core_package)
-    umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
+    umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version, label=label)
 
+    # ── Build a tag plan: generate all tag names once, validate, then create. ──
+    # Each entry is (tag_name, message, package_name, is_secondary).
+    tag_plan: list[tuple[str, str, str, bool]] = []
     for pkg in bumped:
-        # Primary tag.
-        tag_name = format_tag(tag_format, name=pkg.name, version=pkg.new_version)
-        tag_message = f'Release {pkg.name} v{pkg.new_version}'
+        primary = format_tag(tag_format, name=pkg.name, version=pkg.new_version, label=label)
+        msg = f'Release {pkg.name} v{pkg.new_version}'
+        tag_plan.append((primary, msg, pkg.name, False))
 
+        if secondary_tag_format:
+            sec = format_tag(secondary_tag_format, name=pkg.name, version=pkg.new_version, label=label)
+            if sec != primary:  # Avoid duplicate if formats resolve identically.
+                tag_plan.append((sec, msg, pkg.name, True))
+
+    # ── Fail-fast: validate all planned tag names before creating any. ──
+    # This prevents the bug where silently-malformed tags (e.g. /genkit-v0.6.0
+    # from an empty {label}) are created locally, "pushed" without error, but
+    # never actually reach the remote because git rejects invalid ref names.
+    all_planned = [umbrella_tag] + [t[0] for t in tag_plan]
+    validation_errors: list[str] = []
+    for planned in all_planned:
+        err = validate_tag_name(planned)
+        if err is not None:
+            validation_errors.append(f'{planned}: {err}')
+
+    if validation_errors:
+        msg = f'{len(validation_errors)} invalid tag name(s):\n' + '\n'.join(f'  - {e}' for e in validation_errors)
+        logger.error('tag_validation_failed', errors=validation_errors)
+        raise ValueError(msg)
+
+    # ── Create tags from the plan. ──
+    for tag_name, tag_message, package_name, is_secondary in tag_plan:
         if await vcs.tag_exists(tag_name):
             result.skipped.append(tag_name)
-            logger.warning(
-                'tag_exists_skip',
-                tag=tag_name,
-                package=pkg.name,
-            )
+            event = 'secondary_tag_exists_skip' if is_secondary else 'tag_exists_skip'
+            logger.warning(event, tag=tag_name, package=package_name)
         else:
             try:
                 await vcs.tag(tag_name, message=tag_message, dry_run=dry_run)
                 result.created.append(tag_name)
-                logger.info(
-                    'tag_created',
-                    tag=tag_name,
-                    package=pkg.name,
-                    version=pkg.new_version,
-                )
+                event = 'secondary_tag_created' if is_secondary else 'tag_created'
+                logger.info(event, tag=tag_name, package=package_name)
             except Exception as exc:
                 result.failed[tag_name] = str(exc)
-                logger.error(
-                    'tag_create_failed',
-                    tag=tag_name,
-                    package=pkg.name,
-                    error=str(exc),
-                )
-
-        # Secondary tag (dual-tagging for scoped npm tags, etc.).
-        if secondary_tag_format:
-            sec_tag = format_tag(secondary_tag_format, name=pkg.name, version=pkg.new_version)
-            if sec_tag != tag_name:  # Avoid duplicate if formats resolve identically.
-                if await vcs.tag_exists(sec_tag):
-                    result.skipped.append(sec_tag)
-                    logger.warning('secondary_tag_exists_skip', tag=sec_tag, package=pkg.name)
-                else:
-                    try:
-                        await vcs.tag(sec_tag, message=tag_message, dry_run=dry_run)
-                        result.created.append(sec_tag)
-                        logger.info('secondary_tag_created', tag=sec_tag, package=pkg.name)
-                    except Exception as exc:
-                        result.failed[sec_tag] = str(exc)
-                        logger.error('secondary_tag_create_failed', tag=sec_tag, error=str(exc))
+                event = 'secondary_tag_create_failed' if is_secondary else 'tag_create_failed'
+                logger.error(event, tag=tag_name, package=package_name, error=str(exc))
 
     umbrella_message = f'Release v{umbrella_version} ({len(bumped)} packages)'
 
@@ -585,4 +631,5 @@ __all__ = [
     'delete_tags',
     'format_tag',
     'parse_tag',
+    'validate_tag_name',
 ]

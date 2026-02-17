@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.tags import TagResult, create_tags, delete_tags, format_tag, parse_tag
+from releasekit.tags import TagResult, create_tags, delete_tags, format_tag, parse_tag, validate_tag_name
 from releasekit.versions import PackageVersion, ReleaseManifest
 from tests._fakes import OK as _OK, FakeForge as _BaseFakeForge, FakeVCS as _BaseFakeVCS
 
@@ -192,6 +192,116 @@ class TestFormatTag:
         result = format_tag('py/{name}@{version}', name='genkit', version='1.0.0')
         if result != 'py/genkit@1.0.0':
             raise AssertionError(f'Expected py/genkit@1.0.0, got {result}')
+
+    def test_label_placeholder(self) -> None:
+        """Label placeholder is substituted in tag format."""
+        result = format_tag('{label}/{name}-v{version}', name='genkit', version='0.5.0', label='py')
+        if result != 'py/genkit-v0.5.0':
+            raise AssertionError(f'Expected py/genkit-v0.5.0, got {result}')
+
+    def test_empty_label_produces_leading_slash(self) -> None:
+        """Empty label produces a leading slash (the bug we fixed).
+
+        This documents the low-level behavior of format_tag: with an
+        empty label, ``{label}/`` resolves to ``/``.  The fix is in
+        create_tags which must always pass ``label=`` through.
+        """
+        result = format_tag('{label}/{name}-v{version}', name='genkit', version='0.5.0', label='')
+        if result != '/genkit-v0.5.0':
+            raise AssertionError(f'Expected /genkit-v0.5.0, got {result}')
+
+
+class TestValidateTagName:
+    """Tests for validate_tag_name function."""
+
+    def test_valid_simple_tag(self) -> None:
+        """Simple tag name is valid."""
+        assert validate_tag_name('genkit-v0.5.0') is None
+
+    def test_valid_tag_with_slash(self) -> None:
+        """Tag with slash in the middle is valid."""
+        assert validate_tag_name('py/genkit-v0.5.0') is None
+
+    def test_empty_tag(self) -> None:
+        """Empty tag is invalid."""
+        err = validate_tag_name('')
+        assert err is not None
+        assert 'empty' in err
+
+    def test_leading_slash(self) -> None:
+        """Tag starting with / is invalid."""
+        err = validate_tag_name('/genkit-v0.5.0')
+        assert err is not None
+        assert 'starts with /' in err
+
+    def test_trailing_slash(self) -> None:
+        """Tag ending with / is invalid."""
+        err = validate_tag_name('genkit-v0.5.0/')
+        assert err is not None
+        assert 'ends with /' in err
+
+    def test_double_dot(self) -> None:
+        """Tag with .. is invalid."""
+        err = validate_tag_name('genkit..v0.5.0')
+        assert err is not None
+        assert '..' in err
+
+    def test_space(self) -> None:
+        """Tag with space is invalid."""
+        err = validate_tag_name('genkit v0.5.0')
+        assert err is not None
+        assert 'space' in err
+
+    def test_tilde(self) -> None:
+        """Tag with ~ is invalid."""
+        err = validate_tag_name('genkit~v0.5.0')
+        assert err is not None
+        assert '~' in err
+
+
+class TestCreateTagsFailFast:
+    """Tests for fail-fast tag validation in create_tags."""
+
+    @pytest.mark.asyncio
+    async def test_fails_fast_on_invalid_tags(self) -> None:
+        """create_tags raises ValueError before creating any tags when names are invalid.
+
+        This is the exact scenario from the v0.6.0 release failure:
+        ``{label}`` was empty, producing tags like ``/genkit-v0.6.0``.
+        """
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS()
+
+        with pytest.raises(ValueError, match='invalid tag name'):
+            await create_tags(
+                manifest=manifest,
+                vcs=vcs,
+                tag_format='{label}/{name}-v{version}',
+                umbrella_tag_format='{label}/v{version}',
+                label='',  # Empty label triggers the bug.
+            )
+
+        # No tags should have been created.
+        assert not vcs.created_tags
+        assert not vcs.push_calls
+
+    @pytest.mark.asyncio
+    async def test_valid_tags_pass_validation(self) -> None:
+        """Valid tag names pass validation and tags are created normally."""
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{label}/{name}-v{version}',
+            umbrella_tag_format='{label}/v{version}',
+            label='py',
+        )
+
+        assert result.ok
+        assert 'py/genkit-v0.5.0' in result.created
+        assert 'py/v0.5.0' in result.created
 
 
 class TestParseTag:
@@ -389,6 +499,57 @@ class TestCreateTags:
             raise AssertionError(f'Expected py/genkit@0.5.0 created: {result.created}')
         if 'py@0.5.0' not in result.created:
             raise AssertionError(f'Expected py@0.5.0 created: {result.created}')
+
+    @pytest.mark.asyncio
+    async def test_label_placeholder_in_tag_format(self) -> None:
+        """Label placeholder is substituted in all tag formats.
+
+        Regression test for a bug where ``{label}`` resolved to an empty
+        string because ``label`` was not forwarded to ``format_tag()``,
+        producing tags like ``/genkit-v0.5.0`` instead of
+        ``py/genkit-v0.5.0``.
+        """
+        manifest = _make_manifest('genkit', 'genkit-plugin-foo')
+        vcs = FakeVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{label}/{name}-v{version}',
+            umbrella_tag_format='{label}/v{version}',
+            label='py',
+        )
+
+        if 'py/genkit-v0.5.0' not in result.created:
+            raise AssertionError(f'Expected py/genkit-v0.5.0, got {result.created}')
+        if 'py/genkit-plugin-foo-v0.5.0' not in result.created:
+            raise AssertionError(f'Expected py/genkit-plugin-foo-v0.5.0, got {result.created}')
+        if 'py/v0.5.0' not in result.created:
+            raise AssertionError(f'Expected py/v0.5.0, got {result.created}')
+
+        # Ensure no tags have a leading slash (the old bug symptom).
+        for tag in result.created:
+            if tag.startswith('/'):
+                raise AssertionError(f'Tag should not start with /: {tag}')
+
+    @pytest.mark.asyncio
+    async def test_label_placeholder_in_secondary_tag(self) -> None:
+        """Label placeholder is substituted in secondary tag format."""
+        manifest = _make_manifest('genkit')
+        vcs = FakeVCS()
+
+        result = await create_tags(
+            manifest=manifest,
+            vcs=vcs,
+            tag_format='{name}-v{version}',
+            secondary_tag_format='{label}/{name}@{version}',
+            label='py',
+        )
+
+        if 'genkit-v0.5.0' not in result.created:
+            raise AssertionError(f'Expected primary tag, got {result.created}')
+        if 'py/genkit@0.5.0' not in result.created:
+            raise AssertionError(f'Expected py/genkit@0.5.0, got {result.created}')
 
 
 class TestCreateTagsWithForge:

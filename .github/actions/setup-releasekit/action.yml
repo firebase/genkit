@@ -160,10 +160,11 @@ runs:
         git config user.email "${{ inputs.git-user-email }}"
 
     # ── 8. Restore clean worktree ────────────────────────────────────
-    # uv sync may regenerate uv.lock (e.g. --no-dev vs full install),
-    # leaving the worktree dirty. The publish preflight requires a
-    # clean worktree (RK-PREFLIGHT-DIRTY-WORKTREE), so reset any
-    # setup-induced changes.
+    # uv sync may regenerate uv.lock (e.g. --no-dev vs full install)
+    # or create untracked files, leaving the worktree dirty. The
+    # publish preflight requires a clean worktree
+    # (RK-PREFLIGHT-DIRTY-WORKTREE), so hard-reset tracked files and
+    # clean untracked files/directories.
     - name: Restore clean worktree
       shell: bash
-      run: git checkout -- .
+      run: git reset --hard && git clean -fd
