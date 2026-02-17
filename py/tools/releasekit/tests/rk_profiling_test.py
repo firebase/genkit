@@ -23,9 +23,7 @@ import time
 
 from releasekit.profiling import PipelineProfile, StepRecord, StepTimer
 
-# ---------------------------------------------------------------------------
 # StepRecord
-# ---------------------------------------------------------------------------
 
 
 class TestStepRecord:
@@ -62,15 +60,14 @@ class TestStepRecord:
             pass
 
 
-# ---------------------------------------------------------------------------
 # PipelineProfile
-# ---------------------------------------------------------------------------
 
 
 class TestPipelineProfile:
     """Tests for PipelineProfile."""
 
     def _make_records(self) -> list[StepRecord]:
+        """Make records."""
         return [
             StepRecord(name='step_a', start=10.0, end=11.0, duration=1.0),
             StepRecord(name='step_b', start=11.0, end=13.0, duration=2.0),
@@ -185,9 +182,7 @@ class TestPipelineProfile:
         assert 'Slowest:' in output
 
 
-# ---------------------------------------------------------------------------
 # StepTimer
-# ---------------------------------------------------------------------------
 
 
 class TestStepTimer:

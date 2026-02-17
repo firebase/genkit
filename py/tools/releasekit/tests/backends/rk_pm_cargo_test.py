@@ -143,13 +143,13 @@ class TestCargoBackendPublish:
         assert '--dry-run' not in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_with_index_url(self, tmp_path: Path) -> None:
+    async def test_publish_with_registry_url(self, tmp_path: Path) -> None:
         """Test publish with index url."""
         backend = CargoBackend(workspace_root=tmp_path)
         with patch('releasekit.backends.pm.cargo.run_command', side_effect=_fake_run_command):
             result = await backend.publish(
                 tmp_path / 'crate',
-                index_url='https://my-registry.example.com',
+                registry_url='https://my-registry.example.com',
                 dry_run=True,
             )
         assert '--index' in result.command
@@ -257,7 +257,7 @@ class TestCargoBackendResolveCheck:
         result = await backend.resolve_check(
             'serde',
             '1.0.200',
-            index_url='https://my-index.example.com',
+            registry_url='https://my-index.example.com',
             dry_run=True,
         )
         assert '--index' in result.command

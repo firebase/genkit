@@ -43,9 +43,6 @@ build-backend = "hatchling.build"
 """
 
 
-# ── SourceContext ──
-
-
 class TestSourceContext:
     """Tests for the SourceContext dataclass."""
 
@@ -97,9 +94,6 @@ class TestSourceContext:
             raise AssertionError('Should be frozen')
         except AttributeError:
             pass
-
-
-# ── find_key_line ──
 
 
 class TestFindKeyLine:
@@ -170,9 +164,6 @@ class TestFindKeyLine:
             raise AssertionError(f'Expected line 1, got {line}')
 
 
-# ── read_source_snippet ──
-
-
 class TestReadSourceSnippet:
     """Tests for read_source_snippet() file excerpt reader."""
 
@@ -231,9 +222,6 @@ class TestReadSourceSnippet:
             raise AssertionError(f'Expected 1 line, got {len(snippet)}')
         if snippet[0] != (2, 'line2'):
             raise AssertionError(f'Expected (2, "line2"), got {snippet[0]}')
-
-
-# ── PreflightResult with SourceContext ──
 
 
 class TestPreflightResultSourceContext:

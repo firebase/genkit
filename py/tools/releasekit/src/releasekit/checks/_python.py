@@ -37,6 +37,7 @@ from releasekit.checks._python_fixers import (
     fix_changelog_url,
     fix_deprecated_classifiers,
     fix_duplicate_dependencies,
+    fix_keywords_and_urls,
     fix_license_classifier_mismatch,
     fix_namespace_init,
     fix_placeholder_urls,
@@ -46,6 +47,7 @@ from releasekit.checks._python_fixers import (
     fix_requires_python,
     fix_self_dependencies,
     fix_type_markers,
+    fix_typing_classifier,
     fix_version_field,
 )
 from releasekit.distro import (
@@ -1346,6 +1348,117 @@ class PythonCheckBackend:
         else:
             result.add_pass(check_name)
 
+    def check_typing_classifier(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check that publishable packages have ``Typing :: Typed`` and ``License :: OSI Approved`` classifiers.
+
+        Missing ``Typing :: Typed`` means PyPI won't show the package as
+        typed, and tools like ``mypy`` / ``pyright`` won't discover
+        inline type stubs.  Missing ``License :: OSI Approved`` makes
+        the package harder to find via PyPI's license filter.
+        """
+        check_name = 'typing_classifier'
+        issues: list[str] = []
+        locations: list[str] = []
+
+        for pkg in packages:
+            if not pkg.is_publishable:
+                continue
+            doc = self._parse_pyproject(pkg)
+            if doc is None:
+                continue
+            project = doc.get('project')
+            if not isinstance(project, dict):
+                continue
+            classifiers = project.get('classifiers', [])
+            if not isinstance(classifiers, list):
+                continue
+
+            missing: list[str] = []
+            has_typing = any(isinstance(c, str) and c == 'Typing :: Typed' for c in classifiers)
+            if not has_typing:
+                missing.append('Typing :: Typed')
+            has_license_osi = any(isinstance(c, str) and c.startswith('License :: OSI Approved') for c in classifiers)
+            if not has_license_osi:
+                missing.append('License :: OSI Approved')
+
+            if missing:
+                issues.append(f'{pkg.name}: missing {" / ".join(missing)}')
+                locations.append(str(pkg.manifest_path))
+
+        if issues:
+            result.add_warning(
+                check_name,
+                f'Missing classifiers: {"; ".join(issues)}',
+                hint='Run `releasekit check --fix` to add Typing :: Typed and License :: OSI Approved classifiers.',
+                context=locations,
+            )
+        else:
+            result.add_pass(check_name)
+
+    def check_keywords_and_urls(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check that publishable packages have ``keywords`` and ``[project.urls]``.
+
+        PyPI uses ``keywords`` for search ranking and ``[project.urls]``
+        to render sidebar links (Homepage, Repository, Bug Tracker).
+        Missing entries reduce discoverability and user trust.
+        """
+        check_name = 'keywords_and_urls'
+        issues: list[str] = []
+        locations: list[str | SourceContext] = []
+
+        for pkg in packages:
+            if not pkg.is_publishable:
+                continue
+            doc, content = self._parse_pyproject_with_content(pkg)
+            if doc is None:
+                continue
+            project = doc.get('project')
+            if not isinstance(project, dict):
+                continue
+
+            missing_parts: list[str] = []
+
+            if 'keywords' not in project or not project['keywords']:
+                missing_parts.append('keywords')
+
+            urls_val = project.get('urls', {})
+            urls = urls_val if isinstance(urls_val, dict) else {}
+            if not urls:
+                missing_parts.append('[project.urls]')
+            else:
+                existing_lower = {k.lower() for k in urls}
+                for expected in ('homepage', 'repository', 'bug tracker'):
+                    if expected not in existing_lower:
+                        missing_parts.append(f'urls.{expected}')
+
+            if missing_parts:
+                issues.append(f'{pkg.name}: missing {", ".join(missing_parts)}')
+                locations.append(
+                    SourceContext(
+                        path=str(pkg.manifest_path),
+                        line=find_key_line(content, '', section='project') or 1,
+                        label=f'missing: {", ".join(missing_parts)}',
+                    )
+                )
+
+        if issues:
+            result.add_warning(
+                check_name,
+                f'Missing keywords / project.urls: {"; ".join(issues)}',
+                hint='Run `releasekit check --fix` to add keywords and standard project.urls entries.',
+                context=locations,
+            )
+        else:
+            result.add_pass(check_name)
+
     def check_distro_deps(
         self,
         packages: list[Package],
@@ -1452,6 +1565,15 @@ class PythonCheckBackend:
         changes.extend(fix_placeholder_urls(packages, dry_run=dry_run))
         changes.extend(fix_license_classifier_mismatch(packages, dry_run=dry_run))
         changes.extend(fix_self_dependencies(packages, dry_run=dry_run))
+        changes.extend(fix_typing_classifier(packages, dry_run=dry_run))
+        changes.extend(
+            fix_keywords_and_urls(
+                packages,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                dry_run=dry_run,
+            )
+        )
 
         # Distro packaging fixers.
         for pkg in packages:

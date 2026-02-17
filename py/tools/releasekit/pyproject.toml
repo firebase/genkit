@@ -51,6 +51,7 @@ dependencies = [
   "pypi-attestations>=0.0.20",                # PEP 740 attestation generation + verification
   "sigstore>=3.0.0",                          # Keyless artifact signing via Sigstore OIDC
   "strenum>=0.4.15; python_version < '3.11'", # StrEnum backport for 3.10
+  "genkit",                                   # Genkit AI SDK (core dep for AI features)
 ]
 description = "Release orchestration for polyglot monorepos"
 license = "Apache-2.0"
@@ -58,6 +59,13 @@ name = "releasekit"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
+
+[project.optional-dependencies]
+all-ai       = ["genkit-plugin-ollama", "genkit-plugin-google-genai"]
+anthropic    = ["genkit-plugin-anthropic"]
+google-genai = ["genkit-plugin-google-genai"]
+ollama       = ["genkit-plugin-ollama"]
+vertex-ai    = ["genkit-plugin-vertex-ai"]
 
 [project.scripts]
 releasekit = "releasekit.cli:_main"

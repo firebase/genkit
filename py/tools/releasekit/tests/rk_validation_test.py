@@ -68,8 +68,6 @@ from releasekit.backends.validation.schema import (
 )
 from releasekit.provenance import has_oidc_credential as prov_has_oidc
 
-# ── Helpers ──
-
 
 def _make_jwt(claims: dict, header: dict | None = None) -> str:
     """Create a minimal unsigned JWT for testing."""
@@ -106,13 +104,11 @@ def _make_wrong_issuer_jwt() -> str:
     })
 
 
-# ── ValidationResult ──
-
-
 class TestValidationResult:
     """Tests for ValidationResult dataclass and factory methods."""
 
     def test_passed_factory(self) -> None:
+        """Test passed factory."""
         r = ValidationResult.passed('test.validator', 'All good')
         assert r.ok is True
         assert r.validator_name == 'test.validator'
@@ -120,6 +116,7 @@ class TestValidationResult:
         assert r.severity == 'info'
 
     def test_failed_factory(self) -> None:
+        """Test failed factory."""
         r = ValidationResult.failed('test.validator', 'Bad', hint='Fix it')
         assert r.ok is False
         assert r.message == 'Bad'
@@ -127,57 +124,62 @@ class TestValidationResult:
         assert r.severity == 'error'
 
     def test_warning_factory(self) -> None:
+        """Test warning factory."""
         r = ValidationResult.warning('test.validator', 'Hmm', hint='Consider')
         assert r.ok is True
         assert r.severity == 'warning'
         assert r.hint == 'Consider'
 
     def test_details_default_empty(self) -> None:
+        """Test details default empty."""
         r = ValidationResult.passed('x')
         assert r.details == {}
 
     def test_details_preserved(self) -> None:
+        """Test details preserved."""
         r = ValidationResult.failed('x', 'err', details={'key': 'val'})
         assert r.details == {'key': 'val'}
 
     def test_frozen(self) -> None:
+        """Test frozen."""
         r = ValidationResult.passed('x')
         with pytest.raises(AttributeError):
             r.ok = False  # type: ignore[misc]
-
-
-# ── Validator protocol ──
 
 
 class TestValidatorProtocol:
     """Tests for Validator protocol conformance."""
 
     def test_github_oidc_is_validator(self) -> None:
+        """Test github oidc is validator."""
         assert isinstance(GitHubOIDCValidator(), Validator)
 
     def test_gitlab_oidc_is_validator(self) -> None:
+        """Test gitlab oidc is validator."""
         assert isinstance(GitLabOIDCValidator(), Validator)
 
     def test_circleci_oidc_is_validator(self) -> None:
+        """Test circleci oidc is validator."""
         assert isinstance(CircleCIOIDCValidator(), Validator)
 
     def test_provenance_schema_is_validator(self) -> None:
+        """Test provenance schema is validator."""
         assert isinstance(ProvenanceSchemaValidator(), Validator)
 
     def test_json_schema_is_validator(self) -> None:
+        """Test json schema is validator."""
         assert isinstance(JsonSchemaValidator(schema={}), Validator)
 
     def test_provenance_digest_is_validator(self) -> None:
+        """Test provenance digest is validator."""
         assert isinstance(ProvenanceDigestValidator(), Validator)
-
-
-# ── run_validators / helpers ──
 
 
 class TestRunValidators:
     """Tests for run_validators and helper functions."""
 
     def test_run_validators_collects_results(self) -> None:
+        """Test run validators collects results."""
         v1 = ProvenanceSchemaValidator()
         # Pass a valid minimal statement.
         stmt = {
@@ -198,6 +200,7 @@ class TestRunValidators:
         assert results[0].ok is True
 
     def test_all_passed_true(self) -> None:
+        """Test all passed true."""
         results = [
             ValidationResult.passed('a'),
             ValidationResult.warning('b', 'warn'),
@@ -205,6 +208,7 @@ class TestRunValidators:
         assert all_passed(results) is True
 
     def test_all_passed_false(self) -> None:
+        """Test all passed false."""
         results = [
             ValidationResult.passed('a'),
             ValidationResult.failed('b', 'err'),
@@ -212,6 +216,7 @@ class TestRunValidators:
         assert all_passed(results) is False
 
     def test_errors_only(self) -> None:
+        """Test errors only."""
         results = [
             ValidationResult.passed('a'),
             ValidationResult.failed('b', 'err'),
@@ -222,6 +227,7 @@ class TestRunValidators:
         assert errs[0].validator_name == 'b'
 
     def test_warnings_only(self) -> None:
+        """Test warnings only."""
         results = [
             ValidationResult.passed('a'),
             ValidationResult.failed('b', 'err'),
@@ -232,13 +238,11 @@ class TestRunValidators:
         assert warns[0].validator_name == 'c'
 
 
-# ── JWT helpers ──
-
-
 class TestJWTHelpers:
     """Tests for JWT decoding and claim validation helpers."""
 
     def test_decode_valid_jwt(self) -> None:
+        """Test decode valid jwt."""
         token = _make_jwt({'iss': 'test', 'sub': 'user'})
         claims = _decode_jwt_claims(token)
         assert claims is not None
@@ -246,40 +250,48 @@ class TestJWTHelpers:
         assert claims['sub'] == 'user'
 
     def test_decode_malformed_jwt(self) -> None:
+        """Test decode malformed jwt."""
         assert _decode_jwt_claims('not-a-jwt') is None
         assert _decode_jwt_claims('a.b') is None
         assert _decode_jwt_claims('') is None
 
     def test_decode_invalid_base64(self) -> None:
+        """Test decode invalid base64."""
         assert _decode_jwt_claims('a.!!!invalid!!!.c') is None
 
     def test_check_expiry_valid(self) -> None:
+        """Test check expiry valid."""
         claims = {'exp': int(time.time()) + 600}
         ok, msg = _check_expiry(claims)
         assert ok is True
         assert 'valid for' in msg
 
     def test_check_expiry_expired(self) -> None:
+        """Test check expiry expired."""
         claims = {'exp': int(time.time()) - 60}
         ok, msg = _check_expiry(claims)
         assert ok is False
         assert 'expired' in msg
 
     def test_check_expiry_no_exp(self) -> None:
+        """Test check expiry no exp."""
         ok, msg = _check_expiry({})
         assert ok is True
         assert 'does not expire' in msg
 
     def test_check_expiry_invalid_exp(self) -> None:
+        """Test check expiry invalid exp."""
         ok, msg = _check_expiry({'exp': 'not-a-number'})
         assert ok is False
         assert 'Invalid exp' in msg
 
     def test_check_issuer_match(self) -> None:
+        """Test check issuer match."""
         ok, msg = _check_issuer({'iss': GITHUB_OIDC_ISSUER}, GITHUB_OIDC_ISSUER)
         assert ok is True
 
     def test_check_issuer_prefix_match(self) -> None:
+        """Test check issuer prefix match."""
         ok, msg = _check_issuer(
             {'iss': 'https://oidc.circleci.com/org/abc123'},
             CIRCLECI_OIDC_ISSUER,
@@ -287,26 +299,27 @@ class TestJWTHelpers:
         assert ok is True
 
     def test_check_issuer_mismatch(self) -> None:
+        """Test check issuer mismatch."""
         ok, msg = _check_issuer({'iss': 'https://evil.com'}, GITHUB_OIDC_ISSUER)
         assert ok is False
         assert 'Unexpected issuer' in msg
 
     def test_check_issuer_missing(self) -> None:
+        """Test check issuer missing."""
         ok, msg = _check_issuer({}, GITHUB_OIDC_ISSUER)
         assert ok is False
         assert 'Missing iss' in msg
-
-
-# ── GitHub OIDC Validator ──
 
 
 class TestGitHubOIDCValidator:
     """Tests for GitHubOIDCValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert GitHubOIDCValidator().name == 'oidc.github'
 
     def test_no_env_var_fails(self) -> None:
+        """Test no env var fails."""
         with mock.patch.dict(os.environ, {}, clear=True):
             r = GitHubOIDCValidator().validate()
         assert r.ok is False
@@ -314,6 +327,7 @@ class TestGitHubOIDCValidator:
         assert 'id-token: write' in r.hint
 
     def test_env_var_set_passes(self) -> None:
+        """Test env var set passes."""
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com/token'}
         with mock.patch.dict(os.environ, env, clear=True):
             r = GitHubOIDCValidator().validate()
@@ -321,6 +335,7 @@ class TestGitHubOIDCValidator:
         assert 'available' in r.message
 
     def test_valid_token_passes(self) -> None:
+        """Test valid token passes."""
         token = _make_valid_github_jwt()
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com/token'}
         with mock.patch.dict(os.environ, env, clear=True):
@@ -329,6 +344,7 @@ class TestGitHubOIDCValidator:
         assert 'valid' in r.message
 
     def test_expired_token_fails(self) -> None:
+        """Test expired token fails."""
         token = _make_expired_jwt(GITHUB_OIDC_ISSUER)
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com/token'}
         with mock.patch.dict(os.environ, env, clear=True):
@@ -337,6 +353,7 @@ class TestGitHubOIDCValidator:
         assert 'expired' in r.message
 
     def test_wrong_issuer_fails(self) -> None:
+        """Test wrong issuer fails."""
         token = _make_wrong_issuer_jwt()
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com/token'}
         with mock.patch.dict(os.environ, env, clear=True):
@@ -345,6 +362,7 @@ class TestGitHubOIDCValidator:
         assert 'issuer mismatch' in r.message
 
     def test_malformed_token_fails(self) -> None:
+        """Test malformed token fails."""
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com/token'}
         with mock.patch.dict(os.environ, env, clear=True):
             r = GitHubOIDCValidator().validate('not-a-jwt')
@@ -352,22 +370,22 @@ class TestGitHubOIDCValidator:
         assert 'Malformed JWT' in r.message
 
 
-# ── GitLab OIDC Validator ──
-
-
 class TestGitLabOIDCValidator:
     """Tests for GitLabOIDCValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert GitLabOIDCValidator().name == 'oidc.gitlab'
 
     def test_no_env_var_fails(self) -> None:
+        """Test no env var fails."""
         with mock.patch.dict(os.environ, {}, clear=True):
             r = GitLabOIDCValidator().validate()
         assert r.ok is False
         assert 'CI_JOB_JWT' in r.message
 
     def test_jwt_v2_env_var(self) -> None:
+        """Test jwt v2 env var."""
         token = _make_jwt({
             'iss': GITLAB_OIDC_ISSUER,
             'exp': int(time.time()) + 600,
@@ -378,6 +396,7 @@ class TestGitLabOIDCValidator:
         assert r.ok is True
 
     def test_jwt_v1_fallback(self) -> None:
+        """Test jwt v1 fallback."""
         token = _make_jwt({
             'iss': GITLAB_OIDC_ISSUER,
             'exp': int(time.time()) + 600,
@@ -388,6 +407,7 @@ class TestGitLabOIDCValidator:
         assert r.ok is True
 
     def test_expired_token_fails(self) -> None:
+        """Test expired token fails."""
         token = _make_expired_jwt(GITLAB_OIDC_ISSUER)
         with mock.patch.dict(os.environ, {}, clear=True):
             r = GitLabOIDCValidator().validate(token)
@@ -406,22 +426,22 @@ class TestGitLabOIDCValidator:
         assert r.ok is True
 
 
-# ── CircleCI OIDC Validator ──
-
-
 class TestCircleCIOIDCValidator:
     """Tests for CircleCIOIDCValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert CircleCIOIDCValidator().name == 'oidc.circleci'
 
     def test_no_env_var_fails(self) -> None:
+        """Test no env var fails."""
         with mock.patch.dict(os.environ, {}, clear=True):
             r = CircleCIOIDCValidator().validate()
         assert r.ok is False
         assert 'CIRCLE_OIDC_TOKEN_V2' in r.message
 
     def test_valid_token_passes(self) -> None:
+        """Test valid token passes."""
         token = _make_jwt({
             'iss': 'https://oidc.circleci.com/org/abc123',
             'exp': int(time.time()) + 600,
@@ -432,6 +452,7 @@ class TestCircleCIOIDCValidator:
         assert r.ok is True
 
     def test_expired_token_fails(self) -> None:
+        """Test expired token fails."""
         token = _make_expired_jwt('https://oidc.circleci.com/org/abc123')
         with mock.patch.dict(os.environ, {}, clear=True):
             r = CircleCIOIDCValidator().validate(token)
@@ -439,31 +460,32 @@ class TestCircleCIOIDCValidator:
         assert 'expired' in r.message
 
 
-# ── Auto-detection ──
-
-
 class TestDetectOIDCValidator:
     """Tests for detect_oidc_validator()."""
 
     def test_github(self) -> None:
+        """Test github."""
         env = {'GITHUB_ACTIONS': 'true'}
         with mock.patch.dict(os.environ, env, clear=True):
             v = detect_oidc_validator()
         assert isinstance(v, GitHubOIDCValidator)
 
     def test_gitlab(self) -> None:
+        """Test gitlab."""
         env = {'GITLAB_CI': 'true'}
         with mock.patch.dict(os.environ, env, clear=True):
             v = detect_oidc_validator()
         assert isinstance(v, GitLabOIDCValidator)
 
     def test_circleci(self) -> None:
+        """Test circleci."""
         env = {'CIRCLECI': 'true'}
         with mock.patch.dict(os.environ, env, clear=True):
             v = detect_oidc_validator()
         assert isinstance(v, CircleCIOIDCValidator)
 
     def test_no_ci(self) -> None:
+        """Test no ci."""
         with mock.patch.dict(os.environ, {}, clear=True):
             v = detect_oidc_validator()
         assert v is None
@@ -473,12 +495,14 @@ class TestValidateOIDCEnvironment:
     """Tests for validate_oidc_environment()."""
 
     def test_local_passes(self) -> None:
+        """Test local passes."""
         with mock.patch.dict(os.environ, {}, clear=True):
             r = validate_oidc_environment()
         assert r.ok is True
         assert 'local' in r.message.lower() or 'Not in CI' in r.message
 
     def test_ci_no_oidc_warns(self) -> None:
+        """Test ci no oidc warns."""
         env = {'CI': 'true'}
         with mock.patch.dict(os.environ, env, clear=True):
             r = validate_oidc_environment()
@@ -486,6 +510,7 @@ class TestValidateOIDCEnvironment:
         assert 'OIDC' in r.message
 
     def test_github_with_oidc_passes(self) -> None:
+        """Test github with oidc passes."""
         env = {
             'CI': 'true',
             'GITHUB_ACTIONS': 'true',
@@ -500,25 +525,30 @@ class TestHasOIDCCredential:
     """Tests for the canonical has_oidc_credential()."""
 
     def test_no_credential(self) -> None:
+        """Test no credential."""
         with mock.patch.dict(os.environ, {}, clear=True):
             assert has_oidc_credential() is False
 
     def test_github_credential(self) -> None:
+        """Test github credential."""
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert has_oidc_credential() is True
 
     def test_gitlab_v2_credential(self) -> None:
+        """Test gitlab v2 credential."""
         env = {'CI_JOB_JWT_V2': 'some-token'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert has_oidc_credential() is True
 
     def test_gitlab_v1_credential(self) -> None:
+        """Test gitlab v1 credential."""
         env = {'CI_JOB_JWT': 'some-token'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert has_oidc_credential() is True
 
     def test_circleci_credential(self) -> None:
+        """Test circleci credential."""
         env = {'CIRCLE_OIDC_TOKEN_V2': 'some-token'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert has_oidc_credential() is True
@@ -528,6 +558,7 @@ class TestProvenanceHasOIDCDelegates:
     """Verify provenance.has_oidc_credential delegates to validation.oidc."""
 
     def test_delegates(self) -> None:
+        """Test delegates."""
         env = {'ACTIONS_ID_TOKEN_REQUEST_URL': 'https://example.com'}
         with mock.patch.dict(os.environ, env, clear=True):
             assert prov_has_oidc() is True
@@ -535,16 +566,15 @@ class TestProvenanceHasOIDCDelegates:
             assert prov_has_oidc() is False
 
 
-# ── Schema validators ──
-
-
 class TestProvenanceSchemaValidator:
     """Tests for ProvenanceSchemaValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert ProvenanceSchemaValidator().name == 'schema.provenance'
 
     def test_valid_statement_passes(self) -> None:
+        """Test valid statement passes."""
         stmt = {
             '_type': 'https://in-toto.io/Statement/v1',
             'subject': [{'name': 'a.tar.gz', 'digest': {'sha256': 'abc'}}],
@@ -562,6 +592,7 @@ class TestProvenanceSchemaValidator:
         assert r.ok is True
 
     def test_invalid_statement_fails(self) -> None:
+        """Test invalid statement fails."""
         r = ProvenanceSchemaValidator().validate({'bad': 'data'})
         assert r.ok is False
         assert 'schema violation' in r.message
@@ -571,14 +602,17 @@ class TestJsonSchemaValidator:
     """Tests for JsonSchemaValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert JsonSchemaValidator(schema={}, validator_id='schema.test').name == 'schema.test'
 
     def test_no_schema_fails(self) -> None:
+        """Test no schema fails."""
         r = JsonSchemaValidator().validate({'any': 'data'})
         assert r.ok is False
         assert 'No schema' in r.message
 
     def test_valid_data_passes(self) -> None:
+        """Test valid data passes."""
         schema = {
             'type': 'object',
             'required': ['name'],
@@ -588,6 +622,7 @@ class TestJsonSchemaValidator:
         assert r.ok is True
 
     def test_invalid_data_fails(self) -> None:
+        """Test invalid data fails."""
         schema = {
             'type': 'object',
             'required': ['name'],
@@ -597,6 +632,7 @@ class TestJsonSchemaValidator:
         assert r.ok is False
 
     def test_json_string_input(self) -> None:
+        """Test json string input."""
         schema = {
             'type': 'object',
             'required': ['name'],
@@ -606,6 +642,7 @@ class TestJsonSchemaValidator:
         assert r.ok is True
 
     def test_file_input(self, tmp_path: Path) -> None:
+        """Test file input."""
         schema = {
             'type': 'object',
             'required': ['name'],
@@ -617,38 +654,41 @@ class TestJsonSchemaValidator:
         assert r.ok is True
 
     def test_missing_file_fails(self, tmp_path: Path) -> None:
+        """Test missing file fails."""
         schema = {'type': 'object'}
         r = JsonSchemaValidator(schema=schema, validator_id='test').validate(tmp_path / 'missing.json')
         assert r.ok is False
         assert 'File not found' in r.message
 
     def test_invalid_json_fails(self) -> None:
+        """Test invalid json fails."""
         schema = {'type': 'object'}
         r = JsonSchemaValidator(schema=schema, validator_id='test').validate('{bad')
         assert r.ok is False
         assert 'Invalid JSON' in r.message
 
 
-# ── Provenance digest validator ──
-
-
 class TestProvenanceDigestValidator:
     """Tests for ProvenanceDigestValidator."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert ProvenanceDigestValidator().name == 'provenance.digest'
 
     def test_non_dict_subject_fails(self) -> None:
+        """Test non dict subject fails."""
         r = ProvenanceDigestValidator().validate('not a dict')
         assert r.ok is False
         assert 'must be a dict' in r.message
 
     def test_missing_artifact_path_fails(self) -> None:
+        """Test missing artifact path fails."""
         r = ProvenanceDigestValidator().validate({'provenance_path': Path('/tmp/x')})
         assert r.ok is False
         assert 'artifact_path' in r.message
 
     def test_missing_provenance_path_fails(self) -> None:
+        """Test missing provenance path fails."""
         r = ProvenanceDigestValidator().validate({'artifact_path': Path('/tmp/x')})
         assert r.ok is False
         assert 'provenance_path' in r.message

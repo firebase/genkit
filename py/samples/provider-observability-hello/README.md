@@ -20,7 +20,7 @@ observability platforms like Sentry, Honeycomb, Datadog, Grafana Cloud, and Axio
 
 ```bash
 export HONEYCOMB_API_KEY="your-honeycomb-key"
-export GOOGLE_GENAI_API_KEY="your-google-ai-key"
+export GEMINI_API_KEY="your-google-ai-key"
 ./run.sh
 ```
 
@@ -28,7 +28,7 @@ export GOOGLE_GENAI_API_KEY="your-google-ai-key"
 
 ```bash
 export SENTRY_DSN="https://key@org.ingest.sentry.io/project"
-export GOOGLE_GENAI_API_KEY="your-google-ai-key"
+export GEMINI_API_KEY="your-google-ai-key"
 
 # Edit src/main.py to use backend="sentry"
 ./run.sh
@@ -38,7 +38,7 @@ export GOOGLE_GENAI_API_KEY="your-google-ai-key"
 
 ```bash
 export DD_API_KEY="your-datadog-key"
-export GOOGLE_GENAI_API_KEY="your-google-ai-key"
+export GEMINI_API_KEY="your-google-ai-key"
 
 # Edit src/main.py to use backend="datadog"
 ./run.sh

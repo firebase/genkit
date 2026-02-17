@@ -26,9 +26,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # ReleaseResult
-# ---------------------------------------------------------------------------
 
 
 class TestReleaseResult:
@@ -51,9 +49,7 @@ class TestReleaseResult:
         assert '1 errors' in result.summary()
 
 
-# ---------------------------------------------------------------------------
 # ReleaseKit
-# ---------------------------------------------------------------------------
 
 
 class TestReleaseKit:

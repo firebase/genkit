@@ -84,9 +84,7 @@ def fake_sdist(dist_dir: Path) -> Path:
     return sdist
 
 
-# ---------------------------------------------------------------------------
 # sign_distribution
-# ---------------------------------------------------------------------------
 
 
 class TestSignDistribution:
@@ -198,9 +196,7 @@ class TestSignDistribution:
         assert 'conversion failed' in result.reason
 
 
-# ---------------------------------------------------------------------------
 # verify_attestation
-# ---------------------------------------------------------------------------
 
 
 class TestVerifyAttestation:
@@ -347,9 +343,7 @@ class TestVerifyAttestation:
         assert 'bad conversion' in result.reason
 
 
-# ---------------------------------------------------------------------------
 # convert_bundle_to_attestation
-# ---------------------------------------------------------------------------
 
 
 class TestConvertBundleToAttestation:
@@ -444,9 +438,7 @@ class TestConvertBundleToAttestation:
         assert result.attestation_path.name == 'pkg-1.0.tar.gz.bundle.publish.attestation'
 
 
-# ---------------------------------------------------------------------------
 # fetch_provenance
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio()
@@ -570,9 +562,7 @@ class TestFetchProvenance:
         assert 'test.pypi.org' in call_args[0][0]
 
 
-# ---------------------------------------------------------------------------
 # sign_distributions
-# ---------------------------------------------------------------------------
 
 
 class TestSignDistributions:
@@ -600,9 +590,7 @@ class TestSignDistributions:
         assert 'not found' in results[1].reason.lower()
 
 
-# ---------------------------------------------------------------------------
 # make_publisher
-# ---------------------------------------------------------------------------
 
 
 class TestMakePublisher:
@@ -702,9 +690,7 @@ class TestMakePublisher:
         assert isinstance(pub, GooglePublisher)
 
 
-# ---------------------------------------------------------------------------
 # AttestationResult
-# ---------------------------------------------------------------------------
 
 
 class TestAttestationResult:

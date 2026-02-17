@@ -535,9 +535,7 @@ class TestScaffoldConfigSampleDetection:
         assert 'sample-*' in result or 'exclude' in result
 
 
-# ---------------------------------------------------------------------------
 # Tag scanning integration tests
-# ---------------------------------------------------------------------------
 
 
 # FakeVCS is imported from tests._fakes (see top of file).
@@ -816,9 +814,7 @@ class TestPrintTagScanReport:
         # Should not crash.
 
 
-# ---------------------------------------------------------------------------
 # scaffold_multi_config tests
-# ---------------------------------------------------------------------------
 
 
 class TestScaffoldMultiConfig:
@@ -923,9 +919,7 @@ class TestScaffoldMultiConfig:
         assert result == ''
 
 
-# ---------------------------------------------------------------------------
 # Submodule exclusion tests
-# ---------------------------------------------------------------------------
 
 
 class TestParseGitmodules:

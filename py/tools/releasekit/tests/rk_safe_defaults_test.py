@@ -44,8 +44,6 @@ from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
 from tests._fakes import FakePM as FakePackageManager, FakeRegistry, FakeVCS
 
-# ── Helpers ──
-
 
 def _github_ci_env(*, oidc: bool = True) -> dict[str, str]:
     """Return a dict simulating GitHub Actions CI environment."""
@@ -76,6 +74,7 @@ def _local_env() -> dict[str, str]:
 
 
 def _make_packages(tmp_path: Path) -> list[Package]:
+    """Make packages."""
     pkg_dir = tmp_path / 'packages' / 'genkit'
     pkg_dir.mkdir(parents=True, exist_ok=True)
     return [
@@ -83,70 +82,78 @@ def _make_packages(tmp_path: Path) -> list[Package]:
     ]
 
 
-# ── Config defaults ──
-
-
 class TestConfigDefaults:
     """Verify that config defaults are safe-by-default."""
 
     def test_workspace_config_provenance_on(self) -> None:
+        """Test workspace config provenance on."""
         ws = WorkspaceConfig()
         assert ws.provenance is True
 
     def test_workspace_config_slsa_provenance_on(self) -> None:
+        """Test workspace config slsa provenance on."""
         ws = WorkspaceConfig()
         assert ws.slsa_provenance is True
 
     def test_workspace_config_sign_provenance_on(self) -> None:
+        """Test workspace config sign provenance on."""
         ws = WorkspaceConfig()
         assert ws.sign_provenance is True
 
     def test_publish_config_provenance_on(self) -> None:
+        """Test publish config provenance on."""
         pc = PublishConfig()
         assert pc.provenance is True
 
     def test_publish_config_slsa_provenance_on(self) -> None:
+        """Test publish config slsa provenance on."""
         pc = PublishConfig()
         assert pc.slsa_provenance is True
 
     def test_publish_config_sign_provenance_on(self) -> None:
+        """Test publish config sign provenance on."""
         pc = PublishConfig()
         assert pc.sign_provenance is True
 
     def test_workspace_config_oci_cosign_sign_on(self) -> None:
+        """Test workspace config oci cosign sign on."""
         ws = WorkspaceConfig()
         assert ws.oci_cosign_sign is True
 
     def test_workspace_config_oci_sbom_attest_on(self) -> None:
+        """Test workspace config oci sbom attest on."""
         ws = WorkspaceConfig()
         assert ws.oci_sbom_attest is True
 
     def test_workspace_config_oci_push_target_empty(self) -> None:
+        """Test workspace config oci push target empty."""
         ws = WorkspaceConfig()
         assert ws.oci_push_target == ''
 
     def test_workspace_config_oci_repository_empty(self) -> None:
+        """Test workspace config oci repository empty."""
         ws = WorkspaceConfig()
         assert ws.oci_repository == ''
 
     def test_workspace_config_oci_remote_tags_empty(self) -> None:
+        """Test workspace config oci remote tags empty."""
         ws = WorkspaceConfig()
         assert ws.oci_remote_tags == []
 
     def test_publish_config_retries_nonzero(self) -> None:
+        """Test publish config retries nonzero."""
         pc = PublishConfig()
         assert pc.max_retries >= 1
 
     def test_publish_config_verify_checksums_on(self) -> None:
+        """Test publish config verify checksums on."""
         pc = PublishConfig()
         assert pc.verify_checksums is True
 
     def test_publish_config_smoke_test_on(self) -> None:
+        """Test publish config smoke test on."""
         pc = PublishConfig()
         assert pc.smoke_test is True
-
-
-# ── _check_trusted_publisher ──
 
 
 class TestTrustedPublisherCheck:
@@ -187,13 +194,11 @@ class TestTrustedPublisherCheck:
         assert 'id-token: write' in hint
 
 
-# ── _check_source_integrity ──
-
-
 class TestSourceIntegrityCheck:
     """Tests for source integrity metadata preflight check."""
 
     def test_ci_with_full_metadata_passes(self) -> None:
+        """Test ci with full metadata passes."""
         env = _github_ci_env()
         result = PreflightResult()
         with mock.patch.dict(os.environ, env, clear=True):
@@ -201,6 +206,7 @@ class TestSourceIntegrityCheck:
         assert 'source_integrity' in result.passed
 
     def test_ci_missing_sha_fails(self) -> None:
+        """Test ci missing sha fails."""
         env = _github_ci_env()
         del env['GITHUB_SHA']
         result = PreflightResult()
@@ -210,6 +216,7 @@ class TestSourceIntegrityCheck:
         assert 'commit SHA' in result.errors['source_integrity']
 
     def test_ci_missing_ref_fails(self) -> None:
+        """Test ci missing ref fails."""
         env = _github_ci_env()
         del env['GITHUB_REF']
         result = PreflightResult()
@@ -219,6 +226,7 @@ class TestSourceIntegrityCheck:
         assert 'source ref' in result.errors['source_integrity']
 
     def test_ci_missing_repo_fails(self) -> None:
+        """Test ci missing repo fails."""
         env = _github_ci_env()
         del env['GITHUB_REPOSITORY']
         del env['GITHUB_SERVER_URL']
@@ -237,13 +245,11 @@ class TestSourceIntegrityCheck:
         assert result.ok  # Warning, not failure.
 
 
-# ── _check_build_as_code ──
-
-
 class TestBuildAsCodeCheck:
     """Tests for build-as-code preflight check."""
 
     def test_ci_with_entry_point_passes(self) -> None:
+        """Test ci with entry point passes."""
         env = _github_ci_env()
         result = PreflightResult()
         with mock.patch.dict(os.environ, env, clear=True):
@@ -251,6 +257,7 @@ class TestBuildAsCodeCheck:
         assert 'build_as_code' in result.passed
 
     def test_ci_without_entry_point_warns(self) -> None:
+        """Test ci without entry point warns."""
         env = _github_ci_env()
         del env['GITHUB_WORKFLOW_REF']
         result = PreflightResult()
@@ -266,13 +273,11 @@ class TestBuildAsCodeCheck:
         assert 'build_as_code' in result.passed
 
 
-# ── _check_slsa_level ──
-
-
 class TestSLSALevelCheck:
     """Tests for SLSA build level preflight check."""
 
     def test_local_warns_l1(self) -> None:
+        """Test local warns l1."""
         result = PreflightResult()
         with mock.patch.dict(os.environ, _local_env(), clear=True):
             _check_slsa_level(result)
@@ -280,6 +285,7 @@ class TestSLSALevelCheck:
         assert 'L1' in result.warning_messages['slsa_build_level']
 
     def test_ci_l3_passes(self) -> None:
+        """Test ci l3 passes."""
         env = _github_ci_env(oidc=True)
         result = PreflightResult()
         with mock.patch.dict(os.environ, env, clear=True):
@@ -287,6 +293,7 @@ class TestSLSALevelCheck:
         assert 'slsa_build_level' in result.passed
 
     def test_ci_self_hosted_warns_l2(self) -> None:
+        """Test ci self hosted warns l2."""
         env = _github_ci_env(oidc=True)
         env['RUNNER_ENVIRONMENT'] = 'self-hosted'
         result = PreflightResult()
@@ -296,15 +303,13 @@ class TestSLSALevelCheck:
         assert 'L2' in result.warning_messages['slsa_build_level']
 
     def test_ci_no_oidc_warns_l1(self) -> None:
+        """Test ci no oidc warns l1."""
         env = _github_ci_env(oidc=False)
         result = PreflightResult()
         with mock.patch.dict(os.environ, env, clear=True):
             _check_slsa_level(result)
         assert 'slsa_build_level' in result.warnings
         assert 'not be signed' in result.warning_messages['slsa_build_level']
-
-
-# ── Full preflight integration ──
 
 
 class TestPreflightIntegration:

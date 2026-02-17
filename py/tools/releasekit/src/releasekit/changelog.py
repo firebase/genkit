@@ -76,6 +76,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from releasekit._wordfilter import WordFilter, get_default_filter
 from releasekit.backends.vcs import VCS
 from releasekit.commit_parsing import (
     CommitParser,
@@ -305,6 +306,7 @@ async def generate_changelog(
     date: str = '',
     log_format: str = '%H%x00%an%x00%s',
     commit_parser: CommitParser | None = None,
+    word_filter: WordFilter | None = None,
 ) -> Changelog:
     r"""Generate a structured changelog from git history.
 
@@ -324,6 +326,8 @@ async def generate_changelog(
             escape) to produce ``SHA\x00author\x00subject`` lines in output.
         commit_parser: Optional custom commit parser. Defaults to
             :class:`ConventionalCommitParser`.
+        word_filter: Optional :class:`WordFilter` for safety checking.
+            When ``None``, falls back to :func:`get_default_filter`.
 
     Returns:
         A :class:`Changelog` with grouped sections.
@@ -368,6 +372,16 @@ async def generate_changelog(
 
         if cc.type in exclude_types and not cc.breaking:
             # Excluded type (unless it's breaking — breaking always shows).
+            continue
+
+        # Safety check: flag harmful content in commit messages.
+        wf = word_filter or get_default_filter()
+        if wf.contains_blocked(cc.description):
+            logger.warning(
+                'commit_blocked_content',
+                sha=sha[:8],
+                hint=('Commit message contains blocked content and has been redacted from the changelog.'),
+            )
             continue
 
         entries.append(_commit_to_entry(cc, author=author))

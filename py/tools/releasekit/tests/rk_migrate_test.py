@@ -49,9 +49,7 @@ from releasekit.migrate import (
 )
 from tests._fakes import FakeVCS
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 def _ws(
@@ -83,9 +81,7 @@ def _config(
     )
 
 
-# ---------------------------------------------------------------------------
 # classify_tags
-# ---------------------------------------------------------------------------
 
 
 class TestClassifyTags:
@@ -185,9 +181,7 @@ class TestClassifyTags:
         assert classified[0].version == '1.0.0-rc.1'
 
 
-# ---------------------------------------------------------------------------
 # pick_latest
-# ---------------------------------------------------------------------------
 
 
 class TestPickLatest:
@@ -235,9 +229,7 @@ class TestPickLatest:
         assert latest['py'].version == '1.0.0'
 
 
-# ---------------------------------------------------------------------------
 # resolve_commit_shas
-# ---------------------------------------------------------------------------
 
 
 class TestResolveCommitShas:
@@ -274,9 +266,7 @@ class TestResolveCommitShas:
         assert classified[0].commit_sha == 'already_set'
 
 
-# ---------------------------------------------------------------------------
 # write_bootstrap_sha
-# ---------------------------------------------------------------------------
 
 
 class TestWriteBootstrapSha:
@@ -322,9 +312,7 @@ class TestWriteBootstrapSha:
         assert doc['workspace']['py']['bootstrap_sha'] == 'new_sha'
 
 
-# ---------------------------------------------------------------------------
 # _semver_sort_key edge cases
-# ---------------------------------------------------------------------------
 
 
 class TestSemverSortKey:
@@ -375,9 +363,7 @@ class TestSemverSortKey:
         assert pick_latest(classified)['py'].version == '0.0.1'
 
 
-# ---------------------------------------------------------------------------
 # MigrationSource protocol + ReleasePleaseSource tests
-# ---------------------------------------------------------------------------
 
 
 class TestReleasePleaseSource:

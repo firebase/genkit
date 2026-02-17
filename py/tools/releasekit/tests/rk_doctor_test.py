@@ -37,14 +37,17 @@ def _ws_config(
     ecosystem: str = 'python',
     tag_format: str = '{name}@{version}',
 ) -> WorkspaceConfig:
+    """Ws config."""
     return WorkspaceConfig(label=label, ecosystem=ecosystem, tag_format=tag_format)
 
 
 def _config(default_branch: str = 'main') -> ReleaseConfig:
+    """Config."""
     return ReleaseConfig(default_branch=default_branch)
 
 
 def _pkg(name: str, version: str) -> Package:
+    """Pkg."""
     return Package(name=name, version=version, path=FilePath(name), manifest_path=FilePath(name) / 'pyproject.toml')
 
 
@@ -357,6 +360,7 @@ class TestCheckForge:
 
         class BrokenForge(FakeForge):
             async def is_available(self) -> bool:
+                """Is available."""
                 raise RuntimeError('connection failed')
 
         report = await run_doctor(

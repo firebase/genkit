@@ -456,6 +456,15 @@ own the transport and format details.
 | **Java (Gradle)** | `settings.gradle` `include` | `project(':sub')` deps | `build.gradle(.kts)` | Maven Central | ⬜ Future |
 | **Dart (pub/melos)** | `melos.yaml` packages | `dependency_overrides` with `path:` | `pubspec.yaml` | pub.dev | ⬜ Future |
 | **Rust (Cargo)** | `[workspace]` in `Cargo.toml` | `path = "..."` in `[dependencies]` | `Cargo.toml` | crates.io | ⬜ Future |
+| **Kotlin (KMP)** | `settings.gradle.kts` `include` | `project(':sub')` deps | `build.gradle.kts` | Maven Central | ⬜ Future |
+| **Swift (SwiftPM)** | `Package.swift` workspace | local `path:` deps | `Package.swift` | Swift Package Index / git tags | ⬜ Future |
+| **CocoaPods** | `Podfile` | `pod 'Name', :path => '...'` | `*.podspec` | CocoaPods trunk | ⬜ Future |
+| **Ruby (Bundler)** | `Gemfile` | `gem 'name', path: '...'` | `*.gemspec` | RubyGems.org | ⬜ Future |
+| **.NET (NuGet)** | `*.sln` / `Directory.Build.props` | `<ProjectReference>` | `*.csproj` / `*.fsproj` | NuGet Gallery | ⬜ Future |
+| **PHP (Composer)** | `composer.json` repositories | `"type": "path"` repos | `composer.json` | Packagist | ⬜ Future |
+| **VS Code Extension** | — | — | `package.json` | VS Code Marketplace | ⬜ Future |
+| **IntelliJ Plugin** | — | — | `plugin.xml` / `build.gradle.kts` | JetBrains Marketplace | ⬜ Future |
+| **Browser Extension** | — | — | `manifest.json` | Chrome Web Store / Firefox Add-ons | ⬜ Future |
 
 #### Migration path
 
@@ -778,7 +787,7 @@ Phase 4: Harden            ▼    ✅ COMPLETE
 │  observer.py ──► PublishStage, SchedulerState, Observer │
 │  ui.py ──► observer.py, logging.py                      │
 │  checks/ ──► graph.py, preflight.py, workspace.py       │
-│    + 33 health checks in subpackage (protocol-based)    │
+│    + 35 health checks in subpackage (protocol-based)    │
 │  preflight.py (full) ──► + pip-audit,                   │
 │                            metadata validation          │
 │  publisher.py (full) ──► + staging, manifest, Test PyPI,│
@@ -941,50 +950,88 @@ Phase 9: Polyglot Backends ▼    ✅ COMPLETE
 │  ✓ Supply chain security (Sigstore, SLSA, SBOM, OIDC)   │
 └───────────────────────────┬─────────────────────────────┘
                             │
-Phase 10: AI Release Notes  ▼    🔲 PLANNED
+Phase 10: AI Release Notes  ▼    ✅ DONE
 ┌─────────────────────────────────────────────────────────┐
-│  summarize.py ──► genkit (ai.generate), changelog       │
+│  ai.py ──► genkit (core dep), config.py                 │
+│    + Genkit init, model fallback chain, availability     │
+│    + generate_with_fallback(): try models in order       │
+│    + load_prompt_folder() loads .prompt files at init    │
+│  prompts.py ──► PROMPTS_DIR (source of truth)            │
+│    + Inline fallback constants for ai.generate() calls   │
+│  prompts/summarize.prompt ──► Dotprompt (Handlebars)     │
+│    + YAML frontmatter + changelog → ReleaseSummary JSON  │
+│  prompts/codename.prompt ──► Dotprompt (Handlebars)      │
+│    + YAML frontmatter + theme → ReleaseCodename JSON     │
+│    + Safety rules baked into system message               │
+│  summarize.py ──► ai.py, changelog.py                   │
 │    + Structured output via Pydantic schema               │
-│    + Configurable: Ollama (default) / Google GenAI /     │
-│      Vertex AI / Anthropic                               │
-│  prepare.py (update) ──► summarize.py                    │
-│    + Summarize-or-truncate fallback                      │
+│    + Content-hash caching (.releasekit/cache/)           │
+│    + AI ON by default, disable via --no-ai               │
+│  codename.py ──► ai.py, config.py                       │
+│    + AI-generated themed release codenames               │
+│    + SAFE_BUILTIN_THEMES (28 curated themes)             │
+│    + 3-layer safety: prompt + themes + blocklist         │
+│    + _is_safe_codename() post-generation filter          │
+│    + History tracking (.releasekit/codenames.txt)         │
+│  prepare.py (update) ──► summarize.py, codename.py      │
+│    + AI summary is primary path, truncation is fallback  │
 │  release_notes.py (update) ──► summarize.py              │
-│    + AI summary for GitHub Release body                  │
+│    + AI summary + codename for GitHub Release body       │
 │                                                         │
-│  🟨 releasekit prepare --summarize                      │
-│  🟨 Default: ollama/gemma3:4b (CI-friendly, no API key) │
-└───────────────────────────┬─────────────────────────────┘
+│  🟩 genkit + ollama + google-genai = core dependencies  │
+│  🟩 Dotprompt .prompt files = source of truth            │
+│  🟩 Default chain: ollama → google-genai fallback       │
+│  🟩 3-layer codename safety guardrails                  │
+│  🟩 Disable: --no-ai flag or ai.enabled = false         │
+└───────────────────────────┴─────────────────────────────┘
                             │
 Phase 11: AI Changelog &    ▼    🔲 PLANNED
            Version Intel
 ┌─────────────────────────────────────────────────────────┐
-│  enhance.py ──► summarize.py, changelog.py              │
+│  enhance.py ──► ai.py, changelog.py                     │
 │    + Rewrite commit messages into user-friendly entries  │
-│  detect_breaking.py ──► summarize.py, versioning.py     │
+│    + ON by default (--no-ai disables)                    │
+│  detect_breaking.py ──► ai.py, versioning.py            │
 │    + AI diff analysis for missed breaking changes        │
-│  classify.py ──► summarize.py, versioning.py            │
+│    + ON by default (--no-ai disables)                    │
+│  classify.py ──► ai.py, versioning.py                   │
 │    + Semantic version classification from diffs          │
-│  scope.py ──► summarize.py, versioning.py               │
+│  scope.py ──► ai.py, versioning.py                      │
 │    + AI commit scoping for multi-package commits         │
 │                                                         │
-│  🔲 releasekit version --ai-classify                    │
-│  🔲 releasekit check --detect-breaking                  │
+│  🔲 All features ON by default, --no-ai disables all    │
+│  🔲 AI is advisory — warns but never auto-upgrades bump │
 └───────────────────────────┬─────────────────────────────┘
                             │
 Phase 12: AI Content Gen    ▼    🔲 PLANNED
 ┌─────────────────────────────────────────────────────────┐
-│  migration.py ──► summarize.py, release_notes.py        │
+│  migration.py ──► ai.py, release_notes.py               │
 │    + Auto-generate migration guides from breaking diffs  │
-│  announce_ai.py ──► summarize.py, announce.py           │
+│  announce_ai.py ──► ai.py, announce.py                  │
 │    + Platform-tailored announcements (Slack/X/LinkedIn)  │
-│  advisory.py ──► summarize.py, osv.py                   │
+│  advisory.py ──► ai.py, osv.py                          │
 │    + Draft security advisories from OSV data             │
-│  hints_ai.py ──► summarize.py, errors.py                │
+│  hints_ai.py ──► ai.py, errors.py                       │
 │    + Contextual error hints from config + state          │
 │                                                         │
-│  🔲 releasekit announce --ai-tailor                     │
-│  🔲 releasekit advisory --draft                         │
+│  🔲 All features ON by default, --no-ai disables all    │
+│  🔲 releasekit advisory (AI-drafted from OSV data)      │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+Phase 13: Docs & Slides     ▼    🔲 PLANNED
+┌─────────────────────────────────────────────────────────┐
+│  docs/docs/guides/ai-features.md                        │
+│    + AI config reference, model recommendations          │
+│    + CI caching guide (Ollama model in GitHub Actions)   │
+│  docs/docs/slides/index.html (update)                   │
+│    + AI-powered features slide section                   │
+│    + Genkit dogfooding narrative                         │
+│  Genkit docs contribution                               │
+│    + "ReleaseKit: Production Dogfooding" case study      │
+│    + Structured output, Ollama, multi-provider examples  │
+│                                                         │
+│  🔲 releasekit as Genkit's flagship dogfooding app      │
+│  🔲 Slides updated for stakeholder presentations        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -1248,7 +1295,7 @@ publish → poll → verify) with zero failures.
 |--------|-------------|-----------|--------|
 | `observer.py` | **Observer protocol and enums** extracted from `ui.py`. `PublishStage` (11 stages incl. `RETRYING`, `BLOCKED`), `SchedulerState` (`RUNNING`/`PAUSED`/`CANCELLED`), `PublishObserver` ABC. Clean dependency graph — both `scheduler.py` and `ui.py` import from here. | ~110 | ✅ Done |
 | `ui.py` | **Rich Live progress table** with sliding window for large workspaces (>30 packages). Imports types from `observer.py`. `PAUSED`/`CANCELLED` banners with colored borders. Keyboard shortcut hints and ETA in footer. `LogProgressUI` emits `scheduler_state` events. | ~520 | ✅ Done |
-| `checks/` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 8 universal checks + 25 language-specific via `PythonCheckBackend`. 17 auto-fixers. Refactored into subpackage. | ~2,900 | ✅ Done (PR #4563) |
+| `checks/` | **Standalone workspace health checks** (`releasekit check`) with `CheckBackend` protocol. 8 universal checks + 27 language-specific via `PythonCheckBackend`. 19 auto-fixers. Refactored into subpackage. | ~2,900 | ✅ Done (PR #4563) |
 | `preflight.py` (full) | Added: `dist_clean` (stale dist/ detection, blocking), `trusted_publisher` (OIDC check, advisory). Remaining: `pip-audit` vulnerability scan, metadata validation. | +80 | 🔶 Partial |
 | `registry.py` (full) | Added: `verify_checksum()` — downloads SHA-256 from PyPI JSON API and compares against locally-computed checksums. `ChecksumResult` dataclass. | +100 | ✅ Done |
 | `publisher.py` (full) | Added: post-publish SHA-256 checksum verification, `verify_checksums` config flag. Remaining: `--stage` two-phase, manifest mode, rate limiting, attestation passthrough (D-8). | +30 | 🔶 Partial |
@@ -1802,14 +1849,32 @@ changes, migration notes, and per-package summaries.
 
 ```toml
 [ai]
-# Provider: "ollama" (default, no API key), "google-genai", "vertex-ai"
-provider         = "ollama"
-# Model name (provider-specific)
-model            = "gemma3:4b"
+# Model fallback chain — tried in order. If a model is unavailable
+# (not pulled, provider down, API key missing), the next one is tried.
+# If ALL models fail, falls back to non-AI behavior and warns.
+# Provider is encoded in the model string: "provider/model".
+models = [
+  "ollama/gemma3:4b",              # Try first: CI-friendly, no API key
+  "ollama/gemma3:1b",              # Fallback: smaller, faster
+  "google-genai/gemini-3.0-flash-preview", # Fallback: cloud (needs API key)
+]
 # Temperature for summarization (low = more factual)
 temperature      = 0.2
 # Max output tokens
 max_output_tokens = 4096
+# Theme for AI-generated release codenames.
+# 28 built-in safe themes: mountains, animals, birds, butterflies, cities,
+# clouds, colors, constellations, coral, deserts, flowers, forests, galaxies,
+# gems, islands, lakes, lighthouses, mythology, nebulae, oceans, rivers,
+# seasons, space, trees, volcanoes, weather, wildflowers.
+# Any custom string also works (e.g. "deep sea creatures").
+# Empty string disables codename generation.
+# Safety: 3-layer guardrails (prompt rules + curated themes + blocklist).
+codename_theme = "mountains"
+
+[ai.features]
+summarize       = true   # AI release note summarization
+codename        = true   # AI-generated release codenames
 ```
 
 **Local models via Ollama** (no API key required):
@@ -1841,8 +1906,8 @@ on GitHub's 10 Gbps runners.
 
 | Provider | Model | Notes |
 |----------|-------|-------|
-| `google-genai` | `gemini-2.0-flash` | Fast, high quality, generous free tier. |
-| `vertex-ai` | `gemini-2.0-flash` | Same model, enterprise auth (ADC). |
+| `google-genai` | `gemini-3.0-flash-preview` | Fast, high quality, generous free tier. |
+| `vertex-ai` | `gemini-3.0-flash-preview` | Same model, enterprise auth (ADC). |
 | `anthropic` | `claude-3-5-sonnet` | Excellent at structured summarization. |
 
 **Output schema** (Pydantic model for structured generation):
@@ -1911,7 +1976,7 @@ best-effort enhancement, never a hard dependency.
 releasekit prepare --summarize
 
 # Summarize with a specific model
-releasekit prepare --summarize --model google-genai/gemini-2.0-flash
+releasekit prepare --summarize --model google-genai/gemini-3.0-flash-preview
 
 # Skip summarization (use truncation fallback)
 releasekit prepare --no-summarize
@@ -2372,11 +2437,11 @@ The Protocol-based backend shim layer is already fully polyglot:
 
 | Layer | Implemented backends |
 |-------|---------------------|
-| `PackageManager` protocol | `UvBackend`, `PnpmBackend`, `BazelBackend`, `CargoBackend`, `DartBackend`, `GoBackend`, `MaturinBackend`, `MavenBackend` |
+| `PackageManager` protocol | `UvBackend`, `PnpmBackend`, `BazelBackend`, `CargoBackend`, `DartBackend`, `GoBackend`, `MaturinBackend`, `MavenBackend` — **planned:** `KotlinBackend`, `SwiftBackend`, `CocoaPodsBackend`, `RubyBackend`, `DotnetBackend`, `PhpBackend`, `VscodeBackend`, `IntelliJBackend`, `BrowserExtBackend` |
 | `VCS` protocol | `GitBackend`, `MercurialBackend` |
 | `Forge` protocol | `GitHubBackend`, `GitHubAPIBackend`, `GitLabBackend`, `BitbucketBackend` |
-| `Registry` protocol | `PyPIBackend`, `NpmRegistry`, `CratesIoBackend`, `GoProxyBackend`, `MavenCentralBackend`, `PubDevBackend` |
-| `Workspace` protocol | `UvWorkspace`, `PnpmWorkspace`, `BazelWorkspace`, `CargoWorkspace`, `DartWorkspace`, `GoWorkspace`, `MavenWorkspace` |
+| `Registry` protocol | `PyPIBackend`, `NpmRegistry`, `CratesIoBackend`, `GoProxyBackend`, `MavenCentralBackend`, `PubDevBackend` — **planned:** `NuGetBackend`, `RubyGemsBackend`, `CocoaPodsRegistry`, `PackagistBackend`, `SwiftRegistry`, `VscodeMarketplace`, `JetBrainsMarketplace`, `ChromeWebStore`, `FirefoxAddons` |
+| `Workspace` protocol | `UvWorkspace`, `PnpmWorkspace`, `BazelWorkspace`, `CargoWorkspace`, `DartWorkspace`, `GoWorkspace`, `MavenWorkspace` — **planned:** `KotlinWorkspace`, `SwiftWorkspace`, `CocoaPodsWorkspace`, `RubyWorkspace`, `DotnetWorkspace`, `PhpWorkspace`, `BrowserExtWorkspace` |
 | `Validation` pipeline | Attestation, JWKS, OIDC, Provenance, Runner, SBOM, Schema, SLSA |
 | Graph algorithms | Unchanged (language-agnostic) |
 | Error system (RK-NAMED-KEY) | Full catalog with `explain()` |
@@ -2487,6 +2552,16 @@ py/tools/releasekit/
           go.py                       ← Go modules
           maturin.py                  ← Rust+Python (maturin)
           maven.py                    ← Java (Maven)
+          # ── Planned ──
+          kotlin.py                   ← Kotlin (KMP, Gradle)
+          swift.py                    ← Swift (SwiftPM)
+          cocoapods.py                ← CocoaPods
+          ruby.py                     ← Ruby (Bundler)
+          dotnet.py                   ← .NET (dotnet CLI)
+          php.py                      ← PHP (Composer)
+          vscode.py                   ← VS Code (vsce)
+          intellij.py                 ← IntelliJ (Gradle plugin)
+          browser_ext.py              ← Browser extensions (Chrome + Firefox)
         forge/                        ← Forge implementations
           __init__.py                 ← Forge protocol
           github.py                   ← GitHub (gh CLI)
@@ -2501,6 +2576,16 @@ py/tools/releasekit/
           goproxy.py                  ← Go module proxy
           maven_central.py            ← Maven Central
           pubdev.py                   ← pub.dev (Dart)
+          # ── Planned ──
+          nuget.py                    ← NuGet Gallery
+          rubygems.py                 ← RubyGems.org
+          cocoapods.py                ← CocoaPods trunk
+          packagist.py                ← Packagist
+          swift.py                    ← Swift (git-tag-based)
+          vscode_marketplace.py       ← VS Code Marketplace
+          jetbrains_marketplace.py    ← JetBrains Marketplace
+          chrome_web_store.py         ← Chrome Web Store
+          firefox_addons.py           ← Firefox Add-ons (AMO)
         workspace/                    ← Workspace implementations
           __init__.py                 ← Workspace protocol
           uv.py                       ← uv workspaces
@@ -2510,6 +2595,14 @@ py/tools/releasekit/
           dart.py                     ← Dart/pub workspaces
           go.py                       ← Go module workspaces
           maven.py                    ← Maven multi-module
+          # ── Planned ──
+          kotlin.py                   ← Kotlin (settings.gradle.kts)
+          swift.py                    ← Swift (Package.swift)
+          cocoapods.py                ← CocoaPods (*.podspec)
+          ruby.py                     ← Ruby (*.gemspec + Gemfile)
+          dotnet.py                   ← .NET (*.sln + *.csproj)
+          php.py                      ← PHP (composer.json)
+          browser_ext.py              ← Browser extensions (manifest.json)
         vcs/                          ← VCS implementations
           __init__.py                 ← VCS protocol
           git.py                      ← Git
@@ -3545,6 +3638,696 @@ tests/
     rk_bazel_dispatch_test.py     ← dispatch routing tests
     rk_bazel_integration_test.py  ← dry-run integration test
 ```
+
+---
+
+## New Ecosystem Backends  🔲 Future
+
+The following ecosystems extend releasekit's polyglot coverage beyond the
+currently implemented backends (Python/uv, JS/pnpm, Go, Rust/Cargo,
+Dart/pub, Java/Maven, Bazel). Each section documents the publishing
+mechanisms, version management, workspace discovery, and registry
+interaction patterns needed for a full releasekit backend.
+
+### Kotlin / JVM Backend
+
+Kotlin publishes to the same registries as Java (Maven Central, Gradle
+Plugin Portal) but has unique aspects around Kotlin Multiplatform (KMP)
+and the Kotlin compiler plugin ecosystem.
+
+**Publishing mechanisms:**
+
+| Target | Tool | Command | Registry | Auth |
+|--------|------|---------|----------|------|
+| JVM library (JAR) | Gradle `maven-publish` | `./gradlew publish` | Maven Central (OSSRH) | `MAVEN_USERNAME` / `MAVEN_PASSWORD` + GPG signing |
+| KMP library | Gradle `maven-publish` | `./gradlew publish` | Maven Central | Same as JVM + per-target publications (JVM, JS, Native, WASM) |
+| Gradle plugin | `com.gradle.plugin-publish` | `./gradlew publishPlugins` | Gradle Plugin Portal | `gradle.publish.key` / `gradle.publish.secret` |
+| Kotlin compiler plugin | Gradle `maven-publish` | `./gradlew publish` | Maven Central | Same as JVM library |
+| Android library (AAR) | Gradle `maven-publish` | `./gradlew publish` | Maven Central or Google Maven | Same as JVM + Android SDK |
+
+**Kotlin Multiplatform (KMP) specifics:**
+
+KMP projects produce multiple artifacts per library — one per target
+platform. A single `my-lib` module publishes:
+
+```
+my-lib-jvm-1.0.0.jar           → Maven Central
+my-lib-js-1.0.0.klib           → Maven Central (consumed by Kotlin/JS)
+my-lib-iosarm64-1.0.0.klib     → Maven Central (consumed by Kotlin/Native)
+my-lib-wasmjs-1.0.0.klib       → Maven Central (consumed by Kotlin/WASM)
+my-lib-1.0.0.module             → Gradle Module Metadata (coordinates all targets)
+```
+
+The Gradle Module Metadata (`.module` file) is the coordination artifact —
+it tells consumers which platform-specific artifact to resolve. Releasekit
+must publish **all** target artifacts atomically (same version, same
+staging repository on OSSRH).
+
+**Version patterns:**
+
+| Pattern | Format | File | Used By |
+|---------|--------|------|---------|
+| `gradle_properties` | `VERSION_NAME=X.Y.Z` | `gradle.properties` | Most Kotlin libs (kotlinx.coroutines, Ktor, etc.) |
+| `build_gradle_kts` | `version = "X.Y.Z"` | `build.gradle.kts` | Simple projects |
+| `version_catalog` | `my-lib = "X.Y.Z"` | `gradle/libs.versions.toml` | Modern Gradle monorepos |
+| `toml_version` | `version = "X.Y.Z"` | `gradle/libs.versions.toml` | Centralized version catalogs |
+
+**Workspace discovery:**
+
+- `settings.gradle.kts` → `include(":module-a", ":module-b")` lists subprojects
+- Multi-module projects use `allprojects {}` or `subprojects {}` for shared config
+- KMP targets declared in `kotlin { targets { jvm(); js(); iosArm64(); } }`
+- Releasekit reads `settings.gradle.kts` `include()` calls to discover modules
+
+**Ephemeral pinning:**
+
+- Internal deps use `project(":module-a")` notation in `build.gradle.kts`
+- During publish: rewrite to `implementation("group:module-a:1.0.0")`
+- After publish: revert to `project()` reference
+- Version catalogs: rewrite version entry in `libs.versions.toml`
+
+**Registry interaction:**
+
+- Maven Central uses OSSRH (Sonatype) staging repositories
+- Flow: `create staging repo → upload artifacts → close → release`
+- Staging repo must be explicitly closed and released (or dropped on failure)
+- ~10 min sync delay from release to availability on `search.maven.org`
+- Gradle Plugin Portal: immediate availability after `publishPlugins`
+- Checksum verification: SHA-1 and MD5 published alongside every artifact
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/kotlin.py` | `PackageManager` | Wraps `./gradlew` for KMP builds. Handles multi-target publication. |
+| `backends/workspace/kotlin.py` | `Workspace` | Discovers Kotlin modules from `settings.gradle.kts`. Reads KMP target declarations. |
+| `backends/registry/maven_central.py` | `Registry` | Already planned in Bazel Phase 2 (B8). Shared with Kotlin backend. |
+
+**Example config:**
+
+```toml
+[workspace.kotlin]
+ecosystem        = "kotlin"
+tool             = "gradle"
+root             = "."
+tag_format       = "{name}@{version}"
+gradle_version_file    = "gradle.properties"
+gradle_version_format  = "gradle_properties"
+gradle_version_key     = "VERSION_NAME"
+gradle_signing         = "gpg"
+```
+
+**Note:** Kotlin JVM libraries that don't use KMP are fully covered by the
+existing Gradle backend (Phase 5: G1–G6). The Kotlin-specific backend is
+only needed for KMP multi-target publishing and Kotlin compiler plugins.
+
+---
+
+### Swift Backend (SwiftPM + CocoaPods)
+
+Swift has two primary distribution mechanisms: Swift Package Manager (SwiftPM)
+and CocoaPods. SwiftPM is Apple's official tool and is the modern standard;
+CocoaPods remains widely used in the iOS ecosystem.
+
+#### Swift Package Manager (SwiftPM)
+
+**Publishing mechanism:**
+
+SwiftPM does **not** have a centralized package registry like PyPI or npm.
+Distribution is git-tag-based:
+
+```
+1. Tag the commit:     git tag 1.0.0
+2. Push the tag:       git push origin 1.0.0
+3. Consumers add:      .package(url: "https://github.com/user/repo", from: "1.0.0")
+```
+
+The Swift Package Index (https://swiftpackageindex.com) is a discovery
+service that indexes public GitHub repos with `Package.swift` files, but
+it is **not** a registry — packages are always fetched directly from git.
+
+Apple introduced **Swift Package Registry** (SE-0292) as a protocol spec,
+but adoption is minimal. GitHub Packages supports it experimentally.
+
+**Version management:**
+
+- No explicit version file — the git tag **is** the version
+- `Package.swift` declares package metadata but not the version number
+- Consumers pin via `.exact("1.0.0")`, `.upToNextMajor(from: "1.0.0")`, etc.
+- Resolved versions stored in `Package.resolved` (lockfile)
+
+**Workspace discovery:**
+
+- `Package.swift` at repo root defines the package
+- Multi-package repos: each subdirectory with a `Package.swift` is a package
+- Local dependencies: `.package(path: "../other-package")`
+- During publish: rewrite `path:` deps to `.package(url:, from:)` with version
+
+**Ephemeral pinning:**
+
+```swift
+// Local development:
+.package(path: "../my-core-lib")
+
+// During publish (ephemeral rewrite):
+.package(url: "https://github.com/user/my-core-lib", from: "1.0.0")
+```
+
+**Registry interaction:**
+
+- No upload step — `git tag` + `git push` is the publish action
+- Verification: check that the tag exists on the remote
+- Poll: `git ls-remote --tags` to verify tag propagation
+- Swift Package Index updates within ~1 hour of tag push
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/swift.py` | `PackageManager` | `build()` → `swift build`. `publish()` → `git tag` + `git push`. `smoke_test()` → `swift test`. |
+| `backends/workspace/swift.py` | `Workspace` | Discovers packages from `Package.swift` files. Parses `path:` dependencies. |
+| `backends/registry/swift.py` | `Registry` | `check_published()` → `git ls-remote --tags`. `poll_available()` → verify tag exists. No upload needed. |
+
+**Example config:**
+
+```toml
+[workspace.swift]
+ecosystem        = "swift"
+tool             = "swift"
+root             = "."
+tag_format       = "{version}"
+```
+
+#### CocoaPods
+
+**Publishing mechanism:**
+
+CocoaPods uses a centralized trunk server (https://trunk.cocoapods.org).
+Libraries are described by a `.podspec` file (Ruby DSL or JSON).
+
+```bash
+# Register (one-time):
+pod trunk register user@example.com 'Your Name'
+
+# Publish:
+pod trunk push MyLib.podspec --allow-warnings
+```
+
+**Version management:**
+
+- Version declared in `*.podspec`: `s.version = '1.0.0'`
+- Must match the git tag exactly
+- `Podfile.lock` is the consumer-side lockfile
+
+**Workspace discovery:**
+
+- Each `.podspec` file in the repo is a pod
+- Local deps: `pod 'MyCore', :path => '../MyCore'`
+- During publish: the podspec must reference a git tag, not a local path
+
+**Ephemeral pinning:**
+
+```ruby
+# Podspec local development:
+s.dependency 'MyCore', :path => '../MyCore'
+
+# During publish (ephemeral rewrite):
+s.dependency 'MyCore', '~> 1.0.0'
+```
+
+**Registry interaction:**
+
+- `pod trunk push` uploads the podspec to trunk.cocoapods.org
+- Trunk validates: lint, build, dependency resolution
+- Availability: immediate after successful push
+- `pod trunk info MyLib` to check published versions
+- Yanking: `pod trunk deprecate MyLib` or `pod trunk delete MyLib 1.0.0`
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/cocoapods.py` | `PackageManager` | `build()` → `pod lib lint`. `publish()` → `pod trunk push`. |
+| `backends/workspace/cocoapods.py` | `Workspace` | Discovers pods from `*.podspec` files. Parses `:path =>` dependencies. |
+| `backends/registry/cocoapods.py` | `Registry` | `check_published()` → `pod trunk info`. `poll_available()` → immediate. |
+
+**Example config:**
+
+```toml
+[workspace.ios-pods]
+ecosystem        = "swift"
+tool             = "cocoapods"
+root             = "."
+tag_format       = "{name}/{version}"
+```
+
+---
+
+### Ruby Gems Backend
+
+**Publishing mechanism:**
+
+RubyGems.org is the standard registry for Ruby libraries. Publishing
+uses the `gem` CLI:
+
+```bash
+# Build the gem:
+gem build my_lib.gemspec
+
+# Push to RubyGems.org:
+gem push my_lib-1.0.0.gem
+```
+
+Auth via `~/.gem/credentials` file containing an API key, or via
+`GEM_HOST_API_KEY` environment variable.
+
+**Version management:**
+
+- Version declared in `lib/my_lib/version.rb`: `VERSION = '1.0.0'`
+- Referenced in `*.gemspec`: `spec.version = MyLib::VERSION`
+- Some gems use a `VERSION` file at the root
+
+**Workspace discovery:**
+
+- `Gemfile` at repo root lists dependencies
+- Multi-gem repos: each subdirectory with a `*.gemspec` is a gem
+- Local deps: `gem 'my_core', path: '../my_core'`
+- Bundler workspaces: not a formal concept, but `Gemfile` with `path:` deps
+  serves the same purpose
+
+**Ephemeral pinning:**
+
+```ruby
+# Gemfile local development:
+gem 'my_core', path: '../my_core'
+
+# During publish (ephemeral rewrite):
+# The gemspec already declares version deps — no Gemfile rewrite needed.
+# Instead, ensure gemspec has: spec.add_dependency 'my_core', '~> 1.0.0'
+```
+
+**Registry interaction:**
+
+- `gem push` uploads the `.gem` file to RubyGems.org
+- Immediate availability after successful push
+- `gem info my_lib -r` to check published versions
+- Yanking: `gem yank my_lib -v 1.0.0`
+- Checksum: SHA-256 available via RubyGems.org API (`/api/v1/gems/NAME.json`)
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/ruby.py` | `PackageManager` | `build()` → `gem build`. `publish()` → `gem push`. `smoke_test()` → `bundle exec rake test`. |
+| `backends/workspace/ruby.py` | `Workspace` | Discovers gems from `*.gemspec` files. Parses `path:` dependencies in `Gemfile`. |
+| `backends/registry/rubygems.py` | `Registry` | `check_published()` → RubyGems.org API. `poll_available()` → immediate. `yank_version()` → `gem yank`. |
+
+**Example config:**
+
+```toml
+[workspace.ruby]
+ecosystem        = "ruby"
+tool             = "bundler"
+root             = "."
+tag_format       = "v{version}"
+```
+
+---
+
+### .NET / NuGet Backend
+
+**Publishing mechanism:**
+
+NuGet is the package manager for .NET (C#, F#, VB.NET). Publishing
+uses the `dotnet` CLI:
+
+```bash
+# Pack the project:
+dotnet pack -c Release
+
+# Push to NuGet.org:
+dotnet nuget push bin/Release/MyLib.1.0.0.nupkg \
+  --api-key $NUGET_API_KEY \
+  --source https://api.nuget.org/v3/index.json
+```
+
+NuGet packages are `.nupkg` files (ZIP archives containing compiled
+assemblies + metadata).
+
+**Version management:**
+
+- Version in `*.csproj` / `*.fsproj`: `<Version>1.0.0</Version>`
+- Or in `Directory.Build.props` (shared across all projects in a solution)
+- Or via `<VersionPrefix>` + `<VersionSuffix>` for pre-release versions
+- `dotnet-gitversion` is a popular tool for automatic versioning from git history
+
+**Workspace discovery:**
+
+- `*.sln` (solution file) lists all projects in the workspace
+- `Directory.Build.props` at repo root applies to all projects (shared version, etc.)
+- Internal deps: `<ProjectReference Include="../MyCore/MyCore.csproj" />`
+- During publish: rewrite `<ProjectReference>` to `<PackageReference>` with version
+
+**Ephemeral pinning:**
+
+```xml
+<!-- Local development: -->
+<ProjectReference Include="../MyCore/MyCore.csproj" />
+
+<!-- During publish (ephemeral rewrite): -->
+<PackageReference Include="MyCore" Version="1.0.0" />
+```
+
+**Registry interaction:**
+
+- `dotnet nuget push` uploads `.nupkg` to NuGet.org
+- NuGet.org has a validation pipeline: ~15 min before package is searchable
+- Package is available for restore immediately after upload (before search indexing)
+- `dotnet nuget list source` to check configured sources
+- NuGet.org API: `https://api.nuget.org/v3-flatcontainer/{id}/{version}/{id}.{version}.nupkg`
+- Unlisting (soft delete): `dotnet nuget delete MyLib 1.0.0 --non-interactive`
+- NuGet does **not** support hard delete — unlisted packages remain resolvable
+
+**Signing:**
+
+- NuGet supports package signing with X.509 certificates
+- `dotnet nuget sign MyLib.1.0.0.nupkg --certificate-path cert.pfx`
+- NuGet.org validates signatures but does not require them (yet)
+- Repository signatures are added by NuGet.org automatically
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/dotnet.py` | `PackageManager` | `build()` → `dotnet pack`. `publish()` → `dotnet nuget push`. `smoke_test()` → `dotnet test`. |
+| `backends/workspace/dotnet.py` | `Workspace` | Discovers projects from `*.sln` or `Directory.Build.props`. Parses `<ProjectReference>` dependencies. |
+| `backends/registry/nuget.py` | `Registry` | `check_published()` → NuGet v3 API. `poll_available()` → poll flat container. `yank_version()` → `dotnet nuget delete` (unlist). |
+
+**Example config:**
+
+```toml
+[workspace.dotnet]
+ecosystem        = "dotnet"
+tool             = "dotnet"
+root             = "."
+tag_format       = "v{version}"
+```
+
+---
+
+### PHP / Packagist Backend
+
+**Publishing mechanism:**
+
+Packagist (https://packagist.org) is the default registry for PHP packages
+managed by Composer. Unlike most registries, Packagist does **not** host
+package archives — it indexes git repositories. Publishing is git-tag-based:
+
+```bash
+# Tag the commit:
+git tag v1.0.0
+
+# Push the tag:
+git push origin v1.0.0
+
+# Packagist auto-updates via GitHub webhook (or manual "Update" button)
+```
+
+For private packages, Private Packagist (https://packagist.com) or
+Satis (self-hosted) are used.
+
+**Version management:**
+
+- No explicit version field in `composer.json` (version is derived from git tags)
+- Some packages include `"version": "1.0.0"` in `composer.json` but this is
+  discouraged — Packagist ignores it and uses git tags
+- Consumers pin via `composer.lock`
+
+**Workspace discovery:**
+
+- `composer.json` at repo root defines the package
+- Multi-package repos: each subdirectory with a `composer.json` is a package
+- Local deps via `repositories` section:
+
+```json
+{
+  "repositories": [
+    { "type": "path", "url": "../my-core" }
+  ],
+  "require": {
+    "vendor/my-core": "*@dev"
+  }
+}
+```
+
+**Ephemeral pinning:**
+
+```json
+// Local development (in composer.json "repositories"):
+{ "type": "path", "url": "../my-core" }
+
+// During publish (ephemeral rewrite):
+// Remove the path repository entry.
+// Change require to: "vendor/my-core": "^1.0.0"
+```
+
+**Registry interaction:**
+
+- No upload step — Packagist reads from git via webhook
+- `composer show vendor/package --available` to check versions
+- Packagist API: `https://repo.packagist.org/p2/vendor/package.json`
+- Packages cannot be deleted from Packagist (only abandoned/archived)
+- Private Packagist supports version removal
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/php.py` | `PackageManager` | `build()` → no-op (no build step). `publish()` → `git tag` + `git push` + webhook trigger. `smoke_test()` → `composer install && vendor/bin/phpunit`. |
+| `backends/workspace/php.py` | `Workspace` | Discovers packages from `composer.json` files. Parses `"type": "path"` repository entries. |
+| `backends/registry/packagist.py` | `Registry` | `check_published()` → Packagist API. `poll_available()` → poll until tag appears in API. `yank_version()` → returns False (not supported). |
+
+**Example config:**
+
+```toml
+[workspace.php]
+ecosystem        = "php"
+tool             = "composer"
+root             = "."
+tag_format       = "v{version}"
+```
+
+---
+
+### IDE & Browser Extension Backends
+
+Extensions for IDEs and browsers have their own marketplaces with unique
+publishing APIs, review processes, and versioning conventions.
+
+#### VS Code Extensions
+
+**Publishing mechanism:**
+
+```bash
+# Package the extension:
+npx @vscode/vsce package        # produces *.vsix
+
+# Publish to VS Code Marketplace:
+npx @vscode/vsce publish
+
+# Publish to Open VSX (Eclipse Foundation alternative):
+npx ovsx publish *.vsix
+```
+
+Auth: Personal Access Token (PAT) from Azure DevOps for VS Code Marketplace,
+or `OVSX_PAT` for Open VSX.
+
+**Version management:**
+
+- `package.json` → `"version": "1.0.0"`
+- Same as npm packages but with additional `"engines": { "vscode": "^1.80.0" }`
+
+**Registry interaction:**
+
+- VS Code Marketplace API: `https://marketplace.visualstudio.com/_apis/public/gallery`
+- Open VSX API: `https://open-vsx.org/api/{namespace}/{name}/{version}`
+- Review process: automated validation only (no human review)
+- Immediate availability after publish
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/vscode.py` | `PackageManager` | `build()` → `vsce package`. `publish()` → `vsce publish` + optionally `ovsx publish`. |
+| `backends/registry/vscode_marketplace.py` | `Registry` | `check_published()` → Marketplace API. `poll_available()` → immediate. |
+
+**Example config:**
+
+```toml
+[workspace.vscode-ext]
+ecosystem        = "js"
+tool             = "vsce"
+root             = "extensions/my-ext"
+tag_format       = "vscode-v{version}"
+```
+
+#### JetBrains / IntelliJ Plugins
+
+**Publishing mechanism:**
+
+```bash
+# Build the plugin:
+./gradlew buildPlugin            # produces build/distributions/*.zip
+
+# Publish to JetBrains Marketplace:
+./gradlew publishPlugin
+```
+
+Uses the `org.jetbrains.intellij` Gradle plugin (or the newer
+`org.jetbrains.intellij.platform` plugin). Auth via `PUBLISH_TOKEN`
+from JetBrains Marketplace.
+
+**Version management:**
+
+- `build.gradle.kts` → `version = "1.0.0"` (Gradle project version)
+- `plugin.xml` → `<version>1.0.0</version>` (plugin descriptor)
+- Both must match. The Gradle plugin auto-patches `plugin.xml` from the
+  Gradle version during build.
+
+**Registry interaction:**
+
+- JetBrains Marketplace API: `https://plugins.jetbrains.com/api/plugins/{id}`
+- Review process: **human review** for first submission, automated for updates
+- Availability: immediate after approval (updates typically auto-approved)
+- Plugin compatibility: must declare supported IDE versions in `plugin.xml`
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/intellij.py` | `PackageManager` | `build()` → `./gradlew buildPlugin`. `publish()` → `./gradlew publishPlugin`. |
+| `backends/registry/jetbrains_marketplace.py` | `Registry` | `check_published()` → Marketplace API. `poll_available()` → poll until version appears. |
+
+**Example config:**
+
+```toml
+[workspace.intellij-plugin]
+ecosystem        = "java"
+tool             = "gradle"
+root             = "plugins/my-plugin"
+tag_format       = "intellij-v{version}"
+gradle_publish_task = "publishPlugin"
+```
+
+#### Browser Extensions (Chrome + Firefox)
+
+**Chrome Web Store:**
+
+```bash
+# Package:
+# ZIP the extension directory (manifest.json + assets)
+zip -r extension.zip src/
+
+# Upload via Chrome Web Store API:
+# POST https://www.googleapis.com/upload/chromewebstore/v1.1/items/{itemId}
+# Requires OAuth2 with chrome_web_store scope
+```
+
+- Auth: OAuth2 client credentials (client_id, client_secret, refresh_token)
+- Review process: **human review** (1–3 business days for new, faster for updates)
+- Version in `manifest.json` → `"version": "1.0.0"`
+- Staged rollout: supports percentage-based rollout via API
+- Chrome Web Store API: REST API for upload, publish, and status checking
+
+**Firefox Add-ons (AMO):**
+
+```bash
+# Package:
+npx web-ext build                # produces *.xpi / *.zip
+
+# Upload via AMO API:
+npx web-ext sign --api-key=$AMO_JWT_ISSUER --api-secret=$AMO_JWT_SECRET
+
+# Or via REST API:
+# PUT https://addons.mozilla.org/api/v5/addons/{id}/versions/{version}/
+```
+
+- Auth: JWT credentials from AMO developer account
+- Review process: **automated review** (minutes) + optional human review
+- Version in `manifest.json` → `"version": "1.0.0"`
+- `web-ext sign` both uploads and retrieves the signed `.xpi`
+- AMO API: REST API for upload, status, and version management
+
+**New backend modules:**
+
+| Module | Protocol | Description |
+|--------|----------|-------------|
+| `backends/pm/browser_ext.py` | `PackageManager` | `build()` → `zip` or `web-ext build`. `publish()` → Chrome Web Store API + AMO API. |
+| `backends/workspace/browser_ext.py` | `Workspace` | Discovers extensions from `manifest.json` files. |
+| `backends/registry/chrome_web_store.py` | `Registry` | `check_published()` → CWS API. `poll_available()` → poll review status. |
+| `backends/registry/firefox_addons.py` | `Registry` | `check_published()` → AMO API. `poll_available()` → poll review status. |
+
+**Example config:**
+
+```toml
+[workspace.chrome-ext]
+ecosystem        = "js"
+tool             = "browser-ext"
+root             = "extensions/chrome"
+tag_format       = "chrome-v{version}"
+
+[workspace.firefox-ext]
+ecosystem        = "js"
+tool             = "browser-ext"
+root             = "extensions/firefox"
+tag_format       = "firefox-v{version}"
+```
+
+---
+
+### New Ecosystem Summary
+
+| Ecosystem | PM Backend | Workspace Backend | Registry Backend | Priority |
+|-----------|-----------|-------------------|-----------------|----------|
+| **Kotlin (KMP)** | `kotlin.py` (extends Gradle) | `kotlin.py` | `maven_central.py` (shared) | Medium |
+| **Swift (SwiftPM)** | `swift.py` | `swift.py` | `swift.py` (git-tag-based) | Medium |
+| **CocoaPods** | `cocoapods.py` | `cocoapods.py` | `cocoapods.py` | Low |
+| **Ruby (Bundler)** | `ruby.py` | `ruby.py` | `rubygems.py` | Medium |
+| **.NET (NuGet)** | `dotnet.py` | `dotnet.py` | `nuget.py` | Medium |
+| **PHP (Composer)** | `php.py` | `php.py` | `packagist.py` | Low |
+| **VS Code** | `vscode.py` | — | `vscode_marketplace.py` | Low |
+| **IntelliJ** | `intellij.py` (extends Gradle) | — | `jetbrains_marketplace.py` | Low |
+| **Chrome** | `browser_ext.py` | `browser_ext.py` | `chrome_web_store.py` | Low |
+| **Firefox** | `browser_ext.py` (shared) | `browser_ext.py` (shared) | `firefox_addons.py` | Low |
+
+**Implementation order:**
+
+```
+Tier 1 (highest demand, most repos):
+  Kotlin/KMP  — extends existing Gradle backend
+  .NET/NuGet  — large ecosystem, straightforward CLI
+  Ruby Gems   — simple publish model, well-documented API
+
+Tier 2 (moderate demand):
+  Swift/SwiftPM — git-tag-based, minimal registry interaction
+  PHP/Packagist — git-tag-based, webhook-driven
+
+Tier 3 (niche):
+  CocoaPods     — declining in favor of SwiftPM
+  VS Code       — single-extension repos typically
+  IntelliJ      — extends Gradle backend
+  Browser exts  — review-gated, slow publish cycle
+```
+
+**Cross-cutting concerns:**
+
+All new backends share the existing releasekit infrastructure:
+- Same `PackageManager`, `Workspace`, `Registry` protocols
+- Same `releasekit.toml` config model with workspace-level overrides
+- Same ephemeral pinning pattern (rewrite local deps → published versions)
+- Same streaming scheduler for dependency-ordered publishing
+- Same Rich UI progress table and observer protocol
+- Same supply chain security (Sigstore signing, SLSA provenance, SBOM)
 
 ---
 

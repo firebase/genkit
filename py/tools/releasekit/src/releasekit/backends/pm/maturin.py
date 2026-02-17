@@ -117,7 +117,7 @@ class MaturinBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -133,7 +133,7 @@ class MaturinBackend:
                 files from ``maturin build``.
             check_url: Index URL to check for existing files (skips
                 duplicates).
-            index_url: Upload endpoint URL. Mapped to
+            registry_url: Upload endpoint URL. Mapped to
                 ``uv publish --publish-url``.
             dist_tag: Ignored (npm-only, accepted for protocol compat).
             publish_branch: Ignored (npm-only, accepted for protocol compat).
@@ -143,8 +143,8 @@ class MaturinBackend:
         cmd = ['uv', 'publish']
         if check_url:
             cmd.extend(['--check-url', check_url])
-        if index_url:
-            cmd.extend(['--publish-url', index_url])
+        if registry_url:
+            cmd.extend(['--publish-url', registry_url])
         cmd.append(str(dist_dir))
 
         log.info('publish', dist_dir=str(dist_dir))
@@ -227,13 +227,13 @@ class MaturinBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a published package resolves using ``uv pip install --dry-run``."""
         cmd = ['uv', 'pip', 'install', '--dry-run', f'{package_name}=={version}']
-        if index_url:
-            cmd.extend(['--default-index', index_url])
+        if registry_url:
+            cmd.extend(['--default-index', registry_url])
 
         log.info('resolve_check', package=package_name, version=version)
         return await asyncio.to_thread(

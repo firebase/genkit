@@ -898,3 +898,173 @@ def fix_self_dependencies(
             logger.warning('fix_self_dependencies', package=pkg.name, removed=removed)
 
     return changes
+
+
+def fix_typing_classifier(
+    packages: list[Package],
+    *,
+    dry_run: bool = False,
+) -> list[str]:
+    """Add missing ``Typing :: Typed`` and ``License :: OSI Approved`` classifiers.
+
+    For publishable packages that already have a ``classifiers`` list,
+    this appends:
+
+    - ``"Typing :: Typed"`` — signals PEP 561 inline type stubs.
+    - ``"License :: OSI Approved :: Apache Software License"`` — the
+      correct OSI classifier (detected from the LICENSE file when
+      possible, otherwise defaults to Apache-2.0).
+
+    Only classifiers whose *prefix* is entirely absent are added (e.g.
+    if any ``License :: OSI Approved :: …`` classifier already exists,
+    no license classifier is inserted).
+
+    Args:
+        packages: All discovered workspace packages.
+        dry_run: If ``True``, report what would change without writing.
+
+    Returns:
+        List of human-readable descriptions of changes made.
+    """
+    changes: list[str] = []
+
+    for pkg in packages:
+        if not pkg.is_publishable:
+            continue
+        try:
+            content = pkg.manifest_path.read_text(encoding='utf-8')
+            doc = tomlkit.parse(content)
+        except Exception:  # noqa: S112 - intentional skip on parse failure
+            continue
+
+        project = doc.get('project')
+        if not isinstance(project, dict):
+            continue
+        classifiers = project.get('classifiers')
+        if not isinstance(classifiers, list):
+            continue
+
+        added: list[str] = []
+
+        # --- Typing :: Typed ---
+        has_typing = any(isinstance(c, str) and c == 'Typing :: Typed' for c in classifiers)
+        if not has_typing:
+            classifiers.append('Typing :: Typed')
+            added.append('Typing :: Typed')
+
+        # --- License :: OSI Approved ---
+        has_license_osi = any(isinstance(c, str) and c.startswith('License :: OSI Approved') for c in classifiers)
+        if not has_license_osi:
+            # Try to detect from LICENSE file.
+            detected = 'License :: OSI Approved :: Apache Software License'
+            license_file = pkg.path / 'LICENSE'
+            if license_file.is_file():
+                try:
+                    license_text = license_file.read_text(encoding='utf-8')
+                except Exception:  # noqa: S112, BLE001 - best effort
+                    license_text = ''
+                for pattern, classifier in _LICENSE_PATTERNS.items():
+                    if pattern.lower() in license_text.lower():
+                        detected = classifier
+                        break
+            classifiers.append(detected)
+            added.append(detected)
+
+        if not added:
+            continue
+
+        action = f'{pkg.name}: added {", ".join(added)}'
+        changes.append(action)
+        if not dry_run:
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            logger.warning('fix_typing_classifier', action=action, path=str(pkg.manifest_path))
+
+    return changes
+
+
+def fix_keywords_and_urls(
+    packages: list[Package],
+    *,
+    repo_owner: str = '',
+    repo_name: str = '',
+    default_keywords: list[str] | None = None,
+    dry_run: bool = False,
+) -> list[str]:
+    """Add missing ``keywords`` and ``[project.urls]`` to publishable packages.
+
+    **Keywords**: If the ``keywords`` field is absent, inserts a default
+    list.  The caller can supply ``default_keywords``; otherwise a
+    minimal set (``["python"]``) is used.
+
+    **URLs**: If ``[project.urls]`` is absent or missing standard keys
+    (``Homepage``, ``Repository``, ``Bug Tracker``, ``Documentation``),
+    the missing entries are added using *repo_owner* / *repo_name* to
+    construct GitHub URLs.
+
+    Args:
+        packages: All discovered workspace packages.
+        repo_owner: Repository owner (e.g. ``"firebase"``).
+        repo_name: Repository name (e.g. ``"genkit"``).
+        default_keywords: Fallback keywords when none are present.
+        dry_run: If ``True``, report what would change without writing.
+
+    Returns:
+        List of human-readable descriptions of changes made.
+    """
+    if default_keywords is None:
+        default_keywords = ['python']
+
+    _standard_url_keys = {
+        'Homepage': f'https://github.com/{repo_owner}/{repo_name}' if repo_owner and repo_name else '',
+        'Repository': f'https://github.com/{repo_owner}/{repo_name}' if repo_owner and repo_name else '',
+        'Bug Tracker': f'https://github.com/{repo_owner}/{repo_name}/issues' if repo_owner and repo_name else '',
+    }
+
+    changes: list[str] = []
+
+    for pkg in packages:
+        if not pkg.is_publishable:
+            continue
+        try:
+            content = pkg.manifest_path.read_text(encoding='utf-8')
+            doc = tomlkit.parse(content)
+        except Exception:  # noqa: S112 - intentional skip on parse failure
+            continue
+
+        project = doc.get('project')
+        if not isinstance(project, dict):
+            continue
+
+        parts: list[str] = []
+
+        # --- keywords ---
+        if 'keywords' not in project or not project['keywords']:
+            project['keywords'] = default_keywords
+            parts.append(f'added keywords {default_keywords}')
+
+        # --- project.urls ---
+        urls = project.get('urls')
+        if urls is None:
+            urls = tomlkit.table()
+            project['urls'] = urls
+
+        if isinstance(urls, dict):
+            for key, default_url in _standard_url_keys.items():
+                if not default_url:
+                    continue
+                # Case-insensitive check for existing key.
+                has_key = any(k.lower() == key.lower() for k in urls)
+                if not has_key:
+                    urls[key] = default_url
+                    parts.append(f'added urls.{key}')
+
+        if not parts:
+            continue
+
+        action = f'{pkg.name}: {"; ".join(parts)}'
+        changes.append(action)
+        if not dry_run:
+            pkg.manifest_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
+            logger.warning('fix_keywords_and_urls', action=action, path=str(pkg.manifest_path))
+
+    return changes

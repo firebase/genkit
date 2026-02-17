@@ -254,6 +254,19 @@
   indentation). A committed fixer script is reviewable, testable, and documents
   the transformation for future maintainers.
 
+  **Available fixer scripts** — always check these before writing a new fixer:
+
+  | Script | Fixes | Usage |
+  |--------|-------|-------|
+  | `py/bin/fix_classifiers.py` | Missing `Typing :: Typed` and `License :: OSI Approved` classifiers in `pyproject.toml` | `python py/bin/fix_classifiers.py` |
+  | `py/bin/fix_inline_imports.py` | In-function imports → moves them to top of file (AST-based) | `python py/bin/fix_inline_imports.py <dir_or_file>` |
+  | `py/bin/fix_missing_test_docstrings.py` | Missing docstrings on test methods and private functions (D102/D103) | `python py/bin/fix_missing_test_docstrings.py <dir_or_file>` |
+  | `py/bin/fix_package_metadata.py` | Missing keywords and `project.urls` in plugin `pyproject.toml` files | `python py/bin/fix_package_metadata.py` |
+
+  **Workflow**: Run `ruff check --fix` first (handles unused imports, formatting,
+  simple refactors), then run the applicable `py/bin/fix_*.py` scripts, then
+  write a new fixer only if no existing script covers the issue.
+
 * **Rust-Style Errors with Hints**: Every user-facing error MUST follow the Rust
   compiler's diagnostic style: a **machine-readable error code**, a **human-readable
   message**, and an actionable **hint** that tells the user (or an AI agent) exactly
@@ -469,6 +482,7 @@
   | 12 | No `${{ inputs.* }}` string interpolation in CI `run:` | GitHub Actions script injection | Critical |
   | 13 | `hooks.py` uses `shlex.split` + `run_command` | Hook template command injection | High |
   | 14 | No `os.system()` calls | Implicit `shell=True` command injection | Critical |
+  | 15 | No secret/API key logging | `print`/`log`/`echo` of `GEMINI_API_KEY`, tokens, etc. | Critical |
 
   **Manual Review Checklist** (for PR reviews):
 

@@ -86,6 +86,9 @@
 #   skip_publish   │ boolean │ false   │ Tag + release, skip registry
 #   concurrency    │ string  │ 0       │ Max parallel publish jobs
 #   max_retries    │ string  │ 2       │ Retry failed publishes (0 = off)
+#   no_ai          │ boolean │ false   │ Disable AI features
+#   model          │ string  │ (chain) │ Override AI model
+#   codename_theme │ string  │ (cfg)   │ Override codename theme
 #
 # The workflow is idempotent: re-running any step is safe because
 # releasekit skips already-created tags and already-published versions.
@@ -94,6 +97,80 @@
 name: "ReleaseKit: Python (uv)"
 
 on:
+  workflow_call:
+    inputs:
+      action:
+        description: 'Which pipeline stage to run'
+        required: false
+        default: release
+        type: string
+      target:
+        description: 'Publish target registry (release only)'
+        required: false
+        default: pypi
+        type: string
+      dry_run:
+        description: 'Dry run — log what would happen without creating tags or publishing'
+        required: false
+        default: true
+        type: boolean
+      force_prepare:
+        description: 'Force create/update the Release PR even if no new bumps are detected'
+        required: false
+        default: false
+        type: boolean
+      group:
+        description: 'Release group to target (leave empty for all)'
+        required: false
+        type: string
+      bump_type:
+        description: 'Override auto-detected bump type'
+        required: false
+        default: auto
+        type: string
+      prerelease:
+        description: 'Publish as prerelease (e.g. rc.1, beta.1)'
+        required: false
+        type: string
+      skip_publish:
+        description: 'Tag and create GitHub Release but skip publishing to registry'
+        required: false
+        default: false
+        type: boolean
+      concurrency:
+        description: 'Max parallel publish jobs (0 = auto)'
+        required: false
+        default: '0'
+        type: string
+      max_retries:
+        description: 'Max retries for failed publish attempts (0 = no retries)'
+        required: false
+        default: '2'
+        type: string
+      no_ai:
+        description: 'Disable all AI features (summarization, codenames)'
+        required: false
+        default: false
+        type: boolean
+      model:
+        description: 'Override AI model (e.g. ollama/gemma3:12b)'
+        required: false
+        default: ''
+        type: string
+      codename_theme:
+        description: 'Override codename theme (e.g. galaxies, animals)'
+        required: false
+        default: ''
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: false
+      PYPI_TOKEN:
+        required: false
+      TESTPYPI_TOKEN:
+        required: false
+      GEMINI_API_KEY:
+        required: false
   workflow_dispatch:
     inputs:
       action:
@@ -154,6 +231,19 @@ on:
         description: 'Max retries for failed publish attempts (0 = no retries)'
         required: false
         default: '2'
+        type: string
+      no_ai:
+        description: 'Disable all AI features (summarization, codenames)'
+        required: false
+        default: false
+        type: boolean
+      model:
+        description: 'Override AI model (e.g. ollama/gemma3:12b)'
+        required: false
+        type: string
+      codename_theme:
+        description: 'Override codename theme (e.g. galaxies, animals)'
+        required: false
         type: string
   push:
     branches: [main]
@@ -220,6 +310,11 @@ jobs:
           group: ${{ inputs.group }}
           bump-type: ${{ inputs.bump_type }}
           prerelease: ${{ inputs.prerelease }}
+          no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
+          model: ${{ inputs.model }}
+          codename-theme: ${{ inputs.codename_theme }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
@@ -249,6 +344,11 @@ jobs:
           command: release
           workspace: py
           dry-run: ${{ env.DRY_RUN }}
+          no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
+          model: ${{ inputs.model }}
+          codename-theme: ${{ inputs.codename_theme }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PUBLISH: Build and publish packages to PyPI
@@ -295,8 +395,12 @@ jobs:
           index-url: ${{ env.PUBLISH_INDEX_URL }}
           concurrency: ${{ inputs.concurrency || '0' }}
           max-retries: ${{ inputs.max_retries || '2' }}
+          no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
+          model: ${{ inputs.model }}
+          codename-theme: ${{ inputs.codename_theme }}
         env:
           UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload manifest artifact
         if: success() && env.DRY_RUN != 'true'

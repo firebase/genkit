@@ -33,9 +33,7 @@ import pytest
 from releasekit.backends.workspace import Package, UvWorkspace, Workspace
 from releasekit.errors import ReleaseKitError
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _write_root(
@@ -73,9 +71,7 @@ def _write_package(
     return pkg_dir
 
 
-# ---------------------------------------------------------------------------
 # Protocol conformance
-# ---------------------------------------------------------------------------
 
 
 class TestWorkspaceProtocolConformance:
@@ -87,9 +83,7 @@ class TestWorkspaceProtocolConformance:
         assert isinstance(ws, Workspace), 'UvWorkspace should be a Workspace'
 
 
-# ---------------------------------------------------------------------------
 # Discovery
-# ---------------------------------------------------------------------------
 
 
 class TestUvWorkspaceDiscover:
@@ -224,9 +218,7 @@ class TestUvWorkspaceDiscover:
         assert pkgs[0].manifest_path.name == 'pyproject.toml'
 
 
-# ---------------------------------------------------------------------------
 # Error handling
-# ---------------------------------------------------------------------------
 
 
 class TestUvWorkspaceErrors:
@@ -261,9 +253,7 @@ class TestUvWorkspaceErrors:
         assert 'RK-WORKSPACE-DUPLICATE-PACKAGE' in str(exc_info.value)
 
 
-# ---------------------------------------------------------------------------
 # Version rewriting
-# ---------------------------------------------------------------------------
 
 
 class TestUvWorkspaceRewriteVersion:
@@ -291,9 +281,7 @@ class TestUvWorkspaceRewriteVersion:
             await ws.rewrite_version(pkg_dir / 'pyproject.toml', '1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # Dependency version rewriting
-# ---------------------------------------------------------------------------
 
 
 class TestUvWorkspaceRewriteDependencyVersion:
@@ -317,9 +305,7 @@ class TestUvWorkspaceRewriteDependencyVersion:
         await ws.rewrite_dependency_version(pkg_dir / 'pyproject.toml', 'nonexistent', '1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # Package dataclass
-# ---------------------------------------------------------------------------
 
 
 class TestPackageDataclass:

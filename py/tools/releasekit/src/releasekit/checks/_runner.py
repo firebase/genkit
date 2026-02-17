@@ -202,6 +202,8 @@ async def run_checks_async(
             ('check_license_classifier_mismatch', 'license_classifier_mismatch'),
             ('check_unreachable_extras', 'unreachable_extras'),
             ('check_self_dependencies', 'self_dependencies'),
+            ('check_typing_classifier', 'typing_classifier'),
+            ('check_keywords_and_urls', 'keywords_and_urls'),
             ('check_distro_deps', 'distro_deps'),
         ]
         for method_name, check_name in _backend_checks:
@@ -357,6 +359,8 @@ def _run_checks_sync(
         backend.check_license_classifier_mismatch(fp(packages, 'license_classifier_mismatch', skip_map), result)
         backend.check_unreachable_extras(fp(packages, 'unreachable_extras', skip_map), result)
         backend.check_self_dependencies(fp(packages, 'self_dependencies', skip_map), result)
+        backend.check_typing_classifier(fp(packages, 'typing_classifier', skip_map), result)
+        backend.check_keywords_and_urls(fp(packages, 'keywords_and_urls', skip_map), result)
         backend.check_distro_deps(fp(packages, 'distro_deps', skip_map), result)
 
     logger.info('checks_complete', summary=result.summary())

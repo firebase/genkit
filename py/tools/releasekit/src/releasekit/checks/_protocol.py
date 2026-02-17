@@ -340,6 +340,31 @@ class CheckBackend(Protocol):
         """Check that no package lists itself in ``[project].dependencies``."""
         ...
 
+    def check_typing_classifier(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check for ``Typing :: Typed`` and ``License :: OSI Approved`` classifiers.
+
+        Missing ``Typing :: Typed`` prevents type-checker discovery of
+        inline stubs.  Missing ``License :: OSI Approved`` reduces PyPI
+        discoverability via license filters.
+        """
+        ...
+
+    def check_keywords_and_urls(
+        self,
+        packages: list[Package],
+        result: PreflightResult,
+    ) -> None:
+        """Check that publishable packages have ``keywords`` and ``[project.urls]``.
+
+        PyPI uses keywords for search ranking and renders
+        ``[project.urls]`` as sidebar links.
+        """
+        ...
+
     def check_distro_deps(
         self,
         packages: list[Package],

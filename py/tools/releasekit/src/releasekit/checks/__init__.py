@@ -81,6 +81,8 @@ Check catalogue::
     │ python_classifiers       │ warning  │ language   │ Missing version classif. │
     │ dependency_resolution    │ warning  │ language   │ Broken dependency tree   │
     │ namespace_init           │ error    │ language   │ __init__.py in namespace │
+    │ typing_classifier        │ warning  │ language   │ Missing Typing :: Typed  │
+    │ keywords_and_urls        │ warning  │ language   │ Missing keywords/URLs    │
     └──────────────────────────┴──────────┴────────────┴──────────────────────────┘
 
 Usage::
@@ -115,6 +117,7 @@ from releasekit.checks._python_fixers import (
     fix_changelog_url,
     fix_deprecated_classifiers,
     fix_duplicate_dependencies,
+    fix_keywords_and_urls,
     fix_license_classifier_mismatch,
     fix_namespace_init,
     fix_placeholder_urls,
@@ -124,6 +127,7 @@ from releasekit.checks._python_fixers import (
     fix_requires_python,
     fix_self_dependencies,
     fix_type_markers,
+    fix_typing_classifier,
     fix_version_field,
 )
 from releasekit.checks._runner import run_checks, run_checks_async
@@ -191,9 +195,11 @@ __all__ = [
     'fix_readme_content_type',
     'fix_readme_field',
     'fix_requires_python',
+    'fix_keywords_and_urls',
     'fix_self_dependencies',
     'fix_stale_artifacts',
     'fix_type_markers',
+    'fix_typing_classifier',
     'fix_version_field',
     'run_checks',
     'run_checks_async',

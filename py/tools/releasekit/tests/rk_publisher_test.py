@@ -36,8 +36,6 @@ from releasekit.publisher import (
 )
 from releasekit.versions import PackageVersion
 from releasekit.workspace import Package
-
-# ── Fake backends ──
 from tests._fakes import OK as _OK, FakePM, FakeRegistry, FakeVCS
 
 
@@ -68,9 +66,6 @@ class SpyObserver(PublishObserver):
         self.completed = True
 
 
-# ── Helpers ──
-
-
 def _make_pkg(name: str, workspace_root: Path, *, version: str = '0.1.0') -> Package:
     """Create a test package directory with a pyproject.toml."""
     pkg_dir = workspace_root / 'packages' / name
@@ -78,9 +73,6 @@ def _make_pkg(name: str, workspace_root: Path, *, version: str = '0.1.0') -> Pac
     pyproject = pkg_dir / 'pyproject.toml'
     pyproject.write_text(f'[project]\nname = "{name}"\nversion = "{version}"\n', encoding='utf-8')
     return Package(name=name, version=version, path=pkg_dir, manifest_path=pyproject)
-
-
-# ── Tests: PublishConfig ──
 
 
 class TestPublishConfig:
@@ -106,7 +98,7 @@ class TestPublishConfig:
             concurrency=10,
             dry_run=True,
             check_url='https://test.pypi.org/simple/',
-            index_url='https://test.pypi.org/legacy/',
+            registry_url='https://test.pypi.org/legacy/',
             poll_timeout=60.0,
         )
         if config.concurrency != 10:
@@ -121,9 +113,6 @@ class TestPublishConfig:
         config = PublishConfig()
         with pytest.raises(AttributeError):
             config.concurrency = 99  # type: ignore[misc]
-
-
-# ── Tests: PublishResult ──
 
 
 class TestPublishResult:
@@ -163,9 +152,6 @@ class TestPublishResult:
             raise AssertionError(f'Missing "1 skipped" in: {summary}')
         if '1 failed' not in summary:
             raise AssertionError(f'Missing "1 failed" in: {summary}')
-
-
-# ── Tests: helper functions ──
 
 
 class TestBuildVersionMap:
@@ -213,9 +199,6 @@ class TestComputeDistChecksum:
         """Empty directory gives empty checksums."""
         if _compute_dist_checksum(tmp_path):
             raise AssertionError('Expected empty checksums')
-
-
-# ── Tests: publish_workspace (dry_run) ──
 
 
 class TestPublishWorkspaceDryRun:
@@ -516,11 +499,13 @@ class TestPublishWorkspaceNonDryRun:
                 no_sources: bool = True,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Build."""
                 if output_dir:
                     (output_dir / 'genkit-0.2.0.whl').write_bytes(b'wheel')
                 return _OK
 
             async def smoke_test(self, package_name: str, version: str, *, dry_run: bool = False) -> CommandResult:
+                """Smoke test."""
                 smoke_called.append(package_name)
                 return _OK
 
@@ -556,6 +541,7 @@ class TestPublishWorkspaceNonDryRun:
                 no_sources: bool = True,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Build."""
                 raise RuntimeError('unexpected boom')
 
         result = asyncio.run(

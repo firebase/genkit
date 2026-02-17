@@ -214,6 +214,7 @@ class _FakeVCS(_BaseFakeVCS):
     """FakeVCS with prepare-specific defaults."""
 
     def __init__(self, *, log_lines: list[str] | None = None, **kwargs: object) -> None:
+        """Init  ."""
         super().__init__(
             log_lines=log_lines if log_lines is not None else ['aaa1111 feat: initial'],
             diff_files=['packages/genkit/src/main.py'],
@@ -225,6 +226,7 @@ class _FakeForge:
     """Forge that records label operations and simulates PR creation."""
 
     def __init__(self, *, existing_prs: list[dict[str, Any]] | None = None, create_pr_url: str = '') -> None:
+        """Init  ."""
         self._existing_prs = existing_prs or []
         self._create_pr_url = create_pr_url
         self.labels_added: list[tuple[int, list[str]]] = []
@@ -514,6 +516,7 @@ class TestPrepareDryRun:
     """Tests for prepare_release in dry_run mode."""
 
     def _make_workspace(self, tmp_path: Path) -> Path:
+        """Make workspace."""
         ws = tmp_path / 'workspace'
         ws.mkdir()
         pkg_dir = ws / 'packages' / 'genkit'
@@ -561,6 +564,7 @@ class TestPrepareAutoMerge:
     """Tests for auto-merge functionality."""
 
     def _make_workspace(self, tmp_path: Path) -> Path:
+        """Make workspace."""
         ws = tmp_path / 'workspace'
         ws.mkdir()
         pkg_dir = ws / 'packages' / 'genkit'
@@ -583,6 +587,7 @@ class TestPrepareAutoMerge:
 
         class MergeForge(_FakeForge):
             def __init__(self) -> None:
+                """Init  ."""
                 super().__init__(existing_prs=[], create_pr_url='https://github.com/test/pull/42')
 
             async def merge_pr(
@@ -594,6 +599,7 @@ class TestPrepareAutoMerge:
                 delete_branch: bool = True,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Merge pr."""
                 merge_calls.append(pr_number)
                 return _OK
 
@@ -621,6 +627,7 @@ class TestPrepareAutoMerge:
 
         class FailMergeForge(_FakeForge):
             def __init__(self) -> None:
+                """Init  ."""
                 super().__init__(existing_prs=[], create_pr_url='https://github.com/test/pull/42')
 
             async def merge_pr(
@@ -632,6 +639,7 @@ class TestPrepareAutoMerge:
                 delete_branch: bool = True,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Merge pr."""
                 return CommandResult(command=[], return_code=1, stdout='', stderr='merge failed')
 
         config = ReleaseConfig()

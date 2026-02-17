@@ -374,7 +374,7 @@ All environment variables used by Genkit plugins. Configure these before running
 
 | Variable | Plugin | Required | Description | Documentation |
 |----------|--------|----------|-------------|---------------|
-| `GOOGLE_GENAI_API_KEY` | google-genai | Yes | Google AI Studio API key | [Get API Key](https://aistudio.google.com/apikey) |
+| `GEMINI_API_KEY` | google-genai | Yes | Google AI Studio API key | [Get API Key](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | anthropic | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
 | `AWS_REGION` | amazon-bedrock | Yes | AWS region (e.g., `us-east-1`) | [AWS Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
 | `AWS_ACCESS_KEY_ID` | amazon-bedrock | Yes* | AWS access key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |

@@ -28,10 +28,12 @@ from releasekit.backends.forge.bitbucket import BitbucketAPIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Ok."""
     return CommandResult(command=['GET', 'url'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(code: int = 404, stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Fail."""
     return CommandResult(command=['GET', 'url'], return_code=code, stderr=stderr, **kw)
 
 

@@ -281,9 +281,7 @@ def write_bootstrap_sha(
     config_path.write_text(tomlkit.dumps(doc), encoding='utf-8')
 
 
-# ---------------------------------------------------------------------------
 # MigrationSource protocol + implementations
-# ---------------------------------------------------------------------------
 
 
 @runtime_checkable

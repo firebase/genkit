@@ -28,8 +28,6 @@ from releasekit.workspace import Package
 
 configure_logging(quiet=True)
 
-# ── Fixtures ─────────────────────────────────────────────────────────
-
 
 def _pkg(name: str) -> Package:
     """Create a minimal Package for testing."""
@@ -64,9 +62,6 @@ def groups() -> dict[str, list[str]]:
         'web': ['web-*'],
         'all': ['*'],
     }
-
-
-# ── filter_by_group ─────────────────────────────────────────────────
 
 
 class TestFilterByGroup:
@@ -179,9 +174,6 @@ class TestFilterByGroup:
             pytest.fail(f'Expected exactly [genkit], got {[p.name for p in result]}')
 
 
-# ── list_groups ──────────────────────────────────────────────────────
-
-
 class TestListGroups:
     """Tests for list_groups()."""
 
@@ -208,9 +200,6 @@ class TestListGroups:
                 break
         else:
             pytest.fail('Core group not found in list_groups output')
-
-
-# ── validate_group ───────────────────────────────────────────────────
 
 
 class TestValidateGroup:

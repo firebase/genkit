@@ -34,9 +34,7 @@ from releasekit.security_insights import (
     generate_security_insights,
 )
 
-# ---------------------------------------------------------------------------
 # Contact
-# ---------------------------------------------------------------------------
 
 
 class TestContact:
@@ -69,9 +67,7 @@ class TestContact:
         assert d['primary'] is True
 
 
-# ---------------------------------------------------------------------------
 # SecurityTool
-# ---------------------------------------------------------------------------
 
 
 class TestSecurityTool:
@@ -109,9 +105,7 @@ class TestSecurityTool:
         assert d['integration']['release'] is True
 
 
-# ---------------------------------------------------------------------------
 # SecurityInsightsConfig defaults
-# ---------------------------------------------------------------------------
 
 
 class TestSecurityInsightsConfig:
@@ -128,9 +122,7 @@ class TestSecurityInsightsConfig:
         assert cfg.automated_pipeline is True
 
 
-# ---------------------------------------------------------------------------
 # generate_security_insights
-# ---------------------------------------------------------------------------
 
 
 class TestGenerateSecurityInsights:
@@ -257,6 +249,7 @@ class TestGenerateSecurityInsights:
         saved_yaml = sys.modules.pop('yaml', None)
 
         def _block_yaml(name: str, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+            """Block yaml."""
             if name == 'yaml':
                 raise ImportError('no yaml')
             return real_import(name, *args, **kwargs)
@@ -306,9 +299,7 @@ class TestGenerateSecurityInsights:
         assert result.data['header']['url'] == 'https://example.com/SECURITY-INSIGHTS.yml'
 
 
-# ---------------------------------------------------------------------------
 # default_security_tools
-# ---------------------------------------------------------------------------
 
 
 class TestDefaultSecurityTools:
@@ -336,9 +327,7 @@ class TestDefaultSecurityTools:
             assert t.tool_type, f'{t.name} missing tool_type'
 
 
-# ---------------------------------------------------------------------------
 # SecurityInsightsResult
-# ---------------------------------------------------------------------------
 
 
 class TestSecurityInsightsResult:

@@ -28,9 +28,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # expand_template
-# ---------------------------------------------------------------------------
 
 
 class TestExpandTemplate:
@@ -65,9 +63,7 @@ class TestExpandTemplate:
         assert expand_template('echo ${unknown}', {'version': '1.0'}) == 'echo ${unknown}'
 
 
-# ---------------------------------------------------------------------------
 # merge_hooks
-# ---------------------------------------------------------------------------
 
 
 class TestMergeHooks:
@@ -129,9 +125,7 @@ class TestMergeHooks:
         assert merged.after_publish == ['./notify.sh']
 
 
-# ---------------------------------------------------------------------------
 # run_hooks
-# ---------------------------------------------------------------------------
 
 
 class TestRunHooks:

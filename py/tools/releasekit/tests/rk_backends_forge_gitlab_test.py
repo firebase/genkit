@@ -29,10 +29,12 @@ from releasekit.backends.forge.gitlab import GitLabCLIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Ok."""
     return CommandResult(command=['glab'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Fail."""
     return CommandResult(command=['glab'], return_code=1, stderr=stderr, **kw)
 
 

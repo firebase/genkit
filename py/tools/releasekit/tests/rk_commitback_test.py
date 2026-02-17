@@ -265,6 +265,7 @@ class TestCreateCommitbackPr:
                 create: bool = False,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Checkout branch."""
                 raise RuntimeError('branch exists')
 
         manifest = ReleaseManifest(
@@ -337,6 +338,7 @@ class TestCreateCommitbackPr:
                 set_upstream: bool = True,
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Push."""
                 return CommandResult(
                     command=['git', 'push'],
                     return_code=1,
@@ -377,6 +379,7 @@ class TestCreateCommitbackPr:
                 base: str = 'main',
                 dry_run: bool = False,
             ) -> CommandResult:
+                """Create pr."""
                 raise RuntimeError('API error')
 
         pkg_dir = tmp_path / 'genkit'

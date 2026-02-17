@@ -30,9 +30,7 @@ import httpx
 import pytest
 from releasekit.backends.registry.npm import NpmRegistry, _encode_package_name
 
-# ---------------------------------------------------------------------------
 # Pure function tests
-# ---------------------------------------------------------------------------
 
 
 class TestEncodePackageName:
@@ -51,12 +49,12 @@ class TestEncodePackageName:
         assert _encode_package_name('@scope/pkg') == '@scope%2Fpkg'
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN401
+    """Mock transport."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         """Handler."""
         url = str(request.url)
@@ -69,8 +67,11 @@ def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN4
 
 
 def _make_client_cm(transport: Any, npm: NpmRegistry) -> Any:  # noqa: ANN401
+    """Make client cm."""
+
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 
@@ -83,9 +84,7 @@ def npm() -> NpmRegistry:
     return NpmRegistry(base_url='https://registry.test', pool_size=1, timeout=5.0)
 
 
-# ---------------------------------------------------------------------------
 # Async method tests
-# ---------------------------------------------------------------------------
 
 
 class TestCheckPublished:

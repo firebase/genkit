@@ -8311,6 +8311,7 @@ dependencies = [
     { name = "aiofiles" },
     { name = "argcomplete" },
     { name = "diagnostic" },
+    { name = "genkit" },
     { name = "httpx" },
     { name = "jinja2" },
     { name = "opentelemetry-api" },
@@ -8324,6 +8325,24 @@ dependencies = [
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
     { name = "tomlkit" },
+]
+
+[package.optional-dependencies]
+all-ai = [
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-ollama" },
+]
+anthropic = [
+    { name = "genkit-plugin-anthropic" },
+]
+google-genai = [
+    { name = "genkit-plugin-google-genai" },
+]
+ollama = [
+    { name = "genkit-plugin-ollama" },
+]
+vertex-ai = [
+    { name = "genkit-plugin-vertex-ai" },
 ]
 
 [package.dev-dependencies]
@@ -8340,6 +8359,13 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "argcomplete", specifier = ">=3.0.0" },
     { name = "diagnostic", specifier = ">=3.0.0" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-anthropic", marker = "extra == 'anthropic'", editable = "plugins/anthropic" },
+    { name = "genkit-plugin-google-genai", marker = "extra == 'all-ai'", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-google-genai", marker = "extra == 'google-genai'", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-ollama", marker = "extra == 'all-ai'", editable = "plugins/ollama" },
+    { name = "genkit-plugin-ollama", marker = "extra == 'ollama'", editable = "plugins/ollama" },
+    { name = "genkit-plugin-vertex-ai", marker = "extra == 'vertex-ai'", editable = "plugins/vertex-ai" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
@@ -8354,6 +8380,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.1.0" },
     { name = "tomlkit", specifier = ">=0.13.0" },
 ]
+provides-extras = ["ollama", "google-genai", "vertex-ai", "anthropic", "all-ai"]
 
 [package.metadata.requires-dev]
 dev = [

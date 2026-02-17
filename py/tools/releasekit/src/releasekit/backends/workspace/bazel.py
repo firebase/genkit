@@ -330,9 +330,7 @@ class BazelWorkspace:
                 dep=dep_name,
             )
 
-    # ------------------------------------------------------------------
     # Private rewrite helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     async def _rewrite_module_bazel(

@@ -32,9 +32,7 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # _expand_env
-# ---------------------------------------------------------------------------
 
 
 class TestExpandEnv:
@@ -59,9 +57,7 @@ class TestExpandEnv:
         assert _expand_env('${MY_VAR}') == '${MY_VAR}'
 
 
-# ---------------------------------------------------------------------------
 # _render_template
-# ---------------------------------------------------------------------------
 
 
 class TestRenderTemplate:
@@ -110,9 +106,7 @@ class TestRenderTemplate:
         assert result == ''
 
 
-# ---------------------------------------------------------------------------
 # AnnouncementResult
-# ---------------------------------------------------------------------------
 
 
 class TestAnnouncementResult:
@@ -135,9 +129,7 @@ class TestAnnouncementResult:
         assert '1 failed' in result.summary()
 
 
-# ---------------------------------------------------------------------------
 # send_announcements
-# ---------------------------------------------------------------------------
 
 
 class TestSendAnnouncements:
@@ -187,9 +179,7 @@ class TestSendAnnouncements:
         assert result.sent == 4
 
 
-# ---------------------------------------------------------------------------
 # resolve_announcement_config
-# ---------------------------------------------------------------------------
 
 
 class TestResolveAnnouncementConfig:

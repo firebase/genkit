@@ -85,6 +85,9 @@ and hit incompatibilities.
 | JavaScript (pnpm) | `pnpm pack` | `.tgz` tarball |
 | Rust (cargo) | `cargo package` | `.crate` file |
 | Go | *(no build — published via git tags)* | — |
+| Dart (pub) | `dart pub publish --dry-run` | validated package |
+| Java (Maven) | `mvn package` / `gradle build` | `.jar` / `.aar` files |
+| Bazel | `bazel build //pkg:target` | per-rule output |
 
 ### Stage 3: Publish — Upload to Registry
 
@@ -94,6 +97,9 @@ and hit incompatibilities.
 | JavaScript | `pnpm publish` | npm |
 | Rust | `cargo publish` | crates.io |
 | Go | *(git push tags)* | Go proxy |
+| Dart | `dart pub publish` | pub.dev |
+| Java | `mvn deploy` / `gradle publish` | Maven Central |
+| Bazel | `bazel run //pkg:publish` | per-ecosystem |
 
 ### Stage 4: Poll — Wait for Availability
 

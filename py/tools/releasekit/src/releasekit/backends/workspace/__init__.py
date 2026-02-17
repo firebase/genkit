@@ -27,6 +27,7 @@ rewriting versions. Implementations:
 - :class:`~releasekit.backends.workspace.maven.MavenWorkspace` — ``pom.xml`` / ``settings.gradle``
 - :class:`~releasekit.backends.workspace.cargo.CargoWorkspace` — ``Cargo.toml`` + ``[workspace]``
 - :class:`~releasekit.backends.workspace.bazel.BazelWorkspace` — ``MODULE.bazel`` / ``WORKSPACE`` + ``BUILD``
+- :class:`~releasekit.backends.workspace.clojure.ClojureWorkspace` — ``deps.edn`` / ``project.clj``
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from typing import Protocol, runtime_checkable
 from releasekit.backends.workspace._types import Package as Package
 from releasekit.backends.workspace.bazel import BazelWorkspace as BazelWorkspace
 from releasekit.backends.workspace.cargo import CargoWorkspace as CargoWorkspace
+from releasekit.backends.workspace.clojure import ClojureWorkspace as ClojureWorkspace
 from releasekit.backends.workspace.dart import DartWorkspace as DartWorkspace
 from releasekit.backends.workspace.go import GoWorkspace as GoWorkspace
 from releasekit.backends.workspace.maven import MavenWorkspace as MavenWorkspace
@@ -46,6 +48,7 @@ from releasekit.backends.workspace.uv import UvWorkspace as UvWorkspace
 __all__ = [
     'BazelWorkspace',
     'CargoWorkspace',
+    'ClojureWorkspace',
     'DartWorkspace',
     'GoWorkspace',
     'MavenWorkspace',

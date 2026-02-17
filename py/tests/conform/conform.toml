@@ -93,22 +93,22 @@ test-concurrency = 1
 # Paths are relative to this file's directory.
 
 [conform.runtimes.python]
-cwd           = "../../.."
-entry-command = ["uv", "run", "--project", "py", "--active"]
-plugins-dir   = "../../plugins"
-specs-dir     = "."
-default-runner = "in-process"  # Python runs in-process by default
+cwd            = "../../.."
+default-runner = "in-process"                                 # Python runs in-process by default
+entry-command  = ["uv", "run", "--project", "py", "--active"]
+plugins-dir    = "../../plugins"
+specs-dir      = "."
 
 [conform.runtimes.js]
-cwd           = "../../../js"
-entry-command = ["npx", "tsx"]
-plugins-dir   = "../../../js/plugins"
-specs-dir     = "."
-default-runner = "native"  # JS uses native JSONL-over-stdio executor
+cwd            = "../../../js"
+default-runner = "native"              # JS uses native JSONL-over-stdio executor
+entry-command  = ["npx", "tsx"]
+plugins-dir    = "../../../js/plugins"
+specs-dir      = "."
 
 [conform.runtimes.go]
-cwd           = "../../../go"
-entry-command = ["go", "run"]
-plugins-dir   = "../../../go/plugins"
-specs-dir     = "."
-default-runner = "native"  # Go uses native JSONL-over-stdio executor
+cwd            = "../../../go"
+default-runner = "native"              # Go uses native JSONL-over-stdio executor
+entry-command  = ["go", "run"]
+plugins-dir    = "../../../go/plugins"
+specs-dir      = "."

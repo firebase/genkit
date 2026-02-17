@@ -228,6 +228,143 @@ registry_url = "https://test.pypi.org"
 major_on_zero = true
 ```
 
+### Example: npm Publish via Wombat Dressing Room
+
+[Wombat Dressing Room](https://github.com/GoogleCloudPlatform/wombat-dressing-room)
+is Google's npm registry proxy that enforces 2FA and GitHub repository
+permission checks before forwarding publishes to `registry.npmjs.org`.
+It also proxies read requests (package metadata, dist-tags)
+transparently. Set `registry_url` to your Wombat external service —
+ReleaseKit routes both publishes and polling through Wombat.
+
+```toml
+[workspace.js]
+ecosystem = "javascript"
+tool = "pnpm"
+root = "js"
+registry_url = "https://my-wombat-proxy.appspot.com"
+provenance = true
+```
+
+### Example: npm Publish to Google Cloud Artifact Registry
+
+[Artifact Registry](https://cloud.google.com/artifact-registry) is
+Google Cloud's fully managed package registry. It supports npm, Python,
+Maven, Docker, and more. Set `registry_url` to your Artifact Registry
+npm repository — ReleaseKit routes both publishes and polling through it.
+
+```toml
+[workspace.js]
+ecosystem = "javascript"
+tool = "pnpm"
+root = "js"
+registry_url = "https://us-central1-npm.pkg.dev/my-project/my-npm-repo/"
+```
+
+Authenticate using the
+[`google-artifactregistry-auth`](https://www.npmjs.com/package/google-artifactregistry-auth)
+credential helper before publishing:
+
+```bash
+npx google-artifactregistry-auth
+releasekit publish
+```
+
+See the [npm Artifact Registry codelab](../guides/per-package-config.md#codelab-publishing-to-google-cloud-artifact-registry)
+for a full walkthrough including IAM setup and CI configuration.
+
+### Example: Maven/Gradle Publish to Google Cloud Artifact Registry
+
+Artifact Registry also supports Maven-format repositories for Java and
+Kotlin packages. For Gradle, `registry_url` is passed as
+`-PmavenUrl=<url>` (your `build.gradle` must read this property). For
+Maven, it overrides `<distributionManagement>` via
+`-DaltDeploymentRepository`.
+
+```toml
+[workspace.java]
+ecosystem = "java"
+tool = "gradle"  # or "maven"
+root = "java"
+registry_url = "https://us-central1-maven.pkg.dev/my-project/my-maven-repo"
+```
+
+See the [Maven Artifact Registry codelab](../guides/per-package-config.md#codelab-publishing-javakotlin-to-google-cloud-artifact-registry-maven)
+for build tool configuration, authentication, and a polling caveat.
+
+## Registry Compatibility
+
+The `registry_url` setting controls both the **publish path** (package
+manager CLI flag) and the **polling path** (registry backend base URL).
+This table shows how each ecosystem maps to Google Cloud Artifact
+Registry and other private registries.
+
+### Artifact Registry Support
+
+| Ecosystem | Tool | GAR Format | GAR URL Pattern | Publish Flag |
+|-----------|------|-----------|-----------------|-------------|
+| JavaScript | `pnpm` | `npm` | `LOCATION-npm.pkg.dev/PROJECT/REPO/` | `--registry` |
+| Python | `uv` | `python` | `LOCATION-python.pkg.dev/PROJECT/REPO/` | `--publish-url` |
+| Python | `maturin` | `python` | `LOCATION-python.pkg.dev/PROJECT/REPO/` | `--publish-url` |
+| Java/Kotlin | `gradle` | `maven` | `LOCATION-maven.pkg.dev/PROJECT/REPO` | `-PmavenUrl=` |
+| Java/Kotlin | `maven` | `maven` | `LOCATION-maven.pkg.dev/PROJECT/REPO` | `-DaltDeploymentRepository=` |
+| Go | `go` | `go` | `LOCATION-go.pkg.dev/PROJECT/REPO` | N/A (VCS tags) |
+| Rust | `cargo` | ❌ | — | `--index` |
+| Dart | `pub` | ❌ | — | `--server` |
+
+!!! note "Go modules"
+    Go modules are published via VCS tags — `GoBackend.publish()` is a
+    no-op. The Go module proxy (`proxy.golang.org` or a GAR Go
+    repository) fetches modules from your VCS automatically. Set
+    `GOPROXY` to your GAR Go repository URL to use it as a module proxy.
+
+!!! note "Unsupported ecosystems"
+    **Rust** and **Dart** are not supported by Artifact Registry.
+    For Rust, consider [Cloudsmith](https://cloudsmith.com/) or a
+    self-hosted [Kellnr](https://kellnr.io/) instance. For Dart,
+    consider a self-hosted [unpub](https://github.com/nicklockwood/unpub)
+    server. Both accept `registry_url` in `releasekit.toml`.
+
+### Proxy and Mirror Support
+
+| Ecosystem | Wombat Dressing Room | Verdaccio | Nexus/Artifactory | GAR |
+|-----------|---------------------|-----------|-------------------|-----|
+| JavaScript (npm) | ✅ | ✅ | ✅ | ✅ |
+| Python (PyPI) | — | — | ✅ | ✅ |
+| Java (Maven) | — | — | ✅ | ✅ |
+| Rust (crates.io) | — | — | ✅ | ❌ |
+| Dart (pub.dev) | — | — | — | ❌ |
+| Go | — | — | ✅ (GOPROXY) | ✅ (GOPROXY) |
+
+### Authentication by Ecosystem
+
+| Ecosystem | GAR Auth Method | Env Var / Tool |
+|-----------|----------------|---------------|
+| JavaScript | `google-artifactregistry-auth` credential helper | `GOOGLE_APPLICATION_CREDENTIALS` |
+| Python | `keyring` + `keyrings.google-artifactregistry-auth` | `GOOGLE_APPLICATION_CREDENTIALS` |
+| Java (Gradle) | `artifactregistry-gradle-plugin` | ADC / `GOOGLE_APPLICATION_CREDENTIALS` |
+| Java (Maven) | `artifactregistry-maven-wagon` | ADC / `GOOGLE_APPLICATION_CREDENTIALS` |
+| Go | `GONOSUMCHECK` + `GOFLAGS=-insecure` or `GONOPROXY` | `gcloud auth application-default login` |
+
+### Example: Python Publish to Artifact Registry
+
+```toml
+[workspace.py]
+ecosystem = "python"
+tool = "uv"
+root = "py"
+registry_url = "https://us-central1-python.pkg.dev/my-project/my-pypi-repo/"
+```
+
+Authenticate using the
+[`keyrings.google-artifactregistry-auth`](https://pypi.org/project/keyrings.google-artifactregistry-auth/)
+keyring backend:
+
+```bash
+pip install keyrings.google-artifactregistry-auth
+releasekit publish
+```
+
 ## Group Patterns
 
 Groups support:

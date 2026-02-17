@@ -51,9 +51,6 @@ def _manifest(*names_versions: tuple[str, str]) -> ReleaseManifest:
     )
 
 
-# ── SBOMFormat ──
-
-
 class TestSBOMFormat:
     """Tests for SBOMFormat enum."""
 
@@ -69,9 +66,6 @@ class TestSBOMFormat:
         """Enum values are correct strings."""
         assert SBOMFormat.CYCLONEDX.value == 'cyclonedx'
         assert SBOMFormat.SPDX.value == 'spdx'
-
-
-# ── SBOMComponent ──
 
 
 class TestSBOMComponent:
@@ -94,9 +88,6 @@ class TestSBOMComponent:
             raise AssertionError('Should be frozen')
         except AttributeError:
             pass
-
-
-# ── _make_purl ──
 
 
 class TestMakePurl:
@@ -125,9 +116,6 @@ class TestMakePurl:
     def test_javascript_ecosystem(self) -> None:
         """Javascript maps to npm purl."""
         assert _make_purl('pkg', '1.0.0', 'javascript') == 'pkg:npm/pkg@1.0.0'
-
-
-# ── _build_components ──
 
 
 class TestBuildComponents:
@@ -165,9 +153,6 @@ class TestBuildComponents:
         m = _manifest(('react', '18.0.0'))
         comps = _build_components(m, ecosystem='js')
         assert comps[0].purl == 'pkg:npm/react@18.0.0'
-
-
-# ── _render_cyclonedx ──
 
 
 class TestRenderCycloneDX:
@@ -225,9 +210,6 @@ class TestRenderCycloneDX:
         doc = _render_cyclonedx(comps)
         assert doc['serialNumber'].startswith('urn:uuid:')
         assert doc['metadata']['timestamp'] != ''
-
-
-# ── _render_spdx ──
 
 
 class TestRenderSPDX:
@@ -294,9 +276,6 @@ class TestRenderSPDX:
         assert doc['creationInfo']['created'] != ''
 
 
-# ── generate_sbom ──
-
-
 class TestGenerateSBOM:
     """Tests for generate_sbom."""
 
@@ -338,9 +317,6 @@ class TestGenerateSBOM:
         assert 'pkg:npm/react@18.0.0' in result
 
 
-# ── write_sbom ──
-
-
 class TestWriteSBOM:
     """Tests for write_sbom."""
 
@@ -378,8 +354,6 @@ class TestWriteSBOM:
         comp = doc['components'][0]
         assert comp['supplier'] == {'name': 'Acme Corp'}
 
-
-# ── Schema validation against official specs ──
 
 _SCHEMA_DIR = Path(__file__).parent / 'schemas'
 

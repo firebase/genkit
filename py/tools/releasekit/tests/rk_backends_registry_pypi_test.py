@@ -193,9 +193,7 @@ class TestPollAvailable:
         assert result is False
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_client_cm(transport: Any, pypi: PyPIBackend) -> Any:  # noqa: ANN401
@@ -203,6 +201,7 @@ def _make_client_cm(transport: Any, pypi: PyPIBackend) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 

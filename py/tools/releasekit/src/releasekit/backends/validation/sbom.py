@@ -149,9 +149,6 @@ def _normalise_input(
     )
 
 
-# ── CycloneDX ──
-
-
 @dataclass(frozen=True)
 class CycloneDXSchemaValidator:
     """Validates a CycloneDX 1.5 SBOM against the official JSON Schema.
@@ -245,9 +242,6 @@ class CycloneDXSchemaValidator:
                 if 'name' not in comp:
                     issues.append(f'components[{i}] missing required field "name"')
         return issues
-
-
-# ── SPDX ──
 
 
 @dataclass(frozen=True)

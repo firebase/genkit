@@ -24,8 +24,6 @@ import pytest
 from releasekit.backends.pm.pnpm import PnpmBackend
 from releasekit.backends.registry.npm import NpmRegistry, _encode_package_name
 
-# ── NpmRegistry URL encoding ─────────────────────────────────────────
-
 
 class TestEncodePackageName:
     """Tests for scoped package URL encoding."""
@@ -49,9 +47,6 @@ class TestEncodePackageName:
         assert '%40' not in encoded
 
 
-# ── NpmRegistry basic ────────────────────────────────────────────────
-
-
 class TestNpmRegistryInit:
     """NpmRegistry initialization."""
 
@@ -69,9 +64,6 @@ class TestNpmRegistryInit:
         """Trailing slashes are stripped from the base URL."""
         registry = NpmRegistry(base_url='https://registry.npmjs.org/')
         assert registry._base_url == 'https://registry.npmjs.org'
-
-
-# ── PnpmBackend dry-run tests ────────────────────────────────────────
 
 
 class TestPnpmBackendBuild:
@@ -133,7 +125,7 @@ class TestPnpmBackendPublish:
         backend = PnpmBackend(tmp_path)
         result = await backend.publish(
             tmp_path / 'core',
-            index_url='https://npm.example.com',
+            registry_url='https://npm.example.com',
             dry_run=True,
         )
         assert '--registry' in result.command
@@ -199,7 +191,7 @@ class TestPnpmBackendResolveCheck:
         result = await backend.resolve_check(
             'genkit',
             '1.0.0',
-            index_url='https://npm.example.com',
+            registry_url='https://npm.example.com',
             dry_run=True,
         )
         assert '--registry' in result.command

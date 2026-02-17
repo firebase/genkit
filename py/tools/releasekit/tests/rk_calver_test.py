@@ -28,12 +28,11 @@ configure_logging(quiet=True)
 
 
 def _utc(year: int, month: int, day: int) -> datetime:
+    """Utc."""
     return datetime(year, month, day, 12, 0, tzinfo=timezone.utc)
 
 
-# ---------------------------------------------------------------------------
 # YYYY.MM.DD format
-# ---------------------------------------------------------------------------
 
 
 class TestDateFormat:
@@ -97,9 +96,7 @@ class TestDateFormat:
         assert compute_calver('YYYY.MM.DD', current_version='not-a-version', now=_utc(2026, 3, 5)) == '2026.3.5'
 
 
-# ---------------------------------------------------------------------------
 # YYYY.MM.MICRO format
-# ---------------------------------------------------------------------------
 
 
 class TestMicroFormat:
@@ -145,9 +142,7 @@ class TestMicroFormat:
         assert compute_calver('YYYY.MM.MICRO', current_version='bad', now=_utc(2026, 6, 1)) == '2026.6.0'
 
 
-# ---------------------------------------------------------------------------
 # Invalid format
-# ---------------------------------------------------------------------------
 
 
 class TestInvalidFormat:

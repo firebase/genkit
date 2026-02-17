@@ -43,9 +43,7 @@ from releasekit.backends.registry.goproxy import GoProxyCheck
 from releasekit.backends.workspace import Workspace
 from releasekit.backends.workspace.go import GoWorkspace
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _create_go_workspace(root: Path, modules: list[str]) -> None:
@@ -78,9 +76,7 @@ def _create_go_module(
     return mod_dir
 
 
-# ---------------------------------------------------------------------------
 # Protocol conformance
-# ---------------------------------------------------------------------------
 
 
 class TestGoProtocolConformance:
@@ -102,9 +98,7 @@ class TestGoProtocolConformance:
         assert isinstance(reg, Registry)
 
 
-# ---------------------------------------------------------------------------
 # GoWorkspace.discover()
-# ---------------------------------------------------------------------------
 
 
 class TestGoWorkspaceDiscover:
@@ -247,9 +241,7 @@ class TestGoWorkspaceDiscover:
         assert pkgs[0].manifest_path.name == 'go.mod'
 
 
-# ---------------------------------------------------------------------------
 # GoWorkspace.rewrite_version()
-# ---------------------------------------------------------------------------
 
 
 class TestGoWorkspaceRewriteVersion:
@@ -264,9 +256,7 @@ class TestGoWorkspaceRewriteVersion:
         assert old == '1.24'
 
 
-# ---------------------------------------------------------------------------
 # GoWorkspace.rewrite_dependency_version()
-# ---------------------------------------------------------------------------
 
 
 class TestGoWorkspaceRewriteDependencyVersion:
@@ -307,15 +297,14 @@ class TestGoWorkspaceRewriteDependencyVersion:
         )
 
 
-# ---------------------------------------------------------------------------
 # GoProxyCheck (registry)
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN401
     """Create a mock transport that returns canned responses by URL suffix."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         for suffix, (status, body) in responses.items():
             if url.endswith(suffix):
@@ -330,6 +319,7 @@ def _make_client_cm(transport: Any) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 

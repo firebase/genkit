@@ -30,8 +30,6 @@ from releasekit.backends.workspace.pnpm import (
 )
 from releasekit.errors import ReleaseKitError
 
-# ── YAML parser tests ────────────────────────────────────────────────
-
 
 class TestParseYamlSimple:
     """Tests for the minimal YAML parser."""
@@ -75,9 +73,6 @@ class TestParseYamlSimple:
         """YAML with only comments returns empty dict."""
         result = _parse_yaml_simple('# just a comment\n# another one\n')
         assert result == {}
-
-
-# ── Helper function tests ────────────────────────────────────────────
 
 
 class TestIsWorkspaceDep:
@@ -124,9 +119,6 @@ class TestNormalizeName:
         assert _normalize_name('genkit') == 'genkit'
 
 
-# ── Workspace helper for tests ───────────────────────────────────────
-
-
 def _write_pnpm_workspace(root: Path, packages: list[str]) -> None:
     """Write a pnpm-workspace.yaml with the given package globs."""
     lines = ['packages:']
@@ -159,9 +151,6 @@ def _write_package_json(
         data['private'] = True
     (pkg_dir / 'package.json').write_text(json.dumps(data, indent=2) + '\n')
     return pkg_dir
-
-
-# ── Workspace discovery tests ────────────────────────────────────────
 
 
 class TestPnpmWorkspaceDiscover:
@@ -378,9 +367,6 @@ class TestPnpmWorkspaceDiscoverErrors:
         assert len(pkgs) == 0
 
 
-# ── Version rewriting tests ──────────────────────────────────────────
-
-
 class TestPnpmWorkspaceRewrite:
     """PnpmWorkspace version rewriting methods."""
 
@@ -480,9 +466,6 @@ class TestPnpmWorkspaceRewrite:
         # File unchanged (only whitespace differences from json.dumps).
         data = json.loads(manifest.read_text())
         assert data['dependencies'] == {}
-
-
-# ── Integration: real genkit-js workspace structure ──────────────────
 
 
 class TestPnpmWorkspaceGenkitJs:

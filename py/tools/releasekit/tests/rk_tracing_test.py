@@ -31,9 +31,7 @@ from releasekit.tracing import (
     span,
 )
 
-# ---------------------------------------------------------------------------
 # get_tracer
-# ---------------------------------------------------------------------------
 
 
 class TestGetTracer:
@@ -64,9 +62,7 @@ class TestGetTracer:
         assert tracer is not None
 
 
-# ---------------------------------------------------------------------------
 # span decorator
-# ---------------------------------------------------------------------------
 
 
 class TestSpanDecorator:
@@ -77,6 +73,7 @@ class TestSpanDecorator:
 
         @span('test_sync')
         def add(a: int, b: int) -> int:
+            """Add."""
             return a + b
 
         assert add(2, 3) == 5
@@ -86,6 +83,7 @@ class TestSpanDecorator:
 
         @span('test_async')
         async def add(a: int, b: int) -> int:
+            """Add."""
             return a + b
 
         result = asyncio.run(add(2, 3))
@@ -96,6 +94,7 @@ class TestSpanDecorator:
 
         @span('test_attrs', attributes={'algo': 'bfs'})
         def compute() -> str:
+            """Compute."""
             return 'done'
 
         assert compute() == 'done'
@@ -105,6 +104,7 @@ class TestSpanDecorator:
 
         @span('test_attrs_async', attributes={'algo': 'bfs'})
         async def compute() -> str:
+            """Compute."""
             return 'done'
 
         assert asyncio.run(compute()) == 'done'
@@ -114,6 +114,7 @@ class TestSpanDecorator:
 
         @span('named_span')
         def my_function() -> None:
+            """My function."""
             pass
 
         # When OTel is not available, the function is returned as-is.
@@ -125,6 +126,7 @@ class TestSpanDecorator:
 
         @span('failing_sync')
         def fail() -> None:
+            """Fail."""
             raise ValueError('sync boom')
 
         try:
@@ -138,6 +140,7 @@ class TestSpanDecorator:
 
         @span('failing_async')
         async def fail() -> None:
+            """Fail."""
             raise ValueError('async boom')
 
         try:
@@ -147,9 +150,7 @@ class TestSpanDecorator:
             assert str(e) == 'async boom'
 
 
-# ---------------------------------------------------------------------------
 # _is_coroutine_function
-# ---------------------------------------------------------------------------
 
 
 class TestIsCoroutineFunction:
@@ -159,6 +160,7 @@ class TestIsCoroutineFunction:
         """Sync function returns False."""
 
         def sync_fn() -> None:
+            """Sync fn."""
             pass
 
         assert _is_coroutine_function(sync_fn) is False
@@ -167,6 +169,7 @@ class TestIsCoroutineFunction:
         """Async function returns True."""
 
         async def async_fn() -> None:
+            """Async fn."""
             pass
 
         assert _is_coroutine_function(async_fn) is True

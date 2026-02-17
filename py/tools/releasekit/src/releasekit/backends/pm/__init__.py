@@ -94,7 +94,7 @@ class PackageManager(Protocol):
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -105,7 +105,7 @@ class PackageManager(Protocol):
         Args:
             dist_dir: Directory containing .tar.gz and .whl files.
             check_url: URL to check for existing versions (D-7).
-            index_url: Custom index URL (e.g., Test PyPI).
+            registry_url: Custom index URL (e.g., Test PyPI).
             dist_tag: npm dist-tag (e.g. ``latest``, ``next``).
                 Maps to ``pnpm publish --tag``. Ignored by Python backends.
             publish_branch: Allow publishing from a non-default branch.
@@ -157,7 +157,7 @@ class PackageManager(Protocol):
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a published package can be resolved by pip (D-9).
@@ -165,7 +165,7 @@ class PackageManager(Protocol):
         Args:
             package_name: Name of the package on PyPI.
             version: Expected version.
-            index_url: Custom index URL.
+            registry_url: Custom index URL.
             dry_run: Log the command without executing.
         """
         ...

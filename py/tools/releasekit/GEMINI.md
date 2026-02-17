@@ -275,6 +275,19 @@
   indentation). A committed fixer script is reviewable, testable, and documents
   the transformation for future maintainers.
 
+  **Available fixer scripts** — always check these before writing a new fixer:
+
+  | Script | Fixes | Usage |
+  |--------|-------|-------|
+  | `py/bin/fix_classifiers.py` | Missing `Typing :: Typed` and `License :: OSI Approved` classifiers in `pyproject.toml` | `python py/bin/fix_classifiers.py` |
+  | `py/bin/fix_inline_imports.py` | In-function imports → moves them to top of file (AST-based) | `python py/bin/fix_inline_imports.py <dir_or_file>` |
+  | `py/bin/fix_missing_test_docstrings.py` | Missing docstrings on test methods and private functions (D102/D103) | `python py/bin/fix_missing_test_docstrings.py <dir_or_file>` |
+  | `py/bin/fix_package_metadata.py` | Missing keywords and `project.urls` in plugin `pyproject.toml` files | `python py/bin/fix_package_metadata.py` |
+
+  **Workflow**: Run `ruff check --fix` first (handles unused imports, formatting,
+  simple refactors), then run the applicable `py/bin/fix_*.py` scripts, then
+  write a new fixer only if no existing script covers the issue.
+
 * **Rust-Style Errors with Hints**: Every error raised in the codebase MUST follow
   the Rust compiler's diagnostic style: a **machine-readable error code**, a
   **human-readable message**, and an actionable **hint** that tells the user (or
@@ -505,6 +518,7 @@
   | 12 | No `${{ inputs.* }}` string interpolation in CI `run:` | GitHub Actions script injection | Critical |
   | 13 | `hooks.py` uses `shlex.split` + `run_command` | Hook template command injection | High |
   | 14 | No `os.system()` calls | Implicit `shell=True` command injection | Critical |
+  | 15 | No secret/API key logging | `print`/`log`/`echo` of `GEMINI_API_KEY`, tokens, etc. | Critical |
 
   **Manual Review Checklist** (for PR reviews):
 
@@ -4106,16 +4120,34 @@ declaring success. Smoke tests optionally validate install-ability.
 │  └── versions.py   - ReleaseManifest and PackageVersion dataclasses     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  Backends (pluggable via protocols)                                     │
-│  ├── forge/   - GitHub, GitLab, Bitbucket (PR/release/tag APIs)        │
-│  ├── vcs/     - Git CLI backend                                         │
-│  ├── pm/      - uv, pnpm (build/publish/lock)                          │
-│  └── _run.py  - Central subprocess abstraction (no shell=True)          │
+│  ├── forge/      - GitHub, GitLab, Bitbucket (PR/release/tag APIs)     │
+│  ├── vcs/        - Git, Mercurial CLI backends                          │
+│  ├── pm/         - uv, pnpm, cargo, dart, go, maven, bazel, maturin   │
+│  ├── workspace/  - uv, pnpm, Go, Cargo, Dart, Maven/Gradle, Bazel,    │
+│  │                  Clojure (Leiningen/deps.edn)                       │
+│  ├── registry/   - PyPI, npm, crates.io, Go proxy, Maven Central,     │
+│  │                  pub.dev                                             │
+│  ├── validation/ - OIDC, schema, SBOM, SLSA                            │
+│  └── _run.py     - Central subprocess abstraction (no shell=True)      │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Checks & Preflight                                                     │
+│  AI (Genkit-powered)                                                    │
+│  ├── ai.py            - Genkit init, model fallback, load_prompt_folder │
+│  ├── _wordfilter.py   - Aho-Corasick trie-based blocked-word filter    │
+│  ├── summarize.py     - AI changelog summarization + content-hash cache │
+│  ├── codename.py      - AI codenames, 28 themes, 3-layer safety        │
+│  ├── schemas_ai.py    - ReleaseSummary, ReleaseCodename Pydantic models │
+│  └── prompts/         - Dotprompt .prompt files (Handlebars + YAML)     │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Checks & Preflight (6 ecosystem backends)                              │
 │  ├── preflight.py          - Run all checks before release              │
 │  ├── checks/_universal.py  - Cross-ecosystem checks                     │
-│  ├── checks/_python.py     - Python-specific checks                     │
-│  └── checks/_python_fixers.py - Auto-fix common issues                  │
+│  ├── checks/_python.py     - Python-specific checks (27 checks)        │
+│  ├── checks/_dart.py       - Dart/Flutter checks                       │
+│  ├── checks/_go.py         - Go checks                                  │
+│  ├── checks/_java.py       - Java/Kotlin checks                        │
+│  ├── checks/_js.py         - JS/TS checks                               │
+│  ├── checks/_rust.py       - Rust checks                                │
+│  └── checks/*_fixers.py    - Per-ecosystem auto-fixers                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

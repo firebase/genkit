@@ -398,6 +398,13 @@ def _create_backends(
     base URL for the registry backend (e.g. for Test PyPI, a local
     Verdaccio, or a staging crates.io).
 
+    For npm workspaces, ``registry_url`` flows to both the
+    ``NpmRegistry`` backend (polling/verification) **and** the publish
+    path (``pnpm publish --registry``).  This works with full mirrors
+    like Verdaccio and with Google's `Wombat Dressing Room
+    <https://github.com/GoogleCloudPlatform/wombat-dressing-room>`_
+    (which proxies both reads and writes).
+
     Args:
         config_root: Directory containing ``releasekit.toml`` (repo root).
         config: Release configuration.
@@ -670,7 +677,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             concurrency=args.concurrency,
             dry_run=args.dry_run,
             check_url=args.check_url,
-            index_url=args.index_url,
+            registry_url=ws_config.registry_url or None,
             smoke_test=ws_config.smoke_test,
             max_retries=args.max_retries,
             retry_base_delay=args.retry_base_delay,
@@ -1492,7 +1499,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     yank_reason = getattr(args, 'yank_reason', '')
     tag = args.tag
 
-    # ── Determine which tags to delete ────────────────────────────
     tags_to_delete: list[str] = []
 
     if all_tags and await vcs.tag_exists(tag):
@@ -1520,7 +1526,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     if not tags_to_delete:
         tags_to_delete = [tag]
 
-    # ── Delete tags ───────────────────────────────────────────────
     deleted: list[str] = []
     for t in tags_to_delete:
         if await vcs.tag_exists(t):
@@ -1530,7 +1535,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
         else:
             logger.info('Tag %s does not exist locally', t)
 
-    # ── Delete platform releases (concurrently) ─────────────────
     if forge is not None and await forge.is_available():
 
         async def _delete_release(t: str) -> None:
@@ -1544,7 +1548,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     else:
         logger.info('Forge not available, skipping release deletion')
 
-    # ── Yank from registry (opt-in, concurrently) ──────────────────
     yanked: list[str] = []
     yank_failed: list[str] = []
     if yank:
@@ -1577,7 +1580,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
             else:
                 yank_failed.append(label)
 
-    # ── Summary ───────────────────────────────────────────────────
     for t in deleted:
         print(f'  \U0001f5d1\ufe0f  Deleted tag: {t}')  # noqa: T201 - CLI output
     for y in yanked:
@@ -1588,7 +1590,6 @@ async def _cmd_rollback(args: argparse.Namespace) -> int:
     if not deleted:
         print(f'  \u2139\ufe0f  Tag {tag} not found')  # noqa: T201 - CLI output
 
-    # ── Rollback announcement ────────────────────────────────────
     announce_cfg = config.announcements
     if deleted and announce_cfg and announce_cfg.enabled:
         pkg_names = []
@@ -2355,6 +2356,28 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help='Workspace label from releasekit.toml (e.g. py, js). Defaults to the first workspace.',
     )
+    parser.add_argument(
+        '--no-ai',
+        action='store_true',
+        default=False,
+        help='Disable all AI features for this run.',
+    )
+    parser.add_argument(
+        '--model',
+        metavar='PROVIDER/MODEL',
+        default=None,
+        help='Override the AI model (e.g. ollama/gemma3:4b, google-genai/gemini-3.0-flash-preview).',
+    )
+    parser.add_argument(
+        '--codename-theme',
+        metavar='THEME',
+        default=None,
+        help=(
+            'Theme for AI-generated release codenames '
+            '(e.g. mountains, animals, space, mythology, gems, '
+            'weather, cities, or any custom theme).'
+        ),
+    )
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -2394,12 +2417,12 @@ def build_parser() -> argparse.ArgumentParser:
         help='URL to check for already-published versions.',
     )
     publish_parser.add_argument(
-        '--index-url',
-        help='Custom registry index URL (passed to the package manager).',
-    )
-    publish_parser.add_argument(
         '--registry-url',
-        help='Custom registry URL for polling/verification (e.g. Test PyPI, local Verdaccio).',
+        '--index-url',
+        dest='registry_url',
+        help='Custom registry URL for both publishing and polling/verification '
+        '(e.g. Test PyPI, local Verdaccio, Wombat Dressing Room). '
+        'Overrides registry_url in releasekit.toml.',
     )
     publish_parser.add_argument(
         '--dist-tag',

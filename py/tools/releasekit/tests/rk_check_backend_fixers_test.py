@@ -56,9 +56,7 @@ from releasekit.workspace import Package
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _pkg(
@@ -85,9 +83,7 @@ def _pkg(
     )
 
 
-# ===========================================================================
 # Go fixers
-# ===========================================================================
 
 
 class TestGoFixBuildSystem:
@@ -169,9 +165,7 @@ class TestGoFixDuplicateDependencies:
         assert go_mod.read_text() == original
 
 
-# ===========================================================================
 # Dart fixers
-# ===========================================================================
 
 
 class TestDartFixPublishToConsistency:
@@ -281,9 +275,7 @@ class TestDartFixDuplicateDependencies:
         assert changes == []
 
 
-# ===========================================================================
 # JS fixers
-# ===========================================================================
 
 
 class TestJsFixPrivateFieldConsistency:
@@ -412,9 +404,7 @@ class TestJsFixDuplicateDependencies:
         assert changes == []
 
 
-# ===========================================================================
 # Rust fixers
-# ===========================================================================
 
 
 class TestRustFixMetadataCompleteness:
@@ -523,9 +513,7 @@ class TestRustFixDuplicateDependencies:
         assert changes == []
 
 
-# ===========================================================================
 # Java fixers
-# ===========================================================================
 
 
 class TestJavaFixPlaceholderUrls:
@@ -678,9 +666,7 @@ class TestJavaFixDuplicateDependencies:
         assert changes == []
 
 
-# ===========================================================================
 # run_fixes integration
-# ===========================================================================
 
 
 class TestRunFixesIntegration:

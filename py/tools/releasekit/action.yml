@@ -158,6 +158,27 @@ inputs:
     required: false
     default: "latest"
 
+  no-ai:
+    description: "Disable all AI features (summarization, codenames)."
+    required: false
+    default: "false"
+
+  model:
+    description: |
+      Override the AI model (e.g. ollama/gemma3:12b,
+      google-genai/gemini-3.0-flash-preview). Empty uses the
+      configured model fallback chain.
+    required: false
+    default: ""
+
+  codename-theme:
+    description: |
+      Override the codename theme (e.g. galaxies, animals, flowers).
+      28 built-in safe themes available. Empty uses the configured
+      default (mountains).
+    required: false
+    default: ""
+
   extra-args:
     description: |
       Additional arguments passed directly to the releasekit CLI.
@@ -252,6 +273,9 @@ runs:
         INPUT_CONCURRENCY: ${{ inputs.concurrency }}
         INPUT_MAX_RETRIES: ${{ inputs.max-retries }}
         INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        INPUT_NO_AI: ${{ inputs.no-ai }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_CODENAME_THEME: ${{ inputs.codename-theme }}
         RELEASEKIT_DIR: ${{ inputs.releasekit-dir }}
       run: |
         set +e
@@ -326,6 +350,17 @@ runs:
             fi
             ;;
         esac
+
+        # AI flags.
+        if [[ "$INPUT_NO_AI" == "true" ]]; then
+          cmd+=(--no-ai)
+        fi
+        if [[ -n "$INPUT_MODEL" ]]; then
+          cmd+=(--model "$INPUT_MODEL")
+        fi
+        if [[ -n "$INPUT_CODENAME_THEME" ]]; then
+          cmd+=(--codename-theme "$INPUT_CODENAME_THEME")
+        fi
 
         # Extra args (split on whitespace).
         if [[ -n "$INPUT_EXTRA_ARGS" ]]; then

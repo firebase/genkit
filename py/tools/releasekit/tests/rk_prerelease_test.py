@@ -35,9 +35,7 @@ from releasekit.prerelease import (
 configure_logging(quiet=True)
 
 
-# ---------------------------------------------------------------------------
 # parse_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestParsePrerelease:
@@ -125,9 +123,7 @@ class TestParsePrerelease:
         assert info.base_version == '1.2.3'
 
 
-# ---------------------------------------------------------------------------
 # PrereleaseInfo.format
-# ---------------------------------------------------------------------------
 
 
 class TestPrereleaseInfoFormat:
@@ -164,9 +160,7 @@ class TestPrereleaseInfoFormat:
         assert info.format() == '1.2.3'
 
 
-# ---------------------------------------------------------------------------
 # apply_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestApplyPrerelease:
@@ -202,9 +196,7 @@ class TestApplyPrerelease:
             apply_prerelease('1.0.0', 'gamma')
 
 
-# ---------------------------------------------------------------------------
 # increment_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestIncrementPrerelease:
@@ -232,9 +224,7 @@ class TestIncrementPrerelease:
             increment_prerelease('1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # promote_to_stable
-# ---------------------------------------------------------------------------
 
 
 class TestPromoteToStable:
@@ -258,9 +248,7 @@ class TestPromoteToStable:
             promote_to_stable('1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # escalate_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestEscalatePrerelease:
@@ -298,9 +286,7 @@ class TestEscalatePrerelease:
             escalate_prerelease('1.0.0', 'rc')
 
 
-# ---------------------------------------------------------------------------
 # is_prerelease
-# ---------------------------------------------------------------------------
 
 
 class TestIsPrerelease:
@@ -323,9 +309,7 @@ class TestIsPrerelease:
         assert is_prerelease('not-a-version') is False
 
 
-# ---------------------------------------------------------------------------
 # prerelease_sort_key
-# ---------------------------------------------------------------------------
 
 
 class TestPrereleaseSortKey:

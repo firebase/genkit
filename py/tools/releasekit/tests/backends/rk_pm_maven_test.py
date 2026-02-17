@@ -158,13 +158,13 @@ class TestMavenBackendPublish:
         assert '-DskipTests' in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_maven_with_index_url(self, tmp_path: Path) -> None:
+    async def test_publish_maven_with_registry_url(self, tmp_path: Path) -> None:
         """Test publish maven with index url."""
         pkg = _make_maven_dir(tmp_path)
         backend = MavenBackend(workspace_root=tmp_path)
         result = await backend.publish(
             pkg,
-            index_url='https://oss.sonatype.org/content/repositories/releases/',
+            registry_url='https://oss.sonatype.org/content/repositories/releases/',
             dry_run=True,
         )
         assert any('-DaltDeploymentRepository=' in arg for arg in result.command)
@@ -179,13 +179,13 @@ class TestMavenBackendPublish:
         assert 'publish' in result.command
 
     @pytest.mark.asyncio
-    async def test_publish_gradle_with_index_url(self, tmp_path: Path) -> None:
+    async def test_publish_gradle_with_registry_url(self, tmp_path: Path) -> None:
         """Test publish gradle with index url passes -PmavenUrl."""
         pkg = _make_gradle_dir(tmp_path)
         backend = MavenBackend(workspace_root=tmp_path)
         result = await backend.publish(
             pkg,
-            index_url='https://maven.example.com/releases/',
+            registry_url='https://maven.example.com/releases/',
             dry_run=True,
         )
         assert any('-PmavenUrl=' in arg for arg in result.command)

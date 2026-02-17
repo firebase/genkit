@@ -618,6 +618,7 @@ class TestDeleteTags:
 
         class FailDeleteVCS(FakeVCS):
             async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+                """Delete tag."""
                 raise RuntimeError('permission denied')
 
         manifest = _make_manifest('genkit')
@@ -633,6 +634,7 @@ class TestDeleteTags:
 
         class FailUmbrellaDeleteVCS(FakeVCS):
             async def delete_tag(self, tag_name: str, *, remote: bool = False, dry_run: bool = False) -> CommandResult:
+                """Delete tag."""
                 nonlocal call_count
                 call_count += 1
                 if tag_name == 'v0.5.0':
@@ -689,6 +691,7 @@ class TestCreateTagsSecondary:
 
         class FailSecondaryVCS(FakeVCS):
             async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+                """Tag."""
                 nonlocal call_count
                 call_count += 1
                 if '@' in tag_name:

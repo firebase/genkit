@@ -32,10 +32,12 @@ from releasekit.backends.forge.github import GitHubCLIBackend
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Ok."""
     return CommandResult(command=['gh'], return_code=0, stdout=stdout, **kw)
 
 
 def _fail(stderr: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
+    """Fail."""
     return CommandResult(command=['gh'], return_code=1, stderr=stderr, **kw)
 
 

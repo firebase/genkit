@@ -53,16 +53,11 @@ from releasekit.plan import PlanStatus, build_plan
 from releasekit.versions import PackageVersion
 from releasekit.workspace import discover_packages
 
-# ── Helpers ──────────────────────────────────────────────────────────
-
 
 def _git(root: Path) -> Path:
     """Create a minimal .git directory."""
     (root / '.git').mkdir(parents=True, exist_ok=True)
     return root
-
-
-# ── Go helpers ───────────────────────────────────────────────────────
 
 
 def _go_workspace(root: Path, modules: list[str]) -> None:
@@ -81,6 +76,7 @@ def _go_module(
     module_path: str,
     requires: list[str] | None = None,
 ) -> Path:
+    """Go module."""
     mod_dir = root / subdir
     mod_dir.mkdir(parents=True, exist_ok=True)
     req = ''
@@ -92,9 +88,6 @@ def _go_module(
         encoding='utf-8',
     )
     return mod_dir
-
-
-# ── Dart helpers ─────────────────────────────────────────────────────
 
 
 def _dart_workspace(root: Path, patterns: list[str]) -> None:
@@ -118,6 +111,7 @@ def _dart_package(
     version: str = '1.0.0',
     deps: dict[str, str] | None = None,
 ) -> Path:
+    """Dart package."""
     pkg_dir = root / subdir
     pkg_dir.mkdir(parents=True, exist_ok=True)
     lines = [f'name: {name}', f'version: {version}']
@@ -128,8 +122,6 @@ def _dart_package(
     (pkg_dir / 'pubspec.yaml').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     return pkg_dir
 
-
-# ── Maven helpers ────────────────────────────────────────────────────
 
 _POM = """\
 <?xml version="1.0" encoding="UTF-8"?>
@@ -165,6 +157,7 @@ def _maven_module(
     version: str = '1.0.0',
     deps: list[str] | None = None,
 ) -> Path:
+    """Maven module."""
     mod_dir = root / subdir
     mod_dir.mkdir(parents=True, exist_ok=True)
     dep_xml = ''
@@ -186,6 +179,7 @@ def _gradle_workspace(root: Path, includes: list[str]) -> None:
 
 
 def _gradle_project(root: Path, subdir: str, version: str = '1.0.0') -> Path:
+    """Gradle project."""
     proj_dir = root / subdir
     proj_dir.mkdir(parents=True, exist_ok=True)
     (proj_dir / 'build.gradle').write_text(
@@ -193,9 +187,6 @@ def _gradle_project(root: Path, subdir: str, version: str = '1.0.0') -> Path:
         encoding='utf-8',
     )
     return proj_dir
-
-
-# ── Cargo helpers ────────────────────────────────────────────────────
 
 
 def _cargo_workspace(root: Path, members: list[str], ws_version: str | None = None) -> None:
@@ -219,6 +210,7 @@ def _cargo_crate(
     deps: dict[str, str] | None = None,
     workspace_version: bool = False,
 ) -> Path:
+    """Cargo crate."""
     crate_dir = root / subdir
     crate_dir.mkdir(parents=True, exist_ok=True)
     ver_line = 'version.workspace = true' if workspace_version else f'version = "{version}"'
@@ -233,9 +225,7 @@ def _cargo_crate(
     return crate_dir
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: discover_packages() dispatch for each ecosystem
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestDiscoverPackagesDispatch:
@@ -308,9 +298,7 @@ class TestDiscoverPackagesDispatch:
         assert 'my-core' in plugin.internal_deps
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: detect_ecosystems() → workspace → discover round-trip
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestDetectThenDiscover:
@@ -425,9 +413,7 @@ class TestDetectThenDiscover:
                 assert isinstance(eco.workspace, Workspace)
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: Discover → Graph → Plan for new ecosystems
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestGraphPlanPipelineNewEcosystems:
@@ -509,9 +495,7 @@ class TestGraphPlanPipelineNewEcosystems:
         assert 'my-core' in level_0_names
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: scaffold_config → load_config for new ecosystems
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestScaffoldConfigNewEcosystems:
@@ -615,9 +599,7 @@ class TestScaffoldConfigNewEcosystems:
             assert config.workspaces[eco].ecosystem == eco
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: Config validation with new ecosystem values
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestConfigValidationNewEcosystems:
@@ -675,9 +657,7 @@ class TestConfigValidationNewEcosystems:
         assert ecosystems == {'python', 'js', 'go', 'dart', 'java', 'rust'}
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: Workspace rewrite_version round-trip
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestRewriteVersionRoundTrip:
@@ -792,9 +772,7 @@ class TestRewriteVersionRoundTrip:
         assert 'v1.5.0' in text
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: Package dataclass conformance from all backends
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestPackageDataclassConformance:
@@ -845,9 +823,7 @@ class TestPackageDataclassConformance:
             pkgs[0].name = 'oops'  # ty: ignore[invalid-assignment]  # pyrefly: ignore[read-only] - intentionally testing frozen dataclass
 
 
-# ═════════════════════════════════════════════════════════════════════
 # Pipeline: Exclude patterns work through discover_packages dispatch
-# ═════════════════════════════════════════════════════════════════════
 
 
 class TestExcludePatternsDispatch:

@@ -50,6 +50,39 @@
 name: "ReleaseKit: Rollback"
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Git tag to roll back'
+        required: true
+        type: string
+      workspace:
+        description: 'Workspace to target'
+        required: false
+        default: py
+        type: string
+      all_tags:
+        description: 'Delete ALL tags pointing to the same commit'
+        required: false
+        default: true
+        type: boolean
+      yank:
+        description: 'Also yank/deprecate versions from the package registry'
+        required: false
+        default: false
+        type: boolean
+      yank_reason:
+        description: 'Reason for yanking'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run'
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      GITHUB_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       tag:

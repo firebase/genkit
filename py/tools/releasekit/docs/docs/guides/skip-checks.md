@@ -16,7 +16,7 @@ checks on a per-package basis.
 
 ```text
 Your workspace has 20 packages. All of them get checked for
-33 different things (like "does it have a LICENSE?").
+35 different things (like "does it have a LICENSE?").
 
 But one package — "my-internal-tool" — is never published.
 It doesn't need the "requires_python" check.

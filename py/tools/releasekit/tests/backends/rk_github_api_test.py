@@ -35,9 +35,6 @@ from releasekit.logging import configure_logging
 configure_logging(quiet=True)
 
 
-# ── Helpers ──────────────────────────────────────────────────────────
-
-
 def _mock_response(
     status_code: int = 200,
     json_data: Any = None,  # noqa: ANN401 — test helper
@@ -69,9 +66,6 @@ def backend() -> GitHubAPIBackend:
     )
 
 
-# ── Protocol conformance ────────────────────────────────────────────
-
-
 class TestProtocolConformance:
     """Verify GitHubAPIBackend satisfies the Forge protocol."""
 
@@ -79,9 +73,6 @@ class TestProtocolConformance:
         """Test is forge."""
         if not isinstance(backend, Forge):
             pytest.fail(f'{type(backend).__name__} does not satisfy the Forge protocol')
-
-
-# ── Authentication ──────────────────────────────────────────────────
 
 
 class TestAuth:
@@ -121,9 +112,6 @@ class TestAuth:
         be = GitHubAPIBackend(owner='o', repo='r', token='explicit')
         if be._headers.get('Authorization') != 'Bearer explicit':
             pytest.fail('Explicit token should take precedence over env vars')
-
-
-# ── Dry-run mode ────────────────────────────────────────────────────
 
 
 class TestDryRun:
@@ -183,9 +171,6 @@ class TestDryRun:
         result = await backend.update_pr(1, title='Updated', dry_run=True)
         if not result.ok:
             pytest.fail('Dry-run update_pr should return ok=True')
-
-
-# ── API interactions (mocked) ───────────────────────────────────────
 
 
 class TestAPIInteractions:
@@ -303,9 +288,6 @@ class TestAPIInteractions:
             pytest.fail(f'Expected 1 PR after label filter, got {len(prs)}')
         if prs[0]['number'] != 1:
             pytest.fail(f'Expected PR #1, got #{prs[0]["number"]}')
-
-
-# ── GitHub Enterprise ───────────────────────────────────────────────
 
 
 class TestGitHubEnterprise:

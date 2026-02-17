@@ -68,9 +68,7 @@ def _get_source_contexts(result: PreflightResult, check_name: str) -> list[Sourc
     return [c for c in result.context.get(check_name, []) if isinstance(c, SourceContext)]
 
 
-# ---------------------------------------------------------------------------
 # check_build_system
-# ---------------------------------------------------------------------------
 
 
 class TestBuildSystemSourceContext:
@@ -135,9 +133,7 @@ class TestBuildSystemSourceContext:
             raise AssertionError('Unparseable should produce plain str, not SourceContext')
 
 
-# ---------------------------------------------------------------------------
 # check_version_field
-# ---------------------------------------------------------------------------
 
 
 class TestVersionFieldSourceContext:
@@ -171,9 +167,7 @@ class TestVersionFieldSourceContext:
             raise AssertionError(f'Expected pass, got warnings={result.warning_messages}')
 
 
-# ---------------------------------------------------------------------------
 # check_requires_python
-# ---------------------------------------------------------------------------
 
 
 class TestRequiresPythonSourceContext:
@@ -207,9 +201,7 @@ class TestRequiresPythonSourceContext:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_version_pep440
-# ---------------------------------------------------------------------------
 
 
 class TestVersionPep440SourceContext:
@@ -245,9 +237,7 @@ class TestVersionPep440SourceContext:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_readme_field
-# ---------------------------------------------------------------------------
 
 
 class TestReadmeFieldSourceContext:
@@ -267,9 +257,7 @@ class TestReadmeFieldSourceContext:
             raise AssertionError('Expected SourceContext')
 
 
-# ---------------------------------------------------------------------------
 # check_metadata_completeness
-# ---------------------------------------------------------------------------
 
 
 class TestMetadataCompletenessSourceContext:
@@ -308,9 +296,7 @@ class TestMetadataCompletenessSourceContext:
             raise AssertionError(f'Expected pass, got warnings={result.warning_messages}')
 
 
-# ---------------------------------------------------------------------------
 # check_changelog_url
-# ---------------------------------------------------------------------------
 
 
 class TestChangelogUrlSourceContext:
@@ -357,9 +343,7 @@ class TestChangelogUrlSourceContext:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_pinned_deps_in_libraries
-# ---------------------------------------------------------------------------
 
 
 class TestPinnedDepsSourceContext:
@@ -399,9 +383,7 @@ class TestPinnedDepsSourceContext:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_python_version_consistency
-# ---------------------------------------------------------------------------
 
 
 class TestPythonVersionConsistencySourceContext:
@@ -454,9 +436,7 @@ class TestPythonVersionConsistencySourceContext:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_duplicate_dependencies
-# ---------------------------------------------------------------------------
 
 
 class TestDuplicateDependencies:
@@ -485,9 +465,7 @@ class TestDuplicateDependencies:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_legacy_setup_files
-# ---------------------------------------------------------------------------
 
 
 class TestLegacySetupFiles:
@@ -517,9 +495,7 @@ class TestLegacySetupFiles:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_placeholder_urls
-# ---------------------------------------------------------------------------
 
 
 class TestPlaceholderUrls:
@@ -550,9 +526,7 @@ class TestPlaceholderUrls:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_readme_content_type
-# ---------------------------------------------------------------------------
 
 
 class TestReadmeContentType:
@@ -600,9 +574,7 @@ class TestReadmeContentType:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_test_filename_collisions
-# ---------------------------------------------------------------------------
 
 
 class TestTestFilenameCollisions:
@@ -642,9 +614,7 @@ class TestTestFilenameCollisions:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_publish_classifier_consistency
-# ---------------------------------------------------------------------------
 
 
 class TestPublishClassifierConsistency:
@@ -673,9 +643,7 @@ class TestPublishClassifierConsistency:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # Non-publishable packages are skipped
-# ---------------------------------------------------------------------------
 
 
 class TestNonPublishableSkipped:
@@ -704,9 +672,7 @@ class TestNonPublishableSkipped:
             raise AssertionError('Expected pass for non-publishable')
 
 
-# ---------------------------------------------------------------------------
 # _refresh_publishable
-# ---------------------------------------------------------------------------
 
 
 class TestRefreshPublishable:
@@ -749,9 +715,7 @@ class TestRefreshPublishable:
         # Should not crash.
 
 
-# ---------------------------------------------------------------------------
 # check_type_markers
-# ---------------------------------------------------------------------------
 
 
 class TestTypeMarkers:
@@ -823,9 +787,7 @@ class TestTypeMarkers:
             raise AssertionError('Expected pass (no src/)')
 
 
-# ---------------------------------------------------------------------------
 # check_version_consistency
-# ---------------------------------------------------------------------------
 
 
 class TestVersionConsistency:
@@ -883,9 +845,7 @@ class TestVersionConsistency:
             raise AssertionError('Expected warning about missing core')
 
 
-# ---------------------------------------------------------------------------
 # check_naming_convention
-# ---------------------------------------------------------------------------
 
 
 class TestNamingConvention:
@@ -964,9 +924,7 @@ class TestNamingConvention:
             raise AssertionError('Expected pass (filtered out)')
 
 
-# ---------------------------------------------------------------------------
 # check_namespace_init
-# ---------------------------------------------------------------------------
 
 
 class TestNamespaceInit:
@@ -1036,9 +994,7 @@ class TestNamespaceInit:
             raise AssertionError('Expected pass (filtered out)')
 
 
-# ---------------------------------------------------------------------------
 # check_deprecated_classifiers
-# ---------------------------------------------------------------------------
 
 
 class TestDeprecatedClassifiers:
@@ -1074,9 +1030,7 @@ class TestDeprecatedClassifiers:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_license_classifier_mismatch
-# ---------------------------------------------------------------------------
 
 
 class TestLicenseClassifierMismatch:
@@ -1130,9 +1084,7 @@ class TestLicenseClassifierMismatch:
             raise AssertionError('Expected pass (no LICENSE file)')
 
 
-# ---------------------------------------------------------------------------
 # check_python_classifiers
-# ---------------------------------------------------------------------------
 
 
 class TestPythonClassifiers:
@@ -1162,9 +1114,7 @@ class TestPythonClassifiers:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_self_dependencies
-# ---------------------------------------------------------------------------
 
 
 class TestSelfDependencies:
@@ -1193,9 +1143,7 @@ class TestSelfDependencies:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_unreachable_extras
-# ---------------------------------------------------------------------------
 
 
 class TestUnreachableExtras:
@@ -1224,9 +1172,7 @@ class TestUnreachableExtras:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # check_distro_deps
-# ---------------------------------------------------------------------------
 
 
 class TestDistroDeps:
@@ -1244,9 +1190,7 @@ class TestDistroDeps:
             raise AssertionError('Expected pass')
 
 
-# ---------------------------------------------------------------------------
 # _parse_pyproject_with_content
-# ---------------------------------------------------------------------------
 
 
 class TestParsePyprojectWithContent:
@@ -1274,9 +1218,7 @@ class TestParsePyprojectWithContent:
             raise AssertionError('Expected empty content')
 
 
-# ---------------------------------------------------------------------------
 # run_fixes
-# ---------------------------------------------------------------------------
 
 
 class TestRunFixes:

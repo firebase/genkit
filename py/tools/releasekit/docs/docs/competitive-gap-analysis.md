@@ -259,11 +259,11 @@ These are pain points in alternatives that releasekit **already solves**:
 | Pain Point | Alternative Tool Status | Releasekit Status |
 |---|---|---|
 | **Monorepo support** | semantic-release [#193](https://github.com/semantic-release/semantic-release/issues/193) (open since 2016!), python-semantic-release [#168](https://github.com/python-semantic-release/python-semantic-release/issues/168) | ✅ First-class: workspace discovery, dep graph, topo-sorted publish |
-| **Polyglot ecosystems** | release-please [#2207](https://github.com/googleapis/release-please/issues/2207) (Rust+Node monorepo broken) | ✅ Multi-ecosystem detection (Python, JS, Go) |
+| **Polyglot ecosystems** | release-please [#2207](https://github.com/googleapis/release-please/issues/2207) (Rust+Node monorepo broken) | ✅ Multi-ecosystem detection (Python, JS, Go, Rust, Java, Dart, Bazel — Kotlin, Swift, Ruby, .NET, PHP planned) |
 | **uv workspace support** | release-please [#2561](https://github.com/googleapis/release-please/issues/2561) (feature request) | ✅ Native uv workspace discovery |
 | **Version preview** | semantic-release [#753](https://github.com/semantic-release/semantic-release/issues/753), [#1647](https://github.com/semantic-release/semantic-release/issues/1647) | ✅ `releasekit version` and `releasekit plan` |
 | **Multi-forge support** | release-please (GitHub only), python-semantic-release [#666](https://github.com/python-semantic-release/python-semantic-release/issues/666) (GitLab guide needed) | ✅ GitHub, GitLab, Bitbucket, none |
-| **Workspace health checks** | No equivalent in any alternative | ✅ 33+ automated checks with `--fix` |
+| **Workspace health checks** | No equivalent in any alternative | ✅ 35+ automated checks with `--fix` |
 | **Shell completions** | Not available in alternatives | ✅ bash, zsh, fish |
 | **Error explainer** | Not available in alternatives | ✅ `releasekit explain <code>` |
 | **Rollback** | No built-in rollback in alternatives | ✅ `releasekit rollback <tag>` |
@@ -275,6 +275,12 @@ These are pain points in alternatives that releasekit **already solves**:
 | **Sigstore signing** | release-please [#1314](https://github.com/googleapis/release-please/issues/1314) (GPG only) | ✅ Keyless Sigstore signing + verification via `releasekit sign`/`verify` |
 | **SBOM generation** | No equivalent in any alternative (except goreleaser) | ✅ CycloneDX + SPDX via `sbom.py`, auto-generated during `publish` |
 | **Release state diagnostics** | No equivalent | ✅ `releasekit doctor` with 6 checks (config, tags, VCS, forge, branch) |
+| **AI release summaries** | No equivalent in any alternative | ✅ Genkit-powered structured summarization with model fallback chain |
+| **AI release codenames** | No equivalent in any alternative | ✅ 28 curated themes, history tracking, 3-layer safety guardrails |
+| **Dotprompt templates** | No equivalent in any alternative | ✅ `.prompt` files with Handlebars + YAML frontmatter, loaded at Genkit init |
+| **AI content safety** | No equivalent in any alternative | ✅ Prompt rules + curated themes + Aho-Corasick trie-based blocklist filter |
+| **Custom blocklist config** | No equivalent in any alternative | ✅ `ai.blocklist_file` extends built-in blocked words with project-specific list |
+| **Multi-ecosystem checks** | No equivalent in any alternative | ✅ 6 check backends (Python, Go, JS, Rust, Java/Kotlin, Dart) with auto-fixers |
 
 ---
 
@@ -566,7 +572,7 @@ are added via plugins.
 - [#1216](https://github.com/release-it/release-it/issues/1216) — Tags latest commit instead of current on GitLab.
 
 **Releasekit advantages over release-it:**
-- ✅ Polyglot out-of-the-box (Python, JS, Go, Rust, Java, Dart) — no plugins needed.
+- ✅ Polyglot out-of-the-box (Python, JS, Go, Rust, Java, Dart, Bazel) — no plugins needed. Kotlin, Swift, Ruby, .NET, PHP planned.
 - ✅ Monorepo-native with dependency graph — release-it needs `@release-it-plugins/workspaces` and manual `@release-it/bumper` config per package.
 - ✅ Topological publish ordering — release-it publishes in hardcoded order.
 - ✅ 34 workspace health checks + auto-fix — no equivalent.
@@ -728,7 +734,7 @@ A key architectural difference between releasekit and alternatives:
 | Rollback | ❌ Not available | ❌ Not available | ✅ Built-in |
 | Version preview | ❌ Not available | `--release-version` flag | ✅ Built-in (`plan`, `version`) |
 | Retry/backoff | ❌ Not available | ❌ Not available | ✅ Built-in |
-| Multi-ecosystem | ❌ JS only | ❌ JS only (plugins for others) | ✅ Py/JS/Go/Rust/Java/Dart |
+| Multi-ecosystem | ❌ JS only | ❌ JS only (plugins for others) | ✅ Py/JS/Go/Rust/Java/Dart/Bazel |
 | Revert handling | ❌ Not available | ❌ Not available | ✅ Built-in |
 
 **Recommendation:** ✅ **Done.** Releasekit's built-in approach is the right
@@ -749,7 +755,7 @@ after_tag = ["echo 'Tagged ${version}'"]
 | Feature | releasekit | release-please | semantic-release | python-semantic-release | release-it | changesets | nx release | knope | goreleaser |
 |---------|-----------|----------------|-----------------|------------------------|------------|------------|------------|-------|------------|
 | **Monorepo** | ✅ | ✅ | ❌ (plugin) | ❌ | ❌ (plugin) | ✅ | ✅ | ✅ | ❌ |
-| **Polyglot** | ✅ Py/JS/Go/Rust/Java/Dart | Multi-lang | JS-centric | Python-only | JS (plugins for others) | JS-only | JS/Rust/Docker | Multi | Go-only |
+| **Polyglot** | ✅ Py/JS/Go/Rust/Java/Dart/Bazel + Kotlin/Swift/Ruby/.NET/PHP planned | Multi-lang | JS-centric | Python-only | JS (plugins for others) | JS-only | JS/Rust/Docker | Multi | Go-only |
 | **Conv. commits** | ✅ | ✅ | ✅ (plugin) | ✅ | ❌ (plugin) | ❌ | ✅ | ✅ | ✅ |
 | **Changesets** | ✅ | ❌ | ❌ | ❌ | ❌ (plugin) | ✅ | ✅ (version plans) | ✅ | ❌ |
 | **Dep graph** | ✅ | Partial | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
@@ -778,13 +784,17 @@ after_tag = ["echo 'Tagged ${version}'"]
 | **Cherry-pick** | ✅ | ❌ | Partial | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Signing** | ✅ Sigstore | ❌ | npm provenance | ❌ | npm OIDC | ❌ | ❌ | ❌ | ✅ GPG/Cosign |
 | **SBOM** | ✅ CycloneDX/SPDX | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Announcements** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Announcements** | ✅ 6 channels | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **AI release notes** | ✅ Genkit | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **AI codenames** | ✅ 28 themes | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **AI safety guardrails** | ✅ 3-layer | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Dotprompt templates** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
 ## 10. IMPLEMENTATION STATUS
 
-### Completed (33 items)
+### Completed (40 items)
 
 1. ✅ **pnpm workspace publish pipeline** — `PnpmBackend` + `NpmRegistry`.
 2. ✅ **Revert commit handling** — Per-level bump counters with revert cancellation.
@@ -819,6 +829,13 @@ after_tag = ["echo 'Tagged ${version}'"]
 31. ✅ **Dart/Pub workspace backend** — `dart.py` (`pubspec.yaml`, `dart pub publish`).
 32. ✅ **SLSA provenance generation** — `provenance.py` + `attestations.py`.
 33. ✅ **SBOM integrated into publish pipeline** — Auto-generated during `releasekit publish` (2026-02-16).
+34. ✅ **AI release summaries** — `summarize.py` with Genkit model fallback chain + content-hash caching (2026-02-16).
+35. ✅ **AI release codenames** — `codename.py` with 28 curated themes, history tracking, duplicate avoidance (2026-02-16).
+36. ✅ **Dotprompt integration** — `.prompt` files in `prompts/` loaded via `load_prompt_folder()` at Genkit init (2026-02-16).
+37. ✅ **AI codename safety guardrails** — 3-layer defense: prompt rules + `SAFE_BUILTIN_THEMES` + `_is_safe_codename()` blocklist (2026-02-16).
+38. ✅ **Aho-Corasick word filter** — `_wordfilter.py` with O(n) trie-based multi-pattern matching, word-boundary semantics, exact + prefix/stem matches (2026-02-16).
+39. ✅ **Custom blocklist configuration** — `ai.blocklist_file` config option merges project-specific blocked words with built-in list, cached by resolved path (2026-02-16).
+40. ✅ **Multi-ecosystem check backends** — `DartCheckBackend`, `GoCheckBackend`, `JavaCheckBackend`, `JsCheckBackend`, `RustCheckBackend` with per-ecosystem auto-fixers (2026-02-16).
 
 ### Remaining
 

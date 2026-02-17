@@ -125,9 +125,7 @@ class BazelBackend:
         """Return the configured publish mode."""
         return self._publish_mode
 
-    # ------------------------------------------------------------------
     # PackageManager protocol
-    # ------------------------------------------------------------------
 
     async def build(
         self,
@@ -165,7 +163,7 @@ class BazelBackend:
         dist_dir: Path,
         *,
         check_url: str | None = None,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dist_tag: str | None = None,
         publish_branch: str | None = None,
         provenance: bool = False,
@@ -187,7 +185,7 @@ class BazelBackend:
         Args:
             dist_dir: Path to the package directory.
             check_url: Unused for Bazel.
-            index_url: Custom registry URL. Passed as ``--define``
+            registry_url: Custom registry URL. Passed as ``--define``
                 for targets that support it.
             dist_tag: npm dist-tag. Passed as ``--define=DIST_TAG=<tag>``
                 for npm_package publish mode.
@@ -203,8 +201,8 @@ class BazelBackend:
         cmd = ['bazel', 'run', target]
 
         # Mode-specific defines.
-        if index_url:
-            cmd.extend(['--define', f'REGISTRY_URL={index_url}'])
+        if registry_url:
+            cmd.extend(['--define', f'REGISTRY_URL={registry_url}'])
         if dist_tag and self._publish_mode == 'npm_package':
             cmd.extend(['--define', f'DIST_TAG={dist_tag}'])
 
@@ -305,7 +303,7 @@ class BazelBackend:
         package_name: str,
         version: str,
         *,
-        index_url: str | None = None,
+        registry_url: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Verify a published artifact is resolvable.
@@ -316,7 +314,7 @@ class BazelBackend:
         Args:
             package_name: Artifact coordinates (e.g. ``com.example:core``).
             version: Expected version.
-            index_url: Custom registry URL.
+            registry_url: Custom registry URL.
             dry_run: Log the command without executing.
         """
         if self._publish_mode in ('java_export', 'kt_jvm_export', 'mvn_deploy'):
@@ -367,9 +365,7 @@ class BazelBackend:
             dry_run=dry_run,
         )
 
-    # ------------------------------------------------------------------
     # Private helpers
-    # ------------------------------------------------------------------
 
     def _derive_publish_target(self, package_dir: Path) -> str:
         """Derive the publish target label based on publish mode.

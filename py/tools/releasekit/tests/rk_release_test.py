@@ -30,8 +30,6 @@ from releasekit.tags import TagResult
 from releasekit.versions import PackageVersion, ReleaseManifest
 from tests._fakes import FakeForge as _BaseFakeForge, FakeVCS
 
-# ── Fake backends ──
-
 
 class FakeForge(_BaseFakeForge):
     """Forge double that supports canned PR data and records list_prs filters."""
@@ -68,9 +66,6 @@ class FakeForge(_BaseFakeForge):
         return self._prs
 
 
-# ── Tests: ReleaseResult ──
-
-
 class TestReleaseResult:
     """Tests for ReleaseResult dataclass."""
 
@@ -100,9 +95,6 @@ class TestReleaseResult:
         result = ReleaseResult(tag_result=None)
         if result.tags_created:
             raise AssertionError('Expected no tags when tag_result is None')
-
-
-# ── Tests: extract_manifest ──
 
 
 class TestExtractManifest:
@@ -164,9 +156,6 @@ class TestExtractManifest:
         result = extract_manifest(body)
         if result is not None:
             raise AssertionError('Should return None when git_sha is missing')
-
-
-# ── Tests: tag_release ──
 
 
 class TestTagRelease:

@@ -34,9 +34,7 @@ from releasekit.security_insights import (
     generate_security_insights,
 )
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 def _valid_attestation() -> dict:
@@ -98,9 +96,7 @@ def _valid_security_insights() -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
 # PEP740AttestationValidator
-# ---------------------------------------------------------------------------
 
 
 class TestPEP740AttestationValidator:
@@ -250,9 +246,7 @@ class TestPEP740AttestationValidator:
         assert isinstance(v, Validator)
 
 
-# ---------------------------------------------------------------------------
 # SecurityInsightsValidator
-# ---------------------------------------------------------------------------
 
 
 class TestSecurityInsightsValidator:
@@ -513,9 +507,7 @@ class TestSecurityInsightsValidator:
         assert isinstance(v, Validator)
 
 
-# ---------------------------------------------------------------------------
 # Integration: run_validators
-# ---------------------------------------------------------------------------
 
 
 class TestRunValidators:
@@ -540,9 +532,7 @@ class TestRunValidators:
         assert results[0].ok
 
 
-# ---------------------------------------------------------------------------
 # Integration: generate + validate round-trip
-# ---------------------------------------------------------------------------
 
 
 class TestGenerateAndValidateRoundTrip:

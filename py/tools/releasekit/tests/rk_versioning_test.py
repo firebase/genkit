@@ -743,6 +743,7 @@ class TestMajorOnZero:
 
     @staticmethod
     def _make_pkg(name: str, version: str, path: str) -> Package:
+        """Make pkg."""
         p = Path(path)
         return Package(name=name, version=version, path=p, manifest_path=p / 'pyproject.toml')
 

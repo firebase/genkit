@@ -55,9 +55,7 @@ from releasekit.versions import PackageVersion, ReleaseManifest
 from releasekit.workspace import Package
 from tests._fakes import OK as _OK, FakeVCS as _BaseFakeVCS
 
-# ---------------------------------------------------------------------------
 # Helpers / Fakes
-# ---------------------------------------------------------------------------
 
 
 class _FakeVCS(_BaseFakeVCS):
@@ -69,6 +67,7 @@ class _FakeVCS(_BaseFakeVCS):
         existing_tags: set[str] | None = None,
         sha: str = 'abc123',
     ) -> None:
+        """Init  ."""
         super().__init__(tags=existing_tags, sha=sha)
         self.existing_tags: set[str] = existing_tags or set()
         self.created_tags: list[str] = []
@@ -80,12 +79,14 @@ class _FakeVCS(_BaseFakeVCS):
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Tag."""
         if not dry_run:
             self.existing_tags.add(tag_name)
         self.created_tags.append(tag_name)
         return _OK
 
     async def tag_exists(self, tag_name: str) -> bool:
+        """Tag exists."""
         return tag_name in self.existing_tags
 
     async def delete_tag(
@@ -95,10 +96,12 @@ class _FakeVCS(_BaseFakeVCS):
         remote: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
+        """Delete tag."""
         self.existing_tags.discard(tag_name)
         return _OK
 
     async def list_tags(self, *, pattern: str = '') -> list[str]:
+        """List tags."""
         return sorted(self.existing_tags)
 
 
@@ -139,9 +142,7 @@ def _make_package(
     )
 
 
-# ===================================================================
 # INV-IDEMPOTENCY: Idempotency
-# ===================================================================
 
 
 class TestInvIdempotency:
@@ -212,9 +213,7 @@ class TestInvIdempotency:
         assert 'plugin-foo' in pending
 
 
-# ===================================================================
 # INV-CRASH-SAFETY: Crash Safety (Resume)
-# ===================================================================
 
 
 class TestInvCrashSafety:
@@ -307,9 +306,7 @@ class TestInvCrashSafety:
         assert scheduler._nodes['b'].remaining_deps == 0
 
 
-# ===================================================================
 # INV-ATOMICITY: Atomicity
-# ===================================================================
 
 
 class TestInvAtomicity:
@@ -354,9 +351,7 @@ class TestInvAtomicity:
         assert state.failed_packages() == ['genkit']
 
 
-# ===================================================================
 # INV-DETERMINISM: Determinism
-# ===================================================================
 
 
 class TestInvDeterminism:
@@ -421,9 +416,7 @@ class TestInvDeterminism:
         assert tag1 == tag2
 
 
-# ===================================================================
 # INV-OBSERVABILITY: Observability
-# ===================================================================
 
 
 class TestInvObservability:
@@ -488,9 +481,7 @@ class TestInvObservability:
         assert 'state_loaded' in events
 
 
-# ===================================================================
 # INV-DRY-RUN: Dry-Run Fidelity
-# ===================================================================
 
 
 class TestInvDryRun:
@@ -545,9 +536,7 @@ class TestInvDryRun:
         assert not changelog_path.exists()  # But didn't.
 
 
-# ===================================================================
 # INV-GRACEFUL-DEGRADATION: Graceful Degradation
-# ===================================================================
 
 
 class TestInvGracefulDegradation:
@@ -582,9 +571,7 @@ class TestInvGracefulDegradation:
         assert not result.failed
 
 
-# ===================================================================
 # INV-TOPO-ORDER: Topological Correctness
-# ===================================================================
 
 
 class TestInvTopoOrder:
@@ -682,9 +669,7 @@ class TestInvTopoOrder:
         assert level_of['d'] > level_of['c']
 
 
-# ===================================================================
 # INV-SUPPLY-CHAIN: Supply Chain Integrity
-# ===================================================================
 
 
 class TestInvSupplyChain:

@@ -117,7 +117,7 @@ class PublishConfig:
         concurrency: Max packages publishing simultaneously per level.
         dry_run: Preview mode — log commands but don't execute.
         check_url: URL to check for existing files (``uv publish --check-url``).
-        index_url: Custom index URL (e.g., Test PyPI).
+        registry_url: Custom index URL (e.g., Test PyPI).
         smoke_test: Whether to run smoke tests after publishing.
         poll_timeout: Seconds to wait for PyPI indexing.
         poll_interval: Seconds between poll attempts.
@@ -151,7 +151,7 @@ class PublishConfig:
     concurrency: int = 5
     dry_run: bool = False
     check_url: str | None = None
-    index_url: str | None = None
+    registry_url: str | None = None
     smoke_test: bool = True
     verify_checksums: bool = True
     poll_timeout: float = 300.0
@@ -508,7 +508,7 @@ async def _publish_one(
                 await pm.publish(
                     dist_dir,
                     check_url=config.check_url,
-                    index_url=config.index_url,
+                    registry_url=config.registry_url,
                     dist_tag=config.dist_tag or None,
                     publish_branch=config.publish_branch or None,
                     provenance=config.provenance,

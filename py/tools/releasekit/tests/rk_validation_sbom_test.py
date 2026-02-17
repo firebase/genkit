@@ -38,8 +38,6 @@ from releasekit.backends.validation.sbom import (
 from releasekit.sbom import SBOMFormat, generate_sbom
 from releasekit.versions import PackageVersion, ReleaseManifest
 
-# ── Helpers ──
-
 _SCHEMA_DIR = Path(__file__).parent / 'schemas'
 
 
@@ -52,6 +50,7 @@ def _manifest(*names_versions: tuple[str, str]) -> ReleaseManifest:
 
 
 def _load_schema(name: str) -> dict:
+    """Load schema."""
     path = _SCHEMA_DIR / name
     if not path.exists():
         return {}
@@ -101,37 +100,37 @@ def _valid_spdx() -> dict:
     }
 
 
-# ── Protocol conformance ──
-
-
 class TestProtocolConformance:
     """Both SBOM validators implement the Validator protocol."""
 
     def test_cyclonedx_is_validator(self) -> None:
+        """Test cyclonedx is validator."""
         assert isinstance(CycloneDXSchemaValidator(), Validator)
 
     def test_spdx_is_validator(self) -> None:
+        """Test spdx is validator."""
         assert isinstance(SPDXSchemaValidator(), Validator)
-
-
-# ── CycloneDX structural checks ──
 
 
 class TestCycloneDXStructural:
     """CycloneDXSchemaValidator structural checks (no full schema)."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert CycloneDXSchemaValidator().name == 'schema.cyclonedx'
 
     def test_custom_name(self) -> None:
+        """Test custom name."""
         v = CycloneDXSchemaValidator(validator_id='custom.cdx')
         assert v.name == 'custom.cdx'
 
     def test_valid_passes(self) -> None:
+        """Test valid passes."""
         r = CycloneDXSchemaValidator().validate(_valid_cyclonedx())
         assert r.ok is True
 
     def test_wrong_bom_format_fails(self) -> None:
+        """Test wrong bom format fails."""
         doc = _valid_cyclonedx()
         doc['bomFormat'] = 'NotCycloneDX'
         r = CycloneDXSchemaValidator().validate(doc)
@@ -139,6 +138,7 @@ class TestCycloneDXStructural:
         assert 'bomFormat' in r.details.get('errors', [''])[0]
 
     def test_missing_spec_version_fails(self) -> None:
+        """Test missing spec version fails."""
         doc = _valid_cyclonedx()
         del doc['specVersion']
         r = CycloneDXSchemaValidator().validate(doc)
@@ -146,6 +146,7 @@ class TestCycloneDXStructural:
         assert 'specVersion' in r.details.get('errors', [''])[0]
 
     def test_component_missing_type_fails(self) -> None:
+        """Test component missing type fails."""
         doc = _valid_cyclonedx()
         doc['components'] = [{'name': 'foo'}]
         r = CycloneDXSchemaValidator().validate(doc)
@@ -153,6 +154,7 @@ class TestCycloneDXStructural:
         assert 'type' in str(r.details.get('errors', []))
 
     def test_component_missing_name_fails(self) -> None:
+        """Test component missing name fails."""
         doc = _valid_cyclonedx()
         doc['components'] = [{'type': 'library'}]
         r = CycloneDXSchemaValidator().validate(doc)
@@ -160,32 +162,34 @@ class TestCycloneDXStructural:
         assert 'name' in str(r.details.get('errors', []))
 
     def test_empty_components_passes(self) -> None:
+        """Test empty components passes."""
         doc = _valid_cyclonedx()
         doc['components'] = []
         r = CycloneDXSchemaValidator().validate(doc)
         assert r.ok is True
 
     def test_no_components_key_passes(self) -> None:
+        """Test no components key passes."""
         doc = _valid_cyclonedx()
         del doc['components']
         r = CycloneDXSchemaValidator().validate(doc)
         assert r.ok is True
 
 
-# ── SPDX structural checks ──
-
-
 class TestSPDXStructural:
     """SPDXSchemaValidator structural checks (no full schema)."""
 
     def test_name(self) -> None:
+        """Test name."""
         assert SPDXSchemaValidator().name == 'schema.spdx'
 
     def test_valid_passes(self) -> None:
+        """Test valid passes."""
         r = SPDXSchemaValidator().validate(_valid_spdx())
         assert r.ok is True
 
     def test_missing_spdx_version_fails(self) -> None:
+        """Test missing spdx version fails."""
         doc = _valid_spdx()
         del doc['spdxVersion']
         r = SPDXSchemaValidator().validate(doc)
@@ -193,6 +197,7 @@ class TestSPDXStructural:
         assert 'spdxVersion' in str(r.details.get('errors', []))
 
     def test_wrong_spdxid_fails(self) -> None:
+        """Test wrong spdxid fails."""
         doc = _valid_spdx()
         doc['SPDXID'] = 'SPDXRef-WRONG'
         r = SPDXSchemaValidator().validate(doc)
@@ -200,6 +205,7 @@ class TestSPDXStructural:
         assert 'SPDXID' in str(r.details.get('errors', []))
 
     def test_missing_name_fails(self) -> None:
+        """Test missing name fails."""
         doc = _valid_spdx()
         del doc['name']
         r = SPDXSchemaValidator().validate(doc)
@@ -207,6 +213,7 @@ class TestSPDXStructural:
         assert 'name' in str(r.details.get('errors', []))
 
     def test_missing_namespace_fails(self) -> None:
+        """Test missing namespace fails."""
         doc = _valid_spdx()
         del doc['documentNamespace']
         r = SPDXSchemaValidator().validate(doc)
@@ -214,6 +221,7 @@ class TestSPDXStructural:
         assert 'documentNamespace' in str(r.details.get('errors', []))
 
     def test_missing_data_license_fails(self) -> None:
+        """Test missing data license fails."""
         doc = _valid_spdx()
         del doc['dataLicense']
         r = SPDXSchemaValidator().validate(doc)
@@ -221,6 +229,7 @@ class TestSPDXStructural:
         assert 'dataLicense' in str(r.details.get('errors', []))
 
     def test_missing_creation_info_fails(self) -> None:
+        """Test missing creation info fails."""
         doc = _valid_spdx()
         del doc['creationInfo']
         r = SPDXSchemaValidator().validate(doc)
@@ -228,6 +237,7 @@ class TestSPDXStructural:
         assert 'creationInfo' in str(r.details.get('errors', []))
 
     def test_missing_created_in_creation_info_fails(self) -> None:
+        """Test missing created in creation info fails."""
         doc = _valid_spdx()
         doc['creationInfo'] = {'creators': ['Tool: test']}
         r = SPDXSchemaValidator().validate(doc)
@@ -235,6 +245,7 @@ class TestSPDXStructural:
         assert 'created' in str(r.details.get('errors', []))
 
     def test_package_missing_spdxid_fails(self) -> None:
+        """Test package missing spdxid fails."""
         doc = _valid_spdx()
         doc['packages'] = [{'name': 'foo', 'downloadLocation': 'NOASSERTION'}]
         r = SPDXSchemaValidator().validate(doc)
@@ -242,6 +253,7 @@ class TestSPDXStructural:
         assert 'SPDXID' in str(r.details.get('errors', []))
 
     def test_package_missing_download_location_fails(self) -> None:
+        """Test package missing download location fails."""
         doc = _valid_spdx()
         doc['packages'] = [{'SPDXID': 'SPDXRef-foo', 'name': 'foo'}]
         r = SPDXSchemaValidator().validate(doc)
@@ -249,49 +261,50 @@ class TestSPDXStructural:
         assert 'downloadLocation' in str(r.details.get('errors', []))
 
 
-# ── Input normalisation ──
-
-
 class TestInputNormalisation:
     """Both validators accept dict, JSON string, and Path."""
 
     def test_cyclonedx_json_string(self) -> None:
+        """Test cyclonedx json string."""
         r = CycloneDXSchemaValidator().validate(json.dumps(_valid_cyclonedx()))
         assert r.ok is True
 
     def test_spdx_json_string(self) -> None:
+        """Test spdx json string."""
         r = SPDXSchemaValidator().validate(json.dumps(_valid_spdx()))
         assert r.ok is True
 
     def test_cyclonedx_path(self, tmp_path: Path) -> None:
+        """Test cyclonedx path."""
         p = tmp_path / 'sbom.cdx.json'
         p.write_text(json.dumps(_valid_cyclonedx()), encoding='utf-8')
         r = CycloneDXSchemaValidator().validate(p)
         assert r.ok is True
 
     def test_spdx_path(self, tmp_path: Path) -> None:
+        """Test spdx path."""
         p = tmp_path / 'sbom.spdx.json'
         p.write_text(json.dumps(_valid_spdx()), encoding='utf-8')
         r = SPDXSchemaValidator().validate(p)
         assert r.ok is True
 
     def test_missing_file_fails(self, tmp_path: Path) -> None:
+        """Test missing file fails."""
         r = CycloneDXSchemaValidator().validate(tmp_path / 'missing.json')
         assert r.ok is False
         assert 'File not found' in r.message
 
     def test_invalid_json_string_fails(self) -> None:
+        """Test invalid json string fails."""
         r = CycloneDXSchemaValidator().validate('{bad json')
         assert r.ok is False
         assert 'Invalid JSON' in r.message
 
     def test_unsupported_type_fails(self) -> None:
+        """Test unsupported type fails."""
         r = CycloneDXSchemaValidator().validate(42)
         assert r.ok is False
         assert 'Unsupported subject type' in r.message
-
-
-# ── Full schema validation (with official schemas) ──
 
 
 class TestCycloneDXFullSchema:
@@ -299,46 +312,54 @@ class TestCycloneDXFullSchema:
 
     @pytest.fixture()
     def validator(self) -> CycloneDXSchemaValidator:
+        """Validator."""
         schema = _load_schema('bom-1.5.schema.json')
         if not schema:
             pytest.skip('CycloneDX 1.5 schema not available')
         return CycloneDXSchemaValidator(schema=schema)
 
     def test_valid_passes(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test valid passes."""
         r = validator.validate(_valid_cyclonedx())
         assert r.ok is True
 
     def test_generated_single_package(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test generated single package."""
         m = _manifest(('genkit', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_generated_multi_package(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test generated multi package."""
         m = _manifest(('genkit', '0.5.0'), ('plugin-a', '0.3.0'), ('plugin-b', '0.2.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, supplier='Google LLC'))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_generated_js_ecosystem(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test generated js ecosystem."""
         m = _manifest(('react', '18.0.0'), ('@genkit/core', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX, ecosystem='js'))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_generated_no_supplier(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test generated no supplier."""
         m = _manifest(('foo', '1.0.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.CYCLONEDX))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_invalid_fails(self, validator: CycloneDXSchemaValidator) -> None:
+        """Test invalid fails."""
         r = validator.validate({'bomFormat': 'CycloneDX', 'specVersion': '1.5'})
         # May pass structural but fail full schema (missing version field).
         # Either way, the validator should not crash.
         assert isinstance(r.ok, bool)
 
     def test_from_schema_file(self) -> None:
+        """Test from schema file."""
         path = _SCHEMA_DIR / 'bom-1.5.schema.json'
         if not path.exists():
             pytest.skip('CycloneDX 1.5 schema not available')
@@ -352,34 +373,40 @@ class TestSPDXFullSchema:
 
     @pytest.fixture()
     def validator(self) -> SPDXSchemaValidator:
+        """Validator."""
         schema = _load_schema('spdx-2.3.schema.json')
         if not schema:
             pytest.skip('SPDX 2.3 schema not available')
         return SPDXSchemaValidator(schema=schema)
 
     def test_valid_passes(self, validator: SPDXSchemaValidator) -> None:
+        """Test valid passes."""
         r = validator.validate(_valid_spdx())
         assert r.ok is True
 
     def test_generated_single_package(self, validator: SPDXSchemaValidator) -> None:
+        """Test generated single package."""
         m = _manifest(('genkit', '0.5.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.SPDX, supplier='Google LLC'))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_generated_multi_package(self, validator: SPDXSchemaValidator) -> None:
+        """Test generated multi package."""
         m = _manifest(('genkit', '0.5.0'), ('plugin-a', '0.3.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.SPDX, supplier='Google LLC'))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_generated_no_license(self, validator: SPDXSchemaValidator) -> None:
+        """Test generated no license."""
         m = _manifest(('bar', '2.0.0'))
         doc = json.loads(generate_sbom(m, fmt=SBOMFormat.SPDX, license_id=''))
         r = validator.validate(doc)
         assert r.ok is True, f'Schema errors: {r.details}'
 
     def test_from_schema_file(self) -> None:
+        """Test from schema file."""
         path = _SCHEMA_DIR / 'spdx-2.3.schema.json'
         if not path.exists():
             pytest.skip('SPDX 2.3 schema not available')
@@ -388,19 +415,18 @@ class TestSPDXFullSchema:
         assert r.ok is True
 
 
-# ── run_validators integration ──
-
-
 class TestRunValidatorsIntegration:
     """Test running both SBOM validators together via run_validators."""
 
     def test_both_pass_on_cyclonedx(self) -> None:
+        """Test both pass on cyclonedx."""
         v = CycloneDXSchemaValidator()
         results = run_validators([v], _valid_cyclonedx())
         assert len(results) == 1
         assert results[0].ok is True
 
     def test_both_formats_validated(self) -> None:
+        """Test both formats validated."""
         cdx_v = CycloneDXSchemaValidator()
         spdx_v = SPDXSchemaValidator()
 

@@ -44,9 +44,7 @@ from releasekit.backends.registry.crates_io import CratesIoRegistry
 from releasekit.backends.workspace import Workspace
 from releasekit.backends.workspace.cargo import CargoWorkspace
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _create_cargo_workspace(root: Path, members: list[str], ws_version: str | None = None) -> None:
@@ -87,9 +85,7 @@ def _create_crate(
     return crate_dir
 
 
-# ---------------------------------------------------------------------------
 # Protocol conformance
-# ---------------------------------------------------------------------------
 
 
 class TestCargoProtocolConformance:
@@ -111,9 +107,7 @@ class TestCargoProtocolConformance:
         assert isinstance(reg, Registry)
 
 
-# ---------------------------------------------------------------------------
 # CargoWorkspace.discover()
-# ---------------------------------------------------------------------------
 
 
 class TestCargoWorkspaceDiscover:
@@ -244,9 +238,7 @@ class TestCargoWorkspaceDiscover:
         assert pkgs[1].name == 'zeta-crate'
 
 
-# ---------------------------------------------------------------------------
 # CargoWorkspace.rewrite_version()
-# ---------------------------------------------------------------------------
 
 
 class TestCargoWorkspaceRewriteVersion:
@@ -275,9 +267,7 @@ class TestCargoWorkspaceRewriteVersion:
         assert '"2.0.0"' in root_text
 
 
-# ---------------------------------------------------------------------------
 # CargoWorkspace.rewrite_dependency_version()
-# ---------------------------------------------------------------------------
 
 
 class TestCargoWorkspaceRewriteDependencyVersion:
@@ -302,15 +292,14 @@ class TestCargoWorkspaceRewriteDependencyVersion:
         await ws.rewrite_dependency_version(crate_dir / 'Cargo.toml', 'nonexistent', '1.0.0')
 
 
-# ---------------------------------------------------------------------------
 # CratesIoRegistry
-# ---------------------------------------------------------------------------
 
 
 def _mock_transport(responses: dict[str, tuple[int, str]]) -> Any:  # noqa: ANN401
     """Create a mock transport."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Handler."""
         url = str(request.url)
         for suffix, (status, body) in responses.items():
             if url.endswith(suffix):
@@ -325,6 +314,7 @@ def _make_client_cm(transport: Any) -> Any:  # noqa: ANN401
 
     @asynccontextmanager
     async def _client_cm(**kw: Any) -> AsyncGenerator[httpx.AsyncClient]:  # noqa: ANN401
+        """Client cm."""
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             yield client
 

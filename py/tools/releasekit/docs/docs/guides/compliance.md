@@ -180,6 +180,45 @@ evaluated when that ecosystem is detected in your repo.
 | **pubspec.lock** | Committed lockfile for reproducible builds |
 | **analysis_options.yaml** | Strict static analysis catches type errors and security issues |
 
+### Kotlin / KMP (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **build.gradle.kts** | Required build manifest for Kotlin projects |
+| **Gradle dep verification** | `verification-metadata.xml` verifies checksums/signatures |
+| **Maven Central signing** | GPG-signed artifacts required for Maven Central publication |
+
+### Swift (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **Package.swift** | Required manifest for Swift packages |
+| **Package.resolved** | Committed lockfile for reproducible builds |
+
+### Ruby (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| ***.gemspec** | Required manifest for Ruby gems |
+| **Gemfile.lock** | Committed lockfile for reproducible builds |
+| **bundler-audit** | Scans against the Ruby Advisory Database |
+
+### .NET (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| ***.csproj / *.fsproj** | Required project manifest |
+| **NuGet signing** | Signed packages for NuGet Gallery publication |
+| **dotnet list package --vulnerable** | Scans for known vulnerabilities |
+
+### PHP (planned)
+
+| Control | Why It Matters |
+|---------|---------------|
+| **composer.json** | Required manifest for PHP packages |
+| **composer.lock** | Committed lockfile for reproducible builds |
+| **local-php-security-checker** | Scans against the PHP Security Advisories Database |
+
 ## Improving Your Score
 
 ### From Gap to Met

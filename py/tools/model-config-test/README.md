@@ -5,7 +5,7 @@ A tool to test model performance across different models and configuration varia
 ## Setup
 
 1.  Ensure you have `uv` installed.
-2.  Set your API keys (e.g., `GOOGLE_GENAI_API_KEY`).
+2.  Set your API keys (e.g., `GEMINI_API_KEY`).
 
 ## Usage
 

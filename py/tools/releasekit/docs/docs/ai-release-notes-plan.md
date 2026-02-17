@@ -17,20 +17,39 @@ showcase.
 
 ## Design Principles
 
-1. **CI-friendly by default** — Default to Ollama + `gemma3:4b`
+1. **Genkit core is a hard dependency; provider plugins are optional
+   extras** — `genkit` is in `[project.dependencies]`. Provider
+   plugins (`genkit-plugin-ollama`, `genkit-plugin-google-genai`,
+   `genkit-plugin-vertex-ai`, `genkit-plugin-anthropic`) are pip
+   extras: `pip install releasekit[ollama,google-genai]`. Plugins
+   are auto-discovered from model string prefixes at runtime, or
+   explicitly listed via `ai.plugins` in `releasekit.toml`.
+2. **AI on by default** — All AI features are enabled out of the box.
+   Disable globally via `--no-ai` CLI flag, `RELEASEKIT_NO_AI=1` env
+   var, or `ai.enabled = false` in `releasekit.toml`.
+3. **CI-friendly default model** — Default to Ollama + `gemma3:4b`
    (~2.3 GB). Small enough for fast CI download, capable enough for
    structured summarization. No API key, no cloud account, no egress.
-2. **Graceful fallback** — If Ollama isn't running or the model isn't
-   pulled, fall back to the existing truncation logic. Never block a
-   release on AI availability.
-3. **Dogfooding** — Use the Genkit SDK (`ai.generate()` with Pydantic
+   CI workflows use `.github/actions/setup-ollama` composite action
+   with `actions/cache` for `~/.ollama/models/`.
+4. **Graceful fallback** — If a plugin isn't installed, Ollama isn't
+   running, or the model isn't pulled, fall back to the existing
+   truncation logic. Never block a release on AI availability.
+   Missing plugins produce a warning with an install command.
+5. **Dogfooding** — Use the Genkit SDK (`ai.generate()` with Pydantic
    structured output) so releasekit is itself a Genkit showcase.
-4. **Configurable** — Cloud models (Google GenAI, Vertex AI, Anthropic)
+6. **Configurable** — Cloud models (Google GenAI, Vertex AI, Anthropic)
    configurable via `releasekit.toml`, env vars, or CLI flags.
-5. **Deterministic-ish** — Low temperature (0.2), cached by content
+   AI config can be overridden per workspace via
+   `[workspace.<label>.ai]` sections.
+7. **Deterministic-ish** — Low temperature (0.2), cached by content
    hash. Same changelogs → same summary (modulo model non-determinism).
-6. **Cacheable** — Both the Ollama model binary (`~/.ollama/models/`)
+8. **Cacheable** — Both the Ollama model binary (`~/.ollama/models/`)
    and the summary output (content-hash keyed) are cacheable in CI.
+9. **Per-workspace AI config** — Each workspace can override the
+   global `[ai]` section (models, plugins, temperature, features).
+   Use `resolve_workspace_ai_config()` to merge workspace overrides
+   on top of the global config.
 
 ---
 
@@ -116,16 +135,18 @@ Python, fully testable without Genkit or Ollama.
 
 | Task | Module | What | Est. Lines |
 |------|--------|------|-----------|
-| **T1** | `schemas_ai.py` | `ReleaseSummary` + `ReleaseStats` Pydantic models. JSON schema export for prompt instruction. | ~60 |
-| **T2** | `config.py` | Add `[ai]` section support: `AiConfig` dataclass with `provider`, `model`, `temperature`, `max_output_tokens`. Validation. | ~80 |
-| **T3** | `pyproject.toml` | Add `genkit`, `genkit-plugin-ollama`, `genkit-plugin-google-genai` as **optional** deps under `[project.optional-dependencies] ai = [...]`. | ~10 |
+| **T1** | `schemas_ai.py` | `ReleaseSummary` + `ReleaseStats` + `ReleaseCodename` Pydantic models. JSON schema export for prompt instruction. | ~100 |
+| **T2** | `config.py` | Add `[ai]` section support: `AiConfig` dataclass with `models`, `temperature`, `max_output_tokens`, `codename_theme`. `AiFeaturesConfig` with per-feature toggles. Validation. | ~120 |
+| **T3** | `pyproject.toml` | Add `genkit` + `genkit-plugin-ollama` + `genkit-plugin-google-genai` to **core** `[project.dependencies]`. Add `genkit-plugin-vertex-ai`, `genkit-plugin-anthropic` as `[project.optional-dependencies]` extras. | ~10 |
 | **T4** | `config.py` | Env var overrides: `RELEASEKIT_AI_PROVIDER`, `RELEASEKIT_AI_MODEL`. Priority: CLI > env > config > default. | ~30 |
-| **T5** | `prompts.py` | System prompt template + user prompt builder. Takes changelog data dict, returns formatted prompt. Few-shot reference output section. | ~100 |
+| **T5** | `prompts.py` + `prompts/` | `PROMPTS_DIR` path + inline fallback constants. Dotprompt `.prompt` files (`summarize.prompt`, `codename.prompt`) with YAML frontmatter + Handlebars templates. Loaded via `load_prompt_folder()` at Genkit init. | ~150 |
+| **T5b** | `codename.py` | `SAFE_BUILTIN_THEMES` (28 curated themes), `_BLOCKED_PATTERNS` regex blocklist, `_is_safe_codename()` post-generation filter. 3-layer safety: prompt rules + curated themes + blocklist. | ~120 |
 | **T12** | `tests/rk_schemas_ai_test.py` | Test schema validation, JSON schema export, field constraints. | ~40 |
 
 **Deliverable**: `ReleaseSummary` schema is defined, config reads
-`[ai]` section, prompt templates are ready. No runtime Genkit
-dependency yet.
+`[ai]` section, prompt templates are ready (both inline fallbacks and
+Dotprompt `.prompt` files). Codename safety guardrails are in place.
+No runtime Genkit dependency yet.
 
 **Verify**: `pytest tests/rk_schemas_ai_test.py tests/rk_config_test.py` passes.
 
@@ -153,17 +174,49 @@ a `ReleaseSummary`. Uses Genkit with a mock model in tests.
 _DEFAULT_PROVIDER = 'ollama'
 _DEFAULT_MODEL = 'gemma3:4b'
 
-def _get_ai():
-    """Lazy-init Genkit. Returns None if genkit is not installed."""
-    try:
-        from genkit import Genkit  # noqa: PLC0415
-        ...
-    except ImportError:
-        return None
+from genkit import Genkit
+from genkit.plugins.ollama import Ollama
+from genkit.plugins.google_genai import GoogleGenai
+
+def _get_ai(config: AiConfig) -> Genkit:
+    """Init Genkit with configured provider. Cached singleton."""
+    ...
+
+async def generate_with_fallback(
+    ai: Genkit,
+    models: list[str],
+    prompt: str,
+    output: Output,
+    config: dict,
+) -> GenerateResponseWrapper | None:
+    """Try each model in order. Return None if all fail."""
+    for model in models:
+        try:
+            return await ai.generate(
+                model=model, prompt=prompt,
+                output=output, config=config,
+            )
+        except Exception as exc:
+            log.warning(
+                "model_unavailable",
+                model=model,
+                error=str(exc),
+            )
+    # All models exhausted — warn and return None
+    log.warning(
+        "all_models_failed",
+        models=models,
+        hint="Falling back to non-AI behavior. "
+             "Run 'ollama pull gemma3:4b' to enable AI.",
+    )
+    return None
 ```
 
-This keeps `genkit` as an optional dependency — releasekit works
-without it (falls back to truncation).
+`genkit` is a core dependency — always importable. AI features
+are on by default. The `models` list is tried in order; if a model
+isn't pulled, the provider is down, or the API key is missing, the
+next model is tried. If ALL models fail, falls back to non-AI
+behavior (truncation, raw commits, static hints) and logs a warning.
 
 **Deliverable**: `summarize_changelogs()` works end-to-end with Ollama
 (manual test) and with a mock model (automated test).
@@ -210,7 +263,7 @@ back silently when not.
 
 | Task | Module | What | Est. Lines |
 |------|--------|------|-----------|
-| **T11** | `cli.py` | Add `--summarize` (flag, default off initially), `--no-summarize`, `--model <provider/model>` to `prepare` subcommand. | ~40 |
+| **T11** | `cli.py` | Add global `--no-ai` flag (disables all AI features). Add `--model <provider/model>` override to `prepare` subcommand. AI is on by default. | ~40 |
 | **T15** | `tests/rk_prepare_test.py` | Integration tests: AI path (mock), truncation path, fallback on failure. | ~60 |
 | **T16** | `tests/rk_release_notes_test.py` | Test `summarize_release_notes()` with mock model. | ~40 |
 | **T17** | `tests/rk_cli_test.py` | Test `--summarize`, `--no-summarize`, `--model` flag parsing. | ~30 |
@@ -287,12 +340,12 @@ tests/
 # releasekit.toml
 
 [ai]
-# Provider: "ollama" (default), "google-genai", "vertex-ai", "anthropic"
-provider         = "ollama"
-
-# Model name (provider-specific).
+# Model fallback chain — tried in order. If a model is unavailable
+# (not pulled, provider down, API key missing), the next one is tried.
+# If ALL models fail, falls back to non-AI behavior and warns.
+#
 # Ollama (CI-friendly, no API key):
-#   gemma3:4b   — ~2.3 GB, fast, good structured output (DEFAULT)
+#   gemma3:4b   — ~2.3 GB, fast, good structured output
 #   gemma3:1b   — ~815 MB, very fast, min quality for summaries
 #   qwen2.5:3b  — ~1.9 GB, strong at structured tasks
 #   llama3.2:3b — ~2.0 GB, Meta's compact model
@@ -303,9 +356,13 @@ provider         = "ollama"
 #   qwen2.5:7b  — ~4.4 GB, excellent structured output
 #   phi4:14b    — ~9 GB, best local reasoning
 # Cloud (API key required):
-#   gemini-2.0-flash       — Google GenAI / Vertex AI
+#   gemini-3.0-flash-preview       — Google GenAI / Vertex AI
 #   claude-3-5-sonnet      — Anthropic
-model            = "gemma3:4b"
+models = [
+  "ollama/gemma3:4b",              # Try first: CI-friendly, no API key
+  "ollama/gemma3:1b",              # Fallback: smaller, faster
+  "google-genai/gemini-3.0-flash-preview", # Fallback: cloud (needs API key)
+]
 
 # Temperature (0.0–1.0). Lower = more factual for summarization.
 temperature      = 0.2
@@ -316,10 +373,21 @@ max_output_tokens = 4096
 # Enable/disable AI features globally.
 enabled          = true
 
+# Theme for AI-generated release codenames.
+# 28 built-in safe themes: mountains, animals, birds, butterflies, cities,
+# clouds, colors, constellations, coral, deserts, flowers, forests, galaxies,
+# gems, islands, lakes, lighthouses, mythology, nebulae, oceans, rivers,
+# seasons, space, trees, volcanoes, weather, wildflowers.
+# Any custom string also works (e.g. "deep sea creatures").
+# Empty string disables codename generation.
+# Safety: 3-layer guardrails (prompt rules + curated themes + blocklist).
+codename_theme   = "mountains"
+
 # Which AI features to enable (all enabled when [ai] is present).
 # Set to false to disable individual features.
 [ai.features]
 summarize        = true    # Phase 10: Release note summarization
+codename         = true    # Phase 10: AI-generated release codenames
 enhance          = true    # Phase 11a: Changelog enhancement
 detect_breaking  = true    # Phase 11b: Breaking change detection
 classify         = false   # Phase 11c: Semantic version classification (advisory)
@@ -333,18 +401,17 @@ ai_hints         = false   # Phase 12d: Contextual error hints
 **Environment variable overrides**:
 
 ```bash
-RELEASEKIT_AI_PROVIDER=google-genai
-RELEASEKIT_AI_MODEL=gemini-2.0-flash
+RELEASEKIT_AI_MODELS=ollama/gemma3:4b,google-genai/gemini-3.0-flash-preview  # comma-separated
 RELEASEKIT_AI_ENABLED=false
 ```
 
 **CLI flag overrides** (highest priority):
 
 ```bash
-releasekit prepare --summarize                              # Force on
-releasekit prepare --no-summarize                           # Force off
-releasekit prepare --model ollama/gemma3:4b                 # Override model
-releasekit prepare --model google-genai/gemini-2.0-flash    # Cloud model
+releasekit prepare                                          # AI on (default)
+releasekit prepare --no-ai                                  # AI off for this run
+releasekit prepare --model ollama/gemma3:4b                 # Override (single model, no chain)
+releasekit prepare --model google-genai/gemini-3.0-flash-preview    # Cloud model override
 releasekit prepare --enhance-changelog                      # Enhance entries
 releasekit prepare --migration-guide                        # Generate guides
 releasekit check --detect-breaking                          # Scan for missed breaks
@@ -365,9 +432,9 @@ releasekit advisory --draft                                 # Draft GHSA from OS
    --dry-run` against the real genkit workspace with Ollama running.
    Verify output quality manually.
 
-3. **Fallback test** — Verify that when `genkit` is not installed
-   (or Ollama is down), every feature silently falls back to its
-   non-AI behavior without errors.
+3. **Fallback test** — Verify that when Ollama is down or `--no-ai`
+   is set, every feature silently falls back to its non-AI behavior
+   without errors.
 
 4. **Cache test** — Run summarization twice with same changelogs,
    verify second call returns cached result (no model invocation).
@@ -595,27 +662,22 @@ without it by using conventional commit `BREAKING CHANGE:` footers.
 
 ## Open Questions
 
-1. **Default on or off?** — Should `--summarize` be opt-in (flag) or
-   default-on when `[ai]` is configured? Recommendation: **opt-in
-   initially** (`--summarize` flag), then default-on in a future
-   release once battle-tested.
+1. ~~**Default on or off?**~~ **RESOLVED**: AI is **on by default**.
+   `--no-ai` disables all AI features. `ai.enabled = false` in TOML
+   for permanent disable. Resolution order: `--no-ai` > env var > TOML > default (on).
 
-2. **Cache location** — `.releasekit-cache/summaries/` in the workspace
-   root? Or `~/.cache/releasekit/`? Recommendation: workspace-local
-   so CI builds are isolated.
+2. **Cache location** — `.releasekit/cache/` in the workspace
+   root. Workspace-local so CI builds are isolated.
 
-3. **Prompt tuning** — Should the system prompt be configurable via
-   `releasekit.toml`? Recommendation: **no** (too complex). Ship with
-   a well-tested default prompt. Allow template override in a future
-   release if needed.
+3. **Prompt tuning** — **No** (too complex). Ship with a well-tested
+   default prompt. Allow template override in a future release if needed.
 
 4. **Token budget** — With 67 packages × ~500 lines of changelog,
-   the input might exceed model context windows. Recommendation:
-   pass per-package *summaries* (first heading + top 10 entries) to
-   the model, not full changelogs. Full changelogs go in `<details>`.
+   the input might exceed model context windows. Pass per-package
+   *summaries* (first heading + top 10 entries) to the model, not
+   full changelogs. Full changelogs go in `<details>`.
 
-5. **Feature granularity** — Should each AI feature have its own
-   `[ai.features.X]` toggle, or should `[ai] enabled = true` enable
-   all? Recommendation: Per-feature toggles with sensible defaults
-   (summarize + enhance + detect_breaking on, others off).
-
+5. ~~**Feature granularity**~~ **RESOLVED**: Per-feature toggles via
+   `[ai.features]` section. Sensible defaults: summarize, enhance,
+   detect_breaking ON; classify, scope, tailor_announce, draft_advisory,
+   ai_hints OFF.

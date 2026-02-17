@@ -77,11 +77,11 @@ Publishing a monorepo with dozens of interdependent packages requires:
 
 <div class="grid cards" markdown>
 
--   :material-check-decagram:{ .lg .middle } **33 Health Checks — Safety First**
+-   :material-check-decagram:{ .lg .middle } **35 Health Checks — Safety First**
 
     ---
 
-    Catch issues at PR time, not after a broken release. 17 checks
+    Catch issues at PR time, not after a broken release. 19 checks
     are auto-fixable with `--fix`. Never ship a broken version again.
 
 -   :material-graph-outline:{ .lg .middle } **Dependency-Aware Scheduling**
@@ -158,7 +158,7 @@ Publishing a monorepo with dozens of interdependent packages requires:
 | **Release time** | Hours (manual) | Minutes (automated) |
 | **Risk of wrong ordering** | High | Zero (topological sort) |
 | **Crash recovery** | Start over | Resume from failure point |
-| **Version consistency** | Error-prone | Enforced by 33 checks |
+| **Version consistency** | Error-prone | Enforced by 35 checks |
 | **Missing metadata** | Found after publish | Caught at PR time |
 | **Changelog** | Manual | Auto-generated from commits |
 | **PyPI verification** | Manual spot-check | Automated checksum + smoke test |
