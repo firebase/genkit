@@ -117,7 +117,7 @@ from releasekit.preflight import run_preflight
 from releasekit.tags import format_tag
 from releasekit.utils.date import utc_iso, utc_today
 from releasekit.versioning import compute_bumps
-from releasekit.versions import PackageVersion, ReleaseManifest
+from releasekit.versions import PackageVersion, ReleaseManifest, resolve_umbrella_version
 from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
@@ -408,7 +408,7 @@ async def prepare_release(
 
     # 7. Build and save manifest.
     git_sha = await vcs.current_sha()
-    umbrella_version = bumped[0].new_version if bumped else '0.0.0'
+    umbrella_version = resolve_umbrella_version(bumped, core_package=ws_config.core_package)
     umbrella_tag = format_tag(ws_config.umbrella_tag, version=umbrella_version, label=ws_config.label)
     manifest = ReleaseManifest(
         git_sha=git_sha,

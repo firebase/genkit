@@ -178,7 +178,34 @@ class ReleaseManifest:
         return manifest
 
 
+def resolve_umbrella_version(
+    bumped: list[PackageVersion],
+    core_package: str = '',
+) -> str:
+    """Pick the umbrella version from the core package, falling back to the first bumped.
+
+    The umbrella tag should reflect the core package's version (e.g. ``genkit``),
+    not whichever package happens to sort first in dependency order.
+
+    Args:
+        bumped: List of bumped :class:`PackageVersion` records.
+        core_package: Name of the core package (from ``ws_config.core_package``).
+
+    Returns:
+        The version string to use for the umbrella tag, or ``'0.0.0'`` if
+        *bumped* is empty.
+    """
+    if not bumped:
+        return '0.0.0'
+    if core_package:
+        for pkg in bumped:
+            if pkg.name == core_package:
+                return pkg.new_version
+    return bumped[0].new_version
+
+
 __all__ = [
     'PackageVersion',
     'ReleaseManifest',
+    'resolve_umbrella_version',
 ]

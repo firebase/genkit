@@ -111,7 +111,7 @@ from releasekit.config import ReleaseConfig, WorkspaceConfig
 from releasekit.logging import get_logger
 from releasekit.release_notes import generate_release_notes, render_release_notes
 from releasekit.tags import TagResult, create_tags
-from releasekit.versions import PackageVersion, ReleaseManifest
+from releasekit.versions import PackageVersion, ReleaseManifest, resolve_umbrella_version
 
 logger = get_logger(__name__)
 
@@ -280,7 +280,7 @@ async def tag_release(
     release_body = render_release_notes(release_notes)
 
     # 3. Create tags and Release.
-    umbrella_version = bumped[0].new_version
+    umbrella_version = resolve_umbrella_version(bumped, core_package=ws_config.core_package)
     manifest_file = manifest_path
     if manifest_file is None and not dry_run:
         # Save manifest to temp file for the release asset.
@@ -302,6 +302,7 @@ async def tag_release(
         forge=forge,
         tag_format=ws_config.tag_format,
         umbrella_tag_format=ws_config.umbrella_tag,
+        core_package=ws_config.core_package,
         label=ws_config.label,
         release_body=release_body,
         release_title=f'Release v{umbrella_version}',

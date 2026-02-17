@@ -103,7 +103,7 @@ from pathlib import Path
 from releasekit.backends.forge import Forge
 from releasekit.backends.vcs import VCS
 from releasekit.logging import get_logger
-from releasekit.versions import ReleaseManifest
+from releasekit.versions import ReleaseManifest, resolve_umbrella_version
 
 logger = get_logger(__name__)
 
@@ -229,6 +229,7 @@ async def create_tags(
     tag_format: str = '{name}-v{version}',
     secondary_tag_format: str = '',
     umbrella_tag_format: str = 'v{version}',
+    core_package: str = '',
     label: str = '',
     release_body: str = '',
     release_title: str | None = None,
@@ -265,6 +266,8 @@ async def create_tags(
             Useful for dual-tagging (e.g. ``{name}-v{version}`` and
             ``{name}@{version}`` simultaneously). Empty string to disable.
         umbrella_tag_format: Umbrella tag format string.
+        core_package: Name of the core package whose version determines
+            the umbrella tag. Falls back to the first bumped package.
         label: Workspace label for the ``{label}`` placeholder.
         release_body: Markdown body for the platform release.
         release_title: Release title. Defaults to the umbrella tag.
@@ -288,9 +291,7 @@ async def create_tags(
         logger.info('tags_skip_no_bumped', reason='No packages were bumped')
         return result
 
-    # Determine the umbrella version from the first bumped package.
-    # All packages in a sync release share the same version.
-    umbrella_version = bumped[0].new_version
+    umbrella_version = resolve_umbrella_version(bumped, core_package=core_package)
     umbrella_tag = format_tag(umbrella_tag_format, version=umbrella_version)
 
     for pkg in bumped:

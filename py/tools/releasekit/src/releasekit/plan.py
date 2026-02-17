@@ -87,6 +87,7 @@ class PlanStatus(str, Enum):
     INCLUDED = 'included'
     SKIPPED = 'skipped'
     EXCLUDED = 'excluded'
+    PUBLISH_EXCLUDED = 'publish_excluded'
     ALREADY_PUBLISHED = 'already_published'
     DEPENDENCY_ONLY = 'dependency_only'
 
@@ -96,9 +97,23 @@ _STATUS_EMOJI: dict[PlanStatus, str] = {
     PlanStatus.INCLUDED: '📦',
     PlanStatus.SKIPPED: '⏭️',
     PlanStatus.EXCLUDED: '🚫',
+    PlanStatus.PUBLISH_EXCLUDED: '🔒',
     PlanStatus.ALREADY_PUBLISHED: '✅',
     PlanStatus.DEPENDENCY_ONLY: '🔗',
 }
+
+# Derived status sets for filtering.
+# Packages whose version will be bumped (regardless of publish outcome).
+BUMPED_STATUSES: frozenset[PlanStatus] = frozenset({
+    PlanStatus.INCLUDED,
+    PlanStatus.PUBLISH_EXCLUDED,
+    PlanStatus.ALREADY_PUBLISHED,
+})
+
+# Packages that will actually be published to a registry.
+PUBLISHABLE_STATUSES: frozenset[PlanStatus] = frozenset({
+    PlanStatus.INCLUDED,
+})
 
 
 @dataclass(frozen=True)
@@ -137,6 +152,7 @@ class ExecutionPlan:
 
     entries: list[PlanEntry] = field(default_factory=list)
     git_sha: str = ''
+    umbrella_version: str = ''
 
     @property
     def included(self) -> list[PlanEntry]:
@@ -147,6 +163,21 @@ class ExecutionPlan:
     def skipped(self) -> list[PlanEntry]:
         """Return entries that will be skipped."""
         return [e for e in self.entries if e.status in {PlanStatus.SKIPPED, PlanStatus.ALREADY_PUBLISHED}]
+
+    def filter_by_status(self, statuses: set[PlanStatus]) -> ExecutionPlan:
+        """Return a new plan containing only entries with the given statuses.
+
+        Args:
+            statuses: Set of :class:`PlanStatus` values to keep.
+
+        Returns:
+            A new :class:`ExecutionPlan` with filtered entries.
+        """
+        return ExecutionPlan(
+            entries=[e for e in self.entries if e.status in statuses],
+            git_sha=self.git_sha,
+            umbrella_version=self.umbrella_version,
+        )
 
     def summary(self) -> dict[str, int]:
         """Return a summary count by status."""
@@ -201,6 +232,8 @@ class ExecutionPlan:
         summary = self.summary()
         summary_parts = [f'{count} {status}' for status, count in sorted(summary.items())]
         lines.append('')
+        if self.umbrella_version:
+            lines.append(f'Umbrella version: {self.umbrella_version}')
         lines.append(f'Total: {len(self.entries)} packages ({", ".join(summary_parts)})')
 
         return '\n'.join(lines)
@@ -263,6 +296,8 @@ class ExecutionPlan:
         # Summary line.
         total = len(included)
         level_count = len(sorted_levels)
+        if self.umbrella_version:
+            lines.append(f'\nUmbrella version: {self.umbrella_version}')
         lines.append(f'\n{total} package(s) across {level_count} level(s)')
 
         return '\n'.join(lines)
@@ -275,6 +310,7 @@ class ExecutionPlan:
         """
         data = {
             'git_sha': self.git_sha,
+            'umbrella_version': self.umbrella_version,
             'summary': self.summary(),
             'entries': [asdict(e) for e in self.entries],
         }
@@ -308,22 +344,28 @@ def build_plan(
     levels: list[list[Package]],
     *,
     exclude_names: list[str] | None = None,
+    exclude_publish_names: set[str] | None = None,
     already_published: set[str] | None = None,
     git_sha: str = '',
+    umbrella_version: str = '',
 ) -> ExecutionPlan:
     """Build an execution plan from version computation results.
 
     Args:
         versions: List of :class:`~releasekit.versions.PackageVersion` records.
         levels: Topological levels from :func:`~releasekit.graph.topo_sort`.
-        exclude_names: Package names to mark as excluded.
+        exclude_names: Package names to mark as excluded from discovery.
+        exclude_publish_names: Package names excluded from publishing
+            (bumped but not published).
         already_published: Package names already published on the registry.
         git_sha: Current HEAD SHA.
+        umbrella_version: Resolved umbrella version for the release.
 
     Returns:
         An :class:`ExecutionPlan` with entries for all packages.
     """
     excludes = set(exclude_names or [])
+    publish_excludes = exclude_publish_names or set()
     published = already_published or set()
 
     # Build a name→PackageVersion lookup.
@@ -354,6 +396,9 @@ def build_plan(
         elif v.skipped:
             status = PlanStatus.SKIPPED
             reason = v.reason or 'no changes since last tag'
+        elif v.name in publish_excludes:
+            status = PlanStatus.PUBLISH_EXCLUDED
+            reason = 'bumped but excluded from publishing'
         else:
             status = PlanStatus.INCLUDED
             reason = v.reason
@@ -374,13 +419,15 @@ def build_plan(
     # Sort by level, then name for stable output.
     entries.sort(key=lambda e: (e.level, e.name))
 
-    plan = ExecutionPlan(entries=entries, git_sha=git_sha)
+    plan = ExecutionPlan(entries=entries, git_sha=git_sha, umbrella_version=umbrella_version)
     logger.info('plan_built', total=len(entries), **plan.summary())
     return plan
 
 
 __all__ = [
+    'BUMPED_STATUSES',
     'ExecutionPlan',
+    'PUBLISHABLE_STATUSES',
     'PlanEntry',
     'PlanStatus',
     'build_plan',

@@ -132,8 +132,11 @@ tag_format = "{label}/{name}-v{version}"
 tool = "uv"
 umbrella_tag = "{label}/v{version}"
 
-# Packages listed here are discovered, checked, and version-bumped
-# but skipped during publish. Use "group:<name>" to reference a group.
+# Packages listed here are discovered and checked but NOT version-bumped.
+exclude_bump = []
+
+# Packages listed here are version-bumped (changelogs, versions stay in
+# sync) but skipped during publish. Use "group:<name>" to reference a group.
 exclude_publish = [
   "group:samples",
   "group:unreleased_plugins",
@@ -144,7 +147,6 @@ exclude_publish = [
 community_plugins = [
   "genkit-plugin-amazon-bedrock",
   "genkit-plugin-anthropic",
-  "genkit-plugin-checks",
   "genkit-plugin-cloudflare-workers-ai",
   "genkit-plugin-cohere",
   "genkit-plugin-compat-oai",
@@ -217,7 +219,18 @@ samples = [
   "web-multi-server",
   "web-short-n-long",
 ]
-unreleased_plugins = []
+unreleased_plugins = [
+  "genkit-plugin-amazon-bedrock",        # TODO: Future release.
+  "genkit-plugin-checks",                # TODO: Wait for GA.
+  "genkit-plugin-cloudflare-workers-ai", # TODO: Future release.
+  "genkit-plugin-cohere",                # TODO: Future release.
+  "genkit-plugin-firebase",              # TODO: Pending AIM telemetry,
+  "genkit-plugin-huggingface",           # TODO: Future release.
+  "genkit-plugin-mcp",                   # TODO: Not implemented.
+  "genkit-plugin-microsoft-foundry",     # TODO: Future release.
+  "genkit-plugin-mistral",               # TODO: Future release.
+  "genkit-plugin-observability",         # TODO: Future release.
+]
 
 # ---------------------------------------------------------------------------
 # Go workspace (ready — uncomment to activate)

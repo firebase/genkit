@@ -62,7 +62,7 @@ class TestPlanStatus:
 
     def test_values(self) -> None:
         """All expected statuses exist."""
-        expected = {'included', 'skipped', 'excluded', 'already_published', 'dependency_only'}
+        expected = {'included', 'skipped', 'excluded', 'publish_excluded', 'already_published', 'dependency_only'}
         got = {s.value for s in PlanStatus}
         if got != expected:
             msg = f'Expected {expected}, got {got}'
@@ -209,6 +209,46 @@ class TestExecutionPlan:
             raise AssertionError('Expected no included')
         if plan.skipped:
             raise AssertionError('Expected no skipped')
+
+    def test_filter_by_status_single(self) -> None:
+        """filter_by_status with one status returns only matching entries."""
+        plan = self._make_plan()
+        filtered = plan.filter_by_status({PlanStatus.INCLUDED})
+        if len(filtered.entries) != 2:
+            raise AssertionError(f'Expected 2 entries, got {len(filtered.entries)}')
+        for e in filtered.entries:
+            if e.status != PlanStatus.INCLUDED:
+                raise AssertionError(f'Unexpected status: {e.status}')
+
+    def test_filter_by_status_multiple(self) -> None:
+        """filter_by_status with multiple statuses returns union."""
+        plan = self._make_plan()
+        filtered = plan.filter_by_status({PlanStatus.SKIPPED, PlanStatus.EXCLUDED})
+        if len(filtered.entries) != 2:
+            raise AssertionError(f'Expected 2 entries, got {len(filtered.entries)}')
+        names = {e.name for e in filtered.entries}
+        if names != {'sample-hello', 'sample-excluded'}:
+            raise AssertionError(f'Wrong names: {names}')
+
+    def test_filter_preserves_metadata(self) -> None:
+        """filter_by_status preserves git_sha and umbrella_version."""
+        plan = ExecutionPlan(
+            entries=[PlanEntry(name='a', status=PlanStatus.INCLUDED)],
+            git_sha='abc',
+            umbrella_version='1.0.0',
+        )
+        filtered = plan.filter_by_status({PlanStatus.INCLUDED})
+        if filtered.git_sha != 'abc':
+            raise AssertionError(f'Wrong git_sha: {filtered.git_sha}')
+        if filtered.umbrella_version != '1.0.0':
+            raise AssertionError(f'Wrong umbrella_version: {filtered.umbrella_version}')
+
+    def test_filter_by_status_empty_result(self) -> None:
+        """filter_by_status with non-matching status returns empty plan."""
+        plan = self._make_plan()
+        filtered = plan.filter_by_status({PlanStatus.DEPENDENCY_ONLY})
+        if filtered.entries:
+            raise AssertionError(f'Expected empty, got {len(filtered.entries)}')
 
 
 class TestBuildPlan:

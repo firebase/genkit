@@ -145,10 +145,10 @@ from releasekit.init import (
     scan_and_bootstrap,
 )
 from releasekit.lock import release_lock
-from releasekit.logging import get_logger
+from releasekit.logging import configure_logging, get_logger
 from releasekit.migrate import MIGRATION_SOURCES, migrate_from_source
 from releasekit.osv import OSVSeverity, check_osv_vulnerabilities
-from releasekit.plan import build_plan
+from releasekit.plan import BUMPED_STATUSES, PUBLISHABLE_STATUSES, PlanStatus, build_plan
 from releasekit.preflight import PreflightResult, SourceContext, read_source_snippet, run_preflight
 from releasekit.prepare import prepare_release
 from releasekit.prerelease import is_prerelease as _is_pre, promote_to_stable
@@ -173,7 +173,7 @@ from releasekit.tags import format_tag, parse_tag
 from releasekit.ui import create_progress_ui
 from releasekit.utils.date import utc_today
 from releasekit.versioning import compute_bumps
-from releasekit.versions import ReleaseManifest
+from releasekit.versions import ReleaseManifest, resolve_umbrella_version
 from releasekit.workspace import Package, discover_packages
 
 logger = get_logger(__name__)
@@ -809,13 +809,54 @@ async def _cmd_plan(args: argparse.Namespace) -> int:
     pub_results = await asyncio.gather(*pub_checks)
     already_published: set[str] = {name for name in pub_results if name is not None}
 
+    # Resolve exclude_publish group refs to package names.
+    resolved_exclude_publish = resolve_group_refs(ws_config.exclude_publish, ws_config.groups)
+    publish_excluded: set[str] = set()
+    if resolved_exclude_publish:
+        publish_excluded = {p.name for p in packages if _match_exclude_patterns(p.name, resolved_exclude_publish)}
+
+    bumped = [v for v in versions if not v.skipped]
+    umbrella_version = resolve_umbrella_version(bumped, core_package=ws_config.core_package)
+
     plan = build_plan(
         versions,
         levels,
         exclude_names=ws_config.exclude,
+        exclude_publish_names=publish_excluded,
         already_published=already_published,
         git_sha=await vcs.current_sha(),
+        umbrella_version=umbrella_version,
     )
+
+    # Apply status filters.
+    # --status is the raw filter; --bumped and --publishable are convenience
+    # shortcuts. When multiple flags are given, results are ANDed.
+    filter_statuses: set[PlanStatus] | None = None
+
+    status_arg: str | None = getattr(args, 'status', None)
+    if status_arg:
+        status_names = {s.strip() for s in status_arg.split(',')}
+        filter_statuses = set()
+        for s in status_names:
+            try:
+                filter_statuses.add(PlanStatus(s))
+            except ValueError:
+                allowed = ', '.join(sorted(ps.value for ps in PlanStatus))
+                logger.error(
+                    f'Unknown status {s!r}. Allowed values: {allowed}',
+                )
+                return 1
+
+    if getattr(args, 'bumped', False):
+        bumped_filter = set(BUMPED_STATUSES)
+        filter_statuses = filter_statuses & bumped_filter if filter_statuses is not None else bumped_filter
+
+    if getattr(args, 'publishable', False):
+        publishable_filter = set(PUBLISHABLE_STATUSES)
+        filter_statuses = filter_statuses & publishable_filter if filter_statuses is not None else publishable_filter
+
+    if filter_statuses is not None:
+        plan = plan.filter_by_status(filter_statuses)
 
     fmt = getattr(args, 'format', 'table')
     if fmt == 'json':
@@ -2572,6 +2613,20 @@ def build_parser() -> argparse.ArgumentParser:
             'weather, cities, or any custom theme).'
         ),
     )
+    parser.add_argument(
+        '--verbose',
+        '-v',
+        action='store_true',
+        default=False,
+        help='Enable verbose (debug-level) logging.',
+    )
+    parser.add_argument(
+        '--quiet',
+        '-q',
+        action='store_true',
+        default=False,
+        help='Suppress info-level output (only warnings and errors).',
+    )
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -2750,6 +2805,26 @@ def build_parser() -> argparse.ArgumentParser:
         '-g',
         metavar='NAME',
         help='Only show packages in this release group.',
+    )
+    _all_statuses = ', '.join(sorted(ps.value for ps in PlanStatus))
+    plan_parser.add_argument(
+        '--status',
+        metavar='STATUS',
+        help=(
+            'Comma-separated list of raw statuses to include. '
+            f'Allowed: {_all_statuses}. '
+            'Prefer --bumped or --publishable for common filters.'
+        ),
+    )
+    plan_parser.add_argument(
+        '--bumped',
+        action='store_true',
+        help='Show only packages whose version will be bumped.',
+    )
+    plan_parser.add_argument(
+        '--publishable',
+        action='store_true',
+        help='Show only packages that will be published to a registry.',
     )
 
     discover_parser = subparsers.add_parser(
@@ -3230,6 +3305,15 @@ def main() -> int:
     """
     parser = build_parser()
     args = parser.parse_args()
+
+    # Configure logging based on --verbose / --quiet flags.
+    # Display-only commands (plan, discover, graph, version) default to
+    # quiet unless --verbose is explicitly set so that the table/JSON
+    # output is not cluttered with log lines.
+    is_verbose = getattr(args, 'verbose', False)
+    display_commands = {'plan', 'discover', 'graph', 'version'}
+    is_quiet = getattr(args, 'quiet', False) or (getattr(args, 'command', None) in display_commands and not is_verbose)
+    configure_logging(verbose=is_verbose, quiet=is_quiet)
 
     try:
         command = args.command
