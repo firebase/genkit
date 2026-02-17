@@ -1597,4 +1597,3 @@ func ListResources(g *Genkit) []ai.Resource {
 	}
 	return resources
 }
-
