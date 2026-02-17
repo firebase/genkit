@@ -580,7 +580,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.0-generate-001'),
+    model: googleAI.model('veo-3.1-fast-generate-preview'),
     prompt: [
       {
         text: 'make the subject in the photo move',
@@ -593,9 +593,11 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
       },
     ],
     config: {
+      resolution: '4k',
       durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
+      seed: 42,
     },
   });
 
