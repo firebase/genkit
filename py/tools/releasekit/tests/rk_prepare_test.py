@@ -842,6 +842,7 @@ class TestPreparePushFailure:
                 tags: bool = False,
                 remote: str = 'origin',
                 set_upstream: bool = True,
+                force: bool = False,
                 dry_run: bool = False,
             ) -> CommandResult:
                 """Fail push."""

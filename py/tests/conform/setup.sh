@@ -441,25 +441,30 @@ _pull_ollama_models() {
 
     # Extract model names: lines matching "- model: ollama/<name>".
     local models
-    models=$(grep -E '^\- model: ollama/' "$spec_file" \
-        | sed -E 's/^- model: ollama\///; s/[[:space:]]*$//'
-    )
+    models=$(sed -nE 's~^- model: ollama/([^[:space:]]+)[[:space:]]*$~\1~p' "$spec_file")
 
     if [[ -z "$models" ]]; then
         echo -e "  ${DIM}No ollama models found in spec${NC}"
         return 0
     fi
 
-    # Get list of already-pulled models (name column from "ollama list").
-    local pulled
-    pulled=$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' || true)
+    # Build an associative array of already-pulled models for O(1) lookups.
+    local pulled_raw
+    pulled_raw=$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' || true)
+    declare -A pulled_set
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        # Strip ":latest" suffix so both "model" and "model:latest" match.
+        pulled_set["${entry%%:*}"]=1
+    done <<< "$pulled_raw"
 
     local pull_count=0
     while IFS= read -r model; do
         [[ -z "$model" ]] && continue
 
-        # Check if already pulled (exact match or "model:latest").
-        if echo "$pulled" | grep -qE "^${model}(:|$)"; then
+        # Check if already pulled (O(1) associative array lookup).
+        local base="${model%%:*}"
+        if [[ -n "${pulled_set[$base]+x}" ]]; then
             echo -e "  ${GREEN}✓${NC} ${model} ${DIM}(already pulled)${NC}"
             continue
         fi

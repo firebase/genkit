@@ -54,6 +54,7 @@ class FakeVCS(_BaseFakeVCS):
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Record push call."""
@@ -336,6 +337,7 @@ class TestCreateCommitbackPr:
                 tags: bool = False,
                 remote: str = 'origin',
                 set_upstream: bool = True,
+                force: bool = False,
                 dry_run: bool = False,
             ) -> CommandResult:
                 """Push."""

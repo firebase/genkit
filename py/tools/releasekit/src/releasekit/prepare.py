@@ -421,7 +421,11 @@ async def prepare_release(
     if not dry_run:
         await vcs.checkout_branch(release_branch, create=True)
         await vcs.commit(commit_msg, paths=['.'])
-        push_result = await vcs.push()
+        # Force-push because the release branch is recreated from
+        # scratch on each prepare run (checkout -B resets to HEAD).
+        # If the remote already has the branch from a previous run,
+        # a normal push fails with non-fast-forward.
+        push_result = await vcs.push(force=True)
         if not push_result.ok:
             raise RuntimeError(f'Failed to push release branch {release_branch!r}: {push_result.stderr.strip()}')
     logger.info('release_branch_pushed', branch=release_branch, sha=git_sha)

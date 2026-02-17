@@ -1782,17 +1782,24 @@ async def _cmd_prepare(args: argparse.Namespace) -> int:
     ws_root = _effective_workspace_root(config_root, ws_config)
     vcs, pm, forge, registry = _create_backends(config_root, config, ws_root=ws_root, ws_config=ws_config)
 
-    result = await prepare_release(
-        vcs=vcs,
-        pm=pm,
-        forge=forge,
-        registry=registry,
-        workspace_root=ws_root,
-        config=config,
-        ws_config=ws_config,
-        dry_run=args.dry_run,
-        force=args.force,
-    )
+    try:
+        result = await prepare_release(
+            vcs=vcs,
+            pm=pm,
+            forge=forge,
+            registry=registry,
+            workspace_root=ws_root,
+            config=config,
+            ws_config=ws_config,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+    except RuntimeError as exc:
+        logger.error('prepare_error', step='prepare_release', error=str(exc))
+        return 1
+    except Exception as exc:  # noqa: BLE001
+        logger.error('prepare_error', step='prepare_release', error=str(exc), exc_type=type(exc).__name__)
+        return 1
 
     if not result.ok:
         for step, error in result.errors.items():

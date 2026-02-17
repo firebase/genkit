@@ -212,6 +212,12 @@ runs:
 
         if [ "${EXIT_CODE:-0}" -ne 0 ]; then
           echo "::error::releasekit $RK_COMMAND failed with exit code $EXIT_CODE"
+          echo ""
+          echo "────────────────────────────────────────"
+          echo "Last 50 lines of output (for diagnosis):"
+          echo "────────────────────────────────────────"
+          echo "$OUTPUT" | tail -50
+          echo "────────────────────────────────────────"
           exit "$EXIT_CODE"
         fi
 

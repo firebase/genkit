@@ -226,10 +226,13 @@ class GitCLIBackend:
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags."""
         cmd_parts = ['push']
+        if force:
+            cmd_parts.append('--force-with-lease')
         # --set-upstream is only meaningful for branch pushes, not tag-only pushes.
         branch_refspec: str = ''
         if set_upstream and not tags:
@@ -241,7 +244,7 @@ class GitCLIBackend:
             cmd_parts.append(branch_refspec)
         if tags:
             cmd_parts.append('--tags')
-        log.info('push', remote=remote, tags=tags, set_upstream=set_upstream)
+        log.info('push', remote=remote, tags=tags, set_upstream=set_upstream, force=force)
         return await asyncio.to_thread(self._git, *cmd_parts, dry_run=dry_run)
 
     async def tag_commit_sha(self, tag_name: str) -> str:

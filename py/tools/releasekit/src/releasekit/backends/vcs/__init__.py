@@ -171,6 +171,7 @@ class VCS(Protocol):
         tags: bool = False,
         remote: str = 'origin',
         set_upstream: bool = True,
+        force: bool = False,
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags.
@@ -179,6 +180,10 @@ class VCS(Protocol):
             tags: Also push tags.
             remote: Remote name.
             set_upstream: Set upstream tracking for new branches.
+            force: Force-push using ``--force-with-lease`` (safe
+                force-push that fails if the remote has unexpected
+                changes). Used when release branches are recreated
+                from scratch on each prepare run.
             dry_run: Log the command without executing.
         """
         ...
