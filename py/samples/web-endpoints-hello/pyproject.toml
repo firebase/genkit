@@ -72,7 +72,7 @@ license = "Apache-2.0"
 name = "web-endpoints-hello"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.1.0"
+version = "0.2.0"
 
 [project.optional-dependencies]
 aws = ["genkit-plugin-amazon-bedrock"]

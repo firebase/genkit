@@ -59,7 +59,7 @@ license = "Apache-2.0"
 name = "releasekit"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.1.0"
+version = "0.2.0"
 
 [project.optional-dependencies]
 all-ai       = ["genkit-plugin-ollama", "genkit-plugin-google-genai"]
