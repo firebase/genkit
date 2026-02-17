@@ -58,7 +58,7 @@ describe('toTTSRequest', () => {
     const request = {
       messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
       config: {
-        voice: 'alloy',
+        voice: 'echo',
         speed: undefined,
       },
     } as GenerateRequest;
@@ -67,7 +67,7 @@ describe('toTTSRequest', () => {
     expect(actualOutput).toStrictEqual({
       model: 'gpt-4o-mini-tts',
       input: 'Hello',
-      voice: 'alloy',
+      voice: 'echo',
     });
   });
 
