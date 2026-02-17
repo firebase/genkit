@@ -172,7 +172,10 @@ class GitCLIBackend:
             await asyncio.to_thread(self._git, 'add', '-A', dry_run=dry_run)
 
         log.info('commit', message=message[:80])
-        return await asyncio.to_thread(self._git, 'commit', '-m', message, dry_run=dry_run)
+        # --no-verify skips pre-commit hooks (e.g. captainhook running
+        # pnpm i + bin/lint) that can hang for minutes on auto-generated
+        # release commits.
+        return await asyncio.to_thread(self._git, 'commit', '--no-verify', '-m', message, dry_run=dry_run)
 
     async def tag(
         self,
@@ -230,7 +233,8 @@ class GitCLIBackend:
         dry_run: bool = False,
     ) -> CommandResult:
         """Push commits and/or tags."""
-        cmd_parts = ['push']
+        # --no-verify skips pre-push hooks that can hang on release branches.
+        cmd_parts = ['push', '--no-verify']
         if force:
             cmd_parts.append('--force-with-lease')
         # --set-upstream is only meaningful for branch pushes, not tag-only pushes.

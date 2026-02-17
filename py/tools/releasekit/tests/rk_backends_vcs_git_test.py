@@ -269,6 +269,14 @@ class TestCommit:
             assert '-A' in calls[0]
 
     @pytest.mark.asyncio()
+    async def test_no_verify_flag(self, git: GitCLIBackend) -> None:
+        """Regression: commit must pass --no-verify to skip pre-commit hooks."""
+        with patch.object(git, '_git', return_value=_ok()) as m:
+            await git.commit('chore(release): v1.0.0')
+            commit_call = m.call_args_list[-1][0]
+            assert '--no-verify' in commit_call
+
+    @pytest.mark.asyncio()
     async def test_dry_run(self, git: GitCLIBackend) -> None:
         """Test dry run."""
         with patch.object(git, '_git', return_value=_ok()) as m:
@@ -348,6 +356,7 @@ class TestPush:
             await git.push()
             args = m.call_args[0]
             assert 'push' in args
+            assert '--no-verify' in args
             assert 'origin' in args
 
     @pytest.mark.asyncio()
