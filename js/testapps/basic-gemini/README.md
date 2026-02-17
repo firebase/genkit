@@ -12,7 +12,7 @@ TTS, and advanced features like search grounding and URL context.
 | Retry Middleware | `basic-hi-with-retry` | Generation with automatic retry on failure |
 | Fallback Middleware | `basic-hi-with-fallback` | Model fallback chain on failure |
 | Thinking (Pro) | `thinking-level-pro` | Chain-of-thought reasoning (Gemini 2.5 Pro) |
-| Thinking (Flash) | `thinking-level-flash` | Chain-of-thought reasoning (Gemini 3 Flash) |
+| Thinking (Flash) | `thinking-level-flash` | Chain-of-thought reasoning (Gemini 2.5 Flash) |
 | Vision (Image) | `describe-image` | Describe a base64-encoded image |
 | YouTube Videos | `youtube-videos` | Transcribe YouTube video content |
 | Search Grounding | `search-grounding` | Web search for real-time info |
