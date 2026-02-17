@@ -358,15 +358,16 @@ export function defineCompatOpenAITranscriptionModel<
   requestBuilder?: TranscriptionRequestBuilder;
 }): ModelAction {
   const {
-    name: modelName,
+    name,
     pluginOptions,
     client: defaultClient,
     modelRef,
     requestBuilder,
   } = params;
-
+  const modelName = toModelName(name, pluginOptions?.name);
   const actionName =
     modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
+
   return model(
     {
       name: actionName,

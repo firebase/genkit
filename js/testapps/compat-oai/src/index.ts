@@ -358,6 +358,25 @@ async function toWav(
   });
 }
 
+// STT sample
+ai.defineFlow('transcribe', async () => {
+  const audioFile = fs.readFileSync('jfk.flac');
+
+  const { text } = await ai.generate({
+    model: openAI.model('whisper-1'),
+    prompt: [
+      {
+        media: {
+          contentType: 'audio/flac',
+          url: `data:audio/flac;base64,${audioFile.toString('base64')}`,
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // PDF file input example
 ai.defineFlow(
   {
