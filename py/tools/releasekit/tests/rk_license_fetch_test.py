@@ -466,7 +466,7 @@ class TestFixMissingLicenseFiles:
         changes = _run(fix_missing_license_files([pkg]))
         assert changes == []
 
-    @patch('releasekit.checks._license_fetch.fetch_license_texts')
+    @patch('releasekit.checks._universal.fetch_license_texts')
     def test_dry_run(self, mock_fetch: AsyncMock, tmp_path: Path) -> None:
         """Dry run reports but does not write."""
         mock_fetch.return_value = {
@@ -483,7 +483,7 @@ class TestFixMissingLicenseFiles:
         assert any('dry-run' in c for c in changes)
         assert not (pkg.path / 'LICENSE').exists()
 
-    @patch('releasekit.checks._license_fetch.fetch_license_texts')
+    @patch('releasekit.checks._universal.fetch_license_texts')
     def test_writes_license(self, mock_fetch: AsyncMock, tmp_path: Path) -> None:
         """Writes LICENSE file on success."""
         mock_fetch.return_value = {
@@ -501,7 +501,7 @@ class TestFixMissingLicenseFiles:
         assert (pkg.path / 'LICENSE').exists()
         assert 'Apache License' in (pkg.path / 'LICENSE').read_text()
 
-    @patch('releasekit.checks._license_fetch.fetch_license_texts')
+    @patch('releasekit.checks._universal.fetch_license_texts')
     def test_fetch_failure(self, mock_fetch: AsyncMock, tmp_path: Path) -> None:
         """Reports failure when fetch fails."""
         mock_fetch.return_value = {
@@ -515,7 +515,7 @@ class TestFixMissingLicenseFiles:
         assert any('could not fetch' in c for c in changes)
         assert not (pkg.path / 'LICENSE').exists()
 
-    @patch('releasekit.checks._license_fetch.fetch_license_texts')
+    @patch('releasekit.checks._universal.fetch_license_texts')
     def test_multiple_packages(self, mock_fetch: AsyncMock, tmp_path: Path) -> None:
         """Handles multiple packages in one batch."""
         mock_fetch.return_value = {
