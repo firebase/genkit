@@ -40,6 +40,32 @@
 #   │  dry_run:      [✓] simulate, no side effects                │
 #   └─────────────────────────────────────────────────────────────┘
 #
+# ── Job Execution Flow ──────────────────────────────────────────────
+#
+#   ┌──────────┐
+#   │ rollback │  Single job — no auth job needed (same-job secret)
+#   └────┬─────┘
+#        │
+#        ├─► checkout (full history + tags, token = secrets.GITHUB_TOKEN)
+#        │
+#        ├─► releasekit rollback
+#        │     │
+#        │     ├─► resolve tag → find commit SHA
+#        │     │
+#        │     ├─► --all-tags? ──► find all tags on same commit
+#        │     │                    └─► delete each tag (local + remote)
+#        │     │
+#        │     ├─► delete GitHub Release(s)
+#        │     │
+#        │     └─► --yank? ──► yank from package registry
+#        │                      └─► with --yank-reason if provided
+#        │
+#        └─► (done)
+#
+#   Unlike the release workflows, rollback is a single-job workflow.
+#   It uses secrets.GITHUB_TOKEN directly — no sentinel pattern needed
+#   because there are no cross-job boundaries.
+#
 # ── Safety ────────────────────────────────────────────────────────────
 #
 # The workflow defaults to dry_run=true so accidental triggers are
@@ -140,19 +166,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          fetch-depth: 0
-          fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          enable-ollama: "false"
 
-      - name: Run releasekit rollback
-        id: rk
-        uses: ./py/tools/releasekit
+      - uses: ./.github/actions/run-releasekit
         with:
           command: rollback
           workspace: ${{ inputs.workspace }}
-          tag: ${{ inputs.tag }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ inputs.dry_run && 'true' || 'false' }}
+          tag: ${{ inputs.tag }}
           all-tags: ${{ inputs.all_tags && 'true' || 'false' }}
           yank: ${{ inputs.yank && 'true' || 'false' }}
           yank-reason: ${{ inputs.yank_reason }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

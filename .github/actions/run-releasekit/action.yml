@@ -106,11 +106,46 @@ inputs:
       Registry URL for uploading packages (publish only).
     required: false
     default: ""
+  no-ai:
+    description: >-
+      Disable all AI features (summarization, codenames).
+    required: false
+    default: "false"
+  model:
+    description: >-
+      Override AI model (e.g. "ollama/gemma3:12b", "gemini-pro").
+    required: false
+    default: ""
+  codename-theme:
+    description: >-
+      Override codename theme (e.g. "galaxies", "animals").
+    required: false
+    default: ""
   show-plan:
     description: >-
       Show the execution plan before running the command.
     required: false
     default: "false"
+  tag:
+    description: >-
+      Git tag to roll back (rollback only).
+    required: false
+    default: ""
+  all-tags:
+    description: >-
+      Delete ALL tags pointing to the same commit (rollback only).
+    required: false
+    default: "false"
+  yank:
+    description: >-
+      Also yank/deprecate versions from the package registry (rollback only).
+    required: false
+    default: "false"
+  yank-reason:
+    description: >-
+      Reason for yanking (rollback only).
+    required: false
+    default: ""
 
 outputs:
   has_bumps:
@@ -131,15 +166,15 @@ runs:
       if: inputs.show-plan == 'true'
       shell: bash
       env:
-        RK_DIR: ${{ inputs.releasekit-dir }}
-        RK_WORKSPACE: ${{ inputs.workspace }}
-        RK_DRY_RUN: ${{ inputs.dry-run }}
+        RELEASEKIT_DIR: ${{ inputs.releasekit-dir }}
+        RELEASEKIT_WORKSPACE: ${{ inputs.workspace }}
+        RELEASEKIT_DRY_RUN: ${{ inputs.dry-run }}
       run: |
         echo "::group::Execution Plan"
-        uv run --directory "$RK_DIR" \
-          releasekit --workspace "$RK_WORKSPACE" plan --format full 2>&1 || true
+        uv run --directory "$RELEASEKIT_DIR" \
+          releasekit --workspace "$RELEASEKIT_WORKSPACE" plan --format full 2>&1 || true
         echo "::endgroup::"
-        if [ "$RK_DRY_RUN" = "true" ]; then
+        if [ "$RELEASEKIT_DRY_RUN" = "true" ]; then
           echo "::notice::DRY RUN — no side effects"
         else
           echo "::notice::LIVE RUN"
@@ -150,57 +185,91 @@ runs:
       id: run
       shell: bash
       env:
-        RK_COMMAND: ${{ inputs.command }}
-        RK_WORKSPACE: ${{ inputs.workspace }}
-        RK_DIR: ${{ inputs.releasekit-dir }}
-        RK_DRY_RUN: ${{ inputs.dry-run }}
-        RK_FORCE: ${{ inputs.force }}
-        RK_GROUP: ${{ inputs.group }}
-        RK_BUMP_TYPE: ${{ inputs.bump-type }}
-        RK_PRERELEASE: ${{ inputs.prerelease }}
-        RK_CONCURRENCY: ${{ inputs.concurrency }}
-        RK_MAX_RETRIES: ${{ inputs.max-retries }}
-        RK_CHECK_URL: ${{ inputs.check-url }}
-        RK_INDEX_URL: ${{ inputs.index-url }}
+        RELEASEKIT_COMMAND: ${{ inputs.command }}
+        RELEASEKIT_WORKSPACE: ${{ inputs.workspace }}
+        RELEASEKIT_DIR: ${{ inputs.releasekit-dir }}
+        RELEASEKIT_DRY_RUN: ${{ inputs.dry-run }}
+        RELEASEKIT_FORCE: ${{ inputs.force }}
+        RELEASEKIT_GROUP: ${{ inputs.group }}
+        RELEASEKIT_BUMP_TYPE: ${{ inputs.bump-type }}
+        RELEASEKIT_PRERELEASE: ${{ inputs.prerelease }}
+        RELEASEKIT_CONCURRENCY: ${{ inputs.concurrency }}
+        RELEASEKIT_MAX_RETRIES: ${{ inputs.max-retries }}
+        RELEASEKIT_CHECK_URL: ${{ inputs.check-url }}
+        RELEASEKIT_INDEX_URL: ${{ inputs.index-url }}
+        RELEASEKIT_NO_AI: ${{ inputs.no-ai }}
+        RELEASEKIT_MODEL: ${{ inputs.model }}
+        RELEASEKIT_CODENAME_THEME: ${{ inputs.codename-theme }}
+        RELEASEKIT_TAG: ${{ inputs.tag }}
+        RELEASEKIT_ALL_TAGS: ${{ inputs.all-tags }}
+        RELEASEKIT_YANK: ${{ inputs.yank }}
+        RELEASEKIT_YANK_REASON: ${{ inputs.yank-reason }}
       run: |
         set -euo pipefail
 
-        cmd=(uv run --directory "$RK_DIR" releasekit --workspace "$RK_WORKSPACE" "$RK_COMMAND")
+        cmd=(uv run --directory "$RELEASEKIT_DIR" releasekit --workspace "$RELEASEKIT_WORKSPACE" "$RELEASEKIT_COMMAND")
 
         # ── Common flags ──────────────────────────────────────────
-        if [ "$RK_DRY_RUN" = "true" ]; then
+        if [ "$RELEASEKIT_DRY_RUN" = "true" ]; then
           cmd+=(--dry-run)
         fi
-        if [ "$RK_FORCE" = "true" ]; then
+        if [ "$RELEASEKIT_FORCE" = "true" ]; then
           cmd+=(--force)
         fi
-        if [ -n "$RK_GROUP" ]; then
-          cmd+=(--group "$RK_GROUP")
+        if [ -n "$RELEASEKIT_GROUP" ]; then
+          cmd+=(--group "$RELEASEKIT_GROUP")
         fi
 
         # ── prepare-specific flags ────────────────────────────────
-        if [ "$RK_COMMAND" = "prepare" ]; then
-          if [ "$RK_BUMP_TYPE" != "auto" ] && [ -n "$RK_BUMP_TYPE" ]; then
-            cmd+=(--bump "$RK_BUMP_TYPE")
+        if [ "$RELEASEKIT_COMMAND" = "prepare" ]; then
+          if [ "$RELEASEKIT_BUMP_TYPE" != "auto" ] && [ -n "$RELEASEKIT_BUMP_TYPE" ]; then
+            cmd+=(--bump "$RELEASEKIT_BUMP_TYPE")
           fi
-          if [ -n "$RK_PRERELEASE" ]; then
-            cmd+=(--prerelease "$RK_PRERELEASE")
+          if [ -n "$RELEASEKIT_PRERELEASE" ]; then
+            cmd+=(--prerelease "$RELEASEKIT_PRERELEASE")
           fi
         fi
 
         # ── publish-specific flags ────────────────────────────────
-        if [ "$RK_COMMAND" = "publish" ]; then
-          if [ -n "$RK_CHECK_URL" ]; then
-            cmd+=(--check-url "$RK_CHECK_URL")
+        if [ "$RELEASEKIT_COMMAND" = "publish" ]; then
+          if [ -n "$RELEASEKIT_CHECK_URL" ]; then
+            cmd+=(--check-url "$RELEASEKIT_CHECK_URL")
           fi
-          if [ -n "$RK_INDEX_URL" ]; then
-            cmd+=(--index-url "$RK_INDEX_URL")
+          if [ -n "$RELEASEKIT_INDEX_URL" ]; then
+            cmd+=(--index-url "$RELEASEKIT_INDEX_URL")
           fi
-          if [ -n "$RK_CONCURRENCY" ] && [ "$RK_CONCURRENCY" != "0" ]; then
-            cmd+=(--concurrency "$RK_CONCURRENCY")
+          if [ -n "$RELEASEKIT_CONCURRENCY" ] && [ "$RELEASEKIT_CONCURRENCY" != "0" ]; then
+            cmd+=(--concurrency "$RELEASEKIT_CONCURRENCY")
           fi
-          if [ -n "$RK_MAX_RETRIES" ] && [ "$RK_MAX_RETRIES" != "0" ]; then
-            cmd+=(--max-retries "$RK_MAX_RETRIES")
+          if [ -n "$RELEASEKIT_MAX_RETRIES" ] && [ "$RELEASEKIT_MAX_RETRIES" != "0" ]; then
+            cmd+=(--max-retries "$RELEASEKIT_MAX_RETRIES")
+          fi
+        fi
+
+        # ── AI flags ─────────────────────────────────────────────
+        if [ "$RELEASEKIT_NO_AI" = "true" ]; then
+          cmd+=(--no-ai)
+        fi
+        if [ -n "$RELEASEKIT_MODEL" ]; then
+          cmd+=(--model "$RELEASEKIT_MODEL")
+        fi
+        if [ -n "$RELEASEKIT_CODENAME_THEME" ]; then
+          cmd+=(--codename-theme "$RELEASEKIT_CODENAME_THEME")
+        fi
+
+        # ── rollback-specific flags ─────────────────────────────
+        if [ "$RELEASEKIT_COMMAND" = "rollback" ]; then
+          if [ -n "$RELEASEKIT_TAG" ]; then
+            cmd+=(--tag "$RELEASEKIT_TAG")
+          fi
+          if [ "$RELEASEKIT_ALL_TAGS" = "true" ]; then
+            cmd+=(--all-tags)
+          fi
+          if [ "$RELEASEKIT_YANK" = "true" ]; then
+            cmd+=(--yank)
+          fi
+          if [ -n "$RELEASEKIT_YANK_REASON" ]; then
+            cmd+=(--yank-reason "$RELEASEKIT_YANK_REASON")
           fi
         fi
 
@@ -211,7 +280,7 @@ runs:
         echo "::endgroup::"
 
         if [ "${EXIT_CODE:-0}" -ne 0 ]; then
-          echo "::error::releasekit $RK_COMMAND failed with exit code $EXIT_CODE"
+          echo "::error::releasekit $RELEASEKIT_COMMAND failed with exit code $EXIT_CODE"
           echo ""
           echo "────────────────────────────────────────"
           echo "Last 50 lines of output (for diagnosis):"
@@ -222,7 +291,7 @@ runs:
         fi
 
         # ── Parse outputs ─────────────────────────────────────────
-        if [ "$RK_COMMAND" = "prepare" ]; then
+        if [ "$RELEASEKIT_COMMAND" = "prepare" ]; then
           PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
           if [ -n "$PR_URL" ]; then
             echo "has_bumps=true" >> "$GITHUB_OUTPUT"
@@ -232,7 +301,7 @@ runs:
           fi
         fi
 
-        if [ "$RK_COMMAND" = "release" ]; then
+        if [ "$RELEASEKIT_COMMAND" = "release" ]; then
           RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
           if [ -n "$RELEASE_URL" ]; then
             echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"

@@ -8,17 +8,25 @@ description: Production-ready GitHub Actions workflows for common release patter
 Copy-paste these GitHub Actions workflows and customize them for your
 project. Each template is progressively more advanced.
 
-!!! tip "Reusable Composite Action"
-    ReleaseKit ships a **reusable composite action** (`action.yml`) that
-    handles Python/uv setup, git config, command building, output
-    parsing, and job summary generation automatically. Instead of
+!!! tip "Reusable Composite Actions"
+    ReleaseKit ships two **composite actions** — `setup-releasekit`
+    (Python/uv setup, git config, Ollama) and `run-releasekit`
+    (command building, output parsing, job summaries). Instead of
     writing inline shell steps, you can use:
 
     ```yaml
-    - uses: ./py/tools/releasekit
+    - uses: ./.github/actions/setup-releasekit
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        releasekit-dir: py/tools/releasekit
+
+    - uses: ./.github/actions/run-releasekit
       with:
         command: publish
         workspace: py
+        releasekit-dir: py/tools/releasekit
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```
 
     See the [production-ready templates](#workflow-templates) below for
