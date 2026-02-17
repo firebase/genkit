@@ -77,7 +77,7 @@ Four inline params, plus an `output` param that accepts three different types. T
 
 **Flat kwargs vs. wrapper object.** We considered both approaches:
 
-A **wrapper object** (`output=OutputConfig(Recipe)` or `output=Recipe`) bundles the schema with secondary options (format, constrained, instructions) into one param, reducing `generate()`'s parameter count. But it introduces a new type developers have to learn and import, and creates a naming problem — `Output[T]` is too generic ("Output of what?"), and the obvious alternative `OutputConfig[T]` collides with the existing wire-format `OutputConfig` used by plugin authors.
+A **wrapper object** (`output=OutputConfig(Recipe)` or `output=Recipe`) bundles the schema with secondary options (format, constrained, instructions) into one param, reducing `generate()`'s parameter count. But it introduces a new type developers have to learn and import.
 
 **Flat kwargs** (`output_schema=Recipe`) is the more Pythonic approach. Python functions embrace explicit parameters with defaults — `requests.get()` has 15+ kwargs, `json.dumps()` has 8, `subprocess.run()` has 12. No config objects. The secondary output params (`output_format`, `output_constrained`, `output_content_type`, `output_instructions`) stay as kwargs with sensible defaults — `output_format` auto-defaults to `'json'` when a schema is set, the rest default to `None` and are rarely used. The common case is just:
 
@@ -108,7 +108,7 @@ response.output.name  # typed as str — IDE knows this is Recipe
 
 `Input[T]` and `Output[T]` are both removed from the public API — they no longer need to exist. `input_schema` and `output_schema` already exist as params today; they just need the `type[T]` overloads to carry the generic. That's three types eliminated from the app developer surface (`Input[T]`, `Output[T]`, `OutputConfigDict`) and zero new types introduced.
 
-**The Dotprompt typing gap.** This decision also simplifies the Dotprompt story. When a schema is defined in a `.prompt` file's YAML frontmatter (`output: { schema: Recipe }`), the SDK uses it to constrain the model's JSON output at runtime. But the type checker doesn't know this — `.prompt` files can't carry Python type references — so `response.output` is `Any`. To get typed output, pass the schema at the call site:
+Dotprompt should work in a similar way but with one additional nuance. When a schema is defined in a `.prompt` file's YAML frontmatter (`output: { schema: Recipe }`), the SDK uses it to constrain the model's JSON output at runtime. But the type checker doesn't know this — `.prompt` files can't carry Python type references — so `response.output` is `Any`. To get typed output, pass the schema at the call site:
 
 ```python
 # Without output_schema — runtime parsing works, but typing is Any
