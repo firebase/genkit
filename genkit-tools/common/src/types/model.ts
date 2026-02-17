@@ -15,6 +15,7 @@
  */
 import { z } from 'zod';
 import { DocumentDataSchema } from './document';
+import { MiddlewareRefSchema } from './middleware';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -399,5 +400,7 @@ export const GenerateActionOptionsSchema = z.object({
   maxTurns: z.number().optional(),
   /** Custom step name for this generate call to display in trace views. Defaults to "generate". */
   stepName: z.string().optional(),
+  /** Middleware to apply to this generation. */
+  use: z.array(MiddlewareRefSchema).optional(),
 });
 export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

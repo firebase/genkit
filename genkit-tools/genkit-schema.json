@@ -270,6 +270,49 @@
       ],
       "additionalProperties": false
     },
+    "MiddlewareDesc": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "configSchema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "MiddlewareRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "config": {}
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
     "CandidateError": {
       "type": "object",
       "properties": {
@@ -466,6 +509,12 @@
         },
         "stepName": {
           "type": "string"
+        },
+        "use": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MiddlewareRef"
+          }
         }
       },
       "required": [
