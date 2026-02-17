@@ -5,12 +5,14 @@
 
 """Tests for multipart tool support (tool.v2 action kind)."""
 
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
 from genkit.ai import Genkit
+from genkit.blocks.generate import _resolve_tool_request
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import ToolRequest, ToolRequestPart, ToolResponsePart
 
 
 @pytest.mark.asyncio
@@ -137,3 +139,110 @@ async def test_regular_tool_metadata_type() -> None:
 
     if tool_action.metadata.get('type') != 'tool':
         raise AssertionError(f'Expected type="tool", got {tool_action.metadata.get("type")!r}')
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_request_v2_extracts_output_and_content() -> None:
+    """_resolve_tool_request extracts output and content separately for tool.v2 actions."""
+    ai = Genkit()
+
+    @ai.tool(multipart=True)
+    def search(query: str) -> dict[str, Any]:
+        """Search."""
+        return {'output': 'found it', 'content': [{'text': 'source citation'}]}
+
+    v2_action = await ai.registry.resolve_action(ActionKind.TOOL_V2, 'search')
+    assert v2_action is not None
+
+    tool_req_part = ToolRequestPart(
+        tool_request=ToolRequest(name='search', input='test query'),
+    )
+    response_part, interrupt_part = await _resolve_tool_request(v2_action, tool_req_part)
+
+    assert interrupt_part is None
+    assert response_part is not None
+    assert isinstance(response_part.root, ToolResponsePart)
+    tr = response_part.root.tool_response
+    assert tr.name == 'search'
+    assert tr.output == 'found it'
+    assert tr.content == [{'text': 'source citation'}]
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_request_v2_content_only() -> None:
+    """_resolve_tool_request handles tool.v2 with content only (no output)."""
+    ai = Genkit()
+
+    @ai.tool(multipart=True)
+    def content_only(query: str) -> dict[str, Any]:
+        """Content only."""
+        return {'content': [{'text': 'part 1'}]}
+
+    v2_action = await ai.registry.resolve_action(ActionKind.TOOL_V2, 'content_only')
+    assert v2_action is not None
+
+    tool_req_part = ToolRequestPart(
+        tool_request=ToolRequest(name='content_only', input='test'),
+    )
+    response_part, interrupt_part = await _resolve_tool_request(v2_action, tool_req_part)
+
+    assert interrupt_part is None
+    assert response_part is not None
+    assert isinstance(response_part.root, ToolResponsePart)
+    tr = response_part.root.tool_response
+    assert tr.output is None
+    assert tr.content == [{'text': 'part 1'}]
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_request_regular_tool_dumps_output() -> None:
+    """_resolve_tool_request dumps the entire response as output for regular tools."""
+    ai = Genkit()
+
+    @ai.tool()
+    def simple(x: int) -> int:
+        """Simple."""
+        return x * 3
+
+    tool_action = await ai.registry.resolve_action(ActionKind.TOOL, 'simple')
+    assert tool_action is not None
+
+    tool_req_part = ToolRequestPart(
+        tool_request=ToolRequest(name='simple', input=7),
+    )
+    response_part, interrupt_part = await _resolve_tool_request(tool_action, tool_req_part)
+
+    assert interrupt_part is None
+    assert response_part is not None
+    assert isinstance(response_part.root, ToolResponsePart)
+    tr = response_part.root.tool_response
+    assert tr.output == 21
+    assert tr.content is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_request_v2_wrapper_wraps_regular_output() -> None:
+    """When a regular tool is resolved as tool.v2, its output is wrapped in {output: result}."""
+    ai = Genkit()
+
+    @ai.tool()
+    def double(x: int) -> int:
+        """Double."""
+        return x * 2
+
+    # Resolve the auto-registered tool.v2 wrapper
+    v2_action = await ai.registry.resolve_action(ActionKind.TOOL_V2, 'double')
+    assert v2_action is not None
+
+    tool_req_part = ToolRequestPart(
+        tool_request=ToolRequest(name='double', input=5),
+    )
+    response_part, interrupt_part = await _resolve_tool_request(v2_action, tool_req_part)
+
+    assert interrupt_part is None
+    assert response_part is not None
+    assert isinstance(response_part.root, ToolResponsePart)
+    tr = response_part.root.tool_response
+    # The v2 wrapper returns {output: 10}, and _resolve_tool_request extracts it
+    assert tr.output == 10
+    assert tr.content is None

@@ -823,17 +823,26 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
     """
     try:
         tool_response = (await tool.arun_raw(tool_request_part.tool_request.input)).response
+        # For tool.v2 actions, the response is a multipart dict with separate
+        # 'output' and 'content' fields.  Extract them into the ToolResponse
+        # individually, matching the JS SDK's resolveToolRequest behavior.
+        if tool.kind == ActionKind.TOOL_V2 and isinstance(tool_response, dict):
+            multipart = tool_response
+            tool_resp = ToolResponse(
+                name=tool_request_part.tool_request.name,
+                ref=tool_request_part.tool_request.ref,
+                output=multipart.get('output'),
+                content=multipart.get('content'),
+            )
+        else:
+            tool_resp = ToolResponse(
+                name=tool_request_part.tool_request.name,
+                ref=tool_request_part.tool_request.ref,
+                output=dump_dict(tool_response),
+            )
         # Part is a RootModel, so we pass content via 'root' parameter
         return (
-            Part(
-                root=ToolResponsePart(
-                    tool_response=ToolResponse(
-                        name=tool_request_part.tool_request.name,
-                        ref=tool_request_part.tool_request.ref,
-                        output=dump_dict(tool_response),
-                    )
-                )
-            ),
+            Part(root=ToolResponsePart(tool_response=tool_resp)),
             None,
         )
     except GenkitError as e:
