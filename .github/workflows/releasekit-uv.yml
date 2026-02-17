@@ -201,6 +201,7 @@ jobs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
     steps:
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -234,6 +235,7 @@ jobs:
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     steps:
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -264,6 +266,7 @@ jobs:
       id-token: write    # Trusted publishing (OIDC) + Sigstore signing
       attestations: write  # PEP 740 attestations
     steps:
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

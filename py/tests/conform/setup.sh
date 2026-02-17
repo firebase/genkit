@@ -355,6 +355,134 @@ _install_ollama() {
     fi
 }
 
+_is_ollama_reachable() {
+    curl -sf http://localhost:11434/api/version &>/dev/null
+}
+
+_ensure_ollama_running() {
+    # Enable and start the ollama service so that 'ollama pull' and
+    # conformance tests can reach the local server.
+    if ! _is_installed ollama; then
+        return 0
+    fi
+    if $CHECK_ONLY; then
+        # Report service status without changing anything.
+        if _is_ollama_reachable; then
+            echo -e "  ${GREEN}✓${NC} ollama service ${DIM}(running)${NC}"
+        else
+            echo -e "  ${YELLOW}✗${NC} ollama service — not running"
+        fi
+        return 0
+    fi
+
+    # Already reachable — nothing to do.
+    if _is_ollama_reachable; then
+        echo -e "  ${GREEN}✓${NC} ollama service ${DIM}(already running)${NC}"
+        return 0
+    fi
+
+    echo -e "  ${BLUE}→${NC} Starting ollama service..."
+
+    case "$OS" in
+        Linux)
+            if command -v systemctl &>/dev/null && systemctl list-unit-files ollama.service &>/dev/null; then
+                # The official Linux installer creates a systemd unit.
+                sudo systemctl enable --now ollama 2>/dev/null \
+                    && echo -e "  ${GREEN}✓${NC} ollama enabled via systemd" \
+                    || echo -e "  ${YELLOW}!${NC} systemctl failed — falling back to ollama serve"
+            fi
+            ;;
+        Darwin)
+            if [[ "$PKG_MGR" == "brew" ]]; then
+                brew services start ollama 2>/dev/null \
+                    && echo -e "  ${GREEN}✓${NC} ollama started via brew services" \
+                    || echo -e "  ${YELLOW}!${NC} brew services failed — falling back to ollama serve"
+            fi
+            ;;
+    esac
+
+    # Fallback: if the service still isn't reachable, start in background.
+    if ! _is_ollama_reachable; then
+        nohup ollama serve &>/dev/null &
+        # Wait briefly for the server to come up.
+        local retries=0
+        while [[ $retries -lt 10 ]]; do
+            if _is_ollama_reachable; then
+                break
+            fi
+            sleep 1
+            retries=$((retries + 1))
+        done
+        if _is_ollama_reachable; then
+            echo -e "  ${GREEN}✓${NC} ollama serve started (background)"
+        else
+            echo -e "  ${RED}✗${NC} Could not start ollama service in background — model pulls may fail"
+        fi
+    fi
+}
+
+_pull_ollama_models() {
+    # Pull all models referenced in ollama/model-conformance.yaml.
+    # Data-driven: adding a new model entry to the YAML automatically
+    # includes it here — no hardcoded model names.
+    local spec_file="${SCRIPT_DIR}/ollama/model-conformance.yaml"
+
+    if [[ ! -f "$spec_file" ]]; then
+        echo -e "  ${DIM}No ollama model-conformance.yaml found — skipping${NC}"
+        return 0
+    fi
+    if ! _is_installed ollama; then
+        return 0
+    fi
+
+    echo ""
+    echo -e "${DIM}Pulling Ollama models referenced in model-conformance.yaml...${NC}"
+    echo ""
+
+    # Extract model names: lines matching "- model: ollama/<name>".
+    local models
+    models=$(grep -E '^\- model: ollama/' "$spec_file" \
+        | sed -E 's/^- model: ollama\///; s/[[:space:]]*$//'
+    )
+
+    if [[ -z "$models" ]]; then
+        echo -e "  ${DIM}No ollama models found in spec${NC}"
+        return 0
+    fi
+
+    # Get list of already-pulled models (name column from "ollama list").
+    local pulled
+    pulled=$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' || true)
+
+    local pull_count=0
+    while IFS= read -r model; do
+        [[ -z "$model" ]] && continue
+
+        # Check if already pulled (exact match or "model:latest").
+        if echo "$pulled" | grep -qE "^${model}(:|$)"; then
+            echo -e "  ${GREEN}✓${NC} ${model} ${DIM}(already pulled)${NC}"
+            continue
+        fi
+
+        if $CHECK_ONLY; then
+            echo -e "  ${YELLOW}✗${NC} ${model} — not pulled"
+            continue
+        fi
+
+        echo -e "  ${BLUE}→${NC} Pulling ${model}..."
+        if ollama pull "$model"; then
+            echo -e "  ${GREEN}✓${NC} ${model} pulled"
+            pull_count=$((pull_count + 1))
+        else
+            echo -e "  ${RED}✗${NC} Failed to pull ${model}. Check Ollama service and network connectivity."
+        fi
+    done <<< "$models"
+
+    if [[ $pull_count -gt 0 ]]; then
+        TOOLS_CHANGED=$((TOOLS_CHANGED + pull_count))
+    fi
+}
+
 # ── Environment file management ──────────────────────────────────────
 
 _env_file_get() {
@@ -696,6 +824,8 @@ if ! $KEYS_ONLY; then
     echo ""
 
     _install_ollama || true
+    _ensure_ollama_running
+    _pull_ollama_models
 
 fi  # end !KEYS_ONLY
 
