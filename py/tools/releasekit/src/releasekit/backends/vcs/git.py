@@ -178,19 +178,19 @@ class GitCLIBackend:
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
         """Create an annotated tag."""
         tag_message = message or tag_name
-        log.info('tag', tag=tag_name)
+        log.info('tag', tag=tag_name, ref=ref or 'HEAD')
+        args = ['tag', '-a', tag_name, '-m', tag_message]
+        if ref:
+            args.append(ref)
         return await asyncio.to_thread(
             self._git,
-            'tag',
-            '-a',
-            tag_name,
-            '-m',
-            tag_message,
+            *args,
             dry_run=dry_run,
         )
 

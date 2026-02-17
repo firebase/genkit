@@ -172,6 +172,12 @@ on:
         required: false
       GEMINI_API_KEY:
         required: false
+      RELEASEKIT_APP_PRIVATE_KEY:
+        description: 'GitHub App private key for CLA-passing commits'
+        required: false
+      RELEASEKIT_TOKEN:
+        description: 'Personal Access Token fallback'
+        required: false
   workflow_dispatch:
     inputs:
       action:
@@ -245,6 +251,16 @@ on:
         description: 'Override codename theme (e.g. galaxies, animals)'
         required: false
         type: string
+      auth_method:
+        description: 'Authentication method (auto = detect from configured secrets)'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - app
+          - pat
+          - github-token
   push:
     branches: [main]
     paths:
@@ -274,10 +290,69 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
+  # AUTH: Resolve token (GitHub App → PAT → GITHUB_TOKEN)
+  # ═══════════════════════════════════════════════════════════════════════
+  auth:
+    name: Resolve Auth Token
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      token: ${{ steps.resolve.outputs.token }}
+      git-user-name: ${{ steps.resolve.outputs.git-user-name }}
+      git-user-email: ${{ steps.resolve.outputs.git-user-email }}
+    steps:
+      - name: Generate GitHub App token
+        if: >
+          (inputs.auth_method == 'auto' || inputs.auth_method == 'app' || inputs.auth_method == '')
+          && vars.RELEASEKIT_APP_ID != ''
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASEKIT_APP_ID }}
+          private-key: ${{ secrets.RELEASEKIT_APP_PRIVATE_KEY }}
+
+      - name: Get App bot user ID
+        if: steps.app-token.outcome == 'success'
+        id: app-user
+        run: |
+          if ! user_id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id 2>/dev/null); then
+            echo "::warning::Failed to fetch App bot user ID — using 0 as fallback"
+            user_id=0
+          fi
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Resolve token and identity
+        id: resolve
+        run: |
+          AUTH="${{ inputs.auth_method || 'auto' }}"
+          if [ "$AUTH" = "app" ] || { [ "$AUTH" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+          elif [ "$AUTH" = "pat" ] || { [ "$AUTH" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${GIT_USER_NAME:-releasekit[bot]}" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${GIT_USER_EMAIL:-releasekit[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=$FALLBACK_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${GIT_USER_NAME:-github-actions[bot]}" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${GIT_USER_EMAIL:-github-actions[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
+
+  # ═══════════════════════════════════════════════════════════════════════
   # PREPARE: Compute bumps and open/update Release PRs
   # ═══════════════════════════════════════════════════════════════════════
   prepare-js:
     name: "Prepare Release PR (JS)"
+    needs: auth
     if: |
       (github.event_name == 'push' &&
        !startsWith(github.event.head_commit.message, 'chore(release):') &&
@@ -293,7 +368,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -323,6 +398,7 @@ jobs:
 
   prepare-js-cli:
     name: "Prepare Release PR (JS CLI)"
+    needs: auth
     if: |
       (github.event_name == 'push' &&
        !startsWith(github.event.head_commit.message, 'chore(release):') &&
@@ -338,7 +414,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -371,6 +447,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   release-js:
     name: "Tag and Release (JS)"
+    needs: auth
     if: |
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
@@ -385,7 +462,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
 
       - name: Run releasekit release
         id: rk
@@ -405,7 +482,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   publish-js:
     name: "Publish to npm"
-    needs: release-js
+    needs: [auth, release-js]
     if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -464,7 +541,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify-js:
     name: "Notify Downstream (JS)"
-    needs: [release-js, publish-js]
+    needs: [auth, release-js, publish-js]
     if: success() && needs.publish-js.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -472,6 +549,6 @@ jobs:
       - name: Dispatch release event
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
           event-type: genkit-js-release
           client-payload: '{"release_url": "${{ needs.release-js.outputs.release_url }}"}'

@@ -76,6 +76,7 @@ class _FakeVCS(_BaseFakeVCS):
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:

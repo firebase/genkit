@@ -50,6 +50,7 @@ class FakeVCS(_BaseFakeVCS):
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -691,7 +692,14 @@ class TestCreateTagsSecondary:
         call_count = 0
 
         class FailSecondaryVCS(FakeVCS):
-            async def tag(self, tag_name: str, *, message: str | None = None, dry_run: bool = False) -> CommandResult:
+            async def tag(
+                self,
+                tag_name: str,
+                *,
+                ref: str | None = None,
+                message: str | None = None,
+                dry_run: bool = False,
+            ) -> CommandResult:
                 """Tag."""
                 nonlocal call_count
                 call_count += 1

@@ -129,6 +129,7 @@ class VCS(Protocol):
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -136,6 +137,7 @@ class VCS(Protocol):
 
         Args:
             tag_name: Tag name (e.g. ``"genkit-v0.5.0"``).
+            ref: Commit SHA to tag. Defaults to HEAD if ``None``.
             message: Tag message. Defaults to the tag name.
             dry_run: Log the command without executing.
         """

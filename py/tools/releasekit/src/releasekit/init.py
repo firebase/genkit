@@ -62,7 +62,7 @@ except ImportError:
     _HAS_RICH = False
 
 from releasekit.backends.vcs import VCS
-from releasekit.config import CONFIG_FILENAME, DEFAULT_TOOLS, ReleaseConfig
+from releasekit.config import CONFIG_FILENAME, DEFAULT_TOOLS, ReleaseConfig, WorkspaceConfig
 from releasekit.logging import get_logger
 from releasekit.migrate import (
     ClassifiedTag,
@@ -481,6 +481,8 @@ class TagScanReport:
         bootstrap_shas: The ``bootstrap_sha`` value written per workspace.
         discrepancies: Human-readable discrepancy messages.
         written: Whether ``releasekit.toml`` was modified with bootstrap SHAs.
+        tags_created: Bootstrap tags created (tag name list).
+        tags_skipped: Bootstrap tags skipped because they already exist.
     """
 
     classified: list[ClassifiedTag] = field(default_factory=list)
@@ -489,6 +491,8 @@ class TagScanReport:
     bootstrap_shas: dict[str, str] = field(default_factory=dict)
     discrepancies: list[str] = field(default_factory=list)
     written: bool = False
+    tags_created: list[str] = field(default_factory=list)
+    tags_skipped: list[str] = field(default_factory=list)
 
 
 def _detect_discrepancies(
@@ -549,6 +553,112 @@ def _detect_discrepancies(
     return msgs
 
 
+async def create_bootstrap_tags(
+    config: ReleaseConfig,
+    vcs: VCS,
+    *,
+    workspace_label: str,
+    bootstrap_sha: str,
+    dry_run: bool = False,
+) -> tuple[list[str], list[str]]:
+    """Create per-package tags at the bootstrap SHA.
+
+    Discovers all packages in the workspace and creates tags using
+    the workspace's ``tag_format`` for any package that doesn't
+    already have a tag. Also creates the umbrella tag if configured
+    and missing.
+
+    Args:
+        config: The loaded release configuration.
+        vcs: VCS backend for tag operations.
+        workspace_label: Workspace label (e.g. ``"py"``).
+        bootstrap_sha: The commit SHA to tag.
+        dry_run: If ``True``, log what would be done without creating tags.
+
+    Returns:
+        A ``(created, skipped)`` tuple of tag name lists.
+    """
+    ws_config: WorkspaceConfig | None = config.workspaces.get(workspace_label)
+    if not ws_config:
+        return [], []
+
+    # Resolve workspace root.
+    config_dir = config.config_path.parent if config.config_path else Path.cwd()
+    ws_root = config_dir / ws_config.root if ws_config.root else config_dir
+
+    # Discover packages in this workspace.
+    try:
+        packages = discover_packages(ws_root, ecosystem=ws_config.ecosystem)
+    except Exception:  # noqa: BLE001
+        logger.info(
+            'bootstrap_tags_discovery_failed',
+            workspace=workspace_label,
+            message='Could not discover packages — skipping bootstrap tag creation.',
+        )
+        return [], []
+
+    if not packages:
+        logger.info('bootstrap_tags_no_packages', workspace=workspace_label)
+        return [], []
+
+    tag_format = ws_config.tag_format
+    created: list[str] = []
+    skipped: list[str] = []
+
+    for pkg in packages:
+        tag_name = tag_format.format(name=pkg.name, version=pkg.version)
+        if await vcs.tag_exists(tag_name):
+            skipped.append(tag_name)
+            continue
+
+        logger.info(
+            'bootstrap_tag_create',
+            tag=tag_name,
+            package=pkg.name,
+            version=pkg.version,
+            sha=bootstrap_sha[:12],
+        )
+        result = await vcs.tag(
+            tag_name,
+            ref=bootstrap_sha,
+            message=f'Bootstrap tag for {pkg.name} v{pkg.version}',
+            dry_run=dry_run,
+        )
+        if result.ok or dry_run:
+            created.append(tag_name)
+        else:
+            logger.warning(
+                'bootstrap_tag_failed',
+                tag=tag_name,
+                stderr=result.stderr[:200],
+            )
+
+    # Create umbrella tag if configured and missing.
+    umbrella_format = ws_config.umbrella_tag
+    if umbrella_format and packages:
+        # Use the first package's version (all should match in a synchronized workspace).
+        umbrella_version = packages[0].version
+        umbrella_tag = umbrella_format.format(version=umbrella_version)
+        if await vcs.tag_exists(umbrella_tag):
+            skipped.append(umbrella_tag)
+        else:
+            logger.info(
+                'bootstrap_tag_create',
+                tag=umbrella_tag,
+                sha=bootstrap_sha[:12],
+            )
+            result = await vcs.tag(
+                umbrella_tag,
+                ref=bootstrap_sha,
+                message=f'Bootstrap umbrella tag {umbrella_tag}',
+                dry_run=dry_run,
+            )
+            if result.ok or dry_run:
+                created.append(umbrella_tag)
+
+    return created, skipped
+
+
 async def scan_and_bootstrap(
     config_path: Path,
     config: ReleaseConfig,
@@ -556,10 +666,12 @@ async def scan_and_bootstrap(
     *,
     dry_run: bool = False,
 ) -> TagScanReport:
-    """Scan existing git tags and write ``bootstrap_sha`` into config.
+    """Scan existing git tags, write ``bootstrap_sha``, and create bootstrap tags.
 
     Called after ``scaffold_config()`` to auto-detect the last release
-    tag and set ``bootstrap_sha`` so that only new commits are scanned.
+    tag, set ``bootstrap_sha`` so that only new commits are scanned,
+    and create per-package tags at the bootstrap commit for packages
+    that don't have them yet.
 
     Gracefully skips when no tags exist.
 
@@ -631,6 +743,18 @@ async def scan_and_bootstrap(
         report.written = True
         logger.info('init_scan_written', path=str(config_path))
 
+    # 8. Create bootstrap tags for packages without them.
+    for label, sha in report.bootstrap_shas.items():
+        created, skipped = await create_bootstrap_tags(
+            config,
+            vcs,
+            workspace_label=label,
+            bootstrap_sha=sha,
+            dry_run=dry_run,
+        )
+        report.tags_created.extend(created)
+        report.tags_skipped.extend(skipped)
+
     return report
 
 
@@ -686,9 +810,19 @@ def print_tag_scan_report(report: TagScanReport) -> None:
         for msg in report.discrepancies:
             print(f'     • {msg}')  # noqa: T201 - CLI output
 
+    # Bootstrap tags.
+    if report.tags_created:
+        print(f'\n  🏷️  Created {len(report.tags_created)} bootstrap tag(s):')  # noqa: T201 - CLI output
+        for tag in report.tags_created:
+            print(f'     {tag}')  # noqa: T201 - CLI output
+        print('\n  👉 Push tags to remote:  git push origin --tags')  # noqa: T201 - CLI output
+    if report.tags_skipped:
+        print(f'  ⏭️  Skipped {len(report.tags_skipped)} existing tag(s)')  # noqa: T201 - CLI output
+
 
 __all__ = [
     'TagScanReport',
+    'create_bootstrap_tags',
     'detect_groups',
     'generate_config_toml',
     'print_scaffold_preview',

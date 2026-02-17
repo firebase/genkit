@@ -14,9 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-forge      = "github"
-repo_name  = "genkit"
-repo_owner = "firebase"
+forge              = "github"
+repo_name          = "genkit"
+repo_owner         = "firebase"
+pr_title_template  = "chore(release): genkit python v{version}"
 
 # ---------------------------------------------------------------------------
 # Global options (valid top-level keys)

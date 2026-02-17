@@ -207,6 +207,90 @@ See the [sample workflows](github/workflows/) for production-ready
 templates for Python/uv, Go, JS/pnpm, Rust/Cargo, Dart/pub, and
 Java/Gradle.
 
+### CI Authentication
+
+The workflow `auth` job supports three authentication modes in
+priority order. Use the `auth_method` dropdown in the workflow
+dispatch UI to override auto-detection (default: `auto`).
+
+| Mode | Priority | Secrets/Variables | CLA | CI Trigger |
+|------|:--------:|-------------------|:---:|:----------:|
+| **GitHub App** | 1st | `RELEASEKIT_APP_ID` (variable) + `RELEASEKIT_APP_PRIVATE_KEY` (secret) | ✅ | ✅ |
+| **PAT** | 2nd | `RELEASEKIT_TOKEN` (secret) | ✅ | ✅ |
+| **GITHUB_TOKEN** | 3rd | Built-in (no setup) | ⚠️ | ❌ |
+
+**Auto** (`auth_method: auto`) tries App first, then PAT, then
+GITHUB_TOKEN — based on which secrets/variables are configured.
+
+#### Option A: GitHub App (recommended)
+
+1. Create a GitHub App at your org settings → Developer settings → GitHub Apps
+2. Permissions: **Contents** (Read & write), **Pull requests** (Read & write)
+3. Install the App on the target repository
+4. Add repo **variable**: `RELEASEKIT_APP_ID` = the App ID
+5. Add repo **secret**: `RELEASEKIT_APP_PRIVATE_KEY` = the PEM private key
+
+#### Option B: Personal Access Token
+
+1. Create a fine-grained PAT scoped to the repository
+2. Permissions: **Contents** (Read & write), **Pull requests** (Read & write)
+3. Add repo **secret**: `RELEASEKIT_TOKEN` = the PAT
+
+#### Option C: GITHUB_TOKEN with CLA-signed identity
+
+If you can't set up an App or PAT, set these repo **variables** so
+that Release PR commits use your CLA-signed identity:
+
+```
+RELEASEKIT_GIT_USER_NAME  = Your Name
+RELEASEKIT_GIT_USER_EMAIL = your-email@example.com
+```
+
+The GITHUB_TOKEN fallback reads these variables and uses them for
+`git config user.name` and `user.email`, so CLA checks pass on
+the Release PR. Without these variables, commits are attributed to
+`github-actions[bot]` which may fail CLA.
+
+> **Note:** GITHUB_TOKEN PRs will **not** trigger downstream CI
+> workflows (GitHub limitation). Use App or PAT for full CI integration.
+
+#### `auth_method` dropdown
+
+The workflow dispatch UI includes an `auth_method` choice:
+
+| Value | Behavior |
+|-------|----------|
+| `auto` | Auto-detect from configured secrets (default) |
+| `app` | Force GitHub App token (fails if not configured) |
+| `pat` | Force PAT (fails if not configured) |
+| `github-token` | Force built-in GITHUB_TOKEN |
+
+### Bootstrap Tags
+
+When adopting releasekit on a repo that already has releases,
+`releasekit init` automatically creates bootstrap tags so version
+bumps start from the correct baseline. The init command:
+
+1. Scans existing git tags and classifies them by workspace
+2. Picks the latest tag per workspace and writes `bootstrap_sha`
+3. Discovers all packages and creates per-package tags at the
+   bootstrap commit for any package that doesn't already have one
+4. Creates the umbrella tag if configured and missing
+
+```bash
+# Preview what init will do
+releasekit init --dry-run
+
+# Run init — scaffolds config, scans tags, creates bootstrap tags
+releasekit init
+
+# Push the created tags to the remote
+git push origin --tags
+```
+
+Tags are created locally. After verifying them with `git tag -l`,
+push to the remote with `git push origin --tags`.
+
 ## Commands
 
 | Command | Description |

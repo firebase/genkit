@@ -171,6 +171,12 @@ on:
         required: false
       GEMINI_API_KEY:
         required: false
+      RELEASEKIT_APP_PRIVATE_KEY:
+        description: 'GitHub App private key for CLA-passing commits'
+        required: false
+      RELEASEKIT_TOKEN:
+        description: 'Personal Access Token fallback'
+        required: false
   workflow_dispatch:
     inputs:
       action:
@@ -245,6 +251,16 @@ on:
         description: 'Override codename theme (e.g. galaxies, animals)'
         required: false
         type: string
+      auth_method:
+        description: 'Authentication method (auto = detect from configured secrets)'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - app
+          - pat
+          - github-token
   push:
     branches: [main]
     paths:
@@ -279,10 +295,94 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
+  # AUTH: Resolve token (GitHub App → PAT → GITHUB_TOKEN)
+  #
+  # Supports three auth modes in priority order:
+  #   1. GitHub App  — set RELEASEKIT_APP_ID (variable) +
+  #                    RELEASEKIT_APP_PRIVATE_KEY (secret).
+  #                    Passes CLA, triggers CI on Release PRs.
+  #   2. PAT         — set RELEASEKIT_TOKEN (secret).
+  #                    Passes CLA, triggers CI on Release PRs.
+  #   3. GITHUB_TOKEN — built-in, no setup needed.
+  #                    PRs will NOT trigger CI and may fail CLA checks.
+  # ═══════════════════════════════════════════════════════════════════════
+  auth:
+    name: Resolve Auth Token
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      token: ${{ steps.resolve.outputs.token }}
+      git-user-name: ${{ steps.resolve.outputs.git-user-name }}
+      git-user-email: ${{ steps.resolve.outputs.git-user-email }}
+    steps:
+      # Option 1: GitHub App (preferred — passes CLA, triggers CI).
+      - name: Generate GitHub App token
+        if: >
+          (inputs.auth_method == 'auto' || inputs.auth_method == 'app' || inputs.auth_method == '')
+          && vars.RELEASEKIT_APP_ID != ''
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASEKIT_APP_ID }}
+          private-key: ${{ secrets.RELEASEKIT_APP_PRIVATE_KEY }}
+
+      - name: Get App bot user ID
+        if: steps.app-token.outcome == 'success'
+        id: app-user
+        run: |
+          if ! user_id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id 2>/dev/null); then
+            echo "::warning::Failed to fetch App bot user ID — using 0 as fallback"
+            user_id=0
+          fi
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      # Resolve: App > PAT > GITHUB_TOKEN (respects auth_method override).
+      - name: Resolve token and identity
+        id: resolve
+        run: |
+          AUTH="${{ inputs.auth_method || 'auto' }}"
+
+          # App token — used when auth=auto (and available) or auth=app.
+          if [ "$AUTH" = "app" ] || { [ "$AUTH" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using GitHub App token (${{ steps.app-token.outputs.app-slug }})"
+
+          # PAT — used when auth=auto (and available) or auth=pat.
+          elif [ "$AUTH" = "pat" ] || { [ "$AUTH" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${GIT_USER_NAME:-releasekit[bot]}" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${GIT_USER_EMAIL:-releasekit[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using Personal Access Token"
+
+          # GITHUB_TOKEN — fallback or explicit. Uses repo variables for
+          # git identity if set, so CLA can pass with a signed identity.
+          else
+            echo "token=$FALLBACK_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "git-user-name=${GIT_USER_NAME:-github-actions[bot]}" >> "$GITHUB_OUTPUT"
+            echo "git-user-email=${GIT_USER_EMAIL:-github-actions[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+            if [ -n "$GIT_USER_NAME" ]; then
+              echo "::notice::Using GITHUB_TOKEN with custom identity ($GIT_USER_NAME)"
+            else
+              echo "::warning::Using GITHUB_TOKEN — PRs will not trigger CI and may fail CLA checks. Set RELEASEKIT_GIT_USER_NAME and RELEASEKIT_GIT_USER_EMAIL repo variables to use a CLA-signed identity."
+            fi
+          fi
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
+
+  # ═══════════════════════════════════════════════════════════════════════
   # PREPARE: Compute bumps and open/update Release PR
   # ═══════════════════════════════════════════════════════════════════════
   prepare:
     name: Prepare Release PR
+    needs: auth
     if: |
       (github.event_name == 'push' &&
        !startsWith(github.event.head_commit.message, 'chore(release):') &&
@@ -298,7 +398,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
 
       - name: Run releasekit prepare
         id: rk
@@ -314,6 +414,9 @@ jobs:
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
         env:
+          GH_TOKEN: ${{ needs.auth.outputs.token }}
+          RELEASEKIT_GIT_USER_NAME: ${{ needs.auth.outputs.git-user-name }}
+          RELEASEKIT_GIT_USER_EMAIL: ${{ needs.auth.outputs.git-user-email }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -321,6 +424,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   release:
     name: Tag and Release
+    needs: auth
     if: |
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
@@ -335,7 +439,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
 
       - name: Run releasekit release
         id: rk
@@ -348,6 +452,9 @@ jobs:
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
         env:
+          GH_TOKEN: ${{ needs.auth.outputs.token }}
+          RELEASEKIT_GIT_USER_NAME: ${{ needs.auth.outputs.git-user-name }}
+          RELEASEKIT_GIT_USER_EMAIL: ${{ needs.auth.outputs.git-user-email }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -355,7 +462,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   publish:
     name: Publish to ${{ inputs.target || 'pypi' }}
-    needs: release
+    needs: [auth, release]
     if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -415,7 +522,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: [release, publish]
+    needs: [auth, release, publish]
     if: success()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -423,6 +530,6 @@ jobs:
       - name: Dispatch release event
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ needs.auth.outputs.token }}
           event-type: genkit-python-release
           client-payload: '{"release_url": "${{ needs.release.outputs.release_url }}"}'

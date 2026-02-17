@@ -209,6 +209,7 @@ class MercurialCLIBackend:
         self,
         tag_name: str,
         *,
+        ref: str | None = None,
         message: str | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
@@ -219,13 +220,14 @@ class MercurialCLIBackend:
         tags, which are refs.
         """
         tag_message = message or tag_name
-        log.info('tag', tag=tag_name)
+        log.info('tag', tag=tag_name, ref=ref or '.')
+        args = ['tag', '-m', tag_message]
+        if ref:
+            args.extend(['-r', ref])
+        args.append(tag_name)
         return await asyncio.to_thread(
             self._hg,
-            'tag',
-            '-m',
-            tag_message,
-            tag_name,
+            *args,
             dry_run=dry_run,
         )
 
