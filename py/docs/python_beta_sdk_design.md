@@ -52,7 +52,7 @@ We propose formalizing three entry points, separated by audience:
 
 Internal modules (`genkit.core`, `genkit.blocks`, `genkit.ai`) would be renamed with underscore prefixes (`genkit._core`, `genkit._blocks`) to signal "private, no stability guarantee" — the standard Python convention.
 
-The full proposal — including the type architecture (auto-generated schema types vs hand-written veneers vs config helpers), symbol lists, rationale for each inclusion/exclusion, and the `MessageWrapper` aliasing problem — is in [PUBLIC_API_PROPOSAL.md](./PUBLIC_API_PROPOSAL.md).
+The full proposal — including the type architecture (auto-generated schema types vs hand-written veneers vs config helpers), symbol lists, rationale for each inclusion/exclusion, and the `MessageWrapper` aliasing problem — is in [python_beta_api_proposal.md](./python_beta_api_proposal.md).
 
 ## 5. Output configuration
 
