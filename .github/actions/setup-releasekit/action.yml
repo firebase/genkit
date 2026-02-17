@@ -158,3 +158,12 @@ runs:
       run: |
         git config user.name "${{ inputs.git-user-name }}"
         git config user.email "${{ inputs.git-user-email }}"
+
+    # ── 8. Restore clean worktree ────────────────────────────────────
+    # uv sync may regenerate uv.lock (e.g. --no-dev vs full install),
+    # leaving the worktree dirty. The publish preflight requires a
+    # clean worktree (RK-PREFLIGHT-DIRTY-WORKTREE), so reset any
+    # setup-induced changes.
+    - name: Restore clean worktree
+      shell: bash
+      run: git checkout -- .
