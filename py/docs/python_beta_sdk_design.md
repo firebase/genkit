@@ -277,7 +277,7 @@ async def __call__(
 **`generate_stream()` — after cleanup:**
 
 ```python
-def generate_stream(
+async def generate_stream(
     self,
     *,
     model: str | None = None,
