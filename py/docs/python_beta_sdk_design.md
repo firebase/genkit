@@ -26,10 +26,6 @@ ai.generate(model="gemini", prompt="Hi", tools=["search"])
 
 **Kwargs over options dicts.** JS groups parameters into an options object. Python has first-class keyword arguments. Dict-based configuration loses autocomplete, type checking, and discoverability. This applies to `generate()`, `prompt()`, and every public method.
 
-**One way to configure each behavior.** PEP 20: "There should be one — and preferably only one — obvious way to do it." If output format can be set via `output=Output(...)`, it shouldn't also be settable via `output_format=`, `output_content_type=`, and `output_constrained=`. Multiple paths to the same result create confusion in docs, samples, and LLM-generated code.
-
-**Types should help, not hinder.** The SDK uses Pydantic models, generics, and type hints extensively. These should earn their keep: autocomplete that works, return types that carry meaning (`GenerateResponse[MyModel]` so `.output` is typed), and import paths that make sense. When a developer has to choose between `OutputConfig`, `OutputConfigDict`, and `Output[T]` to configure the same behavior, the type system is creating friction, not reducing it.
-
 **Flat imports, intentional boundaries.** Python has no access modifiers — any module is importable, and there's no way to enforce "private." This makes API boundary design a deliberate choice, not a language feature. We define three public entry points (`genkit`, `genkit.types`, `genkit.plugin`) and treat everything else as internal with no stability guarantee. Internal modules should be underscore-prefixed (`genkit._core`, `genkit._blocks`) to signal this — today they lack the underscore, which is why samples accidentally depend on them. The mechanics of this boundary are covered in section 4.
 
 ## 3. Initial Audit
@@ -54,26 +50,23 @@ Internal modules (`genkit.core`, `genkit.blocks`, `genkit.ai`) would be renamed 
 
 The full proposal — including the type architecture (auto-generated schema types vs hand-written veneers vs config helpers), symbol lists, rationale for each inclusion/exclusion, and the `MessageWrapper` aliasing problem — is in [python_beta_api_proposal.md](./python_beta_api_proposal.md).
 
+
+^^^ Upon discussion, we got more details on aliasing. App developers may need access to the wire format for unit testing. They are more likely to need that actually vs. the veneer (which I think is handled internally). Also I remember Pavel said something about flow vs. generate. One returns veneer vs. other returns the wire format. He said app developer may need to use one or the other.
+
+^^^ Upon dicsussion, no clear reason to separate from genkit import vs from genkit.types import
+
 ## 5. Output configuration
 
-The `generate()` method currently accepts output configuration five different ways:
+The `generate()` method currently accepts output configuration multiple ways:
 
 ```python
-# Way 1-4: Inline kwargs
+# Way 1: Inline kwargs
 await ai.generate(prompt="...", output_format="json", output_content_type="application/json",
                   output_instructions="Return valid JSON", output_constrained=True)
 
-# Way 5a: Wire-format type (leaks through the type union)
-await ai.generate(prompt="...", output=OutputConfig(format="json", schema=my_schema))
-
-# Way 5b: TypedDict
-await ai.generate(prompt="...", output={"format": "json", "schema_": my_schema})
-
-# Way 5c: Config helper with generics
+# Way 2: Config helper with generics
 await ai.generate(prompt="...", output=Output(schema=MyModel))
 ```
-
-Four inline params, plus an `output` param that accepts three different types. This directly violates "one obvious way to do it" — and it shows up in practice. My documentation agent used different approaches in different files while updating documentation because of this ambiguity.
 
 **Flat kwargs vs. wrapper object.** We considered both approaches:
 
@@ -88,11 +81,11 @@ response.output.name  # typed as str — IDE autocomplete works
 
 No new types, no imports beyond the Pydantic model, and the 95% case is one kwarg.
 
-**Recommendation.** Flat kwargs. Remove the `output` param (which currently accepts `OutputConfig | OutputConfigDict | Output[T]`). Keep `output_schema`, `output_format`, `output_constrained`, `output_content_type`, and `output_instructions` as individual keyword-only params. Use `@overload` so `output_schema: type[T]` parameterizes the return type. Remove `Output[T]`, `OutputConfigDict`, and the wire-format `OutputConfig` from the app developer's surface entirely. The wire-format `OutputConfig` remains an internal/plugin type — plugin authors use it when implementing model plugins to read output configuration from the `GenerateRequest`, but app developers never see it.
+**Recommendation.** Flat kwargs. Remove the `output` param. Keep `output_schema`, `output_format`, `output_constrained`, `output_content_type`, and `output_instructions` as individual keyword-only params. Use `@overload` so `output_schema: type[T]` parameterizes the return type. The wire-format `OutputConfig` remains an internal/plugin type — plugin authors use it when implementing model plugins to read output configuration from the `GenerateRequest`, but app developers never see it.
 
 `output_schema` accepts three forms: a Pydantic model class (`type[T]` — the common case, gives typed returns), a raw JSON schema dict (`dict` — for dynamic schemas, returns `Any`), or a registered schema name (`str`, looked up from registry at runtime, returns `Any`). Only the Pydantic class form carries the generic type. 
 
-**The same applies to `input_schema`.** The current `Input[T]` wrapper exists for the same (incorrect) reason as `Output[T]`. It's used on `define_prompt()` and `ai.prompt()` to type the prompt's input parameter. With flat kwargs and overloads, `input_schema: type[T]` carries the generic directly — `Input[T]` can be removed:
+**The same applies to `input_schema`.** With flat kwargs and overloads, `input_schema: type[T]` carries the generic directly — `Input[T]` can be removed:
 
 ```python
 prompt = ai.define_prompt(
@@ -105,8 +98,6 @@ prompt = ai.define_prompt(
 response = await prompt(RecipeInput(dish='pizza'))
 response.output.name  # typed as str — IDE knows this is Recipe
 ```
-
-`Input[T]` and `Output[T]` are both removed from the public API — they no longer need to exist. `input_schema` and `output_schema` already exist as params today; they just need the `type[T]` overloads to carry the generic. That's three types eliminated from the app developer surface (`Input[T]`, `Output[T]`, `OutputConfigDict`) and zero new types introduced.
 
 Dotprompt should work in a similar way but with one additional nuance. When a schema is defined in a `.prompt` file's YAML frontmatter (`output: { schema: Recipe }`), the SDK uses it to constrain the model's JSON output at runtime. But the type checker doesn't know this — `.prompt` files can't carry Python type references — so `response.output` is `Any`. To get typed output, pass the schema at the call site:
 
@@ -173,7 +164,7 @@ The practical consequences: a Flask route handler can't call `ai.generate()` wit
 
 For context, every major Python LLM SDK offers both sync and async: OpenAI and Anthropic ship dual clients (`OpenAI` / `AsyncOpenAI`), LangChain has dual methods (`.invoke()` / `.ainvoke()`), Google Cloud AI uses a separate async transport. Even Hugging Face, which is sync-only, made a deliberate choice. Genkit is the only async-only SDK in the ecosystem. A developer coming from OpenAI's `client.chat.completions.create()` — no `await`, no `async def` — hits immediate friction.
 
-**Proposal.** Dual clients — `Genkit` (sync) and `AsyncGenkit` (async). This is the industry standard: OpenAI, Anthropic, and Cohere all ship it. The async client holds the real implementation; the sync client delegates to it. We prefer the dual-client pattern (separate classes) over dual methods (`generate()` / `agenerate()` on the same class, à la LangChain) because it keeps each class's type signatures clean — every method on `Genkit` returns `T`, every method on `AsyncGenkit` returns `Awaitable[T]` — and avoids polluting autocomplete with `a`-prefixed duplicates of every method.
+**Proposal.** Dual clients — `Genkit` (sync) and `AsyncGenkit` (async). This is the industry standard: OpenAI, Anthropic, and Cohere all ship it. The async client holds the real implementation; the sync client delegates to it. We prefer the dual-client pattern (separate classes) over dual methods (`generate()` / `agenerate()` on the same class) because it keeps each class's type signatures clean — every method on `Genkit` returns `T`, every method on `AsyncGenkit` returns `Awaitable[T]` — and avoids polluting autocomplete with `a`-prefixed duplicates of every method.
 
 ```python
 from genkit import Genkit, AsyncGenkit
@@ -201,12 +192,12 @@ async def generate(
     tool_responses=None, config=None, max_turns=None,
     on_chunk=None, context=None,
     output_format=None, output_content_type=None,
-    output_instructions=None, output_constrained=None,
+    output_instructions=None, output_constrained=None, *,
     output=None, use=None, docs=None,
 ) -> GenerateResponseWrapper[Any]:
 ```
 
-None are keyword-only. Several don't belong.
+Pretty much none are keyword-only. The original decision of where to put the * in the first place seems arbitrary. Several params don't belong.
 
 **What changes:**
 
