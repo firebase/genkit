@@ -439,8 +439,9 @@ func TestToAnthropicRequest_StructuredOutput(t *testing.T) {
 			"max_tokens": 100,
 		},
 		Output: &ai.ModelOutputConfig{
-			Format: "json",
-			Schema: schema,
+			Format:      "json",
+			Schema:      schema,
+			Constrained: true,
 		},
 	}
 

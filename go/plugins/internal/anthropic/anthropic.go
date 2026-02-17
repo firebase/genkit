@@ -72,8 +72,6 @@ func Generate(
 
 	req.Model = anthropic.Model(model)
 
-	isStructured := isStructuredOutput(input)
-
 	// no streaming
 	if cb == nil {
 		msg, err := client.Messages.New(ctx, *req)
@@ -87,11 +85,6 @@ func Generate(
 		}
 
 		r.Request = input
-		if isStructuredOutput(input) {
-			if err := handleStructuredOutput(r); err != nil {
-				return nil, err
-			}
-		}
 		return r, nil
 	} else {
 		stream := client.Messages.NewStreaming(ctx, *req)
@@ -108,8 +101,6 @@ func Generate(
 			case anthropic.ContentBlockDeltaEvent:
 				if event.Delta.Type == "thinking_delta" {
 					content = append(content, ai.NewReasoningPart(event.Delta.Thinking, []byte(event.Delta.Signature)))
-				} else if isStructured && event.Delta.Type == "input_json_delta" {
-					content = append(content, ai.NewTextPart(event.Delta.PartialJSON))
 				} else {
 					content = append(content, ai.NewTextPart(event.Delta.Text))
 				}
@@ -119,17 +110,29 @@ func Generate(
 				if err != nil {
 					return nil, err
 				}
+			case anthropic.ContentBlockStopEvent:
+				if int(event.Index) < len(message.Content) {
+					block := message.Content[event.Index]
+					if toolBlock, ok := block.AsAny().(anthropic.ToolUseBlock); ok {
+						p := ai.NewToolRequestPart(&ai.ToolRequest{
+							Ref:   toolBlock.ID,
+							Input: toolBlock.Input,
+							Name:  toolBlock.Name,
+						})
+						err := cb(ctx, &ai.ModelResponseChunk{
+							Content: []*ai.Part{p},
+						})
+						if err != nil {
+							return nil, err
+						}
+					}
+				}
 			case anthropic.MessageStopEvent:
 				r, err := toGenkitResponse(&message)
 				if err != nil {
 					return nil, err
 				}
 				r.Request = input
-				if isStructured {
-					if err := handleStructuredOutput(r); err != nil {
-						return nil, err
-					}
-				}
 				return r, nil
 			}
 		}
@@ -141,21 +144,6 @@ func Generate(
 	return nil, nil
 }
 
-func handleStructuredOutput(r *ai.ModelResponse) error {
-	for i, part := range r.Message.Content {
-		if part.IsToolRequest() && part.ToolRequest.Name == "return_json_output" {
-			jsonBytes, err := json.Marshal(part.ToolRequest.Input)
-			if err != nil {
-				return fmt.Errorf("failed to marshal structured output: %w", err)
-			}
-			r.Message.Content[i] = ai.NewTextPart(string(jsonBytes))
-			r.FinishReason = ai.FinishReasonStop
-		}
-	}
-	return nil
-}
-
-// toAnthropicRole translates an [ai.Role] to [anthropic.MessageParamRole]
 func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 	switch role {
 	case ai.RoleUser:
@@ -223,21 +211,14 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 	req.Tools = tools
 
 	if i.Output != nil && i.Output.Format == "json" && i.Output.Schema != nil && i.Output.Constrained {
-		schema, err := base.MapToStruct[anthropic.ToolInputSchemaParam](i.Output.Schema)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse output schema: %w", err)
-		}
-		req.Tools = append(req.Tools, anthropic.ToolUnionParam{
-			OfTool: &anthropic.ToolParam{
-				Name:        "return_json_output",
-				Description: anthropic.String("Return the output in JSON format"),
-				InputSchema: schema,
-			},
-		})
-		req.ToolChoice = anthropic.ToolChoiceUnionParam{
-			OfTool: &anthropic.ToolChoiceToolParam{
-				Name: "return_json_output",
-				Type: "tool",
+		// Native structured output via OutputConfig
+		outputSchema := i.Output.Schema
+		enforceStrictSchema(outputSchema)
+
+		req.OutputConfig = anthropic.OutputConfigParam{
+			Format: anthropic.JSONOutputFormatParam{
+				Schema: outputSchema,
+				// Type is elided, defaults to "json_schema"
 			},
 		}
 	}
@@ -286,10 +267,22 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 		if len(inputSchema) == 0 {
 			inputSchema = map[string]any{"type": "object", "properties": map[string]any{}}
 		}
+		// Strict tools require additionalProperties: false recursively
+		enforceStrictSchema(inputSchema)
+
 		var err error
 		schema, err = base.MapToStruct[anthropic.ToolInputSchemaParam](inputSchema)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse tool input schema: %w", err)
+		}
+
+		// ToolInputSchemaParam struct doesn't have AdditionalProperties field,
+		// so we must add it to ExtraFields manually for the top-level schema.
+		if schema.ExtraFields == nil {
+			schema.ExtraFields = make(map[string]any)
+		}
+		if t, ok := inputSchema["type"].(string); ok && t == "object" {
+			schema.ExtraFields["additionalProperties"] = false
 		}
 
 		resp = append(resp, anthropic.ToolUnionParam{
@@ -297,11 +290,25 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 				Name:        t.Name,
 				Description: anthropic.String(t.Description),
 				InputSchema: schema,
+				Strict:      anthropic.Bool(true),
 			},
 		})
 	}
 
 	return resp, nil
+}
+
+func enforceStrictSchema(schema map[string]any) {
+	if t, ok := schema["type"].(string); ok && t == "object" {
+		schema["additionalProperties"] = false
+		if props, ok := schema["properties"].(map[string]any); ok {
+			for _, v := range props {
+				if subSchema, ok := v.(map[string]any); ok {
+					enforceStrictSchema(subSchema)
+				}
+			}
+		}
+	}
 }
 
 // toAnthropicParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type
@@ -394,8 +401,4 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 		OutputTokens: int(m.Usage.OutputTokens),
 	}
 	return &r, nil
-}
-
-func isStructuredOutput(req *ai.ModelRequest) bool {
-	return req.Output != nil && req.Output.Format == "json" && req.Output.Schema != nil && req.Output.Constrained
 }
