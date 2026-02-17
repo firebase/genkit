@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -211,6 +212,7 @@ func newModel(client anthropic.Client, name, apiModelName string, opts ai.ModelO
 }
 
 func resolveModelID(id string, availableModels []string) (string, bool) {
+	// First check for exact match
 	for _, m := range availableModels {
 		if m == id {
 			return m, true
@@ -219,10 +221,16 @@ func resolveModelID(id string, availableModels []string) (string, bool) {
 
 	var bestMatch string
 	prefix := id + "-"
+	// Suffix must be exactly 8 digits (YYYYMMDD)
+	dateSuffix := regexp.MustCompile(`^\d{8}$`)
+
 	for _, m := range availableModels {
 		if strings.HasPrefix(m, prefix) {
-			if m > bestMatch {
-				bestMatch = m
+			suffix := strings.TrimPrefix(m, prefix)
+			if dateSuffix.MatchString(suffix) {
+				if m > bestMatch {
+					bestMatch = m
+				}
 			}
 		}
 	}
