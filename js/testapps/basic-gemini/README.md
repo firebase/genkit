@@ -23,7 +23,7 @@ TTS, and advanced features like search grounding and URL context.
 | Structured Tool Calling | `structured-tool-calling` | Tool calling with structured output |
 | Structured Output | `structured-output` | JSON output with Zod schema (RPG character) |
 | Thinking + Structured | `thinking-structured-output` | Structured output with thinking budget |
-| Media Resolution | `gemini-media-resolution` | Image editing with Gemini 3 Pro |
+| Media Resolution | `gemini-media-resolution` | Image editing with Gemini 2.5 Pro |
 | Image Generation | `nano-banana-pro` | Image generation with Gemini 3 Pro Image |
 | Imagen | `imagen-image-generation` | Image generation with Imagen 3 |
 | Text-to-Speech | `basic-tts` | Text-to-speech with Gemini 2.5 Flash |
