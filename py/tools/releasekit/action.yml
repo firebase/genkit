@@ -304,7 +304,7 @@ runs:
 
         # Command-specific flags.
         case "$INPUT_COMMAND" in
-          publish|prepare|release)
+          publish|prepare)
             cmd+=(--forge-backend "$INPUT_FORGE_BACKEND")
             ;;
         esac

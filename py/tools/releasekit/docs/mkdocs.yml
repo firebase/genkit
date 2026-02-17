@@ -195,5 +195,7 @@ nav:
       - License Data Verification: internals/license-data.md
   - Planning:
       - Roadmap: roadmap.md
+      - AI Release Notes Plan: ai-release-notes-plan.md
+      - Workflow Migration Plan: release-workflow-migration.md
       - Competitive Gap Analysis: competitive-gap-analysis.md
       - "Slide Deck \u2197": slides/index.html

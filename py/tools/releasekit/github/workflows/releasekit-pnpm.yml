@@ -66,14 +66,68 @@
 #   │  concurrency:    [0] max parallel publish (0 = auto)        │
 #   └─────────────────────────────────────────────────────────────┘
 #
+# ── Job Dependency Graph ───────────────────────────────────────────
+#
+#   ┌───────┐
+#   │ auth  │  Resolve token: App → PAT → GITHUB_TOKEN
+#   └───┬───┘
+#       │ outputs: token, auth-method, git-user-name, git-user-email
+#       │
+#       ├──────────────────────┬──────────────────────┐
+#       │                      │                      │
+#       ▼                      ▼                      ▼
+#   ┌──────────────┐  ┌────────────────┐        ┌────────────┐
+#   │ prepare-js   │  │ prepare-js-cli │        │ release-js │
+#   │ (push)       │  │ (push)         │        │ (merge)    │
+#   └──────────────┘  └────────────────┘        └─────┬──────┘
+#                                                     │
+#                                                     ▼
+#                                               ┌────────────┐
+#                                               │ publish-js │
+#                                               │ (npm)      │
+#                                               └─────┬──────┘
+#                                                     │
+#                                                     ▼
+#                                               ┌─────────────┐
+#                                               │ verify-js   │  npm install check
+#                                               └──────┬──────┘
+#                                                      │
+#                                                      ▼
+#                                               ┌───────────┐
+#                                               │ notify-js │
+#                                               └───────────┘
+#
+#   Two prepare jobs run in parallel (js + js-cli workspaces).
+#   The release path is sequential: release → publish → verify → notify.
+#
+# ── Token Resolution (Sentinel Pattern) ───────────────────────────
+#
+#   The auth job resolves a token and outputs it for downstream jobs.
+#   Because secrets.GITHUB_TOKEN cannot cross job boundaries, the auth
+#   job outputs the literal string "GITHUB_TOKEN" as a sentinel when
+#   falling back to the built-in token.
+#
+#   auth job                          downstream job
+#   ────────                          ──────────────
+#   App token available?
+#     yes ──► output real token  ──►  use token directly
+#     no  ──► PAT available?
+#               yes ──► output PAT ─► use token directly
+#               no  ──► output       ┌─────────────────────────────┐
+#                       "GITHUB_TOKEN"│ RESOLVED_TOKEN =            │
+#                       (sentinel)   │   auth-method == 'github-   │
+#                                    │   token' ? secrets.GITHUB_  │
+#                                    │   TOKEN : needs.auth.token  │
+#                                    └─────────────────────────────┘
+#
 # ── Trigger Matrix ──────────────────────────────────────────────────
 #
 #   Event              │ Jobs that run
 #   ───────────────────┼──────────────────────────────────────────
 #   push to main       │ prepare-js, prepare-js-cli
-#   PR merged          │ release-js → publish-js → notify-js
+#   PR merged          │ release-js → publish-js → verify-js → notify-js
 #   dispatch: prepare  │ prepare-js, prepare-js-cli
-#   dispatch: release  │ release-js → publish-js → notify-js
+#   dispatch: release  │ release-js → publish-js → verify-js → notify-js
 #
 # ── Inputs Reference ────────────────────────────────────────────────
 #
@@ -93,8 +147,43 @@
 #   model          │ string  │ (chain) │ Override AI model
 #   codename_theme │ string  │ (cfg)   │ Override codename theme
 #
-# The workflow is idempotent: re-running any step is safe because
-# releasekit skips already-created tags and already-published versions.
+# ── Required Configuration ─────────────────────────────────────────
+#
+#   Repository Variables (Settings → Variables → Actions):
+#
+#     RELEASEKIT_APP_ID        — GitHub App ID (for App-based auth)
+#     RELEASEKIT_GIT_USER_NAME — Git committer name for CLA-signed
+#                                identity (used with PAT/GITHUB_TOKEN)
+#     RELEASEKIT_GIT_USER_EMAIL— Git committer email for CLA-signed
+#                                identity (used with PAT/GITHUB_TOKEN)
+#
+#   Repository Secrets (Settings → Secrets → Actions):
+#
+#     RELEASEKIT_APP_PRIVATE_KEY — GitHub App private key (PEM)
+#     RELEASEKIT_TOKEN           — PAT fallback (if no App configured)
+#     GEMINI_API_KEY             — Gemini API key (for AI features)
+#     NPM_TOKEN                  — npm access token (for publishing)
+#
+#   If neither RELEASEKIT_APP_ID nor RELEASEKIT_TOKEN is set, the
+#   workflow falls back to GITHUB_TOKEN. In that case, set
+#   RELEASEKIT_GIT_USER_NAME and RELEASEKIT_GIT_USER_EMAIL to use
+#   a CLA-signed identity (otherwise PRs may fail CLA checks).
+#
+# ── Idempotency & Resumability ─────────────────────────────────────
+#
+#   Every job is idempotent — re-running a failed workflow is safe:
+#
+#     auth     Stateless; always resolves a fresh token.
+#     prepare  Updates the existing Release PR instead of duplicating.
+#     release  Skips tags and GitHub Releases that already exist.
+#     publish  Skips versions already present on npm.
+#     verify   Re-verifies; always safe to repeat.
+#     notify   Dispatches repository_dispatch (downstream deduplicates).
+#
+#   To resume after a failure, use "Re-run failed jobs" in the GitHub
+#   Actions UI. Only the failed jobs re-run; successful jobs keep their
+#   outputs. No special flags or state files are needed.
+#
 # ══════════════════════════════════════════════════════════════════════
 
 name: "ReleaseKit: JS (pnpm)"
@@ -278,6 +367,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write        # Sigstore keyless signing (SLSA provenance)
 
 env:
   RELEASEKIT_DIR: py/tools/releasekit
@@ -297,7 +387,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
+      # When the fallback is GITHUB_TOKEN, we output the literal string
+      # "GITHUB_TOKEN" as a sentinel because the actual secret cannot
+      # cross job boundaries.  Downstream jobs must substitute their own
+      # secrets.GITHUB_TOKEN when they see this sentinel.
       token: ${{ steps.resolve.outputs.token }}
+      auth-method: ${{ steps.resolve.outputs.auth-method }}
       git-user-name: ${{ steps.resolve.outputs.git-user-name }}
       git-user-email: ${{ steps.resolve.outputs.git-user-email }}
     steps:
@@ -323,27 +418,50 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
+      # Resolve: App > PAT > GITHUB_TOKEN (respects auth_method override).
       - name: Resolve token and identity
         id: resolve
         run: |
           AUTH="${{ inputs.auth_method || 'auto' }}"
+
+          # App token — used when auth=auto (and available) or auth=app.
           if [ "$AUTH" = "app" ] || { [ "$AUTH" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
-            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
-            echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]" >> "$GITHUB_OUTPUT"
-            echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+            { echo "token=$APP_TOKEN"
+              echo "auth-method=app"
+              echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]"
+              echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+            } >> "$GITHUB_OUTPUT"
+            echo "::notice::Using GitHub App token (${{ steps.app-token.outputs.app-slug }})"
+
+          # PAT — used when auth=auto (and available) or auth=pat.
           elif [ "$AUTH" = "pat" ] || { [ "$AUTH" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
-            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
-            echo "git-user-name=${GIT_USER_NAME:-releasekit[bot]}" >> "$GITHUB_OUTPUT"
-            echo "git-user-email=${GIT_USER_EMAIL:-releasekit[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+            { echo "token=$PAT_TOKEN"
+              echo "auth-method=pat"
+              echo "git-user-name=${GIT_USER_NAME:-releasekit[bot]}"
+              echo "git-user-email=${GIT_USER_EMAIL:-releasekit[bot]@users.noreply.github.com}"
+            } >> "$GITHUB_OUTPUT"
+            echo "::notice::Using Personal Access Token"
+
+          # GITHUB_TOKEN — fallback or explicit. Uses repo variables for
+          # git identity if set, so CLA can pass with a signed identity.
+          # NOTE: We output the sentinel "GITHUB_TOKEN" instead of the
+          # actual secret because secrets.GITHUB_TOKEN cannot be passed
+          # across job boundaries via outputs.
           else
-            echo "token=$FALLBACK_TOKEN" >> "$GITHUB_OUTPUT"
-            echo "git-user-name=${GIT_USER_NAME:-github-actions[bot]}" >> "$GITHUB_OUTPUT"
-            echo "git-user-email=${GIT_USER_EMAIL:-github-actions[bot]@users.noreply.github.com}" >> "$GITHUB_OUTPUT"
+            { echo "token=GITHUB_TOKEN"
+              echo "auth-method=github-token"
+              echo "git-user-name=${GIT_USER_NAME:-github-actions[bot]}"
+              echo "git-user-email=${GIT_USER_EMAIL:-github-actions[bot]@users.noreply.github.com}"
+            } >> "$GITHUB_OUTPUT"
+            if [ -n "$GIT_USER_NAME" ]; then
+              echo "::notice::Using GITHUB_TOKEN with custom identity ($GIT_USER_NAME)"
+            else
+              echo "::warning::Using GITHUB_TOKEN — PRs will not trigger CI and may fail CLA checks. Set RELEASEKIT_GIT_USER_NAME and RELEASEKIT_GIT_USER_EMAIL repo variables to use a CLA-signed identity."
+            fi
           fi
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
-          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
           GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
 
@@ -361,39 +479,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.rk.outputs.has-bumps }}
-      pr_url: ${{ steps.rk.outputs.pr-url }}
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+      pr_url: ${{ steps.prepare.outputs.pr_url }}
+    env:
+      RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          fetch-depth: 0
-          fetch-tags: true
-          token: ${{ needs.auth.outputs.token }}
+          token: ${{ env.RESOLVED_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          git-user-name: ${{ needs.auth.outputs.git-user-name }}
+          git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: js/pnpm-lock.yaml
 
-      - name: Run releasekit prepare
-        id: rk
-        uses: ./py/tools/releasekit
+      - uses: ./.github/actions/run-releasekit
+        id: prepare
         with:
           command: prepare
           workspace: js
-          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           group: ${{ inputs.group }}
           bump-type: ${{ inputs.bump_type }}
           prerelease: ${{ inputs.prerelease }}
+          force: ${{ inputs.force_prepare }}
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
         env:
+          GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   prepare-js-cli:
@@ -407,39 +529,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      has_bumps: ${{ steps.rk.outputs.has-bumps }}
-      pr_url: ${{ steps.rk.outputs.pr-url }}
+      has_bumps: ${{ steps.prepare.outputs.has_bumps }}
+      pr_url: ${{ steps.prepare.outputs.pr_url }}
+    env:
+      RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          fetch-depth: 0
-          fetch-tags: true
-          token: ${{ needs.auth.outputs.token }}
+          token: ${{ env.RESOLVED_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          git-user-name: ${{ needs.auth.outputs.git-user-name }}
+          git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: genkit-tools/pnpm-lock.yaml
 
-      - name: Run releasekit prepare
-        id: rk
-        uses: ./py/tools/releasekit
+      - uses: ./.github/actions/run-releasekit
+        id: prepare
         with:
           command: prepare
           workspace: js-cli
-          force: ${{ inputs.force_prepare && 'true' || 'false' }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           group: ${{ inputs.group }}
           bump-type: ${{ inputs.bump_type }}
           prerelease: ${{ inputs.prerelease }}
+          force: ${{ inputs.force_prepare }}
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
         env:
+          GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -456,25 +582,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      release_url: ${{ steps.rk.outputs.release-url }}
+      release_url: ${{ steps.release.outputs.release_url }}
+    env:
+      RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          fetch-depth: 0
-          fetch-tags: true
-          token: ${{ needs.auth.outputs.token }}
+          token: ${{ env.RESOLVED_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          git-user-name: ${{ needs.auth.outputs.git-user-name }}
+          git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
-      - name: Run releasekit release
-        id: rk
-        uses: ./py/tools/releasekit
+      - uses: ./.github/actions/run-releasekit
+        id: release
         with:
           command: release
           workspace: js
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ env.DRY_RUN }}
+          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
         env:
+          GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -486,16 +618,19 @@ jobs:
     if: inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          fetch-depth: 0
-          fetch-tags: true
+          token: ${{ env.RESOLVED_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          enable-ollama: "false"
 
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -510,17 +645,17 @@ jobs:
         working-directory: js
         run: pnpm build
 
-      - name: Run releasekit publish
-        id: rk
-        uses: ./py/tools/releasekit
+      - uses: ./.github/actions/run-releasekit
         with:
           command: publish
           workspace: js
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ env.DRY_RUN }}
           force: "true"
           group: ${{ inputs.group }}
-          concurrency: ${{ inputs.concurrency || '0' }}
-          max-retries: ${{ inputs.max_retries || '2' }}
+          concurrency: ${{ inputs.concurrency }}
+          max-retries: ${{ inputs.max_retries }}
+          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -529,26 +664,59 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload manifest artifact
-        if: success() && env.DRY_RUN != 'true'
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: release-manifest-js
-          path: .releasekit-state.json
+          path: release-manifest.json
           retention-days: 90
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # VERIFY: Check published packages are installable
+  # ═══════════════════════════════════════════════════════════════════════
+  verify-js:
+    name: "Verify Published Packages (JS)"
+    needs: publish-js
+    if: >-
+      success() &&
+      (github.event_name == 'pull_request' ||
+       inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Wait for npm propagation
+        run: |
+          echo "Waiting 30 seconds for npm CDN propagation..."
+          sleep 30
+
+      - name: Verify core package
+        continue-on-error: true  # Propagation delays should not fail the pipeline
+        run: |
+          mkdir -p /tmp/verify-js && cd /tmp/verify-js
+          pnpm init
+          pnpm add genkit
+          node -e "require('genkit'); console.log('✅ genkit imports successfully')"
 
   # ═══════════════════════════════════════════════════════════════════════
   # NOTIFY: Post-release notifications
   # ═══════════════════════════════════════════════════════════════════════
   notify-js:
     name: "Notify Downstream (JS)"
-    needs: [auth, release-js, publish-js]
-    if: success() && needs.publish-js.result == 'success'
+    needs: [auth, release-js, publish-js, verify-js]
+    if: success()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Dispatch release event
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ needs.auth.outputs.token }}
+          token: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
           event-type: genkit-js-release
           client-payload: '{"release_url": "${{ needs.release-js.outputs.release_url }}"}'

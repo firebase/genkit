@@ -262,18 +262,28 @@ jobs:
     The rollback workflow defaults to `dry_run: true` so you always
     preview before making changes. Uncheck the box to execute for real.
 
-!!! tip "Simpler with the reusable action"
-    The rollback step above can be replaced with a single action call:
+!!! tip "Simpler with the composite actions"
+    The rollback step above can be replaced with two action calls:
 
     ```yaml
-    - uses: ./py/tools/releasekit
+    - uses: ./.github/actions/setup-releasekit
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+        enable-ollama: "false"
+
+    - uses: ./.github/actions/run-releasekit
       with:
         command: rollback
+        workspace: ${{ inputs.workspace }}
+        releasekit-dir: ${{ env.RELEASEKIT_DIR }}
         tag: ${{ inputs.tag }}
-        dry-run: ${{ inputs.dry_run }}
+        dry-run: ${{ inputs.dry_run && 'true' || 'false' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     ```
 
-    The action handles Python/uv setup, git config, and job summaries
+    The actions handle Python/uv setup, git config, and job summaries
     automatically. See the [Workflow Templates](workflow-templates.md) guide for a
     production-ready rollback workflow.
 
