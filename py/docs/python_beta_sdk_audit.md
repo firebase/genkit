@@ -70,7 +70,7 @@ image = response.media  # Media | None
 
 The SDK has auto-generated schema types (`GenerateResponse` from `genkit-schemas.json`) and hand-written wrappers that add convenience methods (`GenerateResponseWrapper`). Users interact with the wrapper but see the "Wrapper" suffix in type hints and docs.
 
-**Decision:** Alias the wrapper under the clean name at the public surface: `GenerateResponseWrapper` exported as `GenerateResponse` from `from genkit import ...`. The auto-generated schema type remains available as `GenerateResponse` in `genkit.plugin` for plugin authors. See [TYPE_LAYERS.md](./TYPE_LAYERS.md) for the full type architecture.
+**Decision:** Alias the wrapper under the clean name at the public surface: `GenerateResponseWrapper` exported as `GenerateResponse` from `from genkit import ...`. The auto-generated schema type remains available as `GenerateResponse` in `genkit.plugin` for plugin authors. See [python_beta_api_proposal.md](./python_beta_api_proposal.md) for the full type architecture.
 
 ## Type consolidation
 
