@@ -102,7 +102,7 @@ def _create_and_write_runtime_file(runtime_dir: Path, spec: ServerSpec, name: st
 
     runtime_data: dict[str, object] = {
         'reflectionApiSpecVersion': 1,
-        'id': runtime_id,
+        'id': os.environ.get('GENKIT_RUNTIME_ID', runtime_id),
         'pid': pid,
         'genkitVersion': 'py/' + DEFAULT_GENKIT_VERSION,
         'reflectionServerUrl': spec.url,

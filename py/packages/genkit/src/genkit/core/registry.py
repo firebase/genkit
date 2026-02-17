@@ -189,6 +189,7 @@ class Registry:
             span_metadata=span_metadata,
         )
         action_typed = cast(Action[InputT, OutputT, ChunkT], action)
+        action._registry = self
         with self._lock:
             if kind not in self._entries:
                 self._entries[kind] = {}
@@ -204,6 +205,7 @@ class Registry:
         Args:
            action: The action instance to register.
         """
+        action._registry = self
         with self._lock:
             if action.kind not in self._entries:
                 self._entries[action.kind] = {}
@@ -350,6 +352,7 @@ class Registry:
             # Update the action's name
             action._name = name  # pyright: ignore[reportPrivateUsage]
 
+        action._registry = self
         with self._lock:
             if action.kind not in self._entries:
                 self._entries[action.kind] = {}

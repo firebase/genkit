@@ -16,7 +16,7 @@ from opentelemetry.sdk.trace import TracerProvider
 import genkit.core.constants as _constants
 from genkit.ai import Genkit
 from genkit.ai._registry import SimpleRetrieverOptions
-from genkit.core.action import Action
+from genkit.core.action import Action, ActionRunContext
 from genkit.core.action._action import _action_context
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import DocumentPart, Operation
@@ -284,3 +284,82 @@ async def test_genkit_all_constructor_params() -> None:
             raise AssertionError(msg)
     finally:
         _constants.set_client_header(None)
+
+
+@pytest.mark.asyncio
+async def test_registry_context_merged_into_action() -> None:
+    """registry.context is merged as base context during action execution.
+
+    Mirrors JS SDK pattern: ``{...registry.context, ...(options.context ?? getContext())}``
+    """
+    ai = Genkit(context={'tenant': 'acme', 'env': 'prod'})
+
+    captured_ctx: dict[str, object] = {}
+
+    @ai.tool(name='ctx_tool')
+    def ctx_tool(input: str, ctx: ActionRunContext) -> str:
+        captured_ctx.update(ctx.context)
+        return 'ok'
+
+    tool_action = await ai.registry.resolve_action(ActionKind.TOOL, 'ctx_tool')
+    assert tool_action is not None
+
+    # Call without per-call context — should get registry.context
+    await tool_action.arun('ignored')
+    assert captured_ctx == {'tenant': 'acme', 'env': 'prod'}
+
+
+@pytest.mark.asyncio
+async def test_per_call_context_overlays_registry_context() -> None:
+    """Per-call context overlays on top of registry.context.
+
+    Mirrors JS SDK: ``{...registry.context, ...options.context}``
+    """
+    ai = Genkit(context={'tenant': 'acme', 'env': 'prod'})
+
+    captured_ctx: dict[str, object] = {}
+
+    @ai.tool(name='overlay_tool')
+    def overlay_tool(input: str, ctx: ActionRunContext) -> str:
+        captured_ctx.update(ctx.context)
+        return 'ok'
+
+    tool_action = await ai.registry.resolve_action(ActionKind.TOOL, 'overlay_tool')
+    assert tool_action is not None
+
+    # Per-call context overrides 'env' and adds 'request_id'
+    await tool_action.arun('ignored', context={'env': 'staging', 'request_id': '42'})
+    assert captured_ctx == {'tenant': 'acme', 'env': 'staging', 'request_id': '42'}
+
+
+@pytest.mark.asyncio
+async def test_action_without_registry_context() -> None:
+    """Without registry.context, only per-call context is used."""
+    ai = Genkit()  # No context
+
+    captured_ctx: dict[str, object] = {}
+
+    @ai.tool(name='no_reg_ctx_tool')
+    def no_reg_ctx_tool(input: str, ctx: ActionRunContext) -> str:
+        captured_ctx.update(ctx.context)
+        return 'ok'
+
+    tool_action = await ai.registry.resolve_action(ActionKind.TOOL, 'no_reg_ctx_tool')
+    assert tool_action is not None
+
+    await tool_action.arun('ignored', context={'auth': 'token-123'})
+    assert captured_ctx == {'auth': 'token-123'}
+
+
+@pytest.mark.asyncio
+async def test_action_registry_ref_set_on_registration() -> None:
+    """Action._registry is set when registered, matching JS __registry pattern."""
+    ai = Genkit()
+
+    @ai.tool(name='reg_ref_tool')
+    def reg_ref_tool() -> str:
+        return 'ok'
+
+    tool_action = await ai.registry.resolve_action(ActionKind.TOOL, 'reg_ref_tool')
+    assert tool_action is not None
+    assert tool_action._registry is ai.registry

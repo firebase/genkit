@@ -84,13 +84,15 @@ away the complexities of sync/async handling (for async callers), schema
 generation, tracing, and streaming mechanics.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any, Generic, Protocol, cast, get_type_hints
+from typing import TYPE_CHECKING, Any, Generic, Protocol, cast, get_type_hints
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from typing_extensions import Never, TypeVar
@@ -107,6 +109,9 @@ from ._tracing import (
 )
 from ._util import extract_action_args_and_types, noop_streaming_callback
 from .types import ActionKind, ActionMetadataKey, ActionResponse
+
+if TYPE_CHECKING:
+    from genkit.core.registry import Registry
 
 InputT = TypeVar('InputT', default=Any)
 OutputT = TypeVar('OutputT', default=Any)
@@ -250,6 +255,9 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         self._is_async: bool = inspect.iscoroutinefunction(fn)
         # Optional matcher function for resource actions
         self.matches: Callable[[object], bool] | None = None
+        # Registry reference, set when the action is registered.
+        # Mirrors JS's ``actionFn.__registry``.
+        self._registry: Registry | None = None
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         try:
@@ -307,6 +315,31 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def is_async(self) -> bool:
         return self._is_async
 
+    def _merged_context(self, call_context: dict[str, object] | None) -> dict[str, object] | None:
+        """Merge registry.context (base) with per-call context (overlay).
+
+        Mirrors JS SDK's context merging pattern::
+
+            context: {
+                ...actionFn.__registry?.context,
+                ...(options?.context ?? getContext()),
+            }
+
+        Args:
+            call_context: Per-call context from ``run``/``arun``, or the
+                inherited context from ``_action_context`` ContextVar.
+
+        Returns:
+            Merged context dict, or None if both sources are empty.
+        """
+        registry_ctx = self._registry.context if self._registry else None
+        effective_call_ctx = call_context if call_context is not None else _action_context.get(None)
+        if registry_ctx and effective_call_ctx:
+            return {**registry_ctx, **effective_call_ctx}
+        if registry_ctx:
+            return dict(registry_ctx)
+        return effective_call_ctx
+
     def run(
         self,
         input: InputT | None = None,
@@ -340,9 +373,10 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         if context:
             _ = _action_context.set(context)
 
+        merged = self._merged_context(context)
         return self._fn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
+            ActionRunContext(on_chunk=on_chunk, context=merged),
         )
 
     async def arun(
@@ -380,9 +414,10 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         if context:
             _ = _action_context.set(context)
 
+        merged = self._merged_context(context)
         return await self._afn(
             input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None), on_trace_start=on_trace_start),
+            ActionRunContext(on_chunk=on_chunk, context=merged, on_trace_start=on_trace_start),
         )
 
     async def arun_raw(

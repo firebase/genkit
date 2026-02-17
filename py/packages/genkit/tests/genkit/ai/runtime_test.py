@@ -9,6 +9,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from genkit.ai._runtime import RuntimeManager, _create_and_write_runtime_file
 from genkit.ai._server import ServerSpec
 
@@ -65,3 +67,41 @@ def test_runtime_manager_passes_name() -> None:
             raise AssertionError(msg)
 
         manager.cleanup()
+
+
+def test_genkit_runtime_id_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GENKIT_RUNTIME_ID env var overrides the computed runtime id, matching JS SDK."""
+    monkeypatch.setenv('GENKIT_RUNTIME_ID', 'custom-runtime-42')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        runtime_dir = Path(tmpdir)
+        spec = ServerSpec(port=3100)
+
+        file_path = _create_and_write_runtime_file(runtime_dir, spec)
+
+        with file_path.open(encoding='utf-8') as f:
+            data = json.load(f)
+
+        assert data['id'] == 'custom-runtime-42'
+
+
+def test_genkit_runtime_id_default_without_env() -> None:
+    """Without GENKIT_RUNTIME_ID env var, id uses pid-port format."""
+    import os
+
+    # Ensure env var is not set
+    old = os.environ.pop('GENKIT_RUNTIME_ID', None)
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime_dir = Path(tmpdir)
+            spec = ServerSpec(port=3100)
+
+            file_path = _create_and_write_runtime_file(runtime_dir, spec)
+
+            with file_path.open(encoding='utf-8') as f:
+                data = json.load(f)
+
+            expected_id = f'{os.getpid()}-3100'
+            assert data['id'] == expected_id
+    finally:
+        if old is not None:
+            os.environ['GENKIT_RUNTIME_ID'] = old

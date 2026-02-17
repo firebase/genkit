@@ -16,17 +16,29 @@
 
 """Context propagation demo - How context flows through Genkit.
 
-This sample demonstrates the four main ways to use context in Genkit:
+This sample demonstrates the five main ways to use context in Genkit:
 
-1. Passing context to ``ai.generate(context=...)`` so tools can read it.
-2. Accessing context inside a flow via ``ActionRunContext.context``.
-3. Reading context from anywhere via the static ``Genkit.current_context()``.
-4. Verifying context propagates through nested generate/tool chains.
+1. Setting default context via ``Genkit(context=...)`` constructor (merged into all actions).
+2. Passing per-call context to ``ai.generate(context=...)`` so tools can read it.
+3. Accessing context inside a flow via ``ActionRunContext.context``.
+4. Reading context from anywhere via the static ``Genkit.current_context()``.
+5. Verifying context propagates through nested generate/tool chains.
+
+Additionally, this sample demonstrates:
+
+- ``Genkit(name=...)`` — Display name shown in developer tooling (Dev UI).
+- ``Genkit(client_header=...)`` — Additional attribution in ``x-goog-api-client`` header.
 
 Key Concepts (ELI5)::
 
     ┌─────────────────────┬────────────────────────────────────────────────────┐
     │ Concept             │ ELI5 Explanation                                   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Constructor context  │ Default context set via Genkit(context=...).       │
+    │                     │ Merged as base into every action execution.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ Per-call context     │ Context passed to ai.generate(context=...).        │
+    │                     │ Overlays on top of constructor context.            │
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ Context             │ A dictionary of data (like user info or auth)      │
     │                     │ that follows a request through the system.         │
@@ -42,6 +54,12 @@ Key Concepts (ELI5)::
     ├─────────────────────┼────────────────────────────────────────────────────┤
     │ current_context()   │ Static method to read context from anywhere.       │
     │                     │ No need to pass ctx around -- just call it.        │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ name                │ Display name for Dev UI (Genkit(name=...)).         │
+    │                     │ Written to the runtime file for identification.   │
+    ├─────────────────────┼────────────────────────────────────────────────────┤
+    │ client_header       │ Extra attribution in x-goog-api-client header.     │
+    │                     │ Set via Genkit(client_header=...).                 │
     └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
@@ -49,9 +67,11 @@ Data Flow::
     ┌─────────────────────────────────────────────────────────────────────────┐
     │                  HOW CONTEXT PROPAGATES IN GENKIT                       │
     │                                                                         │
-    │   ai.generate(context={'user': {'id': 42}})                             │
+    │   Genkit(context={'app': 'demo', 'env': 'dev'})  ← constructor context  │
     │        │                                                                │
-    │        │  (1) Context stored in ContextVar                              │
+    │   ai.generate(context={'user': {'id': 42}})  ← per-call context         │
+    │        │                                                                │
+    │        │  (1) Merged context = {app, env, user} stored in ContextVar    │
     │        ▼                                                                │
     │   ┌──────────────┐                                                      │
     │   │ Model Call    │  Model decides to call a tool                        │
@@ -86,7 +106,7 @@ import os
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import Genkit, get_client_header
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
@@ -102,6 +122,14 @@ logger = get_logger(__name__)
 ai = Genkit(
     plugins=[GoogleAI()],
     model='googleai/gemini-2.5-flash',
+    # Constructor-level context: merged as base into every action execution.
+    # Per-call context (e.g., ai.generate(context=...)) overlays on top.
+    # Mirrors JS SDK: {...registry.context, ...options.context}
+    context={'app': 'context-demo', 'env': 'development'},
+    # Display name shown in developer tooling (Dev UI runtime file).
+    name='Context Demo App',
+    # Additional attribution appended to the x-goog-api-client header.
+    client_header='context-demo/1.0',
 )
 
 
@@ -292,9 +320,70 @@ async def context_propagation_chain(input: ContextInput) -> str:
     return f'User info: {first_response.text}\nPermissions: {second_response.text}'
 
 
+@ai.tool()
+def get_app_info() -> str:
+    """Return app-level info from the constructor context.
+
+    The constructor context (``Genkit(context=...)``) is merged as a base
+    into every action execution. This tool reads the ``app`` and ``env``
+    keys that were set at construction time, even though the caller only
+    passes user-specific per-call context.
+
+    Returns:
+        A description of the app environment from constructor context.
+    """
+    context = Genkit.current_context() or {}
+    app = context.get('app', 'unknown')
+    env = context.get('env', 'unknown')
+    return f'App: {app}, Environment: {env}'
+
+
+@ai.flow()
+async def context_constructor_merge(input: ContextInput) -> str:
+    """Demonstrate constructor context merging with per-call context.
+
+    The ``Genkit(context=...)`` constructor sets base context that is
+    automatically merged into every action execution. Per-call context
+    (passed to ``ai.generate(context=...)``) overlays on top.
+
+    This flow passes only user-specific context, but the tool also sees
+    the constructor-level ``app`` and ``env`` keys.
+
+    Args:
+        input: Input with user ID.
+
+    Returns:
+        Model response showing both constructor and per-call context.
+    """
+    response = await ai.generate(
+        prompt=(
+            'Look up the current user info AND the app info. '
+            'Report both the user details and the app environment.'
+        ),
+        tools=['get_user_info', 'get_app_info'],
+        context={'user': {'id': input.user_id}},
+    )
+    return response.text
+
+
+@ai.flow()
+async def show_client_header() -> str:
+    """Show the current x-goog-api-client header value.
+
+    Demonstrates that ``Genkit(client_header=...)`` appends attribution
+    to the header used in API requests.
+
+    Returns:
+        The current client header string.
+    """
+    return f'Client header: {get_client_header()}'
+
+
 async def main() -> None:
     """Main function -- keep alive for Dev UI."""
     await logger.ainfo('Context demo started. Open http://localhost:4000 to test flows.')
+    await logger.ainfo(f'Client header: {get_client_header()}')
+    await logger.ainfo(f'Instance name: {ai.registry.name}')
     while True:
         await asyncio.sleep(3600)
 
