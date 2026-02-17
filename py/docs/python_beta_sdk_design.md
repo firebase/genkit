@@ -90,7 +90,7 @@ No new types, no imports beyond the Pydantic model, and the 95% case is one kwar
 
 **Recommendation.** Flat kwargs. Remove the `output` param (which currently accepts `OutputConfig | OutputConfigDict | Output[T]`). Keep `output_schema`, `output_format`, `output_constrained`, `output_content_type`, and `output_instructions` as individual keyword-only params. Use `@overload` so `output_schema: type[T]` parameterizes the return type. Remove `Output[T]`, `OutputConfigDict`, and the wire-format `OutputConfig` from the app developer's surface entirely. The wire-format `OutputConfig` remains an internal/plugin type — plugin authors use it when implementing model plugins to read output configuration from the `GenerateRequest`, but app developers never see it.
 
-`output_schema` accepts three forms: a Pydantic model class (`type[T]` — the common case, gives typed returns), a raw JSON schema dict (`dict` — for dynamic schemas, returns `Any`), or a registered schema name (`str` - looked up from registry at runtime, returns `Any`). Only the Pydantic class form carries the generic type. 
+`output_schema` accepts three forms: a Pydantic model class (`type[T]` — the common case, gives typed returns), a raw JSON schema dict (`dict` — for dynamic schemas, returns `Any`), or a registered schema name (`str`, looked up from registry at runtime, returns `Any`). Only the Pydantic class form carries the generic type. 
 
 **The same applies to `input_schema`.** The current `Input[T]` wrapper exists for the same (incorrect) reason as `Output[T]`. It's used on `define_prompt()` and `ai.prompt()` to type the prompt's input parameter. With flat kwargs and overloads, `input_schema: type[T]` carries the generic directly — `Input[T]` can be removed:
 
