@@ -72,7 +72,7 @@ func Generate(
 
 	req.Model = anthropic.Model(model)
 
-	isStructured := input.Output != nil && input.Output.Format == "json" && input.Output.Schema != nil && input.Output.Constrained
+	isStructured := isStructuredOutput(input)
 
 	// no streaming
 	if cb == nil {
@@ -87,8 +87,10 @@ func Generate(
 		}
 
 		r.Request = input
-		if isStructured {
-			handleStructuredOutput(r)
+		if isStructuredOutput(input) {
+			if err := handleStructuredOutput(r); err != nil {
+				return nil, err
+			}
 		}
 		return r, nil
 	} else {
@@ -124,7 +126,9 @@ func Generate(
 				}
 				r.Request = input
 				if isStructured {
-					handleStructuredOutput(r)
+					if err := handleStructuredOutput(r); err != nil {
+						return nil, err
+					}
 				}
 				return r, nil
 			}
@@ -137,17 +141,21 @@ func Generate(
 	return nil, nil
 }
 
-func handleStructuredOutput(r *ai.ModelResponse) {
+func handleStructuredOutput(r *ai.ModelResponse) error {
 	for i, part := range r.Message.Content {
 		if part.IsToolRequest() && part.ToolRequest.Name == "return_json_output" {
-			// Convert input to JSON
-			jsonBytes, _ := json.Marshal(part.ToolRequest.Input)
+			jsonBytes, err := json.Marshal(part.ToolRequest.Input)
+			if err != nil {
+				return fmt.Errorf("failed to marshal structured output: %w", err)
+			}
 			r.Message.Content[i] = ai.NewTextPart(string(jsonBytes))
 			r.FinishReason = ai.FinishReasonStop
 		}
 	}
+	return nil
 }
 
+// toAnthropicRole translates an [ai.Role] to [anthropic.MessageParamRole]
 func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 	switch role {
 	case ai.RoleUser:
@@ -386,4 +394,8 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 		OutputTokens: int(m.Usage.OutputTokens),
 	}
 	return &r, nil
+}
+
+func isStructuredOutput(req *ai.ModelRequest) bool {
+	return req.Output != nil && req.Output.Format == "json" && req.Output.Schema != nil && req.Output.Constrained
 }
