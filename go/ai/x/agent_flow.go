@@ -90,8 +90,8 @@ type AgentFlowOutput[State any] struct {
 // AgentFlowStreamChunk represents a single item in the agent flow's output stream.
 // Multiple fields can be populated in a single chunk.
 type AgentFlowStreamChunk[Stream any] struct {
-	// Chunk contains token-level generation data.
-	Chunk *ai.ModelResponseChunk `json:"chunk,omitempty"`
+	// ModelChunk contains generation tokens from the model.
+	ModelChunk *ai.ModelResponseChunk `json:"modelChunk,omitempty"`
 	// Status contains user-defined structured status information.
 	// The Stream type parameter defines the shape of this data.
 	Status Stream `json:"status,omitempty"`
@@ -110,14 +110,21 @@ type AgentFlowStreamChunk[Stream any] struct {
 // turn management, snapshot persistence, and input channel handling.
 type AgentSession[State any] struct {
 	*Session[State]
-	snapshotCallback SnapshotCallback[State]
-	onEndTurn        func(ctx context.Context)
-	inCh             <-chan *AgentFlowInput
-	lastSnapshot     *SessionSnapshot[State]
-	turnIndex        int
-	// collectTurnOutput returns the accumulated stream chunks for the current
-	// turn and resets the accumulator. Set by DefineCustomAgent; nil if no
-	// collection is configured (e.g., standalone usage).
+
+	// InputCh is the channel that delivers per-turn inputs from the client.
+	// It is consumed automatically by [AgentSession.Run], but is exposed
+	// for advanced use cases that need direct access to the input stream
+	// (e.g., custom turn loops or fan-out patterns).
+	InputCh <-chan *AgentFlowInput
+	// TurnIndex is the zero-based index of the current conversation turn.
+	// It is incremented automatically by [AgentSession.Run], but is exposed
+	// for advanced use cases that need to track or manipulate turn ordering
+	// directly.
+	TurnIndex int
+
+	snapshotCallback  SnapshotCallback[State]
+	onEndTurn         func(ctx context.Context)
+	lastSnapshot      *SessionSnapshot[State]
 	collectTurnOutput func() any
 }
 
@@ -126,9 +133,9 @@ type AgentSession[State any] struct {
 // added to the session before fn is called. After fn returns successfully, an
 // EndTurn chunk is sent and a snapshot check is triggered.
 func (a *AgentSession[State]) Run(ctx context.Context, fn func(ctx context.Context, input *AgentFlowInput) error) error {
-	for input := range a.inCh {
+	for input := range a.InputCh {
 		spanMeta := &tracing.SpanMetadata{
-			Name:    fmt.Sprintf("agentFlow/turn/%d", a.turnIndex),
+			Name:    fmt.Sprintf("agentFlow/turn/%d", a.TurnIndex),
 			Type:    "agentFlowTurn",
 			Subtype: "agentFlowTurn",
 		}
@@ -142,7 +149,7 @@ func (a *AgentSession[State]) Run(ctx context.Context, fn func(ctx context.Conte
 				}
 
 				a.onEndTurn(ctx)
-				a.turnIndex++
+				a.TurnIndex++
 
 				if a.collectTurnOutput != nil {
 					return a.collectTurnOutput(), nil
@@ -176,7 +183,7 @@ func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotE
 		if !a.snapshotCallback(ctx, &SnapshotContext[State]{
 			State:     &currentState,
 			PrevState: prevState,
-			TurnIndex: a.turnIndex,
+			TurnIndex: a.TurnIndex,
 			Event:     event,
 		}) {
 			return ""
@@ -223,7 +230,7 @@ type Responder[Stream any] chan<- *AgentFlowStreamChunk[Stream]
 
 // SendChunk sends a generation chunk (token-level streaming).
 func (r Responder[Stream]) SendChunk(chunk *ai.ModelResponseChunk) {
-	r <- &AgentFlowStreamChunk[Stream]{Chunk: chunk}
+	r <- &AgentFlowStreamChunk[Stream]{ModelChunk: chunk}
 }
 
 // SendStatus sends a user-defined status update.
@@ -282,7 +289,7 @@ func DefineCustomAgent[Stream, State any](
 		agentSess := &AgentSession[State]{
 			Session:          session,
 			snapshotCallback: snapshotCallback,
-			inCh:             inCh,
+			InputCh:          inCh,
 			lastSnapshot:     snapshot,
 		}
 

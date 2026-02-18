@@ -935,7 +935,7 @@ func TestPromptAgent_Basic(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.Chunk != nil {
+		if chunk.ModelChunk != nil {
 			gotChunk = true
 		}
 		if chunk.EndTurn {
@@ -1082,8 +1082,8 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.Chunk != nil {
-			turn1Response += chunk.Chunk.Text()
+		if chunk.ModelChunk != nil {
+			turn1Response += chunk.ModelChunk.Text()
 		}
 		if chunk.EndTurn {
 			break
@@ -1103,8 +1103,8 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.Chunk != nil {
-			turn2Response += chunk.Chunk.Text()
+		if chunk.ModelChunk != nil {
+			turn2Response += chunk.ModelChunk.Text()
 		}
 		if chunk.EndTurn {
 			break

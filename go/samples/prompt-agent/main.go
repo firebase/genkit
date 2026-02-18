@@ -83,8 +83,8 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				break
 			}
-			if chunk.Chunk != nil {
-				fmt.Print(chunk.Chunk.Text())
+			if chunk.ModelChunk != nil {
+				fmt.Print(chunk.ModelChunk.Text())
 			}
 			if chunk.SnapshotID != "" {
 				fmt.Printf("\n[snapshot: %s]", chunk.SnapshotID)
