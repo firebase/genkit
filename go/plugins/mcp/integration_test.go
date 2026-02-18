@@ -65,7 +65,6 @@ func TestMCPConnectionAndTranslation(t *testing.T) {
 			Command: serverBinary,
 		},
 	})
-
 	// ASSERT 1: Connection succeeds
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -73,7 +72,6 @@ func TestMCPConnectionAndTranslation(t *testing.T) {
 
 	// TEST: Discover resources
 	resources, err := host.GetActiveResources(ctx)
-
 	// ASSERT 2: Resources discovered
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -169,7 +167,6 @@ func TestMCPAIIntegration(t *testing.T) {
 		)),
 		ai.WithResources(hostResources...), // Pass MCP resources
 	)
-
 	// ASSERT: Generation succeeds and includes resource content
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -353,7 +350,6 @@ func TestMCPContentFetch(t *testing.T) {
 		)),
 		ai.WithResources(resources...), // Pass all MCP resources
 	)
-
 	// ASSERT 3: Generation succeeds and includes resource content
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
