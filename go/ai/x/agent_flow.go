@@ -35,75 +35,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Artifact represents a named collection of parts produced during a session.
-// Examples: generated files, images, code snippets, diagrams, etc.
-type Artifact struct {
-	// Name identifies the artifact (e.g., "generated_code.go", "diagram.png").
-	Name string `json:"name,omitempty"`
-	// Parts contains the artifact content (text, media, etc.).
-	Parts []*ai.Part `json:"parts"`
-	// Metadata contains additional artifact-specific data.
-	Metadata map[string]any `json:"metadata,omitempty"`
-}
-
-// AgentFlowInput is the input sent to an agent flow during a conversation turn.
-type AgentFlowInput struct {
-	// Messages contains the user's input for this turn.
-	Messages []*ai.Message `json:"messages,omitempty"`
-}
-
-// AgentFlowInit is the input for starting an agent flow invocation.
-// Provide either SnapshotID (to load from store) or State (direct state).
-type AgentFlowInit[State any] struct {
-	// SnapshotID loads state from a persisted snapshot.
-	// Mutually exclusive with State.
-	SnapshotID string `json:"snapshotId,omitempty"`
-	// State provides direct state for the invocation.
-	// Mutually exclusive with SnapshotID.
-	State *SessionState[State] `json:"state,omitempty"`
-}
-
-// AgentFlowResult is the return value from an AgentFlowFunc.
-// It contains the user-specified outputs of the agent invocation.
-type AgentFlowResult struct {
-	// Message is the last model response message from the conversation.
-	Message *ai.Message `json:"message,omitempty"`
-	// Artifacts contains artifacts produced during the session.
-	Artifacts []*Artifact `json:"artifacts,omitempty"`
-}
-
-// AgentFlowOutput is the output when an agent flow invocation completes.
-// It wraps AgentFlowResult with framework-managed fields.
-type AgentFlowOutput[State any] struct {
-	// SnapshotID is the ID of the snapshot created at the end of this invocation.
-	// Empty if no snapshot was created (callback returned false or no store configured).
-	SnapshotID string `json:"snapshotId,omitempty"`
-	// State contains the final conversation state.
-	// Only populated when state is client-managed (no store configured).
-	State *SessionState[State] `json:"state,omitempty"`
-	// Message is the last model response message from the conversation.
-	Message *ai.Message `json:"message,omitempty"`
-	// Artifacts contains artifacts produced during the session.
-	Artifacts []*Artifact `json:"artifacts,omitempty"`
-}
-
-// AgentFlowStreamChunk represents a single item in the agent flow's output stream.
-// Multiple fields can be populated in a single chunk.
-type AgentFlowStreamChunk[Stream any] struct {
-	// ModelChunk contains generation tokens from the model.
-	ModelChunk *ai.ModelResponseChunk `json:"modelChunk,omitempty"`
-	// Status contains user-defined structured status information.
-	// The Stream type parameter defines the shape of this data.
-	Status Stream `json:"status,omitempty"`
-	// Artifact contains a newly produced artifact.
-	Artifact *Artifact `json:"artifact,omitempty"`
-	// SnapshotID contains the ID of a snapshot that was just persisted.
-	SnapshotID string `json:"snapshotId,omitempty"`
-	// EndTurn signals that the agent flow has finished processing the current input.
-	// When true, the client should stop iterating and may send the next input.
-	EndTurn bool `json:"endTurn,omitempty"`
-}
-
 // --- AgentSession ---
 
 // AgentSession extends Session with agent-flow-specific functionality:
@@ -424,6 +355,17 @@ func DefinePromptAgent[State, PromptIn any](
 			// Append conversation history after the prompt-rendered messages.
 			genOpts.Messages = append(genOpts.Messages, sess.Messages()...)
 
+			// If tool restarts were provided, set the resume option so
+			// handleResumeOption re-executes the interrupted tools.
+			if len(input.ToolRestarts) > 0 {
+				for _, p := range input.ToolRestarts {
+					if !p.IsToolRequest() {
+						return core.NewError(core.INVALID_ARGUMENT, "ToolRestarts: part is not a tool request")
+					}
+				}
+				genOpts.Resume = ai.NewResume(input.ToolRestarts, nil)
+			}
+
 			// Call the model with streaming.
 			modelResp, err := ai.GenerateWithRequest(ctx, r, genOpts, nil,
 				func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
@@ -591,6 +533,12 @@ func (c *AgentFlowConnection[Stream, State]) SendText(text string) error {
 	return c.conn.Send(&AgentFlowInput{
 		Messages: []*ai.Message{ai.NewUserTextMessage(text)},
 	})
+}
+
+// SendToolRestarts sends tool restart parts to resume interrupted tool calls.
+// Parts should be created via [ai.ToolDef.RestartWith].
+func (c *AgentFlowConnection[Stream, State]) SendToolRestarts(parts ...*ai.Part) error {
+	return c.conn.Send(&AgentFlowInput{ToolRestarts: parts})
 }
 
 // Close signals that no more inputs will be sent.

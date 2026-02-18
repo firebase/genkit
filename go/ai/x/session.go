@@ -26,31 +26,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// SessionState is the portable conversation state that flows between client
-// and server. It contains only the data needed for conversation continuity.
-type SessionState[State any] struct {
-	// Messages is the conversation history (user/model exchanges).
-	// Does NOT include prompt-rendered messages — those are rendered fresh each turn.
-	Messages []*ai.Message `json:"messages,omitempty"`
-	// Custom is the user-defined state associated with this conversation.
-	Custom State `json:"custom,omitempty"`
-	// Artifacts are named collections of parts produced during the conversation.
-	Artifacts []*Artifact `json:"artifacts,omitempty"`
-	// InputVariables is the input used for agent flows that require input variables
-	// (e.g. prompt-backed agent flows).
-	InputVariables any `json:"inputVariables,omitempty"`
-}
-
-// SnapshotEvent identifies what triggered a snapshot.
-type SnapshotEvent string
-
-const (
-	// TurnEnd indicates the snapshot was triggered at the end of a turn.
-	SnapshotEventTurnEnd SnapshotEvent = "turnEnd"
-	// InvocationEnd indicates the snapshot was triggered at the end of the invocation.
-	SnapshotEventInvocationEnd SnapshotEvent = "invocationEnd"
-)
-
 // SessionSnapshot is a persisted point-in-time capture of session state.
 type SessionSnapshot[State any] struct {
 	// SnapshotID is the unique identifier for this snapshot (UUID).
