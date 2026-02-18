@@ -452,7 +452,7 @@ func DefineCustomAgent[Stream, State any](
 // conversation history, calls the model with streaming, and updates session state.
 //
 // The defaultInput is used for prompt rendering unless overridden per
-// invocation via [aix.WithPromptInput].
+// invocation via [aix.WithInputVariables].
 //
 // Type parameters:
 //   - State: Type for user-defined state in snapshots

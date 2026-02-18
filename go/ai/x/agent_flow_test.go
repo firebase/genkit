@@ -991,7 +991,7 @@ func TestPromptAgent_PromptInputOverride(t *testing.T) {
 
 	// Use WithPromptInput to override.
 	conn, err := af.StreamBidi(ctx,
-		WithPromptInput[testState](greetInput{Name: "override"}),
+		WithInputVariables[testState](greetInput{Name: "override"}),
 	)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)
@@ -1146,7 +1146,7 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 
 	// Start with prompt input.
 	conn, err := af.StreamBidi(ctx,
-		WithPromptInput[testState](map[string]any{"key": "value"}),
+		WithInputVariables[testState](map[string]any{"key": "value"}),
 	)
 	if err != nil {
 		t.Fatalf("StreamBidi failed: %v", err)

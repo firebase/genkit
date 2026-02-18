@@ -110,8 +110,8 @@ func WithSnapshotID[State any](id string) StreamBidiOption[State] {
 	return &streamBidiOptions[State]{snapshotID: id}
 }
 
-// WithPromptInput overrides the default prompt input for a prompt-backed agent flow.
-// Used with DefinePromptAgent to customize the prompt rendering per invocation.
-func WithPromptInput[State any](input any) StreamBidiOption[State] {
+// WithInputVariables overrides the default input variables for a prompt-backed agent flow.
+// Used with DefinePromptAgent to customize the input variables per invocation.
+func WithInputVariables[State any](input any) StreamBidiOption[State] {
 	return &streamBidiOptions[State]{promptInput: input}
 }

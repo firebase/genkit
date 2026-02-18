@@ -385,6 +385,12 @@ func (af *AgentFlow[Stream, State]) StreamBidi(
 		SnapshotID: sbOpts.snapshotID,
 		State:      sbOpts.state,
 	}
+	if sbOpts.promptInput != nil {
+		if init.State == nil {
+			init.State = &SessionState[State]{}
+		}
+		init.State.InputVariables = sbOpts.promptInput
+	}
 
 	conn, err := af.flow.StreamBidi(ctx, init)
 	if err != nil {
