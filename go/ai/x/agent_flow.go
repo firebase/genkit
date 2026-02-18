@@ -35,9 +35,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// AgentArtifact represents a named collection of parts produced during a session.
+// Artifact represents a named collection of parts produced during a session.
 // Examples: generated files, images, code snippets, diagrams, etc.
-type AgentArtifact struct {
+type Artifact struct {
 	// Name identifies the artifact (e.g., "generated_code.go", "diagram.png").
 	Name string `json:"name,omitempty"`
 	// Parts contains the artifact content (text, media, etc.).
@@ -81,7 +81,7 @@ type AgentFlowStreamChunk[Stream any] struct {
 	// The Stream type parameter defines the shape of this data.
 	Status Stream `json:"status,omitempty"`
 	// Artifact contains a newly produced artifact.
-	Artifact *AgentArtifact `json:"artifact,omitempty"`
+	Artifact *Artifact `json:"artifact,omitempty"`
 	// SnapshotID contains the ID of a snapshot that was just persisted.
 	SnapshotID string `json:"snapshotId,omitempty"`
 	// EndTurn signals that the agent flow has finished processing the current input.
@@ -219,7 +219,7 @@ func (r Responder[Stream]) SendStatus(status Stream) {
 
 // SendArtifact sends an artifact to the stream and adds it to the session.
 // If an artifact with the same name already exists in the session, it is replaced.
-func (r Responder[Stream]) SendArtifact(artifact *AgentArtifact) {
+func (r Responder[Stream]) SendArtifact(artifact *Artifact) {
 	r <- &AgentFlowStreamChunk[Stream]{Artifact: artifact}
 }
 
@@ -278,6 +278,10 @@ type PromptRenderer[In any] interface {
 	Render(ctx context.Context, input In) (*ai.GenerateActionOptions, error)
 }
 
+// promptMessageKey is the metadata key used to tag prompt-rendered messages
+// so they can be excluded from session history after generation.
+const promptMessageKey = "_genkit_prompt"
+
 // DefinePromptAgent creates a prompt-backed AgentFlow with an
 // automatic conversation loop. Each turn renders the prompt, appends
 // conversation history, calls GenerateWithRequest, streams chunks to the
@@ -305,16 +309,25 @@ func DefinePromptAgent[State, PromptIn any](
 			}
 
 			// Render the prompt template.
-			actionOpts, err := p.Render(ctx, promptInput)
+			genOpts, err := p.Render(ctx, promptInput)
 			if err != nil {
 				return fmt.Errorf("prompt render: %w", err)
 			}
 
+			// Tag prompt-rendered messages so we can exclude them from
+			// session history after generation.
+			for _, m := range genOpts.Messages {
+				if m.Metadata == nil {
+					m.Metadata = make(map[string]any)
+				}
+				m.Metadata[promptMessageKey] = true
+			}
+
 			// Append conversation history after the prompt-rendered messages.
-			actionOpts.Messages = append(actionOpts.Messages, sess.Messages()...)
+			genOpts.Messages = append(genOpts.Messages, sess.Messages()...)
 
 			// Call the model with streaming.
-			modelResp, err := ai.GenerateWithRequest(ctx, r, actionOpts, nil,
+			modelResp, err := ai.GenerateWithRequest(ctx, r, genOpts, nil,
 				func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 					resp.SendChunk(chunk)
 					return nil
@@ -324,8 +337,19 @@ func DefinePromptAgent[State, PromptIn any](
 				return fmt.Errorf("generate: %w", err)
 			}
 
-			// Add the model response message to session history.
-			if modelResp.Message != nil {
+			// Replace session messages with the full history minus prompt
+			// messages. This captures intermediate tool call/response
+			// messages from the tool loop, not just the final response.
+			if modelResp.Request != nil {
+				var msgs []*ai.Message
+				for _, m := range modelResp.History() {
+					if m.Metadata != nil && m.Metadata[promptMessageKey] == true {
+						continue
+					}
+					msgs = append(msgs, m)
+				}
+				sess.SetMessages(msgs)
+			} else if modelResp.Message != nil {
 				sess.AddMessages(modelResp.Message)
 			}
 

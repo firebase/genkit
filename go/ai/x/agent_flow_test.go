@@ -349,19 +349,19 @@ func TestAgentFlow_Artifacts(t *testing.T) {
 		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
 			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 
-				resp.SendArtifact(&AgentArtifact{
+				resp.SendArtifact(&Artifact{
 					Name:  "code.go",
 					Parts: []*ai.Part{ai.NewTextPart("package main")},
 				})
 
 				// Replace artifact with same name.
-				resp.SendArtifact(&AgentArtifact{
+				resp.SendArtifact(&Artifact{
 					Name:  "code.go",
 					Parts: []*ai.Part{ai.NewTextPart("package main\nfunc main() {}")},
 				})
 
 				// Add another artifact.
-				resp.SendArtifact(&AgentArtifact{
+				resp.SendArtifact(&Artifact{
 					Name:  "readme.md",
 					Parts: []*ai.Part{ai.NewTextPart("# README")},
 				})
@@ -378,7 +378,7 @@ func TestAgentFlow_Artifacts(t *testing.T) {
 	}
 
 	conn.SendText("generate code")
-	var receivedArtifacts []*AgentArtifact
+	var receivedArtifacts []*Artifact
 	for chunk, err := range conn.Receive() {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
@@ -740,7 +740,7 @@ func TestAgentFlow_TurnSpanOutput(t *testing.T) {
 				resp.SendChunk(&ai.ModelResponseChunk{
 					Content: []*ai.Part{ai.NewTextPart("reply")},
 				})
-				resp.SendArtifact(&AgentArtifact{
+				resp.SendArtifact(&Artifact{
 					Name:  "out.txt",
 					Parts: []*ai.Part{ai.NewTextPart("content")},
 				})
@@ -870,7 +870,7 @@ func setupPromptTestRegistry(t *testing.T) *registry.Registry {
 	ctx := context.Background()
 
 	ai.ConfigureFormats(reg)
-	ai.DefineModel(reg, "test/echo", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true}},
+	ai.DefineModel(reg, "test/echo", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true, SystemRole: true}},
 		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 			// Echo back the last user message text.
 			var text string
@@ -885,6 +885,7 @@ func setupPromptTestRegistry(t *testing.T) *registry.Registry {
 			}
 
 			resp := &ai.ModelResponse{
+				Request: req,
 				Message: ai.NewModelTextMessage("echo: " + text),
 			}
 
@@ -1037,7 +1038,7 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 	reg := setupPromptTestRegistry(t)
 
 	// Use a model that echoes all message count so we can verify history grows.
-	ai.DefineModel(reg, "test/history", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true}},
+	ai.DefineModel(reg, "test/history", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true, SystemRole: true}},
 		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 			// Count total messages received (includes prompt-rendered + history).
 			var parts []string
@@ -1047,6 +1048,7 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 			text := strings.Join(parts, "|")
 
 			resp := &ai.ModelResponse{
+				Request: req,
 				Message: ai.NewModelTextMessage(text),
 			}
 			if cb != nil {
@@ -1176,7 +1178,7 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 		t.Fatalf("GetSnapshot failed: %v", err)
 	}
 	if snap.State.InputVariables == nil {
-		t.Error("expected PromptInput in snapshot state")
+		t.Error("expected InputVariables in snapshot state")
 	}
 
 	// Resume from snapshot — the PromptInput should be preserved.
@@ -1209,5 +1211,118 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 	// PromptInput should still be present.
 	if resp2.State.InputVariables == nil {
 		t.Error("expected PromptInput preserved after resume")
+	}
+}
+
+func TestPromptAgent_ToolLoopMessages(t *testing.T) {
+	ctx := context.Background()
+	reg := registry.New()
+	ai.ConfigureFormats(reg)
+
+	// Define a tool that the model will call.
+	ai.DefineTool(reg, "greet", "returns a greeting",
+		func(ctx *ai.ToolContext, input struct {
+			Name string `json:"name"`
+		}) (string, error) {
+			return "hello " + input.Name, nil
+		},
+	)
+
+	// Model that requests a tool call on the first call, then returns
+	// a final text response once it sees the tool result.
+	ai.DefineModel(reg, "test/toolmodel", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true, SystemRole: true, Tools: true}},
+		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+			// Check if we already got a tool response.
+			for _, msg := range req.Messages {
+				for _, p := range msg.Content {
+					if p.IsToolResponse() {
+						resp := &ai.ModelResponse{
+							Request: req,
+							Message: ai.NewModelTextMessage("done: " + fmt.Sprintf("%v", p.ToolResponse.Output)),
+						}
+						if cb != nil {
+							cb(ctx, &ai.ModelResponseChunk{Content: resp.Message.Content})
+						}
+						return resp, nil
+					}
+				}
+			}
+			// First call: request the tool.
+			resp := &ai.ModelResponse{
+				Request: req,
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{ai.NewToolRequestPart(&ai.ToolRequest{
+						Name:  "greet",
+						Input: map[string]any{"name": "world"},
+					})},
+				},
+			}
+			return resp, nil
+		},
+	)
+	ai.DefineGenerateAction(ctx, reg)
+
+	prompt := ai.DefinePrompt(reg, "toolPrompt",
+		ai.WithModelName("test/toolmodel"),
+		ai.WithSystem("You are a test assistant."),
+		ai.WithTools(ai.ToolName("greet")),
+	)
+
+	af := DefinePromptAgent[testState](reg, "toolFlow", prompt, nil)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	conn.SendText("go")
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	conn.Close()
+
+	response, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Session should contain:
+	// 1. user message ("go")
+	// 2. model tool-call message
+	// 3. tool response message
+	// 4. final model text response
+	msgs := response.State.Messages
+	if got := len(msgs); got != 4 {
+		t.Errorf("expected 4 messages, got %d", got)
+		for i, m := range msgs {
+			t.Logf("  msg[%d]: role=%s text=%s", i, m.Role, m.Text())
+		}
+		t.FailNow()
+	}
+
+	if msgs[0].Role != ai.RoleUser {
+		t.Errorf("msg[0] role = %s, want user", msgs[0].Role)
+	}
+	hasToolReq := false
+	for _, p := range msgs[1].Content {
+		if p.IsToolRequest() {
+			hasToolReq = true
+			break
+		}
+	}
+	if msgs[1].Role != ai.RoleModel || !hasToolReq {
+		t.Errorf("msg[1] should be a model tool-call message")
+	}
+	if msgs[2].Role != ai.RoleTool {
+		t.Errorf("msg[2] role = %s, want tool", msgs[2].Role)
+	}
+	if msgs[3].Role != ai.RoleModel || !strings.Contains(msgs[3].Text(), "done:") {
+		t.Errorf("msg[3] should be final model response, got role=%s text=%s", msgs[3].Role, msgs[3].Text())
 	}
 }

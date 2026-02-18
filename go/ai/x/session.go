@@ -35,7 +35,7 @@ type SessionState[State any] struct {
 	// Custom is the user-defined state associated with this conversation.
 	Custom State `json:"custom,omitempty"`
 	// Artifacts are named collections of parts produced during the conversation.
-	Artifacts []*AgentArtifact `json:"artifacts,omitempty"`
+	Artifacts []*Artifact `json:"artifacts,omitempty"`
 	// InputVariables is the input used for agent flows that require input variables
 	// (e.g. prompt-backed agent flows).
 	InputVariables any `json:"inputVariables,omitempty"`
@@ -235,17 +235,17 @@ func (s *Session[State]) InputVariables() any {
 }
 
 // Artifacts returns the current artifacts.
-func (s *Session[State]) Artifacts() []*AgentArtifact {
+func (s *Session[State]) Artifacts() []*Artifact {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	arts := make([]*AgentArtifact, len(s.state.Artifacts))
+	arts := make([]*Artifact, len(s.state.Artifacts))
 	copy(arts, s.state.Artifacts)
 	return arts
 }
 
 // AddArtifacts adds artifacts to the session. If an artifact with the same
 // name already exists, it is replaced.
-func (s *Session[State]) AddArtifacts(artifacts ...*AgentArtifact) {
+func (s *Session[State]) AddArtifacts(artifacts ...*Artifact) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, a := range artifacts {
@@ -266,7 +266,7 @@ func (s *Session[State]) AddArtifacts(artifacts ...*AgentArtifact) {
 }
 
 // SetArtifacts replaces the entire artifact list.
-func (s *Session[State]) SetArtifacts(artifacts []*AgentArtifact) {
+func (s *Session[State]) SetArtifacts(artifacts []*Artifact) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Artifacts = artifacts
