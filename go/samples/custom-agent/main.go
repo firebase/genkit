@@ -36,8 +36,9 @@ func main() {
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	chatFlow := genkit.DefineCustomAgent(g, "chat",
-		func(ctx context.Context, resp aix.Responder[any], sess *aix.AgentSession[any]) error {
-			return sess.Run(ctx, func(ctx context.Context, input *aix.AgentFlowInput) error {
+		func(ctx context.Context, resp aix.Responder[any], sess *aix.AgentSession[any]) (*aix.AgentFlowResult, error) {
+			var lastMessage *ai.Message
+			err := sess.Run(ctx, func(ctx context.Context, input *aix.AgentFlowInput) error {
 				for chunk, err := range genkit.GenerateStream(ctx, g,
 					ai.WithModel(googlegenai.ModelRef("googleai/gemini-3-flash-preview", &genai.GenerateContentConfig{
 						ThinkingConfig: &genai.ThinkingConfig{
@@ -51,17 +52,22 @@ func main() {
 						return err
 					}
 					if chunk.Done {
-						sess.AddMessages(chunk.Response.Message)
+						lastMessage = chunk.Response.Message
+						sess.AddMessages(lastMessage)
 						break
 					}
-					resp.SendChunk(chunk.Chunk)
+					resp.SendModelChunk(chunk.Chunk)
 				}
 
 				return nil
 			})
+			if err != nil {
+				return nil, err
+			}
+			return &aix.AgentFlowResult{Message: lastMessage}, nil
 		},
 		aix.WithSessionStore(aix.NewInMemorySessionStore[any]()),
-		aix.WithSnapshotCallback(aix.SnapshotOn[any](aix.SnapshotEventTurnEnd)),
+		aix.WithSnapshotOn[any](aix.SnapshotEventTurnEnd),
 	)
 
 	fmt.Println("Agent Flow Chat (type 'quit' to exit)")
@@ -98,8 +104,8 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				break
 			}
-			if chunk.Chunk != nil {
-				fmt.Print(chunk.Chunk.Text())
+			if chunk.ModelChunk != nil {
+				fmt.Print(chunk.ModelChunk.Text())
 			}
 			if chunk.SnapshotID != "" {
 				fmt.Printf("\n[snapshot: %s]", chunk.SnapshotID)

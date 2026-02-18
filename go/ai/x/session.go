@@ -148,19 +148,6 @@ func copySnapshot[State any](snap *SessionSnapshot[State]) (*SessionSnapshot[Sta
 	return &copied, nil
 }
 
-// SnapshotOn returns a SnapshotCallback that only allows snapshots for the
-// specified events. For example, SnapshotOn[MyState](TurnEnd) will skip the
-// invocation-end snapshot.
-func SnapshotOn[State any](events ...SnapshotEvent) SnapshotCallback[State] {
-	set := make(map[SnapshotEvent]struct{}, len(events))
-	for _, e := range events {
-		set[e] = struct{}{}
-	}
-	return func(_ context.Context, sc *SnapshotContext[State]) bool {
-		_, ok := set[sc.Event]
-		return ok
-	}
-}
 
 // --- Session ---
 

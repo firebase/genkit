@@ -740,7 +740,7 @@ func TestAgentFlow_TurnSpanOutput(t *testing.T) {
 
 			return nil, sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				resp.SendStatus(testStatus{Phase: "thinking"})
-				resp.SendChunk(&ai.ModelResponseChunk{
+				resp.SendModelChunk(&ai.ModelResponseChunk{
 					Content: []*ai.Part{ai.NewTextPart("reply")},
 				})
 				resp.SendArtifact(&Artifact{

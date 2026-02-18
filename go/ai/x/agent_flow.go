@@ -228,8 +228,8 @@ func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotE
 // client.
 type Responder[Stream any] chan<- *AgentFlowStreamChunk[Stream]
 
-// SendChunk sends a generation chunk (token-level streaming).
-func (r Responder[Stream]) SendChunk(chunk *ai.ModelResponseChunk) {
+// SendModelChunk sends a generation chunk (token-level streaming).
+func (r Responder[Stream]) SendModelChunk(chunk *ai.ModelResponseChunk) {
 	r <- &AgentFlowStreamChunk[Stream]{ModelChunk: chunk}
 }
 
@@ -427,7 +427,7 @@ func DefinePromptAgent[State, PromptIn any](
 			// Call the model with streaming.
 			modelResp, err := ai.GenerateWithRequest(ctx, r, genOpts, nil,
 				func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
-					resp.SendChunk(chunk)
+					resp.SendModelChunk(chunk)
 					return nil
 				},
 			)
@@ -456,7 +456,7 @@ func DefinePromptAgent[State, PromptIn any](
 			// If generation was interrupted, stream the interrupted message
 			// so the client can see the tool request parts with interrupt metadata.
 			if modelResp.FinishReason == ai.FinishReasonInterrupted && modelResp.Message != nil {
-				resp.SendChunk(&ai.ModelResponseChunk{
+				resp.SendModelChunk(&ai.ModelResponseChunk{
 					Content: modelResp.Message.Content,
 					Role:    modelResp.Message.Role,
 				})

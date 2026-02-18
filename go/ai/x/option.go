@@ -16,7 +16,10 @@
 
 package aix
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // --- AgentFlowOption ---
 
@@ -55,6 +58,20 @@ func WithSessionStore[State any](store SessionStore[State]) AgentFlowOption[Stat
 // If not provided and a store is configured, snapshots are always created.
 func WithSnapshotCallback[State any](cb SnapshotCallback[State]) AgentFlowOption[State] {
 	return &agentFlowOptions[State]{callback: cb}
+}
+
+// WithSnapshotOn configures snapshots to be created only for the specified events.
+// For example, WithSnapshotOn[MyState](SnapshotEventTurnEnd) skips the
+// invocation-end snapshot.
+func WithSnapshotOn[State any](events ...SnapshotEvent) AgentFlowOption[State] {
+	set := make(map[SnapshotEvent]struct{}, len(events))
+	for _, e := range events {
+		set[e] = struct{}{}
+	}
+	return WithSnapshotCallback[State](func(_ context.Context, sc *SnapshotContext[State]) bool {
+		_, ok := set[sc.Event]
+		return ok
+	})
 }
 
 // --- StreamBidiOption ---
