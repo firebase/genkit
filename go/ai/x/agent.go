@@ -390,7 +390,7 @@ func DefinePromptAgent[State, PromptIn any](
 					}
 					msgs = append(msgs, m)
 				}
-				sess.SetMessages(msgs)
+				sess.UpdateMessages(func(_ []*ai.Message) []*ai.Message { return msgs })
 			} else if modelResp.Message != nil {
 				sess.AddMessages(modelResp.Message)
 			}

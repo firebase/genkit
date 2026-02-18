@@ -24,7 +24,10 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 )
+
+// --- Snapshot ---
 
 // SessionSnapshot is a persisted point-in-time capture of session state.
 type SessionSnapshot[State any] struct {
@@ -55,6 +58,8 @@ type SnapshotContext[State any] struct {
 // SnapshotCallback decides whether to create a snapshot.
 // If not provided and a store is configured, snapshots are always created.
 type SnapshotCallback[State any] = func(ctx context.Context, sc *SnapshotContext[State]) bool
+
+// --- Session store ---
 
 // SessionStore persists and retrieves snapshots.
 type SessionStore[State any] interface {
@@ -157,11 +162,12 @@ func (s *Session[State]) AddMessages(messages ...*ai.Message) {
 	s.state.Messages = append(s.state.Messages, messages...)
 }
 
-// SetMessages replaces the entire conversation history.
-func (s *Session[State]) SetMessages(messages []*ai.Message) {
+// UpdateMessages atomically reads the current messages, applies the given
+// function, and writes the result back.
+func (s *Session[State]) UpdateMessages(fn func([]*ai.Message) []*ai.Message) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Messages = messages
+	s.state.Messages = fn(s.state.Messages)
 }
 
 // Custom returns the current user-defined custom state.
@@ -169,13 +175,6 @@ func (s *Session[State]) Custom() State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Custom
-}
-
-// SetCustom updates the user-defined custom state.
-func (s *Session[State]) SetCustom(custom State) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Custom = custom
 }
 
 // UpdateCustom atomically reads the current custom state, applies the given
@@ -224,11 +223,12 @@ func (s *Session[State]) AddArtifacts(artifacts ...*Artifact) {
 	}
 }
 
-// SetArtifacts replaces the entire artifact list.
-func (s *Session[State]) SetArtifacts(artifacts []*Artifact) {
+// UpdateArtifacts atomically reads the current artifacts, applies the given
+// function, and writes the result back.
+func (s *Session[State]) UpdateArtifacts(fn func([]*Artifact) []*Artifact) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Artifacts = artifacts
+	s.state.Artifacts = fn(s.state.Artifacts)
 }
 
 // copyStateLocked returns a deep copy of the state. Caller must hold mu (read or write).
@@ -246,27 +246,16 @@ func (s *Session[State]) copyStateLocked() SessionState[State] {
 
 // --- Session context ---
 
-type sessionContextKey struct{}
-
-type sessionHolder struct {
-	session any
-}
+var sessionCtxKey = base.NewContextKey[any]()
 
 // NewSessionContext returns a new context with the session attached.
 func NewSessionContext[State any](ctx context.Context, s *Session[State]) context.Context {
-	return context.WithValue(ctx, sessionContextKey{}, &sessionHolder{session: s})
+	return sessionCtxKey.NewContext(ctx, s)
 }
 
 // SessionFromContext retrieves the current session from context.
 // Returns nil if no session is in context or if the type doesn't match.
 func SessionFromContext[State any](ctx context.Context) *Session[State] {
-	holder, ok := ctx.Value(sessionContextKey{}).(*sessionHolder)
-	if !ok || holder == nil {
-		return nil
-	}
-	session, ok := holder.session.(*Session[State])
-	if !ok {
-		return nil
-	}
+	session, _ := sessionCtxKey.FromContext(ctx).(*Session[State])
 	return session
 }
