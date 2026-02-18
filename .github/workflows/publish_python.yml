@@ -245,16 +245,16 @@ jobs:
           echo "**Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.publish.result }}" == "success" ]; then
+          if [ "${NEEDS_PUBLISH_RESULT}" == "success" ]; then
             echo "### ✅ Publish Status: Success" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Publish Status: Failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.verify.result }}" == "success" ]; then
+          if [ "${NEEDS_VERIFY_RESULT}" == "success" ]; then
             echo "### ✅ Verification: Passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.verify.result }}" == "failure" ]; then
+          elif [ "${NEEDS_VERIFY_RESULT}" == "failure" ]; then
             echo "### ⚠️ Verification: Some packages failed" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ⏭️ Verification: Skipped" >> $GITHUB_STEP_SUMMARY
@@ -265,3 +265,8 @@ jobs:
           echo "1. Verify on PyPI: https://pypi.org/project/genkit/$VERSION/" >> $GITHUB_STEP_SUMMARY
           echo "2. Test installation: \`pip install genkit==$VERSION\`" >> $GITHUB_STEP_SUMMARY
           echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+
+        env:
+          NEEDS_PUBLISH_RESULT: ${{ needs.publish.result }}
+
+          NEEDS_VERIFY_RESULT: ${{ needs.verify.result }}

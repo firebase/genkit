@@ -341,13 +341,15 @@ jobs:
         if: steps.app-token.outcome == 'success'
         id: app-user
         run: |
-          if ! user_id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id 2>/dev/null); then
+          if ! user_id=$(gh api "/users/${STEPS_APP_TOKEN_OUTPUTS_APP_SLUG}[bot]" --jq .id 2>/dev/null); then
             echo "::warning::Failed to fetch App bot user ID — using 0 as fallback"
             user_id=0
           fi
           echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+          STEPS_APP_TOKEN_OUTPUTS_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
 
       # Resolve: App > PAT > GITHUB_TOKEN (respects auth_method override).
       - name: Resolve token and identity
@@ -359,10 +361,10 @@ jobs:
           if [ "$AUTH" = "app" ] || { [ "$AUTH" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
             { echo "token=$APP_TOKEN"
               echo "auth-method=app"
-              echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]"
-              echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+              echo "git-user-name=${STEPS_APP_TOKEN_OUTPUTS_APP_SLUG}[bot]"
+              echo "git-user-email=${STEPS_APP_USER_OUTPUTS_USER_ID}+${STEPS_APP_TOKEN_OUTPUTS_APP_SLUG}[bot]@users.noreply.github.com"
             } >> "$GITHUB_OUTPUT"
-            echo "::notice::Using GitHub App token (${{ steps.app-token.outputs.app-slug }})"
+            echo "::notice::Using GitHub App token (${STEPS_APP_TOKEN_OUTPUTS_APP_SLUG})"
 
           # PAT — used when auth=auto (and available) or auth=pat.
           elif [ "$AUTH" = "pat" ] || { [ "$AUTH" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
@@ -395,6 +397,10 @@ jobs:
           PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
           GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
           GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
+
+          STEPS_APP_TOKEN_OUTPUTS_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+
+          STEPS_APP_USER_OUTPUTS_USER_ID: ${{ steps.app-user.outputs.user-id }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PREPARE: Compute bumps and open/update Release PR

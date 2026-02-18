@@ -156,8 +156,13 @@ runs:
     - name: Configure git identity
       shell: bash
       run: |
-        git config user.name "${{ inputs.git-user-name }}"
-        git config user.email "${{ inputs.git-user-email }}"
+        git config user.name "${INPUTS_GIT_USER_NAME}"
+        git config user.email "${INPUTS_GIT_USER_EMAIL}"
+
+      env:
+        INPUTS_GIT_USER_NAME: ${{ inputs.git-user-name }}
+
+        INPUTS_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
 
     # ── 8. Restore clean worktree ────────────────────────────────────
     # uv sync may regenerate uv.lock (e.g. --no-dev vs full install)
