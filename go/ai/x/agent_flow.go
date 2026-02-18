@@ -78,13 +78,13 @@ type AgentFlowOutput[State any] struct {
 	// SnapshotID is the ID of the snapshot created at the end of this invocation.
 	// Empty if no snapshot was created (callback returned false or no store configured).
 	SnapshotID string `json:"snapshotId,omitempty"`
+	// State contains the final conversation state.
+	// Only populated when state is client-managed (no store configured).
+	State *SessionState[State] `json:"state,omitempty"`
 	// Message is the last model response message from the conversation.
 	Message *ai.Message `json:"message,omitempty"`
 	// Artifacts contains artifacts produced during the session.
 	Artifacts []*Artifact `json:"artifacts,omitempty"`
-	// State contains the final conversation state.
-	// Only populated when state is client-managed (no store configured).
-	State *SessionState[State] `json:"state,omitempty"`
 }
 
 // AgentFlowStreamChunk represents a single item in the agent flow's output stream.
