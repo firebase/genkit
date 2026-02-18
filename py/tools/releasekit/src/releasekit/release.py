@@ -188,6 +188,7 @@ def extract_manifest(pr_body: str) -> ReleaseManifest | None:
         umbrella_tag=data.get('umbrella_tag', ''),
         packages=packages,
         created_at=data.get('created_at', ''),
+        ecosystem=data.get('ecosystem', ''),
     )
 
 

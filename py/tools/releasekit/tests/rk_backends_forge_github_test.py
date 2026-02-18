@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import pytest
 from releasekit.backends._run import CommandResult
-from releasekit.backends.forge.github import GitHubCLIBackend
+from releasekit.backends.forge.github import GitHubCLIBackend, _truncate_release_body
 
 
 def _ok(stdout: str = '', **kw: Any) -> CommandResult:  # noqa: ANN401
@@ -305,3 +305,41 @@ class TestMergePR:
             await gh.merge_pr(42, commit_message='chore: release')
             args = m.call_args[0]
             assert '--subject' in args
+
+
+class TestTruncateReleaseBody:
+    """Tests for _truncate_release_body."""
+
+    def test_under_limit_passthrough(self) -> None:
+        """Body under limit is returned unchanged."""
+        body = 'Short release notes.'
+        assert _truncate_release_body(body, max_chars=1000) == body
+
+    def test_over_limit_truncates_at_heading(self) -> None:
+        """Body over limit is truncated at the last ## heading boundary."""
+        section1 = '## Package A\n' + 'a' * 200 + '\n\n'
+        section2 = '## Package B\n' + 'b' * 200 + '\n\n'
+        section3 = '## Package C\n' + 'c' * 5000 + '\n\n'
+        body = section1 + section2 + section3
+
+        # Set limit so section3 doesn't fit (body > max_chars) but
+        # sections A+B fit within budget after subtracting the notice.
+        max_chars = len(section1 + section2) + 300
+        result = _truncate_release_body(body, max_chars=max_chars)
+
+        assert '## Package A' in result
+        assert '## Package B' in result
+        assert '## Package C' not in result
+
+    def test_truncation_notice_appended(self) -> None:
+        """Truncated body has a notice explaining why."""
+        body = '## Pkg\n' + 'x' * 200
+        result = _truncate_release_body(body, max_chars=100)
+
+        assert 'truncated' in result.lower()
+        assert 'CHANGELOG' in result
+
+    def test_exact_limit_passthrough(self) -> None:
+        """Body exactly at the limit is not truncated."""
+        body = 'x' * 1000
+        assert _truncate_release_body(body, max_chars=1000) == body

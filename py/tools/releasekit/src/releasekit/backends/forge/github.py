@@ -38,6 +38,64 @@ from releasekit.logging import get_logger
 
 log = get_logger('releasekit.backends.github')
 
+# GitHub API rejects release bodies > 125,000 characters with
+# HTTP 422: Validation Failed — "body is too long".
+# We use a slightly lower limit to leave room for the truncation notice.
+_GITHUB_RELEASE_BODY_MAX_CHARS = 124_000
+
+_TRUNCATION_NOTICE = (
+    '\n\n---\n'
+    '> **Note:** Release notes were truncated because they exceeded '
+    "GitHub's 125,000 character limit. See the individual package "
+    'CHANGELOGs for full details.\n'
+)
+
+
+def _truncate_release_body(
+    body: str,
+    *,
+    max_chars: int = _GITHUB_RELEASE_BODY_MAX_CHARS,
+) -> str:
+    """Truncate release body to fit within GitHub's character limit.
+
+    Truncates at the last complete markdown section boundary (``## ``
+    heading) before the limit and appends a notice. This preserves
+    valid markdown structure.
+
+    Args:
+        body: The full release notes markdown.
+        max_chars: Maximum allowed characters (default: 124,000).
+
+    Returns:
+        The body, possibly truncated with a notice appended.
+    """
+    if len(body) <= max_chars:
+        return body
+
+    original_len = len(body)
+    budget = max_chars - len(_TRUNCATION_NOTICE)
+
+    # Find the last complete section heading (## ) within budget.
+    # This ensures we don't cut in the middle of a package's changelog.
+    truncated = body[:budget]
+    last_heading = truncated.rfind('\n## ')
+    if last_heading != -1:
+        truncated = truncated[:last_heading]
+    # else: no heading found, just hard-cut at budget (unlikely).
+
+    log.warning(
+        'release_body_truncated',
+        original_chars=original_len,
+        truncated_chars=len(truncated),
+        max_chars=max_chars,
+        hint=(
+            "Release notes exceeded GitHub's 125,000 character limit "
+            'and were truncated at the last complete package section.'
+        ),
+    )
+
+    return truncated + _TRUNCATION_NOTICE
+
 
 class GitHubCLIBackend:
     """Default :class:`~releasekit.backends.forge.Forge` implementation using the ``gh`` CLI.
@@ -92,7 +150,13 @@ class GitHubCLIBackend:
         assets: list[Path] | None = None,
         dry_run: bool = False,
     ) -> CommandResult:
-        """Create a GitHub Release."""
+        """Create a GitHub Release.
+
+        If the body exceeds GitHub's 125,000 character limit, it is
+        truncated at the last complete markdown section boundary to
+        avoid an HTTP 422 "body is too long" error.
+        """
+        body = _truncate_release_body(body)
         cmd_parts = ['release', 'create', tag]
         if title:
             cmd_parts.extend(['--title', title])

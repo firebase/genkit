@@ -146,6 +146,14 @@ class PublishConfig:
             to the repo root), recorded in the provenance predicate.
         ecosystem: Package ecosystem identifier (e.g. ``python``,
             ``js``) recorded in the provenance predicate.
+        build_only: Build artifacts and compute digests but do NOT
+            upload to the registry. Artifacts are written to a
+            persistent ``dist/`` directory under each package. Used
+            with ``upload_only`` in a separate CI job for SLSA L3.
+        upload_only: Upload pre-built artifacts from ``dist_dir``
+            without rebuilding. Skips the build step entirely.
+        dist_dir: Directory containing pre-built artifacts when
+            ``upload_only`` is True. Defaults to ``<workspace>/dist/``.
     """
 
     concurrency: int = 5
@@ -172,6 +180,9 @@ class PublishConfig:
     sbom_formats: list[str] = field(default_factory=lambda: ['cyclonedx', 'spdx'])
     config_source: str = ''
     ecosystem: str = ''
+    build_only: bool = False
+    upload_only: bool = False
+    dist_dir: Path | None = None
 
 
 @dataclass
@@ -482,38 +493,107 @@ async def _publish_one(
         state.set_status(name, PackageStatus.BUILDING)
         state.save(state_path)
 
-        with ephemeral_pin(pkg.manifest_path, version_map):
-            observer.on_stage(name, PublishStage.BUILDING)
-            with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
-                dist_dir = Path(tmp)
+        # ── SLSA L3: upload-only mode ────────────────────────────────
+        # Skip the build step entirely; publish from pre-built artifacts.
+        if config.upload_only:
+            dist_dir = config.dist_dir or (config.workspace_root / 'dist')
+            pkg_dist = dist_dir / name
+            if not pkg_dist.exists():
+                raise ReleaseKitError(
+                    E.BUILD_FAILED,
+                    f'Distribution directory for {name} not found: {pkg_dist}',
+                    hint="Ensure artifacts were built into a per-package subdirectory during the 'build-only' step.",
+                )
+            checksums = _compute_dist_checksum(pkg_dist)
+
+            observer.on_stage(name, PublishStage.PUBLISHING)
+            state.set_status(name, PackageStatus.PUBLISHING)
+            state.save(state_path)
+
+            await pm.publish(
+                pkg_dist,
+                check_url=config.check_url,
+                registry_url=config.registry_url,
+                dist_tag=config.dist_tag or None,
+                publish_branch=config.publish_branch or None,
+                provenance=config.provenance,
+                dry_run=config.dry_run,
+            )
+
+        # ── SLSA L3: build-only mode ─────────────────────────────────
+        # Build to a persistent dist/ directory; do NOT upload.
+        elif config.build_only:
+            persistent_dist = config.dist_dir or (config.workspace_root / 'dist')
+            pkg_dist = persistent_dist / name
+            pkg_dist.mkdir(parents=True, exist_ok=True)
+
+            with ephemeral_pin(pkg.manifest_path, version_map):
+                observer.on_stage(name, PublishStage.BUILDING)
                 await pm.build(
                     pkg.path,
-                    output_dir=dist_dir,
+                    output_dir=pkg_dist,
                     no_sources=True,
                     dry_run=config.dry_run,
                 )
 
-                checksums = _compute_dist_checksum(dist_dir)
-                if not config.dry_run and not checksums:
-                    raise ReleaseKitError(
-                        E.BUILD_FAILED,
-                        f'No distribution files produced for {name}.',
-                        hint=f"Check 'uv build' output for {pkg.path}.",
+            checksums = _compute_dist_checksum(pkg_dist)
+            if not config.dry_run and not checksums:
+                raise ReleaseKitError(
+                    E.BUILD_FAILED,
+                    f'No distribution files produced for {name}.',
+                    hint=f"Check 'uv build' output for {pkg.path}.",
+                )
+
+            observer.on_stage(name, PublishStage.PUBLISHED)
+            state.set_status(name, PackageStatus.PUBLISHED)
+            state.save(state_path)
+
+            if checksums:
+                result.artifact_checksums[name] = dict(checksums)
+
+            logger.info(
+                'package_built',
+                package=name,
+                version=version.new_version,
+                dist_dir=str(pkg_dist),
+                checksums=checksums,
+            )
+            return
+
+        # ── Normal mode: build + publish in one step ─────────────────
+        else:
+            with ephemeral_pin(pkg.manifest_path, version_map):
+                observer.on_stage(name, PublishStage.BUILDING)
+                with tempfile.TemporaryDirectory(prefix=f'releasekit-{name}-') as tmp:
+                    dist_dir = Path(tmp)
+                    await pm.build(
+                        pkg.path,
+                        output_dir=dist_dir,
+                        no_sources=True,
+                        dry_run=config.dry_run,
                     )
 
-                observer.on_stage(name, PublishStage.PUBLISHING)
-                state.set_status(name, PackageStatus.PUBLISHING)
-                state.save(state_path)
+                    checksums = _compute_dist_checksum(dist_dir)
+                    if not config.dry_run and not checksums:
+                        raise ReleaseKitError(
+                            E.BUILD_FAILED,
+                            f'No distribution files produced for {name}.',
+                            hint=f"Check 'uv build' output for {pkg.path}.",
+                        )
 
-                await pm.publish(
-                    dist_dir,
-                    check_url=config.check_url,
-                    registry_url=config.registry_url,
-                    dist_tag=config.dist_tag or None,
-                    publish_branch=config.publish_branch or None,
-                    provenance=config.provenance,
-                    dry_run=config.dry_run,
-                )
+                    observer.on_stage(name, PublishStage.PUBLISHING)
+                    state.set_status(name, PackageStatus.PUBLISHING)
+                    state.save(state_path)
+
+                    await pm.publish(
+                        dist_dir,
+                        check_url=config.check_url,
+                        registry_url=config.registry_url,
+                        dist_tag=config.dist_tag or None,
+                        publish_branch=config.publish_branch or None,
+                        provenance=config.provenance,
+                        dry_run=config.dry_run,
+                    )
 
         observer.on_stage(name, PublishStage.POLLING)
         state.set_status(name, PackageStatus.VERIFYING)

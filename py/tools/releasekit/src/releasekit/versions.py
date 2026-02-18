@@ -106,12 +106,14 @@ class ReleaseManifest:
         umbrella_tag: The umbrella tag for this release (e.g. ``"v0.5.0"``).
         packages: List of per-package version records.
         created_at: ISO 8601 timestamp when the manifest was created.
+        ecosystem: Package ecosystem identifier (e.g. ``"python"``, ``"js"``).
     """
 
     git_sha: str
     umbrella_tag: str = ''
     packages: list[PackageVersion] = field(default_factory=list)
     created_at: str = ''
+    ecosystem: str = ''
 
     @property
     def bumped(self) -> list[PackageVersion]:
@@ -173,6 +175,7 @@ class ReleaseManifest:
             umbrella_tag=data.get('umbrella_tag', ''),
             packages=packages,
             created_at=data.get('created_at', ''),
+            ecosystem=data.get('ecosystem', ''),
         )
         logger.info('manifest_loaded', path=str(path), packages=len(packages))
         return manifest

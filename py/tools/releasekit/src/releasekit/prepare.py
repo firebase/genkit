@@ -415,6 +415,7 @@ async def prepare_release(
         umbrella_tag=umbrella_tag,
         packages=versions,
         created_at=utc_iso(),
+        ecosystem=ws_config.ecosystem or '',
     )
     result.manifest = manifest
 

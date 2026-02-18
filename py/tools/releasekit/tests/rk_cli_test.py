@@ -259,6 +259,101 @@ class TestCompletionSubcommand:
             raise AssertionError(f'Expected fish, got {args.shell}')
 
 
+class TestVerifyInstallSubcommand:
+    """Tests for the verify-install subcommand arguments."""
+
+    def test_verify_install_requires_manifest(self) -> None:
+        """verify-install requires --manifest."""
+        parser = build_parser()
+        try:
+            parser.parse_args(['verify-install'])
+            raise AssertionError('Expected SystemExit for missing --manifest')
+        except SystemExit:
+            pass
+
+    def test_verify_install_manifest(self) -> None:
+        """verify-install --manifest works."""
+        parser = build_parser()
+        args = parser.parse_args(['verify-install', '--manifest', 'release-manifest.json'])
+        assert args.command == 'verify-install'
+        assert args.manifest == 'release-manifest.json'
+
+    def test_verify_install_all_flags(self) -> None:
+        """verify-install with all optional flags."""
+        parser = build_parser()
+        args = parser.parse_args([
+            'verify-install',
+            '--manifest',
+            'manifest.json',
+            '--import-check',
+            'from genkit.ai import Genkit',
+            '--index-url',
+            'https://test.pypi.org/simple/',
+            '--ecosystem',
+            'python',
+        ])
+        assert args.command == 'verify-install'
+        assert args.manifest == 'manifest.json'
+        assert args.import_check == 'from genkit.ai import Genkit'
+        assert args.index_url == 'https://test.pypi.org/simple/'
+        assert args.ecosystem == 'python'
+
+    def test_verify_install_defaults(self) -> None:
+        """verify-install optional flags default to empty strings."""
+        parser = build_parser()
+        args = parser.parse_args(['verify-install', '--manifest', 'm.json'])
+        assert args.import_check == ''
+        assert args.index_url == ''
+        assert args.ecosystem == ''
+
+
+class TestPublishBuildUploadFlags:
+    """Tests for publish --build-only / --upload-only / --dist-dir flags."""
+
+    def test_build_only(self) -> None:
+        """--build-only flag works."""
+        parser = build_parser()
+        args = parser.parse_args(['publish', '--build-only'])
+        assert args.build_only is True
+        assert args.upload_only is False
+
+    def test_upload_only(self) -> None:
+        """--upload-only flag works."""
+        parser = build_parser()
+        args = parser.parse_args(['publish', '--upload-only'])
+        assert args.upload_only is True
+        assert args.build_only is False
+
+    def test_build_only_and_upload_only_mutually_exclusive(self) -> None:
+        """--build-only and --upload-only cannot be used together."""
+        parser = build_parser()
+        try:
+            parser.parse_args(['publish', '--build-only', '--upload-only'])
+            raise AssertionError('Expected SystemExit for mutually exclusive flags')
+        except SystemExit:
+            pass
+
+    def test_dist_dir(self) -> None:
+        """--dist-dir flag works."""
+        parser = build_parser()
+        args = parser.parse_args(['publish', '--upload-only', '--dist-dir', '/workspace/dist'])
+        assert args.dist_dir == '/workspace/dist'
+        assert args.upload_only is True
+
+    def test_dist_dir_default_none(self) -> None:
+        """--dist-dir defaults to None."""
+        parser = build_parser()
+        args = parser.parse_args(['publish'])
+        assert args.dist_dir is None
+
+    def test_build_only_defaults_false(self) -> None:
+        """--build-only defaults to False."""
+        parser = build_parser()
+        args = parser.parse_args(['publish'])
+        assert args.build_only is False
+        assert args.upload_only is False
+
+
 class TestPlanSubcommand:
     """Tests for the plan subcommand."""
 

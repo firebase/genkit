@@ -171,3 +171,74 @@ class TestReleaseManifest:
             raise AssertionError('Expected ValueError')
         except ValueError as exc:
             assert 'git_sha' in str(exc)
+
+    def test_ecosystem_round_trip(self, tmp_path: Path) -> None:
+        """The ecosystem field survives a save/load round-trip."""
+        original = ReleaseManifest(
+            git_sha='abc123',
+            ecosystem='python',
+            packages=[
+                PackageVersion(
+                    name='genkit',
+                    old_version='0.5.0',
+                    new_version='0.6.0',
+                    bump='minor',
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        original.save(path)
+
+        loaded = ReleaseManifest.load(path)
+        assert loaded.ecosystem == 'python'
+
+    def test_ecosystem_default_empty(self) -> None:
+        """The ecosystem field defaults to empty string."""
+        m = ReleaseManifest(git_sha='abc123')
+        assert m.ecosystem == ''
+
+    def test_ecosystem_missing_in_json(self, tmp_path: Path) -> None:
+        """Loading a manifest without ecosystem defaults to empty string."""
+        path = tmp_path / 'no_ecosystem.json'
+        path.write_text('{"git_sha": "abc123", "packages": []}', encoding='utf-8')
+        loaded = ReleaseManifest.load(path)
+        assert loaded.ecosystem == ''
+
+
+class TestResolveUmbrellaVersion:
+    """Tests for resolve_umbrella_version."""
+
+    def test_empty_bumped(self) -> None:
+        """Empty list returns '0.0.0'."""
+        from releasekit.versions import resolve_umbrella_version
+
+        assert resolve_umbrella_version([]) == '0.0.0'
+
+    def test_core_package_found(self) -> None:
+        """Returns core package version when found."""
+        from releasekit.versions import resolve_umbrella_version
+
+        bumped = [
+            PackageVersion(name='genkit-plugin', old_version='0.4.0', new_version='0.5.0'),
+            PackageVersion(name='genkit', old_version='0.4.0', new_version='0.6.0'),
+        ]
+        assert resolve_umbrella_version(bumped, core_package='genkit') == '0.6.0'
+
+    def test_core_package_not_found(self) -> None:
+        """Falls back to first bumped when core package not in list."""
+        from releasekit.versions import resolve_umbrella_version
+
+        bumped = [
+            PackageVersion(name='genkit-plugin', old_version='0.4.0', new_version='0.5.0'),
+        ]
+        assert resolve_umbrella_version(bumped, core_package='genkit') == '0.5.0'
+
+    def test_no_core_package(self) -> None:
+        """Without core_package, returns first bumped version."""
+        from releasekit.versions import resolve_umbrella_version
+
+        bumped = [
+            PackageVersion(name='genkit-plugin', old_version='0.4.0', new_version='0.5.0'),
+            PackageVersion(name='genkit', old_version='0.4.0', new_version='0.6.0'),
+        ]
+        assert resolve_umbrella_version(bumped) == '0.5.0'

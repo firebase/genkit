@@ -682,6 +682,12 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
         no_pep740 = getattr(args, 'no_pep740', False)
         want_pep740 = not no_pep740 and ws_config.pep740_attestations and ws_config.ecosystem == 'python'
 
+        # SLSA L3: build/upload isolation flags.
+        build_only = getattr(args, 'build_only', False)
+        upload_only = getattr(args, 'upload_only', False)
+        dist_dir_str = getattr(args, 'dist_dir', None)
+        dist_dir = Path(dist_dir_str) if dist_dir_str else None
+
         pub_config = PublishConfig(
             concurrency=args.concurrency,
             dry_run=args.dry_run,
@@ -702,6 +708,9 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
             pep740_attestations=want_pep740,
             config_source=str(ws_root / 'releasekit.toml'),
             ecosystem=ws_config.ecosystem,
+            build_only=build_only,
+            upload_only=upload_only,
+            dist_dir=dist_dir,
         )
 
         # Resume support: load state from previous interrupted run.
@@ -756,6 +765,7 @@ async def _cmd_publish(args: argparse.Namespace) -> int:
     manifest = ReleaseManifest(
         git_sha=await vcs.current_sha(),
         packages=versions,
+        ecosystem=ws_config.ecosystem or '',
     )
     manifest_name = f'release-manifest--{ws_config.label}.json' if ws_config.label else 'release-manifest.json'
     manifest_path = ws_root / manifest_name
@@ -2206,6 +2216,37 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 1 if report.failures else 0
 
 
+def _cmd_verify_install(args: argparse.Namespace) -> int:
+    """Handle the ``verify-install`` subcommand.
+
+    Verifies that published packages are installable from the registry
+    by reading a release manifest and installing each non-skipped package
+    using the ecosystem-appropriate package manager.
+    """
+    from releasekit.verify_install import load_manifest_specs, verify_packages
+
+    manifest_path = Path(args.manifest)
+    if not manifest_path.exists():
+        logger.error('manifest_not_found', path=str(manifest_path))
+        # List directory contents for debugging.
+        parent = manifest_path.parent
+        if parent.exists():
+            print(f'Contents of {parent}:')  # noqa: T201 - CLI output
+            for item in sorted(parent.iterdir()):
+                print(f'  {item.name}')  # noqa: T201 - CLI output
+        return 1
+
+    specs, manifest_ecosystem = load_manifest_specs(manifest_path)
+    # CLI --ecosystem overrides the manifest value.
+    ecosystem = getattr(args, 'ecosystem', '') or manifest_ecosystem
+    return verify_packages(
+        specs,
+        ecosystem=ecosystem,
+        import_check=getattr(args, 'import_check', ''),
+        index_url=getattr(args, 'index_url', ''),
+    )
+
+
 async def _cmd_should_release(args: argparse.Namespace) -> int:
     """Handle the ``should-release`` subcommand.
 
@@ -2780,6 +2821,39 @@ def build_parser() -> argparse.ArgumentParser:
         help='Delete any saved state file and start a fresh publish run.',
     )
 
+    # SLSA L3: build/upload isolation.
+    # --build-only builds artifacts + writes digests but does NOT upload.
+    # --upload-only uploads pre-built artifacts from --dist-dir.
+    # These flags enable splitting the publish job into separate CI jobs
+    # so the SLSA generator can attest artifacts between build and upload.
+    slsa_group = publish_parser.add_mutually_exclusive_group()
+    slsa_group.add_argument(
+        '--build-only',
+        action='store_true',
+        help=(
+            'Build artifacts and compute digests, but do NOT upload to the '
+            'registry. Artifacts are written to <workspace>/dist/. '
+            'Use with --upload-only in a separate job for SLSA L3 compliance.'
+        ),
+    )
+    slsa_group.add_argument(
+        '--upload-only',
+        action='store_true',
+        help=(
+            'Upload pre-built artifacts from --dist-dir to the registry. '
+            'Skips the build step entirely. Use after --build-only and '
+            'SLSA provenance generation for L3 compliance.'
+        ),
+    )
+    publish_parser.add_argument(
+        '--dist-dir',
+        metavar='PATH',
+        help=(
+            'Directory containing pre-built distribution artifacts '
+            '(used with --upload-only). Defaults to <workspace>/dist/.'
+        ),
+    )
+
     plan_parser = subparsers.add_parser(
         'plan',
         help='Preview the execution plan without publishing.',
@@ -3260,6 +3334,31 @@ def build_parser() -> argparse.ArgumentParser:
         help='Output format (default: table).',
     )
 
+    verify_install_parser = subparsers.add_parser(
+        'verify-install',
+        help='Verify published packages are installable from the registry.',
+    )
+    verify_install_parser.add_argument(
+        '--manifest',
+        required=True,
+        help='Path to the release manifest JSON file.',
+    )
+    verify_install_parser.add_argument(
+        '--import-check',
+        default='',
+        help='Python import statement to verify (e.g. "from genkit.ai import Genkit").',
+    )
+    verify_install_parser.add_argument(
+        '--index-url',
+        default='',
+        help='Custom registry URL (e.g. TestPyPI, npm mirror).',
+    )
+    verify_install_parser.add_argument(
+        '--ecosystem',
+        default='',
+        help='Override ecosystem from manifest (python, js, cargo, etc.).',
+    )
+
     # Add --prerelease to publish, plan, version, prepare.
     for p in (publish_parser, plan_parser, version_parser, prepare_parser):
         p.add_argument(
@@ -3363,6 +3462,8 @@ def main() -> int:
             return _cmd_compliance(args)
         if command == 'validate':
             return _cmd_validate(args)
+        if command == 'verify-install':
+            return _cmd_verify_install(args)
 
         parser.print_help()  # noqa: T201 - CLI output
         print(  # noqa: T201 - CLI output
