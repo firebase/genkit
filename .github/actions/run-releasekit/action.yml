@@ -29,16 +29,133 @@
 #   pr_url      — URL of the created/updated Release PR
 #   release_url — URL of the created GitHub Release
 #
-# Usage:
+# ── SLSA Build L3 Support ──────────────────────────────────────────
+#
+# The publish command supports build/upload isolation for SLSA L3
+# via three inputs:
+#
+#   Input       │ Flag          │ Purpose
+#   ────────────┼───────────────┼──────────────────────────────────
+#   build-only  │ --build-only  │ Build artifacts to dist/, skip upload
+#   upload-only │ --upload-only │ Upload pre-built artifacts, skip build
+#   dist-dir    │ --dist-dir    │ Path to pre-built artifacts
+#
+# Typical L3 workflow (3 separate jobs):
+#
+#   1. build job:  build-only=true   (produces dist/ + digests)
+#   2. provenance: slsa-github-generator attests digests
+#   3. upload job: upload-only=true, dist-dir=<downloaded artifacts>
+#
+# This ensures the SLSA generator's control plane attests artifacts
+# BEFORE they reach the package registry.
+#
+# References:
+#   - SLSA Build L3 spec:       https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA isolation req.:      https://slsa.dev/spec/v1.0/requirements#build-l3
+#   - slsa-github-generator:    https://github.com/slsa-framework/slsa-github-generator
+#   - GitHub Actions security:  https://docs.github.com/en/actions/security-for-github-actions/security-hardening-for-github-actions
+#   - GitHub script injection:  https://docs.github.com/en/actions/security-for-github-actions/security-hardening-for-github-actions/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+#
+# Usage (prepare -- all ecosystems):
 #
 #   - uses: ./.github/actions/run-releasekit
-#     id: prepare
 #     with:
 #       command: prepare
-#       workspace: py
-#       releasekit-dir: py/tools/releasekit
+#       workspace: py           # or: js, go, rust, dart, java
+#       releasekit-dir: tools/releasekit
 #       group: ${{ inputs.group }}
 #       force: ${{ inputs.force_prepare }}
+#
+# Usage (release -- all ecosystems):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: release
+#       workspace: py           # or: js, go, rust, dart, java
+#       releasekit-dir: tools/releasekit
+#       dry-run: ${{ env.DRY_RUN }}
+#
+# Usage (build-only -- Python / uv, SLSA L3):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: py
+#       releasekit-dir: tools/releasekit
+#       build-only: "true"
+#       force: "true"
+#
+# Usage (upload-only -- Python / uv, SLSA L3):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: py
+#       releasekit-dir: tools/releasekit
+#       upload-only: "true"
+#       dist-dir: ${{ env.WORKSPACE_DIR }}/dist
+#
+# Usage (publish -- JavaScript / pnpm):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: js
+#       releasekit-dir: tools/releasekit
+#       force: "true"
+#     env:
+#       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+#
+# Usage (publish -- Rust / Cargo):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: rust
+#       releasekit-dir: tools/releasekit
+#       force: "true"
+#     env:
+#       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+#
+# Usage (publish -- Java / Gradle):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: java
+#       releasekit-dir: tools/releasekit
+#       force: "true"
+#     env:
+#       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+#       OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+#
+# Usage (publish -- Go):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: go
+#       releasekit-dir: tools/releasekit
+#       force: "true"
+#
+# Usage (publish -- Dart / pub.dev):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: publish
+#       workspace: dart
+#       releasekit-dir: tools/releasekit
+#       force: "true"
+#
+# Usage (verify-install -- Python / uv):
+#
+#   - uses: ./.github/actions/run-releasekit
+#     with:
+#       command: verify-install
+#       workspace: py
+#       releasekit-dir: tools/releasekit
+#       manifest: manifest/release-manifest--py.json
+#       import-check: "from genkit.ai import Genkit"
 #
 # ══════════════════════════════════════════════════════════════════════
 
@@ -121,11 +238,6 @@ inputs:
       Override codename theme (e.g. "galaxies", "animals").
     required: false
     default: ""
-  show-plan:
-    description: >-
-      Show the execution plan before running the command.
-    required: false
-    default: "false"
   tag:
     description: >-
       Git tag to roll back (rollback only).
@@ -146,6 +258,41 @@ inputs:
       Reason for yanking (rollback only).
     required: false
     default: ""
+  manifest:
+    description: >-
+      Path to the release manifest JSON file (verify-install only).
+    required: false
+    default: ""
+  import-check:
+    description: >-
+      Python import statement to verify after installing
+      (e.g. "from genkit.ai import Genkit"). verify-install only.
+    required: false
+    default: ""
+  ecosystem:
+    description: >-
+      Override ecosystem from manifest (python, js, cargo, etc.).
+      verify-install only.
+    required: false
+    default: ""
+  build-only:
+    description: >-
+      Build artifacts only, do not upload (SLSA L3 isolation).
+      publish only.
+    required: false
+    default: "false"
+  upload-only:
+    description: >-
+      Upload pre-built artifacts only, skip build (SLSA L3 isolation).
+      publish only.
+    required: false
+    default: "false"
+  dist-dir:
+    description: >-
+      Directory containing pre-built artifacts (used with upload-only).
+      publish only.
+    required: false
+    default: ""
 
 outputs:
   has_bumps:
@@ -161,25 +308,6 @@ outputs:
 runs:
   using: composite
   steps:
-    # ── Optional: show execution plan ───────────────────────────────
-    - name: Preview execution plan
-      if: inputs.show-plan == 'true'
-      shell: bash
-      env:
-        RELEASEKIT_DIR: ${{ inputs.releasekit-dir }}
-        RELEASEKIT_WORKSPACE: ${{ inputs.workspace }}
-        RELEASEKIT_DRY_RUN: ${{ inputs.dry-run }}
-      run: |
-        echo "::group::Execution Plan"
-        uv run --directory "$RELEASEKIT_DIR" \
-          releasekit --workspace "$RELEASEKIT_WORKSPACE" plan --format full 2>&1 || true
-        echo "::endgroup::"
-        if [ "$RELEASEKIT_DRY_RUN" = "true" ]; then
-          echo "::notice::DRY RUN — no side effects"
-        else
-          echo "::notice::LIVE RUN"
-        fi
-
     # ── Build and run the command ───────────────────────────────────
     - name: Run releasekit ${{ inputs.command }}
       id: run
@@ -204,6 +332,12 @@ runs:
         RELEASEKIT_ALL_TAGS: ${{ inputs.all-tags }}
         RELEASEKIT_YANK: ${{ inputs.yank }}
         RELEASEKIT_YANK_REASON: ${{ inputs.yank-reason }}
+        RELEASEKIT_MANIFEST: ${{ inputs.manifest }}
+        RELEASEKIT_IMPORT_CHECK: ${{ inputs.import-check }}
+        RELEASEKIT_ECOSYSTEM: ${{ inputs.ecosystem }}
+        RELEASEKIT_BUILD_ONLY: ${{ inputs.build-only }}
+        RELEASEKIT_UPLOAD_ONLY: ${{ inputs.upload-only }}
+        RELEASEKIT_DIST_DIR: ${{ inputs.dist-dir }}
       run: |
         set -euo pipefail
 
@@ -244,6 +378,15 @@ runs:
           if [ -n "$RELEASEKIT_MAX_RETRIES" ] && [ "$RELEASEKIT_MAX_RETRIES" != "0" ]; then
             cmd+=(--max-retries "$RELEASEKIT_MAX_RETRIES")
           fi
+          if [ "$RELEASEKIT_BUILD_ONLY" = "true" ]; then
+            cmd+=(--build-only)
+          fi
+          if [ "$RELEASEKIT_UPLOAD_ONLY" = "true" ]; then
+            cmd+=(--upload-only)
+          fi
+          if [ -n "$RELEASEKIT_DIST_DIR" ]; then
+            cmd+=(--dist-dir "$RELEASEKIT_DIST_DIR")
+          fi
         fi
 
         # ── AI flags ─────────────────────────────────────────────
@@ -255,6 +398,22 @@ runs:
         fi
         if [ -n "$RELEASEKIT_CODENAME_THEME" ]; then
           cmd+=(--codename-theme "$RELEASEKIT_CODENAME_THEME")
+        fi
+
+        # ── verify-install-specific flags ──────────────────────
+        if [ "$RELEASEKIT_COMMAND" = "verify-install" ]; then
+          if [ -n "$RELEASEKIT_MANIFEST" ]; then
+            cmd+=(--manifest "$RELEASEKIT_MANIFEST")
+          fi
+          if [ -n "$RELEASEKIT_IMPORT_CHECK" ]; then
+            cmd+=(--import-check "$RELEASEKIT_IMPORT_CHECK")
+          fi
+          if [ -n "$RELEASEKIT_INDEX_URL" ]; then
+            cmd+=(--index-url "$RELEASEKIT_INDEX_URL")
+          fi
+          if [ -n "$RELEASEKIT_ECOSYSTEM" ]; then
+            cmd+=(--ecosystem "$RELEASEKIT_ECOSYSTEM")
+          fi
         fi
 
         # ── rollback-specific flags ─────────────────────────────
@@ -291,11 +450,19 @@ runs:
         fi
 
         # ── Parse outputs ─────────────────────────────────────────
+        # SECURITY: Use heredoc delimiters to prevent output injection.
+        # Raw "key=value" format is vulnerable if the value contains
+        # newlines — an attacker could inject additional output keys.
+        # Heredoc format: key<<DELIMITER\nvalue\nDELIMITER
         if [ "$RELEASEKIT_COMMAND" = "prepare" ]; then
           PR_URL=$(echo "$OUTPUT" | sed -n 's/.*Release PR: //p' | tail -1)
           if [ -n "$PR_URL" ]; then
             echo "has_bumps=true" >> "$GITHUB_OUTPUT"
-            echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+            {
+              echo "pr_url<<RELEASEKIT_EOF"
+              echo "$PR_URL"
+              echo "RELEASEKIT_EOF"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "has_bumps=false" >> "$GITHUB_OUTPUT"
           fi
@@ -304,6 +471,10 @@ runs:
         if [ "$RELEASEKIT_COMMAND" = "release" ]; then
           RELEASE_URL=$(echo "$OUTPUT" | sed -n 's/.*release_url=//p' | tail -1)
           if [ -n "$RELEASE_URL" ]; then
-            echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+            {
+              echo "release_url<<RELEASEKIT_EOF"
+              echo "$RELEASE_URL"
+              echo "RELEASEKIT_EOF"
+            } >> "$GITHUB_OUTPUT"
           fi
         fi

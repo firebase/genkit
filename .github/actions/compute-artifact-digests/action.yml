@@ -1,0 +1,168 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ══════════════════════════════════════════════════════════════════════
+# Reusable composite action: Compute artifact digests (SLSA L3)
+#
+# Computes SHA-256 digests of build artifacts in the format expected
+# by slsa-github-generator. The base64-encoded digest file is passed
+# to the SLSA generator reusable workflow as base64-subjects.
+#
+# Security:
+#   - No secrets required
+#   - No network access
+#   - Pure computation on local filesystem
+#
+# References:
+#   - SLSA Build L3 spec:     https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA provenance format: https://slsa.dev/spec/v1.0/provenance
+#   - slsa-github-generator:  https://github.com/slsa-framework/slsa-github-generator
+#   - SHA-256 in SLSA:        https://slsa.dev/spec/v1.0/requirements#provenance-generation
+#
+# Usage (Python / uv):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: py
+#       artifact-pattern: |
+#         *.whl
+#         *.tar.gz
+#
+# Usage (JavaScript / pnpm):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: js
+#       search-dir: "."
+#       artifact-pattern: "*.tgz"
+#
+# Usage (Java / Gradle):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: java
+#       search-dir: "."
+#       artifact-pattern: |
+#         *.jar
+#         *.pom
+#         *.aar
+#
+# Usage (Go):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: go
+#       search-dir: "."
+#
+# Usage (Rust / Cargo):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: rust
+#       search-dir: "."
+#       artifact-pattern: "*.crate"
+#
+# Usage (Dart / pub.dev):
+#
+#   - uses: ./.github/actions/compute-artifact-digests
+#     id: hash
+#     with:
+#       workspace-dir: dart
+#       search-dir: "."
+#
+# ══════════════════════════════════════════════════════════════════════
+
+name: Compute Artifact Digests
+description: >-
+  Compute SHA-256 digests of build artifacts for SLSA provenance.
+
+inputs:
+  workspace-dir:
+    description: >-
+      Workspace directory containing built artifacts.
+    required: true
+  artifact-pattern:
+    description: >-
+      Newline-separated list of filename glob patterns to match.
+      Each line is a separate pattern (e.g. "*.whl" and "*.tar.gz"
+      on separate lines for Python). Defaults to "*" (all files).
+    required: false
+    default: "*"
+  search-dir:
+    description: >-
+      Subdirectory under workspace-dir to search for artifacts.
+      Defaults to "dist" for --build-only output layout.
+    required: false
+    default: dist
+
+outputs:
+  digests:
+    description: >-
+      Base64-encoded SHA-256 checksums in slsa-github-generator format.
+      Empty string if no artifacts found.
+    value: ${{ steps.hash.outputs.digests }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute artifact digests
+      id: hash
+      if: success()
+      shell: bash
+      env:
+        WORKSPACE_DIR: ${{ inputs.workspace-dir }}
+        SEARCH_DIR: ${{ inputs.search-dir }}
+        ARTIFACT_PATTERN: ${{ inputs.artifact-pattern }}
+      run: |
+        set -euo pipefail
+        cd "$WORKSPACE_DIR"
+
+        # Build find -name arguments from newline-separated patterns.
+        FIND_ARGS=()
+        while IFS= read -r pattern; do
+          if [ -z "$pattern" ]; then
+            continue
+          fi
+          if [ ${#FIND_ARGS[@]} -gt 0 ]; then
+            FIND_ARGS+=(-o)
+          fi
+          FIND_ARGS+=(-name "$pattern")
+        done <<< "$ARTIFACT_PATTERN"
+
+        if [ ${#FIND_ARGS[@]} -gt 0 ]; then
+          # Use -print0/sort -z/xargs -0 to handle filenames with spaces.
+          find "$SEARCH_DIR" -type f \( "${FIND_ARGS[@]}" \) -print0 | sort -z > /tmp/artifacts.list
+        else
+          # No patterns provided; create empty file so the warning below fires.
+          > /tmp/artifacts.list
+        fi
+
+        if [ ! -s /tmp/artifacts.list ]; then
+          echo "::warning::No artifacts found for digest computation"
+          echo "digests=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "::group::Artifact digests"
+        xargs -0 sha256sum < /tmp/artifacts.list | tee /tmp/checksums.txt
+        echo "::endgroup::"
+
+        echo "digests=$(base64 -w0 /tmp/checksums.txt)" >> "$GITHUB_OUTPUT"

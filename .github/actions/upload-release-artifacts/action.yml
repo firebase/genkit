@@ -1,0 +1,167 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ══════════════════════════════════════════════════════════════════════
+# Reusable composite action: Upload release artifacts
+#
+# Uploads build artifacts (distributions, manifest, SLSA provenance,
+# SBOMs) to GitHub's artifact store. Each artifact type can be
+# independently enabled or disabled.
+#
+# Security:
+#   - No secrets required
+#   - Uploads only to GitHub's artifact store (not external registries)
+#   - All action references pinned to commit SHAs
+#
+# References:
+#   - SLSA Build L3 spec:    https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA isolation req.:   https://slsa.dev/spec/v1.0/requirements#build-l3
+#   - actions/upload-artifact: https://github.com/actions/upload-artifact
+#   - GitHub artifact store: https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts
+#
+# Usage (Python / uv -- SLSA L3 with dist upload):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: py
+#       upload-dist: "true"
+#       upload-provenance: "true"
+#       upload-sbom: "true"
+#
+# Usage (JavaScript / pnpm):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: js
+#       manifest-name: release-manifest-js
+#       upload-provenance: "false"
+#       upload-sbom: "false"
+#
+# Usage (Java / Gradle):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: java
+#       manifest-name: release-manifest-java
+#       upload-provenance: "false"
+#       upload-sbom: "false"
+#
+# Usage (Go):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: go
+#       manifest-name: release-manifest-go
+#       upload-provenance: "false"
+#       upload-sbom: "false"
+#
+# Usage (Rust / Cargo):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: rust
+#       manifest-name: release-manifest-rust
+#       upload-provenance: "false"
+#       upload-sbom: "false"
+#
+# Usage (Dart / pub.dev):
+#
+#   - uses: ./.github/actions/upload-release-artifacts
+#     with:
+#       workspace-dir: dart
+#       manifest-name: release-manifest-dart
+#       upload-provenance: "false"
+#       upload-sbom: "false"
+#
+# ══════════════════════════════════════════════════════════════════════
+
+name: Upload Release Artifacts
+description: >-
+  Upload build distributions, manifest, provenance, and SBOMs to
+  GitHub's artifact store.
+
+inputs:
+  workspace-dir:
+    description: >-
+      Workspace directory containing built artifacts.
+    required: true
+  manifest-name:
+    description: >-
+      Name for the manifest artifact (e.g. "release-manifest",
+      "release-manifest-rust"). Allows multi-ecosystem workflows
+      to avoid name collisions.
+    required: false
+    default: "release-manifest"
+  upload-dist:
+    description: >-
+      Upload built distribution files from dist/ directory.
+      Set to "true" for SLSA L3 build/upload isolation.
+    required: false
+    default: "false"
+  dist-retention-days:
+    description: >-
+      Retention period for distribution artifacts (days).
+    required: false
+    default: "7"
+  upload-provenance:
+    description: >-
+      Upload releasekit-generated SLSA provenance files.
+    required: false
+    default: "true"
+  upload-sbom:
+    description: >-
+      Upload SBOM files (CycloneDX and SPDX).
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Upload built distributions
+      if: inputs.upload-dist == 'true'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      with:
+        name: dist
+        path: ${{ inputs.workspace-dir }}/dist/
+        retention-days: ${{ inputs.dist-retention-days }}
+
+    - name: Upload manifest artifact
+      if: success()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      with:
+        name: ${{ inputs.manifest-name }}
+        path: ${{ inputs.workspace-dir }}/release-manifest.json
+        retention-days: 90
+
+    - name: Upload SLSA provenance (releasekit-generated)
+      if: success() && inputs.upload-provenance == 'true'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      with:
+        name: slsa-provenance-releasekit
+        path: ${{ inputs.workspace-dir }}/provenance*.intoto.jsonl
+        retention-days: 90
+        if-no-files-found: warn
+
+    - name: Upload SBOMs
+      if: success() && inputs.upload-sbom == 'true'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      with:
+        name: sbom
+        path: |
+          ${{ inputs.workspace-dir }}/sbom.cdx.json
+          ${{ inputs.workspace-dir }}/sbom.spdx.json
+        retention-days: 90
+        if-no-files-found: warn

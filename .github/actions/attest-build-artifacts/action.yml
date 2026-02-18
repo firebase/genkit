@@ -1,0 +1,120 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ══════════════════════════════════════════════════════════════════════
+# Reusable composite action: Attest build artifacts (SLSA L2+)
+#
+# Generates GitHub-signed build provenance attestations and SBOM
+# attestations for published artifacts using GitHub's Sigstore
+# instance and the OIDC identity of the workflow run.
+#
+# Security:
+#   - Requires the CALLING JOB to have:
+#       attestations: write
+#       id-token: write
+#   - No secrets required by this action itself
+#   - All action references pinned to commit SHAs
+#
+# References:
+#   - SLSA Build L2+ spec:          https://slsa.dev/spec/v1.0/levels#build-l2
+#   - GitHub artifact attestations:  https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds
+#   - actions/attest-build-provenance: https://github.com/actions/attest-build-provenance
+#   - actions/attest-sbom:           https://github.com/actions/attest-sbom
+#   - Sigstore (signing backend):    https://www.sigstore.dev/
+#   - in-toto attestation format:    https://in-toto.io/
+#
+# Usage (Python / uv):
+#
+#   - uses: ./.github/actions/attest-build-artifacts
+#     with:
+#       subject-path: |
+#         py/dist/**/*.whl
+#         py/dist/**/*.tar.gz
+#       sbom-path: py/sbom.cdx.json
+#
+# Usage (JavaScript / pnpm):
+#
+#   - uses: ./.github/actions/attest-build-artifacts
+#     with:
+#       subject-path: js/**/dist/**/*.tgz
+#
+# Usage (Java / Gradle):
+#
+#   - uses: ./.github/actions/attest-build-artifacts
+#     with:
+#       subject-path: |
+#         java/**/build/libs/**/*.jar
+#         java/**/build/libs/**/*.aar
+#
+# Usage (Go -- Go modules have no build artifacts to attest;
+#   skip this action for Go workspaces):
+#
+# Usage (Rust / Cargo):
+#
+#   - uses: ./.github/actions/attest-build-artifacts
+#     with:
+#       subject-path: rust/target/package/**/*.crate
+#
+# Usage (Dart / pub.dev):
+#
+#   - uses: ./.github/actions/attest-build-artifacts
+#     with:
+#       subject-path: dart/**/dist/**/*
+#
+# ══════════════════════════════════════════════════════════════════════
+
+name: Attest Build Artifacts
+description: >-
+  Generate GitHub-signed build provenance and SBOM attestations
+  for build artifacts.
+
+inputs:
+  subject-path:
+    description: >-
+      Glob pattern(s) for artifact files to attest. Supports
+      multi-line patterns (one per line).
+    required: true
+  sbom-path:
+    description: >-
+      Path to the CycloneDX SBOM file. Leave empty to skip
+      SBOM attestation.
+    required: false
+    default: ""
+  has-digests:
+    description: >-
+      Set to "true" if artifact digests were successfully computed.
+      Attestation is skipped if "false" or empty.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Attest build provenance
+      if: success() && inputs.has-digests == 'true'
+      uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45  # v2
+      with:
+        subject-path: ${{ inputs.subject-path }}
+
+    - name: Attest SBOMs
+      if: >-
+        success() &&
+        inputs.sbom-path != '' &&
+        hashFiles(inputs.sbom-path) != ''
+      uses: actions/attest-sbom@10926c72720ffc3f7b666661c8e55b1344e2a365  # v2
+      with:
+        subject-path: ${{ inputs.subject-path }}
+        sbom-path: ${{ inputs.sbom-path }}
