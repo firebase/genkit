@@ -311,6 +311,7 @@ push to the remote with `git push origin --tags`.
 | `should-release` | Check if a release is needed (for CI cron integration) |
 | `sign` | Sign release artifacts with Sigstore (keyless OIDC) |
 | `verify` | Verify Sigstore bundles and SLSA provenance |
+| `verify-install` | Verify published packages are installable from the registry |
 | `bump` | Bump version for one or all packages |
 | `init` | Scaffold `releasekit.toml` config with auto-detected groups |
 | `migrate` | Auto-detect existing tags and set `bootstrap_sha` for mid-stream adoption |
@@ -420,6 +421,9 @@ releasekit publish --no-tag --no-push    # Publish without tagging/pushing
 releasekit publish --no-release          # Skip GitHub release creation
 releasekit publish --max-retries 3       # Retry failed publishes
 releasekit publish --concurrency 10      # Max parallel per level
+releasekit publish --build-only          # SLSA L3: build only, no upload
+releasekit publish --upload-only         # SLSA L3: upload pre-built artifacts
+releasekit publish --upload-only --dist-dir dist/  # Custom artifact dir
 ```
 
 On failure, the scheduler retries with exponential backoff + full jitter.
@@ -1076,6 +1080,8 @@ is EXACTLY the one you baked, with no tampering in between.
 | **No credentials in code** | PyPI tokens from env (`UV_PUBLISH_TOKEN`) or OIDC trusted publishing | `publisher.py` |
 | **Sigstore keyless signing** | Sign artifacts + verify bundles via ambient OIDC credentials | `signing.py` |
 | **SLSA provenance (L0–L3)** | in-toto attestation v1 envelopes; auto-detects CI → L3 on hosted runners | `provenance.py` |
+| **SLSA L3 build/upload isolation** | `--build-only` / `--upload-only` split build and upload into separate CI jobs | `publisher.py` |
+| **Post-publish verification** | `verify-install` installs packages from registry + smoke-tests imports | `verify_install.py` |
 | **Artifact validation** | Validate provenance, SBOM, attestations, SECURITY-INSIGHTS post-build | `backends/validation/` |
 | **SBOM generation** | CycloneDX 1.5 + SPDX 2.3 from workspace metadata | `sbom.py` |
 | **Checksum verification** | SHA-256 computed locally, verified against registry post-publish | `publisher.py` |
@@ -1084,6 +1090,45 @@ is EXACTLY the one you baked, with no tampering in between.
 | **OSPS Baseline compliance** | Evaluate L1–L3 controls across 6 ecosystems with `releasekit compliance` | `compliance.py` |
 | **Ephemeral pinning** | Crash-safe backup/restore with `.bak` files | `pin.py` |
 | **State file integrity** | Resume refuses if HEAD SHA differs | `state.py` |
+
+### SLSA Build L3 Compliance
+
+ReleaseKit achieves [SLSA Build Level 3](https://slsa.dev/spec/v1.0/levels#build-l3)
+by splitting the publish pipeline into isolated CI jobs. This prevents a
+compromised build step from tampering with the upload or forging provenance.
+
+```
+release --> build --[artifacts]--> provenance --[attested]--> upload --> verify
+              |                       |                         |
+              +-- digests (base64) ---+                        |
+              +-- manifest, SBOMs, attestations                |
+                                                        verify <-+
+```
+
+| Requirement | Mechanism | Job(s) |
+|-------------|-----------|--------|
+| Hardened build platform | GitHub-hosted `ubuntu-latest` | build |
+| Build/upload isolation | `--build-only` + `--upload-only` | build, upload |
+| Non-falsifiable provenance | `slsa-github-generator` (L3) | provenance |
+| Hermetic build | `--build-only` (no registry I/O) | build |
+| Pinned dependencies | All actions pinned to commit SHA | all |
+| Ephemeral environment | Fresh VM per job run | all |
+| OIDC identity | `id-token: write` (Sigstore) | build, upload |
+| Provenance before upload | provenance runs between build and upload | provenance |
+| Verification | `slsa-verifier` + `verify-install` | verify |
+
+Four reusable composite actions encapsulate the pipeline:
+
+| Action | Purpose |
+|--------|---------|
+| `compute-artifact-digests` | SHA-256 digests in base64 for `slsa-github-generator` |
+| `attest-build-artifacts` | GitHub artifact attestation via `actions/attest-build-provenance` |
+| `upload-release-artifacts` | Upload artifacts, manifest, SBOMs to GitHub Release |
+| `verify-slsa-provenance` | Download provenance + run `slsa-verifier` |
+
+See the [SLSA Provenance guide](docs/docs/guides/slsa-provenance.md) for
+full details and the [workflow templates](github/workflows/) for
+production-ready CI pipelines for all 7 ecosystems.
 
 ### OSPS Baseline Compliance
 

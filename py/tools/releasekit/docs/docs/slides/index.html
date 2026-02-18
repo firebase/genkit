@@ -913,6 +913,35 @@ releasekit prepare \
 </section>
 
 <!-- ============================================================ -->
+<!-- SLSA BUILD L3 COMPLIANCE -->
+<!-- ============================================================ -->
+<section>
+  <h2>SLSA Build L3 Compliance</h2>
+  <p class="dim" style="font-size:0.7em;">Build/upload isolation prevents supply chain tampering</p>
+  <pre><code class="language-text" style="font-size:0.85em;">release ──&gt; build ──[artifacts]──&gt; provenance ──[attested]──&gt; upload ──&gt; verify
+               │                       │                         │
+               ├── digests (base64) ───┘                         │
+               └── manifest, SBOMs, attestations          verify ◄─┘</code></pre>
+  <table style="font-size:0.55em; margin-top:0.8em;">
+    <thead><tr><th>Requirement</th><th>Mechanism</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td>Hardened build platform</td><td>GitHub-hosted <code>ubuntu-latest</code></td><td>build</td></tr>
+      <tr><td>Build/upload isolation</td><td><code>--build-only</code> + <code>--upload-only</code></td><td>build, upload</td></tr>
+      <tr><td>Non-falsifiable provenance</td><td><code>slsa-github-generator</code> (L3)</td><td>provenance</td></tr>
+      <tr><td>Hermetic build</td><td><code>--build-only</code> (no registry I/O)</td><td>build</td></tr>
+      <tr><td>Pinned dependencies</td><td>All actions pinned to commit SHA</td><td>all</td></tr>
+      <tr><td>OIDC identity</td><td><code>id-token: write</code> (Sigstore)</td><td>build, upload</td></tr>
+      <tr><td>Verification</td><td><code>slsa-verifier</code> + <code>verify-install</code></td><td>verify</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.55em; margin-top:0.6em; color:var(--rk-dim);">
+    4 reusable composite actions: <code>compute-artifact-digests</code>,
+    <code>attest-build-artifacts</code>, <code>upload-release-artifacts</code>,
+    <code>verify-slsa-provenance</code> &mdash; ecosystem-agnostic for all 7 ecosystems
+  </p>
+</section>
+
+<!-- ============================================================ -->
 <!-- CI INTEGRATION -->
 <!-- ============================================================ -->
 <section>
