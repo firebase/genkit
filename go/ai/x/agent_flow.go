@@ -186,7 +186,6 @@ func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotE
 	snapshot := &SessionSnapshot[State]{
 		SnapshotID: uuid.New().String(),
 		CreatedAt:  time.Now(),
-		TurnIndex:  a.turnIndex,
 		Event:      event,
 		State:      currentState,
 	}
@@ -285,9 +284,6 @@ func DefineCustomAgent[Stream, State any](
 			snapshotCallback: snapshotCallback,
 			inCh:             inCh,
 			lastSnapshot:     snapshot,
-		}
-		if snapshot != nil {
-			agentSess.turnIndex = snapshot.TurnIndex
 		}
 
 		// Turn output accumulator: collects content chunks per turn for span output.

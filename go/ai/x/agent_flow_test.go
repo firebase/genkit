@@ -171,9 +171,6 @@ func TestAgentFlow_WithSessionStore(t *testing.T) {
 	if snap.State.Custom.Counter != 1 {
 		t.Errorf("expected counter=1 in snapshot, got %d", snap.State.Custom.Counter)
 	}
-	if snap.TurnIndex != 0 {
-		t.Errorf("expected turnIndex=0, got %d", snap.TurnIndex)
-	}
 
 	conn.Close()
 
@@ -698,7 +695,6 @@ func TestInMemorySessionStore(t *testing.T) {
 	// Save and retrieve.
 	snapshot := &SessionSnapshot[testState]{
 		SnapshotID: "snap-1",
-		TurnIndex:  0,
 		State: SessionState[testState]{
 			Custom: testState{Counter: 1},
 		},

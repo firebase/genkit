@@ -59,8 +59,6 @@ type SessionSnapshot[State any] struct {
 	ParentID string `json:"parentId,omitempty"`
 	// CreatedAt is when the snapshot was created.
 	CreatedAt time.Time `json:"createdAt"`
-	// TurnIndex is the turn number when this snapshot was created (0-indexed).
-	TurnIndex int `json:"turnIndex"`
 	// Event is what triggered this snapshot.
 	Event SnapshotEvent `json:"event"`
 	// State is the actual conversation state.
@@ -73,7 +71,7 @@ type SnapshotContext[State any] struct {
 	State *SessionState[State]
 	// PrevState is the state at the last snapshot, or nil if none exists.
 	PrevState *SessionState[State]
-	// TurnIndex is the current turn number.
+	// TurnIndex is the turn number in the current invocation.
 	TurnIndex int
 	// Event is what triggered this snapshot check.
 	Event SnapshotEvent
