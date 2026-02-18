@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai'; // Import specific plugins/models for generative AI
+import { googleAI } from '@genkit-ai/google-genai'; // Import specific plugins/models for generative AI
 import * as fs from 'fs/promises'; // Import file system promises for reading files
 import { genkit, z } from 'genkit'; // Import Genkit framework and Zod schema validation
 import { logger } from 'genkit/logging'; // Import logger for debugging and logging
@@ -82,7 +82,6 @@ export const warAndPeaceFlow = ai.defineFlow(
         },
       ],
       config: {
-        version: 'gemini-1.5-flash-001', // Specify the model version
         temperature: 0.7, // Control randomness in the output
         maxOutputTokens: 1000, // Limit the maximum number of tokens for the response
         topK: 50, // Limit token selection to top K probabilities
@@ -90,7 +89,7 @@ export const warAndPeaceFlow = ai.defineFlow(
         stopSequences: ['END'], // Define custom sequences to stop the generation
       },
       tools: [], // No tools used in this request
-      model: gemini15Flash, // Specify the generative model to use
+      model: googleAI.model('gemini-2.5-flash'), // Specify the generative model to use
       prompt: query || defaultQuery, // Use user's query or default query for the main task
       returnToolRequests: false, // Prevent tool requests from being returned automatically
     });

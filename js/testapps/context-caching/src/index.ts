@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  gemini15Flash as gemini15FlashGoogleAI,
-  googleAI,
-} from '@genkit-ai/googleai';
-import { gemini15Flash, vertexAI } from '@genkit-ai/vertexai'; // Import specific AI plugins/models
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs/promises'; // Import fs module to handle file operations asynchronously
 import { genkit, z } from 'genkit'; // Import Genkit framework and Zod for schema validation
 import { logger } from 'genkit/logging'; // Import logging utility from Genkit
@@ -70,7 +66,7 @@ export const lotrFlowVertex = ai.defineFlow(
       config: {
         version: 'gemini-1.5-flash-001', // Specify the version of the model to be used
       },
-      model: gemini15Flash, // Specify the model (gemini15Flash) to use for generation
+      model: vertexAI.model('gemini-2.5-flash'), // Specify the model to use for generation
       prompt: query || defaultQuery, // Use the provided query or fall back to the default query
       onChunk: sendChunk,
     });
@@ -117,7 +113,7 @@ export const lotrFlowGoogleAI = ai.defineFlow(
       config: {
         version: 'gemini-1.5-flash-001', // Specify the version of the model to be used
       },
-      model: gemini15FlashGoogleAI, // Specify the model (gemini15Flash) to use for generation
+      model: googleAI.model('gemini-2.5-flash'), // Specify the model to use for generation
       prompt: query || defaultQuery, // Use the provided query or fall back to the default query
       onChunk: sendChunk,
     });
