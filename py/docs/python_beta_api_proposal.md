@@ -9,6 +9,8 @@ There are two audiences for this SDK:
 
 These audiences have separate entry points.
 
+^^ TODO: Unify `from genkit import *` and `from genkit.types import *`
+
 ---
 
 ## Methodology
@@ -269,13 +271,3 @@ Python follows the Go pattern — types are a separate import. This matches what
 ## Internal modules
 
 Everything under `genkit._core`, `genkit._blocks`, and `genkit._ai` (note underscore prefix) carries no stability guarantee. Today these modules lack the underscore (`genkit.core`, `genkit.blocks`, `genkit.ai`), which is why samples and the documentation agent used internal paths. Renaming them is part of this proposal — the underscore is Python's convention for "private, use at your own risk."
-
----
-
-## Open design question: `Input[T]` / `Output[T]`
-
-This is the one genuinely open question in the public API surface. It's covered in depth as a design decision in [PYTHON_API_REVIEW.md, section 5](./PYTHON_API_REVIEW.md).
-
-Summary: `Output[T]` carries generic type information for typed responses (`ai.generate(output=Output(MyModel))` → `GenerateResponse[MyModel]`). The alternative is inline kwargs (`output_schema=MyModel`), which loses the generic typing. A tech lead challenged the naming — "Input of what? Output of what?" — arguing the names are too generic.
-
-Three options: inline only, wrapper only, or keep both. Recommendation is wrapper only (consolidate to one `output=` param), with the name open for discussion.

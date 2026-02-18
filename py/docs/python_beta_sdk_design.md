@@ -28,6 +28,9 @@ ai.generate(model="gemini", prompt="Hi", tools=["search"])
 
 **Flat imports, intentional boundaries.** Python has no access modifiers — any module is importable, and there's no way to enforce "private." This makes API boundary design a deliberate choice, not a language feature. We define three public entry points (`genkit`, `genkit.types`, `genkit.plugin`) and treat everything else as internal with no stability guarantee. Internal modules should be underscore-prefixed (`genkit._core`, `genkit._blocks`) to signal this — today they lack the underscore, which is why samples accidentally depend on them. The mechanics of this boundary are covered in section 4.
 
+^^ genkit.plugin => for core genkit plugin imports (used by plugin author only)
+^^ genkit.plugins.___ => for actual plugin imports exposed by plugin authors
+
 ## 3. Initial Audit
 
 While working on updated docs, we identified several friction points in the developer experience. 
