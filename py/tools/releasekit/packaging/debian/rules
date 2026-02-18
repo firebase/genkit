@@ -1,9 +1,0 @@
-#!/usr/bin/make -f
-
-# Debian rules file for releasekit.
-# Uses pybuild with the pyproject plugin (PEP 517/518).
-
-export PYBUILD_NAME=releasekit
-
-%:
-	dh $@ --with python3 --buildsystem=pybuild

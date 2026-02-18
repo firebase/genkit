@@ -112,18 +112,6 @@ lint = [
   "secure>=1.0.0",
   "sentry-sdk>=2.0.0",
   "structlog>=24.0.0",
-  # ── releasekit type resolution ──
-  # These are needed so workspace-level type checkers can resolve all
-  # imports in tools/releasekit/. The tool has its own venv but the
-  # type checkers run at workspace scope.
-  "diagnostic>=3.0.0",
-  "opentelemetry-api>=1.20.0",
-  "opentelemetry-sdk>=1.20.0",
-  "packaging>=24.0",
-  "pypi-attestations>=0.0.20",
-  "rich-argparse>=1.6.0",
-  "sigstore>=3.0.0",
-  "tomlkit>=0.13.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -145,9 +133,6 @@ addopts = [
   # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
   # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
   "--ignore=samples/web-endpoints-hello/tests",
-  # releasekit is a standalone tool with its own venv. Run its tests from
-  # tools/releasekit/ (e.g. 'cd tools/releasekit && uv run pytest tests/').
-  "--ignore=tools/releasekit/tests",
   "--ignore=tools/conform/tests",
   "--import-mode=importlib",
 ]
@@ -326,11 +311,6 @@ select = [
 "packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
 # Validation/provenance/safe-defaults test methods are self-documenting via names;
 # S108 false positives on Path('/tmp/x') used as dummy non-existent paths in tests.
-"tools/releasekit/tests/rk_provenance_test.py"      = ["D102"]
-"tools/releasekit/tests/rk_safe_defaults_test.py"   = ["D102"]
-"tools/releasekit/tests/rk_validation_sbom_test.py" = ["D102"]
-"tools/releasekit/tests/rk_validation_slsa_test.py" = ["D102"]
-"tools/releasekit/tests/rk_validation_test.py"      = ["D102", "S108"]
 # Samples have install_rich_traceback() call after imports, before other code
 # Samples are demo code and can use blocking I/O for simplicity
 "samples/*/*.py"     = ["E402", "ASYNC"]
@@ -473,8 +453,6 @@ root = [
   "samples/framework-custom-evaluators",   # For custom evaluators sample imports
   "plugins/mcp/tests",                     # For fakes module imports in tests
   # Tools
-  "tools/releasekit/src", # For releasekit package imports
-  "tools/releasekit",     # For test imports (pythonpath = ["."])
   "tools/conform/src",    # For conform package imports
 ]
 
@@ -522,7 +500,6 @@ extraPaths = [
   "plugins/xai/src",
   "samples/framework-custom-evaluators",
   # Tools
-  "tools/releasekit/src",
   "tools/conform/src",
   "tools/model-config-test",
   "tools/sample-flows",
@@ -573,8 +550,6 @@ project_includes = [
   "samples/*/tests/**/*.py",
   "samples/framework-evaluator-demo/evaluator_demo/**/*.py",
   # Tools
-  "tools/releasekit/src/**/*.py",
-  "tools/releasekit/tests/**/*.py",
   "tools/conform/src/**/*.py",
   "tools/sample-flows/**/*.py",
 ]
@@ -594,8 +569,6 @@ search-path = [
 
   "samples/web-endpoints-hello",
   # Tools
-  "tools/releasekit/src",
-  "tools/releasekit",
   "tools/conform/src",
   "tools/sample-flows",
   "tools/model-config-test",
