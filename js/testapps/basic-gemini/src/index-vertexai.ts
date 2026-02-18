@@ -507,7 +507,7 @@ ai.defineFlow('imagen-try-on', async (_) => {
   });
 
   const { media } = await ai.generate({
-    model: vertexAI.model('virtual-try-on-preview-08-04'),
+    model: vertexAI.model('virtual-try-on-preview-001'),
     prompt: [
       {
         media: {
@@ -604,7 +604,7 @@ ai.defineFlow('veo-reference-images', async (_, { sendChunk }) => {
   const palmImage = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: vertexAI.model('veo-3.1-generate-preview'),
+    model: vertexAI.model('veo-3.1-generate-001'),
     config: { location: 'us-central1' },
     prompt: [
       {
