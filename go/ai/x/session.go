@@ -139,11 +139,11 @@ func copySnapshot[State any](snap *SessionSnapshot[State]) (*SessionSnapshot[Sta
 	}
 	bytes, err := json.Marshal(snap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("copy snapshot: marshal: %w", err)
 	}
 	var copied SessionSnapshot[State]
 	if err := json.Unmarshal(bytes, &copied); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("copy snapshot: unmarshal: %w", err)
 	}
 	return &copied, nil
 }

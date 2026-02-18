@@ -24,13 +24,13 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/uuid"
 )
@@ -201,7 +201,7 @@ func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotE
 	}
 
 	if err := a.store.SaveSnapshot(ctx, snapshot); err != nil {
-		slog.Error("agent flow: failed to save snapshot", "err", err)
+		logger.FromContext(ctx).Error("agent flow: failed to save snapshot", "err", err)
 		return ""
 	}
 
@@ -401,7 +401,7 @@ func DefinePromptAgent[State, PromptIn any](
 			if stored := sess.InputVariables(); stored != nil {
 				typed, ok := stored.(PromptIn)
 				if !ok {
-					return fmt.Errorf("prompt input type mismatch: got %T, want %T", stored, promptInput)
+					return core.NewError(core.INVALID_ARGUMENT, "prompt input type mismatch: got %T, want %T", stored, promptInput)
 				}
 				promptInput = typed
 			}
@@ -518,6 +518,9 @@ func newSessionFromInit[State any](
 
 	var snapshot *SessionSnapshot[State]
 	if init != nil {
+		if init.SnapshotID != "" && init.State != nil {
+			return nil, nil, core.NewError(core.INVALID_ARGUMENT, "snapshotId and state are mutually exclusive")
+		}
 		if init.SnapshotID != "" && store == nil {
 			return nil, nil, core.NewError(core.FAILED_PRECONDITION, "snapshot ID %q provided but no session store configured", init.SnapshotID)
 		}
