@@ -63,9 +63,6 @@ type AgentFlowInit[State any] struct {
 	// State provides direct state for the invocation.
 	// Mutually exclusive with SnapshotID.
 	State *SessionState[State] `json:"state,omitempty"`
-	// InputVariables overrides the default input variables for this invocation.
-	// Used by agent flows that require input variables (DefinePromptAgent).
-	InputVariables any `json:"inputVariables,omitempty"`
 }
 
 // AgentFlowOutput is the output when an agent flow invocation completes.
@@ -374,9 +371,8 @@ func (af *AgentFlow[Stream, State]) StreamBidi(
 	}
 
 	init := &AgentFlowInit[State]{
-		SnapshotID:     sbOpts.snapshotID,
-		State:          sbOpts.state,
-		InputVariables: sbOpts.promptInput,
+		SnapshotID: sbOpts.snapshotID,
+		State:      sbOpts.state,
 	}
 
 	conn, err := af.flow.StreamBidi(ctx, init)
@@ -500,9 +496,6 @@ func newSessionFromInit[State any](
 			s.state = snapshot.State
 		} else if init.State != nil {
 			s.state = *init.State
-		}
-		if init.InputVariables != nil {
-			s.state.InputVariables = init.InputVariables
 		}
 	}
 
