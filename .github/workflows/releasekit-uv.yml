@@ -234,14 +234,14 @@ jobs:
           if [ "${{ inputs.force_prepare }}" = "true" ]; then
             cmd+=(--force)
           fi
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
+          if [ -n "${INPUTS_GROUP}" ]; then
+            cmd+=(--group "${INPUTS_GROUP}")
           fi
           if [ "${{ inputs.bump_type }}" != "auto" ] && [ -n "${{ inputs.bump_type }}" ]; then
             cmd+=(--bump "${{ inputs.bump_type }}")
           fi
-          if [ -n "${{ inputs.prerelease }}" ]; then
-            cmd+=(--prerelease "${{ inputs.prerelease }}")
+          if [ -n "${INPUTS_PRERELEASE}" ]; then
+            cmd+=(--prerelease "${INPUTS_PRERELEASE}")
           fi
 
           # Run prepare — capture output even on failure so CI logs
@@ -263,6 +263,10 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          INPUTS_GROUP: ${{ inputs.group }}
+
+          INPUTS_PRERELEASE: ${{ inputs.prerelease }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # RELEASE: Tag merge commit and create GitHub Release
@@ -308,7 +312,7 @@ jobs:
           echo "::group::Execution Plan (ASCII)"
           uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py plan --format full 2>&1 || true
           echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+          if [ "${DRY_RUN}" = "true" ]; then
             echo "::notice::DRY RUN — no tags or releases will be created"
           else
             echo "::notice::LIVE RUN — tags and GitHub Release will be created"
@@ -322,7 +326,7 @@ jobs:
           set -euo pipefail
 
           DRY_RUN_FLAG=""
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+          if [ "${DRY_RUN}" = "true" ]; then
             DRY_RUN_FLAG="--dry-run"
           fi
 
@@ -389,7 +393,7 @@ jobs:
           echo "::group::Execution Plan (ASCII)"
           uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py plan --format full 2>&1 || true
           echo "::endgroup::"
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+          if [ "${DRY_RUN}" = "true" ]; then
             echo "::notice::DRY RUN — no packages will be published"
           else
             echo "::notice::LIVE RUN — packages will be published to ${{ inputs.target || 'pypi' }}"
@@ -401,7 +405,7 @@ jobs:
 
           cmd=(uv run --directory ${{ env.RELEASEKIT_DIR }} releasekit --workspace py publish --force)
 
-          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+          if [ "${DRY_RUN}" = "true" ]; then
             cmd+=(--dry-run)
           fi
 
@@ -412,16 +416,16 @@ jobs:
             cmd+=(--index-url "$PUBLISH_INDEX_URL")
           fi
 
-          CONCURRENCY="${{ inputs.concurrency }}"
+          CONCURRENCY="${INPUTS_CONCURRENCY}"
           if [ -n "$CONCURRENCY" ] && [ "$CONCURRENCY" != "0" ]; then
             cmd+=(--concurrency "$CONCURRENCY")
           fi
 
-          if [ -n "${{ inputs.group }}" ]; then
-            cmd+=(--group "${{ inputs.group }}")
+          if [ -n "${INPUTS_GROUP}" ]; then
+            cmd+=(--group "${INPUTS_GROUP}")
           fi
 
-          MAX_RETRIES="${{ inputs.max_retries }}"
+          MAX_RETRIES="${INPUTS_MAX_RETRIES}"
           if [ -n "$MAX_RETRIES" ] && [ "$MAX_RETRIES" != "0" ]; then
             cmd+=(--max-retries "$MAX_RETRIES")
           fi
@@ -439,6 +443,9 @@ jobs:
           # For trusted publishing (OIDC), no token needed.
           # For API token auth, set PYPI_TOKEN / TESTPYPI_TOKEN in repo secrets.
           UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
+          INPUTS_CONCURRENCY: ${{ inputs.concurrency }}
+          INPUTS_GROUP: ${{ inputs.group }}
+          INPUTS_MAX_RETRIES: ${{ inputs.max_retries }}
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4
