@@ -463,7 +463,7 @@ func DefinePromptAgent[State, PromptIn any](
 	p aix.PromptRenderer[PromptIn],
 	defaultInput PromptIn,
 	opts ...aix.AgentFlowOption[State],
-) *aix.AgentFlow[struct{}, State] {
+) *aix.AgentFlow[any, State] {
 	return aix.DefinePromptAgent(g.reg, name, p, defaultInput, opts...)
 }
 
