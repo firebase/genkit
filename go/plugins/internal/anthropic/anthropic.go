@@ -298,6 +298,8 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 	return resp, nil
 }
 
+// enforceStrictSchema is a helper function that sets additionalProperties to false
+// for every object in a schema
 func enforceStrictSchema(schema map[string]any) {
 	if t, ok := schema["type"].(string); ok && t == "object" {
 		schema["additionalProperties"] = false
@@ -307,6 +309,12 @@ func enforceStrictSchema(schema map[string]any) {
 					enforceStrictSchema(subSchema)
 				}
 			}
+		}
+	}
+	// recursively enforce additionalProperties to false
+	if t, ok := schema["type"].(string); ok && t == "array" {
+		if items, ok := schema["items"].(map[string]any); ok {
+			enforceStrictSchema(items)
 		}
 	}
 }
@@ -396,9 +404,11 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 	}
 
 	r.Message = msg
+	r.Raw = m.JSON
 	r.Usage = &ai.GenerationUsage{
-		InputTokens:  int(m.Usage.InputTokens),
-		OutputTokens: int(m.Usage.OutputTokens),
+		InputTokens:         int(m.Usage.InputTokens),
+		OutputTokens:        int(m.Usage.OutputTokens),
+		CachedContentTokens: int(m.Usage.CacheReadInputTokens),
 	}
 	return &r, nil
 }
