@@ -33,8 +33,6 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // AgentArtifact represents a named collection of parts produced during a session.
@@ -199,12 +197,6 @@ func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotE
 
 	a.lastSnapshot = snapshot
 
-	// Record on OTel span.
-	span := oteltrace.SpanFromContext(ctx)
-	span.SetAttributes(
-		attribute.String("genkit:metadata:snapshotId", snapshot.SnapshotID),
-	)
-
 	return snapshot.SnapshotID
 }
 
@@ -275,11 +267,6 @@ func DefineCustomAgent[Stream, State any](
 	}
 
 	af.flow = core.DefineBidiFlow(r, name, bidiFn)
-
-	// Register snapshot store action for reflection API.
-	if afOpts.store != nil {
-		registerSessionStoreAction(r, name, afOpts.store)
-	}
 
 	return af
 }
@@ -500,20 +487,6 @@ func newSessionFromInit[State any](
 	}
 
 	return s, snapshot, nil
-}
-
-// --- Snapshot store reflection action ---
-
-type getSnapshotInput struct {
-	SnapshotID string `json:"snapshotId"`
-}
-
-func registerSessionStoreAction[State any](r api.Registry, flowName string, store SessionStore[State]) {
-	core.DefineAction(r, flowName+"/getSnapshot", api.ActionTypeSessionStore, nil, nil,
-		func(ctx context.Context, input getSnapshotInput) (*SessionSnapshot[State], error) {
-			return store.GetSnapshot(ctx, input.SnapshotID)
-		},
-	)
 }
 
 // --- AgentFlowConnection ---

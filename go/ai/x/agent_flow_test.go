@@ -863,25 +863,6 @@ func TestAgentFlow_TurnSpanOutput_WithSnapshots(t *testing.T) {
 	}
 }
 
-func TestAgentFlow_SessionStoreReflectionAction(t *testing.T) {
-	_ = context.Background()
-	reg := newTestRegistry(t)
-	store := NewInMemorySessionStore[testState]()
-
-	DefineCustomAgent(reg, "reflectFlow",
-		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
-			return nil
-		},
-		WithSessionStore(store),
-	)
-
-	// The getSnapshot action should be registered.
-	action := reg.LookupAction("/session-store/reflectFlow/getSnapshot")
-	if action == nil {
-		t.Fatal("expected getSnapshot action to be registered")
-	}
-}
-
 // setupPromptTestRegistry creates a registry with an echo model and generate action.
 func setupPromptTestRegistry(t *testing.T) *registry.Registry {
 	t.Helper()
