@@ -507,7 +507,7 @@ ai.defineFlow('imagen-try-on', async (_) => {
   });
 
   const { media } = await ai.generate({
-    model: vertexAI.model('virtual-try-on-preview-001'),
+    model: vertexAI.model('virtual-try-on-001'),
     prompt: [
       {
         media: {
