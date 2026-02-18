@@ -41,6 +41,7 @@ project. Each template is progressively more advanced.
 | "I want scheduled releases (daily/weekly)" | [Template 3: Scheduled Release](#template-3-scheduled-release) |
 | "I have Python AND JavaScript packages" | [Template 4: Multi-Ecosystem](#template-4-multi-ecosystem) |
 | "I want one-click rollback from the GitHub Release page" | [Template 5: Release with Rollback](#template-5-release-with-rollback-button) |
+| "I need SLSA Build L3 with build/upload isolation" | [Template 7: SLSA Build L3](#template-7-slsa-build-l3-buildupload-isolation) |
 
 ---
 
@@ -761,6 +762,179 @@ jobs:
     Set `COMPLIANCE_LEVEL: "L1"` when onboarding. Once all L1 controls
     are met, bump to `"L2"` to enforce signing, lockfiles, and vuln
     scanning. L3 is for projects that need SLSA Build L3 isolation.
+
+---
+
+## Template 7: SLSA Build L3 (Build/Upload Isolation)
+
+**Best for:** Projects that need SLSA Build Level 3 compliance with
+build/upload isolation, non-falsifiable provenance, and post-publish
+verification.
+
+This template splits the publish pipeline into separate jobs so that
+a compromised build step cannot tamper with the upload or forge
+provenance.
+
+```mermaid
+sequenceDiagram
+    participant R as release
+    participant B as build
+    participant P as provenance
+    participant U as upload
+    participant V as verify
+
+    R->>B: version bump, changelog
+    B->>B: releasekit publish --build-only
+    B->>P: artifact digests (base64)
+    P->>P: slsa-github-generator signs digests
+    P->>U: attested provenance
+    U->>U: releasekit publish --upload-only
+    U->>V: published packages
+    V->>V: slsa-verifier + verify-install
+```
+
+```yaml
+# .github/workflows/release-slsa-l3.yml
+name: Release (SLSA L3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Workspace to release"
+        required: true
+        default: "py"
+      dry_run:
+        description: "Dry run (no publish)"
+        type: boolean
+        default: false
+
+env:
+  WORKSPACE_DIR: ${{ inputs.workspace || 'py' }}
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "latest"
+
+jobs:
+  # ── Job 1: Build artifacts (no upload) ─────────────────
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-releasekit
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build only -- no registry access, no upload
+      - uses: ./.github/actions/run-releasekit
+        with:
+          command: publish --build-only
+          workspace: ${{ env.WORKSPACE_DIR }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Compute SHA-256 digests for slsa-github-generator
+      - uses: ./.github/actions/compute-artifact-digests
+        id: hash
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+
+      # Attest build artifacts
+      - uses: ./.github/actions/attest-build-artifacts
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+
+      # Upload artifacts for downstream jobs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: build-artifacts
+          path: ${{ env.WORKSPACE_DIR }}/dist/
+
+  # ── Job 2: Generate SLSA provenance ────────────────────
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.digests }}
+      upload-assets: true
+
+  # ── Job 3: Upload to registry ──────────────────────────
+  upload:
+    needs: [build, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-releasekit
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Download pre-built artifacts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: build-artifacts
+          path: ${{ env.WORKSPACE_DIR }}/dist/
+
+      # Upload only -- no build, uses pre-built artifacts
+      - uses: ./.github/actions/run-releasekit
+        with:
+          command: publish --upload-only --dist-dir dist/
+          workspace: ${{ env.WORKSPACE_DIR }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
+
+  # ── Job 4: Verify provenance + install ─────────────────
+  verify:
+    needs: [upload, provenance]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - uses: ./.github/actions/setup-releasekit
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Verify SLSA provenance
+      - uses: ./.github/actions/verify-slsa-provenance
+        with:
+          provenance-name: ${{ needs.provenance.outputs.provenance-name }}
+          provenance-available: >-
+            ${{ needs.provenance.result == 'success' && 'true' || 'false' }}
+
+      # Verify packages are installable from registry
+      - name: Verify install
+        run: |
+          uv run releasekit verify-install \
+            --manifest release-manifest--${{ env.WORKSPACE_DIR }}.json
+        working-directory: ${{ env.WORKSPACE_DIR }}
+```
+
+!!! tip "Why 4 jobs?"
+    Each job runs on a fresh, ephemeral VM. The build job has no
+    registry credentials. The upload job has no build tools. The
+    provenance job is controlled by the CI platform (non-falsifiable).
+    This isolation is what makes SLSA Build L3 possible.
 
 ---
 

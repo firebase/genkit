@@ -370,6 +370,163 @@ ReleaseKit detects the runner environment automatically:
     with `id-token: write`, you already have SLSA Build L3. No extra
     configuration needed.
 
+## Build/Upload Isolation (SLSA L3)
+
+SLSA Build L3 requires that the build and upload steps run in separate,
+isolated environments so that a compromised build step cannot tamper
+with the upload or forge provenance. ReleaseKit enforces this with
+`--build-only` and `--upload-only` flags that split the publish
+pipeline into separate CI jobs.
+
+### ELI5: Why Separate Build and Upload?
+
+```text
+Without isolation (single job):
+
+  build + upload in one step
+  ┌─────────────────────────────────────────┐
+  │  build artifacts  ──>  upload to PyPI   │  <-- if build is
+  │  (same VM, same job, same permissions)  │      compromised,
+  └─────────────────────────────────────────┘      upload is too
+
+With isolation (separate jobs):
+
+  Job 1: build          Job 2: provenance      Job 3: upload
+  ┌──────────────┐      ┌──────────────┐       ┌──────────────┐
+  │ build only   │ ---> │ attest build │ --->  │ upload only  │
+  │ no registry  │      │ (SLSA gen)   │       │ no build     │
+  │ access       │      │ signs digest │       │ access       │
+  └──────────────┘      └──────────────┘       └──────────────┘
+        |                      |                      |
+    fresh VM #1           fresh VM #2            fresh VM #3
+```
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--build-only` | Build artifacts and compute digests, but do NOT upload. Artifacts are written to `<workspace>/dist/`. |
+| `--upload-only` | Upload pre-built artifacts from `--dist-dir` without rebuilding. Skips the build step. |
+| `--dist-dir PATH` | Directory containing pre-built artifacts (used with `--upload-only`). Defaults to `<workspace>/dist/`. |
+
+These flags are mutually exclusive: you cannot pass both `--build-only`
+and `--upload-only` in the same invocation.
+
+```bash
+# Job 1: Build only (no registry access)
+releasekit publish --build-only
+
+# Job 2: (provenance generation happens here via slsa-github-generator)
+
+# Job 3: Upload only (no build access)
+releasekit publish --upload-only --dist-dir dist/
+```
+
+### 4-Job CI Pipeline
+
+The recommended CI pipeline for SLSA L3 compliance uses four jobs:
+
+```text
+┌─────────┐     ┌─────────┐     ┌────────────┐     ┌────────┐
+│ release │ --> │  build  │ --> │ provenance │ --> │ upload │
+│         │     │         │     │            │     │        │
+│ prepare │     │ --build │     │ slsa-gen   │     │--upload│
+│ version │     │ -only   │     │ signs the  │     │ -only  │
+│ bump    │     │         │     │ digest     │     │        │
+└─────────┘     └─────────┘     └────────────┘     └────────┘
+                     |                |                  |
+                  artifacts       provenance         verified
+                  + digests       attestation        artifacts
+                                                        |
+                                                   ┌────────┐
+                                                   │ verify │
+                                                   │        │
+                                                   │ slsa-  │
+                                                   │verifier│
+                                                   └────────┘
+```
+
+| Job | What It Does | Key Properties |
+|-----|-------------|----------------|
+| **release** | Version bump, changelog, Release PR | No registry access |
+| **build** | `releasekit publish --build-only` | No upload permissions, writes artifacts to `dist/` |
+| **provenance** | `slsa-github-generator` signs artifact digests | Platform-controlled, non-falsifiable |
+| **upload** | `releasekit publish --upload-only` | No build access, uploads pre-built artifacts |
+| **verify** | `slsa-verifier` validates provenance | Independent verification |
+
+### Composite Actions
+
+ReleaseKit provides four reusable composite actions that encapsulate
+the SLSA L3 pipeline steps. These are ecosystem-agnostic and work for
+Python, JavaScript, Go, Rust, Dart, and Java/Gradle.
+
+| Action | Purpose | Used In |
+|--------|---------|---------|
+| `compute-artifact-digests` | SHA-256 digests in base64 for `slsa-github-generator` | build job |
+| `attest-build-artifacts` | GitHub artifact attestation via `actions/attest-build-provenance` | build job |
+| `upload-release-artifacts` | Upload artifacts, manifest, SBOMs to GitHub Release | build/upload job |
+| `verify-slsa-provenance` | Download provenance + run `slsa-verifier` | verify job |
+
+Example usage in a workflow:
+
+```yaml
+# In the build job:
+- uses: ./.github/actions/compute-artifact-digests
+  id: hash
+  with:
+    workspace-dir: py
+
+# In the verify job:
+- uses: ./.github/actions/verify-slsa-provenance
+  with:
+    provenance-name: ${{ needs.provenance.outputs.provenance-name }}
+    provenance-available: ${{ needs.provenance.result == 'success' && 'true' || 'false' }}
+```
+
+### Post-Publish Verification
+
+After uploading, the `verify-install` command verifies that published
+packages are actually installable from the registry:
+
+```bash
+# Verify all packages from a release manifest
+releasekit verify-install --manifest release-manifest--py.json
+
+# Verify with a smoke-test import
+releasekit verify-install --manifest release-manifest--py.json \
+  --import-check "from genkit.ai import Genkit"
+
+# Verify against a staging registry
+releasekit verify-install --manifest release-manifest--py.json \
+  --index-url https://test.pypi.org/simple/
+
+# Override ecosystem (CLI overrides manifest value)
+releasekit verify-install --manifest release-manifest--js.json \
+  --ecosystem js
+```
+
+The command reads the release manifest, extracts non-skipped packages,
+and installs each one using the ecosystem-appropriate package manager
+(pip, npm, cargo). It validates all package specs against a security
+allowlist before executing any install commands.
+
+### SLSA L3 Requirements Mapping
+
+The table below maps each SLSA Build L3 requirement to the specific
+mechanism used in the ReleaseKit workflow templates:
+
+| Requirement | Mechanism | Job(s) |
+|-------------|-----------|--------|
+| Hardened build platform | GitHub-hosted `ubuntu-latest` | build |
+| Build/upload isolation | Separate `--build-only` + `--upload-only` jobs | build, upload |
+| Non-falsifiable provenance | `slsa-github-generator` (L3) | provenance |
+| Hermetic build | `--build-only` (no registry I/O during build) | build |
+| Pinned dependencies | All actions pinned to commit SHA | all |
+| Ephemeral environment | Fresh VM per job run | all |
+| OIDC identity | `id-token: write` (Sigstore) | build, upload |
+| Provenance before upload | provenance job runs between build and upload | provenance |
+| Verification | `slsa-verifier` + `verify-install` | verify |
+
 ## Troubleshooting
 
 ### Provenance not generated
