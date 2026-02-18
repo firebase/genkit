@@ -82,14 +82,20 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          cd py/${{ github.event.inputs.project_type }}/${{ github.event.inputs.project_name }}
+          cd py/${GITHUB_EVENT_INPUTS_PROJECT_TYPE}/${GITHUB_EVENT_INPUTS_PROJECT_NAME}
           uv pip install -e .[dev,test,docs]
           uv pip install twine toml
+        env:
+          GITHUB_EVENT_INPUTS_PROJECT_TYPE: ${{ github.event.inputs.project_type }}
+          GITHUB_EVENT_INPUTS_PROJECT_NAME: ${{ github.event.inputs.project_name }}
 
       - name: Build package and validate pypi
         run: |
           cd py
-          PROJECT_NAME=${{ github.event.inputs.project_name }} PROJECT_TYPE=${{ github.event.inputs.project_type }}  ./bin/publish_pypi.sh
+          PROJECT_NAME=${GITHUB_EVENT_INPUTS_PROJECT_NAME} PROJECT_TYPE=${GITHUB_EVENT_INPUTS_PROJECT_TYPE}  ./bin/publish_pypi.sh
+        env:
+          GITHUB_EVENT_INPUTS_PROJECT_NAME: ${{ github.event.inputs.project_name }}
+          GITHUB_EVENT_INPUTS_PROJECT_TYPE: ${{ github.event.inputs.project_type }}
 
       - name: Upload build packages
         uses: actions/upload-artifact@v4
