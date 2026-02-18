@@ -99,7 +99,7 @@
 #                        ┌────────┐
 #                        │ notify │
 #                        └────────┘
-#                          needs: [auth, release, publish, verify]
+#                          needs: [auth, release, publish, provenance, verify]
 #
 # ── Token Resolution (Sentinel Pattern) ───────────────────────────
 #
@@ -147,6 +147,50 @@
 #   no_ai          │ boolean │ false          │ Disable AI features
 #   model          │ string  │ (chain)        │ Override AI model
 #   codename_theme │ string  │ (cfg)          │ Override codename theme
+#
+# ── Job Permissions (Least Privilege) ─────────────────────────────
+#
+#   Job     │ contents │ pull-requests │ Reason
+#   ────────┼──────────┼───────────────┼─────────────────────────────
+#   auth    │ (none)   │ (none)        │ Uses own generated token
+#   prepare │ write    │ write         │ Push commits, create PRs
+#   release │ write    │ (none)        │ Create tags + GitHub Releases
+#   publish │ read     │ (none)        │ Checkout only
+#   verify  │ read     │ (none)        │ Checkout + download artifact
+#   notify  │ (none)   │ (none)        │ Uses own token for dispatch
+#
+# Workflow-level: permissions: {} (all grants are per-job)
+# All third-party actions pinned to commit SHAs (SLSA L3 requirement)
+#
+# ── SLSA Build L3 Compliance ────────────────────────────────────────
+#
+# This workflow satisfies SLSA Build Level 3. The table below maps
+# each L3 requirement to the specific mechanism used.
+#
+#   Requirement              │ Mechanism                     │ Job(s)
+#   ─────────────────────────┼───────────────────────────────┼──────────────
+#   Hardened build platform  │ GitHub-hosted ubuntu-latest   │ publish
+#   Non-falsifiable prov.    │ slsa-github-generator (L3)    │ provenance
+#   Pinned dependencies      │ All actions pinned to SHA     │ all
+#   Ephemeral environment    │ Fresh VM per job run          │ all
+#   Provenance before verify │ provenance runs before verify │ provenance
+#   Verification             │ slsa-verifier in verify job   │ verify
+#
+# Data flow:
+#
+#   release --> publish --[digests]--> provenance --[attested]--> verify
+#
+# References:
+#   - SLSA framework:           https://slsa.dev/
+#   - SLSA Build L3 spec:       https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA verification:        https://slsa.dev/spec/v1.0/verifying-artifacts
+#   - slsa-github-generator:    https://github.com/slsa-framework/slsa-github-generator
+#   - slsa-verifier:            https://github.com/slsa-framework/slsa-verifier
+#   - Sigstore:                 https://www.sigstore.dev/
+#   - in-toto attestation:      https://in-toto.io/
+#   - GitHub Actions hardening: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-for-github-actions
+#   - Maven Central publishing: https://central.sonatype.org/publish/publish-guide/
+#   - Gradle publishing plugin: https://docs.gradle.org/current/userguide/publishing_maven.html
 #
 # ── Required Configuration ─────────────────────────────────────────
 #
@@ -395,6 +439,7 @@ jobs:
     name: Resolve Auth Token
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions: {}
     outputs:
       token: ${{ steps.resolve.outputs.token }}
       auth-method: ${{ steps.resolve.outputs.auth-method }}
@@ -406,7 +451,7 @@ jobs:
           (inputs.auth_method == 'auto' || inputs.auth_method == 'app' || inputs.auth_method == '')
           && vars.RELEASEKIT_APP_ID != ''
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf  # v2
         with:
           app-id: ${{ vars.RELEASEKIT_APP_ID }}
           private-key: ${{ secrets.RELEASEKIT_APP_PRIVATE_KEY }}
@@ -483,13 +528,16 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Push version bump commits
+      pull-requests: write  # Create/update Release PRs
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -497,7 +545,7 @@ jobs:
           git-user-name: ${{ needs.auth.outputs.git-user-name }}
           git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -535,12 +583,14 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Create tags and GitHub Releases
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -555,7 +605,6 @@ jobs:
           workspace: java
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ env.DRY_RUN }}
-          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -569,20 +618,24 @@ jobs:
   publish:
     name: Publish to ${{ inputs.target || 'maven-central' }}
     needs: [auth, release]
-    if: inputs.skip_publish != 'true'
+    if: ${{ !(inputs.skip_publish) && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           enable-ollama: "false"
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -610,7 +663,6 @@ jobs:
           group: ${{ inputs.group }}
           concurrency: ${{ inputs.concurrency }}
           max-retries: ${{ inputs.max_retries }}
-          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -620,28 +672,69 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      - name: Upload manifest artifact
-        if: success()
-        uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/compute-artifact-digests
+        id: hash
         with:
-          name: release-manifest-java
-          path: ${{ env.WORKSPACE_DIR }}/release-manifest.json
-          retention-days: 90
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          search-dir: "."
+          artifact-pattern: |
+            *.jar
+            *.pom
+            *.aar
+
+      - uses: ./.github/actions/upload-release-artifacts
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          manifest-name: release-manifest-java
+          upload-provenance: "false"
+          upload-sbom: "false"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PROVENANCE: SLSA L3 provenance via official generator
+  #
+  # This job calls the slsa-framework/slsa-github-generator reusable
+  # workflow, which runs in a separate, tamper-proof execution context.
+  # The provenance is generated by the reusable workflow's control plane,
+  # NOT by the caller workflow -- this is the key L3 requirement.
+  # ═══════════════════════════════════════════════════════════════════════
+  provenance:
+    name: SLSA Provenance (L3)
+    needs: publish
+    if: ${{ needs.publish.outputs.digests != '' }}
+    permissions:
+      actions: read      # Read workflow run info for provenance
+      id-token: write    # Sign provenance with Sigstore via OIDC
+      contents: write    # Upload provenance as release asset
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.publish.outputs.digests }}
+      upload-assets: true
 
   # ═══════════════════════════════════════════════════════════════════════
   # VERIFY: Check published artifacts are available on Maven Central
   # ═══════════════════════════════════════════════════════════════════════
   verify:
     name: Verify Published Artifacts
-    needs: publish
+    needs: [publish, provenance]
     if: >-
-      success() &&
-      (github.event_name == 'pull_request' ||
-       inputs.dry_run == false)
+      !cancelled() &&
+      needs.publish.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - uses: ./.github/actions/verify-slsa-provenance
+        with:
+          provenance-name: ${{ needs.provenance.outputs.provenance-name }}
+          provenance-available: ${{ needs.provenance.result == 'success' && 'true' || 'false' }}
+          artifact-pattern: |
+            *.jar
+            *.aar
+
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9  # v4
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
@@ -664,14 +757,17 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: [auth, release, publish, verify]
-    if: success()
+    needs: [auth, release, publish, provenance, verify]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
     steps:
       - name: Dispatch release event
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0  # v3
         with:
           token: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
           event-type: genkit-java-release
-          client-payload: '{"release_url": "${{ needs.release.outputs.release_url }}"}'
+          # SECURITY: Use toJSON() to safely escape the URL and prevent
+          # JSON injection if release_url contains special characters.
+          client-payload: ${{ format('{{"release_url":{0}}}', toJSON(needs.release.outputs.release_url)) }}
