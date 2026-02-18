@@ -17,47 +17,52 @@
 package anthropic
 
 import (
-	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAnthropic(t *testing.T) {
 	t.Run("to anthropic role", func(t *testing.T) {
-		r, err := toAnthropicRole(ai.RoleModel)
-		if err != nil {
-			t.Error(err)
+		tests := []struct {
+			role        ai.Role
+			want        anthropic.MessageParamRole
+			expectedErr string
+		}{
+			{ai.RoleModel, anthropic.MessageParamRoleAssistant, ""},
+			{ai.RoleUser, anthropic.MessageParamRoleUser, ""},
+			{ai.RoleSystem, "", "unknown role given"},
+			{ai.RoleTool, anthropic.MessageParamRoleAssistant, ""},
+			{"unknown", "", "unknown role given"},
 		}
-		if r != anthropic.MessageParamRoleAssistant {
-			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleAssistant, r)
-		}
-		r, err = toAnthropicRole(ai.RoleUser)
-		if err != nil {
-			t.Error(err)
-		}
-		if r != anthropic.MessageParamRoleUser {
-			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleUser, r)
-		}
-		r, err = toAnthropicRole(ai.RoleSystem)
-		if err == nil {
-			t.Errorf("should have failed, got: %q", r)
-		}
-		r, err = toAnthropicRole(ai.RoleTool)
-		if err != nil {
-			t.Error(err)
-		}
-		if r != anthropic.MessageParamRoleAssistant {
-			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleAssistant, r)
-		}
-		r, err = toAnthropicRole("unknown")
-		if err == nil {
-			t.Errorf("should have failed, got: %q", r)
+
+		for _, tt := range tests {
+			got, err := toAnthropicRole(tt.role)
+			if tt.expectedErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("toAnthropicRole(%q) error = %v, want error containing %q", tt.role, err, tt.expectedErr)
+				}
+				continue
+			}
+			if err != nil {
+				t.Errorf("toAnthropicRole(%q) unexpected error: %v", tt.role, err)
+			}
+			if got != tt.want {
+				t.Errorf("toAnthropicRole(%q) = %q, want %q", tt.role, got, tt.want)
+			}
 		}
 	})
+}
+
+type modelRequestTestCase struct {
+	name        string
+	req         *ai.ModelRequest
+	expected    *anthropic.MessageNewParams
+	expectedErr string
 }
 
 func TestAnthropicConfig(t *testing.T) {
@@ -67,87 +72,68 @@ func TestAnthropicConfig(t *testing.T) {
 		TopK:        anthropic.Int(1),
 	}
 
-	tests := []struct {
-		name           string
-		inputReq       *ai.ModelRequest
-		expectedConfig *anthropic.MessageNewParams
-		expectedErr    string
-	}{
+	tests := []modelRequestTestCase{
 		{
 			name: "Input is anthropic.MessageNewParams struct",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: anthropic.MessageNewParams{
 					Temperature: anthropic.Float(1.0),
 					TopK:        anthropic.Int(1),
 				},
 			},
-			expectedConfig: &expectedConfig,
-			expectedErr:    "",
+			expected: &expectedConfig,
 		},
 		{
 			name: "Input is *anthropic.MessageNewParams struct",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: &anthropic.MessageNewParams{
 					Temperature: anthropic.Float(1.0),
 					TopK:        anthropic.Int(1),
 				},
 			},
-			expectedConfig: &expectedConfig,
-			expectedErr:    "",
+			expected: &expectedConfig,
 		},
 		{
 			name: "Input is map[string]any",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: map[string]any{
 					"temperature": 1.0,
 					"top_k":       1,
 				},
 			},
-			expectedConfig: &expectedConfig,
-			expectedErr:    "",
+			expected: &expectedConfig,
 		},
 		{
 			name: "Input is map[string]any (empty)",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: map[string]any{},
 			},
-			expectedConfig: &emptyConfig,
-			expectedErr:    "",
+			expected: &emptyConfig,
 		},
 		{
 			name: "Input is nil",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: nil,
 			},
-			expectedConfig: &emptyConfig,
-			expectedErr:    "",
+			expected: &emptyConfig,
 		},
 		{
 			name: "Input is an unexpected type",
-			inputReq: &ai.ModelRequest{
+			req: &ai.ModelRequest{
 				Config: 123,
 			},
-			expectedConfig: &emptyConfig,
-			expectedErr:    "unexpected config type: int",
+			expectedErr: "unexpected config type: int",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotConfig, err := configFromRequest(tt.inputReq)
-			if tt.expectedErr != "" {
-				if err == nil {
-					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
-				} else if !strings.Contains(err.Error(), tt.expectedErr) {
-					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
-				}
+			got, err := configFromRequest(tt.req)
+			if checkError(t, err, tt.expectedErr) {
 				return
 			}
-			if err != nil {
-				t.Errorf("expected no error, got: %v", err)
-			}
-			if !reflect.DeepEqual(gotConfig, tt.expectedConfig) {
-				t.Errorf("configFromRequest() got config = %+v, want %+v", gotConfig, tt.expectedConfig)
+			if !reflect.DeepEqual(tt.expected, got) {
+				t.Errorf("configFromRequest() got = %+v, want %+v", got, tt.expected)
 			}
 		})
 	}
@@ -176,15 +162,12 @@ func TestToAnthropicTools(t *testing.T) {
 				if tool.Name != "my-tool" {
 					t.Errorf("got name %q, want %q", tool.Name, "my-tool")
 				}
-				desc := tool.Description.Value
-				if desc != "my tool description" {
+				if desc := tool.Description.Value; desc != "my tool description" {
 					t.Errorf("got description %q, want %q", desc, "my tool description")
 				}
-				// Check Strict
 				if !tool.Strict.Value {
 					t.Error("expected Strict to be true")
 				}
-				// Check Schema ExtraFields for additionalProperties: false
 				if tool.InputSchema.ExtraFields["additionalProperties"] != false {
 					t.Errorf("expected additionalProperties: false in ExtraFields, got %v", tool.InputSchema.ExtraFields["additionalProperties"])
 				}
@@ -215,7 +198,6 @@ func TestToAnthropicTools(t *testing.T) {
 				if tool.Name != "weather" {
 					t.Errorf("got name %q, want %q", tool.Name, "weather")
 				}
-				// Check Schema ExtraFields for additionalProperties: false
 				if tool.InputSchema.ExtraFields["additionalProperties"] != false {
 					t.Errorf("expected additionalProperties: false in ExtraFields, got %v", tool.InputSchema.ExtraFields["additionalProperties"])
 				}
@@ -246,16 +228,8 @@ func TestToAnthropicTools(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toAnthropicTools(tt.tools)
-			if tt.expectedErr != "" {
-				if err == nil {
-					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
-				} else if !strings.Contains(err.Error(), tt.expectedErr) {
-					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
-				}
+			if checkError(t, err, tt.expectedErr) {
 				return
-			}
-			if err != nil {
-				t.Errorf("expected no error, got: %v", err)
 			}
 			if tt.check != nil {
 				tt.check(t, got)
@@ -310,31 +284,18 @@ func TestToAnthropicParts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toAnthropicParts(tt.parts)
-			if tt.expectedErr != "" {
-				if err == nil {
-					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
-				} else if !strings.Contains(err.Error(), tt.expectedErr) {
-					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
-				}
+			if checkError(t, err, tt.expectedErr) {
 				return
 			}
-			if err != nil {
-				t.Errorf("expected no error, got: %v", err)
-			}
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("toAnthropicParts() got = %+v, want %+v", got, tt.expected)
+			if !reflect.DeepEqual(tt.expected, got) {
+				t.Errorf("toAnthropicParts() mismatch, got = %+v, want %+v", got, tt.expected)
 			}
 		})
 	}
 }
 
 func TestToAnthropicRequest(t *testing.T) {
-	tests := []struct {
-		name        string
-		req         *ai.ModelRequest
-		expected    *anthropic.MessageNewParams
-		expectedErr string
-	}{
+	tests := []modelRequestTestCase{
 		{
 			name: "simple request",
 			req: &ai.ModelRequest{
@@ -350,6 +311,7 @@ func TestToAnthropicRequest(t *testing.T) {
 			},
 			expected: &anthropic.MessageNewParams{
 				MaxTokens: 10,
+				System:    []anthropic.TextBlockParam{},
 				Messages: []anthropic.MessageParam{
 					anthropic.NewUserMessage(anthropic.NewTextBlock("hello")),
 				},
@@ -399,26 +361,17 @@ func TestToAnthropicRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toAnthropicRequest(tt.req)
-			if tt.expectedErr != "" {
-				if err == nil {
-					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
-				} else if !strings.Contains(err.Error(), tt.expectedErr) {
-					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
-				}
+			if checkError(t, err, tt.expectedErr) {
 				return
 			}
-			if err != nil {
-				t.Errorf("expected no error, got: %v", err)
-			}
-			// Can't directly compare because of function pointers in schema
 			if got.MaxTokens != tt.expected.MaxTokens {
-				t.Errorf("toAnthropicRequest() got MaxTokens = %d, want %d", got.MaxTokens, tt.expected.MaxTokens)
+				t.Errorf("MaxTokens = %d, want %d", got.MaxTokens, tt.expected.MaxTokens)
 			}
-			if len(got.System) != len(tt.expected.System) {
-				t.Errorf("toAnthropicRequest() got System len = %d, want %d", len(got.System), len(tt.expected.System))
+			if (len(tt.expected.System) > 0 || len(got.System) > 0) && !reflect.DeepEqual(tt.expected.System, got.System) {
+				t.Errorf("System mismatch, got = %+v, want %+v", got.System, tt.expected.System)
 			}
-			if len(got.Messages) != len(tt.expected.Messages) {
-				t.Errorf("toAnthropicRequest() got Messages len = %d, want %d", len(got.Messages), len(tt.expected.Messages))
+			if (len(tt.expected.Messages) > 0 || len(got.Messages) > 0) && !reflect.DeepEqual(tt.expected.Messages, got.Messages) {
+				t.Errorf("Messages mismatch, got = %+v, want %+v", got.Messages, tt.expected.Messages)
 			}
 		})
 	}
@@ -455,23 +408,38 @@ func TestToAnthropicRequest_StructuredOutput(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify OutputConfig is set
 	if got.OutputConfig.Format.Schema == nil {
-		t.Error("expected OutputConfig schema to be present")
-	} else {
-		// OutputConfig.Format is JSONOutputFormatParam
-		format := got.OutputConfig.Format
-
-		// Verify schema
-		inputSchemaBytes, _ := json.Marshal(format.Schema)
-		if len(inputSchemaBytes) == 0 {
-			t.Errorf("OutputConfig schema is empty")
-		}
-		// Strict check for schema presence (simplified)
-		if format.Schema == nil {
-			t.Errorf("expected OutputConfig schema to be set")
-		}
-		// Verify content matches (optional, but good)
-		t.Logf("OutputConfig Schema: %s", string(inputSchemaBytes))
+		t.Fatal("expected OutputConfig schema to be present")
 	}
+
+	// Verify the schema has additionalProperties: false added by enforceStrictSchema
+	wantSchema := map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"properties": map[string]any{
+			"answer": map[string]any{"type": "string"},
+		},
+		"required": []any{"answer"},
+	}
+
+	if diff := cmp.Diff(wantSchema, got.OutputConfig.Format.Schema); diff != "" {
+		t.Errorf("OutputConfig schema mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func checkError(t *testing.T, err error, expectedErr string) bool {
+	t.Helper()
+	if expectedErr != "" {
+		if err == nil {
+			t.Errorf("expecting error containing %q, got nil", expectedErr)
+		} else if !strings.Contains(err.Error(), expectedErr) {
+			t.Errorf("expecting error to contain %q, but got: %q", expectedErr, err.Error())
+		}
+		return true
+	}
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
+		return true
+	}
+	return false
 }

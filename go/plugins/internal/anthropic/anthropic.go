@@ -22,12 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -42,10 +44,17 @@ func DefineModel(client anthropic.Client, provider, name string, info ai.ModelOp
 	if provider == "vertexai" {
 		label = "Vertex AI"
 	}
+
+	configSchema := info.ConfigSchema
+	if configSchema == nil {
+		configSchema = ConfigSchema(anthropic.MessageNewParams{})
+	}
+
 	meta := &ai.ModelOptions{
-		Label:    label + "-" + name,
-		Supports: info.Supports,
-		Versions: info.Versions,
+		Label:        label + "-" + name,
+		Supports:     info.Supports,
+		Versions:     info.Versions,
+		ConfigSchema: configSchema,
 	}
 
 	return ai.NewModel(api.NewName(provider, name), meta, func(
@@ -55,6 +64,46 @@ func DefineModel(client anthropic.Client, provider, name string, info ai.ModelOp
 	) (*ai.ModelResponse, error) {
 		return Generate(ctx, client, name, input, cb)
 	})
+}
+
+// ConfigSchema converts a config struct to a map[string]any.
+func ConfigSchema(config any) map[string]any {
+	r := jsonschema.Reflector{
+		DoNotReference:             true, // Prevent $ref usage
+		AllowAdditionalProperties:  false,
+		ExpandedStruct:             true,
+		RequiredFromJSONSchemaTags: true,
+	}
+	// The anthropic SDK uses a number of wrapper types for float, int, etc.
+	// By default, jsonschema will treat these as objects, but we want to
+	// treat them as their underlying primitive types.
+	r.Mapper = func(r reflect.Type) *jsonschema.Schema {
+		if r.Name() == "Opt[float64]" {
+			return &jsonschema.Schema{
+				Type: "number",
+			}
+		}
+		if r.Name() == "Opt[int64]" {
+			return &jsonschema.Schema{
+				Type: "integer",
+			}
+		}
+		if r.Name() == "Opt[string]" {
+			return &jsonschema.Schema{
+				Type: "string",
+			}
+		}
+		if r.Name() == "Opt[bool]" {
+			return &jsonschema.Schema{
+				Type: "boolean",
+			}
+		}
+		return nil
+	}
+	schema := r.Reflect(config)
+	result := base.SchemaAsMap(schema)
+
+	return result
 }
 
 // Generate function defines how a generate request is done in Anthropic models
@@ -212,7 +261,12 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 
 	if i.Output != nil && i.Output.Format == "json" && i.Output.Schema != nil && i.Output.Constrained {
 		// Native structured output via OutputConfig
-		outputSchema := i.Output.Schema
+		var outputSchema map[string]any
+		if b, err := json.Marshal(i.Output.Schema); err != nil {
+			return nil, fmt.Errorf("failed to clone output schema: %w", err)
+		} else if err := json.Unmarshal(b, &outputSchema); err != nil {
+			return nil, fmt.Errorf("failed to clone output schema: %w", err)
+		}
 		enforceStrictSchema(outputSchema)
 
 		req.OutputConfig = anthropic.OutputConfigParam{
@@ -267,8 +321,16 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 		if len(inputSchema) == 0 {
 			inputSchema = map[string]any{"type": "object", "properties": map[string]any{}}
 		}
+
 		// Strict tools require additionalProperties: false recursively
-		enforceStrictSchema(inputSchema)
+		var strictInputSchema map[string]any
+		if b, err := json.Marshal(inputSchema); err != nil {
+			return nil, fmt.Errorf("failed to clone tool input schema: %w", err)
+		} else if err := json.Unmarshal(b, &strictInputSchema); err != nil {
+			return nil, fmt.Errorf("failed to clone tool input schema: %w", err)
+		}
+		enforceStrictSchema(strictInputSchema)
+		inputSchema = strictInputSchema
 
 		var err error
 		schema, err = base.MapToStruct[anthropic.ToolInputSchemaParam](inputSchema)
