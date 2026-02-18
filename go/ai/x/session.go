@@ -148,7 +148,6 @@ func copySnapshot[State any](snap *SessionSnapshot[State]) (*SessionSnapshot[Sta
 	return &copied, nil
 }
 
-
 // --- Session ---
 
 // Session holds conversation state and provides thread-safe read/write access to messages,
