@@ -360,15 +360,15 @@ async function toWav(
 
 // STT sample
 ai.defineFlow('transcribe', async () => {
-  const audioFile = fs.readFileSync('jfk.flac');
+  const audioFile = fs.readFileSync('audio.mp3');
 
   const { text } = await ai.generate({
     model: openAI.model('whisper-1'),
     prompt: [
       {
         media: {
-          contentType: 'audio/flac',
-          url: `data:audio/flac;base64,${audioFile.toString('base64')}`,
+          contentType: 'audio/mp3',
+          url: `data:audio/mp3;base64,${audioFile.toString('base64')}`,
         },
       },
     ],
