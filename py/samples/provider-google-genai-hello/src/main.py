@@ -181,7 +181,11 @@ logger = get_logger(__name__)
 
 
 if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+    raise ValueError(
+        'GEMINI_API_KEY environment variable must be set. '
+        "If using 'run.sh', you will be prompted for it. "
+        "Otherwise, run 'export GEMINI_API_KEY=your-api-key'."
+    )
 
 
 ai = Genkit(

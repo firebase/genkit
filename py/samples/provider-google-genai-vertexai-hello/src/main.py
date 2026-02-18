@@ -151,11 +151,18 @@ if 'GCLOUD_PROJECT' not in os.environ:
     if 'GOOGLE_CLOUD_PROJECT' in os.environ:
         os.environ['GCLOUD_PROJECT'] = os.environ['GOOGLE_CLOUD_PROJECT']
     else:
-        os.environ['GCLOUD_PROJECT'] = input('Please enter your GCLOUD_PROJECT_ID: ')
+        raise ValueError(
+            'GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT environment variable must be set. '
+            "If using 'run.sh', you will be prompted for it. "
+            "Otherwise, run 'export GOOGLE_CLOUD_PROJECT=your-project-id'."
+        )
 
+# Get location from environment or default to us-central1
+location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION') or 'us-central1'
+os.environ['GOOGLE_CLOUD_LOCATION'] = location  # Ensure it's set for other tools
 
 ai = Genkit(
-    plugins=[VertexAI()],
+    plugins=[VertexAI(location=location)],
     model='vertexai/gemini-2.5-flash',
 )
 
@@ -454,7 +461,17 @@ async def generate_code(input: CodeInput) -> str:
     Returns:
         Generated code.
     """
-    return await generate_code_logic(ai, input.task)
+    try:
+        return await generate_code_logic(ai, input.task)
+    except Exception as e:
+        logger.error(f'Error in generate_code: {e}')
+        # Check for RemoteDisconnected or similar connection errors
+        if 'RemoteDisconnected' in str(e) or 'Connection reset' in str(e):
+            logger.warning(
+                'Connection to Vertex AI was closed remotely. '
+                'This might be a transient network issue or model instability.'
+            )
+        raise
 
 
 @ai.flow()

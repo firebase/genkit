@@ -68,7 +68,13 @@ from genkit.ai import Genkit, Output
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
+from genkit.plugins.vertex_ai.model_garden import (
+    ModelGardenPlugin,
+    model_garden_name,
+)
+
+# ... (rest of imports)
+# ... (previous code) ...
 from genkit.types import Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
@@ -89,9 +95,11 @@ def get_project_id() -> str:
     """Get Google Cloud project ID from environment."""
     project_id = os.getenv('GCLOUD_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT')
     if not project_id:
-        project_id = input('Enter your Google Cloud Project ID: ').strip()
-        if not project_id:
-            raise ValueError('GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT or user input must be set.')
+        raise ValueError(
+            'GOOGLE_CLOUD_PROJECT environment variable must be set. '
+            "If using 'run.sh', you will be prompted for it. "
+            "Otherwise, run 'export GOOGLE_CLOUD_PROJECT=your-project-id'."
+        )
 
     # Sanitize project_id to remove potential smart quotes or regular quotes
     project_id = project_id.strip().strip("'").strip('"').strip(""").strip(""")
@@ -107,9 +115,11 @@ def get_location() -> str:
     """Get Google Cloud location from environment."""
     location = os.getenv('GOOGLE_CLOUD_LOCATION') or os.getenv('GOOGLE_CLOUD_REGION')
     if not location:
-        location = input('Enter your Google Cloud Location (default: us-central1): ').strip()
-        if not location:
-            location = 'us-central1'
+        raise ValueError(
+            'GOOGLE_CLOUD_LOCATION environment variable must be set. '
+            "If using 'run.sh', it defaults to 'us-central1'. "
+            "Otherwise, run 'export GOOGLE_CLOUD_LOCATION=us-central1'."
+        )
     os.environ['GOOGLE_CLOUD_LOCATION'] = location
     return location
 
@@ -125,7 +135,7 @@ ai = Genkit(
             model_locations={
                 'anthropic/claude-sonnet-4@20250514': 'us-east5',
                 'anthropic/claude-3-5-sonnet-v2@20241022': 'us-east5',
-                'meta/llama-3.2-90b-vision-instruct-maas': 'us-central1',
+                'meta/llama-4-maverick-17b-128e-instruct-maas': 'us-east5',
                 'mistralai/ministral-3-14b-instruct-2512': 'us-central1',
             },
         ),
@@ -232,12 +242,12 @@ async def gemini_model(input: ToolFlowInput) -> str:
     return response.text
 
 
-@ai.flow(name='llama-3.2 - basic_flow')
+@ai.flow(name='llama-4 - basic_flow')
 async def llama_model() -> str:
     """Generate a greeting."""
     try:
         response = await ai.generate(
-            model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+            model=model_garden_name('meta/llama-4-maverick-17b-128e-instruct-maas'),
             config={
                 'temperature': 1,
             },
@@ -246,7 +256,15 @@ async def llama_model() -> str:
         logger.info(f'Response received: {response.text[:100] if response.text else "None"}')
         return response.text
     except Exception as e:
-        logger.error(f'Error in llama 3.2 basic_flow: {e}', exc_info=True)
+        # Check for 404/NotFound in the error message or type
+        if 'NotFound' in str(type(e)) or '404' in str(e):
+            logger.warning(f'Model not found error caught: {e}')
+            raise ValueError(
+                'Model `meta/llama-4-maverick-17b-128e-instruct-maas` not found or not enabled. '
+                'Please go to Vertex AI Model Garden and enable this model for your project: '
+                'https://console.cloud.google.com/vertex-ai/model-garden'
+            ) from e
+        logger.error(f'Error in llama 4 basic_flow: {e}', exc_info=True)
         raise
 
 

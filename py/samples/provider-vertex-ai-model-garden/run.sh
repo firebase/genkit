@@ -43,6 +43,8 @@ esac
 print_banner "Model Garden Demo" "🌱"
 
 check_env_var "GEMINI_API_KEY" "https://makersuite.google.com/app/apikey" || true
+check_env_var "GOOGLE_CLOUD_PROJECT" "https://console.cloud.google.com/"
+check_env_var "GOOGLE_CLOUD_LOCATION" "us-central1"
 
 install_deps
 
