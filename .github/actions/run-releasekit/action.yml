@@ -180,6 +180,15 @@ runs:
           echo "::notice::LIVE RUN"
         fi
 
+    # ── Clean worktree before command ──────────────────────────────
+    # The show-plan step above uses `uv run` which can trigger
+    # `uv sync` and modify uv.lock, leaving the worktree dirty.
+    # The publish preflight (RK-PREFLIGHT-DIRTY-WORKTREE) requires
+    # a clean worktree, so reset before running the real command.
+    - name: Restore clean worktree
+      shell: bash
+      run: git reset --hard && git clean -fd
+
     # ── Build and run the command ───────────────────────────────────
     - name: Run releasekit ${{ inputs.command }}
       id: run
