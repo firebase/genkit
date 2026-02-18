@@ -196,7 +196,7 @@ describe('VertexAI Plugin', () => {
 
   describe('Helper Functions', () => {
     it('vertexAI.model should return a ModelReference for Gemini with correct schema', () => {
-      const modelName = 'gemini-2.0-flash';
+      const modelName = 'gemini-2.5-flash';
       const modelRef = vertexAI.model(modelName);
       assert.strictEqual(
         modelRef.name,
