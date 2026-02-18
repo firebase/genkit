@@ -39,27 +39,39 @@
 #                                                  │
 #                                                  ▼
 #                                        releasekit publish ──► PyPI
-#                                                  │
-#                                                  ▼
-#                                        repository_dispatch ──► downstream repos
+#                                           │            │
+#                                           │    upload manifest artifact
+#                                           │            │
+#                                           ▼            ▼
+#                              releasekit verify-install  │
+#                              (from manifest artifact)   │
+#                                           │             │
+#                                           ▼             │
+#                                  repository_dispatch ◄──┘
+#                                           │
+#                                           ▼
+#                                     downstream repos
 #
 # ── Manual Dispatch Flow ────────────────────────────────────────────
 #
-#   ┌─────────────────────────────────────────────────────────────┐
-#   │  workflow_dispatch UI                                       │
-#   │                                                             │
-#   │  action:  [prepare ▼]  ──► runs PREPARE job only            │
-#   │           [release ▼]  ──► runs RELEASE + PUBLISH + NOTIFY  │
-#   │                                                             │
-#   │  target:         [pypi / testpypi]                          │
-#   │  dry_run:        [✓] simulate, no side effects              │
-#   │  force_prepare:  [✓] skip preflight, force PR creation      │
-#   │  group:          [________] target a release group           │
-#   │  bump_type:      [auto / patch / minor / major]             │
-#   │  prerelease:     [________] e.g. rc.1, beta.1               │
-#   │  skip_publish:   [✓] tag + release but don't publish        │
-#   │  concurrency:    [0] max parallel publish (0 = auto)        │
-#   └─────────────────────────────────────────────────────────────┘
+#   ┌──────────────────────────────────────────────────────────────────┐
+#   │  workflow_dispatch UI                                            │
+#   │                                                                  │
+#   │  action:  [prepare ▼]  ──► runs PREPARE job only                 │
+#   │           [release ▼]  ──► runs RELEASE + PUBLISH + VERIFY +     │
+#   │                            NOTIFY                                │
+#   │                                                                  │
+#   │  target:              [pypi / testpypi]                          │
+#   │  dry_run:             [✓] simulate, no side effects              │
+#   │  force_prepare:       [✓] skip preflight, force PR creation      │
+#   │  group:               [________] target a release group          │
+#   │  bump_type:           [auto / patch / minor / major]             │
+#   │  prerelease:          [________] e.g. rc.1, beta.1               │
+#   │  skip_publish:        [✓] tag + release but don't publish        │
+#   │  concurrency:         [0] max parallel publish (0 = auto)        │
+#   │  pypi_environment:    [pypi_github_publishing] OIDC env name     │
+#   │  testpypi_environment:[testpypi] OIDC env name for TestPyPI      │
+#   └──────────────────────────────────────────────────────────────────┘
 #
 # ── Job Dependency Graph ───────────────────────────────────────────
 #
@@ -76,24 +88,24 @@
 #   │ (push)  │          │ (merge) │
 #   └─────────┘          └────┬────┘
 #                             │ needs: [auth]
-#                             │
+#                             │ if: release.result == 'success'
 #                             ▼
 #                        ┌─────────┐
-#                        │ publish │
+#                        │ publish │  ──► uploads manifest artifact
 #                        │ (PyPI)  │
 #                        └────┬────┘
 #                             │ needs: [auth, release]
 #                             │
 #                             ▼
 #                        ┌────────┐
-#                        │ verify │  pip install + import check
-#                        └────┬───┘
+#                        │ verify │  releasekit verify-install
+#                        └────┬───┘  (downloads manifest artifact)
 #                             │ needs: [publish]
 #                             │
 #                             ▼
 #                        ┌────────┐
-#                        │ notify │
-#                        └────────┘
+#                        │ notify │  if: !cancelled() && publish == success
+#                        └────────┘  (verify failure does NOT block notify)
 #                          needs: [auth, release, publish, verify]
 #
 # ── Token Resolution (Sentinel Pattern) ───────────────────────────
@@ -127,21 +139,76 @@
 #
 # ── Inputs Reference ────────────────────────────────────────────────
 #
-#   Input          │ Type    │ Default │ Description
-#   ───────────────┼─────────┼─────────┼──────────────────────────────
-#   action         │ choice  │ release │ Pipeline stage: prepare or release
-#   target         │ choice  │ pypi    │ Registry: pypi or testpypi
-#   dry_run        │ boolean │ true    │ Simulate without side effects
-#   force_prepare  │ boolean │ false   │ Force PR creation (--force)
-#   group          │ string  │ (all)   │ Target a specific release group
-#   bump_type      │ choice  │ auto    │ Override semver bump detection
-#   prerelease     │ string  │ (none)  │ Prerelease suffix (e.g. rc.1)
-#   skip_publish   │ boolean │ false   │ Tag + release, skip registry
-#   concurrency    │ string  │ 0       │ Max parallel publish jobs
-#   max_retries    │ string  │ 2       │ Retry failed publishes (0 = off)
-#   no_ai          │ boolean │ false   │ Disable AI features
-#   model          │ string  │ (chain) │ Override AI model
-#   codename_theme │ string  │ (cfg)   │ Override codename theme
+#   Input               │ Type    │ Default                │ Description
+#   ────────────────────┼─────────┼────────────────────────┼──────────────────────────
+#   action              │ choice  │ release                │ Pipeline stage: prepare or release
+#   target              │ choice  │ pypi                   │ Registry: pypi or testpypi
+#   dry_run             │ boolean │ true                   │ Simulate without side effects
+#   force_prepare       │ boolean │ false                  │ Force PR creation (--force)
+#   group               │ string  │ (all)                  │ Target a specific release group
+#   bump_type           │ choice  │ auto                   │ Override semver bump detection
+#   prerelease          │ string  │ (none)                 │ Prerelease suffix (e.g. rc.1)
+#   skip_publish        │ boolean │ false                  │ Tag + release, skip registry
+#   concurrency         │ string  │ 0                      │ Max parallel publish jobs
+#   max_retries         │ string  │ 2                      │ Retry failed publishes (0 = off)
+#   no_ai               │ boolean │ false                  │ Disable AI features
+#   model               │ string  │ (chain)                │ Override AI model
+#   codename_theme      │ string  │ (cfg)                  │ Override codename theme
+#   pypi_environment    │ string  │ pypi_github_publishing │ GitHub env for PyPI OIDC
+#   testpypi_environment│ string  │ testpypi               │ GitHub env for TestPyPI OIDC
+#   auth_method         │ choice  │ auto                   │ Auth: auto, app, pat, github-token
+#
+# ── Job Permissions (Least Privilege) ─────────────────────────────
+#
+#   Job        │ contents │ pull-requests │ id-token │ attestations │ actions │ Reason
+#   ───────────┼──────────┼───────────────┼──────────┼──────────────┼─────────┼──────────────────────────
+#   auth       │ (none)   │ (none)        │ (none)   │ (none)       │ (none)  │ Uses own generated token
+#   prepare    │ write    │ write         │ (none)   │ (none)       │ (none)  │ Push commits, create PRs
+#   release    │ write    │ (none)        │ (none)   │ (none)       │ (none)  │ Create tags + GitHub Releases
+#   build      │ read     │ (none)        │ write    │ write        │ (none)  │ Build only (no PyPI creds)
+#   provenance │ write    │ (none)        │ write    │ (none)       │ read    │ SLSA L3 (reusable workflow)
+#   upload     │ read     │ (none)        │ write    │ (none)       │ (none)  │ Upload attested artifacts
+#   verify     │ read     │ (none)        │ (none)   │ (none)       │ (none)  │ Checkout + SLSA verification
+#   notify     │ (none)   │ (none)        │ (none)   │ (none)       │ (none)  │ Uses own token for dispatch
+#
+# Workflow-level: permissions: {} (all grants are per-job)
+# All third-party actions pinned to commit SHAs (SLSA L3 requirement)
+#
+# ── SLSA Build L3 Compliance ────────────────────────────────────────
+#
+# This workflow satisfies SLSA Build Level 3. The table below maps
+# each L3 requirement to the specific mechanism used.
+#
+#   Requirement              │ Mechanism                     │ Job(s)
+#   ─────────────────────────┼───────────────────────────────┼──────────────
+#   Hardened build platform  │ GitHub-hosted ubuntu-latest   │ build
+#   Build/upload isolation   │ Separate build + upload jobs  │ build, upload
+#   Non-falsifiable prov.    │ slsa-github-generator (L3)    │ provenance
+#   Hermetic build           │ --build-only (no registry I/O)│ build
+#   Pinned dependencies      │ All actions pinned to SHA     │ all
+#   Ephemeral environment    │ Fresh VM per job run          │ all
+#   OIDC identity            │ id-token: write (Sigstore)    │ build, upload
+#   Provenance before upload │ provenance runs before upload │ provenance
+#   Verification             │ slsa-verifier in verify job   │ verify
+#
+# Data flow:
+#
+#   release --> build --[artifacts]--> provenance --[attested]--> upload
+#                 |                       |                         |
+#                 +-- digests (base64) ---+                        |
+#                 +-- manifest, SBOMs, attestations                |
+#                                                          verify <-+
+#
+# References:
+#   - SLSA framework:           https://slsa.dev/
+#   - SLSA Build L3 spec:       https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA verification:        https://slsa.dev/spec/v1.0/verifying-artifacts
+#   - slsa-github-generator:    https://github.com/slsa-framework/slsa-github-generator
+#   - slsa-verifier:            https://github.com/slsa-framework/slsa-verifier
+#   - Sigstore:                 https://www.sigstore.dev/
+#   - in-toto attestation:      https://in-toto.io/
+#   - GitHub attestations:      https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations
+#   - GitHub Actions hardening: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-for-github-actions
 #
 # ── Required Configuration ─────────────────────────────────────────
 #
@@ -258,6 +325,16 @@ on:
         description: 'Override codename theme (e.g. galaxies, animals)'
         required: false
         type: string
+      pypi_environment:
+        description: 'GitHub environment name for PyPI OIDC trusted publishing'
+        required: false
+        default: pypi_github_publishing
+        type: string
+      testpypi_environment:
+        description: 'GitHub environment name for TestPyPI OIDC trusted publishing'
+        required: false
+        default: testpypi
+        type: string
       auth_method:
         description: 'Authentication method (auto = detect from configured secrets)'
         required: false
@@ -282,10 +359,8 @@ concurrency:
   group: releasekit-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write        # Create tags, releases, and push to release branch
-  pull-requests: write   # Open/update Release PRs, manage labels
-  id-token: write        # Sigstore keyless signing (SLSA provenance)
+# SLSA L3: Workflow-level permissions are empty; each job declares its own.
+permissions: {}
 
 env:
   RELEASEKIT_DIR: py/tools/releasekit
@@ -316,6 +391,7 @@ jobs:
     name: Resolve Auth Token
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions: {}
     outputs:
       # When the fallback is GITHUB_TOKEN, we output the literal string
       # "GITHUB_TOKEN" as a sentinel because the actual secret cannot
@@ -332,7 +408,7 @@ jobs:
           (inputs.auth_method == 'auto' || inputs.auth_method == 'app' || inputs.auth_method == '')
           && vars.RELEASEKIT_APP_ID != ''
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf  # v2
         with:
           app-id: ${{ vars.RELEASEKIT_APP_ID }}
           private-key: ${{ secrets.RELEASEKIT_APP_PRIVATE_KEY }}
@@ -340,32 +416,41 @@ jobs:
       - name: Get App bot user ID
         if: steps.app-token.outcome == 'success'
         id: app-user
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
-          if ! user_id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id 2>/dev/null); then
+          if ! user_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id 2>/dev/null); then
             echo "::warning::Failed to fetch App bot user ID — using 0 as fallback"
             user_id=0
           fi
           echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
       # Resolve: App > PAT > GITHUB_TOKEN (respects auth_method override).
+      # SECURITY: All step outputs and inputs are passed via env vars
+      # to prevent script injection attacks.
       - name: Resolve token and identity
         id: resolve
+        env:
+          AUTH_METHOD: ${{ inputs.auth_method || 'auto' }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          APP_USER_ID: ${{ steps.app-user.outputs.user-id }}
+          PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
+          GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
         run: |
-          AUTH="${{ inputs.auth_method || 'auto' }}"
-
           # App token — used when auth=auto (and available) or auth=app.
-          if [ "$AUTH" = "app" ] || { [ "$AUTH" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
+          if [ "$AUTH_METHOD" = "app" ] || { [ "$AUTH_METHOD" = "auto" ] && [ -n "$APP_TOKEN" ]; }; then
             { echo "token=$APP_TOKEN"
               echo "auth-method=app"
-              echo "git-user-name=${{ steps.app-token.outputs.app-slug }}[bot]"
-              echo "git-user-email=${{ steps.app-user.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+              echo "git-user-name=${APP_SLUG}[bot]"
+              echo "git-user-email=${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
             } >> "$GITHUB_OUTPUT"
-            echo "::notice::Using GitHub App token (${{ steps.app-token.outputs.app-slug }})"
+            echo "::notice::Using GitHub App token ($APP_SLUG)"
 
           # PAT — used when auth=auto (and available) or auth=pat.
-          elif [ "$AUTH" = "pat" ] || { [ "$AUTH" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
+          elif [ "$AUTH_METHOD" = "pat" ] || { [ "$AUTH_METHOD" = "auto" ] && [ -n "$PAT_TOKEN" ]; }; then
             { echo "token=$PAT_TOKEN"
               echo "auth-method=pat"
               echo "git-user-name=${GIT_USER_NAME:-releasekit[bot]}"
@@ -390,11 +475,6 @@ jobs:
               echo "::warning::Using GITHUB_TOKEN — PRs will not trigger CI and may fail CLA checks. Set RELEASEKIT_GIT_USER_NAME and RELEASEKIT_GIT_USER_EMAIL repo variables to use a CLA-signed identity."
             fi
           fi
-        env:
-          APP_TOKEN: ${{ steps.app-token.outputs.token }}
-          PAT_TOKEN: ${{ secrets.RELEASEKIT_TOKEN }}
-          GIT_USER_NAME: ${{ vars.RELEASEKIT_GIT_USER_NAME }}
-          GIT_USER_EMAIL: ${{ vars.RELEASEKIT_GIT_USER_EMAIL }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # PREPARE: Compute bumps and open/update Release PR
@@ -409,6 +489,9 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Push version bump commits
+      pull-requests: write  # Create/update Release PRs
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
@@ -416,8 +499,12 @@ jobs:
       # Resolve the sentinel: use the job's own GITHUB_TOKEN when auth
       # fell back to the built-in token (it cannot cross job boundaries).
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
+      GOOGLE_GENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
-      - uses: actions/checkout@v6
+      # Shallow checkout is needed so the runner can resolve
+      # ./.github/actions/*. setup-releasekit re-checkouts with
+      # fetch-depth: 0 and fetch-tags: true for full history.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -431,10 +518,11 @@ jobs:
           command: prepare
           workspace: py
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          dry-run: ${{ inputs.dry_run && 'true' || 'false' }}
           group: ${{ inputs.group }}
           bump-type: ${{ inputs.bump_type }}
           prerelease: ${{ inputs.prerelease }}
-          force: ${{ inputs.force_prepare }}
+          force: ${{ inputs.force_prepare && 'true' || 'false' }}
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -454,12 +542,15 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Create tags and GitHub Releases
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
+      GOOGLE_GENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -474,7 +565,6 @@ jobs:
           workspace: py
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ env.DRY_RUN }}
-          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -482,22 +572,30 @@ jobs:
           GH_TOKEN: ${{ env.RESOLVED_TOKEN }}
 
   # ═══════════════════════════════════════════════════════════════════════
-  # PUBLISH: Build and publish packages to PyPI
+  # BUILD: Build artifacts in an isolated job (SLSA L3)
+  #
+  # This job ONLY builds -- it has NO access to PyPI credentials.
+  # Artifacts are uploaded via actions/upload-artifact and attested
+  # by the SLSA generator in a separate job BEFORE they reach PyPI.
+  # This isolation is the key SLSA L3 requirement: the build job
+  # cannot tamper with artifacts after they are attested.
   # ═══════════════════════════════════════════════════════════════════════
-  publish:
-    name: Publish to ${{ inputs.target || 'pypi' }}
+  build:
+    name: Build Artifacts
     needs: [auth, release]
-    if: inputs.skip_publish != 'true'
+    if: ${{ !(inputs.skip_publish) && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ inputs.target || 'pypi' }}
     permissions:
-      id-token: write    # Trusted publishing (OIDC) + Sigstore signing
-      attestations: write  # PEP 740 attestations
+      id-token: write    # Sigstore signing of releasekit provenance
+      attestations: write  # GitHub build attestations
+      contents: read     # Required for actions/checkout
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -506,6 +604,103 @@ jobs:
           workspace-dir: ${{ env.WORKSPACE_DIR }}
           enable-ollama: "false"
 
+      # Build only -- no registry upload. Artifacts land in
+      # <workspace>/dist/<package>/*.whl and *.tar.gz.
+      - uses: ./.github/actions/run-releasekit
+        with:
+          command: publish
+          workspace: py
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          dry-run: ${{ env.DRY_RUN }}
+          force: "true"
+          group: ${{ inputs.group }}
+          concurrency: ${{ inputs.concurrency }}
+          no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
+          model: ${{ inputs.model }}
+          codename-theme: ${{ inputs.codename_theme }}
+          build-only: "true"
+
+      - uses: ./.github/actions/compute-artifact-digests
+        id: hash
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          artifact-pattern: |
+            *.whl
+            *.tar.gz
+
+      - uses: ./.github/actions/upload-release-artifacts
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          upload-dist: "true"
+
+      - uses: ./.github/actions/attest-build-artifacts
+        with:
+          subject-path: |
+            ${{ env.WORKSPACE_DIR }}/dist/**/*.whl
+            ${{ env.WORKSPACE_DIR }}/dist/**/*.tar.gz
+          sbom-path: ${{ env.WORKSPACE_DIR }}/sbom.cdx.json
+          has-digests: ${{ steps.hash.outputs.digests != '' && 'true' || 'false' }}
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PROVENANCE: SLSA L3 provenance via official generator
+  #
+  # This job calls the slsa-framework/slsa-github-generator reusable
+  # workflow, which runs in a separate, tamper-proof execution context.
+  # The provenance is generated by the reusable workflow's control plane,
+  # NOT by the caller workflow -- this is the key L3 requirement.
+  # The provenance attests the artifacts BEFORE they are uploaded to PyPI.
+  # ═══════════════════════════════════════════════════════════════════════
+  provenance:
+    name: SLSA Provenance (L3)
+    needs: build
+    if: ${{ needs.build.outputs.digests != '' }}
+    permissions:
+      actions: read      # Read workflow run info for provenance
+      id-token: write    # Sign provenance with Sigstore via OIDC
+      contents: write    # Upload provenance as release asset
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.digests }}
+      upload-assets: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # UPLOAD: Push pre-built, attested artifacts to PyPI (SLSA L3)
+  #
+  # This job downloads the artifacts built by the build job and uploads
+  # them to PyPI. It runs AFTER provenance generation, ensuring that
+  # artifacts are attested before they reach the registry.
+  # ═══════════════════════════════════════════════════════════════════════
+  upload:
+    name: Upload to ${{ inputs.target || 'pypi' }}
+    needs: [auth, build, provenance]
+    if: >-
+      !cancelled() &&
+      needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.target == 'testpypi' && (inputs.testpypi_environment || 'testpypi') || (inputs.pypi_environment || 'pypi_github_publishing') }}
+    permissions:
+      id-token: write    # Trusted publishing (OIDC)
+      contents: read     # Required for actions/checkout
+    env:
+      RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: ./.github/actions/setup-releasekit
+        with:
+          token: ${{ env.RESOLVED_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          install-system-deps: "false"
+          enable-ollama: "false"
+
+      - name: Download built distributions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: dist
+          path: ${{ env.WORKSPACE_DIR }}/dist
+
+      # Upload only -- no rebuild. Uses pre-built artifacts from the
+      # build job, which have already been attested by the SLSA generator.
       - uses: ./.github/actions/run-releasekit
         with:
           command: publish
@@ -518,105 +713,77 @@ jobs:
           max-retries: ${{ inputs.max_retries }}
           check-url: ${{ env.PUBLISH_CHECK_URL }}
           index-url: ${{ env.PUBLISH_INDEX_URL }}
-          show-plan: "true"
-          no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
-          model: ${{ inputs.model }}
-          codename-theme: ${{ inputs.codename_theme }}
+          no-ai: "true"
+          upload-only: "true"
+          dist-dir: ${{ env.WORKSPACE_DIR }}/dist
         env:
           UV_PUBLISH_TOKEN: ${{ inputs.target == 'testpypi' && secrets.TESTPYPI_TOKEN || secrets.PYPI_TOKEN }}
-
-      - name: Upload manifest artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-manifest
-          path: ${{ env.WORKSPACE_DIR }}/release-manifest.json
-          retention-days: 90
-
-      - name: Upload SLSA provenance
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: slsa-provenance
-          path: ${{ env.WORKSPACE_DIR }}/provenance*.intoto.jsonl
-          retention-days: 90
-          if-no-files-found: warn
-
-      - name: Upload SBOMs
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: |
-            ${{ env.WORKSPACE_DIR }}/sbom.cdx.json
-            ${{ env.WORKSPACE_DIR }}/sbom.spdx.json
-          retention-days: 90
-          if-no-files-found: warn
 
   # ═══════════════════════════════════════════════════════════════════════
   # VERIFY: Check published packages are installable
   # ═══════════════════════════════════════════════════════════════════════
   verify:
     name: Verify Published Packages
-    needs: publish
+    needs: [upload, provenance]
     if: >-
-      success() &&
-      (github.event_name == 'pull_request' ||
-       inputs.dry_run == false)
+      !cancelled() &&
+      needs.upload.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: ./.github/actions/setup-releasekit
         with:
-          python-version: '3.12'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          enable-ollama: "false"
+
+      - name: Download release manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: release-manifest
+          path: manifest
+
+      - uses: ./.github/actions/verify-slsa-provenance
+        with:
+          provenance-name: ${{ needs.provenance.outputs.provenance-name }}
+          provenance-available: ${{ needs.provenance.result == 'success' && 'true' || 'false' }}
 
       - name: Wait for PyPI propagation
         run: |
           echo "Waiting 60 seconds for PyPI CDN propagation..."
           sleep 60
 
-      - name: Get core version and verify installation
-        continue-on-error: true  # Propagation delays should not fail the pipeline
-        run: |
-          VERSION=$(grep '^version' py/packages/genkit/pyproject.toml | head -1 | sed 's/.*= *"//' | sed 's/".*//')
-          echo "Core version: $VERSION"
+      - name: Upgrade pip
+        run: pip install --upgrade pip
 
-          pip install --upgrade pip
-
-          # Verify core package.
-          pip install "genkit==$VERSION"
-          python -c "from genkit.ai import Genkit; print('✅ genkit imports successfully')"
-
-          # Verify all plugins are installable.
-          for pyproject in py/plugins/*/pyproject.toml; do
-            plugin_dir=$(dirname "$pyproject")
-            plugin_name=$(basename "$plugin_dir")
-            pkg_name="genkit-plugin-${plugin_name}"
-            plugin_version=$(grep '^version' "$pyproject" | head -1 | sed 's/.*= *"//' | sed 's/".*//')
-            echo "Verifying $pkg_name==$plugin_version..."
-            if pip install "$pkg_name==$plugin_version"; then
-              echo "✅ $pkg_name installed"
-            else
-              echo "⚠️  $pkg_name==$plugin_version not found on PyPI (may not have been published)"
-            fi
-          done
+      - uses: ./.github/actions/run-releasekit
+        with:
+          command: verify-install
+          workspace: py
+          releasekit-dir: ${{ env.RELEASEKIT_DIR }}
+          manifest: manifest/release-manifest--py.json
+          import-check: "from genkit.ai import Genkit"
+          index-url: ${{ env.PUBLISH_CHECK_URL }}
 
   # ═══════════════════════════════════════════════════════════════════════
   # NOTIFY: Post-release notifications
   # ═══════════════════════════════════════════════════════════════════════
   notify:
     name: Notify Downstream
-    needs: [auth, release, publish, verify]
-    if: success()
+    needs: [auth, release, build, provenance, upload, verify]
+    if: ${{ !cancelled() && needs.upload.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
     steps:
       - name: Dispatch release event
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0  # v3
         with:
           token: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
           event-type: genkit-python-release
-          client-payload: '{"release_url": "${{ needs.release.outputs.release_url }}"}'
+          # SECURITY: Use toJSON() to safely escape the URL and prevent
+          # JSON injection if release_url contains special characters.
+          client-payload: ${{ format('{{"release_url":{0}}}', toJSON(needs.release.outputs.release_url)) }}
