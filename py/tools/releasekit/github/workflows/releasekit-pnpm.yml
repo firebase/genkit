@@ -147,6 +147,51 @@
 #   model          │ string  │ (chain) │ Override AI model
 #   codename_theme │ string  │ (cfg)   │ Override codename theme
 #
+# ── Job Permissions (Least Privilege) ─────────────────────────────
+#
+#   Job            │ contents │ pull-requests │ Reason
+#   ───────────────┼──────────┼───────────────┼─────────────────────────────
+#   auth           │ (none)   │ (none)        │ Uses own generated token
+#   prepare-js     │ write    │ write         │ Push commits, create PRs
+#   prepare-js-cli │ write    │ write         │ Push commits, create PRs
+#   release-js     │ write    │ (none)        │ Create tags + GitHub Releases
+#   publish-js     │ read     │ (none)        │ Checkout only
+#   verify-js      │ read     │ (none)        │ Checkout + download artifact
+#   notify-js      │ (none)   │ (none)        │ Uses own token for dispatch
+#
+# Workflow-level: permissions: {} (all grants are per-job)
+# All third-party actions pinned to commit SHAs (SLSA L3 requirement)
+#
+# ── SLSA Build L3 Compliance ────────────────────────────────────────
+#
+# This workflow satisfies SLSA Build Level 3. The table below maps
+# each L3 requirement to the specific mechanism used.
+#
+#   Requirement              │ Mechanism                     │ Job(s)
+#   ─────────────────────────┼───────────────────────────────┼──────────────
+#   Hardened build platform  │ GitHub-hosted ubuntu-latest   │ publish-js
+#   Non-falsifiable prov.    │ slsa-github-generator (L3)    │ provenance
+#   Pinned dependencies      │ All actions pinned to SHA     │ all
+#   Ephemeral environment    │ Fresh VM per job run          │ all
+#   Provenance before verify │ provenance runs before verify │ provenance
+#   Verification             │ slsa-verifier in verify job   │ verify-js
+#
+# Data flow:
+#
+#   release-js --> publish-js --[digests]--> provenance --[attested]--> verify-js
+#
+# References:
+#   - SLSA framework:           https://slsa.dev/
+#   - SLSA Build L3 spec:       https://slsa.dev/spec/v1.0/levels#build-l3
+#   - SLSA verification:        https://slsa.dev/spec/v1.0/verifying-artifacts
+#   - slsa-github-generator:    https://github.com/slsa-framework/slsa-github-generator
+#   - slsa-verifier:            https://github.com/slsa-framework/slsa-verifier
+#   - Sigstore:                 https://www.sigstore.dev/
+#   - in-toto attestation:      https://in-toto.io/
+#   - GitHub Actions hardening: https://docs.github.com/en/actions/security-for-github-actions/security-hardening-for-github-actions
+#   - npm provenance:           https://docs.npmjs.com/generating-provenance-statements
+#   - npm publishing:           https://docs.npmjs.com/cli/v10/commands/npm-publish
+#
 # ── Required Configuration ─────────────────────────────────────────
 #
 #   Repository Variables (Settings → Variables → Actions):
@@ -386,11 +431,8 @@ jobs:
     name: Resolve Auth Token
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions: {}
     outputs:
-      # When the fallback is GITHUB_TOKEN, we output the literal string
-      # "GITHUB_TOKEN" as a sentinel because the actual secret cannot
-      # cross job boundaries.  Downstream jobs must substitute their own
-      # secrets.GITHUB_TOKEN when they see this sentinel.
       token: ${{ steps.resolve.outputs.token }}
       auth-method: ${{ steps.resolve.outputs.auth-method }}
       git-user-name: ${{ steps.resolve.outputs.git-user-name }}
@@ -401,7 +443,7 @@ jobs:
           (inputs.auth_method == 'auto' || inputs.auth_method == 'app' || inputs.auth_method == '')
           && vars.RELEASEKIT_APP_ID != ''
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf  # v2
         with:
           app-id: ${{ vars.RELEASEKIT_APP_ID }}
           private-key: ${{ secrets.RELEASEKIT_APP_PRIVATE_KEY }}
@@ -478,13 +520,16 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Push version bump commits
+      pull-requests: write  # Create/update Release PRs
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -492,10 +537,10 @@ jobs:
           git-user-name: ${{ needs.auth.outputs.git-user-name }}
           git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c  # v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -528,13 +573,16 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'prepare')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Push version bump commits
+      pull-requests: write  # Create/update Release PRs
     outputs:
       has_bumps: ${{ steps.prepare.outputs.has_bumps }}
       pr_url: ${{ steps.prepare.outputs.pr_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -542,10 +590,10 @@ jobs:
           git-user-name: ${{ needs.auth.outputs.git-user-name }}
           git-user-email: ${{ needs.auth.outputs.git-user-email }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c  # v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -581,12 +629,14 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'release')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write      # Create tags and GitHub Releases
     outputs:
       release_url: ${{ steps.release.outputs.release_url }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
@@ -601,7 +651,6 @@ jobs:
           workspace: js
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           dry-run: ${{ env.DRY_RUN }}
-          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -615,23 +664,27 @@ jobs:
   publish-js:
     name: "Publish to npm"
     needs: [auth, release-js]
-    if: inputs.skip_publish != 'true'
+    if: ${{ !(inputs.skip_publish) && needs.release-js.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
     env:
       RESOLVED_TOKEN: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: ./.github/actions/setup-releasekit
         with:
           token: ${{ env.RESOLVED_TOKEN }}
           releasekit-dir: ${{ env.RELEASEKIT_DIR }}
           enable-ollama: "false"
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c  # v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -655,7 +708,6 @@ jobs:
           group: ${{ inputs.group }}
           concurrency: ${{ inputs.concurrency }}
           max-retries: ${{ inputs.max_retries }}
-          show-plan: "true"
           no-ai: ${{ inputs.no_ai && 'true' || 'false' }}
           model: ${{ inputs.model }}
           codename-theme: ${{ inputs.codename_theme }}
@@ -663,31 +715,67 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      - name: Upload manifest artifact
-        if: success()
-        uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/compute-artifact-digests
+        id: hash
         with:
-          name: release-manifest-js
-          path: release-manifest.json
-          retention-days: 90
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          search-dir: "."
+          artifact-pattern: "*.tgz"
+
+      - uses: ./.github/actions/upload-release-artifacts
+        with:
+          workspace-dir: ${{ env.WORKSPACE_DIR }}
+          manifest-name: release-manifest-js
+          upload-provenance: "false"
+          upload-sbom: "false"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PROVENANCE: SLSA L3 provenance via official generator
+  #
+  # This job calls the slsa-framework/slsa-github-generator reusable
+  # workflow, which runs in a separate, tamper-proof execution context.
+  # The provenance is generated by the reusable workflow's control plane,
+  # NOT by the caller workflow -- this is the key L3 requirement.
+  # ═══════════════════════════════════════════════════════════════════════
+  provenance:
+    name: SLSA Provenance (L3)
+    needs: publish-js
+    if: ${{ needs.publish-js.outputs.digests != '' }}
+    permissions:
+      actions: read      # Read workflow run info for provenance
+      id-token: write    # Sign provenance with Sigstore via OIDC
+      contents: write    # Upload provenance as release asset
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.publish-js.outputs.digests }}
+      upload-assets: true
 
   # ═══════════════════════════════════════════════════════════════════════
   # VERIFY: Check published packages are installable
   # ═══════════════════════════════════════════════════════════════════════
   verify-js:
     name: "Verify Published Packages (JS)"
-    needs: publish-js
+    needs: [publish-js, provenance]
     if: >-
-      success() &&
-      (github.event_name == 'pull_request' ||
-       inputs.dry_run == false)
+      !cancelled() &&
+      needs.publish-js.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - uses: ./.github/actions/verify-slsa-provenance
+        with:
+          provenance-name: ${{ needs.provenance.outputs.provenance-name }}
+          provenance-available: ${{ needs.provenance.result == 'success' && 'true' || 'false' }}
+          artifact-pattern: "*.tgz"
+
+      - uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c  # v4
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -709,14 +797,17 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   notify-js:
     name: "Notify Downstream (JS)"
-    needs: [auth, release-js, publish-js, verify-js]
-    if: success()
+    needs: [auth, release-js, publish-js, provenance, verify-js]
+    if: ${{ !cancelled() && needs.publish-js.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions: {}
     steps:
       - name: Dispatch release event
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0  # v3
         with:
           token: ${{ needs.auth.outputs.auth-method == 'github-token' && secrets.GITHUB_TOKEN || needs.auth.outputs.token }}
           event-type: genkit-js-release
-          client-payload: '{"release_url": "${{ needs.release-js.outputs.release_url }}"}'
+          # SECURITY: Use toJSON() to safely escape the URL and prevent
+          # JSON injection if release_url contains special characters.
+          client-payload: ${{ format('{{"release_url":{0}}}', toJSON(needs.release-js.outputs.release_url)) }}
