@@ -63,13 +63,28 @@ type AgentFlowInit[State any] struct {
 	State *SessionState[State] `json:"state,omitempty"`
 }
 
+// AgentFlowResult is the return value from an AgentFlowFunc.
+// It contains the user-specified outputs of the agent invocation.
+type AgentFlowResult struct {
+	// Message is the last model response message from the conversation.
+	Message *ai.Message `json:"message,omitempty"`
+	// Artifacts contains artifacts produced during the session.
+	Artifacts []*Artifact `json:"artifacts,omitempty"`
+}
+
 // AgentFlowOutput is the output when an agent flow invocation completes.
+// It wraps AgentFlowResult with framework-managed fields.
 type AgentFlowOutput[State any] struct {
 	// SnapshotID is the ID of the snapshot created at the end of this invocation.
 	// Empty if no snapshot was created (callback returned false or no store configured).
 	SnapshotID string `json:"snapshotId,omitempty"`
+	// Message is the last model response message from the conversation.
+	Message *ai.Message `json:"message,omitempty"`
+	// Artifacts contains artifacts produced during the session.
+	Artifacts []*Artifact `json:"artifacts,omitempty"`
 	// State contains the final conversation state.
-	State *SessionState[State] `json:"state"`
+	// Only populated when state is client-managed (no store configured).
+	State *SessionState[State] `json:"state,omitempty"`
 }
 
 // AgentFlowStreamChunk represents a single item in the agent flow's output stream.
@@ -101,8 +116,8 @@ type AgentSession[State any] struct {
 	lastSnapshot     *SessionSnapshot[State]
 	turnIndex        int
 	// collectTurnOutput returns the accumulated stream chunks for the current
-	// turn and resets the accumulator. Set by runWrapped; nil if no collection
-	// is configured (e.g., standalone usage).
+	// turn and resets the accumulator. Set by DefineCustomAgent; nil if no
+	// collection is configured (e.g., standalone usage).
 	collectTurnOutput func() any
 }
 
@@ -229,13 +244,11 @@ func (r Responder[Stream]) SendArtifact(artifact *Artifact) {
 // Type parameters:
 //   - Stream: Type for status updates sent via the responder
 //   - State: Type for user-defined state in snapshots
-type AgentFlowFunc[Stream, State any] = func(ctx context.Context, resp Responder[Stream], sess *AgentSession[State]) error
+type AgentFlowFunc[Stream, State any] = func(ctx context.Context, resp Responder[Stream], sess *AgentSession[State]) (*AgentFlowResult, error)
 
 // AgentFlow is a bidirectional streaming flow with automatic snapshot management.
 type AgentFlow[Stream, State any] struct {
-	flow             *core.Flow[*AgentFlowInput, *AgentFlowOutput[State], *AgentFlowStreamChunk[Stream], *AgentFlowInit[State]]
-	store            SessionStore[State]
-	snapshotCallback SnapshotCallback[State]
+	flow *core.Flow[*AgentFlowInput, *AgentFlowOutput[State], *AgentFlowStreamChunk[Stream], *AgentFlowInit[State]]
 }
 
 // DefineCustomAgent creates an AgentFlow with automatic snapshot management and registers it.
@@ -252,23 +265,104 @@ func DefineCustomAgent[Stream, State any](
 		}
 	}
 
-	af := &AgentFlow[Stream, State]{
-		store:            afOpts.store,
-		snapshotCallback: afOpts.callback,
-	}
+	store := afOpts.store
+	snapshotCallback := afOpts.callback
 
-	bidiFn := func(
+	flow := core.DefineBidiFlow(r, name, func(
 		ctx context.Context,
 		init *AgentFlowInit[State],
 		inCh <-chan *AgentFlowInput,
 		outCh chan<- *AgentFlowStreamChunk[Stream],
 	) (*AgentFlowOutput[State], error) {
-		return af.runWrapped(ctx, init, inCh, outCh, fn)
-	}
+		session, snapshot, err := newSessionFromInit(ctx, init, store)
+		if err != nil {
+			return nil, err
+		}
+		ctx = NewSessionContext(ctx, session)
 
-	af.flow = core.DefineBidiFlow(r, name, bidiFn)
+		agentSess := &AgentSession[State]{
+			Session:          session,
+			snapshotCallback: snapshotCallback,
+			inCh:             inCh,
+			lastSnapshot:     snapshot,
+		}
+		if snapshot != nil {
+			agentSess.turnIndex = snapshot.TurnIndex
+		}
 
-	return af
+		// Turn output accumulator: collects content chunks per turn for span output.
+		var (
+			turnMu     sync.Mutex
+			turnChunks []*AgentFlowStreamChunk[Stream]
+		)
+
+		agentSess.collectTurnOutput = func() any {
+			turnMu.Lock()
+			defer turnMu.Unlock()
+			result := turnChunks
+			turnChunks = nil
+			return result
+		}
+
+		// Intermediary channel: intercepts artifacts, accumulates turn output,
+		// and forwards to outCh.
+		respCh := make(chan *AgentFlowStreamChunk[Stream])
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for chunk := range respCh {
+				if chunk.Artifact != nil {
+					session.AddArtifacts(chunk.Artifact)
+				}
+				// Accumulate content chunks (exclude control signals from onEndTurn).
+				if !chunk.EndTurn && chunk.SnapshotID == "" {
+					turnMu.Lock()
+					turnChunks = append(turnChunks, chunk)
+					turnMu.Unlock()
+				}
+				outCh <- chunk
+			}
+		}()
+
+		// Wire up onEndTurn: triggers snapshot + sends EndTurn chunk.
+		// Writes through respCh to preserve ordering with user chunks.
+		agentSess.onEndTurn = func(turnCtx context.Context) {
+			snapshotID := agentSess.maybeSnapshot(turnCtx, SnapshotEventTurnEnd)
+			if snapshotID != "" {
+				respCh <- &AgentFlowStreamChunk[Stream]{SnapshotID: snapshotID}
+			}
+			respCh <- &AgentFlowStreamChunk[Stream]{EndTurn: true}
+		}
+
+		result, fnErr := fn(ctx, Responder[Stream](respCh), agentSess)
+		close(respCh)
+		wg.Wait()
+
+		if fnErr != nil {
+			return nil, fnErr
+		}
+
+		// Final snapshot at invocation end.
+		snapshotID := agentSess.maybeSnapshot(ctx, SnapshotEventInvocationEnd)
+
+		out := &AgentFlowOutput[State]{
+			SnapshotID: snapshotID,
+		}
+		if result != nil {
+			out.Message = result.Message
+			out.Artifacts = result.Artifacts
+		}
+
+		// Only include full state when client-managed (no store).
+		if store == nil {
+			out.State = session.State()
+		}
+
+		return out, nil
+	})
+
+	return &AgentFlow[Stream, State]{flow: flow}
 }
 
 // PromptRenderer renders a prompt with typed input into GenerateActionOptions.
@@ -296,8 +390,9 @@ func DefinePromptAgent[State, PromptIn any](
 	defaultInput PromptIn,
 	opts ...AgentFlowOption[State],
 ) *AgentFlow[any, State] {
-	fn := func(ctx context.Context, resp Responder[any], sess *AgentSession[State]) error {
-		return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
+	fn := func(ctx context.Context, resp Responder[any], sess *AgentSession[State]) (*AgentFlowResult, error) {
+		var lastModelMessage *ai.Message
+		err := sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 			// Resolve prompt input: session state override > default.
 			promptInput := defaultInput
 			if stored := sess.InputVariables(); stored != nil {
@@ -337,6 +432,8 @@ func DefinePromptAgent[State, PromptIn any](
 				return fmt.Errorf("generate: %w", err)
 			}
 
+			lastModelMessage = modelResp.Message
+
 			// Replace session messages with the full history minus prompt
 			// messages. This captures intermediate tool call/response
 			// messages from the tool loop, not just the final response.
@@ -364,6 +461,13 @@ func DefinePromptAgent[State, PromptIn any](
 
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
+		return &AgentFlowResult{
+			Message:   lastModelMessage,
+			Artifacts: sess.Artifacts(),
+		}, nil
 	}
 
 	return DefineCustomAgent(r, name, fn, opts...)
@@ -398,93 +502,6 @@ func (af *AgentFlow[Stream, State]) StreamBidi(
 	}
 
 	return &AgentFlowConnection[Stream, State]{conn: conn}, nil
-}
-
-// runWrapped is the BidiFunc implementation. It sets up the session,
-// responder, and wiring, then delegates to the user's function.
-func (af *AgentFlow[Stream, State]) runWrapped(
-	ctx context.Context,
-	init *AgentFlowInit[State],
-	inCh <-chan *AgentFlowInput,
-	outCh chan<- *AgentFlowStreamChunk[Stream],
-	fn AgentFlowFunc[Stream, State],
-) (*AgentFlowOutput[State], error) {
-	session, snapshot, err := newSessionFromInit(ctx, init, af.store)
-	if err != nil {
-		return nil, err
-	}
-	ctx = NewSessionContext(ctx, session)
-
-	agentSess := &AgentSession[State]{
-		Session:          session,
-		snapshotCallback: af.snapshotCallback,
-		inCh:             inCh,
-		lastSnapshot:     snapshot,
-	}
-	if snapshot != nil {
-		agentSess.turnIndex = snapshot.TurnIndex
-	}
-
-	// Turn output accumulator: collects content chunks per turn for span output.
-	var (
-		turnMu     sync.Mutex
-		turnChunks []*AgentFlowStreamChunk[Stream]
-	)
-
-	agentSess.collectTurnOutput = func() any {
-		turnMu.Lock()
-		defer turnMu.Unlock()
-		result := turnChunks
-		turnChunks = nil
-		return result
-	}
-
-	// Intermediary channel: intercepts artifacts, accumulates turn output,
-	// and forwards to outCh.
-	respCh := make(chan *AgentFlowStreamChunk[Stream])
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for chunk := range respCh {
-			if chunk.Artifact != nil {
-				session.AddArtifacts(chunk.Artifact)
-			}
-			// Accumulate content chunks (exclude control signals from onEndTurn).
-			if !chunk.EndTurn && chunk.SnapshotID == "" {
-				turnMu.Lock()
-				turnChunks = append(turnChunks, chunk)
-				turnMu.Unlock()
-			}
-			outCh <- chunk
-		}
-	}()
-
-	// Wire up onEndTurn: triggers snapshot + sends EndTurn chunk.
-	// Writes through respCh to preserve ordering with user chunks.
-	agentSess.onEndTurn = func(turnCtx context.Context) {
-		snapshotID := agentSess.maybeSnapshot(turnCtx, SnapshotEventTurnEnd)
-		if snapshotID != "" {
-			respCh <- &AgentFlowStreamChunk[Stream]{SnapshotID: snapshotID}
-		}
-		respCh <- &AgentFlowStreamChunk[Stream]{EndTurn: true}
-	}
-
-	fnErr := fn(ctx, Responder[Stream](respCh), agentSess)
-	close(respCh)
-	wg.Wait()
-
-	if fnErr != nil {
-		return nil, fnErr
-	}
-
-	// Final snapshot at invocation end.
-	snapshotID := agentSess.maybeSnapshot(ctx, SnapshotEventInvocationEnd)
-
-	return &AgentFlowOutput[State]{
-		State:      session.State(),
-		SnapshotID: snapshotID,
-	}, nil
 }
 
 // newSessionFromInit creates a Session from initialization data.
