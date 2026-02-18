@@ -297,7 +297,7 @@ env:
   #   - PR merge (pull_request closed): dry_run=false (this is the one-button release flow)
   #   - Manual dispatch: uses the checkbox value (default: true)
   #   - Push to main: dry_run is not relevant (only runs prepare, which is always live)
-  DRY_RUN: ${{ github.event_name == 'pull_request' && 'false' || (inputs.dry_run == 'false' && 'false' || 'true') }}
+  DRY_RUN: ${{ github.event_name == 'pull_request' && 'false' || (inputs.dry_run && 'true' || 'false') }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
