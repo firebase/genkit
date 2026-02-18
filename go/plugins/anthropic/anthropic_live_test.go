@@ -36,6 +36,10 @@ func TestAnthropicLive(t *testing.T) {
 		t.Skip("ANTHROPIC_API_KEY not found in the environment")
 	}
 
+	type outFormat struct {
+		Country string `json:"country"`
+	}
+
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&anthropicPlugin.Anthropic{}))
 	t.Run("model version ok", func(t *testing.T) {
@@ -360,9 +364,6 @@ func TestAnthropicLive(t *testing.T) {
 	})
 	t.Run("constrained generation", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
-		type outFormat struct {
-			Country string `json:"country"`
-		}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&anthropic.MessageNewParams{MaxTokens: 1024}),
@@ -384,9 +385,6 @@ func TestAnthropicLive(t *testing.T) {
 	})
 	t.Run("streaming constrained generation", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
-		type outFormat struct {
-			Country string `json:"country"`
-		}
 
 		var streamedContent strings.Builder
 		resp, err := genkit.Generate(ctx, g,
