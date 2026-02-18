@@ -19,6 +19,7 @@ package aix
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
@@ -132,7 +133,7 @@ func TestAgentFlow_WithSessionStore(t *testing.T) {
 				return nil
 			})
 		},
-		WithSessionStore[testState](store),
+		WithSessionStore(store),
 	)
 
 	conn, err := af.StreamBidi(ctx)
@@ -205,7 +206,7 @@ func TestAgentFlow_ResumeFromSnapshot(t *testing.T) {
 				return nil
 			})
 		},
-		WithSessionStore[testState](store),
+		WithSessionStore(store),
 	)
 
 	// First invocation: create a snapshot.
@@ -424,7 +425,7 @@ func TestAgentFlow_SnapshotCallback(t *testing.T) {
 				return nil
 			})
 		},
-		WithSessionStore[testState](store),
+		WithSessionStore(store),
 		WithSnapshotCallback(func(ctx context.Context, sc *SnapshotContext[testState]) bool {
 			callbackCalls++
 			return sc.TurnIndex%2 == 0 // only snapshot on even turns
@@ -636,7 +637,7 @@ func TestAgentFlow_SnapshotIDInMessageMetadata(t *testing.T) {
 				return nil
 			})
 		},
-		WithSessionStore[testState](store),
+		WithSessionStore(store),
 	)
 
 	conn, err := af.StreamBidi(ctx)
@@ -718,6 +719,150 @@ func TestInMemorySessionStore(t *testing.T) {
 	}
 }
 
+func TestAgentFlow_TurnSpanOutput(t *testing.T) {
+	ctx := context.Background()
+	reg := newTestRegistry(t)
+
+	var capturedOutputs []any
+
+	af := DefineCustomAgent(reg, "turnOutputFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			// Wrap collectTurnOutput to capture what each turn produces.
+			originalCollect := sess.collectTurnOutput
+			sess.collectTurnOutput = func() any {
+				output := originalCollect()
+				capturedOutputs = append(capturedOutputs, output)
+				return output
+			}
+
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
+				resp.SendStatus(testStatus{Phase: "thinking"})
+				resp.SendChunk(&ai.ModelResponseChunk{
+					Content: []*ai.Part{ai.NewTextPart("reply")},
+				})
+				resp.SendArtifact(&AgentArtifact{
+					Name:  "out.txt",
+					Parts: []*ai.Part{ai.NewTextPart("content")},
+				})
+				sess.AddMessages(ai.NewModelTextMessage("reply"))
+				return nil
+			})
+		},
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	// Two turns.
+	for turn := range 2 {
+		if err := conn.SendText(fmt.Sprintf("turn %d", turn)); err != nil {
+			t.Fatalf("SendText failed on turn %d: %v", turn, err)
+		}
+		for chunk, err := range conn.Receive() {
+			if err != nil {
+				t.Fatalf("Receive error on turn %d: %v", turn, err)
+			}
+			if chunk.EndTurn {
+				break
+			}
+		}
+	}
+
+	conn.Close()
+	if _, err := conn.Output(); err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Should have captured output for each turn.
+	if len(capturedOutputs) != 2 {
+		t.Fatalf("expected 2 captured outputs, got %d", len(capturedOutputs))
+	}
+
+	for i, output := range capturedOutputs {
+		chunks, ok := output.([]*AgentFlowStreamChunk[testStatus])
+		if !ok {
+			t.Fatalf("turn %d: expected []*AgentFlowStreamChunk[testStatus], got %T", i, output)
+		}
+		// 3 content chunks per turn: status + model chunk + artifact.
+		if len(chunks) != 3 {
+			t.Errorf("turn %d: expected 3 chunks, got %d", i, len(chunks))
+		}
+		for j, chunk := range chunks {
+			if chunk.EndTurn {
+				t.Errorf("turn %d, chunk %d: EndTurn should not be in turn output", i, j)
+			}
+			if chunk.SnapshotID != "" {
+				t.Errorf("turn %d, chunk %d: SnapshotID should not be in turn output", i, j)
+			}
+		}
+	}
+}
+
+func TestAgentFlow_TurnSpanOutput_WithSnapshots(t *testing.T) {
+	ctx := context.Background()
+	reg := newTestRegistry(t)
+	store := NewInMemorySessionStore[testState]()
+
+	var capturedOutputs []any
+
+	af := DefineCustomAgent(reg, "turnOutputSnapshotFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
+			originalCollect := sess.collectTurnOutput
+			sess.collectTurnOutput = func() any {
+				output := originalCollect()
+				capturedOutputs = append(capturedOutputs, output)
+				return output
+			}
+
+			return sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
+				resp.SendStatus(testStatus{Phase: "working"})
+				sess.AddMessages(ai.NewModelTextMessage("reply"))
+				return nil
+			})
+		},
+		WithSessionStore(store),
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	conn.SendText("hello")
+	var sawSnapshot bool
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.SnapshotID != "" {
+			sawSnapshot = true
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	conn.Close()
+	conn.Output()
+
+	if !sawSnapshot {
+		t.Fatal("expected a snapshot chunk on the stream")
+	}
+
+	// Turn output should contain only the status chunk, not the snapshot/endTurn.
+	if len(capturedOutputs) != 1 {
+		t.Fatalf("expected 1 captured output, got %d", len(capturedOutputs))
+	}
+	chunks := capturedOutputs[0].([]*AgentFlowStreamChunk[testStatus])
+	if len(chunks) != 1 {
+		t.Errorf("expected 1 content chunk, got %d", len(chunks))
+	}
+	if chunks[0].Status.Phase != "working" {
+		t.Errorf("expected status phase 'working', got %q", chunks[0].Status.Phase)
+	}
+}
+
 func TestAgentFlow_SessionStoreReflectionAction(t *testing.T) {
 	_ = context.Background()
 	reg := newTestRegistry(t)
@@ -727,12 +872,361 @@ func TestAgentFlow_SessionStoreReflectionAction(t *testing.T) {
 		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) error {
 			return nil
 		},
-		WithSessionStore[testState](store),
+		WithSessionStore(store),
 	)
 
 	// The getSnapshot action should be registered.
 	action := reg.LookupAction("/session-store/reflectFlow/getSnapshot")
 	if action == nil {
 		t.Fatal("expected getSnapshot action to be registered")
+	}
+}
+
+// setupPromptTestRegistry creates a registry with an echo model and generate action.
+func setupPromptTestRegistry(t *testing.T) *registry.Registry {
+	t.Helper()
+	reg := registry.New()
+	ctx := context.Background()
+
+	ai.ConfigureFormats(reg)
+	ai.DefineModel(reg, "test/echo", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true}},
+		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+			// Echo back the last user message text.
+			var text string
+			for i := len(req.Messages) - 1; i >= 0; i-- {
+				if req.Messages[i].Role == ai.RoleUser {
+					text = req.Messages[i].Text()
+					break
+				}
+			}
+			if text == "" {
+				text = "no input"
+			}
+
+			resp := &ai.ModelResponse{
+				Message: ai.NewModelTextMessage("echo: " + text),
+			}
+
+			if cb != nil {
+				if err := cb(ctx, &ai.ModelResponseChunk{
+					Content: resp.Message.Content,
+				}); err != nil {
+					return nil, err
+				}
+			}
+
+			return resp, nil
+		},
+	)
+	ai.DefineGenerateAction(ctx, reg)
+	return reg
+}
+
+func TestPromptAgent_Basic(t *testing.T) {
+	ctx := context.Background()
+	reg := setupPromptTestRegistry(t)
+
+	prompt := ai.DefinePrompt(reg, "testPrompt",
+		ai.WithModelName("test/echo"),
+		ai.WithSystem("You are a test assistant."),
+	)
+
+	af := DefinePromptAgent[testState](
+		reg, "promptFlow", prompt, nil,
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	// Turn 1.
+	if err := conn.SendText("hello"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+
+	var gotChunk bool
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.Chunk != nil {
+			gotChunk = true
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	if !gotChunk {
+		t.Error("expected at least one streaming chunk")
+	}
+
+	// Turn 2.
+	if err := conn.SendText("world"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+
+	conn.Close()
+
+	response, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// 2 user messages + 2 model replies = 4.
+	if got := len(response.State.Messages); got != 4 {
+		t.Errorf("expected 4 messages, got %d", got)
+		for i, m := range response.State.Messages {
+			t.Logf("  msg[%d]: role=%s text=%s", i, m.Role, m.Text())
+		}
+	}
+}
+
+func TestPromptAgent_PromptInputOverride(t *testing.T) {
+	ctx := context.Background()
+	reg := setupPromptTestRegistry(t)
+
+	type greetInput struct {
+		Name string `json:"name"`
+	}
+
+	prompt := ai.DefineDataPrompt[greetInput, string](reg, "greetPrompt",
+		ai.WithModelName("test/echo"),
+		ai.WithPrompt("Hello {{name}}!"),
+	)
+
+	af := DefinePromptAgent[testState](
+		reg, "promptInputFlow", prompt, greetInput{Name: "default"},
+	)
+
+	// Use WithPromptInput to override.
+	conn, err := af.StreamBidi(ctx,
+		WithPromptInput[testState](greetInput{Name: "override"}),
+	)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	if err := conn.SendText("hi"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	conn.Close()
+
+	response, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Verify the override was stored in session state.
+	if response.State.InputVariables == nil {
+		t.Fatal("expected PromptInput in state")
+	}
+
+	// The model echoes the last user message, which is "hi".
+	// But the prompt was rendered with "override" so "Hello override!" should appear
+	// in the messages sent to the model (verified via the echo).
+	// We primarily verify the state was set correctly.
+	inputMap, ok := response.State.InputVariables.(map[string]any)
+	if !ok {
+		t.Fatalf("expected PromptInput to be map[string]any, got %T", response.State.InputVariables)
+	}
+	if name, _ := inputMap["name"].(string); name != "override" {
+		t.Errorf("expected PromptInput name='override', got %q", name)
+	}
+}
+
+func TestPromptAgent_MultiTurnHistory(t *testing.T) {
+	ctx := context.Background()
+	reg := setupPromptTestRegistry(t)
+
+	// Use a model that echoes all message count so we can verify history grows.
+	ai.DefineModel(reg, "test/history", &ai.ModelOptions{Supports: &ai.ModelSupports{Multiturn: true}},
+		func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+			// Count total messages received (includes prompt-rendered + history).
+			var parts []string
+			for _, m := range req.Messages {
+				parts = append(parts, string(m.Role)+":"+m.Text())
+			}
+			text := strings.Join(parts, "|")
+
+			resp := &ai.ModelResponse{
+				Message: ai.NewModelTextMessage(text),
+			}
+			if cb != nil {
+				cb(ctx, &ai.ModelResponseChunk{Content: resp.Message.Content})
+			}
+			return resp, nil
+		},
+	)
+
+	prompt := ai.DefinePrompt(reg, "historyPrompt",
+		ai.WithModelName("test/history"),
+		ai.WithSystem("system prompt"),
+	)
+
+	af := DefinePromptAgent[testState](
+		reg, "historyFlow", prompt, nil,
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	// Turn 1.
+	conn.SendText("turn1")
+	var turn1Response string
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.Chunk != nil {
+			turn1Response += chunk.Chunk.Text()
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+
+	// Turn 1 should have: system message + user message "turn1" (2 messages total from prompt + history).
+	// The system message comes from the prompt, "turn1" from session history.
+	if !strings.Contains(turn1Response, "turn1") {
+		t.Errorf("turn1 response should contain 'turn1', got: %s", turn1Response)
+	}
+
+	// Turn 2.
+	conn.SendText("turn2")
+	var turn2Response string
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.Chunk != nil {
+			turn2Response += chunk.Chunk.Text()
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+
+	// Turn 2 should have: system + turn1 user + turn1 model reply + turn2 user (4 messages from prompt + history).
+	if !strings.Contains(turn2Response, "turn1") || !strings.Contains(turn2Response, "turn2") {
+		t.Errorf("turn2 response should contain both 'turn1' and 'turn2', got: %s", turn2Response)
+	}
+
+	conn.Close()
+
+	response, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Session should have: turn1 user + turn1 model + turn2 user + turn2 model = 4 messages.
+	if got := len(response.State.Messages); got != 4 {
+		t.Errorf("expected 4 messages in session, got %d", got)
+		for i, m := range response.State.Messages {
+			t.Logf("  msg[%d]: role=%s text=%s", i, m.Role, m.Text())
+		}
+	}
+}
+
+func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
+	ctx := context.Background()
+	reg := setupPromptTestRegistry(t)
+	store := NewInMemorySessionStore[testState]()
+
+	prompt := ai.DefinePrompt(reg, "snapPrompt",
+		ai.WithModelName("test/echo"),
+		ai.WithSystem("You are a test assistant."),
+	)
+
+	af := DefinePromptAgent(
+		reg, "snapPromptFlow", prompt, nil,
+		WithSessionStore(store),
+	)
+
+	// Start with prompt input.
+	conn, err := af.StreamBidi(ctx,
+		WithPromptInput[testState](map[string]any{"key": "value"}),
+	)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	conn.SendText("hello")
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	conn.Close()
+
+	resp, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	if resp.SnapshotID == "" {
+		t.Fatal("expected snapshot ID")
+	}
+
+	// Verify the snapshot contains PromptInput.
+	snap, err := store.GetSnapshot(ctx, resp.SnapshotID)
+	if err != nil {
+		t.Fatalf("GetSnapshot failed: %v", err)
+	}
+	if snap.State.InputVariables == nil {
+		t.Error("expected PromptInput in snapshot state")
+	}
+
+	// Resume from snapshot — the PromptInput should be preserved.
+	conn2, err := af.StreamBidi(ctx, WithSnapshotID[testState](resp.SnapshotID))
+	if err != nil {
+		t.Fatalf("StreamBidi with snapshot failed: %v", err)
+	}
+
+	conn2.SendText("continued")
+	for chunk, err := range conn2.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.EndTurn {
+			break
+		}
+	}
+	conn2.Close()
+
+	resp2, err := conn2.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Should have messages from both invocations.
+	if got := len(resp2.State.Messages); got != 4 {
+		t.Errorf("expected 4 messages after resume, got %d", got)
+	}
+
+	// PromptInput should still be present.
+	if resp2.State.InputVariables == nil {
+		t.Error("expected PromptInput preserved after resume")
 	}
 }

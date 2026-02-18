@@ -93,7 +93,7 @@ func NewBidiFlow[In, Out, Stream, Init any](name string, fn BidiFunc[In, Out, St
 // DefineBidiFlow creates a bidirectional streaming Flow that runs fn, and registers it as an action.
 // Flow context is injected so that [Run] works inside the bidi function.
 func DefineBidiFlow[In, Out, Stream, Init any](r api.Registry, name string, fn BidiFunc[In, Out, Stream, Init]) *Flow[In, Out, Stream, Init] {
-	f := NewBidiFlow[In, Out, Stream, Init](name, fn)
+	f := NewBidiFlow(name, fn)
 	f.Register(r)
 	return f
 }

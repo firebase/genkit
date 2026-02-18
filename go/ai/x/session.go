@@ -19,6 +19,7 @@ package aix
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,9 +36,9 @@ type SessionState[State any] struct {
 	Custom State `json:"custom,omitempty"`
 	// Artifacts are named collections of parts produced during the conversation.
 	Artifacts []*AgentArtifact `json:"artifacts,omitempty"`
-	// PromptInput is the input used for prompt rendering in prompt-backed agent flows.
-	// Stored as any to support type-erased persistence across snapshot boundaries.
-	PromptInput any `json:"promptInput,omitempty"`
+	// InputVariables is the input used for agent flows that require input variables
+	// (e.g. prompt-backed agent flows).
+	InputVariables any `json:"inputVariables,omitempty"`
 }
 
 // SnapshotEvent identifies what triggered a snapshot.
@@ -150,8 +151,8 @@ func copySnapshot[State any](snap *SessionSnapshot[State]) (*SessionSnapshot[Sta
 }
 
 // SnapshotOn returns a SnapshotCallback that only allows snapshots for the
-// specified events. For example, SnapshotOn[MyState](SnapshotEventTurnEnd)
-// will skip the invocation-end snapshot.
+// specified events. For example, SnapshotOn[MyState](TurnEnd) will skip the
+// invocation-end snapshot.
 func SnapshotOn[State any](events ...SnapshotEvent) SnapshotCallback[State] {
 	set := make(map[SnapshotEvent]struct{}, len(events))
 	for _, e := range events {
@@ -161,4 +162,152 @@ func SnapshotOn[State any](events ...SnapshotEvent) SnapshotCallback[State] {
 		_, ok := set[sc.Event]
 		return ok
 	}
+}
+
+// --- Session ---
+
+// Session holds conversation state and provides thread-safe read/write access to messages,
+// input variables, custom state, and artifacts.
+type Session[State any] struct {
+	mu    sync.RWMutex
+	state SessionState[State]
+	store SessionStore[State]
+}
+
+// State returns a copy of the current state.
+func (s *Session[State]) State() *SessionState[State] {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	copied := s.copyStateLocked()
+	return &copied
+}
+
+// Messages returns the current conversation history.
+func (s *Session[State]) Messages() []*ai.Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	msgs := make([]*ai.Message, len(s.state.Messages))
+	copy(msgs, s.state.Messages)
+	return msgs
+}
+
+// AddMessages appends messages to the conversation history.
+func (s *Session[State]) AddMessages(messages ...*ai.Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Messages = append(s.state.Messages, messages...)
+}
+
+// SetMessages replaces the entire conversation history.
+func (s *Session[State]) SetMessages(messages []*ai.Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Messages = messages
+}
+
+// Custom returns the current user-defined custom state.
+func (s *Session[State]) Custom() State {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Custom
+}
+
+// SetCustom updates the user-defined custom state.
+func (s *Session[State]) SetCustom(custom State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Custom = custom
+}
+
+// UpdateCustom atomically reads the current custom state, applies the given
+// function, and writes the result back.
+func (s *Session[State]) UpdateCustom(fn func(State) State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Custom = fn(s.state.Custom)
+}
+
+// InputVariables returns the prompt input stored in the session state.
+func (s *Session[State]) InputVariables() any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.InputVariables
+}
+
+// Artifacts returns the current artifacts.
+func (s *Session[State]) Artifacts() []*AgentArtifact {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	arts := make([]*AgentArtifact, len(s.state.Artifacts))
+	copy(arts, s.state.Artifacts)
+	return arts
+}
+
+// AddArtifacts adds artifacts to the session. If an artifact with the same
+// name already exists, it is replaced.
+func (s *Session[State]) AddArtifacts(artifacts ...*AgentArtifact) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, a := range artifacts {
+		replaced := false
+		if a.Name != "" {
+			for i, existing := range s.state.Artifacts {
+				if existing.Name == a.Name {
+					s.state.Artifacts[i] = a
+					replaced = true
+					break
+				}
+			}
+		}
+		if !replaced {
+			s.state.Artifacts = append(s.state.Artifacts, a)
+		}
+	}
+}
+
+// SetArtifacts replaces the entire artifact list.
+func (s *Session[State]) SetArtifacts(artifacts []*AgentArtifact) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Artifacts = artifacts
+}
+
+// copyStateLocked returns a deep copy of the state. Caller must hold mu (read or write).
+func (s *Session[State]) copyStateLocked() SessionState[State] {
+	bytes, err := json.Marshal(s.state)
+	if err != nil {
+		panic(fmt.Sprintf("agent flow: failed to marshal state: %v", err))
+	}
+	var copied SessionState[State]
+	if err := json.Unmarshal(bytes, &copied); err != nil {
+		panic(fmt.Sprintf("agent flow: failed to unmarshal state: %v", err))
+	}
+	return copied
+}
+
+// --- Session context ---
+
+type sessionContextKey struct{}
+
+type sessionHolder struct {
+	session any
+}
+
+// NewSessionContext returns a new context with the session attached.
+func NewSessionContext[State any](ctx context.Context, s *Session[State]) context.Context {
+	return context.WithValue(ctx, sessionContextKey{}, &sessionHolder{session: s})
+}
+
+// SessionFromContext retrieves the current session from context.
+// Returns nil if no session is in context or if the type doesn't match.
+func SessionFromContext[State any](ctx context.Context) *Session[State] {
+	holder, ok := ctx.Value(sessionContextKey{}).(*sessionHolder)
+	if !ok || holder == nil {
+		return nil
+	}
+	session, ok := holder.session.(*Session[State])
+	if !ok {
+		return nil
+	}
+	return session
 }
