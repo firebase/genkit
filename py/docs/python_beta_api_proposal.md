@@ -1,148 +1,88 @@
 # Genkit Python — Public API Surface Proposal
 
-This doc defines the public API of the Genkit Python SDK: the set of symbols developers can import, that we commit to keeping stable, and that we document and support. Everything else is internal and can change without notice.
+Stable public symbols — what we document, support, and commit to. Everything else is internal.
 
-There are two audiences for this SDK:
+Two audiences, separate entry points:
 
-1. **App developers** — people building AI features with Genkit. They need `Genkit`, decorators, data types, and not much else.
-2. **Plugin authors** — people building model providers, vector stores, telemetry exporters, web framework integrations. They need the action system, schema types, and metadata builders.
+1. **App developers** — `from genkit import ...` for framework objects, content types, errors.
+2. **Plugin authors / advanced users** — domain sub-modules (`genkit.model`, `genkit.retriever`, etc.) for request/response schemas, config types, metadata builders.
 
-These audiences have separate entry points.
-
-^^ TODO: Unify `from genkit import *` and `from genkit.types import *`
-
----
-
-## Methodology
-
-Every import across 30+ samples, 20+ plugins, and the test suite was audited to understand what symbols people actually use. The symbol lists and usage counts below come from that audit.
-
----
-
-## Type architecture
-
-Before presenting the symbol lists, it helps to understand why there are multiple types for seemingly the same thing. The SDK has three layers of types, each serving a different purpose.
-
-### Layer 1: Schema types (auto-generated)
-
-These are auto-generated from `genkit-schemas.json`, the shared cross-language schema. They're plain Pydantic `BaseModel` classes — data containers with no convenience methods.
-
-```python
-# genkit/core/typing.py (auto-generated)
-class GenerateResponse(BaseModel):
-    candidates: list[Candidate] | None = None
-    usage: GenerationUsage | None = None
-    request: GenerateRequest | None = None
-    ...
-
-class Message(BaseModel):
-    role: Role
-    content: list[Part]
-    metadata: dict[str, Any] | None = None
-
-class Part(RootModel):
-    root: TextPart | MediaPart | DataPart | ToolRequestPart | ToolResponsePart | ...
-
-class OutputConfig(BaseModel):
-    format: str | None = None
-    schema_: dict[str, Any] | None = None
-    instructions: str | bool | None = None
-    constrained: bool | None = None
-```
-
-These are the internal contract between the framework and plugins. A model plugin receives a `GenerateRequest` and returns a `GenerateResponse`. They split into two audiences:
-
-| Audience | Types | Examples |
-|----------|-------|---------|
-| **Plugin authors** (contract types) | Request/response schemas, config types | `GenerateRequest`, `GenerateResponse`, `OutputConfig`, `ModelInfo` |
-| **App developers** (content types) | Things users construct and pass around | `Message`, `Part`, `TextPart`, `Media`, `Document`, `Role` |
-
-Today they all live in `genkit.types` (or `genkit.core.typing` internally), mixed together.
-
-### Layer 2: Veneers (hand-written wrappers)
-
-These extend schema types with convenience methods — `.text`, `.output`, `.tool_requests`. They're what app developers interact with when receiving responses.
-
-```python
-# genkit/blocks/model.py (hand-written)
-class GenerateResponseWrapper(GenerateResponse):
-    @property
-    def text(self) -> str: ...
-    @property
-    def output(self) -> Any: ...
-    @property
-    def tool_requests(self) -> list[ToolRequestPart]: ...
-    @property
-    def messages(self) -> list[MessageWrapper]: ...
-
-class MessageWrapper:  # wraps Message, doesn't extend it
-    def __init__(self, message: Message): ...
-    @property
-    def text(self) -> str: ...
-    @property
-    def tool_requests(self) -> list[ToolRequestPart]: ...
-```
-
-Key distinction:
-- `GenerateResponseWrapper` **extends** `GenerateResponse` (inheritance). Aliasing it as `GenerateResponse` publicly is safe — construction is compatible.
-- `MessageWrapper` **wraps** `Message` (composition). Its constructor takes a `Message` instance, not raw fields. Aliasing it as `Message` would break `Message(role="user", content=[...])`.
-
-Veneers are for app developers receiving responses. Plugin authors constructing responses use the schema types directly.
-
-### Layer 3: Config helpers (hand-written)
-
-Type-carrying wrappers for configuration:
-
-```python
-# genkit/blocks/interfaces.py (hand-written)
-class Input(Generic[T]):
-    """Carries type info for input validation."""
-    def __init__(self, schema: type[T]): ...
-
-class Output(Generic[T]):
-    """Carries type info for output parsing."""
-    def __init__(self, schema: type[T], format: str = "json", ...): ...
-```
-
-`Input[T]` and `Output[T]` exist so that `generate()` and `prompt()` can carry generic type information — `ai.generate(output=Output(MyModel))` returns `GenerateResponse[MyModel]` with typed `.output`.
-
-### Where the layers bleed
-
-1. **App developers construct schema types directly.** `Message(role="user", content=[Part(text="hello")])` is a schema type, not a veneer. Content-building types are schema types used by both audiences.
-
-2. **Schema and config types overlap.** `OutputConfig` (schema, Layer 1) and `Output[T]` (config helper, Layer 3) configure the same thing. `generate()` accepts both: `output: OutputConfig | OutputConfigDict | Output[Any] | None`. (This is addressed in [PYTHON_API_REVIEW.md, section 5](./PYTHON_API_REVIEW.md).)
-
-3. **Veneers exported under internal names.** `GenerateResponseWrapper` — the "Wrapper" suffix is an implementation detail that leaked into the public API.
-
-4. **`genkit.types` mixes audiences.** Plugin contract types and app developer types sit in the same module.
-
-The proposal below addresses all four of these problems.
+> **Type architecture detail:** The SDK has schema types (auto-generated Pydantic models from `genkit-schemas.json`) and veneers (hand-written wrappers that add convenience methods like `.text`, `.output`). See [Type Architecture](#type-architecture) appendix at the end of this doc for the full breakdown.
 
 ---
 
 ## Entry point 1: `from genkit import ...`
 
-The framework entry point for app developers. Veneers, context, and errors. Data types live in `genkit.types` (see below) — this follows the Go SDK pattern where types are a separate package, and matches what Python samples already do in practice.
+The single entry point for app developers. Framework objects, veneers, context, errors, and all content/data types live here. No separate `genkit.types` import needed.
 
 ```python
 from genkit import (
+    # Core
     Genkit,
     ActionRunContext,
-    GenerateResponse,     # veneer — aliased from GenerateResponseWrapper
+    GenerateResponse,      # veneer — aliased from GenerateResponseWrapper
+    GenerateResponseChunk, # veneer — aliased from GenerateResponseChunkWrapper (streaming)
     GenkitError,
     UserFacingError,
+    Prompt,
+
+    # Content
+    Part, TextPart, MediaPart, Media,
+    DataPart, ToolRequestPart, ToolResponsePart, CustomPart,
+    ReasoningPart,
+
+    # Messages
+    Message, Role, Metadata,
+
+    # Documents
+    Document, DocumentData, DocumentPart,
+
+    # Context
+    ToolRunContext,
+    ToolInterruptError,
+
+    # Evaluation
+    BaseEvalDataPoint,
+
+    # Tool control
+    ToolChoice,
+
+    # Generation config
+    GenerationCommonConfig,
+
+    # Plugin authoring (also used by advanced app developers)
+    Plugin,
+    Action,
+    ActionMetadata,
+    ActionKind,
+    StatusName,
+    to_json_schema,
 )
 ```
 
-**5 symbols.** Tight, intentional, hard to get wrong.
+**~29 symbols.** One import covers both app developers (~22 symbols) and plugin authors (~7 additional). This is normal for Python — OpenAI and Anthropic export far more from their top level.
 
-| Symbol | Why it's here |
-|--------|--------------|
-| `Genkit` | The entry point. Every app starts with this. (48 files) |
-| `ActionRunContext` | Context object inside flows and tools. (20 files) |
-| `GenerateResponse` | Return type of `ai.generate()` — veneer with `.text`, `.output`, `.tool_requests`. |
-| `GenkitError` | Base error class for catching framework errors. |
-| `UserFacingError` | Errors safe to surface to HTTP clients. |
+- `Genkit` — the entry point. Every app starts with this.
+- `ActionRunContext` — context object inside flows and tools.
+- `GenerateResponse` — return type of `ai.generate()` — veneer with `.text`, `.output`, `.tool_requests`.
+- `GenerateResponseChunk` — chunk type from `ai.generate_stream()` — veneer with `.text` (aliased from `GenerateResponseChunkWrapper`).
+- `Prompt` — return type of `ai.prompt()`. Core concept, needs to be type-annotatable.
+- `GenkitError` — base error class for catching framework errors.
+- `UserFacingError` — errors safe to surface to HTTP clients.
+- `Part`, `TextPart`, `MediaPart`, `Media`, `DataPart`, `ToolRequestPart`, `ToolResponsePart`, `CustomPart`, `ReasoningPart` — content types developers construct and pass around.
+- `Message`, `Role`, `Metadata` — message construction for multi-turn conversations.
+- `Document`, `DocumentData`, `DocumentPart` — RAG document types.
+- `ToolRunContext` — extended context for tool handlers (extends `ActionRunContext`).
+- `ToolInterruptError` — error type for tool interrupts.
+- `ToolChoice` — tool selection control for `generate()`.
+- `GenerationCommonConfig` — model config (temperature, top_k, etc.).
+- `BaseEvalDataPoint` — evaluation data point type.
+- `Plugin` — base class for all plugin types (plugin authors).
+- `Action` — core action type (plugin authors).
+- `ActionMetadata` — action registration metadata (plugin authors).
+- `ActionKind` — action type enum: model, retriever, embedder, etc. (plugin authors).
+- `StatusName` — error status codes (plugin authors, error handling).
+- `to_json_schema` — converts Pydantic models to JSON Schema (plugin authors, 10+ plugins use this during action registration).
 
 ### Veneer aliasing
 
@@ -154,7 +94,7 @@ from genkit.blocks.model import GenerateResponseWrapper as GenerateResponse
 from genkit.blocks.model import GenerateResponseChunkWrapper as GenerateResponseChunk
 ```
 
-`GenerateResponseWrapper` uses inheritance, so this alias is safe. `GenerateResponseChunkWrapper` follows the same pattern.
+Both use inheritance (extend the schema type), so these aliases are safe — `isinstance` checks still work.
 
 **`MessageWrapper` is the exception.** It uses composition — its constructor takes a `Message` instance, not raw fields. Aliasing it as `Message` would break `Message(role="user", content=[...])`. So `Message` remains the schema type everywhere. Users interact with `MessageWrapper` via `response.messages` but never construct it directly.
 
@@ -175,12 +115,10 @@ Recommendation: export it as `Prompt`. It's a core concept, and being unable to 
 
 ### What was removed
 
-| Symbol | Reason |
-|--------|--------|
-| `tool_response` | Only 3 sample usages. JS/Go use a method on the tool instance. |
-| `Plugin` | Users pass plugin instances (`GoogleAI()`), never reference the type. Moved to `genkit.plugin`. |
-| `get_logger` | Thin wrapper around `logging.getLogger("genkit")`. Use the stdlib. |
-| `GenkitRegistry`, `FlowWrapper`, `SimpleRetrieverOptions` | Internal implementation types. |
+- `tool_response` — only 3 sample usages. JS/Go use a method on the tool instance.
+- `Plugin` — users pass plugin instances (`GoogleAI()`), never reference the type. Moved to shared across domains.
+- `get_logger` — thin wrapper around `logging.getLogger("genkit")`. Use the stdlib.
+- `GenkitRegistry`, `FlowWrapper`, `SimpleRetrieverOptions` — internal implementation types.
 
 ### `ToolRunContext` placement
 
@@ -188,86 +126,323 @@ Recommendation: export it as `Prompt`. It's a core concept, and being unable to 
 
 ---
 
-## Entry point 2: `from genkit.types import ...`
-
-Content types that app developers construct and pass around — the schema types (Layer 1) that users interact with directly.
-
-```python
-from genkit.types import (
-    # Content
-    Part, TextPart, MediaPart, Media,
-    DataPart, ToolRequestPart, ToolResponsePart, CustomPart,
-
-    # Messages
-    Message, Role,
-
-    # Documents
-    Document, DocumentData,
-
-    # Context
-    ToolRunContext,
-
-    # Evaluation
-    BaseEvalDataPoint,
-
-    # Tool control
-    ToolChoice,
-
-    # Generation config
-    GenerationCommonConfig,
-)
-```
-
-This module is focused: things app developers construct and pass to Genkit methods. Plugin contract types (`GenerateRequest`, `OutputConfig`, `ModelInfo`) have been moved to `genkit.plugin` — they don't belong in the app developer's import path.
-
-### No re-exports at the top level
-
-`from genkit import Part, Message` does **not** work. Content types live in `genkit.types` only. This keeps the top-level surface tight and makes it unambiguous where types come from. Samples already use `from genkit.types import ...` — this formalizes the existing pattern.
+Types specific to a domain (model, retriever, embedder, etc.) live in domain sub-modules — not in the top-level `genkit` import. These types are used by both plugin authors and advanced app developers (e.g., writing middleware or defining custom models).
 
 ---
 
-## Entry point 3: `from genkit.plugin import ...`
+## Domain sub-modules
 
-Everything a plugin author needs to implement a model provider, retriever, embedder, evaluator, or web framework integration.
+Organized by action type, mirroring the JS SDK's `genkit/model`, `genkit/retriever`, etc. Each sub-module contains the wire-format types, metadata builders, helpers, and options for that domain. Both plugin authors and advanced app developers import from here.
+
+### `genkit.model`
+
+Everything related to model implementation and the model wire format.
 
 ```python
-from genkit.plugin import (
-    # Base class
-    Plugin,
+from genkit.model import (
+    # Wire-format types
+    GenerateRequest,
+    GenerateResponse,       # schema type — NOT the veneer
+    GenerateResponseChunk,
+    GenerationUsage,
+    Candidate,
+    OutputConfig,
+    FinishReason,
+    GenerateActionOptions,
+    Error,                  # schema error type (not GenkitError)
+    Operation,              # long-running operation type
 
-    # Action system
-    Action, ActionRunContext,
+    # Tool wire-format types (used by model handlers to process tool calls)
+    ToolRequest,
+    ToolDefinition,
+    ToolResponse,
 
-    # Schema types (wire format — what plugins receive and return)
-    GenerateRequest, GenerateResponse, GenerateResponseChunk,
-    Message, OutputConfig, ModelInfo, Supports,
+    # Model info and capabilities
+    ModelInfo,
+    Supports,
+    Constrained,
+    Stage,
 
-    # Request/response types for other action types
-    RetrieverRequest, RetrieverResponse,
-    EmbedRequest, EmbedResponse,
+    # Registration and metadata
+    model_action_metadata,
+    model_ref,
+    ModelReference,
 
-    # Metadata builders
-    model_metadata, retriever_metadata, embedder_metadata,
+    # Background / long-running models (e.g. video generation)
+    BackgroundAction,
+    lookup_background_action,
 
-    # Telemetry
-    TelemetryConfig,
+    # Helpers
+    compute_usage_stats,
+    resolve_api_key,             # resolves API key: request config overrides plugin default
+    GenerationCommonConfig,
+
+    # Model middleware - WIP
+    ModelMiddleware,
+    ModelMiddlewareNext,
 )
 ```
 
-Note: `GenerateResponse` here is the **schema type** (auto-generated, no convenience methods). In `from genkit import GenerateResponse`, it's the **veneer** (with `.text`, `.output`, etc.). Different classes, different modules, different audiences. This coexistence works without shadowing because the two types never appear in the same import path.
+Used by: model plugin authors, app developers writing middleware (`GenerateRequest`, `GenerateResponse`, `ModelMiddlewareNext`), app developers defining custom models (`ModelInfo`, `Supports`).
+
+**Notes on helpers:**
+
+- **`resolve_api_key(config, plugin_key)`** — resolves which API key to use: per-request key from `GenerationCommonConfig` overrides the plugin-level default. In JS, this logic lives duplicated in each plugin's `utils.ts` (`calculateApiKey`). Centralizing it in `genkit.model` avoids every plugin re-inventing key resolution for multi-tenancy. The lower-level extraction function (`extract_request_api_key`) stays in `genkit.blocks.model` but is not re-exported to the public API — only the google-genai plugin needs it for the `apiKey: false` ADC edge case.
+- **`compute_usage_stats(input, response)`** — renamed from `get_basic_usage_stats`. Counts characters, images, videos, and audio in input/output messages. "Compute" reflects that it does work (not a lookup), and "basic" was dropped (basic compared to what?).
+- **`text_from_content`** — removed from public API. Consumers should use the veneer layer instead:
+  - **Messages:** `MessageWrapper.text` (available on `response.messages[i].text`)
+  - **Responses:** `GenerateResponse.text` (the veneer's `.text` property)
+  - **Stream chunks:** `GenerateResponseChunkWrapper.text`
+  - **Documents:** `Document.text()` (already exists on the `Document` class)
+  - Current consumers: google-genai reranker (should use `Document.text()`), internal middleware (should use `doc.text()`), tests (should use chunk/response veneers).
+
+### `genkit.retriever`
+
+```python
+from genkit.retriever import (
+    # Wire-format types
+    RetrieverRequest,
+    RetrieverResponse,
+
+    # Registration and metadata
+    retriever_action_metadata,
+    create_retriever_ref,
+    RetrieverOptions,
+
+    # Indexer support
+    IndexerRequest,
+    IndexerOptions,
+    indexer_action_metadata,
+    create_indexer_ref,
+)
+```
+
+Used by: retriever/indexer plugin authors, app developers using `RetrieverResponse` as a type annotation.
+
+### `genkit.embedder`
+
+```python
+from genkit.embedder import (
+    # Wire-format types
+    EmbedRequest,
+    EmbedResponse,
+    Embedding,
+
+    # Registration and metadata
+    embedder_action_metadata,
+    create_embedder_ref,
+    EmbedderOptions,
+    EmbedderSupports,
+)
+```
+
+### `genkit.reranker`
+
+```python
+from genkit.reranker import (
+    reranker_action_metadata,
+    create_reranker_ref,
+    RankedDocument,
+    RerankerRequest,
+    RerankerResponse,
+    RankedDocumentData,
+    RankedDocumentMetadata,
+)
+```
+
+### `genkit.evaluator`
+
+```python
+from genkit.evaluator import (
+    # Wire-format types
+    EvalRequest,
+    EvalResponse,
+    EvalFnResponse,
+    Score,
+    Details,
+    BaseEvalDataPoint,
+    EvalStatusEnum,
+
+    # Registration and metadata
+    evaluator_action_metadata,
+    evaluator_ref,
+)
+```
+
+Used by: evaluator plugin authors and app developers writing custom evaluators (samples show both).
+
+### `genkit.web`
+
+Web framework integration (FastAPI, Flask, custom ASGI apps).
+
+```python
+from genkit.web import (
+    FlowWrapper,
+    ContextProvider,
+    RequestData,
+    create_flows_asgi_app,
+)
+```
+
+Used by: fastapi plugin, flask plugin, app developers serving flows over HTTP.
+
+### `genkit.telemetry`
+
+```python
+from genkit.telemetry import (
+    add_custom_exporter,
+    is_dev_environment,
+    GENKIT_VERSION,
+    GENKIT_CLIENT_HEADER,
+    tracer,
+)
+```
+
+Used by: telemetry plugins (observability, Google Cloud, Firebase, Amazon Bedrock, Cloudflare, Microsoft Foundry).
+
+`AdjustingTraceExporter` and `RedactedSpan` should live in the telemetry *plugin* (e.g., `genkit-google-cloud`), not in core. Both are implementation details of specific telemetry providers — JS and Go also keep these in their cloud plugins, not core.
+
+### Shared across domains (plugin authoring)
+
+These symbols are used by plugin authors across multiple domains. They live in the top-level `from genkit import ...` alongside the app-developer symbols:
+
+```python
+from genkit import (
+    # (app-developer symbols from Entry point 1 above, plus:)
+
+    # Plugin authoring
+    Plugin,             # base class for all plugin types
+    Action,             # core action type
+    ActionMetadata,     # action registration metadata
+    ActionKind,         # action type enum (model, retriever, embedder, etc.)
+    StatusName,         # error status codes
+    DocumentPart,       # part type within Documents (vs. message Parts)
+    to_json_schema,     # converts Pydantic models to JSON Schema
+)
+```
+
+This brings the total top-level surface to **~29 symbols** (22 app-developer + 7 plugin-authoring). All are stable, documented types — no implementation details.
+
+---
+
+## Internal — resolved decisions
+
+Helpers that were candidates for export. Each has a final verdict.
+
+| Symbol | Consumers | Verdict | Reasoning |
+|---|---|---|---|
+| `get_logger` | 15+ plugins, 10+ samples | **Drop.** | Structlog wrapper. Neither JS nor Go force a logging library. Use stdlib `logging`. |
+| `get_cached_client` | 9 plugins | **Internal (reconsider later).** | Per-event-loop httpx client cache. Solves a real async problem (~100 lines to reimplement). No JS/Go equivalent. Keep internal but may export if third-party plugins need it. |
+| `dump_dict` / `dump_json` | 15+ consumers | **Remove.** Fix at source. | Wrappers for `model_dump(exclude_none=True, by_alias=True)`. Fix: emit `GenkitBaseModel` from the code generator that defaults these flags. Then `.model_dump()` just works. See [pydantic/pydantic#10141](https://github.com/pydantic/pydantic/issues/10141). |
+| `get_callable_json` | fastapi, flask, core | **Remove.** Add method instead. | Converts exceptions to JSON for HTTP responses. Fix: add `.to_json()` and `.http_status` to `GenkitError` (matches Go's `.ToReflectionError()`). |
+| `matches_uri_template` | MCP plugin only | **Internal.** | 15-line regex helper. MCP plugin should own its copy. |
+
+- **`create_reflection_asgi_app`, `RuntimeManager`, `ServerSpec`, `Registry`** — dev-mode reflection server infrastructure. Used by fastapi plugin, multi-server sample, and core `_base_async.py`.
+
+  **The problem:** Genkit needs a dev-mode reflection server (HTTP API on a separate port) so the Genkit Dev UI can introspect the running app. In JS and Go, this is fully automatic — the `Genkit` constructor (JS) or `Init()` (Go) starts the reflection server internally because JS has an ambient event loop and Go has goroutines. The user never touches it.
+
+  Python can't copy this because:
+  1. **No event loop at construction time.** `Genkit()` is called synchronously at module level. There's no running `asyncio` event loop yet — you can't start an async HTTP server from a synchronous constructor.
+  2. **ASGI server ownership.** In the FastAPI/Flask use case, uvicorn owns the process and the event loop. Genkit is a library inside someone else's ASGI app — it can't spin up a second server on its own.
+
+  When Genkit owns the process (`ai.run_main(coro)`), the reflection server starts automatically (same as JS/Go). The problem is only the "Genkit as a library" path (FastAPI/Flask), where the plugin currently needs four internal imports to wire up the reflection server manually.
+
+  **Fix: add `await ai.start_dev_server()` method on `Genkit`.** One async method that encapsulates all the wiring (creates reflection app from its own registry, binds a port, starts uvicorn, registers with RuntimeManager). The fastapi plugin's lifespan becomes trivial:
+
+  ```python
+  cleanup = await ai.start_dev_server()
+  yield
+  await cleanup()
+  ```
+
+  This eliminates `create_reflection_asgi_app`, `RuntimeManager`, `ServerSpec`, and `Registry` from external consumption. All four stay internal. The multi-server sample also uses `ai.start_dev_server()` instead of manually wiring internals.
+
+### `GenerateResponse` naming: veneer vs. schema type
+
+`GenerateResponse` appears in two places:
+
+- **`from genkit import GenerateResponse`** — the **veneer** with `.text`, `.output`, `.tool_requests` (aliased from `GenerateResponseWrapper`). This is what app developers use.
+- **`from genkit.model import GenerateResponse`** — the **schema type** (auto-generated wire format). This is what model handlers receive and return.
+
+These are different classes in different modules. No shadowing occurs because a file imports from one or the other, never both. The veneer extends the schema type (inheritance), so they're compatible.
 
 ### Cross-language comparison
 
-| Language | App developer imports | Plugin author imports |
-|----------|----------------------|---------------------|
-| **JS** | `import { genkit, z } from 'genkit'` (unified) | Same package |
-| **Go** | `import "github.com/firebase/genkit/go/ai"` (types separate) | Same package, different types |
-| **Python (proposed)** | `from genkit import Genkit` + `from genkit.types import Part, Message` | `from genkit.plugin import GenerateRequest, Plugin` |
+- **JS** — `import { genkit } from 'genkit'` for common types, `import { ... } from 'genkit/model'` / `'genkit/retriever'` / etc. for domain-specific types.
+- **Go** — `import "github.com/firebase/genkit/go/genkit"` for the framework, `import "github.com/firebase/genkit/go/ai"` for all domain types (single package).
+- **Python (proposed)** — `from genkit import Genkit, Part, Message` for common types, `from genkit.model import ...` / `from genkit.retriever import ...` / etc. for domain-specific types.
 
-Python follows the Go pattern — types are a separate import. This matches what samples already do in practice.
+Python follows the JS pattern — common types in the top-level import, domain-specific types in sub-modules organized by action type.
 
 ---
 
 ## Internal modules
 
 Everything under `genkit._core`, `genkit._blocks`, and `genkit._ai` (note underscore prefix) carries no stability guarantee. Today these modules lack the underscore (`genkit.core`, `genkit.blocks`, `genkit.ai`), which is why samples and the documentation agent used internal paths. Renaming them is part of this proposal — the underscore is Python's convention for "private, use at your own risk."
+
+The domain sub-modules (`genkit.model`, `genkit.retriever`, etc.) are **re-export facades** — they import from the internal modules and re-export a curated public surface. The actual implementation stays in `genkit._blocks` and `genkit._core`. This decouples the public API from internal code organization, so internal refactors don't break users.
+
+---
+
+## Changes from status quo
+
+What plugins and samples currently do that needs to change. This is the migration work.
+
+### Removed from public API
+
+- **`text_from_content`** — standalone function for extracting text from `list[Part]`. Consumers should use veneers instead: `GenerateResponse.text`, `MessageWrapper.text`, `GenerateResponseChunkWrapper.text`, or `Document.text()`. Affected: google-genai reranker, internal middleware, tests.
+- **`tool_response`** — only 3 sample usages. JS/Go use a method on the tool instance.
+- **`get_logger`** — thin wrapper around `logging.getLogger("genkit")`. Consumers should use stdlib `logging` directly. Affected: 15+ plugins, 10+ samples (trivial change).
+- **`GenkitRegistry`** — internal implementation type. Should not be imported by plugins.
+- **`SimpleRetrieverOptions`** — internal implementation type.
+
+### Moved to plugins (out of core)
+
+- **`AdjustingTraceExporter`** — base class for trace exporters that adjust spans before export. Currently in `genkit.core.trace.adjusting_exporter`. Should move to the telemetry plugin (e.g., `genkit-google-cloud`). JS and Go both keep this in their cloud plugins, not core.
+- **`RedactedSpan`** — span wrapper that redacts `genkit:input`/`genkit:output` attributes. Same file as `AdjustingTraceExporter`. Should move with it. No equivalent in JS/Go core.
+
+### Reorganized (new public paths)
+
+- **`genkit.types` → `genkit`** — all app developer types unified into `from genkit import ...`. No separate `genkit.types` import.
+- **`genkit.plugin` → domain sub-modules** — plugin types split by action type: `genkit.model`, `genkit.retriever`, `genkit.embedder`, `genkit.reranker`, `genkit.evaluator`, `genkit.telemetry`. 
+- **`Plugin` class** — moved from top-level `genkit` to shared across domains (imported by plugin authors, not app developers).
+- **`FlowWrapper`** — moved from internal to a web sub-module export.
+- **`ContextProvider`, `RequestData`** — moved from internal to a web sub-module export.
+- **`create_flows_asgi_app`** — moved from internal to a web sub-module export.
+
+### Renamed
+
+- **`GenerateResponseWrapper` → `GenerateResponse`** (at the `genkit` top-level) — alias removes the "Wrapper" suffix leak.
+- **`genkit.core` → `genkit._core`**, **`genkit.blocks` → `genkit._blocks`**, **`genkit.ai` → `genkit._ai`** — underscore prefix signals internal. This is what breaks all the existing direct imports from plugins/samples.
+
+### Now explicitly internal (plugins must stop importing)
+
+These are things plugins/samples currently import from internal paths. After the rename to `_core`/`_blocks`/`_ai`, these imports break. The public replacements are listed.
+
+- `from genkit.blocks.model import ...` → `from genkit.model import ...`
+- `from genkit.blocks.retriever import ...` → `from genkit.retriever import ...`
+- `from genkit.blocks.reranker import ...` → `from genkit.reranker import ...`
+- `from genkit.blocks.document import Document` → `from genkit import Document`
+- `from genkit.core.typing import ...` → `from genkit import ...` (for content types) or `from genkit.model import ...` (for wire-format types)
+- `from genkit.core.action import Action, ActionRunContext` → `from genkit import ActionRunContext` or `from genkit.model import Action`
+- `from genkit.core.error import GenkitError` → `from genkit import GenkitError`
+- `from genkit.core.logging import get_logger` → `import logging; logger = logging.getLogger("genkit")`
+- `from genkit.core.http_client import get_cached_client` → stays internal (no public replacement yet; reconsider for export)
+- `from genkit.codec import dump_dict, dump_json` → stays internal (no public replacement)
+- `from genkit.core.registry import Registry` → stays internal (code smell; use `Genkit` instance)
+- `from genkit.core.reflection import create_reflection_asgi_app` → stays internal
+- `from genkit.ai._runtime import RuntimeManager` → stays internal
+- `from genkit.ai._server import ServerSpec` → stays internal
+- `from genkit.blocks.resource import matches_uri_template` → stays internal (MCP plugin should own this)
+
+---
+
+## Appendix
+
+### Type architecture
+
+Two layers of types:
+
+**Schema types (auto-generated).** Auto-generated from `genkit-schemas.json` (shared cross-language schema). Plain Pydantic `BaseModel` classes — data containers with no convenience methods. These are the contract between the framework and plugins. A model plugin receives a `GenerateRequest` and returns a `GenerateResponse`. Content-building types (`Message`, `Part`, `TextPart`, etc.) are also schema types — app developers construct them directly.
+
+**Veneers (hand-written wrappers).** Extend schema types with convenience methods (`.text`, `.output`, `.tool_requests`). `GenerateResponseWrapper` extends `GenerateResponse` via inheritance — aliasing it as `GenerateResponse` publicly is safe. `MessageWrapper` wraps `Message` via composition — its constructor takes a `Message` instance, so aliasing as `Message` would break `Message(role="user", content=[...])`. Users interact with `MessageWrapper` through `response.messages` but never construct it.

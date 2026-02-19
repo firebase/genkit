@@ -45,8 +45,7 @@ Today there is no formal public/internal boundary. The documentation audit found
 
 We propose formalizing three entry points, separated by audience:
 
-- **`from genkit import ...`** — App developers. 5-6 symbols: `Genkit`, `ActionRunContext`, `GenerateResponse` (veneer), `GenkitError`, `UserFacingError`,  `Prompt`.
-- **`from genkit.types import ...`** — App developers (data types). Content types: `Part`, `Message`, `Document`, `Role`, `ToolChoice`, `GenerationCommonConfig`, etc.
+- **`from genkit import ...`** — App developers. ~22 symbols: framework objects (`Genkit`, `ActionRunContext`, `GenerateResponse`, `Prompt`, `GenkitError`, `UserFacingError`) and content/data types (`Part`, `Message`, `Document`, `Role`, `ToolChoice`, `GenerationCommonConfig`, etc.) in a single import. `genkit.types` remains as a backward-compatible re-export but is no longer the canonical path.
 - **`from genkit.plugin import ...`** — Plugin authors. Plugin contract: `Plugin`, `GenerateRequest`, `GenerateResponse` (schema), `OutputConfig`, `ModelInfo`, metadata builders, etc.
 
 Internal modules (`genkit.core`, `genkit.blocks`, `genkit.ai`) would be renamed with underscore prefixes (`genkit._core`, `genkit._blocks`) to signal "private, no stability guarantee" — the standard Python convention.
@@ -56,7 +55,7 @@ The full proposal — including the type architecture (auto-generated schema typ
 
 ^^^ Upon discussion, we got more details on aliasing. App developers may need access to the wire format for unit testing. They are more likely to need that actually vs. the veneer (which I think is handled internally). Also I remember Pavel said something about flow vs. generate. One returns veneer vs. other returns the wire format. He said app developer may need to use one or the other.
 
-^^^ Upon dicsussion, no clear reason to separate from genkit import vs from genkit.types import
+**Resolved — unified import:** No clear reason to separate `from genkit import ...` and `from genkit.types import ...`. Merged into a single entry point. See [python_beta_api_proposal.md](./python_beta_api_proposal.md).
 
 ^^^ Audit what's exposed via __all__ in all the packages (there are some random helpers for example)
 
