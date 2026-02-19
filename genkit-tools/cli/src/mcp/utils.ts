@@ -74,7 +74,7 @@ export class McpRuntimeManager {
     }
     this.manager = await startManager({
       projectRoot,
-      manageHealth: true /* manageHealth */,
+      manageHealth: true,
     });
     this.currentProjectRoot = projectRoot;
     return this.manager;
