@@ -1115,47 +1115,6 @@ importers:
         specifier: ^5.6.2
         version: 5.8.3
 
-  testapps/context-caching:
-    dependencies:
-      '@genkit-ai/google-genai':
-        specifier: workspace:*
-        version: link:../../plugins/google-genai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      '@google/generative-ai':
-        specifier: ^0.21.0
-        version: 0.21.0
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-    devDependencies:
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      typescript:
-        specifier: ^5.6.2
-        version: 5.8.3
-
-  testapps/context-caching2:
-    dependencies:
-      '@genkit-ai/google-genai':
-        specifier: workspace:*
-        version: link:../../plugins/google-genai
-      '@google/generative-ai':
-        specifier: ^0.21.0
-        version: 0.21.0
-      genkit:
-        specifier: workspace:*
-        version: link:../../genkit
-    devDependencies:
-      cross-env:
-        specifier: ^7.0.3
-        version: 7.0.3
-      typescript:
-        specifier: ^5.6.2
-        version: 5.8.3
-
   testapps/custom-evaluators:
     dependencies:
       '@genkit-ai/google-genai':
@@ -2897,10 +2856,6 @@ packages:
 
   '@google/generative-ai@0.15.0':
     resolution: {integrity: sha512-zs37judcTYFJf1U7tnuqnh7gdzF6dcWj9pNRxjA5JTONRoiQ0htrRdbefRFiewOIfXwhun5t9hbd2ray7812eQ==}
-    engines: {node: '>=18.0.0'}
-
-  '@google/generative-ai@0.21.0':
-    resolution: {integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==}
     engines: {node: '>=18.0.0'}
 
   '@google/generative-ai@0.24.1':
@@ -10189,8 +10144,6 @@ snapshots:
       - utf-8-validate
 
   '@google/generative-ai@0.15.0': {}
-
-  '@google/generative-ai@0.21.0': {}
 
   '@google/generative-ai@0.24.1': {}
 
