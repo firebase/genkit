@@ -420,21 +420,55 @@ export class Index {
         .filter((d) => {
           if (!d) return false;
           if (!query?.filter) return true;
-          if (
-            query.filter.eq &&
-            Object.keys(query.filter.eq).find(
-              (k) => d[k] !== query.filter!.eq![k]
-            )
-          ) {
-            return false;
+          if (query.filter.eq) {
+            for (const k of Object.keys(query.filter.eq)) {
+              const filterVal = query.filter.eq[k];
+              const val = d[k];
+              if (Array.isArray(filterVal)) {
+                if (!filterVal.includes(val as any)) return false;
+              } else {
+                if (val !== filterVal) return false;
+              }
+            }
           }
-          if (
-            query.filter.neq &&
-            Object.keys(query.filter.neq).find(
-              (k) => d[k] === query.filter!.neq![k]
-            )
-          ) {
-            return false;
+          if (query.filter.neq) {
+            for (const k of Object.keys(query.filter.neq)) {
+              const filterVal = query.filter.neq[k];
+              const val = d[k];
+              if (Array.isArray(filterVal)) {
+                if (filterVal.includes(val as any)) return false;
+              } else {
+                if (val === filterVal) return false;
+              }
+            }
+          }
+          if (query.filter.gt) {
+            for (const k of Object.keys(query.filter.gt)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val <= query.filter.gt[k])
+                return false;
+            }
+          }
+          if (query.filter.gte) {
+            for (const k of Object.keys(query.filter.gte)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val < query.filter.gte[k])
+                return false;
+            }
+          }
+          if (query.filter.lt) {
+            for (const k of Object.keys(query.filter.lt)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val >= query.filter.lt[k])
+                return false;
+            }
+          }
+          if (query.filter.lte) {
+            for (const k of Object.keys(query.filter.lte)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val > query.filter.lte[k])
+                return false;
+            }
           }
           return true;
         })
