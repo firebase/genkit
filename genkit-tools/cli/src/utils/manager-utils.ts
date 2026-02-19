@@ -85,7 +85,10 @@ export async function startDevProcessManager(
   args: string[],
   options?: DevProcessManagerOptions
 ): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
-  const telemetryServerUrl = await resolveTelemetryServer({ projectRoot });
+  const telemetryServerUrl = await resolveTelemetryServer({
+    projectRoot,
+    corsOrigin: options?.corsOrigin,
+  });
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
   const envVars: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
