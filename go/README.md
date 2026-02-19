@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://genkit.dev/go/docs">Documentation</a> &bull;
+  <a href="https://genkit.dev/docs/overview/?lang=go">Documentation</a> &bull;
   <a href="https://pkg.go.dev/github.com/firebase/genkit/go">API Reference</a> &bull;
   <a href="https://discord.gg/qXt5zzQKpc">Discord</a>
 </p>
