@@ -38,7 +38,7 @@ export const start = new Command('start')
   .option('-o, --open', 'Open the browser on UI start up')
   .option(
     '--disable-realtime-telemetry',
-    'Disable real-time telemetry streaming',
+    'Disable real-time telemetry streaming'
   )
   .option(
     '--cors-origin <origin>',
