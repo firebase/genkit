@@ -300,13 +300,6 @@ func DefineCustomAgent[Stream, State any](
 	return &AgentFlow[Stream, State]{flow: flow}
 }
 
-// PromptRenderer renders a prompt with typed input into GenerateActionOptions.
-// This interface is satisfied by both ai.Prompt (with In=any) and
-// *ai.DataPrompt[In, Out].
-type PromptRenderer[In any] interface {
-	Render(ctx context.Context, input In) (*ai.GenerateActionOptions, error)
-}
-
 // promptMessageKey is the metadata key used to tag prompt-rendered messages
 // so they can be excluded from session history after generation.
 const promptMessageKey = "_genkit_prompt"
@@ -316,15 +309,20 @@ const promptMessageKey = "_genkit_prompt"
 // conversation history, calls GenerateWithRequest, streams chunks to the
 // client, and adds the model response to the session.
 //
-// The defaultInput is used for prompt rendering unless overridden per
-// invocation via WithPromptInput.
+// The prompt is looked up by name from the registry using
+// [ai.LookupDataPrompt]. The defaultInput is used for prompt rendering
+// unless overridden per invocation via WithInputVariables.
 func DefinePromptAgent[State, PromptIn any](
 	r api.Registry,
-	name string,
-	p PromptRenderer[PromptIn],
+	promptName string,
 	defaultInput PromptIn,
 	opts ...AgentFlowOption[State],
 ) *AgentFlow[any, State] {
+	p := ai.LookupDataPrompt[PromptIn, string](r, promptName)
+	if p == nil {
+		panic(fmt.Sprintf("DefinePromptAgent: prompt %q not found", promptName))
+	}
+
 	fn := func(ctx context.Context, resp Responder[any], sess *AgentSession[State]) (*AgentFlowResult, error) {
 		var lastModelMessage *ai.Message
 		err := sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
@@ -416,7 +414,7 @@ func DefinePromptAgent[State, PromptIn any](
 		}, nil
 	}
 
-	return DefineCustomAgent(r, name, fn, opts...)
+	return DefineCustomAgent(r, promptName, fn, opts...)
 }
 
 // StreamBidi starts a new agent flow invocation.

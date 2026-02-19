@@ -913,13 +913,13 @@ func TestPromptAgent_Basic(t *testing.T) {
 	ctx := context.Background()
 	reg := setupPromptTestRegistry(t)
 
-	prompt := ai.DefinePrompt(reg, "testPrompt",
+	ai.DefinePrompt(reg, "testPrompt",
 		ai.WithModelName("test/echo"),
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	af := DefinePromptAgent[testState](
-		reg, "promptFlow", prompt, nil,
+	af := DefinePromptAgent[testState, any](
+		reg, "testPrompt", nil,
 	)
 
 	conn, err := af.StreamBidi(ctx)
@@ -985,13 +985,13 @@ func TestPromptAgent_PromptInputOverride(t *testing.T) {
 		Name string `json:"name"`
 	}
 
-	prompt := ai.DefineDataPrompt[greetInput, string](reg, "greetPrompt",
+	ai.DefineDataPrompt[greetInput, string](reg, "greetPrompt",
 		ai.WithModelName("test/echo"),
 		ai.WithPrompt("Hello {{name}}!"),
 	)
 
 	af := DefinePromptAgent[testState](
-		reg, "promptInputFlow", prompt, greetInput{Name: "default"},
+		reg, "greetPrompt", greetInput{Name: "default"},
 	)
 
 	// Use WithPromptInput to override.
@@ -1063,13 +1063,13 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 		},
 	)
 
-	prompt := ai.DefinePrompt(reg, "historyPrompt",
+	ai.DefinePrompt(reg, "historyPrompt",
 		ai.WithModelName("test/history"),
 		ai.WithSystem("system prompt"),
 	)
 
-	af := DefinePromptAgent[testState](
-		reg, "historyFlow", prompt, nil,
+	af := DefinePromptAgent[testState, any](
+		reg, "historyPrompt", nil,
 	)
 
 	conn, err := af.StreamBidi(ctx)
@@ -1139,13 +1139,13 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 	reg := setupPromptTestRegistry(t)
 	store := NewInMemorySessionStore[testState]()
 
-	prompt := ai.DefinePrompt(reg, "snapPrompt",
+	ai.DefinePrompt(reg, "snapPrompt",
 		ai.WithModelName("test/echo"),
 		ai.WithSystem("You are a test assistant."),
 	)
 
-	af := DefinePromptAgent(
-		reg, "snapPromptFlow", prompt, nil,
+	af := DefinePromptAgent[testState, any](
+		reg, "snapPrompt", nil,
 		WithSessionStore(store),
 	)
 
@@ -1270,13 +1270,13 @@ func TestPromptAgent_ToolLoopMessages(t *testing.T) {
 	)
 	ai.DefineGenerateAction(ctx, reg)
 
-	prompt := ai.DefinePrompt(reg, "toolPrompt",
+	ai.DefinePrompt(reg, "toolPrompt",
 		ai.WithModelName("test/toolmodel"),
 		ai.WithSystem("You are a test assistant."),
 		ai.WithTools(ai.ToolName("greet")),
 	)
 
-	af := DefinePromptAgent[testState](reg, "toolFlow", prompt, nil)
+	af := DefinePromptAgent[testState, any](reg, "toolPrompt", nil)
 
 	conn, err := af.StreamBidi(ctx)
 	if err != nil {
