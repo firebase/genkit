@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/uuid"
 )
 
@@ -330,9 +331,9 @@ func DefinePromptAgent[State, PromptIn any](
 			// Resolve prompt input: session state override > default.
 			promptInput := defaultInput
 			if stored := sess.InputVariables(); stored != nil {
-				typed, ok := stored.(PromptIn)
+				typed, ok := base.ConvertTo[PromptIn](stored)
 				if !ok {
-					return core.NewError(core.INVALID_ARGUMENT, "prompt input type mismatch: got %T, want %T", stored, promptInput)
+					return core.NewError(core.INVALID_ARGUMENT, "input variables type mismatch: got %T, want %T", stored, promptInput)
 				}
 				promptInput = typed
 			}

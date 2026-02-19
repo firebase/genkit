@@ -118,6 +118,24 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	return s
 }
 
+// ConvertTo attempts to convert a value to type T. It tries a direct type
+// assertion first, then falls back to a JSON round-trip for values that were
+// deserialized from JSON (e.g., map[string]any instead of a concrete struct).
+func ConvertTo[T any](v any) (T, bool) {
+	if typed, ok := v.(T); ok {
+		return typed, true
+	}
+	var result T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return result, false
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result, false
+	}
+	return result, true
+}
+
 // MapToStruct converts a map[string]any to a struct of type T via JSON round-trip.
 func MapToStruct[T any](m map[string]any) (T, error) {
 	var result T
