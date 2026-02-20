@@ -419,57 +419,7 @@ export class Index {
         })
         .filter((d) => {
           if (!d) return false;
-          if (!query?.filter) return true;
-          const { eq, neq, gt, gte, lt, lte } = query.filter;
-          if (eq) {
-            for (const k of Object.keys(eq)) {
-              const filterVal = eq[k];
-              const val = d[k];
-              if (
-                Array.isArray(filterVal)
-                  ? !filterVal.includes(val as any)
-                  : val !== filterVal
-              )
-                return false;
-            }
-          }
-          if (neq) {
-            for (const k of Object.keys(neq)) {
-              const filterVal = neq[k];
-              const val = d[k];
-              if (
-                Array.isArray(filterVal)
-                  ? filterVal.includes(val as any)
-                  : val === filterVal
-              )
-                return false;
-            }
-          }
-          if (gt) {
-            for (const k of Object.keys(gt)) {
-              const val = d[k];
-              if (typeof val !== 'number' || val <= gt[k]) return false;
-            }
-          }
-          if (gte) {
-            for (const k of Object.keys(gte)) {
-              const val = d[k];
-              if (typeof val !== 'number' || val < gte[k]) return false;
-            }
-          }
-          if (lt) {
-            for (const k of Object.keys(lt)) {
-              const val = d[k];
-              if (typeof val !== 'number' || val >= lt[k]) return false;
-            }
-          }
-          if (lte) {
-            for (const k of Object.keys(lte)) {
-              const val = d[k];
-              if (typeof val !== 'number' || val > lte[k]) return false;
-            }
-          }
-          return true;
+          return isMatch(d, query?.filter);
         })
         .reverse() as Record<string, string | number>[];
 
@@ -504,6 +454,63 @@ export class Index {
 
     return result;
   }
+}
+
+function isMatch(
+  d: Record<string, string | number>,
+  filter?: TraceQueryFilter
+): boolean {
+  if (!filter) return true;
+  const { eq, neq, gt, gte, lt, lte } = filter;
+  if (eq) {
+    for (const k of Object.keys(eq)) {
+      const filterVal = eq[k];
+      const val = d[k];
+      if (
+        Array.isArray(filterVal)
+          ? !filterVal.includes(val as any)
+          : val !== filterVal
+      )
+        return false;
+    }
+  }
+  if (neq) {
+    for (const k of Object.keys(neq)) {
+      const filterVal = neq[k];
+      const val = d[k];
+      if (
+        Array.isArray(filterVal)
+          ? filterVal.includes(val as any)
+          : val === filterVal
+      )
+        return false;
+    }
+  }
+  if (gt) {
+    for (const k of Object.keys(gt)) {
+      const val = d[k];
+      if (typeof val !== 'number' || val <= gt[k]) return false;
+    }
+  }
+  if (gte) {
+    for (const k of Object.keys(gte)) {
+      const val = d[k];
+      if (typeof val !== 'number' || val < gte[k]) return false;
+    }
+  }
+  if (lt) {
+    for (const k of Object.keys(lt)) {
+      const val = d[k];
+      if (typeof val !== 'number' || val >= lt[k]) return false;
+    }
+  }
+  if (lte) {
+    for (const k of Object.keys(lte)) {
+      const val = d[k];
+      if (typeof val !== 'number' || val > lte[k]) return false;
+    }
+  }
+  return true;
 }
 
 function lockFile(file: string) {
