@@ -322,6 +322,7 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Auto-generated file from schema
 "packages/genkit/src/genkit/core/typing.py" = ["E501"]
 # Typing tests use reveal_type(), intentional unused vars, and don't need docstrings
 "packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
