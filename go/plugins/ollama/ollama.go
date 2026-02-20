@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -126,20 +127,20 @@ type GenerateContentConfig struct {
 	// Thinking mode:
 	// ollama: true | false
 	// gpt-oss: "low" | "medium" | "high"
-	Think any
+	Think any `json:"think,omitempty"`
 
 	// Runtime options
-	Seed        *int
-	Temperature *float64
-	TopK        *int
-	TopP        *float64
-	MinP        *float64
-	Stop        []string
-	NumCtx      *int
-	NumPredict  *int
+	Seed        int      `json:"seed,omitempty"`
+	Temperature float64  `json:"temperature,omitempty"`
+	TopK        int      `json:"top_k,omitempty"`
+	TopP        float64  `json:"top_p,omitempty"`
+	MinP        float64  `json:"min_p,omitempty"`
+	Stop        []string `json:"stop,omitempty"`
+	NumCtx      int      `json:"num_ctx,omitempty"`
+	NumPredict  int      `json:"num_predict,omitempty"`
 
 	// Ollama-specific
-	KeepAlive string
+	KeepAlive string `json:"keep_alive"`
 }
 
 type ollamaModelRequest struct {
@@ -288,7 +289,6 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Ollama Request Payload: %s\n", string(payloadBytes))
 
 	// Determine the correct endpoint
 	endpoint := g.serverAddress + "/api/chat"
@@ -322,7 +322,6 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 
 		var response *ai.ModelResponse
 		if isChatModel {
-			fmt.Printf("translating chat response\n")
 			response, err = translateChatResponse(body)
 		} else {
 			response, err = translateModelResponse(body)
@@ -459,7 +458,7 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 	if response.Message.Thinking != "" {
 		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
 		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
-	} else if strings.Contains(response.Message.Content, "<think>") {
+	} else {
 		// If thinking is not explicitly returned, check if it's in the content
 		thinking, content := parseThinking(response.Message.Content)
 		if thinking != "" {
@@ -517,6 +516,21 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	chunk := &ai.ModelResponseChunk{}
+
+	// Check for thinking/reasoning first
+	if response.Message.Thinking != "" {
+		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
+		chunk.Content = append(chunk.Content, aiPart)
+	} else {
+		// If thinking is not explicitly returned, check if it's in the content
+		thinking, content := parseThinking(response.Message.Content)
+		if thinking != "" {
+			aiPart := ai.NewReasoningPart(thinking, nil)
+			chunk.Content = append(chunk.Content, aiPart)
+			response.Message.Content = content
+		}
+	}
+
 	if response.Message.Content != "" {
 		aiPart := ai.NewTextPart(response.Message.Content)
 		chunk.Content = append(chunk.Content, aiPart)
@@ -530,11 +544,6 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 			toolPart := ai.NewToolRequestPart(toolRequest)
 			chunk.Content = append(chunk.Content, toolPart)
 		}
-	}
-
-	if response.Message.Thinking != "" {
-		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
-		chunk.Content = append(chunk.Content, aiPart)
 	}
 
 	return chunk, nil
@@ -612,12 +621,21 @@ func concatImages(input *ai.ModelRequest, roleFilter []ai.Role) ([]string, error
 
 // parseThinking extracts the thinking content from the response string.
 func parseThinking(content string) (string, string) {
-	start := strings.Index(content, "<think>")
-	end := strings.Index(content, "</think>")
-	if start != -1 && end != -1 && end > start {
-		thinking := content[start+len("<think>") : end]
-		rest := content[:start] + content[end+len("</think>"):]
-		return strings.TrimSpace(thinking), strings.TrimSpace(rest)
+	// thinkingRegex matches <think> or <thinking> tags case-insensitively across multiple lines.
+	// It uses non-greedy matching (.*?) to correctly extract individual blocks when
+	// multiple blocks are present in a single response.
+	thinkingRegex := regexp.MustCompile("(?si)<(think|thinking)>(.*?)</(?:think|thinking)>")
+
+	matches := thinkingRegex.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return "", content
 	}
-	return "", content
+
+	var thinkingParts []string
+	for _, match := range matches {
+		thinkingParts = append(thinkingParts, strings.TrimSpace(match[2]))
+	}
+
+	rest := thinkingRegex.ReplaceAllString(content, "")
+	return strings.Join(thinkingParts, "\n\n"), strings.TrimSpace(rest)
 }

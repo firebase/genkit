@@ -19,34 +19,37 @@ package ollama_test
 import (
 	"context"
 	"flag"
+	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/ollama"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
-var serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
-var modelName = flag.String("model-name", "tinyllama", "model name")
-var testLive = flag.Bool("test-live", false, "run live tests")
+var (
+	serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
+	modelName     = flag.String("model-name", "qwen3", "model name")
+	testLive      = flag.Bool("test-live", false, "run live tests")
+)
 
 /*
 To run this test, you need to have the Ollama server running. You can set the server address using the OLLAMA_SERVER_ADDRESS environment variable.
 If the environment variable is not set, the test will default to http://localhost:11434 (the default address for the Ollama server).
 */
 func TestLive(t *testing.T) {
-
 	if !*testLive {
 		t.Skip("skipping go/plugins/ollama live test")
 	}
 
 	ctx := context.Background()
 
-	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress, Timeout: 360}
 	g := genkit.Init(ctx, genkit.WithPlugins(o))
 
 	// Define the model
-	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName, Type: "chat"}, nil)
 
 	// Use the Ollama model
 	m := ollamaPlugin.Model(g, *modelName)
@@ -57,8 +60,8 @@ func TestLive(t *testing.T) {
 	// Generate a response from the model
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(m),
-		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
-		ai.WithPrompt("I'm hungry, what should I eat?"),
+		ai.WithConfig(&ollama.GenerateContentConfig{Temperature: 1.0, Think: true}),
+		ai.WithPrompt("how many r are in strawberry?"),
 	)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
@@ -70,7 +73,8 @@ func TestLive(t *testing.T) {
 
 	// Get the text from the response
 	text := resp.Text()
-	// log.Println("Response:", text)
+	log.Printf("Reasoning: %s", resp.Reasoning())
+	log.Printf("Full response: %s", text)
 
 	// Assert that the response text is as expected
 	if text == "" {

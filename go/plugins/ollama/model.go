@@ -17,7 +17,9 @@
 package ollama
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
 )
@@ -57,100 +59,74 @@ func (o *ollamaChatRequest) ApplyOptions(cfg any) error {
 		return nil
 	}
 
-	switch cfg := cfg.(type) {
+	switch config := cfg.(type) {
 	case GenerateContentConfig:
-		o.applyGenerateContentConfig(&cfg)
-		return nil
+		return o.applyGenerateContentConfig(&config)
 	case *GenerateContentConfig:
-		o.applyGenerateContentConfig(cfg)
-		return nil
+		return o.applyGenerateContentConfig(config)
 	case map[string]any:
-		return o.applyMapAny(cfg)
+		return o.applyMapAny(config)
 	case *ai.GenerationCommonConfig:
-		return o.applyGenerationCommonConfig(cfg)
+		return o.applyGenerationCommonConfig(config)
 	case ai.GenerationCommonConfig:
-		return o.applyGenerationCommonConfig(&cfg)
+		return o.applyGenerationCommonConfig(&config)
 	default:
-		return errors.New("unknown generation config")
+		return fmt.Errorf("unexpected config type: %T", cfg)
 	}
 }
-func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfig) {
+
+func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfig) error {
 	if cfg == nil {
-		return
+		return nil
 	}
 
-	// thinking
-	if cfg.Think != nil {
-		o.Think = cfg.Think
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		return err
 	}
 
-	// runtime options
-	opts := map[string]any{}
-
-	if cfg.Seed != nil {
-		opts["seed"] = *cfg.Seed
-	}
-	if cfg.Temperature != nil {
-		opts["temperature"] = *cfg.Temperature
-	}
-	if cfg.TopK != nil {
-		opts["top_k"] = *cfg.TopK
-	}
-	if cfg.TopP != nil {
-		opts["top_p"] = *cfg.TopP
-	}
-	if cfg.MinP != nil {
-		opts["min_p"] = *cfg.MinP
-	}
-	if len(cfg.Stop) > 0 {
-		opts["stop"] = cfg.Stop
-	}
-	if cfg.NumCtx != nil {
-		opts["num_ctx"] = *cfg.NumCtx
-	}
-	if cfg.NumPredict != nil {
-		opts["num_predict"] = *cfg.NumPredict
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
 	}
 
-	if len(opts) > 0 {
-		o.Options = opts
-	}
+	return o.applyMapAny(m)
 }
+
 func (o *ollamaChatRequest) applyGenerationCommonConfig(cfg *ai.GenerationCommonConfig) error {
 	if cfg == nil {
 		return nil
 	}
 
-	opts := map[string]any{}
+	m := make(map[string]any)
 
 	if cfg.MaxOutputTokens > 0 {
-		opts["num_predict"] = cfg.MaxOutputTokens
+		m["num_predict"] = cfg.MaxOutputTokens
 	}
 	if len(cfg.StopSequences) > 0 {
-		opts["stop"] = cfg.StopSequences
+		m["stop"] = cfg.StopSequences
 	}
 	if cfg.Temperature != 0 {
-		opts["temperature"] = cfg.Temperature
+		m["temperature"] = cfg.Temperature
 	}
 	if cfg.TopK > 0 {
-		opts["top_k"] = cfg.TopK
+		m["top_k"] = cfg.TopK
 	}
 	if cfg.TopP > 0 {
-		opts["top_p"] = cfg.TopP
+		m["top_p"] = cfg.TopP
 	}
 
-	if len(opts) > 0 {
-		o.Options = opts
-	}
-
-	return nil
+	return o.applyMapAny(m)
 }
 
 func (o *ollamaChatRequest) applyMapAny(m map[string]any) error {
 	if len(m) == 0 {
 		return nil
 	}
-	opts := map[string]any{}
+	opts := o.Options
+	if opts == nil {
+		opts = make(map[string]any)
+	}
 	for k, v := range m {
 		if _, isTopLevel := topLevelOpts[k]; isTopLevel {
 			switch k {

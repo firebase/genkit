@@ -17,11 +17,36 @@
 package ollama
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 )
+
+func TestOllamaChatRequest_MarshalJSON(t *testing.T) {
+	req := &ollamaChatRequest{
+		Model: "qwen3",
+		Think: true,
+		Options: map[string]any{
+			"temperature": 0.7,
+		},
+	}
+
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	jsonStr := string(data)
+	if !strings.Contains(jsonStr, `"think":true`) {
+		t.Errorf("expected json to contain \"think\":true, got: %s", jsonStr)
+	}
+	if !strings.Contains(jsonStr, `"options":{"temperature":0.7}`) {
+		t.Errorf("expected json to contain \"options\":{\"temperature\":0.7}, got: %s", jsonStr)
+	}
+}
 
 func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 	seed := 42
@@ -36,14 +61,14 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 		{
 			name: "GenerateContentConfig pointer",
 			cfg: &GenerateContentConfig{
-				Seed:        &seed,
-				Temperature: &temp,
+				Seed:        seed,
+				Temperature: temp,
 				Think:       true,
 			},
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed":        seed,
+					"seed":        float64(seed),
 					"temperature": temp,
 				},
 			},
@@ -51,13 +76,13 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 		{
 			name: "GenerateContentConfig value",
 			cfg: GenerateContentConfig{
-				Seed:  &seed,
+				Seed:  seed,
 				Think: true,
 			},
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed": seed,
+					"seed": float64(seed),
 				},
 			},
 		},
