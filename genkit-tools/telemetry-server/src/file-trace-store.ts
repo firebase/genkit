@@ -417,10 +417,7 @@ export class Index {
             return undefined;
           }
         })
-        .filter((d) => {
-          if (!d) return false;
-          return isMatch(d, query?.filter);
-        })
+        .filter((d) => (!d ? false : isFilterMatch(d, query?.filter)))
         .reverse() as Record<string, string | number>[];
 
       fullData.push(...fileData);
@@ -456,7 +453,7 @@ export class Index {
   }
 }
 
-function isMatch(
+function isFilterMatch(
   d: Record<string, string | number>,
   filter?: TraceQueryFilter
 ): boolean {
