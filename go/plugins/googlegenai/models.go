@@ -429,24 +429,38 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 		if strings.Contains(description, "deprecated") {
 			continue
 		}
-		if slices.Contains(item.SupportedActions, "embedContent") {
-			models.embedders = append(models.embedders, name)
-			continue
-		}
-
-		if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
-			models.imagen = append(models.imagen, name)
-			continue
-		}
-
-		if slices.Contains(item.SupportedActions, "generateContent") {
-			found := slices.ContainsFunc(allowedModels, func(s string) bool {
-				return strings.Contains(name, s)
-			})
-			// filter out: Aqa, Text-bison, Chat, learnlm
-			if found {
-				models.gemini = append(models.gemini, name)
+		// The Vertex AI backend does not populate SupportedActions,
+		// so fall back to name-based categorization when it's empty.
+		if len(item.SupportedActions) > 0 {
+			if slices.Contains(item.SupportedActions, "embedContent") {
+				models.embedders = append(models.embedders, name)
 				continue
+			}
+			if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
+				models.imagen = append(models.imagen, name)
+				continue
+			}
+			if slices.Contains(item.SupportedActions, "generateContent") {
+				found := slices.ContainsFunc(allowedModels, func(s string) bool {
+					return strings.Contains(name, s)
+				})
+				if found {
+					models.gemini = append(models.gemini, name)
+				}
+			}
+		} else {
+			switch {
+			case strings.Contains(name, "embedding") || strings.Contains(name, "embed"):
+				models.embedders = append(models.embedders, name)
+			case strings.Contains(name, "imagen"):
+				models.imagen = append(models.imagen, name)
+			default:
+				found := slices.ContainsFunc(allowedModels, func(s string) bool {
+					return strings.Contains(name, s)
+				})
+				if found {
+					models.gemini = append(models.gemini, name)
+				}
 			}
 		}
 	}
