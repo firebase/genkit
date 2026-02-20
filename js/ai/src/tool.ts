@@ -415,7 +415,9 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
 }
 
-export function isDynamicTool(t: unknown): t is ToolAction | MultipartToolAction {
+export function isDynamicTool(
+  t: unknown
+): t is ToolAction | MultipartToolAction {
   return isAction(t) && t.__action?.metadata?.dynamic === true;
 }
 export function isMultipartTool(t: unknown): t is MultipartToolAction {
