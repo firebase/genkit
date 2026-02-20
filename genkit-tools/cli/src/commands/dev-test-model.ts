@@ -675,7 +675,7 @@ export const devTestModel = new Command('dev:test-model')
         );
         manager = result.manager;
       } else {
-        manager = await startManager(projectRoot, false);
+        manager = await startManager({ projectRoot, manageHealth: false });
       }
 
       await waitForRuntime(manager);

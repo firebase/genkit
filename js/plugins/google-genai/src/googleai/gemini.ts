@@ -193,10 +193,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
-    .describe(
-      'The modalities to be used in response. Only supported for ' +
-        "'gemini-2.0-flash-exp' model at present."
-    )
+    .describe('The modalities to be used in response.')
     .optional(),
   googleSearchRetrieval: z
     .union([z.boolean(), z.object({}).passthrough()])
@@ -421,13 +418,15 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-3.1-pro-preview-customtools': commonRef(
+    'gemini-3.1-pro-preview-customtools'
+  ),
+  'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
   'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
-  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;

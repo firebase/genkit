@@ -36,7 +36,6 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      releasekit: ${{ steps.filter.outputs.releasekit }}
       conform: ${{ steps.filter.outputs.conform }}
     steps:
       - uses: actions/checkout@v5
@@ -44,8 +43,6 @@ jobs:
         id: filter
         with:
           filters: |
-            releasekit:
-              - 'py/tools/releasekit/**'
             conform:
               - 'py/tools/conform/**'
 
@@ -80,14 +77,6 @@ jobs:
 
       - name: Run consistency checks
         run: ./py/bin/check_consistency
-
-      - name: Install releasekit
-        run: |
-          cd py/tools/releasekit
-          uv sync
-
-      - name: Run releasekit workspace checks
-        run: uv run --directory py/tools/releasekit releasekit check
 
   # =============================================================================
   # Type checking (runs in parallel - each checker is a separate job)
@@ -139,23 +128,8 @@ jobs:
   security-and-compliance:
     name: Security and Compliance
     runs-on: ubuntu-latest
-    env:
-      PATH: ${{ github.workspace }}/go/bin:${{ github.workspace }}/.local/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@main
-        with:
-          go-version: stable
-
-      - uses: pnpm/action-setup@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20.x
-          cache: "pnpm"
 
       - name: Install uv and setup Python
         uses: astral-sh/setup-uv@v5
@@ -168,15 +142,10 @@ jobs:
           cd py
           uv sync --group lint
 
-      - name: Install license tools
-        run: |
-          npm install -g license-checker
-          go install github.com/google/go-licenses@latest
-
       - name: Check source file license headers
         run: ./bin/check_license
 
-      - name: Check dependency licenses
+      - name: Check Python dependency licenses
         run: uv run --directory py liccheck -s pyproject.toml
 
       - name: Run security scan (bandit)
@@ -192,11 +161,6 @@ jobs:
             exit 1
           fi
           echo "No hardcoded secrets detected"
-
-  # =============================================================================
-  # Consistency checks (merged into lint-and-format job above for efficiency)
-  # =============================================================================
-  # NOTE: consistency-check was merged into lint-and-format to reduce setup overhead
 
   # =============================================================================
   # Unit tests across multiple Python versions (runs in parallel with other jobs)
@@ -235,94 +199,6 @@ jobs:
         run: |
           uv run --python ${{ matrix.python-version }} --active --isolated --directory py \
             pytest -xvs --log-level=DEBUG .
-  # =============================================================================
-  # Sample integration tests (isolated per-sample, runs in parallel)
-  # =============================================================================
-  sample-tests:
-    name: Sample Tests (${{ matrix.sample }}, Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Add new samples with tests here as they are created.
-        sample: [web-endpoints-hello]
-        python-version: ["3.12"]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install sample dependencies
-        run: |
-          cd py
-          uv sync --package ${{ matrix.sample }} --extra test --extra dev
-
-      - name: Run sample tests
-        run: |
-          cd py/samples/${{ matrix.sample }}
-          uv run pytest tests/ -xvs
-
-  # =============================================================================
-  # Internal tool tests (isolated per-tool, runs in parallel)
-  # =============================================================================
-  tool-tests:
-    name: Tool Tests (${{ matrix.tool }}, Python ${{ matrix.python-version }})
-    needs: detect-changes
-    if: needs.detect-changes.outputs.releasekit == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Add new tools with tests here as they are created.
-        tool: [releasekit]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install uv and setup Python
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python-version }}
-
-      - uses: pnpm/action-setup@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20.x
-          cache: "pnpm"
-
-      - name: Install gh CLI
-        run: |
-          (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
-            && sudo mkdir -p -m 755 /etc/apt/keyrings \
-            && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-            && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
-            && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
-            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-            && sudo apt update \
-            && sudo apt install gh -y
-
-      - name: Install tool dependencies
-        run: |
-          cd py/tools/${{ matrix.tool }}
-          uv sync
-
-      - name: Run tool tests
-        run: |
-          cd py/tools/${{ matrix.tool }}
-          uv run pytest tests/ -xvs
-
-      - name: Run network integration tests
-        run: |
-          cd py/tools/${{ matrix.tool }}
-          uv run pytest tests/ -xvs -m network --no-cov
-
   # =============================================================================
   # Conform tool tests (workspace member — needs root uv sync)
   # =============================================================================
@@ -365,7 +241,7 @@ jobs:
     name: Build Distributions
     runs-on: ubuntu-latest
     if: ${{ always() && !failure() && !cancelled() }}
-    needs: [lint-and-format, type-check, security-and-compliance, tests, sample-tests, tool-tests, conform-tests]
+    needs: [lint-and-format, type-check, security-and-compliance, tests, conform-tests]
     steps:
       - uses: actions/checkout@v5
 

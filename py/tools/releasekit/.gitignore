@@ -1,5 +1,0 @@
-# MkDocs build output
-docs/site/
-
-# Tox environments
-.tox/

@@ -68,9 +68,8 @@ run_check "🔒 Security Checks"     "${PY_DIR}/bin/run_python_security_checks"
 run_check "📜 License Check"       "${TOP_DIR}/bin/check_license"
 run_check "📜 Dep License Check"   uv run --directory "${PY_DIR}" liccheck -s pyproject.toml
 
-# Consistency + releasekit
+# Consistency
 run_check "🔍 Consistency Checks"  "${PY_DIR}/bin/check_consistency"
-run_check "📦 Releasekit Checks"   uv run --directory "${TOP_DIR}/py/tools/releasekit" releasekit check
 
 # Actionlint (GitHub Actions workflow validation)
 _run_actionlint() {
@@ -111,7 +110,6 @@ _run_actionlint() {
   # workflows via `uses:`.
   local workflow_dirs=(
     "${TOP_DIR}/.github/workflows"
-    "${TOP_DIR}/py/tools/releasekit/github/workflows"
   )
   for dir in "${workflow_dirs[@]}"; do
     while IFS= read -r -d '' f; do
