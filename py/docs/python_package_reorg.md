@@ -5,8 +5,8 @@ enforce public/internal boundaries, and split oversized files.
 
 Related docs:
 - [python_beta_type_design.md](./python_beta_type_design.md) — type audit
-- [python_type_audit_checklist.md](./python_type_audit_checklist.md) — checklist
-- [python_beta_api_proposal.md](./python_beta_api_proposal.md) — public API surface
+- [python_type_audit_checklist.md](./python_type_audit_checklist.md) — checklist (33 types deleted, affects file contents below)
+- [python_beta_api_proposal.md](./python_beta_api_proposal.md) — public API surface + `GenkitBaseModel` serialization fix + `define_*` accepts raw types (schema/extract internalized)
 - [GENKIT_CLASS_DESIGN.md](../GENKIT_CLASS_DESIGN.md) — Genkit class
 
 ---
@@ -59,15 +59,15 @@ genkit/
 ├── __init__.py              public API barrel (__all__ defined)
 ├── ai/                      AI domain types + Genkit class
 │   ├── __init__.py          public exports (__all__ defined)
-│   ├── prompt.py            ExecutablePrompt + define_prompt (like Go ai/prompt.go)
+│   ├── prompt.py            ExecutablePrompt + define_prompt
 │   ├── streaming.py         GenerateStreamResponse
 │   ├── model.py             GenerateResponseWrapper, ChunkWrapper, MessageWrapper,
 │   │                        ModelReference, GenerationCommonConfig, define_model,
 │   │                        resolve_api_key, compute_usage_stats
 │   ├── document.py          Document, RankedDocument
-│   ├── retriever.py         RetrieverRef, RetrieverOptions, define_retriever, etc.
-│   ├── embedding.py         Embedder, EmbedderRef, EmbedderOptions, define_embedder
-│   ├── reranker.py          RerankerRef, RerankerOptions, define_reranker
+│   ├── retriever.py         RetrieverRef, define_retriever, etc. (RetrieverOptions deleted — kwargs)
+│   ├── embedding.py         Embedder, EmbedderRef, define_embedder (EmbedderOptions deleted — kwargs)
+│   ├── reranker.py          RerankerRef, define_reranker (RerankerOptions deleted — kwargs)
 │   ├── evaluator.py         EvaluatorRef, define_evaluator
 │   ├── tools.py             ToolRunContext, ToolInterruptError, define_tool
 │   ├── resource.py          resource actions, define_resource
@@ -77,46 +77,52 @@ genkit/
 │   ├── _internal/
 │   │   ├── _genkit.py       Genkit class body (from ai/_aio.py)
 │   │   ├── _genkit_base.py  Genkit __init__, server startup (from ai/_base_async.py)
-│   │   ├── _prompt_render.py  dotprompt rendering + PromptCache (split from blocks/prompt.py)
+│   │   ├── _dotprompt.py    dotprompt template engine — render_*, file loading, PromptCache
 │   │   ├── _generate.py     generate() orchestration, tool loop (from blocks/generate.py)
 │   │   ├── _middleware.py    model middleware execution
 │   │   └── _messages.py     message construction helpers
 │
 ├── core/                    framework primitives (not AI-specific)
 │   ├── __init__.py          public exports (__all__ defined)
-│   ├── action.py            Action, ActionRunContext, ActionMetadata (flattened)
-│   ├── action_types.py      ActionKind, ActionResponse, ActionMetadataKey
-│   ├── error.py             GenkitError, UserFacingError
+│   ├── action.py            Action, ActionRunContext, ActionMetadata, ActionKind,
+│   │                         ActionResponse, ActionMetadataKey (flattened —
+│   │                         absorbs action_types.py, 18 consumers, same concept)
+│   ├── error.py             GenkitError, UserFacingError, StatusCodes, Status,
+│   │                         http_status_code (absorbs status_types.py — only consumer)
 │   ├── plugin.py            Plugin ABC
-│   ├── flow.py              FlowWrapper (generic streaming wrapper)
-│   ├── background.py        BackgroundAction (start/check/cancel pattern)
-│   ├── dap.py               DynamicActionProvider, DapConfig
-│   ├── status_types.py      StatusCodes, Status
-│   ├── typing.py            auto-generated schema types (DO NOT EDIT header)
 │   ├── _internal/
+│   │   ├── _typing.py       auto-generated schema types (DO NOT EDIT header).
+│   │   │                     60+ BaseModel classes. Re-exported via genkit/__init__.py
+│   │   │                     and domain sub-modules. Nobody imports this directly.
+│   │   ├── _base.py         GenkitBaseModel (Pydantic base with exclude_none + by_alias defaults)
+│   │   ├── _compat.py       StrEnum (3.10), override (3.11), wait_for (3.10) backfills
+│   │   │                     (absorbs aio/_compat.py — dies when min Python ≥ 3.12)
 │   │   ├── _registry.py     Registry class
 │   │   ├── _server.py       ServerSpec (reflection API config — moved from ai/)
-│   │   ├── _runtime.py      RuntimeManager (.genkit/runtimes/ files — moved from ai/)
-│   │   ├── _flows.py        flow registration helpers
 │   │   ├── _context.py      RequestData, ContextMetadata
-│   │   ├── _tracing.py      tracing setup, span creation
-│   │   ├── _trace/          OTel exporters and processors
-│   │   │   ├── _default_exporter.py
-│   │   │   ├── _adjusting_exporter.py
-│   │   │   ├── _realtime_processor.py
-│   │   │   └── _types.py    GenkitSpan
-│   │   ├── _schema.py       schema utilities, to_json_schema
-│   │   ├── _extract.py      JSON extraction from text
-│   │   ├── _codec.py        dump_dict, dump_json (from root codec.py)
-│   │   ├── _http_client.py  HTTP client helpers
-│   │   ├── _environment.py  EnvVar, GenkitEnvironment
-│   │   ├── _aio.py          Channel, loop utils (from aio/)
-│   │   ├── _logging.py      get_logger
-│   │   ├── _constants.py
-│   │   └── _deprecations.py (from lang/)
+│   │   ├── _tracing.py      tracing setup, span creation, dev UI exporter,
+│   │   │                     RealtimeSpanProcessor (~350 lines merged from
+│   │   │                     tracing.py + default_exporter.py + realtime_processor.py.
+│   │   │                     AdjustingTraceExporter + RedactedSpan moved to
+│   │   │                     telemetry plugin — 5 plugins import, 0 core files do.)
+│   │   ├── _http_client.py  HTTP client cache (per-event-loop httpx.AsyncClient — 8 plugins use)
+│   │   ├── _environment.py  EnvVar, GenkitEnvironment, is_dev_environment()
+│   │   ├── _aio.py          Channel, run_async, run_loop, ensure_async, iter_over_async
+│   │   │                     (~500 lines merged from all 4 aio/* files)
+│   │   ├── _schema.py       to_json_schema (internal — define_* accepts types directly)
+│   │   ├── _extract.py      extract_json, extract_items (internal — only used by formats/)
+│   │   ├── _logging.py      get_logger (structlog wrapper — trim 20-method Protocol to ~7)
+│   │   ├── _constants.py    GENKIT_VERSION, GENKIT_CLIENT_HEADER
+│   │   ├── _flow.py         FlowWrapper (~50 lines — users never construct, returned by @ai.flow())
+│   │   ├── _background.py   BackgroundAction (2 internal consumers, not re-exported top-level)
+│   │   └── _dap.py          DynamicActionProvider (1 internal consumer, not re-exported top-level)
+│
+├── tracing.py               tracer, add_custom_exporter (public — matches JS genkit/tracing)
 │
 ├── _web/                    dev server only (all internal)
-│   ├── reflection.py        Dev UI reflection API (moved from core/)
+│   ├── _reflection.py       Dev UI reflection API (moved from core/). Starlette ASGI app
+│   │                         exposing /api/actions, /api/runAction, etc. Only consumer is
+│   │                         the runtime startup code that mounts it on uvicorn.
 │   └── _runtime.py          RuntimeManager — writes .genkit/runtimes/ files
 │
 │   DELETED: web/manager/ (~1,500 lines, 7 types)
@@ -135,79 +141,25 @@ genkit/
 |---|---|
 | **Delete `blocks/`** | All files move into `ai/`. Domain types live where Go/JS put them. |
 | **Delete `aio/`** | `Channel` + loop utils → `core/_internal/_aio.py` |
-| **Delete `lang/`** | `deprecations.py` → `core/_internal/_deprecations.py` |
+| **Delete `lang/`** | `deprecations.py` → inline into google-genai plugin (only consumer). |
 | **Delete `types/`** | Barrel re-export removed. `genkit/__init__.py` handles this. |
 | **Delete `web/manager/`** | ~1,500 lines of unused multi-server orchestration. Reflection server uses raw uvicorn (~15 lines). |
 | **Delete `core/flows.py`** | `create_flows_asgi_app()` — auto-exposes flows as HTTP endpoints. Firebase Cloud Functions pattern that doesn't fit Python (Cloud Functions uses Flask, not ASGI; no `onCallGenkit` for Python). Users should use FastAPI/Flask instead. JS has this (`startFlowServer`) because the Express ecosystem aligns; Python's doesn't. ~370 lines. |
 | **Rename `web/` → `_web/`** | Prefix signals "internal, don't import". Now just reflection + runtime. |
 | **Move `core/reflection.py` → `_web/`** | It's a Starlette ASGI app, not a core primitive. Breaks `core/` → `web/` cycle. |
-| **Move `codec.py`** | → `core/_internal/_codec.py` |
+| **Delete `codec.py`** | `dump_dict`/`dump_json` die with `GenkitBaseModel` (see [python_beta_api_proposal.md §5](./python_beta_api_proposal.md)). Third-party `BaseModel` fallback inlined into `_base.py`. |
 | **Delete `model_types.py`** | `GenerationCommonConfig` → `ai/model.py`. API key helpers renamed to `resolve_api_key` and exposed from `model.py`. `get_basic_usage_stats` renamed to `compute_usage_stats`. |
-| **Move `FlowWrapper`** | `ai/_registry.py` → `core/flow.py` (matches Go/JS) |
-| **Move `BackgroundAction`** | `blocks/background_model.py` → `core/background.py` (matches Go/JS) |
-| **Move `DynamicActionProvider`** | `blocks/dap.py` → `core/dap.py` (matches Go/JS) |
-| **Split `prompt.py`** | 2,446 → ~600 (prompt.py) + ~200 (streaming.py) + ~800 (_prompt_render.py) + ~400 (_prompt_cache.py) |
+| **Merge `action_types.py` into `action.py`** | 95 lines, same 18 consumers, same concept. `ActionKind`, `ActionResponse`, `ActionMetadataKey` live alongside `Action`. |
+| **Merge `status_types.py` into `error.py`** | Only consumer is `error.py`. `StatusCodes`, `Status`, `http_status_code` are tightly coupled with the error hierarchy. |
+| **Move `FlowWrapper` → `_internal/`** | `ai/_registry.py` → `core/_internal/_flow.py`. ~50 lines, 2 consumers, users never construct directly (returned by `@ai.flow()`). |
+| **Move `BackgroundAction` → `_internal/`** | `blocks/background_model.py` → `core/_internal/_background.py`. Not re-exported top-level, only 2 internal consumers. `genkit.model` sub-module re-exports it for plugin authors. |
+| **Move `DynamicActionProvider` → `_internal/`** | `blocks/dap.py` → `core/_internal/_dap.py`. Not re-exported top-level, single internal consumer (`ai/_registry.py`). |
+| **Split `prompt.py`** | 2,446 → ~600 (prompt.py) + ~200 (streaming.py) + ~800 (_dotprompt.py) |
+| **Move `typing.py` → `_internal/`** | `core/typing.py` → `core/_internal/_typing.py`. Auto-generated 60+ `BaseModel` classes. `core/` is not a public import path — public types are re-exported from `genkit/__init__.py` and domain sub-modules. The file is pure plumbing. |
+| **Internalize `schema.py` + `extract.py`** | Both move to `core/_internal/`. `define_*` functions accept raw Python types so no plugin needs `to_json_schema`. `extract_json` has zero plugin consumers — only used by `formats/`. JS exports both publicly but nobody imports them there either. See [python_beta_api_proposal.md §6](./python_beta_api_proposal.md). |
 | **Dissolve `ai/_registry.py`** | define_* functions move to their domain files (like Go). `define_model` → `ai/model.py`, `define_retriever` → `ai/retriever.py`, etc. Genkit method stubs stay in `ai/_internal/_genkit.py`. `_registry.py` ceases to exist. |
 | **Add `_internal/`** | Pydantic v2 pattern: private implementation behind `_internal/` |
 | **Add `__all__`** | Every public `__init__.py` declares its exports |
-
----
-
-## Cross-language alignment
-
-After the reorg, every audited type lands in the same package as Go and JS.
-
-### `core/` — framework primitives (all three SDKs agree)
-
-| Python type | Go equivalent | JS equivalent |
-|---|---|---|
-| `Action` | `core/api/action.go` Action | `core/src/action.ts` Action |
-| `ActionRunContext` | `core/context.go` ActionContext | `core/src/context.ts` ActionContext |
-| `ActionMetadata` | `core/api/action.go` ActionDesc | `core/src/action.ts` ActionMetadata |
-| `ActionKind` | `core/api/action.go` ActionType | `core/src/registry.ts` ActionType |
-| `GenkitError` | `core/error.go` | `core/src/error.ts` |
-| `UserFacingError` | `core/error.go` | `core/src/error.ts` |
-| `Plugin` | `core/api/plugin.go` | `core/src/plugin.ts` PluginProvider |
-| `StatusCodes` | `core/status_types.go` | `core/src/statusTypes.ts` |
-| `FlowWrapper` | `core/flow.go` Flow | `core/src/flow.ts` Flow |
-| `BackgroundAction` | `core/background_action.go` | `core/src/background-action.ts` |
-| `DynamicActionProvider` | `core/api/plugin.go` DynamicPlugin | `core/src/dynamic-action-provider.ts` |
-| `Channel` | N/A (Go built-in) | `core/src/async.ts` |
-| `Registry` | `core/api/registry.go` (interface) | `core/src/registry.ts` |
-
-### `ai/` — AI domain types (all three SDKs agree)
-
-| Python type | Go equivalent | JS equivalent |
-|---|---|---|
-| `Genkit` | `genkit/genkit.go` | `genkit/src/genkit.ts` |
-| `ExecutablePrompt` | `ai/prompt.go` Prompt | `ai/src/prompt.ts` |
-| `GenerateStreamResponse` | N/A (callback-based) | `ai/src/generate.ts` |
-| `GenerateResponseWrapper` | `ai/gen.go` ModelResponse | `ai/src/generate/response.ts` |
-| `GenerateResponseChunkWrapper` | `ai/gen.go` ModelResponseChunk | `ai/src/generate/chunk.ts` |
-| `MessageWrapper` | `ai/gen.go` Message | `ai/src/message.ts` |
-| `Document` | `ai/document.go` | `ai/src/document.ts` |
-| `RankedDocument` | `ai/gen.go` RankedDocumentData | `ai/src/reranker.ts` |
-| `ToolRunContext` | `ai/tools.go` | `ai/src/tool.ts` |
-| `ToolInterruptError` | `ai/tools.go` (unexported) | `ai/src/tool.ts` |
-| `ModelReference` | `ai/generate.go` ModelRef | `ai/src/model.ts` |
-| `EmbedderRef` | `ai/embedder.go` | `ai/src/embedder.ts` EmbedderReference |
-| `RetrieverRef` / `IndexerRef` | `ai/retriever.go` | `ai/src/retriever.ts` |
-| `RerankerRef` | N/A | `ai/src/reranker.ts` RerankerReference |
-| `EvaluatorRef` | `ai/evaluator.go` | `ai/src/evaluator.ts` |
-| `Embedder` | `ai/embedder.go` | `ai/src/embedder.ts` |
-| `EmbedderOptions` / `Supports` | `ai/embedder.go` | `ai/src/embedder.ts` |
-| `RetrieverOptions` / `IndexerOptions` | `ai/retriever.go` | `ai/src/retriever.ts` |
-| `RerankerOptions` | N/A | `ai/src/reranker.ts` |
-| `FormatDef` / `Formatter` | `ai/formatter.go` | `ai/src/formats/types.ts` |
-| `GenerationCommonConfig` | `ai/gen.go` | `ai/src/model-types.ts` |
-| `ActionMetadata` | `core/api/action.go` | `core/src/action.ts` |
-
-Mismatches: **zero.** Every type ends up in the same package as Go and JS.
-
-(`Genkit` is a special case — Go/JS have a separate `genkit/` package, Python uses
-the top-level `genkit/__init__.py`. Same role, different mechanism.)
-
----
 
 ## Plugin import paths — before and after
 
@@ -222,12 +174,13 @@ from genkit.core.error import GenkitError, StatusName
 from genkit.core.tracing import tracer
 from genkit.core.typing import GenerationCommonConfig, Message, ...
 
-# After (2 imports):
+# After (2-3 imports — top-level genkit, genkit.ai, genkit.tracing):
+from genkit import GenkitError, GENKIT_CLIENT_HEADER
+from genkit.tracing import tracer
 from genkit.ai import (
-    ActionRunContext, GenkitError, GenerationCommonConfig,
-    Message, get_basic_usage_stats, dump_dict, dump_json,
+    ActionRunContext, GenerationCommonConfig,
+    Message, compute_usage_stats,
 )
-from genkit.core import tracer, GENKIT_CLIENT_HEADER
 ```
 
 ### Retriever plugin (e.g., vertex-ai vector_search.py)
@@ -236,15 +189,12 @@ from genkit.core import tracer, GENKIT_CLIENT_HEADER
 # Before (5 deep imports):
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.blocks.retriever import retriever_action_metadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 
-# After (1 import):
-from genkit.ai import (
-    Genkit, Document, RetrieverOptions,
-    retriever_action_metadata, ActionKind, to_json_schema,
-)
+# After (1 import — define_retriever accepts types directly, no manual to_json_schema):
+from genkit import Genkit, Document, ActionKind
 ```
 
 ### Telemetry plugin (e.g., observability)
@@ -255,8 +205,9 @@ from genkit.core.environment import is_dev_environment
 from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter
 from genkit.core.tracing import add_custom_exporter
 
-# After (1 import):
-from genkit.core import is_dev_environment, AdjustingTraceExporter, add_custom_exporter
+# After (2 imports — AdjustingTraceExporter moves to telemetry plugin):
+from genkit import is_dev_environment
+from genkit.tracing import add_custom_exporter
 ```
 
 ---
@@ -283,7 +234,7 @@ up in `core/` by accident, not because they provide core primitives.
 
 ```
 _web/
-├── reflection.py    ← was core/reflection.py
+├── _reflection.py   ← was core/reflection.py
 └── _runtime.py      ← RuntimeManager
 ```
 
@@ -295,9 +246,13 @@ The `Plugin` base class has two convenience methods — `model(name)` and
 `EmbedderRef` from `blocks/`. After the reorg, `blocks/` merges into `ai/`,
 creating a `core/ → ai/` layering violation.
 
-Fix: move `ModelReference` and `EmbedderRef` into `core/` (they're tiny
-types — just a `name: str` wrapper). Or remove the helper methods from
-`Plugin` and let plugins construct refs directly.
+Fix: **restore the original async resolve-based helpers, add `embedder()`.** The
+current methods (added in #4278) construct `ModelReference`/`EmbedderRef` objects,
+which requires importing from `blocks/`. The original version (from #4132) called
+`self.resolve(ActionKind.MODEL, name)` and returned `Action` — no imports from
+`blocks/` or `ai/`, zero layering violation. Matches JS's
+`GenkitPluginV2Instance.model()`. The `embedder()` method gets the same treatment.
+Both are async, return `Action | None`, and only use types already in `core/`.
 
 **`ai/_base_async.py` → `web/manager/_ports.py`.**
 Imports `find_free_port_sync` — a 15-line stdlib socket utility. After the
@@ -324,28 +279,30 @@ _web/  →  ai/  →  core/
 ### 1. `__all__` on every public `__init__.py`
 
 ```python
-# genkit/__init__.py
+# genkit/__init__.py  (the ONLY public import path for most users)
 __all__ = [
     'Genkit', 'Document', 'GenkitError', 'UserFacingError',
-    'GenerateResponse', 'GenerateStreamResponse',
-    'ActionRunContext', 'ToolRunContext', 'Plugin',
-    # ... ~50 symbols
+    'GenerateResponse', 'StreamResponse', 'GenerateResponseChunk',
+    'ExecutablePrompt', 'Message', 'Role',
+    'Part', 'TextPart', 'MediaPart', 'Media',
+    'ToolRunContext', 'ToolInterruptError', 'ToolChoice',
+    'RequestData', 'ContextProvider',
+    'GENKIT_VERSION', 'GENKIT_CLIENT_HEADER', 'is_dev_environment',
+    'Plugin', 'Action', 'ActionMetadata', 'ActionKind', 'StatusCodes',
+    # ... ~34 symbols (see python_beta_api_proposal.md §1)
 ]
 
-# genkit/ai/__init__.py
-__all__ = [
-    'Genkit', 'ExecutablePrompt', 'GenerateStreamResponse',
-    'Document', 'RankedDocument', 'ToolRunContext',
-    # ... AI domain types + plugin helpers
-]
+# genkit/tracing.py  (telemetry plugin authors)
+__all__ = ['tracer', 'add_custom_exporter']
 
-# genkit/core/__init__.py
-__all__ = [
-    'Action', 'ActionRunContext', 'ActionMetadata', 'ActionKind',
-    'GenkitError', 'UserFacingError', 'Plugin', 'FlowWrapper',
-    # ... framework types + plugin helpers
-]
+# genkit/model.py, genkit/retriever.py, etc.  (domain sub-modules for plugin authors)
+# Each defines __all__ with its domain types.
 ```
+
+**No public `genkit.core` or `genkit.ai` import paths.** `core/` and `ai/` are
+internal package structure — `genkit/__init__.py` re-exports everything users need.
+Domain sub-modules (`genkit.model`, `genkit.retriever`, etc.) are for plugin authors
+who need wire-format types not in the top-level barrel.
 
 ### 2. `import-linter` in CI
 
@@ -374,8 +331,25 @@ forbidden_modules =
 
 ### 3. `_internal/` convention
 
-Following Pydantic v2's pattern. Everything in `_internal/` can change without
-notice between minor versions. The public modules re-export what's needed.
+Following Pydantic v2's pattern. The split works like this:
+
+**Files at package level (e.g. `core/action.py`, `core/error.py`):**
+- Clean abstractions within the package — the "logical public API" of that sub-package
+- Listed in the sub-package's `__init__.py` `__all__`
+- Other SDK modules import from here: `from genkit.core.action import Action`
+- Can still have private helpers (`_foo()`) inside the file — normal Python
+- Signals to SDK developers: "this is a stable abstraction"
+
+**Files in `_internal/` (e.g. `core/_internal/_registry.py`, `core/_internal/_typing.py`):**
+- Implementation machinery — can change between versions without notice
+- NOT listed in the sub-package's `__init__.py` `__all__`
+- Other SDK modules import directly when needed: `from genkit.core._internal._base import GenkitBaseModel`
+- `import-linter` prevents plugins from importing these paths
+- Signals to SDK developers: "this is plumbing, handle with care"
+
+Since there's **no public `genkit.core`** import path anyway, the split is primarily
+about signaling intent to other developers working on the SDK itself. External users
+import from `genkit`, `genkit.model`, `genkit.tracing`, etc. — they never see either level.
 
 ---
 
@@ -383,11 +357,11 @@ notice between minor versions. The public modules re-export what's needed.
 
 | File | Current | Target | How |
 |---|---|---|---|
-| `blocks/prompt.py` | 2,446 | ~600 | Split into prompt.py + streaming.py + _prompt_render.py + _prompt_cache.py |
+| `blocks/prompt.py` | 2,446 | ~600 | Split into prompt.py + streaming.py + _dotprompt.py (render_*, file loading, PromptCache) |
 | `ai/_registry.py` | 1,680 | **0 (deleted)** | define_* functions move to domain files (model.py, retriever.py, etc.). Genkit method stubs absorbed into _genkit.py. File ceases to exist. |
 | `ai/_aio.py` | 1,164 | ~800 | Rename to _genkit.py, extract server startup to _genkit_base.py |
 | `blocks/generate.py` | 1,088 | ~600 | Extract tool loop to _generate.py, keep public generate function |
-| `core/typing.py` | 1,066 | 1,066 | Auto-generated, don't touch. Add DO NOT EDIT header. |
+| `core/_internal/_typing.py` | 1,066 | 1,066 | Auto-generated, don't touch. Add DO NOT EDIT header. Moved to `_internal/`. |
 
 Target: no hand-written file over 800 lines. Matches Go/JS norms.
 
@@ -395,8 +369,16 @@ Target: no hand-written file over 800 lines. Matches Go/JS norms.
 
 ## Migration path
 
-This is a **one-time refactor** with no logic changes, no API changes, no behavior
-changes. The diff is:
+This is a **one-time refactor** with minimal logic changes. Most of the diff is
+file moves and import path updates. The API changes are:
+
+- `define_*` functions accept `type | dict | None` (see [§6](./python_beta_api_proposal.md))
+- `GenkitBaseModel` replaces `dump_dict`/`dump_json` (see [§5](./python_beta_api_proposal.md))
+- `to_json_schema` and `extract_json` become internal
+- Public import paths change from `genkit.core.*` / `genkit.blocks.*` to
+  `from genkit import ...` and domain sub-modules (`genkit.model`, etc.)
+
+The structural diff is:
 
 1. Move files
 2. Update import paths (find-and-replace across plugins)
@@ -431,20 +413,3 @@ changes. The diff is:
    forward.
 
 Each step is independently shippable and independently revertible.
-
----
-
-## What we're NOT doing
-
-- **Not changing the public API.** `from genkit import Genkit` still works.
-  All public symbols stay accessible from `genkit.__init__`.
-
-- **Not splitting into multiple PyPI packages.** `genkit` stays as one
-  installable package. `ai/` and `core/` are internal organization.
-
-- **Not changing runtime behavior.** This is purely a code organization refactor.
-
-- **Not touching `core/typing.py`.** Auto-generated schema types stay as-is.
-
-- **Not touching plugins' public APIs.** Plugins' `__init__.py` exports
-  are unchanged. Only their internal imports from `genkit.*` are updated.

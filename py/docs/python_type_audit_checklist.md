@@ -32,7 +32,7 @@ Detailed write-ups: [python_beta_type_design.md](./python_beta_type_design.md),
 
 ---
 
-## Should fix (29) — non-trivial changes needed
+## Should fix (28) — non-trivial changes needed
 
 - [ ] `UserFacingError` — positional args, should be keyword-only.
 - [ ] `GenkitError` — two serialization methods + standalone function, consolidate.
@@ -60,8 +60,6 @@ Detailed write-ups: [python_beta_type_design.md](./python_beta_type_design.md),
       provides), `ToolRunContext` accesses parent private fields.
 - [ ] `FormatDef` — uses `@abc.abstractmethod` but doesn't extend `abc.ABC`.
       One-line fix.
-- [ ] `GenkitSpan` — `__getattr__` proxy makes type invisible to type checkers.
-      Low priority.
 - [ ] `Logger` — 20-method Protocol. `warn`/`warning` redundant alias,
       `fatal`/`critical` redundant alias. JS Logger has 7 methods.
 - [ ] `AdjustingTraceExporter` — belongs in telemetry plugin, not core SDK.
@@ -82,7 +80,7 @@ Detailed write-ups: [python_beta_type_design.md](./python_beta_type_design.md),
 
 ---
 
-## Delete (33) — remove entirely
+## Delete (34) — remove entirely
 
 **Replaced by kwargs on `define_*` methods:**
 - [ ] `EmbedderOptions` — flatten to kwargs on `define_embedder()`
@@ -99,6 +97,12 @@ Detailed write-ups: [python_beta_type_design.md](./python_beta_type_design.md),
 - [ ] `PromptGenerateOptions` — 17-field TypedDict, THE autocomplete-killer
 - [ ] `OutputOptions` — dies when `PromptGenerateOptions` is replaced
 - [ ] `OutputConfigDict` — dies when `Output[T]` is replaced
+
+**Inlined into helpers (class unnecessary):**
+- [ ] `GenkitSpan` — `__getattr__` proxy kills type checking. Replace with free
+      functions in `_tracing.py` (`_set_genkit_attr`, `_set_span_input`,
+      `_set_span_output`). `is_root` becomes `span.parent is None` at call site.
+      `_trace/_types.py` deleted.
 
 **Dead code / unused:**
 - [ ] `Input` / `Output` — replace with `output_schema` kwarg + `@overload`

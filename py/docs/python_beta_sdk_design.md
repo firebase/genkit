@@ -1,4 +1,10 @@
-# Genkit Python SDK — API Design Review
+# Genkit Python SDK — Design Review
+
+Related docs:
+- [python_beta_api_proposal.md](./python_beta_api_proposal.md) — public API surface (what's importable)
+- [python_package_reorg.md](./python_package_reorg.md) — internal package structure
+- [python_type_audit_checklist.md](./python_type_audit_checklist.md) — type deletions/fixes
+- [python_beta_sdk_audit.md](./python_beta_sdk_audit.md) — initial friction audit
 
 ## 1. Background
 
@@ -6,7 +12,7 @@ The Python SDK launched to match JS and Go feature timelines. It achieved featur
 
 The Python SDK is public but hasn't cut a stable release. The JS SDK went through a similar cleanup between v0.5 and v1.0, and the migration cost grew with each release. Python is earlier in that curve and changes are still cheap.
 
-In this doc, we're laying out some guiding principles for designing the API so we have more consistency and standardization for adding new framework features going forward.
+This doc covers **design decisions** — the "how" and "why" behind internal architecture choices. For the public import surface (the "what"), see [python_beta_api_proposal.md](./python_beta_api_proposal.md).
 
 ## 2. Principles
 
@@ -26,40 +32,33 @@ ai.generate(model="gemini", prompt="Hi", tools=["search"])
 
 **Kwargs over options dicts.** JS groups parameters into an options object. Python has first-class keyword arguments. Dict-based configuration loses autocomplete, type checking, and discoverability. This applies to `generate()`, `prompt()`, and every public method.
 
-**Flat imports, intentional boundaries.** Python has no access modifiers — any module is importable, and there's no way to enforce "private." This makes API boundary design a deliberate choice, not a language feature. We define three public entry points (`genkit`, `genkit.types`, `genkit.plugin`) and treat everything else as internal with no stability guarantee. Internal modules should be underscore-prefixed (`genkit._core`, `genkit._blocks`) to signal this — today they lack the underscore, which is why samples accidentally depend on them. The mechanics of this boundary are covered in section 4.
-
-^^ genkit.plugin => for core genkit plugin imports (used by plugin author only)
-^^ genkit.plugins.___ => for actual plugin imports exposed by plugin authors
+**Flat imports, intentional boundaries.** Python has no access modifiers — any module is importable, and there's no way to enforce "private." This makes API boundary design a deliberate choice, not a language feature. Public entry points are `from genkit import ...` (app developers) and domain sub-modules like `genkit.model`, `genkit.retriever`, `genkit.tracing` (plugin authors). Internal modules use `_internal/` directories following the Pydantic v2 convention. There is no public `genkit.core` or `genkit.ai` import path — those are internal structure only. Full symbol lists are in [python_beta_api_proposal.md](./python_beta_api_proposal.md). The internal package structure is in [python_package_reorg.md](./python_package_reorg.md).
 
 ## 3. Initial Audit
 
 While working on updated docs, we identified several friction points in the developer experience. 
 
-For many of these friction points, there was a clear Pythonic standard to follow — keyword-only arguments on all methods, sequence protocol on `RetrieverResponse`, convenience properties like `response.media`, veneer aliasing (`GenerateResponseWrapper` → `GenerateResponse`), and cleanup of internal utilities from the public surface. More details here: [python_beta_sdk_audit.md](./py/docs/python_beta_sdk_audit.md)
+For many of these friction points, there was a clear Pythonic standard to follow — keyword-only arguments on all methods, sequence protocol on `RetrieverResponse`, convenience properties like `response.media`, veneer aliasing (`GenerateResponseWrapper` → `GenerateResponse`), and cleanup of internal utilities from the public surface. More details here: [python_beta_sdk_audit.md](./python_beta_sdk_audit.md)
 
 The remaining sections in this doc are open questions that need some discussion to resolve.
 
 ## 4. Public API surface & type architecture
 
-Today there is no formal public/internal boundary. The documentation audit found samples importing from `genkit.core.action`, `genkit.blocks.model`, and `genkit.ai` — all internal paths that happen to work. This means any internal module rename or refactor is a breaking change for external developers, even if the public API hasn't changed. App developers and plugin authors share a single `genkit.types` module, which means app developers are exposed to plugin contract types they'll never use — and plugin authors have to sift through content types to find the schema types they need. Wrapper classes are exported under internal names like `GenerateResponseWrapper`, so the implementation detail of "this is a wrapper around an auto-generated type" leaks into every type hint and docstring.
+Today there is no formal public/internal boundary. The documentation audit found samples importing from `genkit.core.action`, `genkit.blocks.model`, and `genkit.ai` — all internal paths that happen to work. This means any internal module rename or refactor is a breaking change for external developers, even if the public API hasn't changed.
 
-We propose formalizing three entry points, separated by audience:
+**Resolved decisions:**
 
-- **`from genkit import ...`** — App developers. ~22 symbols: framework objects (`Genkit`, `ActionRunContext`, `GenerateResponse`, `Prompt`, `GenkitError`, `UserFacingError`) and content/data types (`Part`, `Message`, `Document`, `Role`, `ToolChoice`, `GenerationCommonConfig`, etc.) in a single import. `genkit.types` remains as a backward-compatible re-export but is no longer the canonical path.
-- **`from genkit.plugin import ...`** — Plugin authors. Plugin contract: `Plugin`, `GenerateRequest`, `GenerateResponse` (schema), `OutputConfig`, `ModelInfo`, metadata builders, etc.
+- **Single entry point.** `from genkit import ...` covers both app developers (~25 symbols) and plugin authors (~9 additional). No separate `genkit.types` or `genkit.plugin`. Domain sub-modules (`genkit.model`, `genkit.retriever`, `genkit.tracing`, etc.) provide wire-format types for plugin authors who need them.
 
-Internal modules (`genkit.core`, `genkit.blocks`, `genkit.ai`) would be renamed with underscore prefixes (`genkit._core`, `genkit._blocks`) to signal "private, no stability guarantee" — the standard Python convention.
+- **No public `genkit.core`.** Internal packages (`core/`, `ai/`) use `_internal/` directories following Pydantic v2's convention. `genkit/__init__.py` re-exports everything users need. See [python_package_reorg.md](./python_package_reorg.md) for the full structure.
 
-The full proposal — including the type architecture (auto-generated schema types vs hand-written veneers vs config helpers), symbol lists, rationale for each inclusion/exclusion, and the `MessageWrapper` aliasing problem — is in [python_beta_api_proposal.md](./python_beta_api_proposal.md).
+- **Veneer aliasing.** `GenerateResponseWrapper` → `GenerateResponse` via inheritance (so `isinstance` works). `MessageWrapper` stays as-is because it uses composition — aliasing would break `Message(role="user", content=[...])`. App developers get `MessageWrapper` via `response.messages` but never construct it directly.
 
+- **`__all__` on every public `__init__.py`.** Enforced by `import-linter` in CI.
 
-^^^ Upon discussion, we got more details on aliasing. App developers may need access to the wire format for unit testing. They are more likely to need that actually vs. the veneer (which I think is handled internally). Also I remember Pavel said something about flow vs. generate. One returns veneer vs. other returns the wire format. He said app developer may need to use one or the other.
+- **Internal code organization.** `blocks/` is deleted (merged into `ai/`). `aio/`, `lang/`, `types/` are deleted (absorbed into `core/_internal/`). `web/` renamed to `_web/`. See [python_package_reorg.md](./python_package_reorg.md).
 
-**Resolved — unified import:** No clear reason to separate `from genkit import ...` and `from genkit.types import ...`. Merged into a single entry point. See [python_beta_api_proposal.md](./python_beta_api_proposal.md).
-
-^^^ Audit what's exposed via __all__ in all the packages (there are some random helpers for example)
-
-^^^ Consider internal code organization as well, what goes in blocks? core? web? types? Internal code organization is somewhat generic/sprawling/unopinionated 
+Full symbol lists and rationale for each inclusion/exclusion: [python_beta_api_proposal.md](./python_beta_api_proposal.md).
 
 ## 5. Output configuration
 
@@ -325,3 +324,211 @@ async def embed(
 ```
 
 Same treatment — `*` marker, `embedder` and `content` become required.
+
+## 9. Serialization cleanup — `GenkitBaseModel`
+
+### The problem
+
+Every Genkit type extends raw `pydantic.BaseModel`. Serialization to the wire
+(camelCase JSON, no null fields) requires passing two flags every time:
+
+```python
+obj.model_dump(exclude_none=True, by_alias=True)
+```
+
+Nobody remembers both flags. So `codec.py` provides `dump_dict()` and `dump_json()`
+wrappers. But call sites are split three ways:
+
+| Pattern | Correct? | Count |
+|---|---|---|
+| `dump_dict(obj)` / `dump_json(obj)` | Yes (both flags) | ~20 calls across 13 files |
+| `.model_dump(exclude_none=True, by_alias=True)` | Yes (both flags) | 5 calls |
+| `.model_dump()` with partial or no flags | **No** | **11 calls** |
+
+### The fix: `GenkitBaseModel`
+
+Pydantic's `model_config` doesn't support `exclude_none` as a config key — it's
+a parameter to `model_dump()`. So we override the methods to change the defaults:
+
+```python
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
+
+class GenkitBaseModel(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
+
+    def model_dump(self, *, exclude_none=True, by_alias=True, **kwargs):
+        return super().model_dump(exclude_none=exclude_none, by_alias=by_alias, **kwargs)
+
+    def model_dump_json(self, *, exclude_none=True, by_alias=True, **kwargs):
+        return super().model_dump_json(exclude_none=exclude_none, by_alias=by_alias, **kwargs)
+```
+
+Now `obj.model_dump()` does the right thing. You can still override:
+`obj.model_dump(exclude_none=False)` when you actually want nulls.
+
+**Where it lives:** `genkit/core/_internal/_base.py` — Level 0 in the import DAG
+(see §12). Zero genkit imports, no circular import risk.
+
+**Not re-exported.** `GenkitBaseModel` is strictly internal. App developers
+construct `Message(...)`, `Document(...)`, etc. and never see the base class.
+Plugin authors extend exported types like `GenerationCommonConfig` or use plain
+`BaseModel` for plugin-internal types.
+
+### Migration plan
+
+| Step | Scope | Risk |
+|---|---|---|
+| Create `GenkitBaseModel` in `genkit.core._internal._base` | 1 file | None |
+| Change core schema types to inherit from it | ~10 files in `genkit/core/`, `genkit/blocks/` | Low — behavioral change only on direct `.model_dump()` calls |
+| Audit the 11 inconsistent calls — some may intentionally want no aliases | Case-by-case | Medium — need to check if any internal-only paths rely on snake_case keys |
+| Simplify `dump_dict`/`dump_json` | `codec.py` | Low |
+| Remove `dump_dict`/`dump_json` from public API | `__init__.py` | None — already proposed for removal |
+
+### Open questions
+
+1. **Do any internal paths intentionally use snake_case keys?** The `prompt.py`
+   calls that skip `by_alias` might be feeding data back into `model_validate()`,
+   where snake_case is fine. Need to audit each of the 11 sites.
+
+2. **`document.py` dedup hash** — uses `model_dump_json()` with no flags for
+   equality comparison. If we change defaults, the hash changes for any model
+   that has aliases. This could break dedup for in-flight data. Probably fine
+   (dedup is ephemeral), but worth noting.
+
+3. **Third-party model types** — e.g. Google AI SDK types that Genkit wraps.
+   These won't inherit `GenkitBaseModel`, so `dump_dict()` still needs to handle
+   the `isinstance(obj, BaseModel)` case with explicit flags. Or we only use
+   `dump_dict` for third-party types and `.model_dump()` for our own.
+
+## 10. `define_*` should accept raw Python types
+
+### The problem
+
+17 plugins and 8 core files call `to_json_schema()` manually before passing
+schemas to `define_model`, `define_retriever`, etc.:
+
+```python
+# Current — every plugin does this:
+from genkit.core.schema import to_json_schema
+
+ai.define_model(
+    name='my-model',
+    metadata={'model': {'customOptions': to_json_schema(MyConfig)}},
+    config_schema=to_json_schema(MyConfig),
+    ...
+)
+```
+
+This is unnecessary boilerplate. The framework should handle the conversion.
+
+### Cross-language comparison
+
+- **JS** — `toJsonSchema` is public at `genkit/schema` (alongside `parseSchema`,
+  `validateSchema`, `JSONSchema`). But JS `defineModel` also accepts Zod schemas
+  directly — plugins don't *have* to call `toJsonSchema` manually.
+- **Go** — `jsonschema.Reflect()` is internal. `defineModel` in `ai/gen.go`
+  accepts Go types and converts internally.
+- **Python** — `to_json_schema` is public but lives at a deep path
+  (`genkit.core.schema`). And `define_*` functions *require* pre-converted dicts.
+
+Python is the only SDK where plugins are *forced* to call the schema conversion
+themselves. JS has it public but optional; Go internalizes it entirely.
+
+### The fix
+
+`define_*` functions accept `type | dict | None` directly:
+
+```python
+# After — plugins just pass the type:
+ai.define_model(
+    name='my-model',
+    config_schema=MyConfig,   # Python type, not JSON Schema dict
+    ...
+)
+```
+
+The framework calls `to_json_schema()` internally when building action metadata.
+Same for `define_retriever`, `define_embedder`, `define_reranker`, `define_evaluator`.
+
+`to_json_schema` moves to `core/_internal/_schema.py`. No plugin needs it.
+`extract_json` moves to `core/_internal/_extract.py`. Zero plugin consumers —
+only used by `formats/` internally.
+
+### Migration
+
+| Step | Scope | Risk |
+|---|---|---|
+| Update `define_*` signatures to accept `type \| dict \| None` | ~6 functions in ai/ | Low — dict passthrough preserves backward compat |
+| Move `to_json_schema` calls inside `define_*` functions | Same 6 functions | Low |
+| Move `schema.py` to `core/_internal/_schema.py` | 1 file | None |
+| Move `extract.py` to `core/_internal/_extract.py` | 1 file | None |
+| Update 16 plugins to drop `to_json_schema` import + calls | 16 plugin files | Medium — mechanical but wide |
+
+## 11. `ErrorResponse` — internal type consolidation
+
+Replaces 3 error wire format types (`HttpErrorWireFormat`,
+`GenkitReflectionApiDetailsWireFormat`, `GenkitReflectionApiErrorWireFormat`).
+Single Pydantic model with `message`, `status`, `details: dict | None`.
+Internal only — used by the reflection server (`_web/_reflection.py`).
+
+## 12. Import DAG
+
+The internal import graph of the `genkit` package, simplified. Every new module
+or dependency should be evaluated against this to prevent circular imports.
+
+```
+Level 0  (no genkit imports — leaf modules):
+  core/_internal/_base.py      GenkitBaseModel
+  core/_internal/_compat.py    StrEnum, override, wait_for backfills
+  core/_internal/_schema.py    to_json_schema
+  core/_internal/_extract.py   extract_json, extract_items
+  core/_internal/_constants.py GENKIT_VERSION, GENKIT_CLIENT_HEADER
+  core/_internal/_logging.py   get_logger
+
+Level 1  (imports Level 0 only):
+  core/_internal/_typing.py    60+ BaseModel classes (imports _compat + _base)
+  core/error.py                GenkitError, UserFacingError, StatusCodes, Status
+                               (absorbs status_types.py — imports _base only)
+
+Level 2  (imports Level 0–1):
+  core/action.py               Action, ActionRunContext, ActionMetadata, ActionKind,
+                               ActionResponse (absorbs action_types.py)
+  core/_internal/_registry.py  Registry
+  core/_internal/_context.py   RequestData, ContextMetadata
+  core/_internal/_environment.py  EnvVar, is_dev_environment
+  core/_internal/_aio.py       Channel, run_async, ensure_async
+  core/_internal/_http_client.py  per-event-loop httpx.AsyncClient cache
+  core/plugin.py               Plugin ABC
+  core/_internal/_flow.py      FlowWrapper (~50 lines)
+  core/_internal/_background.py  BackgroundAction (imports action, error)
+  core/_internal/_dap.py       DynamicActionProvider (imports action)
+
+Level 3  (imports Level 0–2):
+  ai/model.py                  define_model, GenerateResponseWrapper, etc.
+  ai/retriever.py              define_retriever, RetrieverRef, etc.
+  ai/embedding.py              define_embedder, EmbedderRef, etc.
+  ai/evaluator.py              define_evaluator, EvaluatorRef
+  ai/tools.py                  define_tool, ToolRunContext
+  ai/prompt.py                 ExecutablePrompt, define_prompt
+  ai/_internal/_generate.py    generate() orchestration, tool loop
+  ai/_internal/_dotprompt.py   dotprompt template engine
+
+Level 4  (imports Level 0–3):
+  ai/_internal/_genkit.py      Genkit class body
+  ai/_internal/_genkit_base.py Genkit __init__, server startup
+  _web/_reflection.py          Dev UI ASGI app
+  _web/_runtime.py             RuntimeManager
+```
+
+**Rules:**
+- Each level may only import from levels below it.
+- `core/` has zero imports from `ai/` or `_web/`.
+- `ai/` has zero imports from `_web/`.
+- All `_internal/` modules are plumbing — can change between versions. Parent packages re-export what's needed. `import-linter` blocks plugins from importing `_internal/` paths.
+- `core/` has only 3 package-level files (`action.py`, `error.py`, `plugin.py`) — everything else is `_internal/`. These are stable abstractions listed in `core/__init__.py`'s `__all__`. They can still have `_`-prefixed private helpers inside — normal Python.
+- Since there's no public `genkit.core` or `genkit.ai` import path, the split is for SDK developer clarity, not external API.
+- Enforced by `import-linter` in CI (see [python_package_reorg.md](./python_package_reorg.md)).
