@@ -30,7 +30,7 @@ import type {
   TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
 import { PluginOptions } from './index.js';
-import { maybeCreateRequestScopedOpenAIClient } from './utils.js';
+import { maybeCreateRequestScopedOpenAIClient, toModelName } from './utils.js';
 
 export type SpeechRequestBuilder = (
   req: GenerateRequest,
@@ -104,7 +104,7 @@ export const RESPONSE_FORMAT_MEDIA_TYPES = {
   pcm: 'audio/L16',
 };
 
-function toTTSRequest(
+export function toTTSRequest(
   modelName: string,
   request: GenerateRequest,
   requestBuilder?: SpeechRequestBuilder
@@ -141,7 +141,7 @@ function toTTSRequest(
   return options;
 }
 
-async function toGenerateResponse(
+export async function speechToGenerateResponse(
   response: Response,
   responseFormat: 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' = 'mp3'
 ): Promise<GenerateResponseData> {
@@ -196,15 +196,17 @@ export function defineCompatOpenAISpeechModel<
     modelRef,
     requestBuilder,
   } = params;
-  const modelName = name.substring(name.indexOf('/') + 1);
+  const modelName = toModelName(name, pluginOptions?.name);
+  const actionName = `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
+
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const ttsRequest = toTTSRequest(modelName!, request, requestBuilder);
+      const ttsRequest = toTTSRequest(modelName, request, requestBuilder);
       const client = maybeCreateRequestScopedOpenAIClient(
         pluginOptions,
         request,
@@ -213,7 +215,7 @@ export function defineCompatOpenAISpeechModel<
       const result = await client.audio.speech.create(ttsRequest, {
         signal: abortSignal,
       });
-      return await toGenerateResponse(result, ttsRequest.response_format);
+      return await speechToGenerateResponse(result, ttsRequest.response_format);
     }
   );
 }
@@ -245,7 +247,7 @@ export function compatOaiSpeechModelRef<
   });
 }
 
-function toSttRequest(
+export function toSttRequest(
   modelName: string,
   request: GenerateRequest,
   requestBuilder?: TranscriptionRequestBuilder
@@ -313,7 +315,7 @@ function toSttRequest(
   return options;
 }
 
-function transcriptionToGenerateResponse(
+export function transcriptionToGenerateResponse(
   result: Transcription | string
 ): GenerateResponseData {
   return {
@@ -362,16 +364,18 @@ export function defineCompatOpenAITranscriptionModel<
     modelRef,
     requestBuilder,
   } = params;
+  const modelName = toModelName(name, pluginOptions?.name);
+  const actionName =
+    modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
+
   return model(
     {
-      name,
+      name: actionName,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const modelName = name.substring(name.indexOf('/') + 1);
-
-      const params = toSttRequest(modelName!, request, requestBuilder);
+      const params = toSttRequest(modelName, request, requestBuilder);
       const client = maybeCreateRequestScopedOpenAIClient(
         pluginOptions,
         request,

@@ -18,6 +18,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 
+import type { Part } from 'genkit';
 import { ActionMetadata, ModelReference, z } from 'genkit';
 import { ModelAction } from 'genkit/model';
 import { ActionType } from 'genkit/registry';
@@ -31,9 +32,16 @@ import {
   claudeModel,
   claudeModelReference,
 } from './models.js';
-import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
+import {
+  InternalPluginOptions,
+  PluginOptions,
+  __testClient,
+  type AnthropicDocumentOptions,
+} from './types.js';
 
-const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
+// Re-export types and utilities for consumers
+export type { AnthropicCacheControl, AnthropicCitation } from './types.js';
+export { cacheControl } from './utils.js';
 
 /**
  * Gets or creates an Anthropic client instance.
@@ -53,11 +61,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
       'Please pass in the API key or set the ANTHROPIC_API_KEY environment variable'
     );
   }
-  const defaultHeaders: Record<string, string> = {};
-  if (options?.cacheSystemPrompt) {
-    defaultHeaders['anthropic-beta'] = PROMPT_CACHING_BETA_HEADER_VALUE;
-  }
-  return new Anthropic({ apiKey, defaultHeaders });
+  return new Anthropic({ apiKey });
 }
 
 /**
@@ -71,7 +75,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  * - anthropic: The main plugin function to interact with the Anthropic AI.
  *
  * Usage:
- * To use the Claude models, initialize the anthropic plugin inside `genkit()` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set. If you want to cache the system prompt, set `cacheSystemPrompt` to `true`. **Note:** Prompt caching is in beta and may change. To learn more, see https://docs.anthropic.com/en/docs/prompt-caching.
+ * To use the Claude models, initialize the anthropic plugin inside `genkit()` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set.
  *
  * Example:
  * ```
@@ -80,7 +84,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  *
  * const ai = genkit({
  *  plugins: [
- *    anthropic({ apiKey: 'your-api-key', cacheSystemPrompt: false })
+ *    anthropic({ apiKey: 'your-api-key' })
  *    ... // other plugins
  *  ]
  * });
@@ -103,7 +107,6 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         const action = claudeModel({
           name,
           client,
-          cacheSystemPrompt: options?.cacheSystemPrompt,
           defaultApiVersion,
         });
         actions.push(action);
@@ -117,7 +120,6 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         return claudeModel({
           name: modelName,
           client,
-          cacheSystemPrompt: options?.cacheSystemPrompt,
           defaultApiVersion,
         });
       }
@@ -151,5 +153,39 @@ export const anthropic = anthropicPlugin as AnthropicPlugin;
 ): ModelReference<z.ZodTypeAny> => {
   return claudeModelReference(name, config);
 };
+
+/**
+ * Creates a custom part representing an Anthropic document with optional citations support.
+ *
+ * Use this to provide documents to Claude that can be cited in responses.
+ * Citations must be enabled on all or none of the documents in a request.
+ *
+ * @example
+ * ```ts
+ * import { anthropic, anthropicDocument } from '@genkit-ai/anthropic';
+ *
+ * const { text } = await ai.generate({
+ *   model: anthropic.model('claude-sonnet-4-5'),
+ *   messages: [{
+ *     role: 'user',
+ *     content: [
+ *       anthropicDocument({
+ *         source: { type: 'text', data: 'The grass is green. The sky is blue.' },
+ *         title: 'Nature Facts',
+ *         citations: { enabled: true }
+ *       }),
+ *       { text: 'What color is the grass?' }
+ *     ]
+ *   }]
+ * });
+ * ```
+ */
+export function anthropicDocument(options: AnthropicDocumentOptions): Part {
+  return {
+    custom: {
+      anthropicDocument: options,
+    },
+  };
+}
 
 export default anthropic;

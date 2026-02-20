@@ -20,11 +20,41 @@
  */
 
 import type { Part } from 'genkit';
+import type {
+  AnthropicCitation,
+  AnthropicDocumentOptions,
+} from '../../types.js';
+import { MEDIA_TYPES, MediaTypeSchema } from '../../types.js';
+import {
+  fromAnthropicCitation,
+  type AnthropicCitationInput,
+} from './citations.js';
+
+// Re-export citation utilities for backward compatibility
+export {
+  fromAnthropicCitation,
+  type AnthropicCitationInput,
+} from './citations.js';
 
 /**
- * Converts a text block to a Genkit Part.
+ * Converts a text block to a Genkit Part, including citations if present.
+ * Uses structural typing for compatibility with both stable and beta APIs.
  */
-export function textBlockToPart(block: { text: string }): Part {
+export function textBlockToPart(block: {
+  text: string;
+  citations?: AnthropicCitationInput[] | null;
+}): Part {
+  if (block.citations && block.citations.length > 0) {
+    const citations = block.citations
+      .map((c) => fromAnthropicCitation(c))
+      .filter((c): c is AnthropicCitation => c !== undefined);
+    if (citations.length > 0) {
+      return {
+        text: block.text,
+        metadata: { citations },
+      };
+    }
+  }
   return { text: block.text };
 }
 
@@ -104,10 +134,124 @@ export function thinkingDeltaToPart(delta: { thinking: string }): Part {
 }
 
 /**
+ * Converts a citations_delta to a Genkit Part for streaming.
+ * Returns a text part with empty text and citation data in metadata.
+ * Empty text is intentional: genkit's `.text` getter concatenates all text parts,
+ * so empty strings contribute nothing to the final text while preserving the citation
+ * in the parts array for consumers who need to access citation metadata.
+ */
+export function citationsDeltaToPart(delta: {
+  type: 'citations_delta';
+  citation: AnthropicCitationInput;
+}): Part | undefined {
+  const citation = fromAnthropicCitation(delta.citation);
+  if (citation) {
+    return {
+      text: '',
+      metadata: { citations: [citation] },
+    };
+  }
+  return undefined;
+}
+
+/**
  * Error for unsupported input_json_delta in streaming.
  */
 export function inputJsonDeltaError(): Error {
   return new Error(
     'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
   );
+}
+
+// --- Document block converters (shared between stable and beta APIs) ---
+
+/**
+ * Document block type constraint for generics.
+ */
+type DocumentBlockBase = {
+  type: 'document';
+  source: unknown;
+  title?: string | null;
+  context?: string | null;
+  citations?: { enabled?: boolean } | null;
+};
+
+/**
+ * Converts AnthropicDocumentOptions to Anthropic's document block format.
+ * Works for both stable and beta APIs via generics.
+ */
+export function createDocumentBlock<T extends DocumentBlockBase>(
+  options: AnthropicDocumentOptions,
+  sourceConverter: (source: AnthropicDocumentOptions['source']) => T['source']
+): T {
+  return {
+    type: 'document' as const,
+    source: sourceConverter(options.source),
+    ...(options.title && { title: options.title }),
+    ...(options.context && { context: options.context }),
+    ...(options.citations && { citations: options.citations }),
+  } as T;
+}
+
+/**
+ * Converts document source options to Anthropic's source format.
+ * Works for both stable and beta APIs via a file handler callback.
+ * The file handler is called for 'file' type sources, allowing different
+ * behavior (error for stable, conversion for beta).
+ */
+export function convertDocumentSource<T>(
+  source: AnthropicDocumentOptions['source'],
+  fileHandler: (fileId: string) => T
+): T {
+  switch (source.type) {
+    case 'text':
+      return {
+        type: 'text',
+        media_type: (source.mediaType ?? 'text/plain') as 'text/plain',
+        data: source.data,
+      } as T;
+    case 'base64':
+      return {
+        type: 'base64',
+        media_type: source.mediaType as 'application/pdf',
+        data: source.data,
+      } as T;
+    case 'file':
+      return fileHandler(source.fileId);
+    case 'content':
+      return {
+        type: 'content',
+        content: source.content.map((item) => {
+          if (item.type === 'text') {
+            return item;
+          }
+          // Validate media type with Zod
+          const mediaTypeResult = MediaTypeSchema.safeParse(
+            item.source.mediaType
+          );
+          if (!mediaTypeResult.success) {
+            throw new Error(
+              `Unsupported image media type for Anthropic document content: ${item.source.mediaType}. Supported types: ${Object.values(MEDIA_TYPES).join(', ')}`
+            );
+          }
+          return {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: mediaTypeResult.data,
+              data: item.source.data,
+            },
+          };
+        }),
+      } as T;
+    case 'url':
+      return {
+        type: 'url',
+        url: source.url,
+      } as T;
+    default:
+      throw new Error(
+        `Unsupported document source type: ${(source as { type: string }).type}`
+      );
+  }
 }

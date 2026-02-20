@@ -378,6 +378,56 @@ describe('Google AI Gemini', () => {
       });
     });
 
+    describe('Media Handling', () => {
+      const imageUrl = 'https://example.com/image.png';
+
+      it('passes external URLs for non-Gemini 2.0 models', async () => {
+        const model = defineModel(
+          'gemini-3-flash-preview',
+          defaultPluginOptions
+        );
+
+        fetchStub.callsFake(async (url: string | Request) => {
+          if (typeof url === 'string' && url === imageUrl) {
+            return new Response('image-data', {
+              headers: { 'Content-Type': 'image/png' },
+              status: 200,
+            });
+          }
+          return new Response(JSON.stringify(defaultApiResponse), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        });
+
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          messages: [
+            {
+              role: 'user',
+              content: [{ media: { url: imageUrl, contentType: 'image/png' } }],
+            },
+          ],
+        };
+
+        await model.run(request);
+
+        // Verify image was NOT downloaded
+        assert.ok(
+          !fetchStub.calledWith(imageUrl),
+          'Should NOT attempt to download image for Gemini 3.0'
+        );
+
+        // Verify API request contained fileData
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        const part = apiRequest.contents[0].parts[0];
+        assert.ok(part.fileData, 'Should be fileData');
+        assert.strictEqual(part.fileData?.mimeType, 'image/png');
+        assert.strictEqual(part.fileData?.fileUri, imageUrl);
+      });
+    });
+
     describe('Error Handling', () => {
       it('throws if no candidates are returned', async () => {
         const model = defineModel('gemini-2.0-flash', defaultPluginOptions);

@@ -5,6 +5,8 @@
 
 """Tests for the action module."""
 
+from typing import cast
+
 import pytest
 
 from genkit.codec import dump_json
@@ -86,7 +88,7 @@ def test_create_action_key() -> None:
 async def test_define_sync_action() -> None:
     """Define and run a sync action."""
 
-    def sync_foo():
+    def sync_foo() -> str:
         """A sync action that returns 'syncFoo'."""
         return 'syncFoo'
 
@@ -100,7 +102,7 @@ async def test_define_sync_action() -> None:
 async def test_define_sync_action_with_input_without_type_annotation() -> None:
     """Define and run a sync action with input without type annotation."""
 
-    def sync_foo(input):
+    def sync_foo(input: object) -> str:
         """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
@@ -114,7 +116,7 @@ async def test_define_sync_action_with_input_without_type_annotation() -> None:
 async def test_define_sync_action_with_input() -> None:
     """Define and run a sync action with input."""
 
-    def sync_foo(input: str):
+    def sync_foo(input: str) -> str:
         """A sync action that returns 'syncFoo' with an input."""
         return f'syncFoo {input}'
 
@@ -128,7 +130,7 @@ async def test_define_sync_action_with_input() -> None:
 async def test_define_sync_action_with_input_and_context() -> None:
     """Define and run a sync action with input and context."""
 
-    def sync_foo(input: str, ctx: ActionRunContext):
+    def sync_foo(input: str, ctx: ActionRunContext) -> str:
         """A sync action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
@@ -142,7 +144,7 @@ async def test_define_sync_action_with_input_and_context() -> None:
 async def test_define_sync_streaming_action() -> None:
     """Define and run a sync streaming action."""
 
-    def sync_foo(input: str, ctx: ActionRunContext):
+    def sync_foo(input: str, ctx: ActionRunContext) -> int:
         """A sync action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
@@ -152,7 +154,7 @@ async def test_define_sync_streaming_action() -> None:
 
     chunks = []
 
-    def on_chunk(c):
+    def on_chunk(c: object) -> None:
         chunks.append(c)
 
     assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
@@ -163,7 +165,7 @@ async def test_define_sync_streaming_action() -> None:
 async def test_define_streaming_action_and_stream_it() -> None:
     """Define and stream a streaming action."""
 
-    def sync_foo(input: str, ctx: ActionRunContext):
+    def sync_foo(input: str, ctx: ActionRunContext) -> int:
         """A sync action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
@@ -177,7 +179,7 @@ async def test_define_streaming_action_and_stream_it() -> None:
     async for chunk in stream:
         chunks.append(chunk)
 
-    assert (await response) == 3
+    assert (await response).response == 3
     assert chunks == ['1', '2']
 
 
@@ -185,7 +187,7 @@ async def test_define_streaming_action_and_stream_it() -> None:
 async def test_define_async_action() -> None:
     """Define and run an async action."""
 
-    async def async_foo():
+    async def async_foo() -> str:
         """An async action that returns 'asyncFoo'."""
         return 'asyncFoo'
 
@@ -199,7 +201,7 @@ async def test_define_async_action() -> None:
 async def test_define_async_action_with_input() -> None:
     """Define and run an async action with input."""
 
-    async def async_foo(input: str):
+    async def async_foo(input: str) -> str:
         """An async action that returns 'asyncFoo' with an input."""
         return f'asyncFoo {input}'
 
@@ -213,7 +215,7 @@ async def test_define_async_action_with_input() -> None:
 async def test_define_async_action_with_input_and_context() -> None:
     """Define and run async action with input and context."""
 
-    async def async_foo(input: str, ctx: ActionRunContext):
+    async def async_foo(input: str, ctx: ActionRunContext) -> str:
         """An async action that returns 'syncFoo' with an input and context."""
         return f'syncFoo {input} {ctx.context["foo"]}'
 
@@ -227,7 +229,7 @@ async def test_define_async_action_with_input_and_context() -> None:
 async def test_define_async_streaming_action() -> None:
     """Define and run an async streaming action."""
 
-    async def async_foo(input: str, ctx: ActionRunContext):
+    async def async_foo(input: str, ctx: ActionRunContext) -> int:
         """An async action that returns 'syncFoo' with streaming output."""
         ctx.send_chunk('1')
         ctx.send_chunk('2')
@@ -237,14 +239,14 @@ async def test_define_async_streaming_action() -> None:
 
     chunks = []
 
-    def on_chunk(c):
+    def on_chunk(c: object) -> None:
         chunks.append(c)
 
     assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
     assert chunks == ['1', '2']
 
 
-def test_parse_plugin_name_from_action_name():
+def test_parse_plugin_name_from_action_name() -> None:
     """Parse plugin name from the action name."""
     assert parse_plugin_name_from_action_name('foo') is None
     assert parse_plugin_name_from_action_name('foo/bar') == 'foo'
@@ -255,20 +257,20 @@ def test_parse_plugin_name_from_action_name():
 async def test_propagates_context_via_contextvar() -> None:
     """Context is properly propagated via contextvar."""
 
-    async def foo(_: str | None, ctx: ActionRunContext):
+    async def foo(_: str | None, ctx: ActionRunContext) -> str:
         return dump_json(ctx.context)
 
-    foo_action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    foo_action = cast(Action[str | None, str], Action(name='foo', kind=ActionKind.CUSTOM, fn=foo))
 
-    async def bar():
+    async def bar() -> str:
         return (await foo_action.arun()).response
 
-    bar_action = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
+    bar_action = cast(Action[None, str], Action(name='bar', kind=ActionKind.CUSTOM, fn=bar))
 
-    async def baz():
+    async def baz() -> str:
         return (await bar_action.arun()).response
 
-    baz_action = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
+    baz_action = cast(Action[None, str], Action(name='baz', kind=ActionKind.CUSTOM, fn=baz))
 
     first = baz_action.arun(context={'foo': 'bar'})
     second = baz_action.arun(context={'bar': 'baz'})
@@ -281,7 +283,7 @@ async def test_propagates_context_via_contextvar() -> None:
 async def test_sync_action_raises_errors() -> None:
     """Sync action raises error with necessary metadata."""
 
-    def sync_foo(_: str | None, ctx: ActionRunContext):
+    def sync_foo(_: str | None, ctx: ActionRunContext) -> None:
         raise Exception('oops')
 
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=sync_foo)
@@ -298,7 +300,7 @@ async def test_sync_action_raises_errors() -> None:
 async def test_async_action_raises_errors() -> None:
     """Async action raises error with necessary metadata."""
 
-    async def async_foo(_: str | None, ctx: ActionRunContext):
+    async def async_foo(_: str | None, ctx: ActionRunContext) -> None:
         raise Exception('oops')
 
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=async_foo)
@@ -309,3 +311,42 @@ async def test_async_action_raises_errors() -> None:
     assert 'stack' in e.value.details
     assert 'trace_id' in e.value.details
     assert str(e.value.cause) == 'oops'
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
+    """arun_raw raises GenkitError when input is None but the action requires it."""
+
+    async def typed_fn(input: str) -> str:
+        return f'got {input}'
+
+    action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
+
+    with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
+        await action.arun_raw(raw_input=None)
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_succeeds_with_valid_input() -> None:
+    """arun_raw succeeds when valid input is provided."""
+
+    async def typed_fn(input: str) -> str:
+        return f'got {input}'
+
+    action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
+
+    result = await action.arun_raw(raw_input='hello')
+    assert result.response == 'got hello'
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_no_input_type_allows_none() -> None:
+    """arun_raw allows None input when action has no input type."""
+
+    async def no_input_fn() -> str:
+        return 'no input needed'
+
+    action = Action(name='noInputAction', kind=ActionKind.CUSTOM, fn=no_input_fn)
+
+    result = await action.arun_raw(raw_input=None)
+    assert result.response == 'no input needed'

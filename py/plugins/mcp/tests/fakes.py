@@ -14,46 +14,32 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
-import json
+
+"""Fakes for MCP tests."""
+
 import sys
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 from unittest.mock import MagicMock
 
 from genkit.ai import Genkit
-from genkit.core.action.types import ActionKind
 
 
 class MockSchema:
-    def __init__(self, **kwargs):
+    """Mock schema."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Initialize mock schema."""
         for k, v in kwargs.items():
             setattr(self, k, v)
 
 
-def mock_mcp_modules():
+def mock_mcp_modules() -> tuple[MagicMock, None]:
     """Sets up comprehensive MCP mocks in sys.modules."""
+    # We only mock the runtime components that do I/O or logic we want to control
+    # types are imported from the real library now
     mock_mcp = MagicMock()
-    sys.modules['mcp'] = mock_mcp
-    sys.modules['mcp'].__path__ = []
-
-    types_mock = MagicMock()
-    sys.modules['mcp.types'] = types_mock
-    types_mock.ListToolsResult = MockSchema
-    types_mock.CallToolResult = MockSchema
-    types_mock.ListPromptsResult = MockSchema
-    types_mock.GetPromptResult = MockSchema
-    types_mock.ListResourcesResult = MockSchema
-    types_mock.ListResourceTemplatesResult = MockSchema
-    types_mock.ReadResourceResult = MockSchema
-    types_mock.Tool = MockSchema
-    types_mock.Prompt = MockSchema
-    types_mock.Resource = MockSchema
-    types_mock.ResourceTemplate = MockSchema
-    types_mock.TextContent = MockSchema
-    types_mock.PromptMessage = MockSchema
-    types_mock.TextResourceContents = MockSchema
-    types_mock.BlobResourceContents = MockSchema
-    types_mock.ImageContent = MockSchema
+    # sys.modules['mcp'] = mock_mcp  <-- removed
+    # sys.modules['mcp.types'] = ... <-- removed
 
     sys.modules['mcp.server'] = MagicMock()
     sys.modules['mcp.server.stdio'] = MagicMock()
@@ -63,14 +49,14 @@ def mock_mcp_modules():
     sys.modules['mcp.client.sse'] = MagicMock()
     sys.modules['mcp.server.sse'] = MagicMock()
 
-    return mock_mcp, types_mock
+    return mock_mcp, None
 
 
-def define_echo_model(ai: Genkit):
+def define_echo_model(ai: Genkit) -> None:
     """Defines a fake echo model for testing."""
 
     @ai.tool(name='echoModel')
-    def echo_model(request: Any):
+    def echo_model(request: object) -> None:
         # This is a simplified mock of a model action
         # Real model action would handle GenerateRequest and return GenerateResponse
 
@@ -91,7 +77,8 @@ def define_echo_model(ai: Genkit):
 class FakeTransport:
     """Fakes an MCP transport/server for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize fake transport."""
         self.tools = []
         self.prompts = []
         self.resources = []
@@ -106,12 +93,12 @@ class FakeTransport:
         self.on_close = None
         self.on_error = None
 
-    async def start(self):
+    async def start(self) -> None:
+        """Start the transport."""
         pass
 
-    async def send(self, message: Dict[str, Any]):
+    async def send(self, message: dict[str, Any]) -> None:
         """Handle incoming JSON-RPC message (simulating server)."""
-        request = message
         # msg_id = request.get("id")
 
         # In a real transport we'd write back to the stream.
@@ -121,8 +108,10 @@ class FakeTransport:
         pass
 
     # Helper methods to populate the fake state
-    def add_tool(self, name: str, description: str = '', schema: Dict = None):
-        self.tools.append({'name': name, 'description': description, 'inputSchema': schema or {'type': 'object'}})
+    def add_tool(self, name: str, description: str = '', schema: dict | None = None) -> None:
+        """Add a tool."""
+        self.tools.append({'name': name, 'description': description, 'input_schema': schema or {'type': 'object'}})
 
-    def add_prompt(self, name: str, description: str = '', arguments: List = None):
+    def add_prompt(self, name: str, description: str = '', arguments: list | None = None) -> None:
+        """Add a prompt."""
         self.prompts.append({'name': name, 'description': description, 'arguments': arguments or []})

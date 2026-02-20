@@ -61,11 +61,11 @@ genkit.core.flow_server.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-import structlog
 from sse_starlette.sse import EventSourceResponse
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -78,24 +78,25 @@ from genkit.codec import dump_dict
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_callable_json
+from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
 from genkit.web.requests import (
     is_streaming_requested,
 )
 from genkit.web.typing import (
     Application,
-    LifespanHandler,
+    StartupHandler,
 )
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
-# TODO: This is a work in progress and may change. Do not use.
+# TODO(#4351): This is a work in progress and may change. Do not use.
 def create_flows_asgi_app(
     registry: Registry,
     context_providers: list[Callable[..., Any]] | None = None,
-    on_app_startup: LifespanHandler | None = None,
-    on_app_shutdown: LifespanHandler | None = None,
+    on_app_startup: StartupHandler | None = None,
+    on_app_shutdown: StartupHandler | None = None,
     version: str = DEFAULT_GENKIT_VERSION,
 ) -> Application:
     """Create an ASGI application for flows.
@@ -115,13 +116,13 @@ def create_flows_asgi_app(
         An ASGI application.
     """
     routes = []
-    logger = structlog.get_logger(__name__)
+    logger = get_logger(__name__)
 
-    async def health_check(request: Request) -> JSONResponse:
+    async def health_check(_request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
-            request: The Starlette request object.
+            _request: The Starlette request object (unused).
 
         Returns:
             A JSON response with status code 200.
@@ -156,7 +157,7 @@ def create_flows_asgi_app(
 
         try:
             # Look up the flow action.
-            action = registry.lookup_action_by_key(flow_name)
+            action = await registry.resolve_action_by_key(flow_name)
             if action is None:
                 await logger.aerror(
                     'Flow not found',
@@ -174,12 +175,12 @@ def create_flows_asgi_app(
                     payload = await request.json()
                     input_data = payload.get('data', {})
             except json.JSONDecodeError as e:
-                await logger.eerror(
+                await logger.aerror(
                     'Invalid JSON',
-                    error=f'Invalid JSON: {str(e)}',
+                    error=f'Invalid JSON: {e!s}',
                 )
                 return JSONResponse(
-                    content={'error': f'Invalid JSON: {str(e)}'},
+                    content={'error': f'Invalid JSON: {e!s}'},
                     status_code=400,
                 )
 
@@ -203,7 +204,7 @@ def create_flows_asgi_app(
                             error=str(e),
                         )
                         return JSONResponse(
-                            content={'error': f'Unauthorized: {str(e)}'},
+                            content={'error': f'Unauthorized: {e!s}'},
                             status_code=401,
                         )
 
@@ -221,8 +222,8 @@ def create_flows_asgi_app(
 
     async def handle_streaming_flow(
         action: Action,
-        input_data: dict,
-        context: dict,
+        input_data: dict[str, Any],
+        context: dict[str, Any],
         version: str,
     ) -> EventSourceResponse:
         """Handle streaming flow execution.
@@ -237,33 +238,51 @@ def create_flows_asgi_app(
             An EventSourceResponse with the flow result or error.
         """
 
-        async def stream_generator() -> AsyncGenerator[dict, None]:
+        async def stream_generator() -> AsyncGenerator[dict[str, str], None]:
             """Generate stream of data dictionaries for the SSE response."""
-            chunks = []
+            # Use an asyncio.Queue for true streaming - chunks are yielded as they arrive
+            chunk_queue: asyncio.Queue[dict[str, str] | None] = asyncio.Queue()
+            result_holder: list[object] = []
+            error_holder: list[Exception] = []
 
-            async def chunk_callback(chunk):
-                chunks.append(chunk)
-                yield {
+            def chunk_callback(chunk: object) -> None:
+                # Put chunk into queue (non-blocking since queue is unbounded)
+                # Use dump_dict to properly serialize Pydantic models with field aliases
+                chunk_queue.put_nowait({
                     'event': 'message',
-                    'data': json.dumps({'message': chunk}),
-                }
+                    'data': json.dumps({'message': dump_dict(chunk)}),
+                })
 
-            try:
-                output = await action.arun_raw(
-                    raw_input=input_data,
-                    on_chunk=chunk_callback,
-                    context=context,
-                )
+            async def run_action() -> None:
+                try:
+                    output = await action.arun_raw(
+                        raw_input=input_data,
+                        on_chunk=chunk_callback,
+                        context=context,
+                    )
+                    result_holder.append(output.response)
+                except Exception as e:
+                    error_holder.append(e)
+                finally:
+                    # Signal completion
+                    await chunk_queue.put(None)
 
-                # Send final result.
-                result = dump_dict(output.response)
-                yield {
-                    'event': 'result',
-                    'data': json.dumps({'result': result}),
-                }
+            # Start the action in the background
+            action_task = asyncio.create_task(run_action())
 
-            except Exception as e:
-                error_msg = str(e)
+            # Yield chunks as they arrive
+            while True:
+                item = await chunk_queue.get()
+                if item is None:
+                    break
+                yield item
+
+            # Wait for task to complete (should already be done)
+            await action_task
+
+            # Handle result or error
+            if error_holder:
+                error_msg = str(error_holder[0])
                 await logger.aerror('error in stream', error=error_msg)
                 yield {
                     'event': 'error',
@@ -274,6 +293,12 @@ def create_flows_asgi_app(
                             'details': error_msg,
                         }
                     }),
+                }
+            elif result_holder:
+                result = dump_dict(result_holder[0])
+                yield {
+                    'event': 'result',
+                    'data': json.dumps({'result': result}),
                 }
 
         return EventSourceResponse(
@@ -287,7 +312,7 @@ def create_flows_asgi_app(
 
     async def handle_standard_flow(
         action: Action,
-        input_data: Any,
+        input_data: object,
         context: dict[str, Any],
         version: str,
     ) -> JSONResponse:
@@ -330,7 +355,7 @@ def create_flows_asgi_app(
         routes=routes,
         middleware=[
             Middleware(
-                CORSMiddleware,
+                CORSMiddleware,  # type: ignore[arg-type]
                 allow_origins=['*'],
                 allow_methods=['*'],
                 allow_headers=['*'],
@@ -342,4 +367,4 @@ def create_flows_asgi_app(
 
     app.state.context = {}
 
-    return app
+    return app  # pyright: ignore[reportReturnType]

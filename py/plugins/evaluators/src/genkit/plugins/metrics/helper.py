@@ -14,10 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Helper functions for metrics processing."""
+
 # Run tests for all supported Python versions using tox
 
 from typing import Any
 
+import aiofiles
 from dotpromptz import Dotprompt
 from dotpromptz.typing import DataArgument, PromptFunction
 
@@ -25,13 +29,17 @@ dp = Dotprompt()
 
 
 async def load_prompt_file(path: str) -> PromptFunction:
-    with open(path, 'r') as f:
-        result = await dp.compile(f.read())
+    """Load a prompt file from the given path."""
+    # Use aiofiles for async file I/O to avoid blocking the event loop
+    async with aiofiles.open(path, encoding='utf-8') as f:
+        content = await f.read()
+        result = await dp.compile(content)
 
     return result
 
 
 async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
+    """Render text from a prompt function using provided input."""
     rendered = await prompt(
         data=DataArgument[dict[str, Any]](
             input=input_,
@@ -39,6 +47,6 @@ async def render_text(prompt: PromptFunction, input_: dict[str, Any]) -> str:
     )
     result = []
     for message in rendered.messages:
-        result.append(''.join(e.text for e in message.content))
+        result.append(''.join(e.text for e in message.content if hasattr(e, 'text') and e.text))  # type: ignore[arg-type]
 
     return ''.join(result)

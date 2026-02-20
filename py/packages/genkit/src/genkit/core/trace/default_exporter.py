@@ -25,25 +25,36 @@ The module includes:
     - Utility functions for converting and formatting trace attributes
 """
 
-import asyncio
-import json
+from __future__ import annotations
+
 import os
 import sys
-from collections.abc import Awaitable, Sequence
-from typing import Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import httpx
-import structlog
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
     SpanExporter,
     SpanExportResult,
 )
 
+from genkit.core._compat import override
+from genkit.core.environment import is_dev_environment
+from genkit.core.logging import get_logger
+
+from .realtime_processor import RealtimeSpanProcessor
+
+if TYPE_CHECKING:
+    from opentelemetry.sdk.trace import SpanProcessor
+    from opentelemetry.trace import SpanContext
+
 ATTR_PREFIX = 'genkit'
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
@@ -52,17 +63,26 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     This function extracts the span data from a ReadableSpan object and returns
     a dictionary containing the span data.
     """
-    span_data = {'traceId': f'{span.context.trace_id}', 'spans': {}}
-    span_data['spans'][span.context.span_id] = {
-        'spanId': f'{span.context.span_id}',
-        'traceId': f'{span.context.trace_id}',
-        'startTime': span.start_time / 1000000,
-        'endTime': span.end_time / 1000000,
-        'attributes': {**span.attributes},
+    # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
+    context = cast('SpanContext', span.context)
+    trace_id_hex = format(context.trace_id, '032x')
+    span_id_hex = format(context.span_id, '016x')
+    parent_span_id_hex = format(span.parent.span_id, '016x') if span.parent else None
+
+    span_data: dict[str, Any] = {'traceId': trace_id_hex, 'spans': {}}
+    start_time = (span.start_time / 1000000) if span.start_time is not None else 0
+    end_time = (span.end_time / 1000000) if span.end_time is not None else 0
+
+    span_data['spans'][span_id_hex] = {
+        'spanId': span_id_hex,
+        'traceId': trace_id_hex,
+        'startTime': start_time,
+        'endTime': end_time,
+        'attributes': {**(span.attributes or {})},
         'displayName': span.name,
         # "links": span.links,
         'spanKind': trace_api.SpanKind(span.kind).name,
-        'parentSpanId': f'{span.parent.span_id}' if span.parent else None,
+        'parentSpanId': parent_span_id_hex,
         'status': (
             {
                 'code': trace_api.StatusCode(span.status.status_code).value,
@@ -76,13 +96,13 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
             'version': 'v1',
         },
     }
-    if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
-        del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
+    if not span_data['spans'][span_id_hex]['parentSpanId']:
+        del span_data['spans'][span_id_hex]['parentSpanId']
 
     if not span.parent:
         span_data['displayName'] = span.name
-        span_data['startTime'] = span.start_time
-        span_data['endTime'] = span.end_time
+        span_data['startTime'] = start_time
+        span_data['endTime'] = end_time
 
     return span_data
 
@@ -97,19 +117,20 @@ class TelemetryServerSpanExporter(SpanExporter):
         telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
-    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None):
+    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None) -> None:
         """Initializes the TelemetryServerSpanExporter.
 
         Args:
             telemetry_server_url: The URL of the telemetry server.
             telemetry_server_endpoint (optional): The telemetry server's trace endpoint.
         """
-        self.telemetry_server_url = telemetry_server_url
+        self.telemetry_server_url: str = telemetry_server_url
         if telemetry_server_endpoint is None:
-            self.telemetry_server_endpoint = '/api/traces'
+            self.telemetry_server_endpoint: str = '/api/traces'
         else:
             self.telemetry_server_endpoint = telemetry_server_endpoint
 
+    @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Exports a sequence of ReadableSpans to the configured telemetry server.
 
@@ -126,19 +147,20 @@ class TelemetryServerSpanExporter(SpanExporter):
         """
         with httpx.Client() as client:
             for span in spans:
-                client.post(
+                _ = client.post(
                     urljoin(self.telemetry_server_url, self.telemetry_server_endpoint),
-                    data=json.dumps(extract_span_data(span)),
+                    json=extract_span_data(span),
                     headers={
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
                 )
 
-        sys.stdout.flush()
+        _ = sys.stdout.flush()
 
         return SpanExportResult.SUCCESS
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Forces the exporter to flush any buffered spans.
 
@@ -156,7 +178,17 @@ class TelemetryServerSpanExporter(SpanExporter):
 
 
 def init_telemetry_server_exporter() -> SpanExporter | None:
-    """Initializes tracing with a provider and optional exporter."""
+    """Initializes tracing with a provider and optional exporter.
+
+    Returns:
+        A SpanExporter configured for the telemetry server, or None if
+        GENKIT_TELEMETRY_SERVER is not set.
+
+    Environment Variables:
+        GENKIT_TELEMETRY_SERVER: URL of the telemetry server.
+        GENKIT_ENABLE_REALTIME_TELEMETRY: Set to 'true' to enable realtime
+            span processing (exports spans on start and end).
+    """
     telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
     processor = None
 
@@ -170,3 +202,36 @@ def init_telemetry_server_exporter() -> SpanExporter | None:
         )
 
     return processor
+
+
+def is_realtime_telemetry_enabled() -> bool:
+    """Check if realtime telemetry is enabled.
+
+    Returns:
+        True if GENKIT_ENABLE_REALTIME_TELEMETRY is set to 'true'.
+    """
+    return os.environ.get('GENKIT_ENABLE_REALTIME_TELEMETRY', '').lower() == 'true'
+
+
+def create_span_processor(exporter: SpanExporter) -> SpanProcessor:
+    """Create an appropriate SpanProcessor for the given exporter.
+
+    Uses RealtimeSpanProcessor when in dev mode AND GENKIT_ENABLE_REALTIME_TELEMETRY
+    is set to 'true'. Otherwise uses SimpleSpanProcessor for dev or BatchSpanProcessor
+    for production.
+
+    This matches the JavaScript implementation in node-telemetry-provider.ts.
+
+    Args:
+        exporter: The SpanExporter to wrap.
+
+    Returns:
+        A SpanProcessor configured for the current environment.
+    """
+    # Match JS: RealtimeSpanProcessor requires BOTH dev mode AND env var
+    if is_dev_environment() and is_realtime_telemetry_enabled():
+        return RealtimeSpanProcessor(exporter)
+    elif is_dev_environment():
+        return SimpleSpanProcessor(exporter)
+    else:
+        return BatchSpanProcessor(exporter)

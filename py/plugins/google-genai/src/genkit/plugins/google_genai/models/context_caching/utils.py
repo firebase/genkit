@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Utility functions for Google GenAI context caching."""
+
 import hashlib
 import json
 
@@ -30,7 +32,7 @@ logger = structlog.getLogger(__name__)
 
 
 def generate_cache_key(request: GenerateRequest) -> str:
-    """Generates context cache key by hashing the given request instance
+    """Generates context cache key by hashing the given request instance.
 
     Args:
         request: `GenerateRequest` instance to hash
@@ -42,7 +44,7 @@ def generate_cache_key(request: GenerateRequest) -> str:
 
 
 def validate_context_cache_request(request: GenerateRequest, model_name: str) -> bool:
-    """Verifies that the context cache request could be processed for the request
+    """Verifies that the context cache request could be processed for the request.
 
     Args:
         request: `GenerateRequest` instance to check
@@ -61,7 +63,7 @@ def validate_context_cache_request(request: GenerateRequest, model_name: str) ->
             status='INVALID_ARGUMENT',
             message=INVALID_ARGUMENT_MESSAGES['tools'],
         )
-    # TODO: add this check when code execution is added to Genkit
+    # TODO(#4360): add this check when code execution is added to Genkit
     # if request.config and request.config.get("codeExecution"):
     #     raise GenkitError(
     #         status="INVALID_ARGUMENT",

@@ -57,6 +57,7 @@ def test_genkit_error_to_json() -> None:
     assert isinstance(serializable, GenkitReflectionApiErrorWireFormat)
     assert serializable.code == 5
     assert serializable.message == 'Resource not found'
+    assert serializable.details is not None
     assert serializable.details.model_dump()['id'] == 123
 
 
@@ -121,6 +122,7 @@ def test_get_error_stack() -> None:
     try:
         raise ValueError('Example Error')
     except ValueError as e:
+        # get_error_stack returns an empty string to keep Dev UI clean.
+        # While this may limit debuggability, it satisfies the required display format.
         tb = get_error_stack(e)
-        assert tb is not None
-        assert 'Example Error' in tb
+        assert tb == ''

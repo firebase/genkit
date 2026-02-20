@@ -14,4 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
+"""Metrics plugin for Genkit evaluators."""
+
 # Run tests for all supported Python versions using tox

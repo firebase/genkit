@@ -49,18 +49,12 @@ from __future__ import annotations
 
 import abc
 import socket
-import sys
 
-import structlog
-
+from genkit.core._compat import StrEnum, override
+from genkit.core.logging import get_logger
 from genkit.web.typing import Application
 
-logger = structlog.get_logger(__name__)
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+logger = get_logger(__name__)
 
 
 class ServerType(StrEnum):
@@ -148,8 +142,8 @@ class ASGIServerAdapter(abc.ABC):
                 return UvicornAdapter()
             case ServerType.GRANIAN:
                 return GranianAdapter()
-            case _:
-                raise ValueError(f'Unsupported server type: {server_type}')
+            case _:  # pyright: ignore[reportUnnecessaryComparison]
+                raise ValueError(f'Unsupported server type: {server_type}')  # pyright: ignore[reportUnreachable]
 
 
 class UvicornAdapter(ASGIServerAdapter):
@@ -164,6 +158,7 @@ class UvicornAdapter(ASGIServerAdapter):
     unnecessary imports when the adapter is not being used.
     """
 
+    @override
     async def serve(
         self,
         app: Application,
@@ -179,15 +174,17 @@ class UvicornAdapter(ASGIServerAdapter):
             port: The port to bind to
             log_level: The logging level to use
         """
-        import uvicorn
+        # Lazy import: uvicorn is only imported when this adapter is used
+        import uvicorn  # noqa: PLC0415
 
         # Configure Uvicorn
         config = uvicorn.Config(
+            # pyrefly: ignore[bad-argument-type] - Starlette app is valid ASGI app for uvicorn
             app,
             host=host,
             port=port,
             log_level=log_level,
-            # TODO: Disable after we complete logging middleware.
+            # TODO(#4353): Disable after we complete logging middleware.
             # log_config=None,
             # access_log=True,
         )
@@ -195,7 +192,7 @@ class UvicornAdapter(ASGIServerAdapter):
         server = uvicorn.Server(config)
 
         # Modified server startup to work with shared event loop
-        server.config.setup_event_loop = lambda: None
+        server.config.setup_event_loop = lambda: None  # type: ignore[attr-defined]
 
         await logger.ainfo(
             'Starting uvicorn server',
@@ -218,6 +215,7 @@ class GranianAdapter(ASGIServerAdapter):
     available, an ImportError will be raised when the serve method is called.
     """
 
+    @override
     async def serve(
         self,
         app: Application,
@@ -237,12 +235,17 @@ class GranianAdapter(ASGIServerAdapter):
             ImportError: If Granian is not available
             Exception: If the server fails to start or encounters an error
         """
-        import granian
+        # Lazy import: granian is optional and only imported when this adapter is used
+        from granian.constants import Interfaces  # noqa: PLC0415
+        from granian.log import LogLevels  # noqa: PLC0415
+        from granian.server.embed import Server  # noqa: PLC0415
 
-        # Granian accepts the log level as a string
-        # Valid values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'
-        valid_levels = ['trace', 'debug', 'info', 'warn', 'error', 'off']
-        granian_log_level = log_level.lower() if log_level.lower() in valid_levels else 'info'
+        # The log_level parameter is a string, which needs to be mapped to
+        # Granian's LogLevels enum.
+        # Valid input values are: 'trace', 'debug', 'info', 'warn', 'error', or 'off'
+        valid_levels = {'trace', 'debug', 'info', 'warn', 'error', 'off'}
+        granian_log_level_str = log_level.lower() if log_level.lower() in valid_levels else 'info'
+        granian_log_level = LogLevels(granian_log_level_str)
 
         if host == 'localhost':
             ip_address = '127.0.0.1'
@@ -260,14 +263,17 @@ class GranianAdapter(ASGIServerAdapter):
         )
 
         try:
-            await granian.Granian(
+            # Use the embed.Server API which provides a proper async serve()
+            # method, designed for running granian inside an existing event loop.
+            server = Server(
                 app,
                 address=ip_address,
                 port=port,
-                workers=1,
-                loop='auto',
+                runtime_threads=1,
+                interface=Interfaces.ASGI,
                 log_level=granian_log_level,
-            ).serve()
+            )
+            await server.serve()
         except Exception as e:
             await logger.aerror(
                 'Error starting granian server',

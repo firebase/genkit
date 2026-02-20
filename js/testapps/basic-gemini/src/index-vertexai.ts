@@ -497,6 +497,37 @@ async function waitForOperation(
   return operation;
 }
 
+// Imagen Try-on
+ai.defineFlow('imagen-try-on', async (_) => {
+  const person = await fs.promises.readFile('woman.png', {
+    encoding: 'base64',
+  });
+  const product = await fs.promises.readFile('coat.png', {
+    encoding: 'base64',
+  });
+
+  const { media } = await ai.generate({
+    model: vertexAI.model('virtual-try-on-001'),
+    prompt: [
+      {
+        media: {
+          url: `data:image/png;base64,${person}`,
+          contentType: 'image/png',
+        },
+        metadata: { type: 'personImage' },
+      },
+      {
+        media: {
+          url: `data:image/png;base64,${product}`,
+          contentType: 'image/png',
+        },
+        metadata: { type: 'productImage' },
+      },
+    ],
+  });
+  return media;
+});
+
 ai.defineFlow('veo-text-prompt', async (_, { sendChunk }) => {
   let { operation } = await ai.generate({
     model: vertexAI.model('veo-3.0-generate-001'),
@@ -573,7 +604,7 @@ ai.defineFlow('veo-reference-images', async (_, { sendChunk }) => {
   const palmImage = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: vertexAI.model('veo-3.1-generate-preview'),
+    model: vertexAI.model('veo-3.1-generate-001'),
     config: { location: 'us-central1' },
     prompt: [
       {

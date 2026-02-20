@@ -313,7 +313,7 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: openAI.model('gpt-4o-mini-tts'),
       config: {
-        voice: 'sage',
+        voice: 'alloy',
       },
       prompt: query,
     });
@@ -357,6 +357,25 @@ async function toWav(
     writer.end();
   });
 }
+
+// STT sample
+ai.defineFlow('transcribe', async () => {
+  const audioFile = fs.readFileSync('audio.mp3');
+
+  const { text } = await ai.generate({
+    model: openAI.model('whisper-1'),
+    prompt: [
+      {
+        media: {
+          contentType: 'audio/mp3',
+          url: `data:audio/mp3;base64,${audioFile.toString('base64')}`,
+        },
+      },
+    ],
+  });
+
+  return text;
+});
 
 // PDF file input example
 ai.defineFlow(

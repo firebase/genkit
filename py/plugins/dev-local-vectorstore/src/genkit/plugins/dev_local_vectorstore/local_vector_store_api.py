@@ -15,53 +15,65 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import copy
-import json
-import os
-from abc import ABC
-from functools import cached_property
-from typing import Any
+"""Base API for dev-local-vectorstore.
 
-from genkit.ai import Genkit
+Provides async file-backed storage for document embeddings using
+``aiofiles`` to avoid blocking the event loop during reads and writes.
+"""
+
+import json
+from functools import cached_property
+
+import aiofiles
+import aiofiles.os
+
+from genkit.codec import dump_json
 
 from .constant import DbValue
 
 
-class LocalVectorStoreAPI(ABC):
+class LocalVectorStoreAPI:
+    """Base class for development local vector store operations."""
+
     _LOCAL_FILESTORE_TEMPLATE = '__db_{index_name}.json'
 
-    def __init__(self, ai: Genkit, index_name: str, embedder: str, embedder_options: dict[str, Any] | None = None):
-        self.ai = ai
+    def __init__(
+        self,
+        index_name: str,
+    ) -> None:
+        """Initialize the LocalVectorStoreAPI."""
         self.index_name = index_name
-        self.embedder = embedder
-        self.embedder_options = embedder_options
 
     @cached_property
-    def index_file_name(self):
+    def index_file_name(self) -> str:
+        """Get the filename of the index file."""
         return self._LOCAL_FILESTORE_TEMPLATE.format(index_name=self.index_name)
 
-    def _load_filestore(self) -> dict[str, DbValue]:
-        data = {}
-        if os.path.exists(self.index_file_name):
-            with open(self.index_file_name, encoding='utf-8') as f:
-                data = json.load(f)
+    async def _load_filestore(self) -> dict[str, DbValue]:
+        """Load the filestore asynchronously to avoid blocking the event loop."""
+        data: dict[str, object] = {}
+        if await aiofiles.os.path.exists(self.index_file_name):
+            async with aiofiles.open(self.index_file_name, encoding='utf-8') as f:
+                contents = await f.read()
+            data = json.loads(contents)
         return self._deserialize_data(data)
 
-    def _dump_filestore(self, data: dict[str, DbValue]) -> None:
-        data = self._serialize_data(data)
-        with open(self.index_file_name, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+    async def _dump_filestore(self, data: dict[str, DbValue]) -> None:
+        """Dump the filestore asynchronously to avoid blocking the event loop."""
+        serialized_data = self._serialize_data(data)
+        async with aiofiles.open(self.index_file_name, 'w', encoding='utf-8') as f:
+            await f.write(dump_json(serialized_data, indent=2))
 
     @staticmethod
-    def _serialize_data(data: dict[str, DbValue]) -> dict[str, Any]:
-        data = copy.deepcopy(data)
-        for k in data:
-            data[k] = DbValue.model_dump(data[k], exclude_none=True)
-        return data
+    def _serialize_data(data: dict[str, DbValue]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for k, v in data.items():
+            result[k] = DbValue.model_dump(v, exclude_none=True)
+        return result
 
     @staticmethod
-    def _deserialize_data(data: dict[str, Any]) -> dict[str, DbValue]:
-        data = copy.deepcopy(data)
-        for k in data:
-            data[k] = DbValue.model_validate(data[k])
-        return data
+    def _deserialize_data(data: dict[str, object]) -> dict[str, DbValue]:
+        result: dict[str, DbValue] = {}
+        for k, v in data.items():
+            result[k] = DbValue.model_validate(v)
+        return result

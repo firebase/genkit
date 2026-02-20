@@ -21,11 +21,15 @@ Evaluators are used for assessint the quality of output of a Genkit flow or
 model.
 """
 
-from collections.abc import Callable
-from typing import Any, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, ClassVar, TypeVar, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
+from genkit.core.action import ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     BaseDataPoint,
     EvalFnResponse,
@@ -35,24 +39,23 @@ from genkit.core.typing import (
 T = TypeVar('T')
 
 # User-provided evaluator function that evaluates a single datapoint.
-# type EvaluatorFn[T] = Callable[[BaseDataPoint, T], EvalFnResponse]
-EvaluatorFn = Callable[[BaseDataPoint, T], EvalFnResponse]
+# Must be async (coroutine function).
+EvaluatorFn = Callable[[BaseDataPoint, T], Coroutine[Any, Any, EvalFnResponse]]
 
 # User-provided batch evaluator function that evaluates an EvaluationRequest
-# type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
-BatchEvaluatorFn = Callable[[EvalRequest, T], list[EvalFnResponse]]
+BatchEvaluatorFn = Callable[[EvalRequest, T], Coroutine[Any, Any, list[EvalFnResponse]]]
 
 
 class EvaluatorRef(BaseModel):
     """Reference to an evaluator."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
 
     name: str
-    config_schema: Any | None = Field(None, alias='configSchema')
+    config_schema: dict[str, object] | None = None
 
 
-def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
+def evaluator_ref(name: str, config_schema: dict[str, object] | None = None) -> EvaluatorRef:
     """Create a reference to an evaluator.
 
     Args:
@@ -63,3 +66,25 @@ def evaluator_ref(name: str, config_schema: Any | None = None) -> EvaluatorRef:
         An EvaluatorRef instance.
     """
     return EvaluatorRef(name=name, config_schema=config_schema)
+
+
+def evaluator_action_metadata(
+    name: str,
+    config_schema: type | dict[str, Any] | None = None,
+) -> ActionMetadata:
+    """Generates an ActionMetadata for evaluators.
+
+    Args:
+        name: Name of the evaluator.
+        config_schema: Optional schema for evaluator configuration.
+
+    Returns:
+        An ActionMetadata instance for the evaluator.
+    """
+    return ActionMetadata(
+        kind=cast(ActionKind, ActionKind.EVALUATOR),
+        name=name,
+        input_json_schema=to_json_schema(EvalRequest),
+        output_json_schema=to_json_schema(list[EvalFnResponse]),
+        metadata={'evaluator': {'customOptions': to_json_schema(config_schema) if config_schema else None}},
+    )

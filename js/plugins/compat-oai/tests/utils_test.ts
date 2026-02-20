@@ -17,7 +17,46 @@
 import { describe, expect, it } from '@jest/globals';
 import { GenerateRequest } from 'genkit';
 import OpenAI from 'openai';
-import { maybeCreateRequestScopedOpenAIClient } from '../src/utils';
+import {
+  maybeCreateRequestScopedOpenAIClient,
+  toModelName,
+} from '../src/utils';
+
+describe('modelName', () => {
+  it('should remove standard prefixes', () => {
+    expect(toModelName('/model/gpt-4')).toBe('gpt-4');
+    expect(toModelName('/models/gpt-4')).toBe('gpt-4');
+    expect(toModelName('/background-model/gpt-4')).toBe('gpt-4');
+    expect(toModelName('/embedder/gpt-4')).toBe('gpt-4');
+    expect(toModelName('/embedders/gpt-4')).toBe('gpt-4');
+  });
+
+  it('should remove custom prefix', () => {
+    expect(toModelName('custom/gpt-4', 'custom')).toBe('gpt-4');
+    expect(toModelName('/model/custom/gpt-4', 'custom')).toBe('gpt-4');
+    expect(toModelName('/model/custom/gpt-4/v2', 'custom')).toBe('gpt-4/v2');
+  });
+
+  it('should not remove custom prefix if not provided', () => {
+    expect(toModelName('custom/gpt-4')).toBe('custom/gpt-4');
+    expect(toModelName('/model/custom/gpt-4')).toBe('custom/gpt-4');
+  });
+
+  it('should handle model names with slashes', () => {
+    // This reproduces the issue: stripping 'openai' from 'openai/hf.co/Menlo/Jan-nano-gguf:Q4_K_M'
+    expect(
+      toModelName('openai/hf.co/Menlo/Jan-nano-gguf:Q4_K_M', 'openai')
+    ).toBe('hf.co/Menlo/Jan-nano-gguf:Q4_K_M');
+  });
+
+  it('should not strip prefix if it appears in the middle', () => {
+    expect(toModelName('openai/hf.co/openai/another', 'openai')).toBe(
+      'hf.co/openai/another'
+    );
+  });
+});
+
+// TODO, actionName
 
 describe('maybeCreateRequestScopedOpenAIClient', () => {
   it('should copy options from defaultClient when pluginOptions is undefined', () => {

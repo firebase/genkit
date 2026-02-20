@@ -24,6 +24,10 @@ const API_KEY = process.env.ANTHROPIC_API_KEY;
 // If you have a file ID, you can set it here. Otherwise, the flow will upload a new PDF to Anthropic.
 const FILE_ID = process.env.ANTHROPIC_FILE_ID;
 
+/**
+ * Uploads a PDF file to Anthropic's Files API.
+ * @returns The file object containing `id` field.
+ */
 export async function uploadPdfToAnthropic() {
   if (!API_KEY) throw new Error('Missing ANTHROPIC_API_KEY env variable');
 
@@ -34,7 +38,7 @@ export async function uploadPdfToAnthropic() {
   const form = new FormData();
   form.append(
     'file',
-    new Blob([fileBuffer], { type: 'application/pdf' }),
+    new Blob([new Uint8Array(fileBuffer)], { type: 'application/pdf' }),
     'attention-first-page.pdf'
   );
 
@@ -53,62 +57,53 @@ export async function uploadPdfToAnthropic() {
     throw new Error(`Anthropic file upload failed: ${response.status} ${text}`);
   }
   const result = await response.json();
-  return result as { id: string }; // Contains 'file_id', etc.
+  return result as { id: string };
 }
 
-async function main() {
-  const ai = genkit({
-    plugins: [
-      // Default all flows in this sample to the beta surface
-      anthropic({
-        apiVersion: 'beta',
-        apiKey: API_KEY,
-      }),
+const ai = genkit({
+  plugins: [
+    // Default all flows in this sample to the beta surface
+    anthropic({
+      apiVersion: 'beta',
+      apiKey: API_KEY,
+    }),
+  ],
+});
+
+/**
+ * This flow demonstrates PDF document processing via the Anthropic Files API.
+ * The PDF is uploaded to Anthropic and referenced by file ID.
+ */
+ai.defineFlow('beta-pdf-url', async () => {
+  let fileId = FILE_ID;
+
+  if (!fileId) {
+    const fileResult = await uploadPdfToAnthropic();
+    if (!fileResult || !fileResult.id) {
+      throw new Error('File ID not found');
+    }
+    fileId = fileResult.id;
+  }
+
+  const { text } = await ai.generate({
+    model: anthropic.model('claude-sonnet-4-5'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'What are the key findings or main points in this document?',
+          },
+          {
+            media: {
+              url: fileId,
+              contentType: 'anthropic/file',
+            },
+          },
+        ],
+      },
     ],
   });
 
-  /**
-   * This flow demonstrates PDF document processing via a public data URL along with a user prompt.
-   * The PDF is sent as a media part with the correct contentType and a URL, not base64.
-   */
-  ai.defineFlow('beta-pdf-url', async () => {
-    let fileId = FILE_ID;
-
-    if (!fileId) {
-      const fileResult = await uploadPdfToAnthropic();
-      if (!fileResult || !fileResult.id) {
-        throw new Error('File ID not found');
-      }
-      fileId = fileResult.id;
-    }
-
-    // Example: Use a (demo/test) PDF file accessible via public URL.
-    // Replace this with your actual PDF if needed.
-    const { text } = await ai.generate({
-      model: anthropic.model('claude-sonnet-4-5'),
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              text: 'What are the key findings or main points in this document?',
-            },
-            {
-              media: {
-                url: fileId,
-                contentType: 'anthropic/file',
-              },
-            },
-          ],
-        },
-      ],
-    });
-
-    return text;
-  });
-}
-
-main().catch((error) => {
-  console.error('Error:', error);
-  process.exit(1);
+  return text;
 });

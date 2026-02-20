@@ -14,6 +14,7 @@ The MCP Server enables external tools to:
 * **Run Flows:** Execute Genkit flows by providing inputs and receiving outputs.
 * **Access Traces:** Retrieve and analyze detailed execution traces for performance insights.
 * **Look up Documentation:** Access Genkit documentation directly.
+* **Manage Runtime:** Start, stop, and restart the Genkit runtime process.
 
 ---
 
@@ -24,7 +25,18 @@ The following tools allow MCP-aware environments to interact with the Genkit ser
 | Tool Name | Description |
 | :--- | :--- |
 | **`get_usage_guide`** | Fetches the Genkit AI framework usage guide (specifiable by language). Intended for AI assistants. |
-| **`lookup_genkit_docs`** | Retrieves Genkit documentation (specifiable by language and files). |
+| **`list_genkit_docs`** | Lists all available Genkit documentation files for discovery. |
+| **`search_genkit_docs`** | Searches Genkit documentation using keywords. |
+| **`read_genkit_docs`** | Reads the content of specific Genkit documentation files. |
 | **`list_flows`** | Discovers and lists all defined Genkit flows with their input schemas. |
 | **`run_flow`** | Executes a specified Genkit flow, requiring `flowName` and a JSON `input` conforming to the flow's schema. |
 | **`get_trace`** | Retrieves the detailed execution trace for a flow using a `traceId`. |
+| **`start_runtime`** | Starts a Genkit runtime process (e.g., `npm run dev` or `go run main.go`). |
+| **`kill_runtime`** | Kills the runtime process started by `start_runtime`. |
+| **`restart_runtime`** | Restarts the runtime process started by `start_runtime`. |
+
+### Available Prompts
+
+| Prompt Name | Description |
+| :--- | :--- |
+| **`genkit:init`** | Helps initialize a new Genkit project with best practices and language-specific setup. |

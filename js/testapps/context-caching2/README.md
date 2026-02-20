@@ -50,7 +50,7 @@ You can configure the API key in two ways:
 1. **Environment Variable**:
 
    ```bash
-   export GOOGLE_GENAI_API_KEY=your_api_key_here
+   export GEMINI_API_KEY=your_api_key_here
    ```
 
 2. **Inline Configuration** (for testing only, not recommended for production):

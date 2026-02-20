@@ -103,6 +103,21 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 			in:   "```\n{\"plain\": true}\n``` then ```json\n{\"json\": true}\n```",
 			want: "{\"json\": true}",
 		},
+		{
+			desc: "json block with spaces",
+			in:   "``` json\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "implicit json block",
+			in:   "```{\"a\": 1}```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "implicit json block array",
+			in:   "```[1, 2]```",
+			want: "[1, 2]",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {

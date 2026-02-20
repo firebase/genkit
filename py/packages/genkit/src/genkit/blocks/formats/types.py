@@ -28,12 +28,6 @@ from genkit.core.typing import (
     OutputConfig,
 )
 
-T = TypeVar('T')
-# type MessageParser[T] = Callable[[MessageWrapper], T]
-MessageParser = Callable[[MessageWrapper], T]
-# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
-ChunkParser = Callable[[GenerateResponseChunkWrapper], T]
-
 
 class FormatterConfig(OutputConfig):
     """Defines configuration options specific to formatters.
@@ -45,36 +39,36 @@ class FormatterConfig(OutputConfig):
     default_instructions: bool | None = None
 
 
-O = TypeVar('O')
-CO = TypeVar('CO')
+OutputT = TypeVar('OutputT')
+ChunkT = TypeVar('ChunkT')
 
 
-class Formatter(Generic[O, CO]):
+class Formatter(Generic[OutputT, ChunkT]):
     """Base class representing a formatter for model outputs.
 
     Formatters are responsible for parsing raw model messages and chunks
-    into structured data (types O and CO respectively) and potentially
+    into structured data (types OutputT and ChunkT respectively) and potentially
     providing instructions to the model on how to format its output.
     """
 
     def __init__(
         self,
-        message_parser: MessageParser[O],
-        chunk_parser: ChunkParser[CO],
+        message_parser: Callable[[MessageWrapper], OutputT],
+        chunk_parser: Callable[[GenerateResponseChunkWrapper], ChunkT],
         instructions: str | None,
-    ):
+    ) -> None:
         """Initializes a Formatter.
 
         Args:
-            message_parser: A callable that parses a Message into type O.
-            chunk_parser: A callable that parses a GenerateResponseChunkWrapper into type CO.
+            message_parser: A callable that parses a Message into type OutputT.
+            chunk_parser: A callable that parses a GenerateResponseChunkWrapper into type ChunkT.
             instructions: Optional instructions for the formatter.
         """
-        self.instructions = instructions
+        self.instructions: str | None = instructions
         self.__message_parser = message_parser
         self.__chunk_parser = chunk_parser
 
-    def parse_message(self, message: MessageWrapper) -> O:
+    def parse_message(self, message: MessageWrapper) -> OutputT:
         """Parses a message.
 
         Args:
@@ -85,7 +79,7 @@ class Formatter(Generic[O, CO]):
         """
         return self.__message_parser(message)
 
-    def parse_chunk(self, chunk: GenerateResponseChunkWrapper) -> O:
+    def parse_chunk(self, chunk: GenerateResponseChunkWrapper) -> ChunkT:
         """Parses a chunk.
 
         Args:
@@ -105,19 +99,18 @@ class FormatDef:
     an optional schema.
     """
 
-    def __init__(self, name: str, config: FormatterConfig):
+    def __init__(self, name: str, config: FormatterConfig) -> None:
         """Initializes a FormatDef.
 
         Args:
             name: The name of the format.
             config: The configuration for the format.
         """
-        self.name = name
-        self.config = config
-        pass
+        self.name: str = name
+        self.config: FormatterConfig = config
 
     @abc.abstractmethod
-    def handle(self, schema: dict[str, Any] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Handles the format.
 
         Args:
@@ -128,7 +121,7 @@ class FormatDef:
         """
         pass
 
-    def __call__(self, schema: dict[str, Any] | None) -> Formatter:
+    def __call__(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Calls the handle method.
 
         Args:

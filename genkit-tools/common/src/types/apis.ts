@@ -80,6 +80,22 @@ export const ListActionsRequestSchema = z
 
 export type ListActionsRequest = z.infer<typeof ListActionsRequestSchema>;
 
+export const ListValuesRequestSchema = z.object({
+  runtimeId: z
+    .string()
+    .optional()
+    .describe(
+      'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+    ),
+  type: z
+    .string()
+    .describe(
+      "The type of values to fetch. Currently only supports 'defaultModel'"
+    ),
+});
+
+export type ListValuesRequest = z.infer<typeof ListValuesRequestSchema>;
+
 export const RunActionRequestSchema = z.object({
   runtimeId: z
     .string()

@@ -186,10 +186,14 @@ describe('Model Execution Integration Tests', () => {
     assert.strictEqual(createStub.mock.calls.length, 1);
     const apiRequest = createStub.mock.calls[0].arguments[0];
     assert.ok(apiRequest.system, 'System prompt should be set');
-    assert.strictEqual(
-      apiRequest.system,
-      'You are a pirate. Respond like a pirate.'
-    );
+    assert.deepStrictEqual(apiRequest.system, [
+      {
+        type: 'text',
+        text: 'You are a pirate. Respond like a pirate.',
+        citations: null,
+        cache_control: undefined,
+      },
+    ]);
     assert.strictEqual(
       apiRequest.messages.length,
       1,

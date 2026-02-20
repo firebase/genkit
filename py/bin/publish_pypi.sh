@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +14,6 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-
-#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -34,7 +33,7 @@ echo "New Version is $NEW_VERSION"
 echo "Package Name is $PACKAGE_NAME"
 
 response=$(curl -s "https://pypi.org/pypi/$PACKAGE_NAME/json" || echo "{}")
-LATEST_VERSION=$(echo $response | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
+LATEST_VERSION=$(echo "$response" | jq --raw-output "select(.releases != null) | .releases | keys_unsorted | last")
 
 if [ -z "$LATEST_VERSION" ]; then
   echo "Package not found on PyPI."

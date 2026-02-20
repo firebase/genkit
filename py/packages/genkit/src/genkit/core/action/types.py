@@ -16,26 +16,18 @@
 
 """Action types module for defining and managing action types."""
 
-from __future__ import annotations
-
-import sys
 from collections.abc import Callable
-from typing import Any, Awaitable, Dict, List, Literal, Protocol, Union
+from typing import ClassVar, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+from genkit.core._compat import StrEnum
 
 # Type alias for action name.
 # type ActionName = str
 ActionName = str
 
-# Type alias for action metadata key.
-# type ActionMetadataKey = str
-ActionMetadataKey = str
 
 # type ActionResolver = Callable[[ActionKind, str], None]
 ActionResolver = Callable[['ActionKind', str], None]
@@ -48,7 +40,11 @@ class ActionKind(StrEnum):
     including chat models, embedders, evaluators, and other utility functions.
     """
 
+    BACKGROUND_MODEL = 'background-model'
+    CANCEL_OPERATION = 'cancel-operation'
+    CHECK_OPERATION = 'check-operation'
     CUSTOM = 'custom'
+    DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
     EMBEDDER = 'embedder'
     EVALUATOR = 'evaluator'
     EXECUTABLE_PROMPT = 'executable-prompt'
@@ -63,18 +59,25 @@ class ActionKind(StrEnum):
     UTIL = 'util'
 
 
-class ActionResponse(BaseModel):
+ResponseT = TypeVar('ResponseT')
+
+
+class ActionResponse(BaseModel, Generic[ResponseT]):
     """The response from an action.
 
     Attributes:
         response: The actual response data from the action execution.
         trace_id: A unique identifier for tracing the action execution.
+        span_id: The span ID of the root action span.
     """
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra='forbid', populate_by_name=True, alias_generator=to_camel, arbitrary_types_allowed=True
+    )
 
-    response: Any
-    trace_id: str = Field(alias='traceId')
+    response: ResponseT
+    trace_id: str
+    span_id: str = ''
 
 
 class ActionMetadataKey(StrEnum):

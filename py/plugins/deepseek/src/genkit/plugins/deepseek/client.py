@@ -7,7 +7,7 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
+# distributed under the Apache License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
@@ -16,25 +16,31 @@
 
 """DeepSeek API client."""
 
-from openai import OpenAI as _OpenAI
+from typing import Any, cast
+
+from openai import AsyncOpenAI as _AsyncOpenAI
+
+# Official DeepSeek API endpoint
+# This is the standard endpoint and doesn't vary by region
+DEFAULT_DEEPSEEK_API_URL = 'https://api.deepseek.com'
 
 
 class DeepSeekClient:
     """DeepSeek API client initialization."""
 
-    def __new__(cls, **deepseek_params) -> _OpenAI:
+    def __new__(cls, **deepseek_params: object) -> _AsyncOpenAI:
         """Initialize the DeepSeek client.
 
         Args:
             **deepseek_params: Client configuration parameters including:
                 - api_key: DeepSeek API key.
-                - base_url: API base URL (defaults to https://api.deepseek.com).
+                - base_url: API base URL (defaults to DEFAULT_DEEPSEEK_API_URL).
                 - Additional OpenAI client parameters.
 
         Returns:
-            Configured OpenAI client instance.
+            Configured async OpenAI client instance.
         """
-        api_key = deepseek_params.pop('api_key')
-        base_url = deepseek_params.pop('base_url', 'https://api.deepseek.com')
+        api_key = cast(str | None, deepseek_params.pop('api_key', None))
+        base_url = cast(str, deepseek_params.pop('base_url', DEFAULT_DEEPSEEK_API_URL))
 
-        return _OpenAI(api_key=api_key, base_url=base_url, **deepseek_params)
+        return _AsyncOpenAI(api_key=api_key, base_url=base_url, **cast(dict[str, Any], deepseek_params))

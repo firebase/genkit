@@ -65,6 +65,8 @@ import {
   removeClientOptionOverrides,
 } from './utils.js';
 
+const MAX_INLINE_MEDIA_BYTES = 1024 * 1024 * 100; // 100 MB
+
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
@@ -461,11 +463,6 @@ const KNOWN_IMAGE_MODELS = {
     { ...GENERIC_IMAGE_MODEL.info },
     GeminiImageConfigSchema
   ),
-  'gemini-2.5-flash-image-preview': commonRef(
-    'gemini-2.5-flash-image-preview',
-    { ...GENERIC_IMAGE_MODEL.info },
-    GeminiImageConfigSchema
-  ),
   'gemini-2.5-flash-image': commonRef(
     'gemini-2.5-flash-image',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -581,11 +578,15 @@ export function defineModel(
 
   const middleware: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
-    // the gemini api doesn't support downloading media from http(s)
+    // For Gemini 2.0, external URLs are not supported, so we must download.
+    // For newer models, we can pass the URL directly.
+    const supportsExternalUrls = !name.startsWith('gemini-2.0');
+
     middleware.push(
       downloadRequestMedia({
-        maxBytes: 1024 * 1024 * 10,
-        // don't downlaod files that have been uploaded using the Files API
+        maxBytes: MAX_INLINE_MEDIA_BYTES,
+        // don't download files that have been uploaded using the Files API
+        // or external URLs supported by the model
         filter: (part) => {
           try {
             const url = new URL(part.media.url);
@@ -599,6 +600,14 @@ export function defineModel(
               ].includes(url.hostname)
             )
               return false;
+
+            // If model supports external URLs, allow http/https URLs to pass through
+            if (
+              supportsExternalUrls &&
+              (url.protocol === 'https:' || url.protocol === 'http:')
+            ) {
+              return false;
+            }
           } catch {}
           return true;
         },

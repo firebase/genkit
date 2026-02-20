@@ -15,50 +15,78 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import asyncio
-import json
-from hashlib import md5
+"""Indexer for dev-local-vectorstore."""
 
+import asyncio
+import hashlib
+import json
+from typing import Any
+
+from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
-from genkit.codec import dump_json
-from genkit.types import DocumentData, Embedding
+from genkit.types import Embedding
 
 from .constant import DbValue
-from .local_vector_store_api import (
-    LocalVectorStoreAPI,
-)
+from .local_vector_store_api import LocalVectorStoreAPI
 
 
 class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
-    async def index(self, request: IndexerRequest) -> None:
-        docs = request.documents
-        data = self._load_filestore()
-        tasks = []
+    """Indexer for development-level local vector store."""
 
-        for doc_data in docs:
+    def __init__(
+        self,
+        ai: Genkit,
+        index_name: str,
+        embedder: str,
+        embedder_options: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize the DevLocalVectorStoreIndexer.
+
+        Args:
+            ai: Genkit instance used to embed documents.
+            index_name: Name of the index.
+            embedder: The embedder to use for document embeddings.
+            embedder_options: Optional configuration to pass to the embedder.
+        """
+        super().__init__(index_name=index_name)
+        self.ai = ai
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
+    async def index(self, request: IndexerRequest) -> None:
+        """Index documents into the local vector store."""
+        docs = request.documents
+        # pyrefly: ignore[missing-attribute] - inherited from LocalVectorStoreAPI
+        data = await self._load_filestore()
+
+        embed_resp = await self.ai.embed_many(
+            embedder=self.embedder,
+            content=docs,
+            options=self.embedder_options,
+        )
+        if not embed_resp:
+            raise ValueError('Embedder returned no embeddings for documents')
+
+        tasks = []
+        for doc_data, emb in zip(docs, embed_resp, strict=True):
             tasks.append(
                 self.process_document(
                     document=Document.from_document_data(document_data=doc_data),
+                    embedding=Embedding(embedding=emb.embedding),
                     data=data,
                 )
             )
 
         await asyncio.gather(*tasks)
 
-        with open(self.index_file_name, 'w', encoding='utf-8') as f:
-            f.write(dump_json(self._serialize_data(data=data), indent=2))
+        # pyrefly: ignore[missing-attribute] - _dump_filestore inherited from LocalVectorStoreAPI
+        await self._dump_filestore(data)
 
-    async def process_document(self, document: Document, data: dict[str, DbValue]) -> None:
-        embeddings = await self.ai.embed(
-            embedder=self.embedder,
-            documents=[document],
-            options=self.embedder_options,
-        )
-        embedding_docs = document.get_embedding_documents(embeddings.embeddings)
-
-        for embedding, emb_doc in zip(embeddings.embeddings, embedding_docs, strict=False):
-            self._add_document(data=data, embedding=embedding, doc=emb_doc)
+    async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
+        """Process a single document and add its embedding to the store."""
+        embedding_docs = document.get_embedding_documents([embedding])
+        self._add_document(data=data, embedding=embedding, doc=embedding_docs[0])
 
     def _add_document(
         self,
@@ -66,10 +94,12 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         embedding: Embedding,
         doc: Document,
     ) -> None:
+        # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
         data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
-        _idx = md5(data_str.encode('utf-8')).hexdigest()
-        if _idx not in data:
-            data[_idx] = DbValue(
+        # MD5 used for content-based ID generation, not security
+        idx = hashlib.md5(data_str.encode('utf-8'), usedforsecurity=False).hexdigest()
+        if idx not in data:
+            data[idx] = DbValue(
                 doc=doc,
                 embedding=embedding,
             )

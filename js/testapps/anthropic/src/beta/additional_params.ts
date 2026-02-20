@@ -22,7 +22,6 @@ const ai = genkit({
     // Default all flows in this sample to the beta surface
     anthropic({
       apiVersion: 'beta',
-      cacheSystemPrompt: true,
       apiKey: process.env.ANTHROPIC_API_KEY,
     }),
   ],

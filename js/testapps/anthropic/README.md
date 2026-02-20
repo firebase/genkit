@@ -42,6 +42,7 @@ src/
 - `pnpm run dev:stable:webp` – Start Dev UI for WEBP image handling demo.
 - `pnpm run dev:stable:pdf` – Start Dev UI for PDF document processing demo.
 - `pnpm run dev:stable:vision` – Start Dev UI for image/vision analysis demo.
+- `pnpm run dev:stable:prompt-caching` – Start Dev UI for prompt caching demo.
 
 ## Flows
 
@@ -71,5 +72,12 @@ Each source file defines flows that can be invoked from the Dev UI or the Genkit
 - `stable-vision-url` – Analyze an image from a public URL
 - `stable-vision-base64` – Analyze an image from a local file (base64 encoded)
 - `stable-vision-conversation` – Multi-turn conversation about an image
+
+### Prompt Caching
+- `stable-prompt-caching-system` – Caches a long system prompt.
+- `stable-prompt-caching-user` – Applies caching to user-provided text input.
+- `stable-prompt-caching-image` – Caches prompts that combine text and an image.
+- `stable-prompt-caching-pdf` – Caches prompts including PDF file content.
+- `stable-prompt-caching-with-tool-call` – Demonstrates caching with tool-assisted prompts.
 
 Example: `genkit flow:run anthropic-stable-hello`

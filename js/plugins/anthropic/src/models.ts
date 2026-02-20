@@ -272,12 +272,7 @@ export function claudeModelReference(
 export function claudeModel(
   params: ClaudeModelParams
 ): ModelAction<z.ZodTypeAny> {
-  const {
-    name,
-    client: runnerClient,
-    cacheSystemPrompt: cachePrompt,
-    defaultApiVersion: apiVersion,
-  } = params;
+  const { name, client: runnerClient, defaultApiVersion: apiVersion } = params;
   // Use supported model ref if available, otherwise create generic model ref
   const knownModelRef = KNOWN_CLAUDE_MODELS[name];
   let modelInfo = knownModelRef
@@ -297,7 +292,6 @@ export function claudeModel(
       {
         name,
         client: runnerClient,
-        cacheSystemPrompt: cachePrompt,
         defaultApiVersion: apiVersion,
       },
       configSchema

@@ -25,17 +25,12 @@ actions, tools, and configuration options.
 
 from __future__ import annotations
 
-import sys  # noqa
-
-if sys.version_info < (3, 11):  # noqa
-    from strenum import StrEnum  # noqa
-else:  # noqa
-    from enum import StrEnum  # noqa
-
-
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic.alias_generators import to_camel
+
+from genkit.core._compat import StrEnum
 
 
 class Model(RootModel[Any]):
@@ -47,7 +42,7 @@ class Model(RootModel[Any]):
 class Embedding(BaseModel):
     """Model for embedding data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     embedding: list[float]
     metadata: dict[str, Any] | None = None
 
@@ -55,21 +50,21 @@ class Embedding(BaseModel):
 class BaseDataPoint(BaseModel):
     """Model for basedatapoint data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     input: Any | None = None
     output: Any | None = None
     context: list[Any] | None = None
     reference: Any | None = None
-    test_case_id: str | None = Field(None, alias='testCaseId')
-    trace_ids: list[str] | None = Field(None, alias='traceIds')
+    test_case_id: str | None = Field(default=None)
+    trace_ids: list[str] | None = Field(default=None)
 
 
 class EvalRequest(BaseModel):
     """Model for evalrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     dataset: list[BaseDataPoint]
-    eval_run_id: str = Field(..., alias='evalRunId')
+    eval_run_id: str = Field(...)
     options: Any | None = None
 
 
@@ -84,15 +79,15 @@ class EvalStatusEnum(StrEnum):
 class Details(BaseModel):
     """Model for details data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     reasoning: str | None = None
 
 
 class Score(BaseModel):
     """Model for score data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    id: str | None = Field(None, description='Optional ID to differentiate different scores')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    id: str | None = Field(default=None, description='Optional ID to differentiate different scores')
     score: float | str | bool | None = None
     status: EvalStatusEnum | None = None
     error: str | None = None
@@ -102,23 +97,23 @@ class Score(BaseModel):
 class GenkitErrorDetails(BaseModel):
     """Model for genkiterrordetails data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     stack: str | None = None
-    trace_id: str = Field(..., alias='traceId')
+    trace_id: str = Field(...)
 
 
 class Data(BaseModel):
     """Model for data data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    genkit_error_message: str | None = Field(None, alias='genkitErrorMessage')
-    genkit_error_details: GenkitErrorDetails | None = Field(None, alias='genkitErrorDetails')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    genkit_error_message: str | None = Field(default=None)
+    genkit_error_details: GenkitErrorDetails | None = Field(default=None)
 
 
 class GenkitError(BaseModel):
     """Model for genkiterror data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     message: str
     stack: str | None = None
     details: Any | None = None
@@ -136,7 +131,7 @@ class Code(StrEnum):
 class CandidateError(BaseModel):
     """Model for candidateerror data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     index: float
     code: Code
     message: str | None = None
@@ -145,11 +140,11 @@ class CandidateError(BaseModel):
 class CustomPart(BaseModel):
     """Model for custompart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Any | None = None
     media: Any | None = None
-    tool_request: Any | None = Field(None, alias='toolRequest')
-    tool_response: Any | None = Field(None, alias='toolResponse')
+    tool_request: Any | None = Field(default=None)
+    tool_response: Any | None = Field(default=None)
     data: Any | None = None
     metadata: dict[str, Any] | None = None
     custom: dict[str, Any]
@@ -179,44 +174,46 @@ class ToolChoice(StrEnum):
 class GenerateActionOutputConfig(BaseModel):
     """Model for generateactionoutputconfig data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     format: str | None = None
-    content_type: str | None = Field(None, alias='contentType')
+    content_type: str | None = Field(default=None)
     instructions: bool | str | None = None
-    json_schema: Any | None = Field(None, alias='jsonSchema')
+    json_schema: Any | None = Field(default=None)
     constrained: bool | None = None
+    # Store the original Pydantic type for runtime validation (excluded from JSON)
+    schema_type: Any = Field(default=None, exclude=True)
 
 
 class GenerationCommonConfig(BaseModel):
     """Model for generationcommonconfig data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     version: str | None = None
     temperature: float | None = None
-    max_output_tokens: float | None = Field(None, alias='maxOutputTokens')
-    top_k: float | None = Field(None, alias='topK')
-    top_p: float | None = Field(None, alias='topP')
-    stop_sequences: list[str] | None = Field(None, alias='stopSequences')
+    max_output_tokens: float | None = Field(default=None)
+    top_k: float | None = Field(default=None)
+    top_p: float | None = Field(default=None)
+    stop_sequences: list[str] | None = Field(default=None)
 
 
 class GenerationUsage(BaseModel):
     """Model for generationusage data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    input_tokens: float | None = Field(None, alias='inputTokens')
-    output_tokens: float | None = Field(None, alias='outputTokens')
-    total_tokens: float | None = Field(None, alias='totalTokens')
-    input_characters: float | None = Field(None, alias='inputCharacters')
-    output_characters: float | None = Field(None, alias='outputCharacters')
-    input_images: float | None = Field(None, alias='inputImages')
-    output_images: float | None = Field(None, alias='outputImages')
-    input_videos: float | None = Field(None, alias='inputVideos')
-    output_videos: float | None = Field(None, alias='outputVideos')
-    input_audio_files: float | None = Field(None, alias='inputAudioFiles')
-    output_audio_files: float | None = Field(None, alias='outputAudioFiles')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    input_tokens: float | None = Field(default=None)
+    output_tokens: float | None = Field(default=None)
+    total_tokens: float | None = Field(default=None)
+    input_characters: float | None = Field(default=None)
+    output_characters: float | None = Field(default=None)
+    input_images: float | None = Field(default=None)
+    output_images: float | None = Field(default=None)
+    input_videos: float | None = Field(default=None)
+    output_videos: float | None = Field(default=None)
+    input_audio_files: float | None = Field(default=None)
+    output_audio_files: float | None = Field(default=None)
     custom: dict[str, float] | None = None
-    thoughts_tokens: float | None = Field(None, alias='thoughtsTokens')
-    cached_content_tokens: float | None = Field(None, alias='cachedContentTokens')
+    thoughts_tokens: float | None = Field(default=None)
+    cached_content_tokens: float | None = Field(default=None)
 
 
 class Constrained(StrEnum):
@@ -230,17 +227,17 @@ class Constrained(StrEnum):
 class Supports(BaseModel):
     """Model for supports data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     multiturn: bool | None = None
     media: bool | None = None
     tools: bool | None = None
-    system_role: bool | None = Field(None, alias='systemRole')
+    system_role: bool | None = Field(default=None)
     output: list[str] | None = None
-    content_type: list[str] | None = Field(None, alias='contentType')
+    content_type: list[str] | None = Field(default=None)
     context: bool | None = None
     constrained: Constrained | None = None
-    tool_choice: bool | None = Field(None, alias='toolChoice')
-    long_running: bool | None = Field(None, alias='longRunning')
+    tool_choice: bool | None = Field(default=None)
+    long_running: bool | None = Field(default=None)
 
 
 class Stage(StrEnum):
@@ -256,10 +253,10 @@ class Stage(StrEnum):
 class ModelInfo(BaseModel):
     """Model for modelinfo data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     versions: list[str] | None = None
     label: str | None = None
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+    config_schema: dict[str, Any] | None = Field(default=None)
     supports: Supports | None = None
     stage: Stage | None = None
 
@@ -267,14 +264,14 @@ class ModelInfo(BaseModel):
 class Error(BaseModel):
     """Model for error data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     message: str
 
 
 class Operation(BaseModel):
     """Model for operation data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     action: str | None = None
     id: str
     done: bool | None = None
@@ -286,17 +283,21 @@ class Operation(BaseModel):
 class OutputConfig(BaseModel):
     """Model for outputconfig data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        alias_generator=to_camel, extra='forbid', populate_by_name=True, protected_namespaces=()
+    )
     format: str | None = None
-    schema_: dict[str, Any] | None = Field(None, alias='schema')
+    # pyrefly: ignore[bad-override] - Pydantic protected_namespaces=() allows schema field.
+    # 'schema' shadows BaseModel.schema() but protected_namespaces=() explicitly allows this.
+    schema: dict[str, Any] | None = Field(default=None)  # pyright: ignore[reportIncompatibleMethodOverride]
     constrained: bool | None = None
-    content_type: str | None = Field(None, alias='contentType')
+    content_type: str | None = Field(default=None)
 
 
 class Resource1(BaseModel):
     """Model for resource1 data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     uri: str
 
 
@@ -312,30 +313,30 @@ class Role(StrEnum):
 class ToolDefinition(BaseModel):
     """Model for tooldefinition data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str
     description: str
     input_schema: dict[str, Any] | None = Field(
-        None, alias='inputSchema', description='Valid JSON Schema representing the input of the tool.'
+        default=None, description='Valid JSON Schema representing the input of the tool.'
     )
     output_schema: dict[str, Any] | None = Field(
-        None, alias='outputSchema', description='Valid JSON Schema describing the output of the tool.'
+        default=None, description='Valid JSON Schema describing the output of the tool.'
     )
-    metadata: dict[str, Any] | None = Field(None, description='additional metadata for this tool definition')
+    metadata: dict[str, Any] | None = Field(default=None, description='additional metadata for this tool definition')
 
 
 class Media(BaseModel):
     """Model for media data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    content_type: str | None = Field(None, alias='contentType')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    content_type: str | None = Field(default=None)
     url: str
 
 
 class ToolRequest(BaseModel):
     """Model for toolrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     ref: str | None = None
     name: str
     input: Any | None = None
@@ -345,7 +346,7 @@ class ToolRequest(BaseModel):
 class ToolResponse(BaseModel):
     """Model for toolresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     ref: str | None = None
     name: str
     output: Any | None = None
@@ -355,37 +356,39 @@ class ToolResponse(BaseModel):
 class CommonRerankerOptions(BaseModel):
     """Model for commonrerankeroptions data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    k: float | None = Field(None, description='Number of documents to rerank')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    k: float | None = Field(default=None, description='Number of documents to rerank')
 
 
 class RankedDocumentMetadata(BaseModel):
     """Model for rankeddocumentmetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     score: float
 
 
 class CommonRetrieverOptions(BaseModel):
     """Model for commonretrieveroptions data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    k: float | None = Field(None, description='Number of documents to retrieve')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    k: float | None = Field(default=None, description='Number of documents to retrieve')
 
 
 class InstrumentationLibrary(BaseModel):
     """Model for instrumentationlibrary data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str
     version: str | None = None
-    schema_url: str | None = Field(None, alias='schemaUrl')
+    schema_url: str | None = Field(default=None)
 
 
 class PathMetadata(BaseModel):
     """Model for pathmetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        alias_generator=to_camel, extra='forbid', frozen=True, populate_by_name=True
+    )
     path: str
     status: str
     error: str | None = None
@@ -395,17 +398,17 @@ class PathMetadata(BaseModel):
 class SpanContext(BaseModel):
     """Model for spancontext data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: str = Field(..., alias='traceId')
-    span_id: str = Field(..., alias='spanId')
-    is_remote: bool | None = Field(None, alias='isRemote')
-    trace_flags: float = Field(..., alias='traceFlags')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str = Field(...)
+    span_id: str = Field(...)
+    is_remote: bool | None = Field(default=None)
+    trace_flags: float = Field(...)
 
 
 class SameProcessAsParentSpan(BaseModel):
     """Model for sameprocessasparentspan data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     value: bool
 
 
@@ -419,12 +422,12 @@ class State(StrEnum):
 class SpanMetadata(BaseModel):
     """Model for spanmetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str
     state: State | None = None
     input: Any | None = None
     output: Any | None = None
-    is_root: bool | None = Field(None, alias='isRoot')
+    is_root: bool | None = Field(default=None)
     metadata: dict[str, str] | None = None
     path: str | None = None
 
@@ -432,7 +435,7 @@ class SpanMetadata(BaseModel):
 class SpanStatus(BaseModel):
     """Model for spanstatus data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     code: float
     message: str | None = None
 
@@ -440,7 +443,7 @@ class SpanStatus(BaseModel):
 class Annotation(BaseModel):
     """Model for annotation data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     attributes: dict[str, Any]
     description: str
 
@@ -448,7 +451,7 @@ class Annotation(BaseModel):
 class TimeEvent(BaseModel):
     """Model for timeevent data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     time: float
     annotation: Annotation
 
@@ -456,8 +459,8 @@ class TimeEvent(BaseModel):
 class TraceMetadata(BaseModel):
     """Model for tracemetadata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    feature_name: str | None = Field(None, alias='featureName')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    feature_name: str | None = Field(default=None)
     paths: set[PathMetadata] | None = None
     timestamp: float
 
@@ -615,30 +618,30 @@ class TraceId(RootModel[str]):
 class EmbedResponse(BaseModel):
     """Model for embedresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     embeddings: list[Embedding]
 
 
 class BaseEvalDataPoint(BaseModel):
     """Model for baseevaldatapoint data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     input: Input | None = None
     output: Output | None = None
     context: Context | None = None
     reference: Reference | None = None
-    test_case_id: str = Field(..., alias='testCaseId')
-    trace_ids: TraceIds | None = Field(None, alias='traceIds')
+    test_case_id: str = Field(...)
+    trace_ids: TraceIds | None = Field(default=None)
 
 
 class EvalFnResponse(BaseModel):
     """Model for evalfnresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    sample_index: float | None = Field(None, alias='sampleIndex')
-    test_case_id: str = Field(..., alias='testCaseId')
-    trace_id: str | None = Field(None, alias='traceId')
-    span_id: str | None = Field(None, alias='spanId')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    sample_index: float | None = Field(default=None)
+    test_case_id: str = Field(...)
+    trace_id: str | None = Field(default=None)
+    span_id: str | None = Field(default=None)
     evaluation: Score | list[Score]
 
 
@@ -651,11 +654,11 @@ class EvalResponse(RootModel[list[EvalFnResponse]]):
 class DataPart(BaseModel):
     """Model for datapart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: Any | None = None
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
@@ -666,11 +669,11 @@ class DataPart(BaseModel):
 class MediaPart(BaseModel):
     """Model for mediapart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: Media
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -681,11 +684,11 @@ class MediaPart(BaseModel):
 class ReasoningPart(BaseModel):
     """Model for reasoningpart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -696,11 +699,11 @@ class ReasoningPart(BaseModel):
 class ResourcePart(BaseModel):
     """Model for resourcepart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -711,11 +714,11 @@ class ResourcePart(BaseModel):
 class TextPart(BaseModel):
     """Model for textpart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: str
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -726,11 +729,11 @@ class TextPart(BaseModel):
 class ToolRequestPart(BaseModel):
     """Model for toolrequestpart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequest = Field(..., alias='toolRequest')
-    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    tool_request: ToolRequest = Field(...)
+    tool_response: ToolResponseModel | None = Field(default=None)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -741,11 +744,11 @@ class ToolRequestPart(BaseModel):
 class ToolResponsePart(BaseModel):
     """Model for toolresponsepart data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     text: Text | None = None
     media: MediaModel | None = None
-    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
-    tool_response: ToolResponse = Field(..., alias='toolResponse')
+    tool_request: ToolRequestModel | None = Field(default=None)
+    tool_response: ToolResponse = Field(...)
     data: DataModel | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
@@ -756,44 +759,44 @@ class ToolResponsePart(BaseModel):
 class Link(BaseModel):
     """Model for link data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     context: SpanContext | None = None
     attributes: dict[str, Any] | None = None
-    dropped_attributes_count: float | None = Field(None, alias='droppedAttributesCount')
+    dropped_attributes_count: float | None = Field(default=None)
 
 
 class TimeEvents(BaseModel):
     """Model for timeevents data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    time_event: list[TimeEvent] | None = Field(None, alias='timeEvent')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    time_event: list[TimeEvent] | None = Field(default=None)
 
 
 class SpanData(BaseModel):
     """Model for spandata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    span_id: str = Field(..., alias='spanId')
-    trace_id: str = Field(..., alias='traceId')
-    parent_span_id: str | None = Field(None, alias='parentSpanId')
-    start_time: float = Field(..., alias='startTime')
-    end_time: float = Field(..., alias='endTime')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    span_id: str = Field(...)
+    trace_id: str = Field(...)
+    parent_span_id: str | None = Field(default=None)
+    start_time: float = Field(...)
+    end_time: float = Field(...)
     attributes: dict[str, Any]
-    display_name: str = Field(..., alias='displayName')
+    display_name: str = Field(...)
     links: list[Link] | None = None
-    instrumentation_library: InstrumentationLibrary = Field(..., alias='instrumentationLibrary')
-    span_kind: str = Field(..., alias='spanKind')
-    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(None, alias='sameProcessAsParentSpan')
+    instrumentation_library: InstrumentationLibrary = Field(...)
+    span_kind: str = Field(...)
+    same_process_as_parent_span: SameProcessAsParentSpan | None = Field(default=None)
     status: SpanStatus | None = None
-    time_events: TimeEvents | None = Field(None, alias='timeEvents')
+    time_events: TimeEvents | None = Field(default=None)
     truncated: bool | None = None
 
 
 class SpanEndEvent(BaseModel):
     """Model for spanendevent data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: str = Field(..., alias='traceId')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str = Field(...)
     span: SpanData
     type: Literal['span_end']
 
@@ -801,8 +804,8 @@ class SpanEndEvent(BaseModel):
 class SpanStartEvent(BaseModel):
     """Model for spanstartevent data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: TraceId = Field(..., alias='traceId')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(...)
     span: SpanData
     type: Literal['span_start']
 
@@ -810,21 +813,19 @@ class SpanStartEvent(BaseModel):
 class SpantEventBase(BaseModel):
     """Model for spanteventbase data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: TraceId = Field(..., alias='traceId')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: TraceId = Field(...)
     span: SpanData
 
 
 class TraceData(BaseModel):
     """Model for tracedata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    trace_id: str = Field(..., alias='traceId')
-    display_name: str | None = Field(None, alias='displayName')
-    start_time: float | None = Field(
-        None, alias='startTime', description='trace start time in milliseconds since the epoch'
-    )
-    end_time: float | None = Field(None, alias='endTime', description='end time in milliseconds since the epoch')
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str = Field(...)
+    display_name: str | None = Field(default=None)
+    start_time: float | None = Field(default=None, description='trace start time in milliseconds since the epoch')
+    end_time: float | None = Field(default=None, description='end time in milliseconds since the epoch')
     spans: dict[str, SpanData]
 
 
@@ -843,7 +844,7 @@ class DocumentPart(RootModel[TextPart | MediaPart]):
 class Resume(BaseModel):
     """Model for resume data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     respond: list[ToolResponsePart] | None = None
     restart: list[ToolRequestPart] | None = None
     metadata: dict[str, Any] | None = None
@@ -864,7 +865,7 @@ class Part(
 class RankedDocumentData(BaseModel):
     """Model for rankeddocumentdata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     content: list[DocumentPart]
     metadata: RankedDocumentMetadata
 
@@ -872,7 +873,7 @@ class RankedDocumentData(BaseModel):
 class RerankerResponse(BaseModel):
     """Model for rerankerresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     documents: list[RankedDocumentData]
 
 
@@ -885,7 +886,7 @@ class Content(RootModel[list[Part]]):
 class DocumentData(BaseModel):
     """Model for documentdata data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     content: list[DocumentPart]
     metadata: dict[str, Any] | None = None
 
@@ -893,7 +894,7 @@ class DocumentData(BaseModel):
 class EmbedRequest(BaseModel):
     """Model for embedrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     input: list[DocumentData]
     options: Any | None = None
 
@@ -901,7 +902,7 @@ class EmbedRequest(BaseModel):
 class GenerateResponseChunk(BaseModel):
     """Model for generateresponsechunk data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     role: Role | None = None
     index: float | None = None
     content: list[Part]
@@ -912,7 +913,7 @@ class GenerateResponseChunk(BaseModel):
 class Message(BaseModel):
     """Model for message data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     role: Role | str
     content: list[Part]
     metadata: dict[str, Any] | None = None
@@ -921,7 +922,7 @@ class Message(BaseModel):
 class ModelResponseChunk(BaseModel):
     """Model for modelresponsechunk data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     role: Role | None = None
     index: Index | None = None
     content: Content
@@ -932,7 +933,7 @@ class ModelResponseChunk(BaseModel):
 class MultipartToolResponse(BaseModel):
     """Model for multiparttoolresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     output: Any | None = None
     content: list[Part] | None = None
 
@@ -940,7 +941,7 @@ class MultipartToolResponse(BaseModel):
 class RerankerRequest(BaseModel):
     """Model for rerankerrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     query: DocumentData
     documents: list[DocumentData]
     options: Any | None = None
@@ -949,7 +950,7 @@ class RerankerRequest(BaseModel):
 class RetrieverRequest(BaseModel):
     """Model for retrieverrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     query: DocumentData
     options: Any | None = None
 
@@ -957,7 +958,7 @@ class RetrieverRequest(BaseModel):
 class RetrieverResponse(BaseModel):
     """Model for retrieverresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     documents: list[DocumentData]
 
 
@@ -976,40 +977,41 @@ class Messages(RootModel[list[Message]]):
 class Candidate(BaseModel):
     """Model for candidate data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     index: float
     message: Message
     usage: GenerationUsage | None = None
-    finish_reason: FinishReason = Field(..., alias='finishReason')
-    finish_message: str | None = Field(None, alias='finishMessage')
+    finish_reason: FinishReason = Field(...)
+    finish_message: str | None = Field(default=None)
     custom: Any | None = None
 
 
 class GenerateActionOptions(BaseModel):
     """Model for generateactionoptions data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     model: str | None = None
     docs: list[DocumentData] | None = None
     messages: list[Message]
     tools: list[str] | None = None
-    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
+    resources: list[str] | None = None
+    tool_choice: ToolChoice | None = Field(default=None)
     config: Any | None = None
     output: GenerateActionOutputConfig | None = None
     resume: Resume | None = None
-    return_tool_requests: bool | None = Field(None, alias='returnToolRequests')
-    max_turns: float | None = Field(None, alias='maxTurns')
-    step_name: str | None = Field(None, alias='stepName')
+    return_tool_requests: bool | None = Field(default=None)
+    max_turns: float | None = Field(default=None)
+    step_name: str | None = Field(default=None)
 
 
 class GenerateRequest(BaseModel):
     """Model for generaterequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     messages: list[Message]
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
-    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
+    tool_choice: ToolChoice | None = Field(default=None)
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
     candidates: float | None = None
@@ -1018,11 +1020,11 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     """Model for generateresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     message: Message | None = None
-    finish_reason: FinishReason | None = Field(None, alias='finishReason')
-    finish_message: str | None = Field(None, alias='finishMessage')
-    latency_ms: float | None = Field(None, alias='latencyMs')
+    finish_reason: FinishReason | None = Field(default=None)
+    finish_message: str | None = Field(default=None)
+    latency_ms: float | None = Field(default=None)
     usage: GenerationUsage | None = None
     custom: Any | None = None
     raw: Any | None = None
@@ -1034,11 +1036,11 @@ class GenerateResponse(BaseModel):
 class ModelRequest(BaseModel):
     """Model for modelrequest data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     messages: Messages
     config: Config | None = None
     tools: Tools | None = None
-    tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
+    tool_choice: ToolChoice | None = Field(default=None)
     output: OutputModel | None = None
     docs: Docs | None = None
 
@@ -1052,11 +1054,11 @@ class Request(RootModel[GenerateRequest]):
 class ModelResponse(BaseModel):
     """Model for modelresponse data."""
 
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     message: Message | None = None
-    finish_reason: FinishReason = Field(..., alias='finishReason')
-    finish_message: FinishMessage | None = Field(None, alias='finishMessage')
-    latency_ms: LatencyMs | None = Field(None, alias='latencyMs')
+    finish_reason: FinishReason = Field(...)
+    finish_message: FinishMessage | None = Field(default=None)
+    latency_ms: LatencyMs | None = Field(default=None)
     usage: Usage | None = None
     custom: CustomModel | None = None
     raw: Raw | None = None

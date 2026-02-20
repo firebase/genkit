@@ -71,8 +71,8 @@ describe('Common Utils', () => {
     });
 
     it('should work with embedderRef', () => {
-      const ref = embedderRef({ name: 'vertexai/text-embedding-004' });
-      assert.strictEqual(extractVersion(ref), 'text-embedding-004');
+      const ref = embedderRef({ name: 'vertexai/gemini-embedding-001' });
+      assert.strictEqual(extractVersion(ref), 'gemini-embedding-001');
     });
   });
 

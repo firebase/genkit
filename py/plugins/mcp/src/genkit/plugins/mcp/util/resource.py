@@ -14,26 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Resource utilities for MCP plugin.
+"""Resource utilities for MCP plugin.
 
 This module contains helper functions for handling MCP resources,
 including reading and converting resource content.
 """
 
-from typing import Any, Dict
-
 import structlog
 
-from genkit.core.typing import Part
-from mcp.types import BlobResourceContents, ReadResourceResult, Resource, TextResourceContents
+from genkit.core.typing import MediaPart, Part, TextPart
+from mcp.types import AnyUrl, BlobResourceContents, ReadResourceResult, Resource, TextResourceContents
 
 logger = structlog.get_logger(__name__)
 
 
-def from_mcp_resource_part(content: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert MCP resource content to Genkit Part format.
+def from_mcp_resource_part(
+    content: dict[str, object] | TextResourceContents | BlobResourceContents,
+) -> dict[str, object]:
+    """Convert MCP resource content to Genkit Part format.
 
     Handles different content types:
     - Text content is mapped to text part
@@ -45,6 +43,17 @@ def from_mcp_resource_part(content: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Genkit Part representation
     """
+    if isinstance(content, TextResourceContents):
+        return {'text': content.text}
+    elif isinstance(content, BlobResourceContents):
+        return {
+            'media': {
+                'contentType': content.mimeType,
+                'url': f'data:{content.mimeType};base64,{content.blob}',
+            }
+        }
+
+    # Handle legacy dict
     content_type = content.get('type', '')
 
     if content_type == 'text':
@@ -64,9 +73,8 @@ def from_mcp_resource_part(content: Dict[str, Any]) -> Dict[str, Any]:
     return {'text': str(content)}
 
 
-def process_resource_content(resource_result: ReadResourceResult) -> Any:
-    """
-    Process MCP ReadResourceResult and extract content.
+def process_resource_content(resource_result: ReadResourceResult) -> object:
+    """Process MCP ReadResourceResult and extract content.
 
     Args:
         resource_result: The ReadResourceResult from MCP server
@@ -80,9 +88,8 @@ def process_resource_content(resource_result: ReadResourceResult) -> Any:
     return [from_mcp_resource_part(content) for content in resource_result.contents]
 
 
-def convert_resource_to_genkit_part(resource: Resource) -> dict[str, Any]:
-    """
-    Convert MCP resource to Genkit Part format.
+def convert_resource_to_genkit_part(resource: Resource) -> dict[str, object]:
+    """Convert MCP resource to Genkit Part format.
 
     Args:
         resource: MCP resource object
@@ -99,7 +106,7 @@ def convert_resource_to_genkit_part(resource: Resource) -> dict[str, Any]:
     }
 
 
-def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceContents | BlobResourceContents]:
+def to_mcp_resource_contents(uri: str | AnyUrl, parts: list[Part]) -> list[TextResourceContents | BlobResourceContents]:
     """Convert Genkit Parts to MCP resource contents.
 
     Args:
@@ -114,10 +121,32 @@ def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceCo
         ValueError: If part type is not supported.
     """
     contents: list[TextResourceContents | BlobResourceContents] = []
+    uri_str = str(uri)
 
     for part in parts:
-        if isinstance(part, dict):
-            # Handle media/image content
+        if isinstance(part, Part):
+            # Handle Genkit Part object
+            if isinstance(part.root, TextPart) and part.root.text is not None:
+                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part.root.text))
+            elif isinstance(part.root, MediaPart):
+                media = part.root.media
+                url = media.url
+                content_type = media.content_type
+
+                if not url.startswith('data:'):
+                    raise ValueError('MCP resource messages only support base64 data images.')
+
+                try:
+                    mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
+                    blob_data = url[url.index(',') + 1 :]
+                    contents.append(BlobResourceContents(uri=AnyUrl(uri), mimeType=mime_type, blob=blob_data))
+                except ValueError as e:
+                    raise ValueError(f'Invalid data URL format: {url}') from e
+            elif isinstance(part.root, TextPart):
+                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part.root.text))
+
+        elif isinstance(part, dict):
+            # Legacy/Dict definition support
             if 'media' in part:
                 media = part['media']
                 url = media.get('url', '')
@@ -126,24 +155,22 @@ def to_mcp_resource_contents(uri: str, parts: list[Part]) -> list[TextResourceCo
                 if not url.startswith('data:'):
                     raise ValueError('MCP resource messages only support base64 data images.')
 
-                # Extract MIME type and base64 data
                 try:
                     mime_type = content_type or url[url.index(':') + 1 : url.index(';')]
                     blob_data = url[url.index(',') + 1 :]
                 except ValueError as e:
                     raise ValueError(f'Invalid data URL format: {url}') from e
 
-                contents.append(BlobResourceContents(uri=uri, mimeType=mime_type, blob=blob_data))
+                contents.append(BlobResourceContents(uri=AnyUrl(uri_str), mimeType=mime_type, blob=blob_data))
 
-            # Handle text content
             elif 'text' in part:
-                contents.append(TextResourceContents(uri=uri, text=part['text']))
+                contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part['text']))
             else:
                 raise ValueError(
                     f'MCP resource messages only support media and text parts. '
                     f'Unsupported part type: {list(part.keys())}'
                 )
         elif isinstance(part, str):
-            contents.append(TextResourceContents(uri=uri, text=part))
+            contents.append(TextResourceContents(uri=AnyUrl(uri_str), text=part))
 
     return contents

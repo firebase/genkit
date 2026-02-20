@@ -43,14 +43,20 @@ import type {
 import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
-import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
+import {
+  AnthropicConfigSchema,
+  type AnthropicDocumentOptions,
+  type ClaudeRunnerParams,
+} from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
 import {
   betaServerToolUseBlockToPart,
+  toBetaDocumentBlock,
   unsupportedServerToolError,
 } from './converters/beta.js';
 import {
+  citationsDeltaToPart,
   inputJsonDeltaError,
   redactedThinkingBlockToPart,
   textBlockToPart,
@@ -182,6 +188,13 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       return { type: 'text', text: part.text };
     }
 
+    // Custom document (for citations support)
+    if (part.custom?.anthropicDocument) {
+      return toBetaDocumentBlock(
+        part.custom.anthropicDocument as AnthropicDocumentOptions
+      );
+    }
+
     // Media
     if (part.media) {
       if (part.media.contentType === 'anthropic/file') {
@@ -291,27 +304,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
    */
   protected toAnthropicRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): BetaMessageCreateParamsNonStreaming {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? extractVersion(model, modelName);
-
-    let betaSystem: BetaMessageCreateParamsNonStreaming['system'];
-
-    if (system !== undefined) {
-      betaSystem = cacheSystemPrompt
-        ? [
-            {
-              type: 'text' as const,
-              text: system,
-              cache_control: { type: 'ephemeral' as const },
-            },
-          ]
-        : system;
-    }
 
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
@@ -334,7 +332,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
-      system: betaSystem,
+      system: system as BetaTextBlockParam[],
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
       top_k: topK,
@@ -363,26 +361,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
    */
   protected toAnthropicStreamingRequestBody(
     modelName: string,
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
-    cacheSystemPrompt?: boolean
+    request: GenerateRequest<typeof AnthropicConfigSchema>
   ): BetaMessageCreateParamsStreaming {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? extractVersion(model, modelName);
-
-    const betaSystem =
-      system === undefined
-        ? undefined
-        : cacheSystemPrompt
-          ? [
-              {
-                type: 'text' as const,
-                text: system,
-                cache_control: { type: 'ephemeral' as const },
-              },
-            ]
-          : system;
 
     const thinkingConfig = this.toAnthropicThinkingConfig(
       request.config?.thinking
@@ -406,7 +390,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       messages,
       stream: true,
-      system: betaSystem,
+      system: system as BetaTextBlockParam[],
       stop_sequences: request.config?.stopSequences,
       temperature: request.config?.temperature,
       top_k: topK,
@@ -462,6 +446,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       }
       if (event.delta.type === 'thinking_delta') {
         return thinkingDeltaToPart(event.delta);
+      }
+      if (event.delta.type === 'citations_delta') {
+        return citationsDeltaToPart(event.delta);
       }
       if (event.delta.type === 'input_json_delta') {
         throw inputJsonDeltaError();

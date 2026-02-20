@@ -2068,6 +2068,131 @@ func TestGenerateDataStream(t *testing.T) {
 		}
 	})
 
+	t.Run("handles tool interrupts", func(t *testing.T) {
+		interruptTool := DefineTool(r, "streamInterruptor", "always interrupts",
+			func(ctx *ToolContext, input any) (any, error) {
+				return nil, ctx.Interrupt(&InterruptOptions{
+					Metadata: map[string]any{
+						"reason": "needs confirmation",
+					},
+				})
+			},
+		)
+
+		streamModel := DefineModel(r, "test/streamInterruptModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Tools:       true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			if cb != nil {
+				cb(ctx, &ModelResponseChunk{
+					Content: []*Part{NewTextPart("thinking...")},
+				})
+			}
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{
+						NewToolRequestPart(&ToolRequest{
+							Name:  "streamInterruptor",
+							Input: nil,
+						}),
+					},
+				},
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		var gotError error
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("trigger interrupt"),
+			WithTools(interruptTool),
+		) {
+			if err != nil {
+				gotError = err
+				break
+			}
+			if val.Done {
+				finalResponse = val.Response
+			}
+		}
+
+		if gotError != nil {
+			t.Fatalf("unexpected error: %v", gotError)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if finalResponse.FinishReason != "interrupted" {
+			t.Errorf("expected finish reason 'interrupted', got %q", finalResponse.FinishReason)
+		}
+		if len(finalResponse.Interrupts()) != 1 {
+			t.Errorf("expected 1 interrupt, got %d", len(finalResponse.Interrupts()))
+		}
+	})
+
+	t.Run("handles returnToolRequests", func(t *testing.T) {
+		greetTool := DefineTool(r, "streamGreeter", "greets",
+			func(ctx *ToolContext, input any) (any, error) {
+				return "hello", nil
+			},
+		)
+
+		streamModel := DefineModel(r, "test/streamReturnToolModel", &ModelOptions{
+			Supports: &ModelSupports{
+				Multiturn:   true,
+				Tools:       true,
+				Constrained: ConstrainedSupportAll,
+			},
+		}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: req,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{
+						NewToolRequestPart(&ToolRequest{
+							Name:  "streamGreeter",
+							Input: map[string]any{"name": "world"},
+						}),
+					},
+				},
+			}, nil
+		})
+
+		var finalResponse *ModelResponse
+		var gotError error
+
+		for val, err := range GenerateDataStream[streamingTestData](context.Background(), r,
+			WithModel(streamModel),
+			WithPrompt("greet"),
+			WithTools(greetTool),
+			WithReturnToolRequests(true),
+		) {
+			if err != nil {
+				gotError = err
+				break
+			}
+			if val.Done {
+				finalResponse = val.Response
+			}
+		}
+
+		if gotError != nil {
+			t.Fatalf("unexpected error: %v", gotError)
+		}
+		if finalResponse == nil {
+			t.Fatal("expected final response")
+		}
+		if len(finalResponse.ToolRequests()) != 1 {
+			t.Errorf("expected 1 tool request, got %d", len(finalResponse.ToolRequests()))
+		}
+	})
+
 	t.Run("propagates chunk parsing errors", func(t *testing.T) {
 		streamModel := DefineModel(r, "test/parseErrorModel", &ModelOptions{
 			Supports: &ModelSupports{
@@ -2118,7 +2243,6 @@ func TestGenerateText(t *testing.T) {
 			WithModel(echoModel),
 			WithPrompt("hello"),
 		)
-
 		if err != nil {
 			t.Fatalf("GenerateText error: %v", err)
 		}
@@ -2151,7 +2275,6 @@ func TestGenerateData(t *testing.T) {
 			WithModel(jsonModel),
 			WithPrompt("get value"),
 		)
-
 		if err != nil {
 			t.Fatalf("GenerateData error: %v", err)
 		}
@@ -2287,6 +2410,79 @@ func TestOutputFrom(t *testing.T) {
 		}
 		if output.Count != 5 {
 			t.Errorf("output.Count = %d, want 5", output.Count)
+		}
+	})
+}
+
+func TestGenerateWithMarkdownJSON(t *testing.T) {
+	r := registry.New()
+	ConfigureFormats(r)
+	DefineGenerateAction(context.Background(), r)
+
+	// A model that returns JSON wrapped in markdown
+	markdownModel := DefineModel(r, "test/markdownJson", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		jsonContent := "{\"name\": \"test\", \"value\": 123}"
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage("```json\n" + jsonContent + "\n```"),
+		}, nil
+	})
+
+	// A model that returns JSON wrapped in markdown with loose formatting (spaces)
+	looseMarkdownModel := DefineModel(r, "test/looseMarkdownJson", &ModelOptions{
+		Supports: &ModelSupports{Constrained: ConstrainedSupportAll},
+	}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+		jsonContent := "{\"name\": \"test\", \"value\": 123}"
+		return &ModelResponse{
+			Request: req,
+			Message: NewModelTextMessage("Here is your JSON:\n ``` json \n" + jsonContent + "\n```"),
+		}, nil
+	})
+
+	type OutputData struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+
+	t.Run("Standard Markdown JSON", func(t *testing.T) {
+		resp, err := Generate(context.Background(), r,
+			WithModel(markdownModel),
+			WithPrompt("get data"),
+			WithOutputType(OutputData{}),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		var out OutputData
+		if err := resp.Output(&out); err != nil {
+			t.Fatalf("Output unmarshal failed: %v", err)
+		}
+
+		if out.Name != "test" || out.Value != 123 {
+			t.Errorf("Unexpected output: %+v", out)
+		}
+	})
+
+	t.Run("Loose Markdown JSON", func(t *testing.T) {
+		resp, err := Generate(context.Background(), r,
+			WithModel(looseMarkdownModel),
+			WithPrompt("get data"),
+			WithOutputType(OutputData{}),
+		)
+		if err != nil {
+			t.Fatalf("Generate failed: %v", err)
+		}
+
+		var out OutputData
+		if err := resp.Output(&out); err != nil {
+			t.Fatalf("Output unmarshal failed: %v", err)
+		}
+
+		if out.Name != "test" || out.Value != 123 {
+			t.Errorf("Unexpected output: %+v", out)
 		}
 	})
 }

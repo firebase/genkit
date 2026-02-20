@@ -47,4 +47,4 @@ def is_query_flag_enabled(query_params: QueryParams, flag: str) -> bool:
     Returns:
         True if the query flag is enabled, False otherwise.
     """
-    return query_params.get(flag, ['false'])[0] == 'true'
+    return query_params.get(flag, 'false') == 'true'

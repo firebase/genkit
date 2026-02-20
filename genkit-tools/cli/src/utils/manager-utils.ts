@@ -21,6 +21,7 @@ import {
 import type { Status } from '@genkit-ai/tools-common';
 import {
   ProcessManager,
+  RuntimeEvent,
   RuntimeManager,
   type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
@@ -68,6 +69,10 @@ export async function startManager(
 
 export interface DevProcessManagerOptions {
   disableRealtimeTelemetry?: boolean;
+  nonInteractive?: boolean;
+  healthCheck?: boolean;
+  timeout?: number;
+  cwd?: string;
 }
 
 export async function startDevProcessManager(
@@ -93,8 +98,66 @@ export async function startDevProcessManager(
     processManager,
     disableRealtimeTelemetry,
   });
-  const processPromise = processManager.start();
+  const processPromise = processManager.start({ ...options });
+
+  if (options?.healthCheck) {
+    await waitForRuntime(manager, processPromise, options?.timeout);
+  }
+
   return { manager, processPromise };
+}
+
+/**
+ * Waits for a new runtime to register itself.
+ * Rejects if the process exits or if the timeout is reached.
+ */
+export async function waitForRuntime(
+  manager: RuntimeManager,
+  processPromise: Promise<void>,
+  timeoutMs: number = 30000
+): Promise<void> {
+  let unsubscribe: (() => void) | undefined;
+  let timeoutId: NodeJS.Timeout | undefined;
+
+  if (manager.listRuntimes().length > 0) {
+    return;
+  }
+
+  try {
+    const runtimeAddedPromise = new Promise<void>((resolve) => {
+      unsubscribe = manager.onRuntimeEvent((event) => {
+        // Just listen for a new runtime, not for a specific ID.
+        if (event === RuntimeEvent.ADD) {
+          resolve();
+        }
+      });
+      if (manager.listRuntimes().length > 0) {
+        resolve();
+      }
+    });
+
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error('Timeout waiting for runtime to be ready')),
+        timeoutMs
+      );
+    });
+
+    const processExitedPromise = processPromise.then(
+      () =>
+        Promise.reject(new Error('Process exited before runtime was ready')),
+      (err) => Promise.reject(err)
+    );
+
+    await Promise.race([
+      runtimeAddedPromise,
+      timeoutPromise,
+      processExitedPromise,
+    ]);
+  } finally {
+    if (unsubscribe) unsubscribe();
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 /**

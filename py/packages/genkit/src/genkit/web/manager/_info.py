@@ -27,14 +27,14 @@ from typing import Any
 
 try:
     import psutil
-
-    HAS_PSUTIL = True
 except ImportError:
-    HAS_PSUTIL = False
+    psutil = None  # type: ignore[assignment]
+
+import pathlib
 
 from ._server import ServerConfig
 
-# TODO: OpenTelemetry integration
+# TODO(#4354): OpenTelemetry integration
 
 
 def get_health_info(config: ServerConfig) -> dict[str, Any]:
@@ -78,14 +78,14 @@ def _get_process_info() -> dict[str, Any]:
         A dictionary containing process information.
     """
     info = {
-        'cwd': os.getcwd(),
+        'cwd': pathlib.Path.cwd(),
         'pid': os.getpid(),
         'argv': sys.argv,
         'executable': sys.executable,
         'start_time': time.time(),
     }
 
-    if HAS_PSUTIL:
+    if psutil is not None:
         try:
             process = psutil.Process()
             info.update({
@@ -112,7 +112,7 @@ def _get_memory_info() -> dict[str, Any]:
     Returns:
         A dictionary containing memory information.
     """
-    if not HAS_PSUTIL:
+    if psutil is None:
         return {'available': False}
 
     try:
@@ -146,7 +146,7 @@ def _get_disk_info() -> dict[str, Any]:
     Returns:
         A dictionary containing disk information.
     """
-    if not HAS_PSUTIL:
+    if psutil is None:
         return {'available': False}
 
     try:
@@ -183,7 +183,7 @@ def _get_network_info() -> dict[str, Any]:
     Returns:
         A dictionary containing network information.
     """
-    info = {
+    info: dict[str, Any] = {
         'hostname': socket.gethostname(),
     }
 
@@ -197,7 +197,7 @@ def _get_network_info() -> dict[str, Any]:
     except (OSError, IndexError):
         pass
 
-    if HAS_PSUTIL:
+    if psutil is not None:
         try:
             net_io = psutil.net_io_counters()
             info['stats'] = {
@@ -290,9 +290,9 @@ def _get_deps_info() -> dict[str, Any]:
                         for req in requires:
                             if current_module in req.lower():
                                 module_deps[pkg_name] = packages[pkg_name]
-                except Exception:
+                except Exception:  # noqa: S110 - best-effort dependency discovery
                     pass
-        except Exception:
+        except Exception:  # noqa: S110 - best-effort module info gathering
             pass
 
         return {
@@ -357,12 +357,10 @@ def get_server_info(config: ServerConfig) -> dict[str, Any]:
         A dictionary containing server information.
     """
     has_prefix = hasattr(config, 'env_prefix')
-    env_prefix = config.env_prefix if has_prefix else None
+    env_prefix = config.env_prefix if has_prefix else None  # type: ignore[attr-defined]
 
     # Get feature flags if available
-    feature_flags = {}
-    if hasattr(config, 'feature_flags'):
-        feature_flags = config.feature_flags
+    feature_flags: dict[str, Any] = getattr(config, 'feature_flags', {})
 
     return {
         'process': _get_process_info(),

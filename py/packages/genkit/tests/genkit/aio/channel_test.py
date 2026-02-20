@@ -155,3 +155,61 @@ async def test_channel_timeout_race_condition() -> None:
     result = await channel.__anext__()
     assert result == 'just in time'
     await send_task
+
+
+@pytest.mark.asyncio
+async def test_channel_close_future_with_exception() -> None:
+    """Tests that exceptions from close_future are propagated to channel.closed."""
+    channel: Channel[Any] = Channel()
+
+    async def failing_task() -> str:
+        raise ValueError('Task failed!')
+
+    task = asyncio.create_task(failing_task())
+    channel.set_close_future(task)
+
+    # Wait for the task to complete
+    await asyncio.sleep(0.01)
+
+    # The channel.closed future should have the exception
+    with pytest.raises(ValueError, match='Task failed!'):
+        await channel.closed
+
+
+@pytest.mark.asyncio
+async def test_channel_close_future_cancelled() -> None:
+    """Tests that cancellation of close_future is propagated to channel.closed."""
+    channel: Channel[Any] = Channel()
+
+    async def long_running_task() -> str:
+        await asyncio.sleep(10)
+        return 'done'
+
+    task = asyncio.create_task(long_running_task())
+    channel.set_close_future(task)
+
+    # Cancel the task
+    task.cancel()
+
+    # Wait for cancellation to propagate
+    await asyncio.sleep(0.01)
+
+    # The channel.closed future should be cancelled
+    assert channel.closed.cancelled()
+
+
+@pytest.mark.asyncio
+async def test_channel_close_future_success_propagates_result() -> None:
+    """Tests that successful close_future result is propagated to channel.closed."""
+    channel: Channel[Any] = Channel()
+
+    async def successful_task() -> str:
+        return 'success_result'
+
+    task = asyncio.create_task(successful_task())
+    channel.set_close_future(task)
+
+    # Wait for the task to complete
+    result = await channel.closed
+
+    assert result == 'success_result'

@@ -1,24 +1,30 @@
 # Overview
 
-The Genkit Python AI SDK publishes some packages to PYPI in order to be able to
-use them as python packages using any python package manager.
+The Genkit Python AI SDK publishes packages to PyPI so they can be installed
+with any Python package manager (`pip`, `uv`, etc.).
 
-In order to generate a new version of any package or plugin, a CI with github
-actions has been created.
+## Publishing with ReleaseKit (current)
 
-## CI to release new PYPI versions
+The primary publishing mechanism is **ReleaseKit**, an internal release
+orchestration tool. It automates the full release lifecycle:
 
-The github action located on `.github/workflows/publish_python.yml` has two
-inputs:
+* Version bumping across all packages (core + 22 plugins + samples)
+* Changelog generation from conventional commits
+* Dependency-graph-aware publish ordering with retries
+* SBOM generation
 
-* Type of project to build. E.g. Package or Plugin
-* Name of project. E.g. genkit
+The automated workflow is at `.github/workflows/releasekit-uv.yml`. See
+[`py/tools/releasekit/README.md`](../../../tools/releasekit/README.md) for
+full documentation.
 
-The process is separated in two steps. The first one make validations over the
-project to build. Mainly, the project's new version to publish must be greater
-that the current one. This step also builds with uv the package and validates
-the wheel with twine.
+## Legacy manual workflow
 
-The last step uses an action `pypa/gh-action-pypi-publish@release/v1` to publish
-the package with trusted publishers. See
-(gh-action-pypi-publish)\[https://github.com/pypa/gh-action-pypi-publish]
+The older manual workflow at `.github/workflows/publish_python.yml` is still
+available as a fallback. It accepts two inputs:
+
+* Type of project to build (Package or Plugin)
+* Name of project (e.g. `genkit`)
+
+It validates that the new version is greater than the current PyPI version,
+builds with `uv`, validates the wheel with `twine`, and publishes using
+`pypa/gh-action-pypi-publish@release/v1` with trusted publishers.
