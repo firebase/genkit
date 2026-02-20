@@ -420,54 +420,53 @@ export class Index {
         .filter((d) => {
           if (!d) return false;
           if (!query?.filter) return true;
-          if (query.filter.eq) {
-            for (const k of Object.keys(query.filter.eq)) {
-              const filterVal = query.filter.eq[k];
+          const { eq, neq, gt, gte, lt, lte } = query.filter;
+          if (eq) {
+            for (const k of Object.keys(eq)) {
+              const filterVal = eq[k];
               const val = d[k];
-              if (Array.isArray(filterVal)) {
-                if (!filterVal.includes(val as any)) return false;
-              } else {
-                if (val !== filterVal) return false;
-              }
-            }
-          }
-          if (query.filter.neq) {
-            for (const k of Object.keys(query.filter.neq)) {
-              const filterVal = query.filter.neq[k];
-              const val = d[k];
-              if (Array.isArray(filterVal)) {
-                if (filterVal.includes(val as any)) return false;
-              } else {
-                if (val === filterVal) return false;
-              }
-            }
-          }
-          if (query.filter.gt) {
-            for (const k of Object.keys(query.filter.gt)) {
-              const val = d[k];
-              if (typeof val !== 'number' || val <= query.filter.gt[k])
+              if (
+                Array.isArray(filterVal)
+                  ? !filterVal.includes(val as any)
+                  : val !== filterVal
+              )
                 return false;
             }
           }
-          if (query.filter.gte) {
-            for (const k of Object.keys(query.filter.gte)) {
+          if (neq) {
+            for (const k of Object.keys(neq)) {
+              const filterVal = neq[k];
               const val = d[k];
-              if (typeof val !== 'number' || val < query.filter.gte[k])
+              if (
+                Array.isArray(filterVal)
+                  ? filterVal.includes(val as any)
+                  : val === filterVal
+              )
                 return false;
             }
           }
-          if (query.filter.lt) {
-            for (const k of Object.keys(query.filter.lt)) {
+          if (gt) {
+            for (const k of Object.keys(gt)) {
               const val = d[k];
-              if (typeof val !== 'number' || val >= query.filter.lt[k])
-                return false;
+              if (typeof val !== 'number' || val <= gt[k]) return false;
             }
           }
-          if (query.filter.lte) {
-            for (const k of Object.keys(query.filter.lte)) {
+          if (gte) {
+            for (const k of Object.keys(gte)) {
               const val = d[k];
-              if (typeof val !== 'number' || val > query.filter.lte[k])
-                return false;
+              if (typeof val !== 'number' || val < gte[k]) return false;
+            }
+          }
+          if (lt) {
+            for (const k of Object.keys(lt)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val >= lt[k]) return false;
+            }
+          }
+          if (lte) {
+            for (const k of Object.keys(lte)) {
+              const val = d[k];
+              if (typeof val !== 'number' || val > lte[k]) return false;
             }
           }
           return true;
