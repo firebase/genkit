@@ -30,8 +30,10 @@ import OpenAI from 'openai';
 import {
   defineCompatOpenAISpeechModel,
   defineCompatOpenAITranscriptionModel,
+  defineCompatOpenAITranslationModel,
   SpeechConfigSchema,
   TranscriptionConfigSchema,
+  TranslationConfigSchema,
 } from '../audio.js';
 import { defineCompatOpenAIEmbedder } from '../embedder.js';
 import {
@@ -55,6 +57,10 @@ import {
   SUPPORTED_GPT_MODELS,
 } from './gpt.js';
 import { openAITranscriptionModelRef, SUPPORTED_STT_MODELS } from './stt.js';
+import {
+  openAITranslationModelRef,
+  SUPPORTED_TRANSLATION_MODELS,
+} from './translation.js';
 import { openAISpeechModelRef, SUPPORTED_TTS_MODELS } from './tts.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
@@ -87,6 +93,19 @@ function createResolver(pluginOptions: PluginOptions) {
         client,
         pluginOptions,
         modelRef,
+      });
+    } else if (actionName.includes('translate')) {
+      const modelRef = openAITranslationModelRef({ name: actionName });
+      return defineCompatOpenAITranslationModel({
+        name: modelRef.name,
+        client,
+        pluginOptions,
+        modelRef,
+        requestBuilder: (req, params) => {
+          if (modelRef.name.endsWith('whisper-1-translate')) {
+            params.model = 'whisper-1';
+          }
+        },
       });
     } else if (
       actionName.includes('whisper') ||
@@ -142,6 +161,15 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         const modelRef =
           SUPPORTED_TTS_MODELS[model.id] ??
           openAISpeechModelRef({ name: model.id });
+        return modelActionMetadata({
+          name: modelRef.name,
+          info: modelRef.info,
+          configSchema: modelRef.configSchema,
+        });
+      } else if (model.id.includes('translate')) {
+        const modelRef =
+          SUPPORTED_TRANSLATION_MODELS[model.id] ??
+          openAITranslationModelRef({ name: model.id });
         return modelActionMetadata({
           name: modelRef.name,
           info: modelRef.info,
@@ -210,6 +238,21 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
         )
       );
       models.push(
+        ...Object.values(SUPPORTED_TRANSLATION_MODELS).map((modelRef) =>
+          defineCompatOpenAITranslationModel({
+            name: modelRef.name,
+            client,
+            pluginOptions,
+            modelRef,
+            requestBuilder: (req, params) => {
+              if (modelRef.name.endsWith('whisper-1-translate')) {
+                params.model = 'whisper-1';
+              }
+            },
+          })
+        )
+      );
+      models.push(
         ...Object.values(SUPPORTED_STT_MODELS).map((modelRef) =>
           defineCompatOpenAITranscriptionModel({
             name: modelRef.name,
@@ -257,6 +300,13 @@ export type OpenAIPlugin = {
   ): ModelReference<typeof SpeechConfigSchema>;
   model(
     name:
+      | keyof typeof SUPPORTED_TRANSLATION_MODELS
+      | (`whisper-${string}-translate` & {})
+      | (`${string}-translate` & {}),
+    config?: z.infer<typeof TranslationConfigSchema>
+  ): ModelReference<typeof TranslationConfigSchema>;
+  model(
+    name:
       | keyof typeof SUPPORTED_STT_MODELS
       | (`whisper-${string}` & {})
       | (`${string}-transcribe` & {}),
@@ -288,6 +338,12 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   }
   if (name.includes('tts')) {
     return openAISpeechModelRef({
+      name,
+      config,
+    });
+  }
+  if (name.includes('translate')) {
+    return openAITranslationModelRef({
       name,
       config,
     });

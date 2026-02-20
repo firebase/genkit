@@ -24,12 +24,16 @@ import { toModelName } from './utils.js';
 export {
   SpeechConfigSchema,
   TranscriptionConfigSchema,
+  TranslationConfigSchema,
   compatOaiSpeechModelRef,
   compatOaiTranscriptionModelRef,
+  compatOaiTranslationModelRef,
   defineCompatOpenAISpeechModel,
   defineCompatOpenAITranscriptionModel,
+  defineCompatOpenAITranslationModel,
   type SpeechRequestBuilder,
   type TranscriptionRequestBuilder,
+  type TranslationRequestBuilder,
 } from './audio.js';
 export { defineCompatOpenAIEmbedder } from './embedder.js';
 export {
