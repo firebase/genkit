@@ -308,7 +308,6 @@ unreleased_plugins = [
 #   "@genkit-ai/firebase",
 #   "@genkit-ai/google-cloud",
 #   "@genkit-ai/google-genai",
-#   "@genkit-ai/googleai",
 #   "@genkit-ai/vertexai",
 # ]
 # community_plugins = [
