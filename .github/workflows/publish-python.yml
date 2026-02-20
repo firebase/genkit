@@ -1,0 +1,438 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Python Release Pipeline (SLSA Build L3)
+#
+# Triggered by pushing a tag like `py/v0.7.0` or manually via workflow_dispatch.
+#
+# Jobs:
+#   1. build      — Build wheels + sdists, attest provenance
+#   2. provenance — Generate SLSA L3 provenance (supply-chain attestation)
+#   3. review     — Post build summary; gate for manual approval
+#   4. upload     — Publish to PyPI (requires approval on the 'pypi' environment)
+#   5. verify     — Verify SLSA provenance + smoke-test installs from PyPI
+#   6. summary    — Post results to the workflow run page
+#
+# To add a new package: add its path to the PACKAGES list below.
+# Order matters — dependencies must come before dependents.
+#
+# Security notes:
+#   - All actions are pinned to commit SHAs (not tags)
+#   - Top-level permissions: {} — each job declares only what it needs
+#   - Build job has no registry credentials
+#   - Upload job has no build tools
+#   - No ${{ }} expressions inside run: blocks (prevents expression injection)
+#   - PyPI auth uses OIDC trusted publishing (no API tokens stored as secrets)
+
+name: Publish Python (SLSA L3)
+
+on:
+  push:
+    tags:
+      - "py/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and attest but do not publish"
+        type: boolean
+        default: false
+      target:
+        description: "Publish target registry"
+        type: choice
+        default: pypi
+        options:
+          - pypi
+          - testpypi
+
+concurrency:
+  group: publish-python-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.9.28"
+
+  # Packages to publish, in dependency order.
+  #
+  # Only packages already on PyPI are included here.
+  # New plugins will be added in a future release.
+  #
+  # Core (no internal deps):
+  #   genkit
+  #
+  # Plugins (depend on genkit only):
+  #   anthropic, compat-oai, dev-local-vectorstore, google-cloud,
+  #   google-genai, ollama
+  #
+  # Plugins with cross-plugin deps (must come last):
+  #   firebase   → google-cloud
+  #   flask      → google-genai
+  #   vertex-ai  → compat-oai
+  #
+  PACKAGES: |
+    py/packages/genkit
+    py/plugins/anthropic
+    py/plugins/compat-oai
+    py/plugins/dev-local-vectorstore
+    py/plugins/google-cloud
+    py/plugins/google-genai
+    py/plugins/ollama
+    py/plugins/firebase
+    py/plugins/flask
+    py/plugins/vertex-ai
+
+# =====================================================================
+# Jobs
+# =====================================================================
+
+jobs:
+  # ── 1. Build ───────────────────────────────────────────────────────
+  # Builds all packages into dist/. No PyPI credentials here.
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential libffi-dev
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182  # v5.4.1
+        with:
+          enable-cache: true
+          version: ${{ env.UV_VERSION }}
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build all packages
+        env:
+          PKG_LIST: ${{ env.PACKAGES }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for pkg_dir in $PKG_LIST; do
+            echo "::group::Building $pkg_dir"
+            uv build "$pkg_dir" --out-dir dist
+            echo "::endgroup::"
+          done
+          ls -la dist/
+
+      # Digests are passed to the provenance job so it can certify
+      # exactly which artifacts this build produced.
+      - name: Compute artifact digests
+        id: hash
+        run: |
+          set -euo pipefail
+          sha256sum dist/*.whl dist/*.tar.gz | tee /tmp/checksums.txt
+          # base64-encode for the SLSA generator (its required input format).
+          echo "digests=$(base64 -w0 /tmp/checksums.txt)" >> "$GITHUB_OUTPUT"
+
+      # GitHub artifact attestation — lets PyPI and users verify
+      # these artifacts were built by this repo's CI.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2  # v2.2.3
+        with:
+          subject-path: "dist/*"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 3
+
+  # ── 2. Provenance ──────────────────────────────────────────────────
+  # SLSA (Supply-chain Levels for Software Artifacts) provenance is a
+  # signed, tamper-proof record that these artifacts were built from
+  # this repo by GitHub Actions — not injected by an attacker.
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    # Must be referenced by tag, not SHA (reusable workflow requirement).
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build.outputs.digests }}
+      upload-assets: true
+
+  # ── 3. Review ──────────────────────────────────────────────────────
+  # Posts a build summary so the reviewer can see exactly what will be
+  # published before approving the upload job. The 'pypi_github_publishing'
+  # environment requires manual approval (configure in repo Settings >
+  # Environments).
+  review:
+    needs: [build, provenance]
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: build-artifacts
+          path: dist/
+
+      - name: Post build summary for review
+        env:
+          TAG: ${{ github.ref_name }}
+          PKG_LIST: ${{ env.PACKAGES }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#py/v}"
+
+          {
+            echo "## Packages awaiting publish approval"
+            echo ""
+            echo "**Version:** $VERSION"
+            echo "**Target:** ${TARGET:-pypi}"
+            echo ""
+            echo "| Package | Wheel | Size |"
+            echo "|---------|-------|------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for pkg_dir in $PKG_LIST; do
+            PACKAGE=$(python3 -c "
+          import tomllib, pathlib
+          data = tomllib.loads(pathlib.Path('$pkg_dir/pyproject.toml').read_text())
+          print(data['project']['name'])
+          ")
+            WHEEL=$(ls dist/${PACKAGE//-/_}-*.whl 2>/dev/null | head -1 || true)
+            if [ -n "$WHEEL" ]; then
+              SIZE=$(du -h "$WHEEL" | cut -f1)
+              echo "| $PACKAGE | $(basename "$WHEEL") | $SIZE |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $PACKAGE | *not found* | - |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          {
+            echo ""
+            echo "### Artifact checksums"
+            echo '```'
+            sha256sum dist/*.whl dist/*.tar.gz
+            echo '```'
+            echo ""
+            echo "> Approve the **upload** job below to publish these packages."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 4. Upload ──────────────────────────────────────────────────────
+  # Downloads pre-built artifacts and publishes to PyPI.
+  # Auth uses OIDC trusted publishing — GitHub proves to PyPI that
+  # this workflow is authorized. No API tokens needed.
+  # Requires manual approval via the 'pypi_github_publishing' environment.
+  upload:
+    needs: [build, provenance, review]
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write     # OIDC token for PyPI trusted publishing
+    environment:
+      name: ${{ (inputs.target == 'testpypi' && 'testpypi') || 'pypi_github_publishing' }}
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182  # v5.4.1
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: build-artifacts
+          path: dist/
+
+      - name: Publish to PyPI
+        env:
+          PUBLISH_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
+        run: |
+          set -euo pipefail
+          ls -la dist/
+
+          for attempt in 1 2 3; do
+            echo "Publish attempt $attempt/3..."
+            if [ -n "$PUBLISH_URL" ]; then
+              uv publish --publish-url "$PUBLISH_URL" dist/* && exit 0
+            else
+              uv publish dist/* && exit 0
+            fi
+            echo "Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+          echo "::error::Publish failed after 3 attempts"
+          exit 1
+
+  # ── 5. Verify ──────────────────────────────────────────────────────
+  # Two checks: (a) SLSA provenance is valid, (b) packages actually
+  # install from PyPI and the core import works.
+  verify:
+    needs: [upload, provenance]
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182  # v5.4.1
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download provenance
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: ${{ needs.provenance.outputs.provenance-name }}
+          path: provenance/
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: build-artifacts
+          path: provenance/
+
+      - name: Install slsa-verifier
+        uses: slsa-framework/slsa-verifier/actions/installer@6657aada084353c65e5dde35394b1a010289fab0  # v2.7.0
+
+      - name: Verify SLSA provenance
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PROVENANCE=$(find provenance/ -name '*.intoto.jsonl' | head -1)
+          if [ -z "$PROVENANCE" ]; then
+            echo "::error::No SLSA provenance file found"
+            exit 1
+          fi
+          slsa-verifier verify-artifact \
+            --provenance-path "$PROVENANCE" \
+            --source-uri "github.com/$REPO" \
+            provenance/*.whl provenance/*.tar.gz
+
+      - name: Verify packages install from PyPI
+        env:
+          TAG: ${{ github.ref_name }}
+          PKG_LIST: ${{ env.PACKAGES }}
+          CHECK_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/simple/' || '' }}
+        run: |
+          set -euo pipefail
+
+          # Extract version from tag: "py/v0.7.0" -> "0.7.0"
+          VERSION="${TAG#py/v}"
+
+          FAILED=0
+          for pkg_dir in $PKG_LIST; do
+            # Read package name from pyproject.toml (e.g. "genkit-plugin-anthropic").
+            PACKAGE=$(python3 << PYEOF
+          import tomllib, pathlib
+          data = tomllib.loads(pathlib.Path("$pkg_dir/pyproject.toml").read_text())
+          print(data["project"]["name"])
+          PYEOF
+            )
+
+            # Wait for the package to show up on PyPI (can take up to ~90s).
+            echo -n "Waiting for ${PACKAGE}==${VERSION}..."
+            for _ in 1 2 3 4 5 6; do
+              if [ -n "$CHECK_URL" ]; then
+                uv pip install --system --dry-run --index-url "$CHECK_URL" "${PACKAGE}==${VERSION}" > /dev/null 2>&1 && break
+              else
+                uv pip install --system --dry-run "${PACKAGE}==${VERSION}" > /dev/null 2>&1 && break
+              fi
+              echo -n "."
+              sleep 15
+            done
+            echo ""
+
+            # Actually install and verify.
+            echo "Installing ${PACKAGE}==${VERSION}..."
+            if [ -n "$CHECK_URL" ]; then
+              uv pip install --system --index-url "$CHECK_URL" "${PACKAGE}==${VERSION}" || FAILED=$((FAILED + 1))
+            else
+              uv pip install --system "${PACKAGE}==${VERSION}" || FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::${FAILED} package(s) failed to install"
+            exit 1
+          fi
+
+          # Sanity check: can we actually import genkit?
+          python3 -c "from genkit.ai import Genkit; print('genkit imports ok')"
+
+  # ── 6. Summary ─────────────────────────────────────────────────────
+  summary:
+    needs: [build, provenance, review, upload, verify]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create summary
+        env:
+          TAG: ${{ github.ref_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          TARGET: ${{ inputs.target }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          PROVENANCE_RESULT: ${{ needs.provenance.result }}
+          REVIEW_RESULT: ${{ needs.review.result }}
+          UPLOAD_RESULT: ${{ needs.upload.result }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+        run: |
+          VERSION="${TAG#py/v}"
+
+          {
+            echo "## Python Release Summary"
+            echo ""
+            echo "**Version:** $VERSION"
+            echo "**Target:** ${TARGET:-pypi}"
+            echo "**Dry Run:** ${DRY_RUN:-false}"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|-------|--------|"
+            echo "| Build | $BUILD_RESULT |"
+            echo "| Provenance | $PROVENANCE_RESULT |"
+            echo "| Review | $REVIEW_RESULT |"
+            echo "| Upload | $UPLOAD_RESULT |"
+            echo "| Verify | $VERIFY_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
