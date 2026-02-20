@@ -417,15 +417,18 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 		if err != nil {
 			log.Fatal(err)
 		}
-		if !strings.HasPrefix(item.Name, "models/") {
+		switch {
+		case strings.HasPrefix(item.Name, "publishers/google/models/"):
+			name = strings.TrimPrefix(item.Name, "publishers/google/models/")
+		case strings.HasPrefix(item.Name, "models/"):
+			name = strings.TrimPrefix(item.Name, "models/")
+		default:
 			continue
 		}
 		description = strings.ToLower(item.Description)
 		if strings.Contains(description, "deprecated") {
 			continue
 		}
-
-		name = strings.TrimPrefix(item.Name, "models/")
 		if slices.Contains(item.SupportedActions, "embedContent") {
 			models.embedders = append(models.embedders, name)
 			continue
