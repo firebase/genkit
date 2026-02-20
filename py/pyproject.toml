@@ -81,11 +81,9 @@ dev = [
 lint = [
   "bandit>=1.7.0",
   "deptry>=0.22.0",
-  "granian>=1.0.0",           # For web-endpoints-hello type resolution
   "litestar>=2.20.0",         # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
-  "pydantic-settings>=2.0.0", # For web-endpoints-hello type resolution
   "pypdf>=6.6.2",
   "pyrefly>=0.15.0",
   "pyright>=1.1.392",
@@ -95,10 +93,6 @@ lint = [
   "streamlit>=1.41.0",
   "ty>=0.0.1",
   "typos>=1.42.0",
-  # ── web-endpoints-hello type resolution ──
-  # These are needed so workspace-level type checkers can resolve all
-  # imports in the sample. The sample is checked in both the workspace
-  # pipeline AND its own `just lint` pipeline with identical settings.
   "fastapi>=0.115.0",
   "grpcio>=1.68.0",
   "grpcio-reflection>=1.68.0",
@@ -130,9 +124,6 @@ addopts = [
   "-ra",
   "-vv",
   "--ignore=testapps",
-  # web-endpoints-hello has its own deps (fastapi, litestar, httpx, grpcio) not
-  # installed by workspace 'uv sync'. Run its tests locally from the sample dir.
-  "--ignore=samples/web-endpoints-hello/tests",
   "--ignore=tools/conform/tests",
   "--import-mode=importlib",
 ]
@@ -198,7 +189,6 @@ provider-vertex-ai-rerank-eval             = { workspace = true }
 provider-vertex-ai-vector-search-bigquery  = { workspace = true }
 provider-vertex-ai-vector-search-firestore = { workspace = true }
 provider-xai-hello                         = { workspace = true }
-web-endpoints-hello                        = { workspace = true }
 web-fastapi-bugbot                         = { workspace = true }
 web-flask-hello                            = { workspace = true }
 web-multi-server                           = { workspace = true }
@@ -418,7 +408,7 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 [tool.ty.src]
 # Auto-generated protobuf stubs use grpc.experimental implicit submodule
 # access that ty warns about. We can't modify generated code.
-exclude = ["**/generated", "samples/web-endpoints-hello"]
+exclude = ["**/generated"]
 
 [tool.ty.environment]
 root = [
@@ -566,8 +556,6 @@ search-path = [
   "samples/framework-evaluator-demo",
   "samples/framework-custom-evaluators",
   "samples/framework-restaurant-demo/src",
-
-  "samples/web-endpoints-hello",
   # Tools
   "tools/conform/src",
   "tools/sample-flows",
