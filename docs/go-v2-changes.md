@@ -1,6 +1,12 @@
 # Genkit Go v2 — Summary of Changes
 
-This document summarizes every breaking change in Genkit Go v2, with a brief rationale and before/after code for each.
+## New repository
+
+Genkit Go is moving to a dedicated repository: **github.com/genkit-ai/genkit-go**. The current monorepo contains code for all Genkit languages; the new repo will contain only Go code. This change is meant to improve discoverability of Genkit Go through search engines and LLMs, keep issues and PRs focused on Go, and foster a stronger community around the Go SDK specifically.
+
+---
+
+The sections below summarize every breaking change in Genkit Go v2, with a brief rationale and before/after code for each.
 
 ---
 
@@ -275,6 +281,24 @@ resp, err := prompt.Execute(ctx, ai.WithInput(myInput))
 
 // v2
 out, resp, err := prompt.Execute(ctx, myInput)
+```
+
+---
+
+## genkit.Init and plugin functions return errors
+
+v1's `genkit.Init()` returns only a `*Genkit` instance. Plugin functions like `Init()` and `ListActions()` either panic or silently swallow errors. This is wrong for two reasons: any function that accepts a `context.Context` can perform fallible work (network requests, credential validation), and the Go convention is that such functions return an `error`. Panicking when a user forgets an environment variable is a poor experience — it should be a normal error the caller can handle.
+
+v2 adds `error` to the return value of `genkit.Init()` and all plugin functions that take a `context.Context`. This makes the SDK more idiomatic and gives callers control over error handling instead of crashing the process.
+
+```go
+// v1
+g := genkit.Init(ctx, opts)              // panics on failure
+googleai.Init(ctx, &googleai.Config{})   // panics or silently fails
+
+// v2
+g, err := genkit.Init(ctx, opts)         // returns error
+err := googleai.Init(ctx, &googleai.Config{}) // returns error
 ```
 
 ---
