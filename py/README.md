@@ -455,7 +455,6 @@ examples of any feature:
 | **Deployment** | | |
 | `web-short-n-long` | Flow Server, Context Provider | Built-in flows server + `api_key()` auth |
 | `web-flask-hello` | Flow, Plugin (Flask) | Flask framework integration |
-| `web-endpoints-hello` | Flow Server, Security | Production ASGI + gRPC deployment |
 | `web-multi-server` | Flow Server, Reflection API | Multiple Genkit instances |
 
 See the [samples/README.md](samples/README.md) for running instructions.
