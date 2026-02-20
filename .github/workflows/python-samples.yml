@@ -77,7 +77,6 @@ jobs:
           - framework-dynamic-tools-demo
           - framework-tool-interrupts
           - framework-restaurant-demo
-          - web-endpoints-hello
           - web-fastapi-bugbot
           - web-flask-hello
           - web-multi-server

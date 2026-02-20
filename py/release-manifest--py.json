@@ -561,15 +561,6 @@
       "tag": "/releasekit-v0.2.0"
     },
     {
-      "name": "web-endpoints-hello",
-      "old_version": "0.1.0",
-      "new_version": "0.2.0",
-      "bump": "minor",
-      "reason": "feat(releasekit): supply-chain security, multi-ecosystem orchestration, and CI hardening (#4682)",
-      "skipped": false,
-      "tag": "/web-endpoints-hello-v0.2.0"
-    },
-    {
       "name": "web-fastapi-bugbot",
       "old_version": "0.1.0",
       "new_version": "0.2.0",
