@@ -102,18 +102,16 @@ function commonRef(
   return modelRef({
     name: `googleai/${name}`,
     configSchema,
-    info:
-      info ??
-      ({
-        supports: {
-          media: true,
-          multiturn: false,
-          tools: false,
-          systemRole: false,
-          output: ['media'],
-          longRunning: true,
-        },
-      } as ModelInfo), // TODO(ifielker): Remove this cast if we fix longRunning
+    info: info ?? {
+      supports: {
+        media: true,
+        multiturn: false,
+        tools: false,
+        systemRole: false,
+        output: ['media'],
+        longRunning: true,
+      },
+    },
   });
 }
 

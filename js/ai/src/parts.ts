@@ -37,6 +37,11 @@ export const TextPartSchema = EmptyPartSchema.extend({
 });
 
 /**
+ * Text part.
+ */
+export type TextPart = z.infer<typeof TextPartSchema>;
+
+/**
  * Zod schema for a reasoning part.
  */
 export const ReasoningPartSchema = EmptyPartSchema.extend({
@@ -45,9 +50,9 @@ export const ReasoningPartSchema = EmptyPartSchema.extend({
 });
 
 /**
- * Text part.
+ * Reasoning part.
  */
-export type TextPart = z.infer<typeof TextPartSchema>;
+export type ReasoningPart = z.infer<typeof ReasoningPartSchema>;
 
 /**
  * Zod schema of media.

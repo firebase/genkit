@@ -32,7 +32,7 @@ const EmptyPartSchema = z.object({
  * Zod schema for a text part.
  */
 export const TextPartSchema = EmptyPartSchema.extend({
-  /** The text of the document. */
+  /** The text of the message. */
   text: z.string(),
 });
 
@@ -89,6 +89,7 @@ export const ToolRequestSchema = z.object({
   /** Whether the request is a partial chunk. */
   partial: z.boolean().optional(),
 });
+export type ToolRequest = z.infer<typeof ToolRequestSchema>;
 
 /**
  * Zod schema of a tool request part.
@@ -103,6 +104,9 @@ export const ToolRequestPartSchema = EmptyPartSchema.extend({
  */
 export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
 
+/**
+ * Zod schema of a tool response.
+ */
 const ToolResponseSchemaBase = z.object({
   /** The call id or reference for a specific request. */
   ref: z.string().optional(),
@@ -116,14 +120,14 @@ const ToolResponseSchemaBase = z.object({
  * Tool response part.
  */
 export type ToolResponse = z.infer<typeof ToolResponseSchemaBase> & {
-  content?: Part[];
+  content?: TextOrMediaPart[];
 };
 
 export const ToolResponseSchema: z.ZodType<ToolResponse> =
   ToolResponseSchemaBase.extend({
     content: z.array(z.any()).optional(),
     // TODO: switch to this once we have effective recursive schema support across the board.
-    // content: z.array(z.lazy(() => PartSchema)).optional(),
+    // content: z.array(z.lazy(() => DocumentPartSchema)).optional(),
   });
 
 /**
@@ -134,6 +138,9 @@ export const ToolResponsePartSchema = EmptyPartSchema.extend({
   toolResponse: ToolResponseSchema,
 });
 
+/**
+ * Tool response part.
+ */
 export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
 
 /**
@@ -174,28 +181,17 @@ export const ResourcePartSchema = EmptyPartSchema.extend({
  */
 export type ResourcePart = z.infer<typeof ResourcePartSchema>;
 
-/**
- * Zod schema of message part.
- */
-export const PartSchema = z.union([
-  TextPartSchema,
-  MediaPartSchema,
-  ToolRequestPartSchema,
-  ToolResponsePartSchema,
-  DataPartSchema,
-  CustomPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-]);
-
-/**
- * Message part.
- */
-export type Part = z.infer<typeof PartSchema>;
+// Disclaimer: genkit/js/ai/parts.ts defines the following schema, type pair
+// as PartSchema and Part, respectively. genkit-tools cannot retain those names
+// due to it clashing with similar schema in model.ts, and genkit-tools
+// exporting all types at root. We use a different name here and updated
+// coresponding the imports.
+export const TextOrMediaPartSchema = z.union([TextPartSchema, MediaPartSchema]);
+export type TextOrMediaPart = z.infer<typeof TextOrMediaPartSchema>;
 
 export const MultipartToolResponseSchema = z.object({
   output: z.unknown().optional(),
-  content: z.array(PartSchema).optional(),
+  content: z.array(TextOrMediaPartSchema).optional(),
 });
 
 export type MultipartToolResponse = z.infer<typeof MultipartToolResponseSchema>;

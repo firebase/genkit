@@ -150,4 +150,5 @@ def dump_json(
     if isinstance(obj, BaseModel):
         return obj.model_dump_json(by_alias=True, exclude_none=True, indent=indent, fallback=fallback)
     else:
-        return json.dumps(obj, indent=indent, default=fallback or default_serializer)
+        separators = (',', ':') if indent is None else None
+        return json.dumps(obj, indent=indent, default=fallback or default_serializer, separators=separators)

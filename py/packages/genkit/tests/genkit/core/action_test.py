@@ -275,8 +275,8 @@ async def test_propagates_context_via_contextvar() -> None:
     first = baz_action.arun(context={'foo': 'bar'})
     second = baz_action.arun(context={'bar': 'baz'})
 
-    assert (await second).response == '{"bar": "baz"}'
-    assert (await first).response == '{"foo": "bar"}'
+    assert (await second).response == '{"bar":"baz"}'
+    assert (await first).response == '{"foo":"bar"}'
 
 
 @pytest.mark.asyncio

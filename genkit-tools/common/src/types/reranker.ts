@@ -22,7 +22,8 @@
  * JSON schema) but until then this file must be manually kept in sync
  */
 import { z } from 'zod';
-import { DocumentDataSchema, DocumentPartSchema } from './document';
+import { DocumentDataSchema } from './document';
+import { DocumentPartSchema } from './parts';
 
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/reranker.ts!

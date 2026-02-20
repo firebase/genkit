@@ -81,8 +81,8 @@ def test_streaming() -> None:
         chunks.append(chunk)
 
     assert chunks == [
-        b'data: {"message": 1}\n\n',
-        b'data: {"message": {"username": "Pavel"}}\n\n',
-        b'data: {"message": {"foo": "bar"}}\n\n',
-        b'data: {"result": {"bar": "baz"}}\n\n',
+        b'data: {"message":1}\n\n',
+        b'data: {"message":{"username":"Pavel"}}\n\n',
+        b'data: {"message":{"foo":"bar"}}\n\n',
+        b'data: {"result":{"bar":"baz"}}\n\n',
     ]
