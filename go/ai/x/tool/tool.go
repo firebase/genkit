@@ -1,0 +1,138 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+// Package tool provides runtime helpers for use inside tool functions.
+//
+// APIs in this package are under active development and may change in any
+// minor version release. Use with caution in production environments.
+package tool
+
+import (
+	"context"
+	"fmt"
+	"maps"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
+)
+
+// --- Interrupt ---
+
+// InterruptError is returned by [Interrupt] to signal tool interruption.
+type InterruptError struct {
+	Data any
+}
+
+func (e *InterruptError) Error() string {
+	return "tool interrupted"
+}
+
+// Interrupt interrupts tool execution and sends data to the caller.
+// The caller can read this data with [InterruptAs] and resume the tool
+// with [Resume].
+func Interrupt(data any) error {
+	return &InterruptError{Data: data}
+}
+
+// InterruptAs extracts typed interrupt data from an interrupted tool request [ai.Part].
+// Returns the zero value and false if the part is not an interrupt or the type doesn't match.
+func InterruptAs[T any](p *ai.Part) (T, bool) {
+	return ai.InterruptAs[T](p)
+}
+
+// Resume creates a restart [ai.Part] for resuming an interrupted tool call.
+// The interruptedPart must be an interrupted tool request (as received via
+// [InterruptAs] or [ai.ModelResponse.Interrupts]). The data is delivered to
+// the tool function's resume parameter when it is re-executed.
+//
+// This is a convenience alternative to [aix.InterruptibleTool.Resume] that
+// does not require access to the tool definition.
+func Resume[Res any](interruptedPart *ai.Part, data Res) (*ai.Part, error) {
+	if interruptedPart == nil || !interruptedPart.IsToolRequest() {
+		return nil, fmt.Errorf("tool.Resume: part is not a tool request")
+	}
+
+	m, err := base.StructToMap(data)
+	if err != nil {
+		return nil, fmt.Errorf("tool.Resume: %w", err)
+	}
+
+	newMeta := maps.Clone(interruptedPart.Metadata)
+	if newMeta == nil {
+		newMeta = make(map[string]any)
+	}
+	newMeta["resumed"] = m
+	delete(newMeta, "interrupt")
+
+	newPart := ai.NewToolRequestPart(&ai.ToolRequest{
+		Name:  interruptedPart.ToolRequest.Name,
+		Ref:   interruptedPart.ToolRequest.Ref,
+		Input: interruptedPart.ToolRequest.Input,
+	})
+	newPart.Metadata = newMeta
+	return newPart, nil
+}
+
+// --- AttachParts ---
+
+// AttachParts attaches additional content parts (e.g., media) to the tool's
+// response. This can be called from any tool to produce a multipart response
+// without changing the function signature.
+func AttachParts(ctx context.Context, parts ...*ai.Part) {
+	c := partsCollectorKey.FromContext(ctx)
+	if c == nil {
+		return
+	}
+	c.parts = append(c.parts, parts...)
+}
+
+// --- OriginalInput ---
+
+// OriginalInput returns the original input if the caller replaced it during
+// restart. Returns the zero value and false if the input was not replaced
+// or the tool is not being resumed.
+func OriginalInput[In any](ctx context.Context) (In, bool) {
+	v := originalInputKey.FromContext(ctx)
+	if v == nil {
+		var zero In
+		return zero, false
+	}
+	return base.ConvertTo[In](v)
+}
+
+// --- Internal plumbing (used by the aix package, not for end users) ---
+
+var originalInputKey = base.NewContextKey[any]()
+var partsCollectorKey = base.NewContextKey[*partsCollector]()
+
+// partsCollector accumulates content parts attached during tool execution.
+type partsCollector struct {
+	parts []*ai.Part
+}
+
+// SetOriginalInput stores the original input in the context.
+// This is internal plumbing used by the aix package.
+func SetOriginalInput(ctx context.Context, input any) context.Context {
+	return originalInputKey.NewContext(ctx, input)
+}
+
+// NewPartsContext returns a context with a parts collector.
+// This is internal plumbing used by the aix package.
+func NewPartsContext(ctx context.Context) (context.Context, func() []*ai.Part) {
+	c := &partsCollector{}
+	ctx = partsCollectorKey.NewContext(ctx, c)
+	return ctx, func() []*ai.Part { return c.parts }
+}
