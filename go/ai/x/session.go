@@ -162,6 +162,13 @@ func (s *Session[State]) AddMessages(messages ...*ai.Message) {
 	s.state.Messages = append(s.state.Messages, messages...)
 }
 
+// SetMessages replaces the conversation history with the given messages.
+func (s *Session[State]) SetMessages(messages []*ai.Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Messages = messages
+}
+
 // UpdateMessages atomically reads the current messages, applies the given
 // function, and writes the result back.
 func (s *Session[State]) UpdateMessages(fn func([]*ai.Message) []*ai.Message) {

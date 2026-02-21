@@ -593,9 +593,7 @@ func TestAgentFlow_SetMessages(t *testing.T) {
 		func(ctx context.Context, resp Responder[testStatus], sess *AgentSession[testState]) (*AgentFlowResult, error) {
 			return nil, sess.Run(ctx, func(ctx context.Context, input *AgentFlowInput) error {
 				// Replace all messages with just one.
-				sess.UpdateMessages(func(_ []*ai.Message) []*ai.Message {
-					return []*ai.Message{ai.NewModelTextMessage("replaced")}
-				})
+				sess.SetMessages([]*ai.Message{ai.NewModelTextMessage("replaced")})
 				return nil
 			})
 		},
