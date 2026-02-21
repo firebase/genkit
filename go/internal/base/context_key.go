@@ -41,3 +41,7 @@ func (k ContextKey[T]) FromContext(ctx context.Context) T {
 	t, _ := ctx.Value(k.key).(T)
 	return t
 }
+
+// ToolPartialSenderKey is the context key for streaming partial tool responses.
+// Set by ai/generate.go (handleToolRequests), read by ai/x/tool (SendPartial).
+var ToolPartialSenderKey = NewContextKey[func(context.Context, any)]()

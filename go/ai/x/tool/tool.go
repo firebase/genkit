@@ -86,6 +86,27 @@ func Resume[Res any](interruptedPart *ai.Part, data Res) (*ai.Part, error) {
 	return newPart, nil
 }
 
+// --- SendChunk ---
+
+// SendPartial streams a partial tool response during tool execution.
+// The output is arbitrary structured data (e.g., progress information)
+// that will be delivered to the client as a partial [ai.ToolResponse].
+//
+// This is best-effort: if no streaming callback is available (e.g., the
+// tool is called via a non-streaming Generate), the call is a no-op.
+// The tool's final return value is always the authoritative response.
+//
+// Example:
+//
+//	tool.SendPartial(ctx, map[string]any{"step": "uploading", "progress": 50})
+func SendPartial(ctx context.Context, output any) {
+	send := base.ToolPartialSenderKey.FromContext(ctx)
+	if send == nil {
+		return
+	}
+	send(ctx, output)
+}
+
 // --- AttachParts ---
 
 // AttachParts attaches additional content parts (e.g., media) to the tool's

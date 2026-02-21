@@ -796,7 +796,23 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				return
 			}
 
-			multipartResp, err := tool.RunRawMultipart(ctx, toolReq.Input)
+			// Inject a per-tool chunk sender so tools can stream partial
+			// responses (e.g., progress updates) via tool.SendChunk.
+			toolCtx := ctx
+			if cb != nil {
+				toolCtx = base.ToolPartialSenderKey.NewContext(ctx, func(sendCtx context.Context, output any) {
+					cb(sendCtx, &ModelResponseChunk{
+						Role: RoleTool,
+						Content: []*Part{NewPartialToolResponsePart(&ToolResponse{
+							Name:   toolReq.Name,
+							Ref:    toolReq.Ref,
+							Output: output,
+						})},
+					})
+				})
+			}
+
+			multipartResp, err := tool.RunRawMultipart(toolCtx, toolReq.Input)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -1022,6 +1038,19 @@ func (c *ModelResponseChunk) Interrupts() []*Part {
 	var parts []*Part
 	for _, p := range c.Content {
 		if p.IsInterrupt() {
+			parts = append(parts, p)
+		}
+	}
+	return parts
+}
+
+// ToolResponses returns the tool response parts from the chunk.
+// Use [Part.IsPartial] to distinguish streaming progress updates
+// from final tool results.
+func (c *ModelResponseChunk) ToolResponses() []*Part {
+	var parts []*Part
+	for _, p := range c.Content {
+		if p.IsToolResponse() {
 			parts = append(parts, p)
 		}
 	}
