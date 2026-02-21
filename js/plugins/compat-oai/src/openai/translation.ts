@@ -17,7 +17,7 @@
 
 import { z } from 'genkit';
 import { ModelInfo } from 'genkit/model';
-import { compatOaiTranslationModelRef } from '../audio';
+import { compatOaiTranslationModelRef } from '../translate';
 
 /** OpenAI translation ModelRef helper, same as the OpenAI-compatible spec. */
 export function openAITranslationModelRef<

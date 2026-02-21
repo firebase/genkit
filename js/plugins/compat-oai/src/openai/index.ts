@@ -30,10 +30,8 @@ import OpenAI from 'openai';
 import {
   defineCompatOpenAISpeechModel,
   defineCompatOpenAITranscriptionModel,
-  defineCompatOpenAITranslationModel,
   SpeechConfigSchema,
   TranscriptionConfigSchema,
-  TranslationConfigSchema,
 } from '../audio.js';
 import { defineCompatOpenAIEmbedder } from '../embedder.js';
 import {
@@ -42,6 +40,10 @@ import {
 } from '../image.js';
 import { openAICompatible, PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
+import {
+  defineCompatOpenAITranslationModel,
+  TranslationConfigSchema,
+} from '../translate.js';
 import {
   gptImage1RequestBuilder,
   openAIImageModelRef,
