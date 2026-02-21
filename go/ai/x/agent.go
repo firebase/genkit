@@ -394,13 +394,15 @@ func DefinePromptAgent[State, PromptIn any](
 				sess.AddMessages(modelResp.Message)
 			}
 
-			// If generation was interrupted, stream the interrupted message
-			// so the client can see the tool request parts with interrupt metadata.
-			if modelResp.FinishReason == ai.FinishReasonInterrupted && modelResp.Message != nil {
-				resp.SendModelChunk(&ai.ModelResponseChunk{
-					Content: modelResp.Message.Content,
-					Role:    modelResp.Message.Role,
-				})
+			// Stream interrupt parts so the client can detect and
+			// handle them (e.g. prompt the user for confirmation).
+			if modelResp.FinishReason == ai.FinishReasonInterrupted {
+				if parts := modelResp.Interrupts(); len(parts) > 0 {
+					resp.SendModelChunk(&ai.ModelResponseChunk{
+						Role:    ai.RoleTool,
+						Content: parts,
+					})
+				}
 			}
 
 			return nil

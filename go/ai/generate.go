@@ -1017,6 +1017,17 @@ func (c *ModelResponseChunk) Reasoning() string {
 	return sb.String()
 }
 
+// Interrupts returns the interrupted tool request parts from the chunk.
+func (c *ModelResponseChunk) Interrupts() []*Part {
+	var parts []*Part
+	for _, p := range c.Content {
+		if p.IsInterrupt() {
+			parts = append(parts, p)
+		}
+	}
+	return parts
+}
+
 // Output parses the chunk using the format handler and unmarshals the result into v.
 // Returns an error if the format handler is not set or does not support parsing chunks.
 func (c *ModelResponseChunk) Output(v any) error {
