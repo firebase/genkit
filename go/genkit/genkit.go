@@ -412,6 +412,9 @@ func DefineBidiFlow[In, Out, Stream, Init any](g *Genkit, name string, fn core.B
 // conversation loop, registers it as a [core.Action] of type Flow, and
 // returns an [aix.AgentFlow].
 //
+// Experimental: This API is under active development and may change in any
+// minor version release.
+//
 // An AgentFlow is a stateful, multi-turn conversational flow. It builds on
 // bidirectional streaming to enable ongoing conversations where each turn's
 // input and output are streamed between client and server. The framework
@@ -492,6 +495,9 @@ func DefineCustomAgent[Stream, State any](
 
 // DefinePromptAgent defines a prompt-backed agent flow, registers it as a
 // [core.Action] of type Flow, and returns an [aix.AgentFlow].
+//
+// Experimental: This API is under active development and may change in any
+// minor version release.
 //
 // This is a higher-level alternative to [DefineCustomAgent] for agents backed
 // by a prompt (defined via [DefinePrompt] or loaded from a .prompt file). The
