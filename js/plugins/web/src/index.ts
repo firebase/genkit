@@ -63,6 +63,27 @@ export interface HandleFlowOptions<
 }
 
 /**
+ * Wraps a flow with options (e.g. contextProvider, streamManager, path) for use with {@link handleFlows}.
+ */
+export function withFlowOptions<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny,
+>(
+  flow: Flow<I, O, S>,
+  options: {
+    contextProvider?: ContextProvider<any, I>;
+    streamManager?: StreamManager;
+    path?: string;
+  }
+): FlowWithOptions<I, O, S> {
+  return {
+    flow,
+    options,
+  };
+}
+
+/**
  * Converts Headers object to a plain object with lowercase keys.
  */
 function headersToObject(headers: Headers): Record<string, string> {
@@ -305,9 +326,9 @@ export async function handleFlow<
       `Error: Failed to parse request body as JSON. ` +
       `Make sure the request has 'Content-Type: application/json' header.`;
     logger.error(errMsg);
-    return Response.json(
-      { message: errMsg, status: 'INVALID_ARGUMENT' },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ message: errMsg, status: 'INVALID_ARGUMENT' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
@@ -316,9 +337,9 @@ export async function handleFlow<
       `Error: Request body must be a JSON object with a 'data' field. ` +
       `Expected format: {"data": ...}`;
     logger.error(errMsg);
-    return Response.json(
-      { message: errMsg, status: 'INVALID_ARGUMENT' },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ message: errMsg, status: 'INVALID_ARGUMENT' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
@@ -334,15 +355,15 @@ export async function handleFlow<
         (e as Error).stack
       }`
     );
-    return Response.json(getCallableJSON(e), {
+    return new Response(JSON.stringify(getCallableJSON(e)), {
       status: getHttpStatus(e),
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
   // Check if streaming is requested
   const acceptHeader = request.headers.get('Accept') || '';
-  const isStreaming =
-    acceptHeader === 'text/event-stream' || shouldStream;
+  const isStreaming = acceptHeader === 'text/event-stream' || shouldStream;
 
   if (isStreaming) {
     const streamManager = options?.streamManager;
@@ -399,21 +420,19 @@ export async function handleFlow<
       'x-genkit-span-id': result.telemetry.spanId,
     };
 
-    return Response.json(
-      { result: result.result },
-      {
-        status: 200,
-        headers,
-      }
-    );
+    return new Response(JSON.stringify({ result: result.result }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
   } catch (e) {
     logger.error(
       `Non-streaming request failed with error: ${(e as Error).message}\n${
         (e as Error).stack
       }`
     );
-    return Response.json(getCallableJSON(e), {
+    return new Response(JSON.stringify(getCallableJSON(e)), {
       status: getHttpStatus(e),
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
@@ -424,15 +443,14 @@ export async function handleFlow<
  * @param request - The Web API Request object
  * @param flows - Array of flows with their options
  * @param pathPrefix - Optional path prefix to strip from the URL (e.g., '/api/genkit')
- * @returns A Promise that resolves to a Response object, or null if no matching flow is found
+ * @returns A Promise that resolves to a Response (200 for success, 404 if no flow matches)
  *
  * @example
  * ```typescript
  * import { handleFlows } from '@genkit-ai/web';
  *
  * app.all('/api/genkit/*', async (c) => {
- *   const response = await handleFlows(c.req.raw, [flow1, flow2], '/api/genkit');
- *   return response || c.notFound();
+ *   return handleFlows(c.req.raw, [flow1, flow2], '/api/genkit');
  * });
  * ```
  */
@@ -440,7 +458,7 @@ export async function handleFlows(
   request: Request,
   flows: (Flow<any, any, any> | FlowWithOptions<any, any, any>)[],
   pathPrefix?: string
-): Promise<Response | null> {
+): Promise<Response> {
   const url = new URL(request.url);
   let pathname = url.pathname;
 
@@ -449,8 +467,13 @@ export async function handleFlows(
     if (pathname.startsWith(pathPrefix)) {
       pathname = pathname.slice(pathPrefix.length);
     } else {
-      // Path doesn't match prefix, return null to indicate no match
-      return null;
+      return new Response(
+        JSON.stringify({
+          status: 'NOT_FOUND',
+          message: 'No flow matched the request path.',
+        }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
     }
   }
 
@@ -463,14 +486,13 @@ export async function handleFlows(
 
   for (const flow of flows) {
     if ('flow' in flow) {
-      // FlowWithOptions
-      const flowPath =
-        flow.options.path || flow.flow.__action.name;
+      const options = flow.options;
+      const flowPath = options.path || flow.flow.__action.name;
       if (pathname === flowPath) {
         matchedFlow = flow.flow;
         flowOptions = {
-          contextProvider: flow.options.contextProvider,
-          streamManager: flow.options.streamManager,
+          contextProvider: options.contextProvider,
+          streamManager: options.streamManager,
         };
         break;
       }
@@ -484,7 +506,13 @@ export async function handleFlows(
   }
 
   if (!matchedFlow) {
-    return null;
+    return new Response(
+      JSON.stringify({
+        status: 'NOT_FOUND',
+        message: 'No flow matched the request path.',
+      }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   return handleFlow(request, matchedFlow, flowOptions);

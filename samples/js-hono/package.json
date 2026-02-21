@@ -1,0 +1,29 @@
+{
+  "name": "js-hono",
+  "version": "1.0.0",
+  "description": "Genkit with Hono and @genkit-ai/web",
+  "main": "lib/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node lib/index.js",
+    "genkit:dev": "genkit start -- npx tsx --watch src/index.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/google-genai": "^1.17.0",
+    "@genkit-ai/web": "file:../../js/plugins/web",
+    "@hono/node-server": "^1.13.0",
+    "genkit": "^1.17.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "genkit-cli": "^1.17.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.5.4"
+  }
+}

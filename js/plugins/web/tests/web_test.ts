@@ -558,7 +558,7 @@ describe('handleFlow with HTTP server (runFlow/streamFlow)', () => {
 });
 
 describe('handleFlows', () => {
-  it('should route by path and return null when no match', async () => {
+  it('should return 404 when no flow matches path', async () => {
     const ai = genkit({});
     const flow = ai.defineFlow('myFlow', async () => 'ok');
     const request = new Request('http://localhost/otherPath', {
@@ -567,7 +567,9 @@ describe('handleFlows', () => {
       body: JSON.stringify({ data: null }),
     });
     const response = await handleFlows(request, [flow]);
-    assert.strictEqual(response, null);
+    assert.strictEqual(response.status, 404);
+    const json = (await response.json()) as { status: string };
+    assert.strictEqual(json.status, 'NOT_FOUND');
   });
 
   it('should route to flow by name', async () => {
@@ -617,7 +619,7 @@ describe('handleFlows', () => {
     assert.strictEqual(json.result, 'ok');
   });
 
-  it('should return null when path does not match prefix', async () => {
+  it('should return 404 when path does not match prefix', async () => {
     const ai = genkit({});
     const flow = ai.defineFlow('myFlow', async () => 'ok');
     const request = new Request('http://localhost/other/myFlow', {
@@ -626,7 +628,9 @@ describe('handleFlows', () => {
       body: JSON.stringify({ data: null }),
     });
     const response = await handleFlows(request, [flow], '/api/genkit');
-    assert.strictEqual(response, null);
+    assert.strictEqual(response.status, 404);
+    const json = (await response.json()) as { status: string };
+    assert.strictEqual(json.status, 'NOT_FOUND');
   });
 });
 
@@ -695,11 +699,6 @@ async function createServerWithFlows(
         const body = await getRequestBody(req);
         const request = nodeRequestToWebRequest(req, baseUrl, body);
         const response = await handleFlows(request, flows);
-        if (!response) {
-          res.writeHead(404);
-          res.end();
-          return;
-        }
         await writeWebResponseToNode(response, res);
       } catch (err) {
         res.writeHead(500);
