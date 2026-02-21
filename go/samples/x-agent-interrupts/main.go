@@ -196,7 +196,8 @@ func handleInterrupt(reader *bufio.Reader, part *ai.Part) (*ai.Part, error) {
 		return tool.Resume(part, Confirmation{Approved: promptYesNo(reader)})
 
 	default:
-		return tool.Resume(part, Confirmation{Approved: true})
+		fmt.Printf("\n[Unknown Interrupt] Reason: %q. Cancelling transaction.\n", meta.Reason)
+		return tool.Resume(part, Confirmation{Approved: false})
 	}
 }
 

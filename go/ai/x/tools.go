@@ -183,7 +183,7 @@ func wrapSimpleFunc[In, Out any](fn ToolFunc[In, Out]) ai.MultipartToolFunc[In] 
 
 // DEPRECATED(breaking): Same as wrapSimpleFunc — exists only to bridge between
 // the new function signature and ai.MultipartToolFunc/ai.ToolContext.
-func wrapInterruptibleFunc[In, Out, Res any](fn InterruptibleToolFunc[In, Out, Res]) ai.MultipartToolFunc[In] {
+func wrapInterruptibleFunc[In, Out, Resume any](fn InterruptibleToolFunc[In, Out, Resume]) ai.MultipartToolFunc[In] {
 	return func(tc *ai.ToolContext, input In) (*ai.MultipartToolResponse, error) {
 		ctx := tc.Context
 		ctx, collector := tool.NewPartsContext(ctx)
@@ -193,12 +193,13 @@ func wrapInterruptibleFunc[In, Out, Res any](fn InterruptibleToolFunc[In, Out, R
 
 		// DEPRECATED(breaking): Resumed data would come from context keys set by
 		// the generate loop directly, not from ai.ToolContext.Resumed.
-		var res *Res
+		var res *Resume
 		if tc.Resumed != nil {
-			r, err := base.MapToStruct[Res](tc.Resumed)
-			if err == nil {
-				res = &r
+			r, err := base.MapToStruct[Resume](tc.Resumed)
+			if err != nil {
+				return nil, fmt.Errorf("aix.wrapInterruptibleFunc: failed to convert resumed data: %w", err)
 			}
+			res = &r
 		}
 
 		output, err := fn(ctx, input, res)

@@ -942,11 +942,16 @@ func DefineXTool[In, Out any](g *Genkit, name, description string, fn aix.ToolFu
 //		Balance float64 `json:"balance"`
 //	}
 //
+//	type TransferInterrupt struct {
+//		Reason string  `json:"reason"`
+//		Amount float64 `json:"amount"`
+//	}
+//
 //	type Confirmation struct {
 //		Approved bool `json:"approved"`
 //	}
 //
-//	genkit.DefineInterruptibleTool(g, "transfer",
+//	transferTool := genkit.DefineInterruptibleTool(g, "transfer",
 //		"Transfers money to another account.",
 //		func(ctx context.Context, input TransferInput, confirm *Confirmation) (*TransferOutput, error) {
 //			if confirm != nil && !confirm.Approved {
@@ -954,9 +959,9 @@ func DefineXTool[In, Out any](g *Genkit, name, description string, fn aix.ToolFu
 //			}
 //			if confirm == nil && input.Amount > 100 {
 //				// Pause and ask the caller for confirmation.
-//				return nil, tool.Interrupt(map[string]any{
-//					"reason": "large_amount",
-//					"amount": input.Amount,
+//				return nil, tool.Interrupt(TransferInterrupt{
+//					Reason: "large_amount",
+//					Amount: input.Amount,
 //				})
 //			}
 //			return &TransferOutput{Status: "completed", Balance: 50}, nil
@@ -970,6 +975,7 @@ func DefineXTool[In, Out any](g *Genkit, name, description string, fn aix.ToolFu
 //	)
 //	if resp.FinishReason == ai.FinishReasonInterrupted {
 //		for _, interrupt := range resp.Interrupts() {
+//			// Ask the user for confirmation.
 //			restart, _ := tool.Resume(interrupt, Confirmation{Approved: true})
 //			resp, _ = genkit.Generate(ctx, g,
 //				ai.WithMessages(resp.History()...),
@@ -978,7 +984,7 @@ func DefineXTool[In, Out any](g *Genkit, name, description string, fn aix.ToolFu
 //			)
 //		}
 //	}
-func DefineInterruptibleTool[In, Out, Res any](g *Genkit, name, description string, fn aix.InterruptibleToolFunc[In, Out, Res], opts ...ai.ToolOption) *aix.InterruptibleTool[In, Out, Res] {
+func DefineInterruptibleTool[In, Out, Resume any](g *Genkit, name, description string, fn aix.InterruptibleToolFunc[In, Out, Resume], opts ...ai.ToolOption) *aix.InterruptibleTool[In, Out, Resume] {
 	return aix.DefineInterruptibleTool(g.reg, name, description, fn, opts...)
 }
 
