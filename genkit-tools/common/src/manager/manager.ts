@@ -566,6 +566,16 @@ export class RuntimeManager {
               : message;
             const parsed = JSON.parse(jsonData);
             streamingCallback(parsed);
+
+            // If this is a span_end event for the root span, we are done
+            if (
+              parsed.type === 'span_end' &&
+              parsed.span &&
+              !parsed.span.parentSpanId
+            ) {
+              stream.destroy();
+              resolve();
+            }
           } catch (err) {
             logger.error(`Error parsing stream data: ${err}`);
           }

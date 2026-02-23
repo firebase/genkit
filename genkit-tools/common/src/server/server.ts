@@ -164,9 +164,16 @@ export function startServer(manager: RuntimeManager, port: number) {
         // as a "keep alive" while we wait for the trace to stream.
         res.write(JSON.stringify({ telemetry: { traceId } }) + '\n');
 
+        let lastChunk: any = null;
         await manager.streamTrace({ traceId }, (chunk) => {
-          res.write(JSON.stringify(chunk) + '\n');
+          if (lastChunk !== null) {
+            res.write(JSON.stringify(lastChunk) + '\n');
+          }
+          lastChunk = chunk;
         });
+        if (lastChunk !== null) {
+          res.write(JSON.stringify(lastChunk));
+        }
         res.end();
       } catch (err) {
         const error = err as GenkitToolsError;
