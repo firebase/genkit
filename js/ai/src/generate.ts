@@ -367,7 +367,7 @@ function messagesFromOptions(options: GenerateOptions): MessageData[] {
 }
 
 /** A GenerationBlockedError is thrown when a generation is blocked. */
-export class GenerationBlockedError extends GenerationResponseError { }
+export class GenerationBlockedError extends GenerationResponseError {}
 
 /**
  * Normalizes a mix of middleware representations into an array of standardized `MiddlewareRef`s.
