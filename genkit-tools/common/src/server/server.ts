@@ -77,6 +77,11 @@ export function startServer(manager: RuntimeManager, port: number) {
     async (req, res) => {
       res.setHeader('Content-Type', 'text/plain');
 
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
+
       try {
         const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
@@ -88,7 +93,7 @@ export function startServer(manager: RuntimeManager, port: number) {
           : undefined;
 
         const result = await manager.runAction(
-          req.body,
+          { ...req.body, abortSignal: abortController.signal },
           undefined, // no streaming callback
           onTraceIdCallback
         );
@@ -114,6 +119,11 @@ export function startServer(manager: RuntimeManager, port: number) {
     async (req, res) => {
       res.setHeader('Content-Type', 'text/plain');
 
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
+
       try {
         const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
@@ -124,7 +134,7 @@ export function startServer(manager: RuntimeManager, port: number) {
           : undefined;
 
         const result = await manager.runAction(
-          req.body,
+          { ...req.body, abortSignal: abortController.signal },
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
           },
@@ -159,22 +169,32 @@ export function startServer(manager: RuntimeManager, port: number) {
       // a single json document.
       res.setHeader('Content-Type', 'text/plain');
 
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
+
       try {
         // Send the initial trace ID, which will also flush headers and serve
         // as a "keep alive" while we wait for the trace to stream.
         res.write(JSON.stringify({ telemetry: { traceId } }) + '\n');
 
         let lastChunk: any = null;
-        await manager.streamTrace({ traceId }, (chunk) => {
-          if (lastChunk !== null) {
-            res.write(JSON.stringify(lastChunk) + '\n');
+        await manager.streamTrace(
+          { traceId, abortSignal: abortController.signal },
+          (chunk) => {
+            if (lastChunk !== null) {
+              res.write(JSON.stringify(lastChunk) + '\n');
+            }
+            lastChunk = chunk;
           }
-          lastChunk = chunk;
-        });
+        );
         if (lastChunk !== null) {
           res.write(JSON.stringify(lastChunk));
         }
-        res.end();
+        if (!res.writableEnded) {
+          res.end();
+        }
       } catch (err) {
         const error = err as GenkitToolsError;
 
