@@ -78,7 +78,7 @@ class ResourceOutput(BaseModel):
 
 ResourcePayload = ResourceOutput | dict[str, Any]
 
-FlexibleResourceFn = Callable[..., Awaitable[ResourcePayload] | ResourcePayload]
+ResourceFn = Callable[..., Awaitable[ResourcePayload] | ResourcePayload]
 
 
 ResourceArgument = Action | str
@@ -138,7 +138,7 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     return resource
 
 
-def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a resource and registers it with the given registry.
 
     This creates a resource action that can handle requests for a specific URI
@@ -164,7 +164,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResou
     return action
 
 
-def resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a dynamic resource action without immediate registration.
 
     This is an alias for `dynamic_resource`. Useful for defining resources that
@@ -180,7 +180,7 @@ def resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     return dynamic_resource(opts, fn)
 
 
-def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
     """Defines a dynamic resource action.
 
     Creates an `Action` of kind `RESOURCE` that wraps the provided function.

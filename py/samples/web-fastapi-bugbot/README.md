@@ -50,7 +50,6 @@ curl -X POST http://localhost:8080/flow/review?stream=true \
 
 This sample demonstrates the Genkit FastAPI plugin:
 
-- **`genkit_lifespan(ai)`**: Connects FastAPI to Genkit Dev UI
 - **`@genkit_fastapi_handler(ai)`**: Exposes flows as HTTP endpoints with streaming
 - **Parallel Flow Execution**: Runs multiple analyzers concurrently
 - **Typed Prompts**: Strongly-typed inputs and outputs using Pydantic

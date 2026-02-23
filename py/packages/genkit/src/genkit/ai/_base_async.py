@@ -25,7 +25,6 @@ from collections.abc import Coroutine
 from typing import Any, TypeVar
 
 import anyio
-import httpx
 import uvicorn
 
 from genkit.aio.loop import run_loop
@@ -83,6 +82,7 @@ class GenkitBase(GenkitRegistry):
         """
         super().__init__()
         self._reflection_server_spec: ServerSpec | None = reflection_server_spec
+        self._reflection_ready = threading.Event()
         self._initialize_registry(model, plugins)
         # Ensure the default generate action is registered for async usage.
         define_generate_action(self.registry)
@@ -97,11 +97,15 @@ class GenkitBase(GenkitRegistry):
 
         The thread owns its own asyncio event loop so it never conflicts with
         the main thread's loop (whether that's uvicorn, FastAPI, or none).
+        Sets ``self._reflection_ready`` once the server is listening.
         """
-        spec = self._reflection_server_spec or ServerSpec(
-            scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999)
-        )
+        if self._reflection_server_spec is None:
+            self._reflection_server_spec = ServerSpec(
+                scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999)
+            )
+        spec = self._reflection_server_spec
         registry = self.registry
+        ready = self._reflection_ready
 
         def _thread_main() -> None:
             async def _run() -> None:
@@ -109,22 +113,18 @@ class GenkitBase(GenkitRegistry):
                 async with RuntimeManager(spec, lazy_write=True) as runtime_manager:
                     server_task = asyncio.create_task(server.serve())
 
-                    # Wait for the server to be healthy before advertising it.
-                    max_retries = 20
-                    for _ in range(max_retries):
-                        try:
-                            health_url = f'{spec.url}/api/__health'
-                            async with httpx.AsyncClient(timeout=0.5) as client:
-                                response = await client.get(health_url)
-                                if response.status_code == 200:
-                                    break
-                        except Exception:
-                            await asyncio.sleep(0.1)
-                    else:
-                        logger.warning(f'Reflection server at {spec.url} did not become healthy in time.')
+                    # Wait for uvicorn to finish binding the socket — analogous
+                    # to Go's close(serverStartCh) after net.Listen() succeeds.
+                    while not server.started and not server.should_exit:
+                        await asyncio.sleep(0.05)
+
+                    if server.should_exit:
+                        logger.warning(f'Reflection server at {spec.url} failed to start.')
+                        return
 
                     runtime_manager.write_runtime_file()
                     await logger.ainfo(f'Genkit Dev UI reflection server running at {spec.url}')
+                    ready.set()
 
                     # Keep running until the process exits (daemon thread).
                     await server_task
