@@ -44,7 +44,7 @@ from ._server import ServerSpec
 def _is_port_available(port: int) -> bool:
     try:
         with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.bind(('', port))
+            s.bind(('127.0.0.1', port))
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             return True
     except OSError:
