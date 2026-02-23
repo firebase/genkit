@@ -18,24 +18,22 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
-from starlette.types import ASGIApp, Lifespan
 from typing_extensions import Never
 
 from genkit import Genkit, Input, Output
 from genkit.ai import FlowWrapper
-from genkit.plugins.fastapi import genkit_fastapi_handler, genkit_lifespan
+from genkit.plugins.fastapi import genkit_fastapi_handler
 from genkit.plugins.google_genai import GoogleAI
 
 _ = load_dotenv()
 
+# The Dev UI reflection server starts automatically in a background thread
+# when GENKIT_ENV=dev is set — no lifespan wiring needed.
 ai = Genkit(
     plugins=[GoogleAI()],
     model='googleai/gemini-2.0-flash',
     prompt_dir=Path(__file__).parent.parent / 'prompts',
 )
-
-# Dev UI lifespan - registers with Genkit Dev UI when GENKIT_ENV=dev
-lifespan: Lifespan[ASGIApp] = genkit_lifespan(ai)
 
 
 Severity = Literal['critical', 'warning', 'info']
@@ -118,7 +116,7 @@ async def review_diff(input: DiffInput) -> Analysis:
     return response.output
 
 
-app = FastAPI(title='BugBot', description='AI-powered code review API', lifespan=lifespan)
+app = FastAPI(title='BugBot', description='AI-powered code review API')
 
 
 @app.post('/review')

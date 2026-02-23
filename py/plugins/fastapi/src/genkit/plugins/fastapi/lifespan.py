@@ -14,87 +14,44 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit FastAPI lifespan for Dev UI integration."""
+"""Genkit FastAPI lifespan (deprecated)."""
 
-import asyncio
-import os
-import socket
+import warnings
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-import uvicorn
 from starlette.types import ASGIApp, Lifespan
 
 from genkit.ai import Genkit
-from genkit.ai._runtime import RuntimeManager
-from genkit.ai._server import ServerSpec
-from genkit.core.reflection import create_reflection_asgi_app
 
 
 def genkit_lifespan(ai: Genkit) -> Lifespan[ASGIApp]:
     """Create a FastAPI lifespan that registers with Genkit Dev UI.
 
-    When GENKIT_ENV=dev is set, this lifespan starts a reflection server
-    and registers the app with the Genkit Developer UI.
+    .. deprecated::
+        ``genkit_lifespan()`` is no longer needed. The Dev UI reflection server
+        now starts automatically in a background thread when ``GENKIT_ENV=dev``
+        is set, regardless of the web framework used.
 
-    Example:
-        ```python
-        from fastapi import FastAPI
-        from genkit import Genkit
-        from genkit.plugins.fastapi import genkit_lifespan
-
-        ai = Genkit(...)
-        app = FastAPI(lifespan=genkit_lifespan(ai))
-        ```
+        Remove ``lifespan=genkit_lifespan(ai)`` from your ``FastAPI(...)`` call.
 
     Args:
-        ai: The Genkit instance to register.
+        ai: The Genkit instance (unused, kept for API compatibility).
 
     Returns:
-        A lifespan context manager for FastAPI.
+        A no-op lifespan context manager.
     """
+    warnings.warn(
+        'genkit_lifespan() is deprecated and no longer needed. '
+        'The Dev UI reflection server starts automatically when GENKIT_ENV=dev is set. '
+        'Remove lifespan=genkit_lifespan(ai) from your FastAPI() call.',
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     @asynccontextmanager
     async def lifespan(app: Any) -> AsyncGenerator[None, None]:  # noqa: ANN401
-        reflection_server = None
-        runtime_manager = None
-        reflection_sock = None
-
-        # Only start reflection server in dev mode
-        if os.environ.get('GENKIT_ENV') == 'dev':
-            # Bind to port 0 to let the OS choose a free port.
-            # This avoids race conditions between checking port availability
-            # and uvicorn binding to it.
-            reflection_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            reflection_sock.bind(('127.0.0.1', 0))
-            host, port = reflection_sock.getsockname()
-            server_spec = ServerSpec(scheme='http', host=host, port=port)
-
-            # Create and start reflection server
-            reflection_app = create_reflection_asgi_app(registry=ai.registry)
-            config = uvicorn.Config(
-                reflection_app,  # pyrefly: ignore[bad-argument-type]
-                host=host,
-                port=port,
-                log_level='warning',
-            )
-            reflection_server = uvicorn.Server(config)
-
-            # Register runtime with Dev UI
-            runtime_manager = RuntimeManager(server_spec)
-            await runtime_manager.__aenter__()
-
-            # Start reflection server in background
-            # uvicorn will take ownership of the socket
-            asyncio.create_task(reflection_server.serve(sockets=[reflection_sock]))
-
         yield
-
-        # Cleanup
-        if reflection_server:
-            reflection_server.should_exit = True
-        if runtime_manager:
-            await runtime_manager.__aexit__(None, None, None)
 
     return lifespan

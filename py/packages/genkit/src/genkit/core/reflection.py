@@ -42,6 +42,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import signal
 from collections.abc import AsyncGenerator, Callable
 from typing import Any, cast
 
@@ -59,7 +61,6 @@ from genkit.core.constants import DEFAULT_GENKIT_VERSION
 from genkit.core.error import get_reflection_json
 from genkit.core.logging import get_logger
 from genkit.core.registry import Registry
-from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (
     is_streaming_requested,
 )
@@ -210,7 +211,7 @@ def create_reflection_asgi_app(
             An empty JSON response with status code 200.
         """
         await logger.ainfo('Shutting down servers...')
-        terminate_all_servers()
+        asyncio.get_running_loop().call_soon(os.kill, os.getpid(), signal.SIGTERM)
         return JSONResponse(content={'status': 'OK'})
 
     async def handle_list_actions(_request: Request) -> JSONResponse:

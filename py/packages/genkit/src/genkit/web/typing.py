@@ -49,7 +49,7 @@ See Also:
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, MutableMapping
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 # These Protocol-based types follow the ASGI specification and are compatible
 # with any ASGI framework. Using Protocols instead of Union types allows:
@@ -82,42 +82,6 @@ Receive = Callable[[], Awaitable[MutableMapping[str, Any]]]
 # Async function that sends a message to the client
 Send = Callable[[MutableMapping[str, Any]], Awaitable[None]]
 """ASGI send callable - async function to send message to client."""
-
-
-@runtime_checkable
-class ASGIApp(Protocol):
-    """Protocol for ASGI applications.
-
-    Any async callable with the signature (scope, receive, send) -> None
-    is considered an ASGI application.
-
-    Example:
-        ```python
-        async def my_app(scope: Scope, receive: Receive, send: Send) -> None:
-            await send({
-                'type': 'http.response.start',
-                'status': 200,
-                'headers': [(b'content-type', b'text/plain')],
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'Hello, World!',
-            })
-
-
-        # my_app is an ASGIApp
-        assert isinstance(my_app, ASGIApp)
-        ```
-    """
-
-    async def __call__(
-        self,
-        scope: Scope,
-        receive: Receive,
-        send: Send,
-    ) -> None:
-        """Handle an ASGI connection."""
-        ...
 
 
 # Type alias for ASGI applications
