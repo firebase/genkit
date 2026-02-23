@@ -637,6 +637,13 @@ export class RuntimeManager {
             const parsed = JSON.parse(jsonData);
             streamingCallback(parsed);
 
+            // If this is a full trace snapshot and it's already ended, we are done
+            if (parsed.endTime) {
+              cleanup();
+              stream.destroy();
+              resolve();
+            }
+
             // If this is a span_end event for the root span, we are done
             if (
               parsed.type === 'span_end' &&
