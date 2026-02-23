@@ -32,21 +32,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      name: pypi_github_publishing
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: "3.12"
           version: "0.6.6"
 
-      - name: Build packages
+      - name: Build and publish packages
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           PACKAGES=(
             py/packages/genkit
@@ -61,29 +63,21 @@ jobs:
             py/plugins/vertex-ai
           )
 
+          FAILED=()
           for pkg in "${PACKAGES[@]}"; do
-            echo "::group::Build $pkg"
-            uv build "$pkg" --out-dir dist/
+            echo "::group::$pkg"
+            if uv build "$pkg" --out-dir dist/; then
+              echo "Build succeeded: $pkg"
+            else
+              echo "::error::Build failed: $pkg"
+              FAILED+=("$pkg")
+            fi
             echo "::endgroup::"
           done
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    environment:
-      name: pypi_github_publishing
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
+          if [ ${#FAILED[@]} -gt 0 ]; then
+            echo "::error::Failed packages: ${FAILED[*]}"
+          fi
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -96,7 +90,7 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Smoke test
