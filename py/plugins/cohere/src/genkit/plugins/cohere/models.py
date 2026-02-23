@@ -41,6 +41,7 @@ from cohere.v2.types.v2chat_stream_response import (
     ToolCallStartV2ChatStreamResponse,
 )
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -71,6 +72,8 @@ from genkit.plugins.cohere.model_info import (
 )
 
 COHERE_PLUGIN_NAME = 'cohere'
+
+logger = get_logger(__name__)
 
 
 def cohere_name(name: str) -> str:
@@ -212,10 +215,19 @@ class CohereModel:
 
         # Handle streaming.
         if ctx and ctx.send_chunk:
+            logger.debug('Cohere generate request', model=self.name, streaming=True)
             return await self._generate_streaming(params, ctx)
 
         # Non-streaming request.
+        logger.debug('Cohere generate request', model=self.name, streaming=False)
         response: V2ChatResponse = await self.client.chat(**params)
+        logger.debug(
+            'Cohere raw API response',
+            model=self.name,
+            message_content=str(response.message.content) if response.message else None,
+            tool_calls=str(response.message.tool_calls) if response.message and response.message.tool_calls else None,
+            finish_reason=str(response.finish_reason),
+        )
         return convert_response(response)
 
     async def _generate_streaming(

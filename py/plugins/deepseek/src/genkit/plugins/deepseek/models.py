@@ -25,7 +25,7 @@ temperature, top_p, and tools parameters.
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from genkit.core.action._action import ActionRunContext
 from genkit.core.logging import get_logger
@@ -127,7 +127,7 @@ class DeepSeekModel:
         """
         self.name = model
         client_params = {'api_key': api_key, **deepseek_params}
-        self.client: OpenAI = DeepSeekClient(**client_params)
+        self.client: AsyncOpenAI = DeepSeekClient(**client_params)
 
     def get_model_info(self) -> dict[str, Any] | None:
         """Retrieve metadata and supported features for the specified model.

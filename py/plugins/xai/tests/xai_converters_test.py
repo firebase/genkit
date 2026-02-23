@@ -54,6 +54,22 @@ class TestMapFinishReasonXai:
         """Test Content filter."""
         assert map_finish_reason('CONTENT_FILTER') == FinishReason.OTHER
 
+    def test_reason_stop(self) -> None:
+        """Test xAI protobuf REASON_STOP maps to STOP."""
+        assert map_finish_reason('REASON_STOP') == FinishReason.STOP
+
+    def test_reason_length(self) -> None:
+        """Test xAI protobuf REASON_LENGTH maps to LENGTH."""
+        assert map_finish_reason('REASON_LENGTH') == FinishReason.LENGTH
+
+    def test_reason_tool_calls(self) -> None:
+        """Test xAI protobuf REASON_TOOL_CALLS maps to STOP."""
+        assert map_finish_reason('REASON_TOOL_CALLS') == FinishReason.STOP
+
+    def test_reason_content_filter(self) -> None:
+        """Test xAI protobuf REASON_CONTENT_FILTER maps to OTHER."""
+        assert map_finish_reason('REASON_CONTENT_FILTER') == FinishReason.OTHER
+
     def test_none_defaults_to_unknown(self) -> None:
         """Test None defaults to unknown."""
         assert map_finish_reason(None) == FinishReason.UNKNOWN
@@ -63,8 +79,17 @@ class TestMapFinishReasonXai:
         assert map_finish_reason('NEW_REASON') == FinishReason.UNKNOWN
 
     def test_finish_reason_map_keys(self) -> None:
-        """Test Finish reason map keys."""
-        expected = {'STOP', 'LENGTH', 'TOOL_CALLS', 'CONTENT_FILTER'}
+        """Test Finish reason map includes both OpenAI-style and protobuf keys."""
+        expected = {
+            'STOP',
+            'LENGTH',
+            'TOOL_CALLS',
+            'CONTENT_FILTER',
+            'REASON_STOP',
+            'REASON_LENGTH',
+            'REASON_TOOL_CALLS',
+            'REASON_CONTENT_FILTER',
+        }
         assert FINISH_REASON_MAP.keys() == expected, f'keys = {set(FINISH_REASON_MAP.keys())}'
 
 

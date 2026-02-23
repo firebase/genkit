@@ -1,6 +1,32 @@
 # Hello Google GenAI
 
-An example demonstrating running flows using the Google GenAI plugin.
+Comprehensive demo of the Google GenAI plugin — from basic generation to
+tool calling, streaming, structured output, multimodal, and advanced features.
+
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `generate_greeting` | Basic text generation with a prompt |
+| System Prompts | `generate_with_system_prompt` | Persona control (pirate captain) |
+| Multi-turn Chat | `generate_multi_turn_chat` | Context-preserving conversations |
+| Streaming | `generate_streaming_story` | Token-by-token streaming response |
+| Streaming + Structured | `streaming_structured_output` | Progressive JSON parsing while streaming |
+| Generation Config | `generate_with_config` | Custom temperature, max_output_tokens |
+| Tool Calling | `simple_generate_with_tools_flow` | AI calls functions to get data |
+| Tool Interrupts | `simple_generate_with_interrupts` | Pause AI, resume with human input |
+| Structured Output | `generate_character` | JSON output with Pydantic schema |
+| Instruction-based Output | `generate_character_instructions` | Schema via prompt instructions |
+| Embeddings | `embed_docs` | Text embeddings with `gemini-embedding-001` |
+| Multimodal (Image) | `describe_image` | Image description |
+| Multimodal (Video) | `youtube_videos` | YouTube video transcription |
+| Thinking Mode (CoT) | `thinking_level_pro` / `thinking_level_flash` | Chain-of-thought reasoning |
+| Search Grounding | `search_grounding` | Web search for real-time info |
+| URL Context | `url_context` | Analyze content from web pages |
+| File Search (RAG) | `file_search` | Search uploaded documents |
+| Code Generation | `generate_code` | Generate code from descriptions |
+| Context Propagation | `context_demo` | Pass context to tools |
+| GCP Telemetry | `--enable-gcp-telemetry` | Traces and metrics to Cloud |
 
 ## Setup environment
 
@@ -59,7 +85,7 @@ To test Google Cloud Platform telemetry (tracing and metrics), you need a GCP pr
     proceeding so that the authentication process can complete successfully.
     Otherwise, you may run into a lot of HTTP 503 service unavailable or
     `invalid_grant` errors.
-    
+
 3.  **Run with Telemetry**:
     ```bash
     genkit start -- uv run src/main.py --enable-gcp-telemetry

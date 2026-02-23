@@ -73,6 +73,7 @@ import {
 } from './resource.js';
 import {
   isDynamicTool,
+  isMultipartTool,
   resolveTools,
   toToolDefinition,
   type ToolArgument,
@@ -366,7 +367,7 @@ function messagesFromOptions(options: GenerateOptions): MessageData[] {
 }
 
 /** A GenerationBlockedError is thrown when a generation is blocked. */
-export class GenerationBlockedError extends GenerationResponseError {}
+export class GenerationBlockedError extends GenerationResponseError { }
 
 /**
  * Normalizes a mix of middleware representations into an array of standardized `MiddlewareRef`s.
@@ -590,7 +591,11 @@ function maybeRegisterDynamicTools<
 >(registry: Registry, options: GenerateOptions<O, CustomOptions>) {
   options?.tools?.forEach((t) => {
     if (isDynamicTool(t)) {
-      registry.registerAction('tool', t as Action);
+      if (isMultipartTool(t)) {
+        registry.registerAction('tool.v2', t);
+      } else {
+        registry.registerAction('tool', t as Action);
+      }
     }
   });
 }

@@ -131,6 +131,10 @@ import httpx
 from genkit.ai import ActionRunContext
 from genkit.core.http_client import get_cached_client
 from genkit.core.logging import get_logger
+from genkit.plugins.amazon_bedrock.models.converters import (
+    StreamingFenceStripper,
+    maybe_strip_fences,
+)
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit.types import (
     FinishReason,
@@ -295,8 +299,7 @@ class BedrockModel:
                 return await self._generate_streaming(params, ctx, request)
 
             # Non-streaming request using Converse API
-            # boto3 is synchronous, so we run it directly
-            response = self.client.converse(**params)
+            response = await self.client.converse(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock API call failed',
@@ -311,6 +314,7 @@ class BedrockModel:
 
         # Convert response to Genkit format
         content = self._from_bedrock_content(message_data.get('content', []))
+        content = maybe_strip_fences(request, content)
         response_message = Message(role=Role.MODEL, content=content)
 
         # Build usage statistics
@@ -349,7 +353,7 @@ class BedrockModel:
         """
         try:
             # Use converse_stream for streaming
-            response = self.client.converse_stream(**params)
+            response = await self.client.converse_stream(**params)
         except Exception as e:
             logger.exception(
                 'Bedrock streaming API call failed',
@@ -363,22 +367,25 @@ class BedrockModel:
         final_usage: GenerationUsage | None = None
         stop_reason: str = ''
 
+        json_mode = bool(request.output and request.output.format == 'json')
+        fence_stripper = StreamingFenceStripper(json_mode=json_mode)
+
+        def _send_text(text: str) -> None:
+            """Send a text chunk and accumulate it."""
+            if not text:
+                return
+            part = Part(root=TextPart(text=text))
+            accumulated_content.append(part)
+            ctx.send_chunk(GenerateResponseChunk(role=Role.MODEL, content=[part], index=0))
+
         # Process the event stream
         stream = response.get('stream', [])
-        for event in stream:
+        async for event in stream:
             # Handle content block delta (text chunks)
             if 'contentBlockDelta' in event:
                 delta = event['contentBlockDelta'].get('delta', {})
                 if 'text' in delta:
-                    text_part = Part(root=TextPart(text=delta['text']))
-                    accumulated_content.append(text_part)
-                    ctx.send_chunk(
-                        GenerateResponseChunk(
-                            role=Role.MODEL,
-                            content=[text_part],
-                            index=0,
-                        )
-                    )
+                    _send_text(fence_stripper.process(delta['text']))
                 # Handle tool use delta (input fragments only).
                 # contentBlockStart always fires first with name/toolUseId,
                 # so by the time we get here the entry should already exist.
@@ -420,9 +427,39 @@ class BedrockModel:
                     total_tokens=usage_data.get('totalTokens', 0),
                 )
 
+            # Handle content block stop — emit tool request chunks
+            if 'contentBlockStop' in event:
+                block_idx = str(event['contentBlockStop'].get('contentBlockIndex', 0))
+                if block_idx in accumulated_tool_uses:
+                    tool_data = accumulated_tool_uses[block_idx]
+                    try:
+                        tool_input = json.loads(tool_data['input']) if tool_data['input'] else {}
+                    except json.JSONDecodeError:
+                        tool_input = tool_data['input']
+                    ctx.send_chunk(
+                        GenerateResponseChunk(
+                            role=Role.MODEL,
+                            content=[
+                                Part(
+                                    root=ToolRequestPart(
+                                        tool_request=ToolRequest(
+                                            ref=tool_data['toolUseId'],
+                                            name=tool_data['name'],
+                                            input=tool_input,
+                                        )
+                                    )
+                                )
+                            ],
+                            index=0,
+                        )
+                    )
+
             # Handle message stop
             if 'messageStop' in event:
                 stop_reason = event['messageStop'].get('stopReason', '')
+
+        # Flush any remaining fence buffer (short streams).
+        _send_text(fence_stripper.flush())
 
         # Add accumulated tool uses to content
         for tool_data in accumulated_tool_uses.values():

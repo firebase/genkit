@@ -88,12 +88,13 @@ cd ..
 echo ""
 echo -e "${YELLOW}Step 2: Checking git status...${NC}"
 CURRENT_BRANCH=$(git branch --show-current)
-if [ "$CURRENT_BRANCH" != "main" ]; then
+if [ "$CURRENT_BRANCH" != "main" ] && [ "${SKIP_BRANCH_CHECK:-}" != "1" ]; then
     echo -e "${RED}Error: Not on main branch (currently on: ${CURRENT_BRANCH})${NC}"
     echo "Switch to main branch: git checkout main"
+    echo "Or set SKIP_BRANCH_CHECK=1 to override (testing only)"
     exit 1
 fi
-echo -e "${GREEN}✓ On main branch${NC}"
+echo -e "${GREEN}✓ On branch: ${CURRENT_BRANCH}${NC}"
 
 # Check for uncommitted changes
 if ! git diff-index --quiet HEAD --; then

@@ -5,6 +5,16 @@ Demonstrates image generation using Vertex AI Imagen models.
 > **Note:** Imagen models are only available through Vertex AI, not the Gemini API.
 > For Gemini API image generation, see the `google-genai-image` sample.
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Image Generation | `draw_image_with_imagen` | Generate images from text prompts |
+| Imagen Config | `GenerateImagesConfig` | Control output (negative prompt, seed, etc.) |
+| Safety Filters | `safety_filter_level` | Content safety controls |
+| Aspect Ratio | `aspect_ratio` | Control image dimensions |
+| Watermarking | `add_watermark` | Add watermark to generated images |
+
 ## Quick Start
 
 ```bash

@@ -2,13 +2,24 @@
 
 This sample demonstrates the different output formats supported by Genkit Python.
 
-## Formats Demonstrated
+## Features Demonstrated
 
-1.  **Text (`text`)**: Raw text output.
-2.  **JSON (`json`)**: Structured JSON object output.
-3.  **Array (`array`)**: JSON array of items.
-4.  **Enum (`enum`)**: Single value from a predefined list.
-5.  **JSONL (`jsonl`)**: Newline-delimited JSON objects (great for streaming).
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Text Format | `generate_haiku_text` | Raw text output (haiku about a topic) |
+| JSON Format | `get_country_info_json` | Structured JSON object output |
+| Array Format | `recommend_books_array` | JSON array of items |
+| Enum Format | `classify_sentiment_enum` | Single value from a predefined list |
+| JSONL Format | `create_story_characters_jsonl` | Newline-delimited JSON (great for streaming) |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Output Format** | Tell the AI what shape the answer should be — text, JSON, list, etc. |
+| **JSON** | Structured data with named fields — like a form with "name", "age", etc. |
+| **JSONL** | One JSON object per line — like a spreadsheet where each row is a record |
+| **Enum** | Pick one from a list — like a multiple-choice question |
 
 ## Running
 

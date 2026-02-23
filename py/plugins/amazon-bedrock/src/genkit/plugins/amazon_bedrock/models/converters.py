@@ -27,6 +27,7 @@ See:
 
 import base64
 import json
+import re
 from typing import Any
 
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
@@ -62,6 +63,9 @@ __all__ = [
     'parse_tool_call_args',
     'separate_system_messages',
     'to_bedrock_content',
+    'maybe_strip_fences',
+    'strip_markdown_fences',
+    'StreamingFenceStripper',
     'to_bedrock_role',
     'to_bedrock_tool',
 ]
@@ -272,6 +276,145 @@ def from_bedrock_content(content_blocks: list[dict[str, Any]]) -> list[Part]:
                     parts.append(Part(root=TextPart(text=f'[Reasoning]\n{reasoning_text}\n[/Reasoning]\n')))
 
     return parts
+
+
+def strip_markdown_fences(text: str) -> str:
+    r"""Strip markdown code fences from a JSON response.
+
+    Models sometimes wrap JSON output in markdown fences like
+    ``\`\`\`json ... \`\`\``` even when instructed to output raw
+    JSON.  This helper removes the fences.
+
+    Args:
+        text: The response text, possibly wrapped in fences.
+
+    Returns:
+        The text with markdown fences removed, or the original
+        text if no fences are found.
+    """
+    stripped = text.strip()
+    match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text
+
+
+def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+    """Strip markdown fences from text parts when JSON output is expected.
+
+    Args:
+        request: The original generate request.
+        parts: The response content parts.
+
+    Returns:
+        Parts with fences stripped from text if JSON was requested.
+    """
+    if not request.output or request.output.format != 'json':
+        return parts
+
+    cleaned: list[Part] = []
+    changed = False
+    for part in parts:
+        if isinstance(part.root, TextPart) and part.root.text:
+            cleaned_text = strip_markdown_fences(part.root.text)
+            if cleaned_text != part.root.text:
+                cleaned.append(Part(root=TextPart(text=cleaned_text)))
+                changed = True
+            else:
+                cleaned.append(part)
+        else:
+            cleaned.append(part)
+    return cleaned if changed else parts
+
+
+class StreamingFenceStripper:
+    r"""Strips markdown fences from streamed text chunks.
+
+    Buffers the first few characters to detect an opening
+    ``\`\`\`json`` fence.  If found, the prefix is discarded and
+    subsequent chunks have the closing ``\`\`\``` stripped eagerly.
+
+    Usage::
+
+        stripper = StreamingFenceStripper(json_mode=True)
+        for raw_text in stream:
+            text = stripper.process(raw_text)
+            if text:
+                send_chunk(text)
+        leftover = stripper.flush()
+        if leftover:
+            send_chunk(leftover)
+    """
+
+    _BUF_LIMIT = 12  # max length of "```json\n" with whitespace
+
+    def __init__(self, *, json_mode: bool) -> None:
+        """Initialize the stripper.
+
+        Args:
+            json_mode: When True, detect and strip fences; otherwise pass through.
+        """
+        self._json_mode = json_mode
+        self._buf = ''
+        self._fence_detected = False
+        self._checked = False
+        self._pending_nl = ''
+
+    def _flush_buf(self) -> str:
+        """Flush the buffer, stripping the opening fence if found."""
+        self._checked = True
+        match = re.match(r'^```(?:json)?\s*\n?', self._buf)
+        if match:
+            self._fence_detected = True
+            remainder = self._buf[match.end() :]
+            self._buf = ''
+            return remainder
+        text = self._buf
+        self._buf = ''
+        return text
+
+    def process(self, text: str) -> str:
+        """Process a text chunk, returning cleaned text to emit.
+
+        May return an empty string if the text is being buffered.
+        """
+        if not self._json_mode:
+            return text
+
+        if not self._checked:
+            self._buf += text
+            if len(self._buf) >= self._BUF_LIMIT or '\n' in self._buf:
+                text = self._flush_buf()
+            else:
+                return ''
+
+        if self._fence_detected:
+            raw = text
+            text = re.sub(r'\n?```\s*$', '', text)
+            fence_stripped = text != raw
+            if fence_stripped:
+                # A closing fence was removed — drop the deferred newline
+                # that preceded it.
+                self._pending_nl = ''
+                return text
+            # Defer a trailing newline — it may precede a closing fence
+            # in the next chunk.
+            prefix = self._pending_nl
+            if text.endswith('\n'):
+                self._pending_nl = '\n'
+                text = prefix + text[:-1]
+            else:
+                self._pending_nl = ''
+                text = prefix + text
+            return text
+
+        return text
+
+    def flush(self) -> str:
+        """Flush any remaining buffered text.  Call after the stream ends."""
+        if self._buf and not self._checked:
+            return self._flush_buf()
+        return self._pending_nl
 
 
 def parse_tool_call_args(args_str: str) -> dict[str, Any] | str:

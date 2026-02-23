@@ -142,7 +142,15 @@ class Document(DocumentData):
             A single string containing the text from all text parts, joined
             without delimiters.
         """
-        return ''.join(p.root.text for p in self.content if isinstance(p.root, TextPart))
+        texts = []
+        for p in self.content:
+            # Handle both TextPart objects and potential dict representations
+            # p.root is the underlying TextPart or MediaPart
+            part = p.root if hasattr(p, 'root') else p
+            text_val = getattr(part, 'text', None)
+            if isinstance(text_val, str):
+                texts.append(text_val)
+        return ''.join(texts)
 
     def media(self) -> list[Media]:
         """Retrieves all media parts from the document's content.

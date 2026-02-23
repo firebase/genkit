@@ -136,6 +136,14 @@ validate-docs:
 
 # --- Model Conformance -------------------------------------------------
 
-# Run model conformance tests.
+# Run model conformance tests in parallel (see `conform check-model --help`).
 test-conformance *ARGS:
-    "{{ py_dir }}/bin/test-model-conformance" {{ ARGS }}
+    uv run --directory "{{ py_dir }}" --active conform check-model {{ ARGS }}
+
+# Check that every model plugin has conformance files.
+check-conformance:
+    uv run --directory "{{ py_dir }}" --active conform check-plugin
+
+# List available conformance plugins and env-var readiness.
+list-conformance:
+    uv run --directory "{{ py_dir }}" --active conform list

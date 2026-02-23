@@ -1,4 +1,19 @@
-# OpenAI Sample.
+# OpenAI Sample
+
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with GPT |
+| Streaming | `say_hi_stream` | Token-by-token streaming response |
+| Constrained Output | `say_hi_constrained` | Constrained generation |
+| Tool Calling | `calculate_gablorken` | Function calling demo |
+| Structured Output | `generate_character` | RPG character as JSON (Pydantic) |
+| Vision | `describe_image` | Image description with GPT-4o |
+| Reasoning (CoT) | `reasoning_flow` | Chain-of-thought with o4-mini |
+| Image Generation | `generate_image` | DALL-E image generation |
+| Text-to-Speech | `text_to_speech` | TTS with voice selection |
+| Round-trip TTS/STT | `round_trip_tts_stt` | Text → Speech → Text demo |
 
 ## Setup environment
 

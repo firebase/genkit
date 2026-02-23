@@ -1136,7 +1136,12 @@ class GeminiModel:
             schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(cast(str, input_schema['type']))
+            raw_type = input_schema['type']
+            if isinstance(raw_type, list):
+                non_null = [t for t in raw_type if t != 'null']
+                schema.nullable = True
+                raw_type = non_null[0] if non_null else 'string'
+            schema_type = genai_types.Type(cast(str, raw_type))
             schema.type = schema_type
 
             if 'enum' in input_schema:

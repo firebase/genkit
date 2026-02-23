@@ -45,6 +45,19 @@ CLAUDE_3_5_HAIKU = ModelInfo(
     ),
 )
 
+
+CLAUDE_3_5_SONNET = ModelInfo(
+    label='Anthropic - Claude 3.5 Sonnet',
+    versions=['claude-3-5-sonnet-20241022', 'claude-3-5-sonnet-20240620'],
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        system_role=True,
+        output=['text', 'json'],
+    ),
+)
+
 CLAUDE_SONNET_4 = ModelInfo(
     label='Anthropic - Claude Sonnet 4',
     versions=['claude-sonnet-4-20250514'],
@@ -138,6 +151,7 @@ CLAUDE_OPUS_4_6 = ModelInfo(
 SUPPORTED_ANTHROPIC_MODELS: dict[str, ModelInfo] = {
     'claude-3-haiku': CLAUDE_3_HAIKU,
     'claude-3-5-haiku': CLAUDE_3_5_HAIKU,
+    'claude-3-5-sonnet': CLAUDE_3_5_SONNET,
     'claude-sonnet-4': CLAUDE_SONNET_4,
     'claude-opus-4': CLAUDE_OPUS_4,
     'claude-sonnet-4-5': CLAUDE_SONNET_4_5,

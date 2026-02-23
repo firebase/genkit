@@ -1,5 +1,17 @@
 # Mistral AI Sample
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with mistral-small |
+| Streaming | `streaming_flow` | Token-by-token streaming response |
+| Generation Config | `custom_config_flow` | Custom temperature and config |
+| Code Generation | `generate_code` | Code generation with Codestral |
+| Large Model | `large_model_flow` | Complex reasoning with mistral-large |
+| Multi-turn Chat | `chat_flow` | Context-preserving conversations |
+| Embeddings | `embed_flow` | Text embeddings with mistral-embed |
+
 ## How to Get Your Mistral API Key
 
 A Mistral API key is a secret token for accessing Mistral AI's powerful models.

@@ -251,6 +251,11 @@ class CfModel:
             response = await self.client.post(self._get_api_url(), json=body)
             response.raise_for_status()
             data = response.json()
+            logger.debug(
+                'Cloudflare raw API response',
+                model_id=self.model_id,
+                data=data,
+            )
         except httpx.HTTPStatusError as e:
             logger.exception(
                 'Cloudflare API call failed',
@@ -342,14 +347,24 @@ class CfModel:
         if accumulated_text:
             content.append(Part(root=TextPart(text=accumulated_text)))
 
-        # Add tool calls to content
+        # Add tool calls to content (OpenAI-compatible nested format).
         for tool_call in accumulated_tool_calls:
+            func = tool_call.get('function', {})
+            tc_name = func.get('name', '') or tool_call.get('name', '')
+            tc_args_raw = func.get('arguments', '') or tool_call.get('arguments', {})
+            if isinstance(tc_args_raw, str):
+                try:
+                    tc_args = json.loads(tc_args_raw)
+                except (json.JSONDecodeError, ValueError):
+                    tc_args = {}
+            else:
+                tc_args = tc_args_raw
             content.append(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(
-                            name=tool_call.get('name', ''),
-                            input=tool_call.get('arguments', {}),
+                            name=tc_name,
+                            input=tc_args,
                         )
                     )
                 )
@@ -394,15 +409,29 @@ class CfModel:
                 text_response = json.dumps(text_response)
             content.append(Part(root=TextPart(text=text_response)))
 
-        # Extract tool calls
+        # Extract tool calls.
+        # Cloudflare returns OpenAI-compatible format with a nested
+        # ``function`` object: {"type": "function", "function": {"name": ..., "arguments": ...}}
+        # We also handle a flat format for backwards compatibility.
         tool_calls = result.get('tool_calls', [])
         for tool_call in tool_calls:
+            func = tool_call.get('function', {})
+            tc_name = func.get('name', '') or tool_call.get('name', '')
+            tc_args_raw = func.get('arguments', '') or tool_call.get('arguments', {})
+            # arguments may be a JSON string or already a dict.
+            if isinstance(tc_args_raw, str):
+                try:
+                    tc_args = json.loads(tc_args_raw)
+                except (json.JSONDecodeError, ValueError):
+                    tc_args = {}
+            else:
+                tc_args = tc_args_raw
             content.append(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(
-                            name=tool_call.get('name', ''),
-                            input=tool_call.get('arguments', {}),
+                            name=tc_name,
+                            input=tc_args,
                         )
                     )
                 )

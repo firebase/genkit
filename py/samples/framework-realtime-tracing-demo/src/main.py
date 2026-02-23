@@ -340,11 +340,6 @@ async def check_realtime_status() -> dict[str, object]:
     }
 
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-
 async def slow_operation(description: str, delay: float = 1.0) -> str:
     """Simulate a slow operation.
 
@@ -359,11 +354,6 @@ async def slow_operation(description: str, delay: float = 1.0) -> str:
     await asyncio.sleep(delay)
     logger.info('Completed slow operation', description=description)
     return f'Completed: {description}'
-
-
-# =============================================================================
-# MAIN
-# =============================================================================
 
 
 async def main() -> None:

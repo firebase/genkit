@@ -25,7 +25,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from cohere.types import TextAssistantMessageV2ContentItem
+
+try:
+    from cohere.types import TextAssistantMessageV2ContentItem
+except ImportError:
+    from cohere.types import TextAssistantMessageV2ContentOneItem as TextAssistantMessageV2ContentItem
 from cohere.v2.types.v2chat_stream_response import (
     ContentDeltaV2ChatStreamResponse,
     MessageEndV2ChatStreamResponse,

@@ -390,6 +390,10 @@ def _inject_trace_context(event_dict: MutableMapping[str, Any]) -> MutableMappin
     Returns:
         The event dictionary with trace context added.
     """
+    # Only inject if event_dict is a dict or mapping
+    if not isinstance(event_dict, dict) and not hasattr(event_dict, '__setitem__'):
+        return event_dict
+
     span = trace.get_current_span()
     if span == trace.INVALID_SPAN:
         return event_dict
@@ -429,7 +433,14 @@ def _configure_logging() -> None:
             new_processors = list(processors)
             # Insert before the last processor (usually the renderer)
             new_processors.insert(max(0, len(new_processors) - 1), inject_observability_trace_context)
-            structlog.configure(processors=new_processors)
+            cfg = structlog.get_config()
+            structlog.configure(
+                processors=new_processors,
+                wrapper_class=cfg.get('wrapper_class'),
+                context_class=cfg.get('context_class'),
+                logger_factory=cfg.get('logger_factory'),
+                cache_logger_on_first_use=cfg.get('cache_logger_on_first_use'),
+            )
             logger.debug('Configured structlog for trace correlation')
 
     except Exception as e:

@@ -1,5 +1,7 @@
 # genkit-plugin-checks
 
+> **Preview** — This plugin is in preview and may have API changes in future releases.
+
 Google Checks AI Safety plugin for [Genkit](https://genkit.dev/).
 
 This plugin integrates [Google Checks](https://checks.google.com/ai-safety)

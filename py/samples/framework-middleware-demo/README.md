@@ -4,6 +4,22 @@ Demonstrates Genkit's middleware system using the `use=` parameter on
 `ai.generate()`. Middleware intercepts the request/response pipeline,
 enabling logging, retries, request modification, and more.
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Logging Middleware | `logging_demo` | Log request metadata and response info |
+| Request Modification | `request_modifier_demo` | Modify requests before they reach the model |
+| Chained Middleware | `chained_middleware_demo` | Compose multiple middleware in a pipeline |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Middleware** | Code that runs before/after the AI call — like a security guard checking bags at the door |
+| **`use=`** | Pass middleware to `ai.generate()` — like adding filters to a camera |
+| **`next(req, ctx)`** | Pass the request to the next middleware — like passing a baton in a relay race |
+
 ## Quick Start
 
 ```bash

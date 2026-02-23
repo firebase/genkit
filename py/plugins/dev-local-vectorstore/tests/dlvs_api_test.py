@@ -20,6 +20,7 @@ import json
 import pathlib
 import tempfile
 
+import aiofiles.os
 import pytest
 
 from genkit.plugins.dev_local_vectorstore.constant import DbValue
@@ -123,13 +124,15 @@ class TestDeserializeData:
 class TestFileStoreOperations:
     """Tests for file store load/dump operations."""
 
-    def test_load_nonexistent_file_returns_empty(self) -> None:
+    @pytest.mark.asyncio
+    async def test_load_nonexistent_file_returns_empty(self) -> None:
         """Loading from nonexistent file returns empty dict."""
         api = LocalVectorStoreAPI(index_name='nonexistent_xyz_test')
-        result = api._load_filestore()
+        result = await api._load_filestore()
         assert result == {}
 
-    def test_dump_and_load_roundtrip(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.asyncio
+    async def test_dump_and_load_roundtrip(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Dump then load produces equivalent data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             index_name = 'roundtrip_test'
@@ -141,13 +144,14 @@ class TestFileStoreOperations:
             data = {
                 'doc1': _make_db_value('stored document', [0.1, 0.2]),
             }
-            api._dump_filestore(data)
+            await api._dump_filestore(data)
 
-            loaded = api._load_filestore()
+            loaded = await api._load_filestore()
             assert 'doc1' in loaded
             assert loaded['doc1'].embedding.embedding == [0.1, 0.2]
 
-    def test_dump_creates_valid_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.asyncio
+    async def test_dump_creates_valid_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Dump creates a valid JSON file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             index_name = 'json_test'
@@ -156,11 +160,11 @@ class TestFileStoreOperations:
             api = LocalVectorStoreAPI(index_name=index_name)
 
             data = {'key': _make_db_value('test')}
-            api._dump_filestore(data)
+            await api._dump_filestore(data)
 
-            file_path = pathlib.Path(api.index_file_name)
-            assert file_path.exists()
-            content = json.loads(file_path.read_text(encoding='utf-8'))
+            assert await aiofiles.os.path.exists(api.index_file_name)
+            async with aiofiles.open(api.index_file_name, encoding='utf-8') as f:
+                content = json.loads(await f.read())
             assert isinstance(content, dict)
             assert 'key' in content
 

@@ -44,6 +44,7 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
+  "genkit-plugin-google-cloud",
   "google-cloud-firestore",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
@@ -64,7 +65,7 @@ license = "Apache-2.0"
 name = "genkit-plugin-firebase"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.5.0"
+version = "0.5.1"
 
 [project.optional-dependencies]
 # Telemetry export uses the Google Cloud telemetry exporters (Cloud Trace/Monitoring).

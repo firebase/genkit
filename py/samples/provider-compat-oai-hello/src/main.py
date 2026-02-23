@@ -73,7 +73,6 @@ See README.md for testing instructions.
 
 import asyncio
 import os
-from decimal import Decimal
 
 import httpx
 from pydantic import BaseModel, Field
@@ -153,16 +152,16 @@ class MyInput(BaseModel):
 class WeatherRequest(BaseModel):
     """Weather request."""
 
-    latitude: Decimal
-    longitude: Decimal
+    latitude: float
+    longitude: float
 
 
 class Temperature(BaseModel):
     """Temperature by location."""
 
     location: str
-    temperature: Decimal
-    gablorken: Decimal
+    temperature: float
+    gablorken: float | str | None = None
 
 
 class WeatherResponse(BaseModel):
@@ -308,7 +307,7 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
 
 
 @ai.flow()
-async def get_weather_flow(input: WeatherFlowInput) -> str:
+async def get_weather_flow(input: WeatherFlowInput) -> WeatherResponse:
     """Get the weather for a location.
 
     Args:
@@ -325,20 +324,20 @@ async def get_weather_flow(input: WeatherFlowInput) -> str:
         tools=['get_weather_tool'],
         output=Output(schema=WeatherResponse),
     )
-    return response.text
+    return WeatherResponse.model_validate(response.output)
 
 
 @ai.flow()
-async def get_weather_flow_stream(input: WeatherFlowInput) -> str:
+async def get_weather_flow_stream(input: WeatherFlowInput) -> WeatherResponse:
     """Get the weather for a location using a stream.
 
     Args:
         input: Input with location to get weather for.
 
     Returns:
-        The weather for the location as a string.
+        The weather for the location.
     """
-    stream, _ = ai.generate_stream(
+    stream, response = ai.generate_stream(
         model=openai_model('gpt-4o'),
         system=(
             'You are an assistant that provides current weather information in JSON format and calculates '
@@ -349,10 +348,10 @@ async def get_weather_flow_stream(input: WeatherFlowInput) -> str:
         tools=['get_weather_tool', 'gablorkenTool'],
         output=Output(schema=WeatherResponse),
     )
-    result: str = ''
-    async for data in stream:
-        result += data.text
-    return result
+    async for _chunk in stream:
+        pass
+    final = await response
+    return WeatherResponse.model_validate(final.output)
 
 
 @ai.flow()

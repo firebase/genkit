@@ -1,71 +1,89 @@
-# Genkit multi-server sample
+# Multi-Server Sample
 
-This sample shows how to run multiple servers using the Genkit Web server
-manager.
+Run multiple ASGI servers (Litestar, Starlette) in parallel using Genkit's
+`ServerManager`, with shared lifecycle management and graceful shutdown.
 
-### Monitoring and Running
+## Architecture
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       ServerManager                              │
+│         (coordinates all servers, handles SIGTERM)               │
+│                                                                  │
+│    ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐  │
+│    │  Litestar     │  │  Starlette       │  │  Reflection    │  │
+│    │  (Flows API)  │  │  (Reflection)    │  │  (DevUI)       │  │
+│    │  :3400        │  │  :3100           │  │  :4000         │  │
+│    │               │  │                  │  │                │  │
+│    │  /flow/run    │  │  Genkit internal │  │  Genkit flows  │  │
+│    │  /greet       │  │  API             │  │  & debugging   │  │
+│    │  /__healthz   │  │                  │  │                │  │
+│    │  /__serverz   │  │                  │  │                │  │
+│    └──────────────┘  └──────────────────┘  └────────────────┘  │
+│                                                                  │
+│    Each server: own port, own lifecycle, own middleware          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Features Demonstrated
+
+| Feature | Code | Description |
+|---------|------|-------------|
+| Server Manager | `ServerManager()` | Coordinate multiple servers in one process |
+| Litestar Server | `FlowsServerLifecycle` | Full-featured API server with controllers |
+| Starlette Server | `ReflectionServerStarletteLifecycle` | Lightweight ASGI reflection server |
+| Server Lifecycle | `AbstractBaseServer` | Custom startup/shutdown hooks per server |
+| Logging Middleware | `LitestarLoggingMiddleware` | Request/response logging with timing |
+| Health Checks | `/__healthz` | Server health endpoint |
+| Server Info | `/__serverz` | Process info and server metadata |
+| Graceful Shutdown | `terminate_all_servers()` | SIGTERM handling across all servers |
+| Port Range | `ports=range(3400, 3410)` | Auto-select from a port range |
+| Delayed Server Start | `add_server_after()` | Add servers after a delay |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **ASGI** | A standard for Python web servers — like USB but for connecting web frameworks |
+| **Litestar** | A modern Python web framework — fast and type-safe for building APIs |
+| **Starlette** | A lightweight ASGI toolkit — the building block for frameworks like FastAPI |
+| **ServerManager** | Runs multiple servers in parallel — each gets its own port and lifecycle |
+| **Reflection Server** | Genkit's internal server — provides DevUI and flow execution endpoints |
+
+## Quick Start
 
 ```bash
 ./run.sh
 ```
 
-This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
-
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
-
-## Output
-
-```text
-2025-03-15 18:06:09 [debug    ] ✅ Event loop is using uvloop (recommended️)
-2025-03-15 18:06:09 [info     ] Starting servers...
-2025-03-15 18:06:09 [info     ] Registering server             name=flows ports=range(3400, 3410)
-2025-03-15 18:06:09 [info     ] Registering server             name=hello ports=[3300]
-2025-03-15 18:06:09 [info     ] Registering server             name=reflection ports=[3100]
-2025-03-15 18:06:09 [info     ] Registering server             name=reflection-starlette ports=[3200]
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info) host=localhost port=3400
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info) host=localhost port=3400
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=flows, version=1.0.0, port=3400, ports=range(3400, 3410), host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info) host=localhost port=3300
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info) host=localhost port=3300
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=hello, version=1.0.0, port=3300, ports=[3300], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info) host=localhost port=3100
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info) host=localhost port=3100
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=reflection, version=1.0.0, port=3100, ports=[3100], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Checking port                  config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info) host=localhost port=3200
-2025-03-15 18:06:09 [info     ] Port available                 config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info) host=localhost port=3200
-2025-03-15 18:06:09 [info     ] Server started                 config=ServerConfig(name=reflection-starlette, version=1.0.0, port=3200, ports=[3200], host=localhost, log_level=info)
-2025-03-15 18:06:09 [info     ] Starting servers completed
-```
-
-## Stopping the sample
-
-Lookup the process ID from [/\_\_serverz](http://localhost:3400/__serverz)
-
-```bash
-# SIGTERM
-kill -15 ${PROCESS_ID}
-```
+No API keys needed — this sample demonstrates server infrastructure, not AI generation.
 
 ## Testing This Demo
 
 1. **Run the demo**:
    ```bash
-   cd py/samples/web-multi-server
    ./run.sh
    ```
 
-2. **Test the servers**:
-   - [ ] Main API server at http://localhost:8000
-   - [ ] Health check endpoint at /health
-   - [ ] Server info endpoint at /info
+2. **Test the Litestar server** (port 3400):
+   - [ ] `GET http://localhost:3400/greet` — Greeting endpoint
+   - [ ] `GET http://localhost:3400/flow/run` — Flow endpoint
+   - [ ] `GET http://localhost:3400/__healthz` — Health check
+   - [ ] `GET http://localhost:3400/__serverz` — Server info (includes PID)
 
-3. **Expected behavior**:
-   - Multiple servers start and run concurrently
-   - Graceful shutdown handles all servers
-   - Middleware and logging work across servers
+3. **Test the Reflection server** (port 3100, dev mode only):
+   - [ ] Starts automatically in dev mode (`GENKIT_ENV=dev`)
+
+4. **Test graceful shutdown**:
+   - [ ] `POST http://localhost:3400/__quitquitquitz` — Shuts down all servers
+   - [ ] Or send `kill -15 <PID>` (get PID from `/__serverz`)
+
+5. **Expected behavior**:
+   - Multiple servers start concurrently on different ports
+   - Each server has its own lifecycle hooks (startup/shutdown logged)
+   - Logging middleware captures request/response timing
+   - Graceful shutdown stops all servers cleanly
+
+## Development
+
+The `run.sh` script uses `watchmedo` for hot reloading on file changes.

@@ -1,6 +1,8 @@
 # Genkit Cloudflare Workers AI Plugin
 
 > **Community Plugin** – This plugin is maintained by the community and is supported on a best-effort basis. It is not an official Cloudflare product.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
 
 This plugin provides access to [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) models and OTLP telemetry export for the Genkit framework. Cloudflare Workers AI runs AI models at the edge, close to users, providing low-latency inference with global availability.
 

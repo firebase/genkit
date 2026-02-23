@@ -1,5 +1,16 @@
 # Hugging Face Sample
 
+## Features Demonstrated
+
+| Feature | Flow | Description |
+|---------|------|-------------|
+| Simple Generation | `say_hi` | Basic text generation with Llama 3.1 |
+| Streaming | `streaming_flow` | Token-by-token streaming response |
+| Generation Config | `custom_config_flow` | Custom temperature and config |
+| Multi-model | `llama_flow` / `qwen_flow` / `gemma_flow` | Different model providers |
+| Multi-turn Chat | `chat_flow` | Context-preserving conversations |
+| Inference Providers | `provider='auto'` | Auto-select best provider per model |
+
 ## How to Get Your Hugging Face Token
 
 A Hugging Face token is required to access the Inference API.

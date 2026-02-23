@@ -2,6 +2,8 @@
 
 > **Community Plugin** — This plugin is community-maintained and is not an
 > official Google or Cohere product. It is provided on an "as-is" basis.
+>
+> **Preview** — This plugin is in preview and may have API changes in future releases.
 
 The Cohere AI plugin for [Genkit](https://github.com/firebase/genkit)
 provides integration with [Cohere's](https://cohere.com/) AI models,

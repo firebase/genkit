@@ -18,7 +18,7 @@
 
 import json
 from functools import reduce
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -55,10 +55,12 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     second_response.choices = [MagicMock(finish_reason='stop', message=second_message)]
 
     mock_client = MagicMock()
-    mock_client.chat.completions.create.side_effect = [
-        first_response,
-        second_response,
-    ]
+    mock_client.chat.completions.create = AsyncMock(
+        side_effect=[
+            first_response,
+            second_response,
+        ]
+    )
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
 
@@ -120,17 +122,17 @@ async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) 
 
             return MagicMock(choices=[choice_mock])
 
-        def __iter__(self) -> 'MockStream':
+        def __aiter__(self) -> 'MockStream':
             return self
 
-        def __next__(self) -> object:
+        async def __anext__(self) -> object:
             if self._current >= len(self._chunks):
-                raise StopIteration
+                raise StopAsyncIteration
             chunk = self._chunks[self._current]
             self._current += 1
             return chunk
 
-    mock_client.chat.completions.create.return_value = MockStream()
+    mock_client.chat.completions.create = AsyncMock(return_value=MockStream())
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []

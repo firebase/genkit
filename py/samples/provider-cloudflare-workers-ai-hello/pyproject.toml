@@ -42,7 +42,7 @@ license = "Apache-2.0"
 name = "provider-cloudflare-workers-ai-hello"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.1.0"
+version = "0.2.0"
 
 [tool.uv.sources]
 genkit                              = { workspace = true }

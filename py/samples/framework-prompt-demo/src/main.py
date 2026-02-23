@@ -60,7 +60,8 @@ Testing Instructions
 2. Run ``./run.sh`` from this sample directory.
 3. Open the DevUI at http://localhost:4000.
 4. Run ``chef_flow`` to generate a recipe (structured output).
-5. Run ``tell_story`` to stream a story (uses partials + streaming).
+5. Run ``robot_chef_flow`` to generate a robot-themed recipe (prompt variant).
+6. Run ``tell_story`` to stream a story (uses partials + streaming).
 
 See README.md for more details.
 """
@@ -152,8 +153,39 @@ async def chef_flow(input: ChefInput) -> Recipe:
 
     response = await recipe_prompt(input={'food': input.food})
     # Ensure we return a Pydantic model as expected by the type hint and caller
+    if not response.output:
+        raise ValueError('Model did not return a recipe.')
     result = Recipe.model_validate(response.output)
     await logger.ainfo(f'chef_flow result: {result}')
+    return result
+
+
+@ai.flow(name='robot_chef_flow')
+async def robot_chef_flow(input: ChefInput) -> Recipe:
+    """Generate a robot-themed recipe for the given food.
+
+    This flow demonstrates using prompt variants. The 'robot' variant
+    of the recipe prompt generates recipes suitable for robots.
+
+    Args:
+        input: Input containing the food item.
+
+    Returns:
+        A formatted robot recipe.
+
+    Example:
+        >>> await robot_chef_flow(ChefInput(food='banana bread'))
+        Recipe(title='Robotic Banana Bread', ...)
+    """
+    await logger.ainfo(f'robot_chef_flow called with input: {input}')
+    robot_recipe_prompt = ai.prompt('recipe', variant='robot')
+
+    response = await robot_recipe_prompt(input={'food': input.food})
+    # Ensure we return a Pydantic model as expected by the type hint and caller
+    if not response.output:
+        raise ValueError('Model did not return a recipe.')
+    result = Recipe.model_validate(response.output)
+    await logger.ainfo(f'robot_chef_flow result: {result}')
     return result
 
 
@@ -209,6 +241,11 @@ async def main() -> None:
     await logger.ainfo('--- Running Chef Flow ---')
     chef_result = await chef_flow(ChefInput(food='banana bread'))
     await logger.ainfo('Chef Flow Result', result=chef_result.model_dump())
+
+    # Robot Chef Flow
+    await logger.ainfo('--- Running Robot Chef Flow ---')
+    robot_chef_result = await robot_chef_flow(ChefInput(food='banana bread'))
+    await logger.ainfo('Robot Chef Flow Result', result=robot_chef_result.model_dump())
 
     # Tell Story Flow (Streaming)
     await logger.ainfo('--- Running Tell Story Flow ---')

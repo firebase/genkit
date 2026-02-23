@@ -291,6 +291,87 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     # assert action1.config_schema == GeminiConfigSchema
 
 
+@pytest.mark.asyncio
+async def test_googleai_list_known_models(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known models."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['generateContent'], name='models/gemini-pro'),
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
+        MockModel(supported_actions=['generateContent'], name='models/gemini-2.0-flash-tts'),  # TTS
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._client = mock_client
+
+    result = googleai_plugin_instance._list_known_models()
+
+    # Check Gemini Pro
+    action1 = next(a for a in result if a.name == googleai_name('gemini-pro'))
+    assert action1 is not None
+
+    # Check TTS
+    action3 = next(a for a in result if a.name == googleai_name('gemini-2.0-flash-tts'))
+    assert action3 is not None
+
+
+@pytest.mark.asyncio
+async def test_googleai_list_known_veo_models(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known veo models."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['generateVideos'], name='models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._client = mock_client
+
+    result = googleai_plugin_instance._list_known_veo_models()
+
+    # Check Veo
+    action1 = next(a for a in result if a.name == googleai_name('veo-2.0-generate-001'))
+    assert action1 is not None
+
+
+@pytest.mark.asyncio
+async def test_googleai_list_known_embedders(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known embedders."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._client = mock_client
+
+    result = googleai_plugin_instance._list_known_embedders()
+
+    # Check Embedder
+    action1 = next(a for a in result if a.name == googleai_name('gemini-embedding-001'))
+    assert action1 is not None
+
+
 @pytest.mark.parametrize(
     'input_options, expected_headers',
     [
@@ -711,6 +792,145 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     assert action4 is not None
     # from genkit.plugins.google_genai.models.veo import VeoConfigSchema
     # assert action4.config_schema == VeoConfigSchema
+
+
+@pytest.mark.asyncio
+async def test_googleai_resolve_background_model(googleai_plugin_instance: GoogleAI) -> None:
+    """Test resolve action for background model."""
+    plugin = googleai_plugin_instance
+
+    action = await plugin.resolve(action_type=ActionKind.BACKGROUND_MODEL, name=googleai_name('veo-2.0-generate-001'))
+    assert action is not None
+    assert action.kind == ActionKind.BACKGROUND_MODEL
+    assert action.name == googleai_name('veo-2.0-generate-001')
+
+
+@pytest.mark.asyncio
+async def test_googleai_resolve_check_operation(googleai_plugin_instance: GoogleAI) -> None:
+    """Test resolve action for check operation."""
+    plugin = googleai_plugin_instance
+
+    action = await plugin.resolve(
+        action_type=ActionKind.CHECK_OPERATION, name=googleai_name('veo-2.0-generate-001/check')
+    )
+    assert action is not None
+    assert action.kind == ActionKind.CHECK_OPERATION
+    assert action.name == googleai_name('veo-2.0-generate-001/check')
+
+
+@pytest.mark.asyncio
+async def test_vertexai_list_known_models(vertexai_plugin_instance: VertexAI) -> None:
+    """Unit test for list known models."""
+
+    @dataclass
+    class MockModel:
+        name: str
+        description: str = ''
+
+    [
+        MockModel(name='publishers/google/models/gemini-1.5-flash'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
+        MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
+        MockModel(name='publishers/google/models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    # Create sophisticated mocks that have supported_actions
+    m1 = MagicMock()
+    m1.name = 'publishers/google/models/gemini-1.5-flash'
+    m1.supported_actions = ['generateContent']
+    m1.description = 'Gemini model'
+
+    m2 = MagicMock()
+    m2.name = 'publishers/google/models/gemini-embedding-001'
+    m2.supported_actions = ['embedContent']
+    m2.description = 'Embedder'
+
+    m3 = MagicMock()
+    m3.name = 'publishers/google/models/imagen-3.0-generate-001'
+    m3.supported_actions = ['predict']
+    m3.description = 'Imagen'
+
+    m4 = MagicMock()
+    m4.name = 'publishers/google/models/veo-2.0-generate-001'
+    m4.supported_actions = ['generateVideos']
+    m4.description = 'Veo'
+
+    mock_client.models.list.return_value = [m1, m2, m3, m4]
+    vertexai_plugin_instance._client = mock_client
+
+    result = vertexai_plugin_instance._list_known_models()
+
+    # Verify Gemini
+    action1 = next(a for a in result if a.name == vertexai_name('gemini-1.5-flash'))
+    assert action1 is not None
+
+    # Verify Imagen
+    action3 = next(a for a in result if a.name == vertexai_name('imagen-3.0-generate-001'))
+    assert action3 is not None
+
+    # Verify Veo
+    action4 = next(a for a in result if a.name == vertexai_name('veo-2.0-generate-001'))
+    assert action4 is not None
+
+
+@pytest.mark.asyncio
+async def test_vertexai_list_known_embedders(vertexai_plugin_instance: VertexAI) -> None:
+    """Unit test for list known embedders."""
+
+    @dataclass
+    class MockModel:
+        name: str
+        description: str = ''
+
+    [
+        MockModel(name='publishers/google/models/gemini-1.5-flash'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
+        MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
+        MockModel(name='publishers/google/models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    # Create sophisticated mocks that have supported_actions
+    m1 = MagicMock()
+    m1.name = 'publishers/google/models/gemini-1.5-flash'
+    m1.supported_actions = ['generateContent']
+    m1.description = 'Gemini model'
+
+    m2 = MagicMock()
+    m2.name = 'publishers/google/models/gemini-embedding-001'
+    m2.supported_actions = ['embedContent']
+    m2.description = 'Embedder'
+
+    m3 = MagicMock()
+    m3.name = 'publishers/google/models/imagen-3.0-generate-001'
+    m3.supported_actions = ['predict']
+    m3.description = 'Imagen'
+
+    m4 = MagicMock()
+    m4.name = 'publishers/google/models/veo-2.0-generate-001'
+    m4.supported_actions = ['generateVideos']
+    m4.description = 'Veo'
+
+    mock_client.models.list.return_value = [m1, m2, m3, m4]
+    vertexai_plugin_instance._client = mock_client
+
+    result = vertexai_plugin_instance._list_known_embedders()
+
+    # Verify Embedder
+    action2 = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
+    assert action2 is not None
+
+
+@pytest.mark.asyncio
+async def test_vertexai_resolve_evaluator(vertexai_plugin_instance: VertexAI) -> None:
+    """Test resolve action for evaluator."""
+    plugin = vertexai_plugin_instance
+
+    action = await plugin.resolve(action_type=ActionKind.EVALUATOR, name=vertexai_name('fluency'))
+    assert action is not None
+    assert action.kind == ActionKind.EVALUATOR
+    assert action.name == vertexai_name('fluency')
 
 
 def test_config_schema_extra_fields() -> None:

@@ -20,12 +20,19 @@ import json
 from collections.abc import Callable
 from typing import Any, cast
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext
+from genkit.core.logging import get_logger
+from genkit.core.typing import GenerationCommonConfig as CoreGenerationCommonConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
-from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
+from genkit.plugins.compat_oai.models.utils import (
+    DictMessageAdapter,
+    MessageAdapter,
+    MessageConverter,
+    strip_markdown_fences,
+)
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.types import (
     GenerateRequest,
@@ -37,19 +44,22 @@ from genkit.types import (
     Part,
     ReasoningPart,
     Role,
+    TextPart,
     ToolDefinition,
 )
+
+logger = get_logger(__name__)
 
 
 class OpenAIModel:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: str, client: OpenAI) -> None:
+    def __init__(self, model: str, client: AsyncOpenAI) -> None:
         """Initializes the OpenAIModel instance with the specified model and OpenAI client parameters.
 
         Args:
             model: The OpenAI model to use for generating responses.
-            client: OpenAI client instance.
+            client: Async OpenAI client instance.
         """
         self._model = model
         self._openai_client = client
@@ -163,6 +173,52 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
+    def _clean_json_response(self, response: 'GenerateResponse', request: 'GenerateRequest') -> 'GenerateResponse':
+        """Strip markdown fences from JSON responses for json_object-mode models.
+
+        Only applies when the model uses ``json_object`` mode (e.g. DeepSeek)
+        and the request asked for JSON output.
+
+        Args:
+            response: The generate response.
+            request: The original request.
+
+        Returns:
+            The response with cleaned text parts, or the original response.
+        """
+        if (
+            not request.output
+            or request.output.format != 'json'
+            or not self._model.startswith('deepseek')
+            or response.message is None
+        ):
+            return response
+
+        cleaned_parts: list[Part] = []
+        changed = False
+        for part in response.message.content:
+            if isinstance(part.root, TextPart) and part.root.text:
+                cleaned_text = strip_markdown_fences(part.root.text)
+                if cleaned_text != part.root.text:
+                    cleaned_parts.append(Part(root=TextPart(text=cleaned_text)))
+                    changed = True
+                else:
+                    cleaned_parts.append(part)
+            else:
+                cleaned_parts.append(part)
+
+        if changed:
+            return GenerateResponse(
+                request=request,
+                message=Message(role=response.message.role, content=cleaned_parts),
+                finish_reason=response.finish_reason,
+                finish_message=response.finish_message,
+                latency_ms=response.latency_ms,
+                usage=response.usage,
+                custom=response.custom,
+            )
+        return response
+
     @staticmethod
     def _build_schema_instruction(schema: dict[str, Any]) -> dict[str, str]:
         """Build a system message instructing the model to follow a JSON schema.
@@ -235,12 +291,19 @@ class OpenAIModel:
             A GenerateResponse object containing the generated message.
         """
         openai_config = await self._get_openai_request_config(request=request)
-        response = self._openai_client.chat.completions.create(**openai_config)
+        logger.debug('OpenAI generate request', model=self._model, streaming=False)
+        response = await self._openai_client.chat.completions.create(**openai_config)
+        logger.debug(
+            'OpenAI raw API response',
+            model=self._model,
+            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+        )
 
-        return GenerateResponse(
+        result = GenerateResponse(
             request=request,
             message=MessageConverter.to_genkit(MessageAdapter(response.choices[0].message)),
         )
+        return self._clean_json_response(result, request)
 
     async def _generate_stream(
         self, request: GenerateRequest, callback: Callable[[GenerateResponseChunk], None]
@@ -257,11 +320,11 @@ class OpenAIModel:
         openai_config = await self._get_openai_request_config(request=request)
         openai_config['stream'] = True
 
-        stream = self._openai_client.chat.completions.create(**openai_config)
+        stream = await self._openai_client.chat.completions.create(**openai_config)
 
         tool_calls: dict[int, Any] = {}
         accumulated_content: list[Part] = []
-        for chunk in stream:
+        async for chunk in stream:
             delta = chunk.choices[0].delta
 
             # Text content chunk
@@ -313,10 +376,11 @@ class OpenAIModel:
             )
             accumulated_content.extend(message.content)
 
-        return GenerateResponse(
+        result = GenerateResponse(
             request=request,
             message=Message(role=Role.MODEL, content=accumulated_content),
         )
+        return self._clean_json_response(result, request)
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
@@ -331,6 +395,7 @@ class OpenAIModel:
         request.config = self.normalize_config(request.config)
 
         if ctx.is_streaming:
+            logger.debug('OpenAI generate request', model=self._model, streaming=True)
             return await self._generate_stream(request, ctx.send_chunk)
         else:
             return await self._generate(request)
@@ -341,7 +406,7 @@ class OpenAIModel:
         if isinstance(config, OpenAIConfig):
             return config
 
-        if isinstance(config, GenerationCommonConfig):
+        if isinstance(config, (GenerationCommonConfig, CoreGenerationCommonConfig)):
             return OpenAIConfig(
                 temperature=config.temperature,
                 max_tokens=int(config.max_output_tokens) if config.max_output_tokens is not None else None,

@@ -350,6 +350,171 @@ class TestResponseParsing:
         assert isinstance(tool_part.root, ToolRequestPart)
         assert tool_part.root.tool_request.name == 'get_weather'
 
+    def test_parse_response_with_openai_nested_tool_calls(self, model: CfModel) -> None:
+        """_parse_response should handle OpenAI-compatible nested tool call format.
+
+        Regression test: Cloudflare returns tool calls in OpenAI format with
+        a nested ``function`` object containing ``name`` and ``arguments``
+        (as a JSON string).  Previously the parser read ``tool_call['name']``
+        which was always empty.
+        """
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='What is the weather?'))],
+                )
+            ]
+        )
+
+        data = {
+            'result': {
+                'tool_calls': [
+                    {
+                        'id': 'chatcmpl-tool-abc123',
+                        'type': 'function',
+                        'function': {
+                            'name': 'weather',
+                            'arguments': '{"city": "New York"}',
+                        },
+                    }
+                ],
+                'usage': {
+                    'prompt_tokens': 279,
+                    'completion_tokens': 17,
+                    'total_tokens': 296,
+                },
+            },
+        }
+
+        response = model._parse_response(data, request)
+
+        assert response.message is not None
+        assert len(response.message.content) == 1
+
+        tool_part = response.message.content[0]
+        assert isinstance(tool_part.root, ToolRequestPart)
+        assert tool_part.root.tool_request.name == 'weather'
+        assert tool_part.root.tool_request.input == {'city': 'New York'}
+
+    def test_parse_response_with_multiple_nested_tool_calls(self, model: CfModel) -> None:
+        """_parse_response should handle multiple OpenAI-format tool calls."""
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='Weather in NYC and LA'))],
+                )
+            ]
+        )
+
+        data = {
+            'result': {
+                'tool_calls': [
+                    {
+                        'id': 'call-1',
+                        'type': 'function',
+                        'function': {
+                            'name': 'weather',
+                            'arguments': '{"city": "New York"}',
+                        },
+                    },
+                    {
+                        'id': 'call-2',
+                        'type': 'function',
+                        'function': {
+                            'name': 'weather',
+                            'arguments': '{"city": "Los Angeles"}',
+                        },
+                    },
+                ],
+            },
+        }
+
+        response = model._parse_response(data, request)
+
+        assert response.message is not None
+        assert len(response.message.content) == 2
+
+        part0 = response.message.content[0]
+        assert isinstance(part0.root, ToolRequestPart)
+        assert part0.root.tool_request.name == 'weather'
+        assert part0.root.tool_request.input == {'city': 'New York'}
+
+        part1 = response.message.content[1]
+        assert isinstance(part1.root, ToolRequestPart)
+        assert part1.root.tool_request.name == 'weather'
+        assert part1.root.tool_request.input == {'city': 'Los Angeles'}
+
+    def test_parse_response_with_flat_tool_calls(self, model: CfModel) -> None:
+        """_parse_response should still handle flat tool call format (backwards compat)."""
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='What is the weather?'))],
+                )
+            ]
+        )
+
+        data = {
+            'result': {
+                'tool_calls': [
+                    {
+                        'name': 'get_weather',
+                        'arguments': {'location': 'NYC'},
+                    }
+                ],
+            }
+        }
+
+        response = model._parse_response(data, request)
+
+        assert response.message is not None
+        assert len(response.message.content) == 1
+
+        tool_part = response.message.content[0]
+        assert isinstance(tool_part.root, ToolRequestPart)
+        assert tool_part.root.tool_request.name == 'get_weather'
+        assert tool_part.root.tool_request.input == {'location': 'NYC'}
+
+    def test_parse_response_tool_call_malformed_json_args(self, model: CfModel) -> None:
+        """_parse_response should handle malformed JSON in arguments gracefully."""
+        request = GenerateRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=TextPart(text='test'))],
+                )
+            ]
+        )
+
+        data = {
+            'result': {
+                'tool_calls': [
+                    {
+                        'id': 'call-1',
+                        'type': 'function',
+                        'function': {
+                            'name': 'weather',
+                            'arguments': '{invalid json',
+                        },
+                    }
+                ],
+            }
+        }
+
+        response = model._parse_response(data, request)
+
+        assert response.message is not None
+        assert len(response.message.content) == 1
+
+        tool_part = response.message.content[0]
+        assert isinstance(tool_part.root, ToolRequestPart)
+        assert tool_part.root.tool_request.name == 'weather'
+        # Malformed JSON falls back to empty dict
+        assert tool_part.root.tool_request.input == {}
+
 
 class TestClientCaching:
     """Tests for per-event-loop client caching."""

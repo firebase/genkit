@@ -53,6 +53,7 @@ from mistralai.models import (
 from pydantic import BaseModel, Field
 
 from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.core.typing import (
     FinishReason,
     GenerateRequest,
@@ -76,6 +77,8 @@ from genkit.plugins.mistral.model_info import (
 )
 
 MISTRAL_PLUGIN_NAME = 'mistral'
+
+logger = get_logger(__name__)
 
 
 def mistral_name(name: str) -> str:
@@ -459,15 +462,24 @@ class MistralModel:
 
         # Handle streaming
         if ctx and ctx.send_chunk:
+            logger.debug('Mistral generate request', model=self.name, streaming=True)
             return await self._generate_streaming(params, ctx)
 
         # Non-streaming request
+        logger.debug('Mistral generate request', model=self.name, streaming=False)
         response = await self.client.chat.complete_async(**params)
         if response is None:
+            logger.debug('Mistral API returned None response', model=self.name)
             return GenerateResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=''))]),
                 finish_reason=FinishReason.STOP,
             )
+        logger.debug(
+            'Mistral raw API response',
+            model=self.name,
+            choices=len(response.choices) if response.choices else 0,
+            finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
+        )
         return self._convert_response(response)
 
     async def _generate_streaming(

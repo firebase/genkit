@@ -104,7 +104,7 @@ async def main() -> None:
         return
     # pyrefly: ignore[missing-attribute] - MediaModel has url attribute
     media = result.message.content[0].root.media
-    media_url = media.url if media and hasattr(media, 'url') else ''
+    media_url: str = getattr(media, 'url', '') if media else ''
     if not media_url:
         return
     # Extract base64 data after the comma in "data:image/png;base64,..."

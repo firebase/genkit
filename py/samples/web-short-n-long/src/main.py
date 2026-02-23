@@ -162,6 +162,15 @@ class StreamGreetingInput(BaseModel):
     name: str = Field(default='Whiskers', description='Name for greeting')
 
 
+class EmbedDocsInput(BaseModel):
+    """Input for embed_docs flow."""
+
+    docs: list[str] = Field(
+        default=['Hello world', 'Genkit is great', 'Embeddings are fun'],
+        description='List of texts to embed',
+    )
+
+
 class CharacterInput(BaseModel):
     """Input for character generation."""
 
@@ -339,21 +348,19 @@ async def multi_turn_chat(input: MultiTurnInput) -> str:
 
 
 @ai.flow()
-async def embed_docs(docs: list[str] | None = None) -> list[Embedding]:
+async def embed_docs(input: EmbedDocsInput) -> list[Embedding]:
     """Generate an embedding for the words in a list.
 
     Args:
-        docs: list of texts (string)
+        input: list of texts (string)
 
     Returns:
         The generated embedding.
     """
-    if docs is None:
-        docs = ['Hello world', 'Genkit is great', 'Embeddings are fun']
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed_many(
         embedder=f'googleai/{GeminiEmbeddingModels.GEMINI_EMBEDDING_001}',
-        content=docs,
+        content=input.docs,
         options=options,
     )
 

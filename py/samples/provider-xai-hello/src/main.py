@@ -66,7 +66,7 @@ import os
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.google_cloud import add_gcp_telemetry
+from genkit.plugins.firebase import add_firebase_telemetry
 from genkit.plugins.xai import XAI, xai_name
 from samples.shared import (
     CalculatorInput,
@@ -109,11 +109,7 @@ if 'XAI_API_KEY' not in os.environ:
 
 logger = get_logger(__name__)
 
-# Enable GCP telemetry
-add_gcp_telemetry(
-    project_id=os.environ.get('GCP_PROJECT_ID'),
-    log_input_and_output=False,
-)
+add_firebase_telemetry(force_dev_export=True, log_input_and_output=True)
 
 ai = Genkit(
     plugins=[XAI()],

@@ -178,15 +178,32 @@ class OllamaModel:
         """
         content = [Part(root=TextPart(text='Failed to get response from Ollama API'))]
 
+        logger.debug(
+            'Ollama generate request',
+            model=self.model_definition.name,
+            api_type=str(self.model_definition.api_type),
+            streaming=self.is_streaming_request(ctx=ctx),
+        )
+
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
             api_response = await self._chat_with_ollama(request=request, ctx=ctx)
             if api_response:
+                logger.debug(
+                    'Ollama raw API response',
+                    model=self.model_definition.name,
+                    content=str(api_response.message.content)[:500] if api_response.message else None,
+                )
                 content = self._build_multimodal_chat_response(
                     chat_response=api_response,
                 )
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(request=request, ctx=ctx)
             if api_response:
+                logger.debug(
+                    'Ollama raw API response',
+                    model=self.model_definition.name,
+                    response=str(api_response.response)[:500],
+                )
                 content = [Part(root=TextPart(text=api_response.response))]
         else:
             raise ValueError(f'Unresolved API type: {self.model_definition.api_type}')

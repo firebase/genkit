@@ -117,6 +117,7 @@ See Also:
 """
 
 import os
+import re
 from collections.abc import Callable, Generator
 from typing import Any
 
@@ -247,6 +248,46 @@ _MODEL_CONFIG_PREFIX_MAP: dict[str, type] = {
     'salesforce': XGenConfig,
 }
 """Mapping from model name prefixes to their configuration classes."""
+
+# Pattern matching invisible/zero-width Unicode characters commonly introduced
+# by copy-paste from web UIs (e.g., Azure Portal).  These cause hard-to-debug
+# ``UnicodeEncodeError: 'ascii' codec can't encode character`` failures deep
+# inside HTTP transport layers when the credential string reaches a path that
+# doesn't use explicit UTF-8 encoding.
+#
+# Categories covered:
+#   \u200b  zero-width space
+#   \u200c  zero-width non-joiner
+#   \u200d  zero-width joiner
+#   \u200e  left-to-right mark
+#   \u200f  right-to-left mark
+#   \ufeff  byte-order mark (BOM)
+#   \u00a0  non-breaking space
+#   \u2060  word joiner
+#   \u2028  line separator
+#   \u2029  paragraph separator
+_INVISIBLE_CHARS_RE = re.compile(r'[\u200b\u200c\u200d\u200e\u200f\ufeff\u00a0\u2060\u2028\u2029]')
+
+
+def _sanitize_credential(value: str | None) -> str | None:
+    r"""Strip invisible Unicode characters from a credential string.
+
+    Credentials (API keys, endpoint URLs, API versions) are often copied from
+    web dashboards that inject invisible Unicode characters such as zero-width
+    spaces (``\\u200b``).  These cause ``UnicodeEncodeError`` during HTTP
+    request serialization on systems where the default encoding is ASCII.
+
+    The function also strips leading/trailing whitespace.
+
+    Args:
+        value: The credential string to sanitize, or None.
+
+    Returns:
+        The sanitized string, or None if the input was None.
+    """
+    if value is None:
+        return None
+    return _INVISIBLE_CHARS_RE.sub('', value).strip()
 
 
 def get_config_schema_for_model(model_name: str) -> type:
@@ -406,10 +447,12 @@ class MicrosoftFoundry(Plugin):
                 discover_models=True,  # Fetches models from API
             )
         """
-        # Resolve configuration from environment variables
-        api_key = api_key or os.environ.get('AZURE_OPENAI_API_KEY')
-        resolved_endpoint = endpoint or os.environ.get('AZURE_OPENAI_ENDPOINT')
-        api_version = (
+        # Resolve configuration from environment variables.
+        # Sanitize all credential strings to remove invisible Unicode characters
+        # (e.g., zero-width spaces) that may be present from copy-paste.
+        api_key = _sanitize_credential(api_key or os.environ.get('AZURE_OPENAI_API_KEY'))
+        resolved_endpoint = _sanitize_credential(endpoint or os.environ.get('AZURE_OPENAI_ENDPOINT'))
+        api_version = _sanitize_credential(
             api_version
             or os.environ.get('AZURE_OPENAI_API_VERSION')
             or os.environ.get('OPENAI_API_VERSION', DEFAULT_API_VERSION)

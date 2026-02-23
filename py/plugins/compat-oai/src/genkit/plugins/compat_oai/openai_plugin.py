@@ -20,7 +20,7 @@
 import enum
 from typing import Any, TypeAlias
 
-from openai import AsyncOpenAI, OpenAI as OpenAIClient
+from openai import AsyncOpenAI
 from openai.types import Model
 
 from genkit.ai import Plugin
@@ -205,7 +205,6 @@ class OpenAI(Plugin):
                            other configuration settings required by OpenAI's API.
         """
         self._openai_params = openai_params
-        self._openai_client = OpenAIClient(**openai_params)
         self._async_client = AsyncOpenAI(**openai_params)
 
     async def init(self) -> list[Action]:
@@ -310,7 +309,7 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
 
         # Create the model handler
-        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._openai_client))
+        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._async_client))
         model_info = self.get_model_info(clean_name) or {}
 
         return Action(
@@ -396,7 +395,7 @@ class OpenAI(Plugin):
                     encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
 
             # Create embeddings for each document
-            response = self._openai_client.embeddings.create(
+            response = await self._async_client.embeddings.create(
                 model=clean_name,
                 input=texts,
                 dimensions=dimensions,  # type: ignore[arg-type]

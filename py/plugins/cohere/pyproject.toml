@@ -39,7 +39,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = ["genkit", "cohere>=5.0.0"]
 description = "Genkit Cohere AI Plugin (Community)"
@@ -58,11 +57,13 @@ keywords = [
 ]
 license = "Apache-2.0"
 name = "genkit-plugin-cohere"
+readme = "README.md"
 requires-python = ">=3.10"
-version = "0.5.0"
+version = "0.5.1"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/cohere/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

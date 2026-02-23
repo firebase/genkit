@@ -41,7 +41,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = ["genkit", "mistralai>=1.0.0"]
 description = "Genkit Mistral AI Plugin (Community)"
@@ -57,11 +56,13 @@ keywords = [
 ]
 license = "Apache-2.0"
 name = "genkit-plugin-mistral"
+readme = "README.md"
 requires-python = ">=3.10"
-version = "0.5.0"
+version = "0.5.1"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"
+Changelog       = "https://github.com/firebase/genkit/blob/main/mistral/CHANGELOG.md"
 "Documentation" = "https://firebase.google.com/docs/genkit"
 "Homepage"      = "https://github.com/firebase/genkit"
 "Repository"    = "https://github.com/firebase/genkit/tree/main/py"

@@ -1,71 +1,115 @@
-# Web Flask hello example
+# Flask + Genkit Integration
 
-## Setup environment
+Serve Genkit AI flows as Flask HTTP endpoints with context propagation from
+request headers.
 
-### How to Get Your Gemini API Key
+## How It Works
 
-To use the Google GenAI plugin, you need a Gemini API key.
-
-1.  **Visit AI Studio**: Go to [Google AI Studio](https://aistudio.google.com/).
-2.  **Create API Key**: Click on "Get API key" and create a key in a new or existing Google Cloud project.
-
-For more details, check out the [official documentation](https://ai.google.dev/gemini-api/docs/api-key).
-
-Export the API key as env variable `GEMINI_API_KEY`:
-
-```bash
-export GEMINI_API_KEY=<Your api key>
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  FLASK + GENKIT INTEGRATION                      │
+│                                                                  │
+│  HTTP Request                    Flask App                       │
+│  ───────────                    ─────────                       │
+│  POST /chat                                                      │
+│  Authorization: JohnDoe         ┌──────────────────────┐        │
+│  {"name": "Mittens"}    ──────► │ genkit_flask_handler  │        │
+│                                 │                      │        │
+│                                 │  1. Extract headers   │        │
+│                                 │  2. Build context     │        │
+│                                 │  3. Run Genkit flow   │        │
+│                                 └──────────┬───────────┘        │
+│                                            │                     │
+│                                            ▼                     │
+│                                 ┌──────────────────────┐        │
+│                                 │  @ai.flow()          │        │
+│                                 │  say_hi(input, ctx)   │        │
+│                                 │                      │        │
+│                                 │  ctx.context =        │        │
+│                                 │  {"username":"JohnDoe"}│        │
+│                                 └──────────────────────┘        │
+│                                                                  │
+│  ◄──── AI-generated joke about Mittens for user JohnDoe         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Monitoring and Running
+## Features Demonstrated
 
-For an enhanced development experience, use the provided `run.sh` script to start the sample with automatic reloading:
+| Feature | Code | Description |
+|---------|------|-------------|
+| Flask Integration | `@genkit_flask_handler(ai)` | Connect Flask routes to Genkit flows |
+| Context Provider | `my_context_provider()` | Extract request headers into flow context |
+| Header-based Auth | `request.headers["authorization"]` | Pass username from HTTP headers |
+| Flow Context Access | `ctx.context.get("username")` | Read context inside the flow |
+| Streaming Support | `ctx.send_chunk` | Stream response chunks to the client |
+
+## ELI5: Key Concepts
+
+| Concept | ELI5 |
+|---------|------|
+| **Flask** | A simple Python web framework — like a waiter that takes HTTP requests and serves responses |
+| **`genkit_flask_handler`** | Connects Flask routes to Genkit flows — does the plumbing so you focus on AI logic |
+| **Context Provider** | A function that adds extra info to each request — like adding the username from headers |
+| **Request Headers** | Metadata sent with HTTP requests — like the "From:" on an envelope |
+
+## Quick Start
+
+```bash
+export GEMINI_API_KEY=your-api-key
+./run.sh
+```
+
+## Setup
+
+### Get a Gemini API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/)
+2. Click "Get API key" and create a key
+
+```bash
+export GEMINI_API_KEY='your-api-key'
+```
+
+### Run the Sample
 
 ```bash
 ./run.sh
 ```
 
-This script uses `watchmedo` to monitor changes in:
-- `src/` (Python logic)
-- `../../packages` (Genkit core)
-- `../../plugins` (Genkit plugins)
-- File patterns: `*.py`, `*.prompt`, `*.json`
-
-Changes will automatically trigger a restart of the sample. You can also pass command-line arguments directly to the script, e.g., `./run.sh --some-flag`.
-
-## Run the sample
-
-TODO
+Or manually:
 
 ```bash
 genkit start -- uv run flask --app src/main.py run
 ```
 
-```bash
-curl -X POST http://127.0.0.1:5000/chat -d '{"data": "banana"}' -H 'content-Type: application/json' -H 'accept: text/event-stream' -H 'Authorization: Pavel'
-```
-
 ## Testing This Demo
 
-1. **Test the API endpoint**:
-   ```bash
-   # Basic request
-   curl -X POST http://localhost:5000/chat \
-     -H "Content-Type: application/json" \
-     -d '{"prompt": "Hello, who are you?"}'
+### Via curl
 
-   # With authorization header (username context)
-   curl -X POST http://localhost:5000/chat \
-     -H "Content-Type: application/json" \
-     -H "Authorization: JohnDoe" \
-     -d '{"prompt": "What is my name?"}'
-   ```
+```bash
+# Basic request
+curl -X POST http://localhost:5000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"data": {"name": "Mittens"}}'
 
-2. **Test via DevUI** at http://localhost:4000:
-   - [ ] Run the `chat` flow
-   - [ ] Verify response is generated
+# With authorization header (username passed as context)
+curl -X POST http://localhost:5000/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: JohnDoe" \
+  -d '{"data": {"name": "Mittens"}}'
+```
 
-3. **Expected behavior**:
-   - POST /chat returns AI-generated response
-   - Authorization header is passed as username in context
-   - Flow can access username via `ctx.context.get("username")`
+### Via Dev UI (http://localhost:4000)
+
+- [ ] Run the `say_hi` flow
+- [ ] Verify AI-generated response
+
+### Expected Behavior
+
+- POST `/chat` returns an AI-generated joke
+- `Authorization` header is extracted as `username` in flow context
+- Flow accesses username via `ctx.context.get("username")`
+
+## Development
+
+The `run.sh` script uses `watchmedo` for hot reloading on file changes.
