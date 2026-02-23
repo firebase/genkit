@@ -83,6 +83,8 @@ function commonRef(
 export const GENERIC_MODEL = commonRef('anthropic');
 
 export const KNOWN_MODELS = {
+  'claude-sonnet-4-6': commonRef('claude-sonnet-4-6'),
+  'claude-opus-4-6': commonRef('claude-opus-4-6'),
   'claude-haiku-4-5@20251001': commonRef('claude-haiku-4-5@20251001'),
   'claude-sonnet-4-5@20250929': commonRef('claude-sonnet-4-5@20250929'),
   'claude-sonnet-4@20250514': commonRef('claude-sonnet-4@20250514'),
