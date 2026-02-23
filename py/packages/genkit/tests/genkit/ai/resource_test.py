@@ -52,7 +52,7 @@ async def test_define_resource() -> None:
     async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
 
-    act = define_resource(registry, {'uri': 'http://example.com/foo'}, my_resource_fn)
+    act = define_resource(registry, my_resource_fn, uri='http://example.com/foo')
 
     assert act.name == 'http://example.com/foo'
     assert act.metadata is not None
@@ -81,7 +81,7 @@ async def test_resolve_resources() -> None:
     async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text=f'Content for {input.uri}'))]}
 
-    act = define_resource(registry, {'name': 'my-resource', 'uri': 'http://example.com/foo'}, my_resource_fn)
+    act = define_resource(registry, my_resource_fn, name='my-resource', uri='http://example.com/foo')
 
     resolved = await resolve_resources(registry, ['my-resource'])
     assert len(resolved) == 1
@@ -108,19 +108,19 @@ async def test_find_matching_resource() -> None:
     async def static_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    static_res = define_resource(registry, {'uri': 'bar://baz', 'name': 'staticRes'}, static_fn)
+    static_res = define_resource(registry, static_fn, name='staticRes', uri='bar://baz')
 
     # Template resource
     async def template_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    template_res = define_resource(registry, {'template': 'foo://bar/{baz}', 'name': 'templateRes'}, template_fn)
+    template_res = define_resource(registry, template_fn, name='templateRes', template='foo://bar/{baz}')
 
     # Dynamic resource list
     async def dynamic_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    dynamic_res = resource({'uri': 'baz://qux'}, dynamic_fn)
+    dynamic_res = resource(dynamic_fn, uri='baz://qux')
 
     # Match static from registry
     res = await find_matching_resource(registry, [], ResourceInput(uri='bar://baz'))
@@ -150,14 +150,14 @@ def test_is_dynamic_resource_action() -> None:
     async def fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    dynamic = resource({'uri': 'bar://baz'}, fn)
+    dynamic = resource(fn, uri='bar://baz')
     assert is_dynamic_resource_action(dynamic)
 
     # Registered action (define_resource sets dynamic=False)
     async def static_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    static = define_resource(Registry(), {'uri': 'foo://bar'}, static_fn)
+    static = define_resource(Registry(), static_fn, uri='foo://bar')
     assert not is_dynamic_resource_action(static)
 
 
@@ -179,7 +179,7 @@ async def test_parent_metadata() -> None:
             ]
         }
 
-    res = define_resource(registry, {'template': 'file://{id}'}, fn)
+    res = define_resource(registry, fn, template='file://{id}')
 
     output = await res.arun({'uri': 'file://dir'})
     # output is ActionResponse
@@ -198,7 +198,7 @@ def test_dynamic_resource_matching() -> None:
     async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': [Part(TextPart(text='Match'))]}
 
-    res = resource({'uri': 'http://example.com/foo'}, my_resource_fn)
+    res = resource(my_resource_fn, uri='http://example.com/foo')
     assert res.matches is not None
 
     assert res.matches(ResourceInput(uri='http://example.com/foo'))
@@ -216,7 +216,7 @@ def test_template_matching() -> None:
     async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
         return {'content': []}
 
-    res = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    res = resource(my_resource_fn, template='http://example.com/items/{id}')
     assert res.matches is not None
 
     assert res.matches(ResourceInput(uri='http://example.com/items/123'))
@@ -236,13 +236,13 @@ def test_reserved_expansion_matching() -> None:
         return {'content': []}
 
     # Template with reserved expansion {+path} (matches slashes)
-    res = resource({'template': 'http://example.com/files/{+path}'}, my_resource_fn)
+    res = resource(my_resource_fn, template='http://example.com/files/{+path}')
     assert res.matches is not None
 
     assert res.matches(ResourceInput(uri='http://example.com/files/foo/bar/baz.txt'))
 
     # Regular template {path} regex ([^/]+) should NOT match slashes
-    res_simple = resource({'template': 'http://example.com/items/{id}'}, my_resource_fn)
+    res_simple = resource(my_resource_fn, template='http://example.com/items/{id}')
     assert res_simple.matches is not None
 
     assert not res_simple.matches(ResourceInput(uri='http://example.com/items/foo/bar'))

@@ -103,7 +103,7 @@ from genkit.core.action.types import ActionKind
 from genkit.core.plugin import Plugin
 
 from ._aio import Genkit, Output
-from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
+from ._registry import FlowWrapper, GenkitRegistry
 
 __all__ = [
     # Version info
@@ -126,7 +126,6 @@ __all__ = [
     # Registry and flow
     'FlowWrapper',
     'GenkitRegistry',
-    'SimpleRetrieverOptions',
     # Response types
     'GenerateResponseWrapper',
     'GenerateStreamResponse',

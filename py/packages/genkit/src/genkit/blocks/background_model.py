@@ -279,26 +279,6 @@ def _ensure_operation(response: Any) -> Operation:  # noqa: ANN401
     raise TypeError(f'Expected Operation, got {type(response)}')
 
 
-class DefineBackgroundModelOptions(BaseModel):
-    """Options for defining a background model.
-
-    Matches JS DefineBackgroundModelOptions from js/ai/src/model.ts.
-
-    Attributes:
-        name: Unique name for this background model.
-        label: Human-readable label (defaults to name).
-        versions: Known version names for this model.
-        supports: Model capability information.
-        config_schema: Custom options schema for this model.
-    """
-
-    name: str
-    label: str | None = None
-    versions: list[str] | None = None
-    supports: dict[str, Any] | None = None
-    config_schema: type | dict[str, Any] | None = None
-
-
 def define_background_model(
     registry: Registry,
     name: str,

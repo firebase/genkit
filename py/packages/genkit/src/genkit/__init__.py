@@ -45,7 +45,6 @@ from genkit.ai import (
     OutputOptions,
     PromptGenerateOptions,
     ResumeOptions,
-    SimpleRetrieverOptions,
     ToolRunContext,
     tool_response,
 )
@@ -107,7 +106,6 @@ __all__ = [
     'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
-    'SimpleRetrieverOptions',
     'ToolRunContext',
     'tool_response',
     # Version info

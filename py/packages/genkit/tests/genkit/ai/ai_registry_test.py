@@ -42,7 +42,7 @@ Test Coverage
 │ define_dynamic_action_provider Tests                                        │
 ├─────────────────────────────────────┼───────────────────────────────────────┤
 │ test_define_dap_with_string         │ DAP with string config                │
-│ test_define_dap_with_config         │ DAP with DapConfig object             │
+│ test_define_dap_with_config         │ DAP with all configuration options     │
 │ test_define_dap_returns_provider    │ Method returns DynamicActionProvider  │
 └─────────────────────────────────────┴───────────────────────────────────────┘
 """
@@ -53,7 +53,7 @@ import pytest
 
 from genkit.ai import Genkit
 from genkit.ai._registry import get_func_description
-from genkit.blocks.dap import DapCacheConfig, DapConfig, DapValue, DynamicActionProvider
+from genkit.blocks.dap import DapValue, DynamicActionProvider
 
 
 class TestGetFuncDescription(unittest.TestCase):
@@ -193,26 +193,24 @@ class TestDefineDynamicActionProvider:
 
     @pytest.mark.asyncio
     async def test_define_dap_with_config_object(self) -> None:
-        """Test defining a DAP with a DapConfig object."""
+        """Test defining a DAP with all configuration options."""
         ai = Genkit()
 
         async def dap_fn() -> DapValue:
             return {}
 
-        config = DapConfig(
-            name='configured-dap',
+        dap = ai.define_dynamic_action_provider(
+            'configured-dap',
+            dap_fn,
             description='A configured DAP',
-            cache_config=DapCacheConfig(ttl_millis=5000),
+            cache_ttl_millis=5000,
             metadata={'custom': 'value'},
         )
-
-        dap = ai.define_dynamic_action_provider(config, dap_fn)
 
         assert isinstance(dap, DynamicActionProvider)
         assert dap.config.name == 'configured-dap'
         assert dap.config.description == 'A configured DAP'
-        assert dap.config.cache_config is not None
-        assert dap.config.cache_config.ttl_millis == 5000
+        assert dap.config.cache_ttl_millis == 5000
 
     @pytest.mark.asyncio
     async def test_define_dap_returns_provider(self) -> None:

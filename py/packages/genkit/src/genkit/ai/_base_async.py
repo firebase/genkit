@@ -16,7 +16,9 @@
 
 """Asynchronous server gateway interface implementation for Genkit."""
 
+import contextlib
 import signal
+import socket
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
@@ -32,7 +34,6 @@ from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
 from genkit.core.reflection import create_reflection_asgi_app
 from genkit.core.registry import Registry
-from genkit.web.manager._ports import find_free_port_sync
 
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
@@ -43,6 +44,19 @@ logger = get_logger(__name__)
 T = TypeVar('T')
 
 _UNSET = object()  # Sentinel to distinguish "not yet set" from None.
+
+
+def _find_free_port(lower: int, upper: int) -> int:
+    """Find an unused port in [lower, upper] range."""
+    for port in range(lower, upper + 1):
+        try:
+            with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+                s.bind(('', port))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                return port
+        except OSError:
+            continue
+    raise OSError(f'No free port in range {lower}-{upper}')
 
 
 class GenkitBase(GenkitRegistry):
@@ -122,7 +136,7 @@ class GenkitBase(GenkitRegistry):
 
         spec = self._reflection_server_spec
         if not spec:
-            spec = ServerSpec(scheme='http', host='127.0.0.1', port=find_free_port_sync(3100, 3999))
+            spec = ServerSpec(scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999))
         assert spec is not None  # Type narrowing: spec is guaranteed non-None after the above check
 
         async def dev_runner() -> T | None:

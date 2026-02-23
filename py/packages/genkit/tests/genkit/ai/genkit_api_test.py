@@ -14,7 +14,6 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
 from genkit.ai import Genkit
-from genkit.ai._registry import SimpleRetrieverOptions
 from genkit.core.action import Action
 from genkit.core.action._action import _action_context
 from genkit.core.action.types import ActionKind
@@ -153,9 +152,7 @@ async def test_define_simple_retriever_mapped() -> None:
             {'id': '2', 'text': 'world', 'extra': 'more'},
         ]
 
-    options = SimpleRetrieverOptions(name='mapped', content='text', metadata=['extra'])
-
-    retriever_action = ai.define_simple_retriever(options, db_handler)
+    retriever_action = ai.define_simple_retriever('mapped', db_handler, content='text', metadata=['extra'])
 
     req = RetrieverRequest(query=DocumentData(content=[]))
     resp_wrapper = await retriever_action.arun(req)

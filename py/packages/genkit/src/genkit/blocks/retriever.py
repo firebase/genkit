@@ -62,10 +62,8 @@ Key Components:
     ├─────────────────────┼───────────────────────────────────────────────────┤
     │ Retriever[T]        │ Base class for retriever implementations          │
     │ RetrieverRequest    │ Input model with query and options                │
-    │ RetrieverOptions    │ Configuration for defining retrievers             │
     │ RetrieverRef        │ Reference bundling name, config, version          │
     │ IndexerRequest      │ Input model for indexing documents                │
-    │ IndexerOptions      │ Configuration for defining indexers               │
     │ define_retriever()  │ Factory function for creating retriever actions   │
     │ define_indexer()    │ Factory function for creating indexer actions     │
     └─────────────────────┴───────────────────────────────────────────────────┘
@@ -75,7 +73,7 @@ Example:
 
     ```python
     from genkit import Genkit, Document
-    from genkit.blocks.retriever import RetrieverOptions
+    from genkit.blocks.retriever import retriever_action_metadata
 
     ai = Genkit()
 
@@ -117,7 +115,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar, Generic, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import ActionMetadata
@@ -172,16 +169,6 @@ class RetrieverInfo(BaseModel):
     supports: RetrieverSupports | None = None
 
 
-class RetrieverOptions(BaseModel):
-    """Configuration options for a retriever."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
-
-    config_schema: dict[str, Any] | None = None
-    label: str | None = None
-    supports: RetrieverSupports | None = None
-
-
 class RetrieverRef(BaseModel):
     """Reference to a retriever with configuration."""
 
@@ -195,22 +182,24 @@ class RetrieverRef(BaseModel):
 
 def retriever_action_metadata(
     name: str,
-    options: RetrieverOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RetrieverSupports | None = None,
 ) -> ActionMetadata:
     """Creates action metadata for a retriever."""
-    options = options if options is not None else RetrieverOptions()
     retriever_metadata_dict: dict[str, object] = {'retriever': {}}
     retriever_info = cast(dict[str, object], retriever_metadata_dict['retriever'])
 
-    if options.label:
-        retriever_info['label'] = options.label
+    if label:
+        retriever_info['label'] = label
 
-    if options.supports:
-        retriever_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+    if supports:
+        retriever_info['supports'] = supports.model_dump(exclude_none=True, by_alias=True)
 
-    retriever_info['customOptions'] = options.config_schema if options.config_schema else None
+    retriever_info['customOptions'] = config_schema if config_schema else None
     return ActionMetadata(
-        kind=cast(ActionKind, ActionKind.RETRIEVER),
+        kind=ActionKind.RETRIEVER,
         name=name,
         input_json_schema=to_json_schema(RetrieverRequest),
         output_json_schema=to_json_schema(RetrieverResponse),
@@ -246,16 +235,6 @@ class IndexerInfo(BaseModel):
     supports: RetrieverSupports | None = None
 
 
-class IndexerOptions(BaseModel):
-    """Configuration options for an indexer."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
-
-    config_schema: dict[str, Any] | None = None
-    label: str | None = None
-    supports: RetrieverSupports | None = None
-
-
 class IndexerRef(BaseModel):
     """Reference to an indexer with configuration."""
 
@@ -269,23 +248,25 @@ class IndexerRef(BaseModel):
 
 def indexer_action_metadata(
     name: str,
-    options: IndexerOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RetrieverSupports | None = None,
 ) -> ActionMetadata:
     """Creates action metadata for an indexer."""
-    options = options if options is not None else IndexerOptions()
     indexer_metadata_dict: dict[str, object] = {'indexer': {}}
     indexer_info = cast(dict[str, object], indexer_metadata_dict['indexer'])
 
-    if options.label:
-        indexer_info['label'] = options.label
+    if label:
+        indexer_info['label'] = label
 
-    if options.supports:
-        indexer_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+    if supports:
+        indexer_info['supports'] = supports.model_dump(exclude_none=True, by_alias=True)
 
-    indexer_info['customOptions'] = options.config_schema if options.config_schema else None
+    indexer_info['customOptions'] = config_schema if config_schema else None
 
     return ActionMetadata(
-        kind=cast(ActionKind, ActionKind.INDEXER),
+        kind=ActionKind.INDEXER,
         name=name,
         input_json_schema=to_json_schema(IndexerRequest),
         output_json_schema=to_json_schema(None),
@@ -307,10 +288,13 @@ def define_retriever(
     registry: Registry,
     name: str,
     fn: RetrieverFn[Any],
-    options: RetrieverOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RetrieverSupports | None = None,
 ) -> None:
     """Defines and registers a retriever action."""
-    metadata = retriever_action_metadata(name, options)
+    metadata = retriever_action_metadata(name, config_schema=config_schema, label=label, supports=supports)
 
     async def wrapper(
         request: RetrieverRequest,
@@ -321,7 +305,7 @@ def define_retriever(
         return await res if inspect.isawaitable(res) else res
 
     _ = registry.register_action(
-        kind=cast(ActionKind, ActionKind.RETRIEVER),
+        kind=ActionKind.RETRIEVER,
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,
@@ -336,10 +320,13 @@ def define_indexer(
     registry: Registry,
     name: str,
     fn: IndexerFn[Any],
-    options: IndexerOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RetrieverSupports | None = None,
 ) -> None:
     """Defines and registers an indexer action."""
-    metadata = indexer_action_metadata(name, options)
+    metadata = indexer_action_metadata(name, config_schema=config_schema, label=label, supports=supports)
 
     async def wrapper(
         request: IndexerRequest,
@@ -351,7 +338,7 @@ def define_indexer(
             await res
 
     _ = registry.register_action(
-        kind=cast(ActionKind, ActionKind.INDEXER),
+        kind=ActionKind.INDEXER,
         name=name,
         fn=wrapper,
         metadata=metadata.metadata,

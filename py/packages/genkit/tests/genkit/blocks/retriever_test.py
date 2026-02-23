@@ -24,8 +24,6 @@ import pytest
 from pydantic import BaseModel
 
 from genkit.blocks.retriever import (
-    IndexerOptions,
-    RetrieverOptions,
     RetrieverResponse,
     RetrieverSupports,
     create_indexer_ref,
@@ -41,10 +39,9 @@ from genkit.core.schema import to_json_schema
 
 def test_retriever_action_metadata() -> None:
     """Test for retriever_action_metadata with basic options."""
-    options = RetrieverOptions(label='Test Retriever')
     action_metadata = retriever_action_metadata(
         name='test_retriever',
-        options=options,
+        label='Test Retriever',
     )
 
     assert isinstance(action_metadata, ActionMetadata)
@@ -52,7 +49,7 @@ def test_retriever_action_metadata() -> None:
     assert action_metadata.output_json_schema is not None
     assert action_metadata.metadata == {
         'retriever': {
-            'label': options.label,
+            'label': 'Test Retriever',
             'customOptions': None,
         }
     }
@@ -64,14 +61,11 @@ def test_retriever_action_metadata_with_supports_and_config_schema() -> None:
     class CustomConfig(BaseModel):
         k: int
 
-    options = RetrieverOptions(
+    action_metadata = retriever_action_metadata(
+        name='advanced_retriever',
         label='Advanced Retriever',
         supports=RetrieverSupports(media=True),
         config_schema=to_json_schema(CustomConfig),
-    )
-    action_metadata = retriever_action_metadata(
-        name='advanced_retriever',
-        options=options,
     )
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata is not None
@@ -163,10 +157,9 @@ async def test_define_indexer() -> None:
 
 def test_indexer_action_metadata() -> None:
     """Test for indexer_action_metadata with basic options."""
-    options = IndexerOptions(label='Test Indexer')
     action_metadata = indexer_action_metadata(
         name='test_indexer',
-        options=options,
+        label='Test Indexer',
     )
 
     assert isinstance(action_metadata, ActionMetadata)
@@ -174,7 +167,7 @@ def test_indexer_action_metadata() -> None:
     assert action_metadata.output_json_schema is not None
     assert action_metadata.metadata == {
         'indexer': {
-            'label': options.label,
+            'label': 'Test Indexer',
             'customOptions': None,
         }
     }

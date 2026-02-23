@@ -121,17 +121,10 @@ See Also:
     - genkit.core.action: Base action types
 """
 
-from typing import Any, NoReturn, Protocol, cast
+from typing import Any, NoReturn
 
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import Metadata, Part, ToolRequestPart, ToolResponse, ToolResponsePart
-
-
-class ToolRequestLike(Protocol):
-    """Protocol for objects that look like a ToolRequest."""
-
-    name: str
-    ref: str | None
 
 
 class ToolRunContext(ActionRunContext):
@@ -218,12 +211,11 @@ def tool_response(
     elif metadata:
         interrupt_metadata = metadata
 
-    tr = cast(ToolRequestLike, tool_request)
     return Part(
         root=ToolResponsePart(
             tool_response=ToolResponse(
-                name=tr.name,
-                ref=tr.ref,
+                name=tool_request.name,
+                ref=tool_request.ref,
                 output=response_data,
             ),
             metadata=Metadata(

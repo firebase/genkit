@@ -20,8 +20,6 @@ from typing import Any
 
 from genkit.ai import Genkit
 from genkit.blocks.retriever import (
-    IndexerOptions,
-    RetrieverOptions,
     indexer_action_metadata,
     retriever_action_metadata,
 )
@@ -66,10 +64,8 @@ def define_dev_local_vector_store(
         fn=retriever.retrieve,
         metadata=retriever_action_metadata(
             name=name,
-            options=RetrieverOptions(
-                label=name,
-                config_schema=to_json_schema(RetrieverOptionsSchema),
-            ),
+            label=name,
+            config_schema=to_json_schema(RetrieverOptionsSchema),
         ).metadata,
     )
 
@@ -87,7 +83,7 @@ def define_dev_local_vector_store(
         fn=indexer.index,
         metadata=indexer_action_metadata(
             name=name,
-            options=IndexerOptions(label=name),
+            label=name,
         ).metadata,
     )
 

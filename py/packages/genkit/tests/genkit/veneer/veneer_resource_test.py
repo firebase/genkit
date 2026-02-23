@@ -38,7 +38,7 @@ async def test_define_resource_veneer() -> None:
     async def my_resource_fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, list[Part]]:
         return {'content': [Part(root=TextPart(text=f'Content for {input.uri}'))]}
 
-    act = ai.define_resource({'uri': 'http://example.com/foo'}, my_resource_fn)
+    act = ai.define_resource(my_resource_fn, uri='http://example.com/foo')
 
     assert act.name == 'http://example.com/foo'
     assert act.metadata is not None

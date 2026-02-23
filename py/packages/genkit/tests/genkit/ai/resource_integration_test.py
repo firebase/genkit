@@ -47,7 +47,7 @@ async def test_generate_with_resources() -> None:
     async def my_resource(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
         return ResourceOutput(content=[Part(root=TextPart(text=f'Resource content for {input.uri}'))])
 
-    define_resource(registry, {'uri': 'test://foo'}, my_resource)
+    define_resource(registry, my_resource, uri='test://foo')
 
     # 2. Register a mock model
     async def mock_model(input: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
@@ -86,7 +86,7 @@ async def test_dynamic_action_provider_resource() -> None:
             async def dyn_res_fn(input: ResourceInput, ctx: ActionRunContext) -> ResourceOutput:
                 return ResourceOutput(content=[Part(root=TextPart(text=f'Dynamic content for {input.uri}'))])
 
-            return resource({'uri': name}, dyn_res_fn)
+            return resource(dyn_res_fn, uri=name)
         return None
 
     # Register the provider as an action (it effectively acts as a factory)

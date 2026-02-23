@@ -46,8 +46,6 @@ import asyncio
 import pytest
 
 from genkit.blocks.dap import (
-    DapCacheConfig,
-    DapConfig,
     DapValue,
     DynamicActionProvider,
     define_dynamic_action_provider,
@@ -218,8 +216,7 @@ async def test_respects_cache_ttl(registry: Registry, tool1: Action, tool2: Acti
         call_count += 1
         return {'tool': [tool1, tool2]}
 
-    config = DapConfig(name='my-dap', cache_config=DapCacheConfig(ttl_millis=10))
-    dap = define_dynamic_action_provider(registry, config, dap_fn)
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn, cache_ttl_millis=10)
 
     await dap.get_action('tool', 'tool1')
     assert call_count == 1
@@ -391,10 +388,9 @@ def test_transform_dap_value(tool1: Action, tool2: Action) -> None:
 
 
 def test_dap_config_string_normalization(registry: Registry) -> None:
-    """Test that string config is normalized to DapConfig.
+    """Test that string config works correctly.
 
-    The define_dynamic_action_provider should accept either a string
-    or a DapConfig object.
+    The define_dynamic_action_provider accepts a string name.
     """
 
     async def dap_fn() -> DapValue:
@@ -407,23 +403,22 @@ def test_dap_config_string_normalization(registry: Registry) -> None:
 
 
 def test_dap_config_with_full_options(registry: Registry) -> None:
-    """Test DapConfig with all options specified."""
+    """Test define_dynamic_action_provider with all options specified."""
 
     async def dap_fn() -> DapValue:
         return {}
 
-    config = DapConfig(
-        name='full-config-dap',
+    dap = define_dynamic_action_provider(
+        registry,
+        'full-config-dap',
+        dap_fn,
         description='A DAP with all options',
-        cache_config=DapCacheConfig(ttl_millis=5000),
+        cache_ttl_millis=5000,
         metadata={'custom': 'value'},
     )
-
-    dap = define_dynamic_action_provider(registry, config, dap_fn)
     assert dap.config.name == 'full-config-dap'
     assert dap.config.description == 'A DAP with all options'
-    assert dap.config.cache_config is not None
-    assert dap.config.cache_config.ttl_millis == 5000
+    assert dap.config.cache_ttl_millis == 5000
     assert dap.config.metadata == {'custom': 'value'}
 
 
@@ -476,8 +471,7 @@ async def test_negative_ttl_disables_caching(registry: Registry, tool1: Action, 
         call_count += 1
         return {'tool': [tool1, tool2]}
 
-    config = DapConfig(name='my-dap', cache_config=DapCacheConfig(ttl_millis=-1))
-    dap = define_dynamic_action_provider(registry, config, dap_fn)
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn, cache_ttl_millis=-1)
 
     await dap.get_action('tool', 'tool1')
     assert call_count == 1
@@ -497,8 +491,7 @@ async def test_zero_ttl_uses_default(registry: Registry, tool1: Action, tool2: A
         call_count += 1
         return {'tool': [tool1, tool2]}
 
-    config = DapConfig(name='my-dap', cache_config=DapCacheConfig(ttl_millis=0))
-    dap = define_dynamic_action_provider(registry, config, dap_fn)
+    dap = define_dynamic_action_provider(registry, 'my-dap', dap_fn, cache_ttl_millis=0)
 
     await dap.get_action('tool', 'tool1')
     assert call_count == 1

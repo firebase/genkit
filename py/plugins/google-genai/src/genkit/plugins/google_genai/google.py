@@ -104,7 +104,7 @@ import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
 from genkit.blocks.background_model import BackgroundAction
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.embedding import EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.blocks.reranker import reranker_action_metadata
 from genkit.core.action import Action, ActionMetadata
@@ -294,11 +294,9 @@ def _create_embedder_action(name: str, client: genai.Client, plugin_name: str) -
 
     action_metadata = embedder_action_metadata(
         name=name,
-        options=EmbedderOptions(
-            label=embedder_info.get('label'),
-            supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-            dimensions=embedder_info.get('dimensions'),
-        ),
+        label=embedder_info.get('label'),
+        supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
+        dimensions=embedder_info.get('dimensions'),
     )
 
     action = Action(
@@ -643,11 +641,9 @@ class GoogleAI(Plugin):
             actions_list.append(
                 embedder_action_metadata(
                     name=googleai_name(name),
-                    options=EmbedderOptions(
-                        label=embed_info.get('label'),
-                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                        dimensions=embed_info.get('dimensions'),
-                    ),
+                    label=embed_info.get('label'),
+                    supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                    dimensions=embed_info.get('dimensions'),
                 )
             )
 
@@ -1045,11 +1041,9 @@ class VertexAI(Plugin):
             actions_list.append(
                 embedder_action_metadata(
                     name=vertexai_name(name),
-                    options=EmbedderOptions(
-                        label=embed_info.get('label'),
-                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                        dimensions=embed_info.get('dimensions'),
-                    ),
+                    label=embed_info.get('label'),
+                    supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                    dimensions=embed_info.get('dimensions'),
                 )
             )
 

@@ -142,33 +142,12 @@ DapMetadata = dict[str, list[ActionMetadataLike]]
 
 
 @dataclass
-class DapCacheConfig:
-    """Configuration for DAP caching behavior.
-
-    Attributes:
-        ttl_millis: Time-to-live for cache in milliseconds.
-            - Negative: No caching (always fetch fresh)
-            - Zero/None: Default (3000 milliseconds)
-            - Positive: Cache validity duration in milliseconds
-    """
-
-    ttl_millis: int | None = None
-
-
-@dataclass
 class DapConfig:
-    """Configuration for a Dynamic Action Provider.
-
-    Attributes:
-        name: Unique name for this DAP (used as prefix for actions).
-        description: Human-readable description of what this DAP provides.
-        cache_config: Optional caching configuration.
-        metadata: Additional metadata to attach to the DAP action.
-    """
+    """Internal configuration for a Dynamic Action Provider."""
 
     name: str
     description: str | None = None
-    cache_config: DapCacheConfig | None = None
+    cache_ttl_millis: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -198,8 +177,7 @@ class SimpleCache:
         self._expires_at: float | None = None
         self._fetch_task: asyncio.Task[DapValue] | None = None
 
-        # Determine TTL (default 3000ms)
-        ttl = config.cache_config.ttl_millis if config.cache_config else None
+        ttl = config.cache_ttl_millis
         self._ttl_millis = 3000 if ttl is None or ttl == 0 else ttl
 
     async def get_or_fetch(self, skip_trace: bool = False) -> DapValue:
@@ -423,8 +401,12 @@ def is_dynamic_action_provider(obj: object) -> bool:
 
 def define_dynamic_action_provider(
     registry: Registry,
-    config: DapConfig | str,
+    name: str,
     fn: DapFn,
+    *,
+    description: str | None = None,
+    cache_ttl_millis: int | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> DynamicActionProvider:
     """Define and register a Dynamic Action Provider.
 
@@ -434,47 +416,22 @@ def define_dynamic_action_provider(
 
     Args:
         registry: The registry to register the DAP with.
-        config: DAP configuration or just a name string.
+        name: Unique name for this DAP (used as prefix for actions).
         fn: Async function that returns actions organized by type.
+        description: Human-readable description of what this DAP provides.
+        cache_ttl_millis: Cache TTL in milliseconds. Negative disables caching,
+            zero/None uses the default (3000ms).
+        metadata: Additional metadata to attach to the DAP action.
 
     Returns:
         The registered DynamicActionProvider.
-
-    Example:
-        ```python
-        # Simple DAP that provides tools
-        async def get_tools():
-            return {
-                'tool': [
-                    ai.dynamic_tool(name='tool1', fn=...),
-                    ai.dynamic_tool(name='tool2', fn=...),
-                ]
-            }
-
-
-        dap = define_dynamic_action_provider(
-            registry,
-            config='my-tools',
-            fn=get_tools,
-        )
-
-        # DAP with custom caching
-        dap = define_dynamic_action_provider(
-            registry,
-            config=DapConfig(
-                name='mcp-tools',
-                description='Tools from MCP server',
-                cache_config=DapCacheConfig(ttl_millis=10000),
-            ),
-            fn=get_tools,
-        )
-        ```
-
-    See Also:
-        - JS implementation: js/core/src/dynamic-action-provider.ts
     """
-    # Normalize config
-    cfg = DapConfig(name=config) if isinstance(config, str) else config
+    cfg = DapConfig(
+        name=name,
+        description=description,
+        cache_ttl_millis=cache_ttl_millis,
+        metadata=metadata or {},
+    )
 
     # Create metadata with DAP type marker
     action_metadata = {
@@ -503,8 +460,6 @@ def define_dynamic_action_provider(
 
 __all__ = [
     'ActionMetadataLike',
-    'DapCacheConfig',
-    'DapConfig',
     'DapFn',
     'DapMetadata',
     'DapValue',

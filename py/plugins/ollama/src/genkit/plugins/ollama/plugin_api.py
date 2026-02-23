@@ -22,7 +22,7 @@ import structlog
 
 import ollama as ollama_api
 from genkit.ai import Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.embedding import EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
@@ -230,11 +230,9 @@ class Ollama(Plugin):
                 actions.append(
                     embedder_action_metadata(
                         name=ollama_name(name),
-                        options=EmbedderOptions(
-                            config_schema=to_json_schema(ollama_api.Options),
-                            label=f'Ollama Embedding - {name}',
-                            supports=EmbedderSupports(input=['text']),
-                        ),
+                        config_schema=to_json_schema(ollama_api.Options),
+                        label=f'Ollama Embedding - {name}',
+                        supports=EmbedderSupports(input=['text']),
                     )
                 )
             else:

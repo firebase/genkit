@@ -27,7 +27,6 @@ import pytest
 from genkit.blocks.reranker import (
     RankedDocument,
     RerankerInfo,
-    RerankerOptions,
     create_reranker_ref,
     define_reranker,
     rerank,
@@ -126,11 +125,11 @@ class TestRerankerActionMetadata:
 
     def test_action_metadata_with_options(self) -> None:
         """Test creating action metadata with options."""
-        options = RerankerOptions(
+        metadata = reranker_action_metadata(
+            'test-reranker',
             label='Custom Label',
             config_schema={'type': 'object'},
         )
-        metadata = reranker_action_metadata('test-reranker', options)
 
         assert metadata.metadata is not None
         md = cast(dict[str, Any], metadata.metadata)
@@ -184,8 +183,7 @@ class TestDefineReranker:
         ) -> RerankerResponse:
             return RerankerResponse(documents=[])
 
-        options = RerankerOptions(label='My Reranker')
-        action = define_reranker(registry, 'my-reranker', reranker_fn, options)
+        action = define_reranker(registry, 'my-reranker', reranker_fn, label='My Reranker')
 
         assert action is not None
 
