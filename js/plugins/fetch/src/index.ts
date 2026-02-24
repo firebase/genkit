@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { randomUUID } from 'crypto';
 import {
   Action,
   ActionStreamInput,
@@ -32,8 +31,12 @@ import {
   type RequestData,
 } from 'genkit/context';
 import { logger } from 'genkit/logging';
+import { getErrorMessage, getErrorStack } from './utils';
 
 const streamDelimiter = '\n\n';
+
+// Let the runtime provide the randomUUID function.
+const randomUUID = () => globalThis.crypto.randomUUID();
 
 /**
  * A wrapper object containing a flow with its associated options.
@@ -146,9 +149,7 @@ async function subscribeToStream(
       },
       onError: (err) => {
         logger.error(
-          `Streaming request failed with error: ${(err as Error).message}\n${
-            (err as Error).stack
-          }`
+          `Streaming request failed with error: ${getErrorMessage(err)}\n${getErrorStack(err)}` 
         );
         writer.write(
           encoder.encode(
@@ -317,7 +318,7 @@ export async function handleFlow<
   const streamIdHeader = request.headers.get('x-genkit-stream-id');
   const streamId = streamIdHeader || undefined;
 
-  // Parse request body
+  // Parse request body (same as Express: input only from JSON body)
   let body: any;
   try {
     body = await request.json();
@@ -462,10 +463,13 @@ export async function handleFlows(
   const url = new URL(request.url);
   let pathname = url.pathname;
 
-  // Remove path prefix if provided
+  // Remove path prefix if provided (exact match or prefix followed by /)
   if (pathPrefix) {
-    if (pathname.startsWith(pathPrefix)) {
-      pathname = pathname.slice(pathPrefix.length);
+    const prefix = pathPrefix.endsWith('/') ? pathPrefix : pathPrefix + '/';
+    if (pathname === pathPrefix) {
+      pathname = '';
+    } else if (pathname.startsWith(prefix)) {
+      pathname = pathname.slice(prefix.length);
     } else {
       return new Response(
         JSON.stringify({
