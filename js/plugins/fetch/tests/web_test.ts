@@ -26,8 +26,8 @@ import { InMemoryStreamManager } from 'genkit/beta';
 import { runFlow, streamFlow } from 'genkit/beta/client';
 import type { ContextProvider, RequestData } from 'genkit/context';
 import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
-import * as http from 'http';
 import getPort from 'get-port';
+import * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { handleFlow, handleFlows, type FlowWithOptions } from '../src/index.js';
 
@@ -119,7 +119,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 400);
-      const json = await response.json() as { status: string };
+      const json = (await response.json()) as { status: string };
       assert.strictEqual(json.status, 'INVALID_ARGUMENT');
     });
 
@@ -133,7 +133,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 400);
-      const json = await response.json() as { status: string };
+      const json = (await response.json()) as { status: string };
       assert.strictEqual(json.status, 'INVALID_ARGUMENT');
     });
 
@@ -147,7 +147,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 200);
-      const json = await response.json() as { result: string };
+      const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'banana');
     });
 
@@ -168,7 +168,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 200);
-      const json = await response.json() as { result: string };
+      const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'Echo: hello');
     });
 
@@ -176,7 +176,10 @@ describe('handleFlow', () => {
       const ai = genkit({});
       defineEchoModel(ai);
       const flow = ai.defineFlow(
-        { name: 'objectInput', inputSchema: z.object({ question: z.string() }) },
+        {
+          name: 'objectInput',
+          inputSchema: z.object({ question: z.string() }),
+        },
         async (input) => {
           const { text } = await ai.generate({
             model: 'echoModel',
@@ -192,7 +195,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 200);
-      const json = await response.json() as { result: string };
+      const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'Echo: olleh');
     });
 
@@ -200,7 +203,10 @@ describe('handleFlow', () => {
       const ai = genkit({});
       defineEchoModel(ai);
       const flow = ai.defineFlow(
-        { name: 'objectInput', inputSchema: z.object({ question: z.string() }) },
+        {
+          name: 'objectInput',
+          inputSchema: z.object({ question: z.string() }),
+        },
         async (input) => input.question
       );
       const request = new Request('http://localhost/objectInput', {
@@ -210,14 +216,20 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow);
       assert.strictEqual(response.status, 400);
-      const json = await response.json() as { status?: string };
-      assert.ok(json.status === 'INVALID_ARGUMENT' || (json as { message?: string }).message?.includes('INVALID'));
+      const json = (await response.json()) as { status?: string };
+      assert.ok(
+        json.status === 'INVALID_ARGUMENT' ||
+          (json as { message?: string }).message?.includes('INVALID')
+      );
     });
 
     it('should call a flow with auth', async () => {
       const ai = genkit({});
       const flow = ai.defineFlow(
-        { name: 'flowWithAuth', inputSchema: z.object({ question: z.string() }) },
+        {
+          name: 'flowWithAuth',
+          inputSchema: z.object({ question: z.string() }),
+        },
         async (input, { context }) => {
           return `${input.question} - ${JSON.stringify(context!.auth)}`;
         }
@@ -232,14 +244,17 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow, { contextProvider });
       assert.strictEqual(response.status, 200);
-      const json = await response.json() as { result: string };
+      const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'hello - {"user":"Ali Baba"}');
     });
 
     it('should fail a flow with auth when unauthorized', async () => {
       const ai = genkit({});
       const flow = ai.defineFlow(
-        { name: 'flowWithAuth', inputSchema: z.object({ question: z.string() }) },
+        {
+          name: 'flowWithAuth',
+          inputSchema: z.object({ question: z.string() }),
+        },
         async (input, { context }) => String(context?.auth)
       );
       const request = new Request('http://localhost/flowWithAuth', {
@@ -252,7 +267,7 @@ describe('handleFlow', () => {
       });
       const response = await handleFlow(request, flow, { contextProvider });
       assert.strictEqual(response.status, 403);
-      const json = await response.json() as { message?: string };
+      const json = (await response.json()) as { message?: string };
       assert.ok(json.message?.includes('not authorized'));
     });
 
@@ -651,8 +666,9 @@ function defineEchoModel(ai: Genkit): ModelAction {
                 request.messages
                   .map(
                     (m) =>
-                      (m.role === 'user' || m.role === 'model' ? '' : `${m.role}: `) +
-                      m.content.map((c) => c.text).join()
+                      (m.role === 'user' || m.role === 'model'
+                        ? ''
+                        : `${m.role}: `) + m.content.map((c) => c.text).join()
                   )
                   .join(),
             },
@@ -673,7 +689,10 @@ async function createServerWithFlows(
   flowWithAuth: import('genkit/beta').Flow<any, any, any>,
   echoModel: ModelAction
 ): Promise<http.Server> {
-  const flows: (FlowWithOptions<any, any, any> | import('genkit/beta').Flow<any, any, any>)[] = [
+  const flows: (
+    | FlowWithOptions<any, any, any>
+    | import('genkit/beta').Flow<any, any, any>
+  )[] = [
     voidInput,
     stringInput,
     objectInput,

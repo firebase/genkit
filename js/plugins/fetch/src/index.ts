@@ -149,7 +149,7 @@ async function subscribeToStream(
       },
       onError: (err) => {
         logger.error(
-          `Streaming request failed with error: ${getErrorMessage(err)}\n${getErrorStack(err)}` 
+          `Streaming request failed with error: ${getErrorMessage(err)}\n${getErrorStack(err)}`
         );
         writer.write(
           encoder.encode(
