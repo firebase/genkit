@@ -387,59 +387,35 @@ type genaiModels struct {
 // Go Genai SDK, categorized by model type.
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
-	allowedModels := []string{"gemini", "gemma"}
 
 	for item, err := range client.Models.All(ctx) {
-		var name string
 		if err != nil {
-			return genaiModels{}, err
+			return genaiModels{}, fmt.Errorf("failed to list models: %w", err)
 		}
-		switch {
-		case strings.HasPrefix(item.Name, "publishers/google/models/"):
-			name = strings.TrimPrefix(item.Name, "publishers/google/models/")
-		case strings.HasPrefix(item.Name, "models/"):
-			name = strings.TrimPrefix(item.Name, "models/")
-		default:
-			continue
-		}
-		description := strings.ToLower(item.Description)
-		if strings.Contains(description, "deprecated") {
-			continue
-		}
+
+		name := strings.TrimPrefix(item.Name, "publishers/google/")
+		name = strings.TrimPrefix(name, "models/")
+
 		// The Vertex AI backend does not populate SupportedActions,
-		// so fall back to name-based categorization when it's empty.
-		if len(item.SupportedActions) > 0 {
-			if slices.Contains(item.SupportedActions, "embedContent") {
-				models.embedders = append(models.embedders, name)
-				continue
-			}
-			if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
-				models.imagen = append(models.imagen, name)
-				continue
-			}
-			if slices.Contains(item.SupportedActions, "generateContent") {
-				found := slices.ContainsFunc(allowedModels, func(s string) bool {
-					return strings.Contains(name, s)
-				})
-				if found {
-					models.gemini = append(models.gemini, name)
-				}
-			}
-		} else {
-			switch {
-			case strings.Contains(name, "embedding") || strings.Contains(name, "embed"):
-				models.embedders = append(models.embedders, name)
-			case strings.Contains(name, "imagen"):
-				models.imagen = append(models.imagen, name)
-			default:
-				found := slices.ContainsFunc(allowedModels, func(s string) bool {
-					return strings.Contains(name, s)
-				})
-				if found {
-					models.gemini = append(models.gemini, name)
-				}
-			}
+		// so we fall back to name-based categorization.
+		if slices.Contains(item.SupportedActions, "embedContent") || strings.Contains(name, "embed") {
+			models.embedders = append(models.embedders, name)
+			continue
 		}
+
+		if strings.Contains(name, "imagen") {
+			models.imagen = append(models.imagen, name)
+			continue
+		}
+
+		if strings.Contains(name, "veo") {
+			models.veo = append(models.veo, name)
+			continue
+		}
+
+		// Assume unknown models support generate content
+		// and let the backend error if not.
+		models.gemini = append(models.gemini, name)
 	}
 
 	return models, nil

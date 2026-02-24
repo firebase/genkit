@@ -94,13 +94,18 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 	}
 
 	mt := ClassifyModel(name)
-	config := mt.DefaultConfig()
+
+	if opts.ConfigSchema == nil {
+		if config := mt.DefaultConfig(); config != nil {
+			opts.ConfigSchema = configToMap(config)
+		}
+	}
 
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
 		Supports:     opts.Supports,
 		Versions:     opts.Versions,
-		ConfigSchema: configToMap(config),
+		ConfigSchema: opts.ConfigSchema,
 		Stage:        opts.Stage,
 	}
 
