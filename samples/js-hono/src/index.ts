@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { googleAI } from '@genkit-ai/google-genai';
 import { handleFlows, withFlowOptions } from '@genkit-ai/fetch';
+import { googleAI } from '@genkit-ai/google-genai';
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
-import { genkit, UserFacingError, z } from 'genkit';
+import { UserFacingError, genkit, z } from 'genkit';
 import type { ContextProvider } from 'genkit/context';
+import { Hono } from 'hono';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -107,7 +107,8 @@ app.get('/', (c) =>
   c.json({
     message: 'Genkit + Hono + @genkit-ai/fetch',
     flows: ['hello', 'greeting', 'streaming', 'secureGreeting'],
-    usage: 'POST /api/<flowName> with body { "data": <input> }. secureGreeting requires header: Authorization: Bearer open-sesame',
+    usage:
+      'POST /api/<flowName> with body { "data": <input> }. secureGreeting requires header: Authorization: Bearer open-sesame',
   })
 );
 
