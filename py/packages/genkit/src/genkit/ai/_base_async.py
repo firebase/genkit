@@ -97,6 +97,7 @@ class GenkitBase(GenkitRegistry):
         the main thread's loop (whether that's uvicorn, FastAPI, or none).
         Sets ``self._reflection_ready`` once the server is listening.
         """
+
         def _thread_main() -> None:
             async def _run() -> None:
                 sockets: list[socket.socket] | None = None
