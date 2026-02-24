@@ -17,7 +17,6 @@
 """Asynchronous server gateway interface implementation for Genkit."""
 
 import asyncio
-import contextlib
 import signal
 import socket
 import threading
@@ -39,23 +38,6 @@ from genkit.core.registry import Registry
 from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
-
-
-def _is_port_available(port: int) -> bool:
-    try:
-        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.bind(('127.0.0.1', port))
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            return True
-    except OSError:
-        return False
-
-
-def _find_free_port(lower: int, upper: int) -> int:
-    for port in range(lower, upper + 1):
-        if _is_port_available(port):
-            return port
-    raise OSError(f'Failed to find a free port in range {lower}-{upper}')
 
 
 logger = get_logger(__name__)
@@ -115,15 +97,24 @@ class GenkitBase(GenkitRegistry):
         the main thread's loop (whether that's uvicorn, FastAPI, or none).
         Sets ``self._reflection_ready`` once the server is listening.
         """
-        if self._reflection_server_spec is None:
-            self._reflection_server_spec = ServerSpec(scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999))
-        spec = self._reflection_server_spec
-
         def _thread_main() -> None:
             async def _run() -> None:
+                sockets: list[socket.socket] | None = None
+                spec = self._reflection_server_spec
+                if spec is None:
+                    # Bind to port 0 to let the OS choose an available port and
+                    # pass the socket to uvicorn to avoid a check-then-bind race.
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.bind(('127.0.0.1', 0))
+                    sock.listen(2048)
+                    host, port = sock.getsockname()
+                    spec = ServerSpec(scheme='http', host=host, port=port)
+                    self._reflection_server_spec = spec
+                    sockets = [sock]
+
                 server = _make_reflection_server(self.registry, spec, ready=self._reflection_ready)
                 async with RuntimeManager(spec, lazy_write=True) as runtime_manager:
-                    server_task = asyncio.create_task(server.serve())
+                    server_task = asyncio.create_task(server.serve(sockets=sockets))
 
                     # _ReflectionServer.startup() sets _reflection_ready once uvicorn binds.
                     # Use asyncio.to_thread so we don't block the event loop.
