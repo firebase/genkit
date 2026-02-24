@@ -124,7 +124,7 @@ See Also:
 from typing import Any, NoReturn, cast
 
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import Metadata, Part, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit.core.typing import Metadata, Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 
 class ToolRunContext(ActionRunContext):
@@ -211,7 +211,7 @@ def tool_response(
     elif metadata:
         interrupt_metadata = metadata
 
-    tr = cast(ToolRequestPart, tool_request)
+    tr = cast(ToolRequest, tool_request)
     return Part(
         root=ToolResponsePart(
             tool_response=ToolResponse(
