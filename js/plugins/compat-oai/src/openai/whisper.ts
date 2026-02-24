@@ -17,10 +17,10 @@
 
 import { z } from 'genkit';
 import { ModelInfo } from 'genkit/model';
-import { compatOaiTranslationModelRef } from '../translate';
+import { compatOaiWhisperModelRef } from '../audio';
 
-/** OpenAI translation ModelRef helper, same as the OpenAI-compatible spec. */
-export function openAITranslationModelRef<
+/** OpenAI whisper ModelRef helper, same as the OpenAI-compatible spec. */
+export function openAIWhisperModelRef<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   name: string;
@@ -28,18 +28,11 @@ export function openAITranslationModelRef<
   configSchema?: CustomOptions;
   config?: any;
 }) {
-  return compatOaiTranslationModelRef({ ...params, namespace: 'openai' });
+  return compatOaiWhisperModelRef({ ...params, namespace: 'openai' });
 }
 
-export const SUPPORTED_TRANSLATION_MODELS = {
-  /**
-   * Whisper 1 translation model.
-   *
-   * The actual OpenAI model ID is 'whisper-1', but we use 'whisper-1-translate'
-   * to distinguish it from the 'whisper-1' transcription model. The model ID
-   * is overridden in index.ts to 'whisper-1' when calling the OpenAI API.
-   */
-  'whisper-1-translate': openAITranslationModelRef({
-    name: 'whisper-1-translate',
+export const SUPPORTED_WHISPER_MODELS = {
+  'whisper-1': openAIWhisperModelRef({
+    name: 'whisper-1',
   }),
 };

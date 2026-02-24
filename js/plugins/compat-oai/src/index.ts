@@ -24,12 +24,16 @@ import { toModelName } from './utils.js';
 export {
   SpeechConfigSchema,
   TranscriptionConfigSchema,
+  WhisperConfigSchema,
   compatOaiSpeechModelRef,
   compatOaiTranscriptionModelRef,
+  compatOaiWhisperModelRef,
   defineCompatOpenAISpeechModel,
   defineCompatOpenAITranscriptionModel,
+  defineCompatOpenAIWhisperModel,
   type SpeechRequestBuilder,
   type TranscriptionRequestBuilder,
+  type TranslationRequestBuilder,
 } from './audio.js';
 export { defineCompatOpenAIEmbedder } from './embedder.js';
 export {
@@ -45,12 +49,6 @@ export {
   openAIModelRunner,
   type ModelRequestBuilder,
 } from './model.js';
-export {
-  TranslationConfigSchema,
-  compatOaiTranslationModelRef,
-  defineCompatOpenAITranslationModel,
-  type TranslationRequestBuilder,
-} from './translate.js';
 
 export interface PluginOptions extends Partial<Omit<ClientOptions, 'apiKey'>> {
   apiKey?: ClientOptions['apiKey'] | false;

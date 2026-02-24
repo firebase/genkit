@@ -382,7 +382,9 @@ ai.defineFlow('translate', async () => {
   const audioFile = fs.readFileSync('audio-korean.mp3');
 
   const { text } = await ai.generate({
-    model: openAI.model('whisper-1-translate'),
+    model: openAI.model('whisper-1', {
+      translate: true,
+    }),
     prompt: [
       {
         media: {
