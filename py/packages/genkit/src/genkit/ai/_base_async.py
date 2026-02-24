@@ -63,6 +63,22 @@ logger = get_logger(__name__)
 T = TypeVar('T')
 
 
+class _ReflectionServer(uvicorn.Server):
+    """A uvicorn.Server subclass that signals startup completion via a threading.Event."""
+
+    def __init__(self, config: uvicorn.Config, ready: threading.Event) -> None:
+        """Initialize the server with a ready event to set on startup."""
+        super().__init__(config)
+        self._ready = ready
+
+    async def startup(self, sockets: list | None = None) -> None:
+        """Override to set the ready event once uvicorn finishes binding."""
+        try:
+            await super().startup(sockets=sockets)
+        finally:
+            self._ready.set()
+
+
 class GenkitBase(GenkitRegistry):
     """Base class with shared infra for Genkit instances (sync and async)."""
 
@@ -100,23 +116,18 @@ class GenkitBase(GenkitRegistry):
         Sets ``self._reflection_ready`` once the server is listening.
         """
         if self._reflection_server_spec is None:
-            self._reflection_server_spec = ServerSpec(
-                scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999)
-            )
+            self._reflection_server_spec = ServerSpec(scheme='http', host='127.0.0.1', port=_find_free_port(3100, 3999))
         spec = self._reflection_server_spec
-        registry = self.registry
-        ready = self._reflection_ready
 
         def _thread_main() -> None:
             async def _run() -> None:
-                server = _make_reflection_server(registry, spec)
+                server = _make_reflection_server(self.registry, spec, ready=self._reflection_ready)
                 async with RuntimeManager(spec, lazy_write=True) as runtime_manager:
                     server_task = asyncio.create_task(server.serve())
 
-                    # Wait for uvicorn to finish binding the socket — analogous
-                    # to Go's close(serverStartCh) after net.Listen() succeeds.
-                    while not server.started and not server.should_exit:
-                        await asyncio.sleep(0.05)
+                    # _ReflectionServer.startup() sets _reflection_ready once uvicorn binds.
+                    # Use asyncio.to_thread so we don't block the event loop.
+                    await asyncio.to_thread(self._reflection_ready.wait)
 
                     if server.should_exit:
                         logger.warning(f'Reflection server at {spec.url} failed to start.')
@@ -124,7 +135,6 @@ class GenkitBase(GenkitRegistry):
 
                     runtime_manager.write_runtime_file()
                     await logger.ainfo(f'Genkit Dev UI reflection server running at {spec.url}')
-                    ready.set()
 
                     # Keep running until the process exits (daemon thread).
                     await server_task
@@ -214,7 +224,7 @@ class GenkitBase(GenkitRegistry):
         return anyio.run(dev_runner)
 
 
-def _make_reflection_server(registry: Registry, spec: ServerSpec) -> uvicorn.Server:
+def _make_reflection_server(registry: Registry, spec: ServerSpec, ready: threading.Event) -> _ReflectionServer:
     """Make a reflection server for the given registry and spec.
 
     This is a helper function to make it easier to test the reflection server
@@ -223,6 +233,7 @@ def _make_reflection_server(registry: Registry, spec: ServerSpec) -> uvicorn.Ser
     Args:
         registry: The registry to use for the reflection server.
         spec: The spec to use for the reflection server.
+        ready: threading.Event to set once uvicorn finishes binding.
 
     Returns:
         A uvicorn server instance.
@@ -230,4 +241,4 @@ def _make_reflection_server(registry: Registry, spec: ServerSpec) -> uvicorn.Ser
     app = create_reflection_asgi_app(registry=registry)
     # pyrefly: ignore[bad-argument-type] - Starlette app is valid ASGI app for uvicorn
     config = uvicorn.Config(app, host=spec.host, port=spec.port, loop='asyncio')
-    return uvicorn.Server(config)
+    return _ReflectionServer(config, ready=ready)

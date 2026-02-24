@@ -387,9 +387,7 @@ async def find_matching_resource(
     if dynamic_resources:
         for action in dynamic_resources:
             if (
-                hasattr(action, 'matches')
-                and callable(action.matches)
-                and action.matches(input_data)  # type: ignore[attr-defined]
+                hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data)  # type: ignore[attr-defined]
             ):
                 return action
 
@@ -404,9 +402,7 @@ async def find_matching_resource(
 
     for action in resources.values():
         if (
-            hasattr(action, 'matches')
-            and callable(action.matches)
-            and action.matches(input_data)  # type: ignore[attr-defined]
+            hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data)  # type: ignore[attr-defined]
         ):
             return action
 

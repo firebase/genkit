@@ -146,9 +146,7 @@ def test_fastapi_app_needs_no_lifespan() -> None:
     fastapi_port = _find_free_port()
 
     with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
-        ai = Genkit(
-            reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=reflection_port)
-        )
+        ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=reflection_port))
 
         app = FastAPI()  # No lifespan= argument
 
@@ -185,5 +183,5 @@ def test_no_server_in_prod_mode() -> None:
         ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
 
     assert not ai._reflection_ready.is_set()
-    with pytest.raises(Exception):
+    with pytest.raises(httpx.ConnectError):
         httpx.get(f'http://127.0.0.1:{port}/api/__health', timeout=0.5)
