@@ -39,7 +39,6 @@ from ._registry import GenkitRegistry
 from ._runtime import RuntimeManager
 from ._server import ServerSpec
 
-
 logger = get_logger(__name__)
 
 T = TypeVar('T')
