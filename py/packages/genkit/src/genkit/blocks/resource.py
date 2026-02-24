@@ -25,7 +25,7 @@ and return content (`ResourceOutput`) containing `Part`s.
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, Protocol, cast
 
 from pydantic import BaseModel
 
@@ -34,26 +34,6 @@ from genkit.core.action import Action, ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.core.registry import Registry
 from genkit.core.typing import Metadata, Part
-
-
-class ResourceOptions(TypedDict, total=False):
-    """Options for defining a resource.
-
-    Attributes:
-        name: Resource name. If not specified, uri or template will be used as name.
-        uri: The URI of the resource. Can contain template variables for simple matches,
-             but `template` is preferred for pattern matching.
-        template: The URI template (ex. `my://resource/{id}`). See RFC6570 for specification.
-                  Used for matching variable resources.
-        description: A description of the resource, used for documentation and discovery.
-        metadata: Arbitrary metadata to attach to the resource action.
-    """
-
-    name: str
-    uri: str
-    template: str
-    description: str
-    metadata: dict[str, Any]
 
 
 class ResourceInput(BaseModel):
@@ -159,7 +139,16 @@ async def lookup_resource_by_name(registry: Registry, name: str) -> Action:
     return resource
 
 
-def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def define_resource(
+    registry: Registry,
+    fn: FlexibleResourceFn,
+    *,
+    name: str | None = None,
+    uri: str | None = None,
+    template: str | None = None,
+    description: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Action:
     """Defines a resource and registers it with the given registry.
 
     This creates a resource action that can handle requests for a specific URI
@@ -167,15 +156,19 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResou
 
     Args:
         registry: The registry to register the resource with.
-        opts: Options defining the resource (name, uri, template, etc.).
         fn: The function that implements resource content retrieval.
+        name: Resource name (defaults to uri or template).
+        uri: The URI of the resource.
+        template: The URI template (e.g. ``my://resource/{id}``).
+        description: Human-readable description of the resource.
+        metadata: Arbitrary metadata to attach to the resource action.
 
     Returns:
         The registered `Action` for the resource.
     """
-    action = dynamic_resource(opts, fn)
+    action = dynamic_resource(fn, name=name, uri=uri, template=template, description=description, metadata=metadata)
 
-    cast(MatchableAction, cast(object, action)).matches = create_matcher(opts.get('uri'), opts.get('template'))
+    cast(MatchableAction, cast(object, action)).matches = create_matcher(uri, template)
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -185,23 +178,43 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: FlexibleResou
     return action
 
 
-def resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def resource(
+    fn: FlexibleResourceFn,
+    *,
+    name: str | None = None,
+    uri: str | None = None,
+    template: str | None = None,
+    description: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Action:
     """Defines a dynamic resource action without immediate registration.
 
     This is an alias for `dynamic_resource`. Useful for defining resources that
     might be registered later or used as standalone actions.
 
     Args:
-        opts: Options defining the resource.
         fn: The resource implementation function.
+        name: Resource name (defaults to uri or template).
+        uri: The URI of the resource.
+        template: The URI template.
+        description: Human-readable description.
+        metadata: Arbitrary metadata.
 
     Returns:
         The created `Action`.
     """
-    return dynamic_resource(opts, fn)
+    return dynamic_resource(fn, name=name, uri=uri, template=template, description=description, metadata=metadata)
 
 
-def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
+def dynamic_resource(
+    fn: FlexibleResourceFn,
+    *,
+    name: str | None = None,
+    uri: str | None = None,
+    template: str | None = None,
+    description: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> Action:
     """Defines a dynamic resource action.
 
     Creates an `Action` of kind `RESOURCE` that wraps the provided function.
@@ -211,20 +224,24 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
     3. Post-processing of output to attach metadata (like parent resource info).
 
     Args:
-        opts: Options including `uri` or `template` for matching.
         fn: The function performing the resource retrieval.
+        name: Resource name (defaults to uri or template).
+        uri: The URI of the resource.
+        template: The URI template for matching variable resources.
+        description: Human-readable description.
+        metadata: Arbitrary metadata.
 
     Returns:
         An `Action` configured as a resource.
 
     Raises:
-        ValueError: If neither `uri` nor `template` is provided in options.
+        ValueError: If neither `uri` nor `template` is provided.
     """
-    uri = opts.get('uri') or opts.get('template')
-    if not uri:
+    resolved_uri = uri or template
+    if not resolved_uri:
         raise ValueError('must specify either uri or template options')
 
-    matcher = create_matcher(opts.get('uri'), opts.get('template'))
+    matcher = create_matcher(uri, template)
 
     async def wrapped_fn(input_data: ResourceInput, ctx: ActionRunContext) -> ResourcePayload:
         if isinstance(input_data, dict):
@@ -267,7 +284,6 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
                         p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                         p_metadata = p.metadata
 
-                    template = opts.get('template')
                     if 'resource' in p_metadata:
                         if 'parent' not in p_metadata['resource']:
                             p_metadata['resource']['parent'] = {'uri': input_data.uri}
@@ -295,21 +311,22 @@ def dynamic_resource(opts: ResourceOptions, fn: FlexibleResourceFn) -> Action:
         except Exception:
             raise
 
-    name = opts.get('name') or uri
+    resolved_name = name or resolved_uri
 
     act = Action(
-        name=name,
+        name=resolved_name,
         kind=cast(ActionKind, ActionKind.RESOURCE),
         fn=wrapped_fn,
         metadata={
             'resource': {
-                'uri': opts.get('uri'),
-                'template': opts.get('template'),
+                'uri': uri,
+                'template': template,
             },
             'dynamic': True,
+            **(metadata or {}),
         },
-        description=opts.get('description'),
-        span_metadata={'genkit:metadata:resource:uri': uri},
+        description=description,
+        span_metadata={'genkit:metadata:resource:uri': resolved_uri},
     )
     act.matches = matcher
     return act

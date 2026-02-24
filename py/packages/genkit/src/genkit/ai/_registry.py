@@ -63,7 +63,7 @@ from genkit.blocks.dap import (
     define_dynamic_action_provider as define_dap_block,
 )
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedderFn, EmbedderOptions
+from genkit.blocks.embedding import EmbedderFn, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.interfaces import Input, Output
@@ -78,14 +78,13 @@ from genkit.blocks.prompt import (
 from genkit.blocks.reranker import (
     RankedDocument,
     RerankerFn,
-    RerankerOptions,
     RerankerRef,
+    RerankerSupports,
     define_reranker as define_reranker_block,
     rerank as rerank_block,
 )
 from genkit.blocks.resource import (
     FlexibleResourceFn,
-    ResourceOptions,
     define_resource as define_resource_block,
 )
 from genkit.blocks.retriever import IndexerFn, RetrieverFn
@@ -145,31 +144,10 @@ def get_func_description(func: Callable[..., Any], description: str | None = Non
     return ''
 
 
-R = TypeVar('R')
-
-
-class SimpleRetrieverOptions(BaseModel, Generic[R]):
-    """Configuration options for `define_simple_retriever`.
-
-    This class defines how items returned by a simple retriever handler are
-    mapped into Genkit `DocumentData` objects.
-
-    Attributes:
-        name: The unique name of the retriever.
-        content: Specifies how to extract content from the returned items.
-            Can be a string key (for dict items) or a callable that transforms the item.
-        metadata: Specifies how to extract metadata from the returned items.
-            Can be a list of keys (for dict items) or a callable that transforms the item.
-        config_schema: Optional Pydantic schema or JSON schema for retriever configuration.
-    """
-
-    name: str
-    content: str | Callable[[R], str | list[DocumentPart]] | None = None
-    metadata: list[str] | Callable[[R], dict[str, Any]] | None = None
-    config_schema: type[BaseModel] | dict[str, Any] | None = None
-
-
-def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentData:
+def _item_to_document(
+    item: R,
+    content: str | Callable[[R], str | list[DocumentPart]] | None,
+) -> DocumentData:
     """Internal helper to convert a raw item to a Genkit DocumentData."""
     if isinstance(item, (Document, DocumentData)):
         return item
@@ -177,46 +155,50 @@ def _item_to_document(item: R, options: SimpleRetrieverOptions[R]) -> DocumentDa
     if isinstance(item, str):
         return Document.from_text(item)
 
-    if callable(options.content):
-        transformed = options.content(item)
+    if callable(content):
+        transformed = content(item)
         if isinstance(transformed, str):
             return Document.from_text(transformed)
         else:
             # transformed is list[DocumentPart]
             return DocumentData(content=transformed)
 
-    if isinstance(options.content, str) and isinstance(item, dict):
+    if isinstance(content, str) and isinstance(item, dict):
         item_dict = cast(dict[str, object], item)
-        return Document.from_text(str(item_dict[options.content]))
+        return Document.from_text(str(item_dict[content]))
 
-    if options.content is None and isinstance(item, str):
+    if content is None and isinstance(item, str):
         return Document.from_text(item)
 
     raise ValueError(f'Cannot convert item to document without content option. Item: {item}')
 
 
-def _item_to_metadata(item: R, options: SimpleRetrieverOptions[R]) -> dict[str, Any] | None:
+def _item_to_metadata(
+    item: R,
+    content: str | Callable[[R], str | list[DocumentPart]] | None,
+    metadata: list[str] | Callable[[R], dict[str, Any]] | None,
+) -> dict[str, Any] | None:
     """Internal helper to extract metadata from a raw item for a Document."""
     if isinstance(item, str):
         return None
 
-    if isinstance(options.metadata, list) and isinstance(item, dict):
+    if isinstance(metadata, list) and isinstance(item, dict):
         item_dict = cast(dict[str, object], item)
         result: dict[str, Any] = {}
-        for key in options.metadata:
+        for key in metadata:
             str_key = str(key)
             value = item_dict.get(str_key)
             if value is not None:
                 result[str_key] = value
         return result
 
-    if callable(options.metadata):
-        return options.metadata(item)
+    if callable(metadata):
+        return metadata(item)
 
-    if options.metadata is None and isinstance(item, dict):
+    if metadata is None and isinstance(item, dict):
         out = cast(dict[str, Any], item.copy())
-        if isinstance(options.content, str) and options.content in out:
-            del out[options.content]
+        if isinstance(content, str) and content in out:
+            del out[content]
         return out
 
     return None
@@ -476,7 +458,7 @@ class GenkitRegistry:
         Example:
             ```python
             from genkit.ai import Genkit
-            from genkit.blocks.dap import DapConfig, DapCacheConfig
+            from genkit.blocks.dap import DapConfig
 
             ai = Genkit()
 
@@ -497,7 +479,7 @@ class GenkitRegistry:
                 config=DapConfig(
                     name='mcp-tools',
                     description='Tools from MCP server',
-                    cache_config=DapCacheConfig(ttl_millis=10000),
+                    cache_ttl_millis=10000,
                 ),
                 fn=get_tools,
             )
@@ -646,8 +628,12 @@ class GenkitRegistry:
 
     def define_simple_retriever(
         self,
-        options: SimpleRetrieverOptions[R] | str,
+        name: str,
         handler: Callable[[DocumentData, Any], list[R] | Awaitable[list[R]]],
+        *,
+        content: str | Callable[[R], str | list[DocumentPart]] | None = None,
+        metadata: list[str] | Callable[[R], dict[str, Any]] | None = None,
+        config_schema: type[BaseModel] | dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a simple retriever action.
@@ -656,32 +642,36 @@ class GenkitRegistry:
         that can be used for prompt augmentation.
 
         Args:
-            options: Configuration options for the retriever, or just the name.
+            name: Unique name of the retriever.
             handler: A function that queries a datastore and returns items
                 from which to extract documents.
+            content: Specifies how to extract content from returned items.
+                Can be a string key (for dict items) or a callable.
+            metadata: Specifies how to extract metadata from returned items.
+                Can be a list of keys (for dict items) or a callable.
+            config_schema: Optional Pydantic schema or JSON schema for retriever configuration.
             description: Optional description for the retriever.
 
         Returns:
             The registered Action for the retriever.
         """
-        if isinstance(options, str):
-            options = SimpleRetrieverOptions(name=options)
+        content_opt = content
+        metadata_opt = metadata
 
         async def retriever_fn(query: Document, options_obj: Any) -> RetrieverResponse:  # noqa: ANN401
-
             items = await ensure_async(handler)(query, options_obj)
             docs = []
             for item in items:
-                doc = _item_to_document(item, options)
+                doc = _item_to_document(item, content_opt)
                 if not isinstance(item, str):
-                    doc.metadata = _item_to_metadata(item, options)
+                    doc.metadata = _item_to_metadata(item, content_opt, metadata_opt)
                 docs.append(doc)
             return RetrieverResponse(documents=docs)
 
         return self.define_retriever(
-            name=options.name,
+            name=name,
             fn=retriever_fn,
-            config_schema=options.config_schema,
+            config_schema=config_schema,
             description=description,
         )
 
@@ -729,8 +719,10 @@ class GenkitRegistry:
         self,
         name: str,
         fn: RerankerFn[Any],
+        *,
         config_schema: type[BaseModel] | dict[str, object] | None = None,
-        metadata: dict[str, object] | None = None,
+        label: str | None = None,
+        supports: RerankerSupports | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a reranker action.
@@ -742,8 +734,9 @@ class GenkitRegistry:
             name: Name of the reranker.
             fn: Function implementing the reranker behavior. Should accept
                 (query_doc, documents, options) and return RerankerResponse.
-            config_schema: Optional schema for reranker configuration.
-            metadata: Optional metadata for the reranker.
+            config_schema: Optional schema for reranker configuration options.
+            label: Human-readable label for the reranker.
+            supports: Capability information for the reranker.
             description: Optional description for the reranker.
 
         Returns:
@@ -757,35 +750,16 @@ class GenkitRegistry:
             ...     return RerankerResponse(documents=[...])
             >>> ai.define_reranker('my-reranker', my_reranker)
         """
-        # Extract label and config from metadata
-        reranker_label: str = name
-        reranker_config_schema: dict[str, object] | None = None
-
-        # Check if metadata has reranker info
-        if metadata and 'reranker' in metadata:
-            existing = metadata['reranker']
-            if isinstance(existing, dict):
-                existing_dict = cast(dict[str, object], existing)
-                label_val = existing_dict.get('label')
-                if isinstance(label_val, str) and label_val:
-                    reranker_label = label_val
-                opts_val = existing_dict.get('customOptions')
-                if isinstance(opts_val, dict):
-                    reranker_config_schema = cast(dict[str, object], opts_val)
-
-        # Override with config_schema if provided
-        if config_schema:
-            reranker_config_schema = to_json_schema(config_schema)
+        reranker_config_schema = to_json_schema(config_schema) if config_schema else None
 
         reranker_description = get_func_description(fn, description)
         return define_reranker_block(
             self.registry,
             name=name,
             fn=fn,
-            options=RerankerOptions(
-                config_schema=reranker_config_schema,
-                label=reranker_label,
-            ),
+            config_schema=reranker_config_schema,
+            label=label or name,
+            supports=supports,
             description=reranker_description,
         )
 
@@ -1130,17 +1104,24 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        options: EmbedderOptions | None = None,
+        *,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        label: str | None = None,
+        supports: EmbedderSupports | None = None,
+        dimensions: int | None = None,
         metadata: dict[str, object] | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
 
         Args:
-            name: Name of the model.
+            name: Name of the embedder.
             fn: Function implementing the embedder behavior.
-            options: Optional options for the embedder.
-            metadata: Optional metadata for the model.
+            config_schema: Optional schema for embedder configuration options.
+            label: Human-readable label for the embedder.
+            supports: Capability information for the embedder.
+            dimensions: Size of the embedding vector.
+            metadata: Optional metadata for the embedder.
             description: Optional description for the embedder.
         """
         embedder_meta: dict[str, object] = dict(metadata) if metadata else {}
@@ -1152,15 +1133,14 @@ class GenkitRegistry:
             embedder_info = {}
         embedder_meta['embedder'] = embedder_info
 
-        if options:
-            if options.label:
-                embedder_info['label'] = options.label
-            if options.dimensions:
-                embedder_info['dimensions'] = options.dimensions
-            if options.supports:
-                embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
-            if options.config_schema:
-                embedder_info['customOptions'] = to_json_schema(options.config_schema)
+        if label:
+            embedder_info['label'] = label
+        if dimensions:
+            embedder_info['dimensions'] = dimensions
+        if supports:
+            embedder_info['supports'] = supports.model_dump(exclude_none=True, by_alias=True)
+        if config_schema:
+            embedder_info['customOptions'] = to_json_schema(config_schema)
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
@@ -1587,8 +1567,7 @@ class GenkitRegistry:
 
     def define_resource(
         self,
-        opts: 'ResourceOptions | None' = None,
-        fn: 'FlexibleResourceFn | None' = None,
+        fn: 'FlexibleResourceFn',
         *,
         name: str | None = None,
         uri: str | None = None,
@@ -1599,33 +1578,25 @@ class GenkitRegistry:
         """Define a resource action.
 
         Args:
-            opts: Options defining the resource (e.g. uri, template, name).
             fn: Function implementing the resource behavior.
-            name: Optional name for the resource.
-            uri: Optional URI for the resource.
-            template: Optional URI template for the resource.
+            name: Resource name (defaults to uri or template).
+            uri: The URI of the resource.
+            template: The URI template (e.g. ``my://resource/{id}``).
             description: Optional description for the resource.
             metadata: Optional metadata for the resource.
 
         Returns:
             The registered Action for the resource.
         """
-        if fn is None:
-            raise ValueError('A function `fn` must be provided to define a resource.')
-        if opts is None:
-            opts = {}
-        if name:
-            opts['name'] = name
-        if uri:
-            opts['uri'] = uri
-        if template:
-            opts['template'] = template
-        if description:
-            opts['description'] = description
-        if metadata:
-            opts['metadata'] = metadata
-
-        return define_resource_block(self.registry, opts, fn)
+        return define_resource_block(
+            self.registry,
+            fn,
+            name=name,
+            uri=uri,
+            template=template,
+            description=description,
+            metadata=metadata,
+        )
 
 
 class FlowWrapper(Generic[P, CallT, T, ChunkT]):

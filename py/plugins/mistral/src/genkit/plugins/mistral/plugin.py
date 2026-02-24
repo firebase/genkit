@@ -27,7 +27,6 @@ from mistralai import Mistral as MistralClient
 
 from genkit.ai import Plugin
 from genkit.blocks.embedding import (
-    EmbedderOptions,
     EmbedderSupports,
     EmbedRequest,
     EmbedResponse,
@@ -217,12 +216,10 @@ class Mistral(Plugin):
             name=name,
             fn=embed_fn,
             metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
+                name,
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
             ).metadata,
         )
 
@@ -248,12 +245,10 @@ class Mistral(Plugin):
         for embed_model, embed_info in SUPPORTED_EMBEDDING_MODELS.items():
             actions_list.append(
                 embedder_action_metadata(
-                    name=mistral_name(embed_model),
-                    options=EmbedderOptions(
-                        label=embed_info['label'],
-                        supports=EmbedderSupports(input=embed_info['supports']['input']),
-                        dimensions=embed_info.get('dimensions'),
-                    ),
+                    mistral_name(embed_model),
+                    label=embed_info['label'],
+                    supports=EmbedderSupports(input=embed_info['supports']['input']),
+                    dimensions=embed_info.get('dimensions'),
                 )
             )
 

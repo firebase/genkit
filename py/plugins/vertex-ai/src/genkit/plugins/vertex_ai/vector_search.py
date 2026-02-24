@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
-from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.blocks.retriever import retriever_action_metadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -446,11 +446,9 @@ def define_vertex_vector_search_big_query(
         name=name,
         fn=retriever.retrieve,
         metadata=retriever_action_metadata(
-            name=name,
-            options=RetrieverOptions(
-                label=name,
-                config_schema=to_json_schema(RetrieverOptionsSchema),
-            ),
+            name,
+            label=name,
+            config_schema=to_json_schema(RetrieverOptionsSchema),
         ).metadata,
     )
 
@@ -500,11 +498,9 @@ def define_vertex_vector_search_firestore(
         name=name,
         fn=retriever.retrieve,
         metadata=retriever_action_metadata(
-            name=name,
-            options=RetrieverOptions(
-                label=name,
-                config_schema=to_json_schema(RetrieverOptionsSchema),
-            ),
+            name,
+            label=name,
+            config_schema=to_json_schema(RetrieverOptionsSchema),
         ).metadata,
     )
 

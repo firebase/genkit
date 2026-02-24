@@ -125,7 +125,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar, TypeVar, cast
 
 from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import Action, ActionMetadata
@@ -216,16 +215,6 @@ class RerankerInfo(BaseModel):
     supports: RerankerSupports | None = None
 
 
-class RerankerOptions(BaseModel):
-    """Configuration options for a reranker."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
-
-    config_schema: dict[str, Any] | None = None
-    label: str | None = None
-    supports: RerankerSupports | None = None
-
-
 class RerankerRef(BaseModel):
     """Reference to a reranker with configuration.
 
@@ -243,27 +232,31 @@ class RerankerRef(BaseModel):
 
 def reranker_action_metadata(
     name: str,
-    options: RerankerOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RerankerSupports | None = None,
 ) -> ActionMetadata:
     """Creates action metadata for a reranker.
 
     Args:
         name: The name of the reranker.
-        options: Optional configuration options for the reranker.
+        config_schema: Optional JSON schema for reranker configuration options.
+        label: Human-readable label for the reranker.
+        supports: Capability information for the reranker.
 
     Returns:
         An ActionMetadata instance for the reranker.
     """
-    options = options if options is not None else RerankerOptions()
     reranker_metadata_dict: dict[str, Any] = {'reranker': {}}
 
-    if options.label:
-        reranker_metadata_dict['reranker']['label'] = options.label
+    if label:
+        reranker_metadata_dict['reranker']['label'] = label
 
-    if options.supports:
-        reranker_metadata_dict['reranker']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+    if supports:
+        reranker_metadata_dict['reranker']['supports'] = supports.model_dump(exclude_none=True, by_alias=True)
 
-    reranker_metadata_dict['reranker']['customOptions'] = options.config_schema if options.config_schema else None
+    reranker_metadata_dict['reranker']['customOptions'] = config_schema if config_schema else None
 
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.RERANKER),
@@ -298,7 +291,10 @@ def define_reranker(
     registry: Registry,
     name: str,
     fn: RerankerFn[Any],
-    options: RerankerOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: RerankerSupports | None = None,
     description: str | None = None,
 ) -> Action:
     """Defines and registers a reranker action.
@@ -310,7 +306,9 @@ def define_reranker(
         registry: The registry to register the reranker in.
         name: The name of the reranker.
         fn: The reranker function that implements the reranking logic.
-        options: Optional configuration options for the reranker.
+        config_schema: Optional JSON schema for reranker configuration options.
+        label: Human-readable label for the reranker.
+        supports: Capability information for the reranker.
         description: Optional description for the reranker action.
 
     Returns:
@@ -329,7 +327,7 @@ def define_reranker(
         ...     )
         >>> define_reranker(registry, 'my-reranker', my_reranker)
     """
-    metadata = reranker_action_metadata(name, options)
+    metadata = reranker_action_metadata(name, config_schema=config_schema, label=label, supports=supports)
 
     async def wrapper(
         request: RerankerRequest,

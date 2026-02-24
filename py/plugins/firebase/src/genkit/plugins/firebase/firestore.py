@@ -24,7 +24,7 @@ from google.cloud.firestore_v1 import DocumentSnapshot
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
-from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.blocks.retriever import retriever_action_metadata
 from genkit.core.action.types import ActionKind
 from genkit.core.typing import DocumentPart
 from genkit.plugins.firebase.retriever import FirestoreRetriever
@@ -95,8 +95,8 @@ def define_firestore_vector_store(
         name=action_name,
         fn=retriever.retrieve,
         metadata=retriever_action_metadata(
-            name=action_name,
-            options=RetrieverOptions(label=name),
+            action_name,
+            label=name,
         ).metadata,
     )
 

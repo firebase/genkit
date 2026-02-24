@@ -51,8 +51,6 @@ Key Components:
     +===================+======================================================+
     | EmbedderRef       | Reference to an embedder with optional configuration |
     +-------------------+------------------------------------------------------+
-    | EmbedderOptions   | Configuration options for defining embedders         |
-    +-------------------+------------------------------------------------------+
     | EmbedderSupports  | Declares what input types an embedder supports       |
     +-------------------+------------------------------------------------------+
     | Embedder          | Runtime wrapper around an embedder action            |
@@ -92,7 +90,6 @@ from collections.abc import Callable
 from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
 
 from genkit.blocks.document import Document
 from genkit.core.action import Action, ActionMetadata
@@ -108,17 +105,6 @@ class EmbedderSupports(BaseModel):
 
     input: list[str] | None = None
     multilingual: bool | None = None
-
-
-class EmbedderOptions(BaseModel):
-    """Configuration options for an embedder."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra='forbid', populate_by_name=True, alias_generator=to_camel)
-
-    config_schema: dict[str, Any] | None = None
-    label: str | None = None
-    supports: EmbedderSupports | None = None
-    dimensions: int | None = None
 
 
 class EmbedderRef(BaseModel):
@@ -170,30 +156,36 @@ EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
 
 def embedder_action_metadata(
     name: str,
-    options: EmbedderOptions | None = None,
+    *,
+    config_schema: dict[str, Any] | None = None,
+    label: str | None = None,
+    supports: EmbedderSupports | None = None,
+    dimensions: int | None = None,
 ) -> ActionMetadata:
     """Creates metadata for an embedder action.
 
     Args:
         name: The name of the embedder.
-        options: Configuration options for the embedder.
+        config_schema: Optional JSON schema for embedder configuration options.
+        label: Human-readable label for the embedder.
+        supports: Capability information for the embedder.
+        dimensions: Size of the embedding vector.
 
     Returns:
         The action metadata for the embedder.
     """
-    options = options if options is not None else EmbedderOptions()
     embedder_metadata_dict: dict[str, object] = {'embedder': {}}
     embedder_info = cast(dict[str, object], embedder_metadata_dict['embedder'])
 
-    if options.label:
-        embedder_info['label'] = options.label
+    if label:
+        embedder_info['label'] = label
 
-    embedder_info['dimensions'] = options.dimensions
+    embedder_info['dimensions'] = dimensions
 
-    if options.supports:
-        embedder_info['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
+    if supports:
+        embedder_info['supports'] = supports.model_dump(exclude_none=True, by_alias=True)
 
-    embedder_info['customOptions'] = options.config_schema if options.config_schema else None
+    embedder_info['customOptions'] = config_schema if config_schema else None
 
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.EMBEDDER),

@@ -24,7 +24,7 @@ from openai import AsyncOpenAI
 from openai.types import Model
 
 from genkit.ai import Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.embedding import EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
@@ -411,12 +411,10 @@ class OpenAI(Plugin):
             name=name,
             fn=embed_fn,
             metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
+                name,
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
             ).metadata,
         )
 
@@ -438,11 +436,9 @@ class OpenAI(Plugin):
             if model_type == _ModelType.EMBEDDER:
                 actions.append(
                     embedder_action_metadata(
-                        name=open_ai_name(name),
-                        options=EmbedderOptions(
-                            label=f'OpenAI Embedding - {name}',
-                            supports=EmbedderSupports(input=['text']),
-                        ),
+                        open_ai_name(name),
+                        label=f'OpenAI Embedding - {name}',
+                        supports=EmbedderSupports(input=['text']),
                     )
                 )
             elif model_type in _DEFAULT_SUPPORTS:

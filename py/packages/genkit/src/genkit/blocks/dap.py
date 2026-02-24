@@ -142,33 +142,22 @@ DapMetadata = dict[str, list[ActionMetadataLike]]
 
 
 @dataclass
-class DapCacheConfig:
-    """Configuration for DAP caching behavior.
-
-    Attributes:
-        ttl_millis: Time-to-live for cache in milliseconds.
-            - Negative: No caching (always fetch fresh)
-            - Zero/None: Default (3000 milliseconds)
-            - Positive: Cache validity duration in milliseconds
-    """
-
-    ttl_millis: int | None = None
-
-
-@dataclass
 class DapConfig:
     """Configuration for a Dynamic Action Provider.
 
     Attributes:
         name: Unique name for this DAP (used as prefix for actions).
         description: Human-readable description of what this DAP provides.
-        cache_config: Optional caching configuration.
+        cache_ttl_millis: TTL for the action cache in milliseconds.
+            - Negative: No caching (always fetch fresh)
+            - Zero/None: Default (3000 milliseconds)
+            - Positive: Cache validity duration in milliseconds
         metadata: Additional metadata to attach to the DAP action.
     """
 
     name: str
     description: str | None = None
-    cache_config: DapCacheConfig | None = None
+    cache_ttl_millis: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -199,7 +188,7 @@ class SimpleCache:
         self._fetch_task: asyncio.Task[DapValue] | None = None
 
         # Determine TTL (default 3000ms)
-        ttl = config.cache_config.ttl_millis if config.cache_config else None
+        ttl = config.cache_ttl_millis
         self._ttl_millis = 3000 if ttl is None or ttl == 0 else ttl
 
     async def get_or_fetch(self, skip_trace: bool = False) -> DapValue:
@@ -464,7 +453,7 @@ def define_dynamic_action_provider(
             config=DapConfig(
                 name='mcp-tools',
                 description='Tools from MCP server',
-                cache_config=DapCacheConfig(ttl_millis=10000),
+                cache_ttl_millis=10000,
             ),
             fn=get_tools,
         )
@@ -503,7 +492,6 @@ def define_dynamic_action_provider(
 
 __all__ = [
     'ActionMetadataLike',
-    'DapCacheConfig',
     'DapConfig',
     'DapFn',
     'DapMetadata',

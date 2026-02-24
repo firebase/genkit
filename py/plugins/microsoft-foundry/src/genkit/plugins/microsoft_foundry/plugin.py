@@ -125,7 +125,7 @@ import httpx
 from openai import APIError, AsyncAzureOpenAI, AsyncOpenAI
 
 from genkit.ai import Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.embedding import EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.logging import get_logger
@@ -717,12 +717,10 @@ class MicrosoftFoundry(Plugin):
             name=name,
             fn=embed_fn,
             metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
+                name,
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
             ).metadata,
         )
 
@@ -764,12 +762,10 @@ class MicrosoftFoundry(Plugin):
                     )
                     actions.append(
                         embedder_action_metadata(
-                            name=microsoft_foundry_name(model_id),
-                            options=EmbedderOptions(
-                                label=embed_info['label'],
-                                supports=EmbedderSupports(input=embed_info['supports']['input']),
-                                dimensions=embed_info.get('dimensions'),
-                            ),
+                            microsoft_foundry_name(model_id),
+                            label=embed_info['label'],
+                            supports=EmbedderSupports(input=embed_info['supports']['input']),
+                            dimensions=embed_info.get('dimensions'),
                         )
                     )
         else:
@@ -788,12 +784,10 @@ class MicrosoftFoundry(Plugin):
             for embed_name, embed_info in SUPPORTED_EMBEDDING_MODELS.items():
                 actions.append(
                     embedder_action_metadata(
-                        name=microsoft_foundry_name(embed_name),
-                        options=EmbedderOptions(
-                            label=embed_info['label'],
-                            supports=EmbedderSupports(input=embed_info['supports']['input']),
-                            dimensions=embed_info.get('dimensions'),
-                        ),
+                        microsoft_foundry_name(embed_name),
+                        label=embed_info['label'],
+                        supports=EmbedderSupports(input=embed_info['supports']['input']),
+                        dimensions=embed_info.get('dimensions'),
                     )
                 )
 

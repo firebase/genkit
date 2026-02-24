@@ -67,7 +67,7 @@ import aioboto3
 from botocore.config import Config
 
 from genkit.ai import Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.embedding import EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.logging import get_logger
@@ -508,12 +508,10 @@ class AmazonBedrock(Plugin):
             name=name,
             fn=embed_fn,
             metadata=embedder_action_metadata(
-                name=name,
-                options=EmbedderOptions(
-                    label=embedder_info['label'],
-                    supports=EmbedderSupports(input=embedder_info['supports']['input']),
-                    dimensions=embedder_info.get('dimensions'),
-                ),
+                name,
+                label=embedder_info['label'],
+                supports=EmbedderSupports(input=embedder_info['supports']['input']),
+                dimensions=embedder_info.get('dimensions'),
             ).metadata,
         )
 
@@ -540,12 +538,10 @@ class AmazonBedrock(Plugin):
         for model_id, embed_info in SUPPORTED_EMBEDDING_MODELS.items():
             actions.append(
                 embedder_action_metadata(
-                    name=bedrock_name(model_id),
-                    options=EmbedderOptions(
-                        label=embed_info['label'],
-                        supports=EmbedderSupports(input=embed_info['supports']['input']),
-                        dimensions=embed_info.get('dimensions'),
-                    ),
+                    bedrock_name(model_id),
+                    label=embed_info['label'],
+                    supports=EmbedderSupports(input=embed_info['supports']['input']),
+                    dimensions=embed_info.get('dimensions'),
                 )
             )
 
