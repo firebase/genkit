@@ -16,7 +16,7 @@
 
 """Implementation of JSONL output format."""
 
-from typing import cast
+from typing import Any, cast
 
 import json5
 
@@ -26,6 +26,7 @@ from genkit.blocks.model import (
     MessageWrapper,
 )
 from genkit.codec import dump_json
+from genkit.core._compat import override
 from genkit.core.error import GenkitError
 from genkit.core.extract import extract_json
 
@@ -68,7 +69,8 @@ class JsonlFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, object] | None) -> Formatter:
+    @override
+    def handle(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Creates a Formatter for handling JSONL data.
 
         Args:

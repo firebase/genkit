@@ -126,12 +126,16 @@ class McpServer:
         )
 
         # Register request handlers using decorators
+        # MCP library type stubs don't match actual decorator signatures
         self.server.list_tools()(self.list_tools)
         self.server.call_tool()(self.call_tool)
         self.server.list_prompts()(self.list_prompts)
+        # pyrefly: ignore[bad-argument-type] - MCP decorator type stub mismatch
         self.server.get_prompt()(self.get_prompt)
         self.server.list_resources()(self.list_resources)
+        # pyrefly: ignore[bad-argument-type] - MCP decorator type stub mismatch
         self.server.list_resource_templates()(self.list_resource_templates)
+        # pyrefly: ignore[bad-argument-type] - MCP decorator type stub mismatch
         self.server.read_resource()(self.read_resource)
 
         # Resolve all actions from Genkit registry
@@ -446,28 +450,24 @@ def create_mcp_server(ai: Genkit, options: McpServerOptions) -> McpServer:
         GenkitMcpServer instance.
 
     Example:
-        ```python
-        from genkit.ai import Genkit
-        from genkit.plugins.mcp import create_mcp_server, McpServerOptions
-
-        ai = Genkit()
-
-
-        # Define some tools and resources
-        @ai.tool()
-        def add(a: int, b: int) -> int:
-            return a + b
-
-
-        ai.define_resource(
-            name='my_resource',
-            uri='my://resource',
-            fn=lambda req: {'content': [{'text': 'resource content'}]},
-        )
-
-        # Create and start MCP server
-        server = create_mcp_server(ai, McpServerOptions(name='my-server'))
-        await server.start()
-        ```
+        >>> from genkit.ai import Genkit
+        >>> from genkit.plugins.mcp import create_mcp_server, McpServerOptions
+        >>>
+        >>> ai = Genkit()
+        >>>
+        >>> # Define some tools and resources
+        >>> @ai.tool()
+        ... def add(a: int, b: int) -> int:
+        ...     return a + b
+        >>>
+        >>> ai.define_resource(
+        ...     name='my_resource',
+        ...     uri='my://resource',
+        ...     fn=lambda req: {'content': [{'text': 'resource content'}]},
+        ... )
+        >>>
+        >>> # Create and start MCP server
+        >>> server = create_mcp_server(ai, McpServerOptions(name='my-server'))
+        >>> await server.start()
     """
     return McpServer(ai, options)

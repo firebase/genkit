@@ -5,6 +5,8 @@
 
 """Tests for the action module."""
 
+from typing import cast
+
 import pytest
 
 from genkit.codec import dump_json
@@ -177,7 +179,7 @@ async def test_define_streaming_action_and_stream_it() -> None:
     async for chunk in stream:
         chunks.append(chunk)
 
-    assert (await response) == 3
+    assert (await response).response == 3
     assert chunks == ['1', '2']
 
 
@@ -258,17 +260,17 @@ async def test_propagates_context_via_contextvar() -> None:
     async def foo(_: str | None, ctx: ActionRunContext) -> str:
         return dump_json(ctx.context)
 
-    foo_action = Action(name='foo', kind=ActionKind.CUSTOM, fn=foo)
+    foo_action = cast(Action[str | None, str], Action(name='foo', kind=ActionKind.CUSTOM, fn=foo))
 
     async def bar() -> str:
         return (await foo_action.arun()).response
 
-    bar_action = Action(name='bar', kind=ActionKind.CUSTOM, fn=bar)
+    bar_action = cast(Action[None, str], Action(name='bar', kind=ActionKind.CUSTOM, fn=bar))
 
     async def baz() -> str:
         return (await bar_action.arun()).response
 
-    baz_action = Action(name='baz', kind=ActionKind.CUSTOM, fn=baz)
+    baz_action = cast(Action[None, str], Action(name='baz', kind=ActionKind.CUSTOM, fn=baz))
 
     first = baz_action.arun(context={'foo': 'bar'})
     second = baz_action.arun(context={'bar': 'baz'})
@@ -309,3 +311,42 @@ async def test_async_action_raises_errors() -> None:
     assert 'stack' in e.value.details
     assert 'trace_id' in e.value.details
     assert str(e.value.cause) == 'oops'
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
+    """arun_raw raises GenkitError when input is None but the action requires it."""
+
+    async def typed_fn(input: str) -> str:
+        return f'got {input}'
+
+    action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
+
+    with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
+        await action.arun_raw(raw_input=None)
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_succeeds_with_valid_input() -> None:
+    """arun_raw succeeds when valid input is provided."""
+
+    async def typed_fn(input: str) -> str:
+        return f'got {input}'
+
+    action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
+
+    result = await action.arun_raw(raw_input='hello')
+    assert result.response == 'got hello'
+
+
+@pytest.mark.asyncio
+async def test_arun_raw_no_input_type_allows_none() -> None:
+    """arun_raw allows None input when action has no input type."""
+
+    async def no_input_fn() -> str:
+        return 'no input needed'
+
+    action = Action(name='noInputAction', kind=ActionKind.CUSTOM, fn=no_input_fn)
+
+    result = await action.arun_raw(raw_input=None)
+    assert result.response == 'no input needed'

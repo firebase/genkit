@@ -69,9 +69,6 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 		if gOpts.PromptDir != "" {
 			return errors.New("cannot set prompt directory more than once (WithPromptDir)")
 		}
-		if gOpts.PromptFS != nil {
-			return errors.New("cannot use WithPromptDir together with WithPromptFS")
-		}
 		gOpts.PromptDir = o.PromptDir
 	}
 
@@ -79,11 +76,7 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 		if gOpts.PromptFS != nil {
 			return errors.New("cannot set prompt filesystem more than once (WithPromptFS)")
 		}
-		if gOpts.PromptDir != "" {
-			return errors.New("cannot use WithPromptFS together with WithPromptDir")
-		}
 		gOpts.PromptFS = o.PromptFS
-		gOpts.PromptDir = o.PromptDir
 	}
 
 	if len(o.Plugins) > 0 {
@@ -357,6 +350,18 @@ func DefineFlow[In, Out any](g *Genkit, name string, fn core.Func[In, Out]) *cor
 //	}
 func DefineStreamingFlow[In, Out, Stream any](g *Genkit, name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream] {
 	return core.DefineStreamingFlow(g.reg, name, fn)
+}
+
+// NewFlow creates a [core.Flow] without registering it as an action.
+// To register the flow later, call [RegisterAction].
+func NewFlow[In, Out any](name string, fn core.Func[In, Out]) *core.Flow[In, Out, struct{}] {
+	return core.NewFlow(name, fn)
+}
+
+// NewStreamingFlow creates a streaming [core.Flow] without registering it as an action.
+// To register the flow later, call [RegisterAction].
+func NewStreamingFlow[In, Out, Stream any](name string, fn core.StreamingFunc[In, Out, Stream]) *core.Flow[In, Out, Stream] {
+	return core.NewStreamingFlow(name, fn)
 }
 
 // Run executes the given function `fn` within the context of the current flow run,

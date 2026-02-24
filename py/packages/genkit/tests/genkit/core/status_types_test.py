@@ -48,9 +48,11 @@ def test_status_immutability() -> None:
     status = Status(name='OK')
 
     with pytest.raises(ValidationError):
+        # pyrefly: ignore[read-only] - Intentionally testing immutability
         status.name = 'NOT_FOUND'
 
     with pytest.raises(ValidationError):
+        # pyrefly: ignore[read-only] - Intentionally testing immutability
         status.message = 'New message'
 
 

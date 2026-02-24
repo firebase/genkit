@@ -30,9 +30,9 @@ over HTTP.
 
 from dataclasses import dataclass
 
-import structlog
+from genkit.core.logging import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

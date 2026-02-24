@@ -130,6 +130,7 @@ class FirestoreRetriever:
         metadata_fields = self.metadata_fields
         if metadata_fields:
             if callable(metadata_fields):
+                # pyrefly: ignore[bad-assignment] - MetadataTransformFn returns dict[str, Any]
                 metadata = metadata_fields(doc_snapshot)
             else:
                 doc_dict = doc_snapshot.to_dict() or {}

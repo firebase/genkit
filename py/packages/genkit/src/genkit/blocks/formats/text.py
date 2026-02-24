@@ -16,11 +16,14 @@
 
 """Implementation of text output format."""
 
+from typing import Any
+
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )
+from genkit.core._compat import override
 
 
 class TextFormat(FormatDef):
@@ -49,7 +52,8 @@ class TextFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, object] | None) -> Formatter:
+    @override
+    def handle(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Creates a Formatter for handling text data.
 
         Args:

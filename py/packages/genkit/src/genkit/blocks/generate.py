@@ -17,12 +17,11 @@
 """Generate action."""
 
 import copy
+import re
 from collections.abc import Callable
 from typing import Any, cast
 
-import structlog
-
-from genkit.blocks.formats import FormatDef, Formatter
+from genkit.blocks.formats.types import FormatDef, Formatter
 from genkit.blocks.messages import inject_instructions
 from genkit.blocks.middleware import augment_with_context
 from genkit.blocks.model import (
@@ -34,9 +33,11 @@ from genkit.blocks.model import (
 from genkit.blocks.resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit.blocks.tools import ToolInterruptError
 from genkit.codec import dump_dict
-from genkit.core.action import ActionRunContext
+from genkit.core.action import Action, ActionRunContext
+from genkit.core.action.types import ActionKind
 from genkit.core.error import GenkitError
-from genkit.core.registry import Action, ActionKind, Registry
+from genkit.core.logging import get_logger
+from genkit.core.registry import Registry
 from genkit.core.typing import (
     FinishReason,
     GenerateActionOptions,
@@ -59,7 +60,31 @@ StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 
 DEFAULT_MAX_TURNS = 5
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
+
+
+# Matches data URIs: everything up to the first comma is the media-type +
+# parameters (e.g. "data:audio/L16;codec=pcm;rate=24000;base64,").
+_DATA_URI_RE = re.compile(r'data:[^,]{0,200},(?=.{100})', re.ASCII)
+
+
+def _redact_data_uris(obj: Any) -> Any:  # noqa: ANN401
+    """Recursively truncate long ``data:`` URIs in a serialized dict/list.
+
+    Replaces values like ``data:image/png;base64,iVBORw0KGgo...`` with
+    ``data:image/png;base64,...<12345 bytes>`` so debug logs stay readable
+    when requests contain inline images or other binary media.
+    """
+    if isinstance(obj, str):
+        m = _DATA_URI_RE.match(obj)
+        if m:
+            return f'{m.group()}...<{len(obj) - m.end()} bytes>'
+        return obj
+    if isinstance(obj, dict):
+        return {k: _redact_data_uris(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_redact_data_uris(v) for v in obj]
+    return obj
 
 
 def define_generate_action(registry: Registry) -> None:
@@ -73,7 +98,7 @@ def define_generate_action(registry: Registry) -> None:
             context=ctx.context,
         )
 
-    registry.register_action(
+    _ = registry.register_action(
         kind=cast(ActionKind, ActionKind.UTIL),
         name='generate',
         fn=generate_action_fn,
@@ -131,7 +156,7 @@ async def generate_action(
 
     request = await action_to_generate_request(raw_request, tools, model)
 
-    logger.debug('generate request', model=model.name, request=dump_dict(request))
+    logger.debug('generate request', model=model.name, request=_redact_data_uris(dump_dict(request)))
 
     prev_chunks: list[GenerateResponseChunk] = []
 
@@ -278,13 +303,17 @@ async def generate_action(
             return None
         return formatter.parse_message(msg)
 
+    # Extract schema_type for runtime Pydantic validation
+    schema_type = raw_request.output.schema_type if raw_request.output else None
+
     response = GenerateResponseWrapper(
         model_response,
         request,
         message_parser=message_parser if formatter else None,
+        schema_type=schema_type,
     )
 
-    logger.debug('generate response', response=dump_dict(response))
+    logger.debug('generate response', response=_redact_data_uris(dump_dict(response)))
 
     response.assert_valid()
     generated_msg = response.message
@@ -314,7 +343,7 @@ async def generate_action(
         revised_model_msg,
         tool_msg,
         transfer_preamble,
-    ) = await resolve_tool_requests(registry, raw_request, generated_msg._original_message)
+    ) = await resolve_tool_requests(registry, raw_request, generated_msg._original_message)  # pyright: ignore[reportPrivateUsage]
 
     # if an interrupt message is returned, stop the tool loop and return a
     # response.
@@ -323,6 +352,7 @@ async def generate_action(
             response,
             request,
             message_parser=message_parser if formatter else None,
+            schema_type=schema_type,
         )
         interrupted_resp.finish_reason = FinishReason.INTERRUPTED
         interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
@@ -363,7 +393,7 @@ async def generate_action(
 
 def apply_format(
     raw_request: GenerateActionOptions, format_def: FormatDef | None
-) -> tuple[GenerateActionOptions, Formatter | None]:
+) -> tuple[GenerateActionOptions, Formatter[Any, Any] | None]:
     """Applies formatting instructions and configuration to the request.
 
     If a format definition is provided, this function deep copies the request,
@@ -419,7 +449,7 @@ def apply_format(
     return (out_request, formatter)
 
 
-def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | None) -> str | None:
+def resolve_instructions(formatter: Formatter[Any, Any], instructions_opt: bool | str | None) -> str | None:
     """Resolve instructions based on formatter and instruction options.
 
     Args:
@@ -437,12 +467,12 @@ def resolve_instructions(formatter: Formatter, instructions_opt: bool | str | No
         # user says no instructions
         return None
     if not formatter:
-        return None
+        return None  # pyright: ignore[reportUnreachable] - defensive check
     return formatter.instructions
 
 
 def apply_transfer_preamble(
-    next_request: GenerateActionOptions, preamble: GenerateActionOptions
+    next_request: GenerateActionOptions, _preamble: GenerateActionOptions
 ) -> GenerateActionOptions:
     """Applies relevant properties from a preamble request to the next request.
 
@@ -459,7 +489,7 @@ def apply_transfer_preamble(
     Returns:
         The potentially updated `next_request`.
     """
-    # TODO: implement me
+    # TODO(#4338): implement me
     return next_request
 
 
@@ -541,7 +571,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
             if not ref_uri:
                 logger.warning(
                     f'Unable to extract URI from resource part: {type(resource_obj).__name__}. '
-                    f'Resource part will be skipped.'
+                    + 'Resource part will be skipped.'
                 )
                 continue
 
@@ -584,7 +614,7 @@ async def apply_resources(registry: Registry, raw_request: GenerateActionOptions
     return new_request
 
 
-def assert_valid_tool_names(raw_request: GenerateActionOptions) -> None:
+def assert_valid_tool_names(_raw_request: GenerateActionOptions) -> None:
     """Assert that tool names in the request are valid.
 
     Args:
@@ -593,13 +623,13 @@ def assert_valid_tool_names(raw_request: GenerateActionOptions) -> None:
     Raises:
         ValueError: If any tool names are invalid.
     """
-    # TODO: implement me
+    # TODO(#4338): implement me
     pass
 
 
 async def resolve_parameters(
     registry: Registry, request: GenerateActionOptions
-) -> tuple[Action, list[Action], FormatDef | None]:
+) -> tuple[Action[Any, Any, Any], list[Action[Any, Any, Any]], FormatDef | None]:
     """Resolve parameters for the generate action.
 
     Args:
@@ -614,11 +644,11 @@ async def resolve_parameters(
     if not model:
         raise Exception('No model configured.')
 
-    model_action = await registry.resolve_action(cast(ActionKind, ActionKind.MODEL), model)
+    model_action = await registry.resolve_model(model)
     if model_action is None:
         raise Exception(f'Failed to to resolve model {model}')
 
-    tools: list[Action] = []
+    tools: list[Action[Any, Any, Any]] = []
     if request.tools:
         for tool_name in request.tools:
             tool_action = await registry.resolve_action(cast(ActionKind, ActionKind.TOOL), tool_name)
@@ -637,7 +667,7 @@ async def resolve_parameters(
 
 
 async def action_to_generate_request(
-    options: GenerateActionOptions, resolved_tools: list[Action], model: Action
+    options: GenerateActionOptions, resolved_tools: list[Action[Any, Any, Any]], _model: Action[Any, Any, Any]
 ) -> GenerateRequest:
     """Convert generate action options to a generate request.
 
@@ -649,8 +679,8 @@ async def action_to_generate_request(
     Returns:
         The generated request.
     """
-    # TODO: add warning when tools are not supported in ModelInfo
-    # TODO: add warning when toolChoice is not supported in ModelInfo
+    # TODO(#4340): add warning when tools are not supported in ModelInfo
+    # TODO(#4341): add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
     return GenerateRequest(
@@ -705,7 +735,7 @@ async def resolve_tool_requests(
         A tuple containing the revised model message, the tool message, and the
         transfer preamble.
     """
-    # TODO: prompt transfer
+    # TODO(#4342): prompt transfer
     tool_dict: dict[str, Action] = {}
     if request.tools:
         for tool_name in request.tools:
@@ -717,7 +747,7 @@ async def resolve_tool_requests(
     response_parts: list[Part] = []
     i = 0
     for tool_request_part in message.content:
-        if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):
+        if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
             i += 1
             continue
 
@@ -854,7 +884,7 @@ async def resolve_tool(registry: Registry, tool_name: str) -> Action:
 
 
 async def _resolve_resume_options(
-    registry: Registry, raw_request: GenerateActionOptions
+    _registry: Registry, raw_request: GenerateActionOptions
 ) -> tuple[GenerateActionOptions, GenerateResponse | None, Message | None]:
     """Resolves tool calls from a previous turn when resuming generation.
 
@@ -1031,9 +1061,9 @@ def _find_corresponding_tool_response(responses: list[ToolResponsePart], request
     return None
 
 
-# TODO: extend GenkitError
+# TODO(#4336): extend GenkitError
 class GenerationResponseError(Exception):
-    # TODO: use status enum
+    # TODO(#4337): use status enum
     """Error for generation responses."""
 
     def __init__(
@@ -1051,7 +1081,8 @@ class GenerationResponseError(Exception):
             status: The status of the generation response.
             details: The details of the generation response.
         """
-        self.response = response
-        self.message = message
-        self.status = status
-        self.details = details
+        super().__init__(message)
+        self.response: GenerateResponse = response
+        self.message: str = message
+        self.status: str = status
+        self.details: dict[str, Any] = details

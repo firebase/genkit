@@ -18,14 +18,13 @@
 """Indexer for dev-local-vectorstore."""
 
 import asyncio
+import hashlib
 import json
-from hashlib import md5
 from typing import Any
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.blocks.retriever import IndexerRequest
-from genkit.codec import dump_json
 from genkit.types import Embedding
 
 from .constant import DbValue
@@ -58,7 +57,8 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
     async def index(self, request: IndexerRequest) -> None:
         """Index documents into the local vector store."""
         docs = request.documents
-        data = self._load_filestore()
+        # pyrefly: ignore[missing-attribute] - inherited from LocalVectorStoreAPI
+        data = await self._load_filestore()
 
         embed_resp = await self.ai.embed_many(
             embedder=self.embedder,
@@ -80,8 +80,8 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
 
         await asyncio.gather(*tasks)
 
-        with open(self.index_file_name, 'w', encoding='utf-8') as f:
-            f.write(dump_json(self._serialize_data(data=data), indent=2))
+        # pyrefly: ignore[missing-attribute] - _dump_filestore inherited from LocalVectorStoreAPI
+        await self._dump_filestore(data)
 
     async def process_document(self, document: Document, embedding: Embedding, data: dict[str, DbValue]) -> None:
         """Process a single document and add its embedding to the store."""
@@ -94,10 +94,12 @@ class DevLocalVectorStoreIndexer(LocalVectorStoreAPI):
         embedding: Embedding,
         doc: Document,
     ) -> None:
+        # pyrefly: ignore[missing-attribute] - _serialize_data inherited from LocalVectorStoreAPI
         data_str = json.dumps(self._serialize_data(data=data), ensure_ascii=False)
-        _idx = md5(data_str.encode('utf-8')).hexdigest()
-        if _idx not in data:
-            data[_idx] = DbValue(
+        # MD5 used for content-based ID generation, not security
+        idx = hashlib.md5(data_str.encode('utf-8'), usedforsecurity=False).hexdigest()
+        if idx not in data:
+            data[idx] = DbValue(
                 doc=doc,
                 embedding=embedding,
             )

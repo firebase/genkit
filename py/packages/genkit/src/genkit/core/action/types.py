@@ -16,17 +16,13 @@
 
 """Action types module for defining and managing action types."""
 
-import sys
 from collections.abc import Callable
-from typing import Generic, TypeVar
-
-if sys.version_info < (3, 11):
-    from strenum import StrEnum
-else:
-    from enum import StrEnum
+from typing import ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+from genkit.core._compat import StrEnum
 
 # Type alias for action name.
 # type ActionName = str
@@ -44,6 +40,9 @@ class ActionKind(StrEnum):
     including chat models, embedders, evaluators, and other utility functions.
     """
 
+    BACKGROUND_MODEL = 'background-model'
+    CANCEL_OPERATION = 'cancel-operation'
+    CHECK_OPERATION = 'check-operation'
     CUSTOM = 'custom'
     DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
     EMBEDDER = 'embedder'
@@ -69,14 +68,16 @@ class ActionResponse(BaseModel, Generic[ResponseT]):
     Attributes:
         response: The actual response data from the action execution.
         trace_id: A unique identifier for tracing the action execution.
+        span_id: The span ID of the root action span.
     """
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra='forbid', populate_by_name=True, alias_generator=to_camel, arbitrary_types_allowed=True
     )
 
     response: ResponseT
     trace_id: str
+    span_id: str = ''
 
 
 class ActionMetadataKey(StrEnum):

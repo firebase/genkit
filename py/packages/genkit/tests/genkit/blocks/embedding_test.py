@@ -167,7 +167,7 @@ class MockGenkitRegistry:
             return ActionResponse(response=embed_response, trace_id='mock_trace_id')
 
         mock_action.arun = AsyncMock(side_effect=mock_arun_side_effect)
-        self.actions[(kind, name)] = mock_action
+        self.actions[kind, name] = mock_action
         return mock_action
 
     async def resolve_action(self, kind: str, name: str) -> Any:  # noqa: ANN401
@@ -176,6 +176,13 @@ class MockGenkitRegistry:
         Note: Returns Any because actions are MagicMock objects.
         """
         return self.actions.get((kind, name))
+
+    async def resolve_embedder(self, name: str) -> Any:  # noqa: ANN401
+        """Typed embedder resolution.
+
+        Note: Returns Any because actions are MagicMock objects.
+        """
+        return self.actions.get(('embedder', name))
 
 
 @pytest.fixture

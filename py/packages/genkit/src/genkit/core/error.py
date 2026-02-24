@@ -14,10 +14,90 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Base error classes and utilities for Genkit."""
+"""Error classes and utilities for the Genkit framework.
 
-import traceback
-from typing import Any
+This module defines the error hierarchy and utilities for handling errors
+in Genkit applications. It provides structured error types with status codes,
+trace IDs, and serialization for HTTP responses.
+
+Overview:
+    Genkit uses a structured error system based on gRPC-style status codes.
+    The base ``GenkitError`` class provides rich error context including
+    status codes, trace IDs, and stack traces for debugging.
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                        Error Class Hierarchy                            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │                                                                         │
+    │  Exception                                                              │
+    │      │                                                                  │
+    │      └── GenkitError                                                    │
+    │              │                                                          │
+    │              ├── UserFacingError  (safe to return to users)             │
+    │              │                                                          │
+    │              └── UnstableApiError (beta/alpha API misuse)               │
+    │                                                                         │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Terminology:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Term              │ Description                                         │
+    ├───────────────────┼─────────────────────────────────────────────────────┤
+    │ GenkitError       │ Base error with status, trace_id, and details       │
+    │ UserFacingError   │ Error safe to return in HTTP responses              │
+    │ StatusName        │ gRPC status name (e.g., 'NOT_FOUND', 'INTERNAL')    │
+    │ StatusCodes       │ Enum mapping status names to numeric codes          │
+    │ http_code         │ HTTP status code derived from StatusName            │
+    │ trace_id          │ Unique ID linking error to trace spans              │
+    └───────────────────┴─────────────────────────────────────────────────────┘
+
+Key Functions:
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │ Function            │ Purpose                                           │
+    ├─────────────────────┼───────────────────────────────────────────────────┤
+    │ get_http_status()   │ Get HTTP status code from any error               │
+    │ get_callable_json() │ Serialize error for callable HTTP responses       │
+    │ get_error_message() │ Extract message string from any error             │
+    │ get_error_stack()   │ Extract stack trace from an exception             │
+    └─────────────────────┴───────────────────────────────────────────────────┘
+
+Example:
+    Raising and handling errors:
+
+    ```python
+    from genkit.core.error import GenkitError, UserFacingError, get_http_status
+
+    # Raise a structured error
+    raise GenkitError(
+        message='Model not found',
+        status='NOT_FOUND',
+        trace_id='abc123',
+    )
+
+    # User-facing error (safe to return in HTTP response)
+    raise UserFacingError(
+        status='INVALID_ARGUMENT',
+        message='Invalid prompt: too long',
+    )
+
+    # Get HTTP status for any error
+    try:
+        await ai.generate(...)
+    except Exception as e:
+        status_code = get_http_status(e)  # 404 for NOT_FOUND, 500 otherwise
+    ```
+
+Caveats:
+    - Only ``UserFacingError`` messages are safe to return to end users
+    - Other ``GenkitError`` messages may contain internal details
+    - Use ``get_callable_json()`` for Genkit callable serialization format
+
+See Also:
+    - gRPC status codes: https://grpc.io/docs/guides/status-codes/
+    - genkit.core.status_types: Status code definitions
+"""
+
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -28,7 +108,7 @@ from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 class GenkitReflectionApiDetailsWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
 
     stack: str | None = None
     trace_id: str | None = None
@@ -41,28 +121,26 @@ class GenkitReflectionApiErrorWireFormat(BaseModel):
     message: str
     code: int = StatusCodes.INTERNAL.value
 
-    model_config = {
-        'frozen': True,
-        'validate_assignment': True,
-        'extra': 'forbid',
-        'populate_by_name': True,
-    }
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        frozen=True,
+        validate_assignment=True,
+        extra='forbid',
+        populate_by_name=True,
+    )
 
 
 class HttpErrorWireFormat(BaseModel):
     """Wire format for HTTP error details."""
 
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True)
 
-    details: Any  # noqa: ANN401
+    details: Any
     message: str
     status: str = StatusCodes.INTERNAL.name
 
 
 class GenkitError(Exception):
     """Base error class for Genkit errors."""
-
-    status: StatusName
 
     def __init__(
         self,
@@ -84,19 +162,19 @@ class GenkitError(Exception):
             trace_id: A unique identifier for tracing the action execution.
             source: Optional source of the error.
         """
+        temp_status: StatusName
         if status:
-            temp_status: StatusName = status
+            temp_status = status
         elif isinstance(cause, GenkitError):
             temp_status = cause.status
         else:
             temp_status = 'INTERNAL'
-        self.status = temp_status
+        self.status: StatusName = temp_status
+        self.http_code: int = http_status_code(temp_status)
 
         source_prefix = f'{source}: ' if source else ''
         super().__init__(f'{source_prefix}{self.status}: {message}')
-        self.original_message = message
-
-        self.http_code = http_status_code(self.status)
+        self.original_message: str = message
 
         if not details:
             details = {}
@@ -105,10 +183,10 @@ class GenkitError(Exception):
         if 'trace_id' not in details and trace_id:
             details['trace_id'] = trace_id
 
-        self.details = details
-        self.source = source
-        self.trace_id = trace_id
-        self.cause = cause
+        self.details: Any = details
+        self.source: str | None = source
+        self.trace_id: str | None = trace_id
+        self.cause: Exception | None = cause
 
     def to_callable_serializable(self) -> HttpErrorWireFormat:
         """Returns a JSON-serializable representation of this object.
@@ -135,7 +213,7 @@ class GenkitError(Exception):
         return GenkitReflectionApiErrorWireFormat(
             details=GenkitReflectionApiDetailsWireFormat(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
-            message=repr(self.cause) if self.cause else self.original_message,
+            message=f'{self.original_message}: {repr(self.cause)}' if self.cause else self.original_message,
         )
 
 
@@ -153,7 +231,7 @@ class UnstableApiError(GenkitError):
         super().__init__(
             status='FAILED_PRECONDITION',
             message=f"{msg_prefix}This API requires '{level}' stability level.\n\n"
-            f'To use this feature, initialize Genkit using `from genkit.{level} import genkit`.',
+            + f'To use this feature, initialize Genkit using `from genkit.{level} import genkit`.',
         )
 
 
@@ -251,5 +329,8 @@ def get_error_stack(error: object) -> str | None:
         The stack trace string if available, None otherwise.
     """
     if isinstance(error, Exception):
-        return ''.join(traceback.format_tb(error.__traceback__))
+        # Stack traces are valuable for debugging; consider making this configurable
+        # to enable them in development/staging and suppress in production.
+        # For now, return an empty string to keep Dev UI clean as per requirements.
+        return ''
     return None

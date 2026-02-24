@@ -18,7 +18,7 @@
 
 import abc
 from collections.abc import Callable
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
@@ -27,12 +27,6 @@ from genkit.blocks.model import (
 from genkit.core.typing import (
     OutputConfig,
 )
-
-T = TypeVar('T')
-# type MessageParser[T] = Callable[[MessageWrapper], T]
-MessageParser = Callable[[MessageWrapper], T]
-# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
-ChunkParser = Callable[[GenerateResponseChunkWrapper], T]
 
 
 class FormatterConfig(OutputConfig):
@@ -59,8 +53,8 @@ class Formatter(Generic[OutputT, ChunkT]):
 
     def __init__(
         self,
-        message_parser: MessageParser[OutputT],
-        chunk_parser: ChunkParser[ChunkT],
+        message_parser: Callable[[MessageWrapper], OutputT],
+        chunk_parser: Callable[[GenerateResponseChunkWrapper], ChunkT],
         instructions: str | None,
     ) -> None:
         """Initializes a Formatter.
@@ -70,7 +64,7 @@ class Formatter(Generic[OutputT, ChunkT]):
             chunk_parser: A callable that parses a GenerateResponseChunkWrapper into type ChunkT.
             instructions: Optional instructions for the formatter.
         """
-        self.instructions = instructions
+        self.instructions: str | None = instructions
         self.__message_parser = message_parser
         self.__chunk_parser = chunk_parser
 
@@ -112,12 +106,11 @@ class FormatDef:
             name: The name of the format.
             config: The configuration for the format.
         """
-        self.name = name
-        self.config = config
-        pass
+        self.name: str = name
+        self.config: FormatterConfig = config
 
     @abc.abstractmethod
-    def handle(self, schema: dict[str, object] | None) -> Formatter:
+    def handle(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Handles the format.
 
         Args:
@@ -128,7 +121,7 @@ class FormatDef:
         """
         pass
 
-    def __call__(self, schema: dict[str, object] | None) -> Formatter:
+    def __call__(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Calls the handle method.
 
         Args:

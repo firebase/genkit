@@ -29,21 +29,38 @@ Example:
 
 import asyncio
 import threading
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import cast
 
-import structlog
 from dotpromptz.dotprompt import Dotprompt
+from pydantic import BaseModel
+from typing_extensions import Never, TypeVar
 
 from genkit.core.action import (
     Action,
     ActionMetadata,
+    ActionRunContext,
     SpanAttributeValue,
     parse_action_key,
 )
 from genkit.core.action.types import ActionKind, ActionName
+from genkit.core.logging import get_logger
 from genkit.core.plugin import Plugin
+from genkit.core.typing import (
+    EmbedRequest,
+    EmbedResponse,
+    EvalRequest,
+    EvalResponse,
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    RerankerRequest,
+    RerankerResponse,
+    RetrieverRequest,
+    RetrieverResponse,
+)
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
@@ -59,6 +76,16 @@ logger = structlog.get_logger(__name__)
 # }
 # ```
 ActionStore = dict[ActionKind, dict[ActionName, Action]]
+
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
+ChunkT = TypeVar('ChunkT', default=Never)
+
+ActionFn = (
+    Callable[[], OutputT | Awaitable[OutputT]]
+    | Callable[[InputT], OutputT | Awaitable[OutputT]]
+    | Callable[[InputT, ActionRunContext], OutputT | Awaitable[OutputT]]
+)
 
 
 class Registry:
@@ -83,11 +110,21 @@ class Registry:
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
         self._schemas_by_name: dict[str, dict[str, object]] = {}
-        self._lock = threading.RLock()
+        self._schema_types_by_name: dict[str, type[BaseModel]] = {}
+        self._lock: threading.RLock = threading.RLock()
+
+        # Re-entrancy guard for _trigger_lazy_loading.  Prevents infinite
+        # recursion when a lazy factory resolves its own action key (see
+        # https://github.com/firebase/genkit/issues/4491).
+        self._loading_actions: set[str] = set()
 
         # Initialize Dotprompt with schema_resolver to match JS SDK pattern
-        self.dotprompt = Dotprompt(schema_resolver=lambda name: self.lookup_schema(name) or name)
-        # TODO: Figure out how to set this.
+        # Use async function to avoid thread pool deadlock in resolve_json_schema
+        async def async_schema_resolver(name: str) -> dict[str, object] | str:
+            return self.lookup_schema(name) or name
+
+        self.dotprompt: Dotprompt = Dotprompt(schema_resolver=async_schema_resolver)
+        # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 
         # Plugin infrastructure
@@ -107,12 +144,12 @@ class Registry:
         self,
         kind: ActionKind,
         name: str,
-        fn: Callable[..., object],
+        fn: ActionFn[InputT, OutputT],
         metadata_fn: Callable[..., object] | None = None,
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
-    ) -> Action:
+    ) -> Action[InputT, OutputT, ChunkT]:
         """Register a new action with the registry.
 
         This method creates a new Action instance with the provided parameters
@@ -134,17 +171,18 @@ class Registry:
         action = Action(
             kind=kind,
             name=name,
-            fn=fn,
+            fn=cast(Callable[..., Awaitable[OutputT]], fn),
             metadata_fn=metadata_fn,
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,
         )
+        action_typed = cast(Action[InputT, OutputT, ChunkT], action)
         with self._lock:
             if kind not in self._entries:
                 self._entries[kind] = {}
             self._entries[kind][name] = action
-        return action
+        return action_typed
 
     def register_action_from_instance(self, action: Action) -> None:
         """Register an existing Action instance.
@@ -160,18 +198,23 @@ class Registry:
                 self._entries[action.kind] = {}
             self._entries[action.kind][action.name] = action
 
-    def get_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
-        """Returns a dictionary of all registered actions for a specific kind.
+    async def resolve_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
+        """Returns all registered actions for a specific kind, triggering lazy loading.
+
+        File-based prompts defer schema resolution until first access. This method
+        ensures all action metadata is fully loaded before returning.
 
         Args:
             kind: The type of actions to retrieve (e.g., TOOL, MODEL, RESOURCE).
 
         Returns:
-            A dictionary mapping action names to Action instances.
-            Returns an empty dictionary if no actions of that kind are registered.
+            A dictionary mapping action names to Action instances with fully loaded metadata.
         """
         with self._lock:
-            return self._entries.get(kind, {}).copy()
+            actions = self._entries.get(kind, {}).copy()
+        for action in actions.values():
+            await self._trigger_lazy_loading(action)
+        return actions
 
     def register_value(self, kind: str, name: str, value: object) -> None:
         """Registers a value with a given kind and name.
@@ -263,6 +306,8 @@ class Registry:
                     raise KeyError(f'Plugin not registered: {plugin_name}')
 
                 async def run_init() -> None:
+                    # Assert for type narrowing inside closure (pyrefly doesn't propagate from outer scope)
+                    assert plugin is not None
                     actions = await plugin.init()
                     for action in actions or []:
                         self.register_action_instance(action, namespace=plugin_name)
@@ -292,12 +337,39 @@ class Registry:
                 # Name is local, prefix with namespace
                 name = f'{namespace}/{name}'
             # Update the action's name
-            action._name = name
+            action._name = name  # pyright: ignore[reportPrivateUsage]
 
         with self._lock:
             if action.kind not in self._entries:
                 self._entries[action.kind] = {}
             self._entries[action.kind][name] = action
+
+    async def _trigger_lazy_loading(self, action: Action | None) -> Action | None:
+        """Trigger lazy loading for an action if needed.
+
+        File-based prompts are registered with deferred metadata (schemas). This method
+        triggers the async factory to resolve that metadata before returning the action.
+        The factory is memoized, so subsequent calls return immediately.
+
+        A re-entrancy guard (``_loading_actions``) prevents infinite recursion
+        when a factory resolves its own action key during initialization.
+        See https://github.com/firebase/genkit/issues/4491.
+        """
+        if action is None:
+            return None
+        async_factory = getattr(action, '_async_factory', None)
+        if async_factory is not None and action.metadata.get('lazy'):
+            action_id = f'{action.kind}/{action.name}'
+            if action_id in self._loading_actions:
+                return action
+            self._loading_actions.add(action_id)
+            try:
+                await async_factory()
+            except Exception as e:
+                logger.warning(f'Failed to load lazy action {action.name}: {e}')
+            finally:
+                self._loading_actions.discard(action_id)
+        return action
 
     async def resolve_action(self, kind: ActionKind, name: str) -> Action | None:
         """Resolve an action by kind and name, supporting both prefixed and unprefixed names.
@@ -321,7 +393,7 @@ class Registry:
         # Cache hit
         with self._lock:
             if kind in self._entries and name in self._entries[kind]:
-                return self._entries[kind][name]
+                return await self._trigger_lazy_loading(self._entries[kind][name])
 
         action: Action | None = None
 
@@ -339,13 +411,13 @@ class Registry:
                 # Check cache again after init - init() might have registered this action
                 with self._lock:
                     if kind in self._entries and target in self._entries[kind]:
-                        return self._entries[kind][target]
+                        return await self._trigger_lazy_loading(self._entries[kind][target])
 
                 action = await plugin.resolve(kind, target)
                 if action is not None:
                     self.register_action_instance(action, namespace=plugin_name)
                     with self._lock:
-                        return self._entries.get(kind, {}).get(target)
+                        return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))
         else:
             # Unprefixed request: try all plugins
             successes: list[tuple[str, Action]] = []
@@ -370,14 +442,14 @@ class Registry:
                 plugin_names = [p for p, _ in successes]
                 raise ValueError(
                     f"Ambiguous {kind.value} action name '{name}'. "
-                    f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
+                    + f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
                 )
 
             if len(successes) == 1:
                 plugin_name, action = successes[0]
                 self.register_action_instance(action, namespace=plugin_name)
                 with self._lock:
-                    return self._entries.get(kind, {}).get(f'{plugin_name}/{name}')
+                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))
 
         # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
         # Skip if we're looking up a dynamic action provider itself to avoid recursion
@@ -393,7 +465,7 @@ class Registry:
                     response = await provider.arun({'kind': kind, 'name': name})
                     if response.response:
                         self.register_action_instance(response.response)
-                        return response.response
+                        return await self._trigger_lazy_loading(response.response)
                 except Exception as e:
                     logger.debug(
                         f'Dynamic action provider {provider.name} failed for {kind}/{name}',
@@ -456,7 +528,7 @@ class Registry:
                 metas.append(meta)
         return metas
 
-    def register_schema(self, name: str, schema: dict[str, object]) -> None:
+    def register_schema(self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None) -> None:
         """Registers a schema by name.
 
         Schemas registered with this method can be referenced by name in
@@ -465,6 +537,7 @@ class Registry:
         Args:
             name: The name of the schema.
             schema: The schema data (JSON schema format).
+            schema_type: Optional Pydantic model class for runtime validation.
 
         Raises:
             ValueError: If a schema with the given name is already registered.
@@ -473,6 +546,8 @@ class Registry:
             if name in self._schemas_by_name:
                 raise ValueError(f'Schema "{name}" is already registered')
             self._schemas_by_name[name] = schema
+            if schema_type is not None:
+                self._schema_types_by_name[name] = schema_type
             logger.debug(f'Registered schema "{name}"')
 
     def lookup_schema(self, name: str) -> dict[str, object] | None:
@@ -486,3 +561,94 @@ class Registry:
         """
         with self._lock:
             return self._schemas_by_name.get(name)
+
+    def lookup_schema_type(self, name: str) -> type[BaseModel] | None:
+        """Looks up a schema's Pydantic type by name.
+
+        Args:
+            name: The name of the schema to look up.
+
+        Returns:
+            The Pydantic model class if found, None otherwise.
+        """
+        with self._lock:
+            return self._schema_types_by_name.get(name)
+
+    # ===== Typed Action Lookups =====
+    #
+    # These methods provide type-safe access to actions of specific kinds.
+    # They wrap resolve_action() with appropriate casts to preserve generic
+    # type parameters that would otherwise be erased.
+
+    async def resolve_retriever(self, name: str) -> Action[RetrieverRequest, RetrieverResponse, Never] | None:
+        """Resolve a retriever action by name with full type information.
+
+        Args:
+            name: The retriever name (e.g., "my-retriever" or "plugin/retriever").
+
+        Returns:
+            A fully typed retriever action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.RETRIEVER, name)
+        if action is None:
+            return None
+        return cast(Action[RetrieverRequest, RetrieverResponse, Never], action)
+
+    async def resolve_embedder(self, name: str) -> Action[EmbedRequest, EmbedResponse, Never] | None:
+        """Resolve an embedder action by name with full type information.
+
+        Args:
+            name: The embedder name (e.g., "my-embedder" or "plugin/embedder").
+
+        Returns:
+            A fully typed embedder action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.EMBEDDER, name)
+        if action is None:
+            return None
+        return cast(Action[EmbedRequest, EmbedResponse, Never], action)
+
+    async def resolve_reranker(self, name: str) -> Action[RerankerRequest, RerankerResponse, Never] | None:
+        """Resolve a reranker action by name with full type information.
+
+        Args:
+            name: The reranker name (e.g., "my-reranker" or "plugin/reranker").
+
+        Returns:
+            A fully typed reranker action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.RERANKER, name)
+        if action is None:
+            return None
+        return cast(Action[RerankerRequest, RerankerResponse, Never], action)
+
+    async def resolve_model(self, name: str) -> Action[GenerateRequest, GenerateResponse, GenerateResponseChunk] | None:
+        """Resolve a model action by name with full type information.
+
+        Args:
+            name: The model name (e.g., "gemini-pro" or "plugin/model").
+
+        Returns:
+            A fully typed model action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.MODEL, name)
+        if action is None:
+            return None
+        return cast(
+            Action[GenerateRequest, GenerateResponse, GenerateResponseChunk],
+            action,
+        )
+
+    async def resolve_evaluator(self, name: str) -> Action[EvalRequest, EvalResponse, Never] | None:
+        """Resolve an evaluator action by name with full type information.
+
+        Args:
+            name: The evaluator name (e.g., "my-evaluator" or "plugin/evaluator").
+
+        Returns:
+            A fully typed evaluator action, or None if not found.
+        """
+        action = await self.resolve_action(ActionKind.EVALUATOR, name)
+        if action is None:
+            return None
+        return cast(Action[EvalRequest, EvalResponse, Never], action)

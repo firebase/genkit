@@ -29,11 +29,11 @@ from .types import (
 )
 
 __all__ = [
-    AdjustingTraceExporter.__name__,
-    GenkitSpan.__name__,
-    RealtimeSpanProcessor.__name__,
-    TelemetryServerSpanExporter.__name__,
-    create_span_processor.__name__,
-    init_telemetry_server_exporter.__name__,
-    is_realtime_telemetry_enabled.__name__,
+    'AdjustingTraceExporter',
+    'GenkitSpan',
+    'RealtimeSpanProcessor',
+    'TelemetryServerSpanExporter',
+    'create_span_processor',
+    'init_telemetry_server_exporter',
+    'is_realtime_telemetry_enabled',
 ]

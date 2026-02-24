@@ -63,7 +63,7 @@ def validate_context_cache_request(request: GenerateRequest, model_name: str) ->
             status='INVALID_ARGUMENT',
             message=INVALID_ARGUMENT_MESSAGES['tools'],
         )
-    # TODO: add this check when code execution is added to Genkit
+    # TODO(#4360): add this check when code execution is added to Genkit
     # if request.config and request.config.get("codeExecution"):
     #     raise GenkitError(
     #         status="INVALID_ARGUMENT",

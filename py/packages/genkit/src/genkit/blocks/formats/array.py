@@ -16,12 +16,15 @@
 
 """Implementation of Array output format."""
 
+from typing import Any
+
 from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.blocks.model import (
     GenerateResponseChunkWrapper,
     MessageWrapper,
 )
 from genkit.codec import dump_json
+from genkit.core._compat import override
 from genkit.core.error import GenkitError
 from genkit.core.extract import extract_items
 
@@ -69,7 +72,8 @@ class ArrayFormat(FormatDef):
             ),
         )
 
-    def handle(self, schema: dict[str, object] | None) -> Formatter:
+    @override
+    def handle(self, schema: dict[str, object] | None) -> Formatter[Any, Any]:
         """Creates a Formatter for handling JSON array data.
 
         Args:

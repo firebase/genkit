@@ -57,6 +57,6 @@ async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> 
 
 
 if sys.version_info < (3, 11):
-    wait_for = wait_for_310
+    wait_for = wait_for_310  # pyright: ignore[reportUnreachable]
 else:
     wait_for = asyncio.wait_for

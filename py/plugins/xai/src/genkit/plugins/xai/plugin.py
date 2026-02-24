@@ -28,8 +28,7 @@ from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
 from genkit.plugins.xai.model_info import SUPPORTED_XAI_MODELS, get_model_info
-from genkit.plugins.xai.models import XAIModel
-from genkit.types import GenerationCommonConfig
+from genkit.plugins.xai.models import XAIConfig, XAIModel
 
 __all__ = ['XAI', 'xai_name']
 
@@ -114,16 +113,14 @@ class XAI(Plugin):
         model = XAIModel(model_name=clean_name, client=self._xai_client)
         model_info = get_model_info(clean_name)
 
+        model_metadata = model_info.model_dump(by_alias=True, exclude_none=True)
+        model_metadata['customOptions'] = to_json_schema(XAIConfig)
+
         return Action(
             kind=ActionKind.MODEL,
             name=name,
             fn=model.generate,
-            metadata={
-                'model': {
-                    'supports': model_info.supports.model_dump() if model_info.supports else {},
-                    'customOptions': to_json_schema(GenerationCommonConfig),
-                },
-            },
+            metadata={'model': model_metadata},
         )
 
     async def list_actions(self) -> list:
@@ -137,8 +134,8 @@ class XAI(Plugin):
             actions.append(
                 model_action_metadata(
                     name=xai_name(model_name),
-                    info={'supports': model_info.supports.model_dump() if model_info.supports else {}},
-                    config_schema=GenerationCommonConfig,
+                    info=model_info.model_dump(by_alias=True, exclude_none=True),
+                    config_schema=XAIConfig,
                 )
             )
         return actions

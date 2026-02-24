@@ -172,11 +172,12 @@ def to_mcp_prompt_message(message: Message) -> PromptMessage:
                     return PromptMessage(role=mcp_role, content=_parse_media_part(cast(dict[str, Any], media_data)))
 
     # If no media, aggregate all text content
-    text_content = []
+    text_content: list[str] = []
     if message.content:
         for part in message.content:
             data = _get_part_data(part)
-            if data.get('text'):
-                text_content.append(data['text'])
+            text = data.get('text')
+            if text:
+                text_content.append(str(text))
 
     return PromptMessage(role=mcp_role, content=TextContent(type='text', text=''.join(text_content)))

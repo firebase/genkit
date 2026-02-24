@@ -486,7 +486,9 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	}
 
 	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
-		genOpts.Config = modelRef.Config()
+		if cfg := modelRef.Config(); !base.IsNil(cfg) {
+			genOpts.Config = cfg
+		}
 	}
 
 	respondParts := []*toolResponsePart{}
@@ -674,6 +676,14 @@ func GenerateDataStream[Out any](ctx context.Context, r api.Registry, opts ...Ge
 		resp, err := Generate(ctx, r, allOpts...)
 		if err != nil {
 			yield(nil, err)
+			return
+		}
+
+		// If there's no text content to parse (e.g., the response contains tool
+		// requests or interrupts), return zero-value output. The caller should check
+		// resp.Interrupts() or resp.ToolRequests() to handle these cases.
+		if resp.Text() == "" {
+			yield(&StreamValue[Out, Out]{Done: true, Response: resp}, nil)
 			return
 		}
 

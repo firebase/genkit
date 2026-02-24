@@ -14,22 +14,78 @@ This document provides rules and examples for building with the Genkit API in No
 
 NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above.
 
+## Project Setup
+
+### Project Initialization
+
+- If the directory is empty:
+  Initialize a new project:
+  ```bash
+  npm init -y
+  npm install -D typescript tsx @types/node
+  ```
+- If the directory is not empty (existing project):
+  - Adhere to the current project structure.
+  - Detect the package manager in use (npm, pnpm, yarn, bun) and use the corresponding commands.
+  - Detect if the project is ESM (`"type": "module"` in package.json) or CJS.
+    - For ESM: Use `import` syntax.
+    - For CJS: Use `require` syntax.
+  - IMPORTANT: Do NOT refactor the project (e.g., converting to TypeScript or ESM) solely for Genkit. Work with the existing setup.
+
+### Dependencies
+
+Install core dependencies (adjust command for the user's package manager):
+
+```bash
+npm install genkit @genkit-ai/google-genai
+```
+
+(Add other plugins as requested)
+
+### Genkit CLI
+
+If the Genkit CLI is not already installed:
+
+```bash
+curl -sL cli.genkit.dev | bash
+# or,
+npm install -g genkit-cli
+```
+
+### Configuration
+
+Create a single `src/index.ts` (or `src/index.js` for JS) file.
+
+```ts
+// src/index.ts
+import { genkit, z } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+
+export const ai = genkit({
+  plugins: [googleAI()],
+});
+
+// Your flows and logic here
+```
+
 ## Best Practices
 
 1.  **Single File Structure**: All Genkit code, including plugin initialization, flows, and helpers, must be placed in a single `src/index.ts` file. This ensures all components are correctly registered with the Genkit runtime.
 
 2.  **Model Naming**: Always specify models using the model helper. Use string identifier if model helper is unavailable.
 
+> Note: Gemini 3.0 models are currently in preview. Use 2.5 models for GA use-cases.
+
     ```ts
     // PREFERRED: Using the model helper
     const response = await ai.generate({
-      model: googleAI.model('gemini-2.5-pro'),
+      model: googleAI.model('gemini-3-flash-preview'),
       // ...
     });
 
     // LESS PREFERRED: Full string identifier
     const response = await ai.generate({
-      model: 'googleai/gemini-2.5-pro',
+      model: 'googleai/gemini-3-flash-preview',
       // ...
     });
     ```
@@ -51,7 +107,7 @@ export const basicInferenceFlow = ai.defineFlow(
   },
   async (topic) => {
     const response = await ai.generate({
-      model: googleAI.model('gemini-2.5-pro'),
+      model: googleAI.model('gemini-3-flash-preview'),
       prompt: `Write a short, creative paragraph about ${topic}.`,
       config: { temperature: 0.8 },
     });
@@ -170,7 +226,7 @@ export const imageGenerationFlow = ai.defineFlow(
   },
   async (prompt) => {
     const response = await ai.generate({
-      model: googleAI.model('imagen-3.0-generate-002'),
+      model: googleAI.model('gemini-3-pro-image-preview'),
       prompt,
       output: { format: 'media' },
     });
@@ -203,7 +259,7 @@ export const videoGenerationFlow = ai.defineFlow(
   },
   async (prompt) => {
     let { operation } = await ai.generate({
-      model: googleAI.model('veo-3.0-generate-preview'),
+      model: googleAI.model('veo-3.1-generate-preview'),
       prompt,
     });
 
@@ -277,11 +333,14 @@ You can can automate starting genkit using the following steps:
 Here are suggested models to use for various task types. This is NOT an
 exhaustive list.
 
+> Note: Gemini 3.0 models are currently in preview.
+
 ### Advanced Text/Reasoning
 
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
+| @genkit-ai/google-genai            | gemini-3-pro-preview (Preview)     |
 | @genkit-ai/google-genai            | gemini-2.5-pro                     |
 | @genkit-ai/compat-oai/openai       | gpt-4o                             |
 | @genkit-ai/compat-oai/deepseek     | deepseek-reasoner                  |
@@ -293,6 +352,7 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
+| @genkit-ai/google-genai            | gemini-3-flash-preview (Preview)   |
 | @genkit-ai/google-genai            | gemini-2.5-flash                   |
 | @genkit-ai/compat-oai/openai       | gpt-4o-mini                        |
 | @genkit-ai/compat-oai/deepseek     | deepseek-chat                      |
@@ -311,11 +371,12 @@ exhaustive list.
 ### Image Generation
 
 ```
-| Plugin                             | Recommended Model                  | Input Modalities  |
-|------------------------------------|------------------------------------|-------------------|
-| @genkit-ai/google-genai            | gemini-2.5-flash-image-preview     | Text, Image       |
-| @genkit-ai/google-genai            | imagen-4.0-generate-preview-06-06  | Text              |
-| @genkit-ai/compat-oai/openai       | gpt-image-1                        | Text              |
+| Plugin                             | Recommended Model                    | Input Modalities  |
+|------------------------------------|--------------------------------------|-------------------|
+| @genkit-ai/google-genai            | gemini-3-pro-image-preview (Preview) | Text, Image       |
+| @genkit-ai/google-genai            | gemini-2.5-flash-image               | Text, Image       |
+| @genkit-ai/google-genai            | imagen-4.0-generate-001              | Text              |
+| @genkit-ai/compat-oai/openai       | gpt-image-1                          | Text              |
 ```
 
 ### Video Generation
@@ -323,5 +384,5 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
-| @genkit-ai/google-genai            | veo-3.0-generate-preview           |
+| @genkit-ai/google-genai            | veo-3.1-generate-preview (Preview) |
 ```

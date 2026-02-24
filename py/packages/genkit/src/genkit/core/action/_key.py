@@ -44,6 +44,7 @@ def parse_action_key(key: str) -> tuple[ActionKind, str]:
     except ValueError as e:
         msg = f'Invalid action kind: `{kind_str}`'
         raise ValueError(msg) from e
+    # pyrefly: ignore[bad-return] - ActionKind is StrEnum subclass, pyrefly doesn't narrow properly
     return kind, name
 
 

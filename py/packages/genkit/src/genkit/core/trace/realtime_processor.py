@@ -74,6 +74,11 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
+from genkit.core._compat import override
+from genkit.core.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class RealtimeSpanProcessor(SpanProcessor):
     """Exports spans both when they start and when they end.
@@ -104,8 +109,9 @@ class RealtimeSpanProcessor(SpanProcessor):
         Args:
             exporter: The SpanExporter to use for exporting spans.
         """
-        self._exporter = exporter
+        self._exporter: SpanExporter = exporter
 
+    @override
     def on_start(self, span: Span, parent_context: Context | None = None) -> None:
         """Called when a span is started.
 
@@ -116,10 +122,25 @@ class RealtimeSpanProcessor(SpanProcessor):
             span: The span that was just started.
             parent_context: The parent context (unused).
         """
-        # Export the span immediately (it won't have endTime yet)
-        # We ignore the result - we don't want to block span creation
-        self._exporter.export([span])
+        # Export the span immediately (it won't have endTime yet).
+        # Catch all exceptions so a failing exporter (e.g. Jaeger not
+        # running) never propagates into the application call stack.
+        # Without this guard, a ConnectionError here bubbles through
+        # the OTel gRPC server interceptor and kills the actual RPC.
+        try:
+            self._exporter.export([span])
+        except ConnectionError:
+            logger.debug(
+                'RealtimeSpanProcessor: export failed on_start (collector unreachable)',
+                exc_info=True,
+            )
+        except Exception:  # noqa: BLE001 — must never crash the caller
+            logger.warning(
+                'RealtimeSpanProcessor: unexpected error during export on_start',
+                exc_info=True,
+            )
 
+    @override
     def on_end(self, span: ReadableSpan) -> None:
         """Called when a span ends.
 
@@ -128,9 +149,20 @@ class RealtimeSpanProcessor(SpanProcessor):
         Args:
             span: The span that just ended.
         """
-        # Export the completed span
-        self._exporter.export([span])
+        try:
+            self._exporter.export([span])
+        except ConnectionError:
+            logger.debug(
+                'RealtimeSpanProcessor: export failed on_end (collector unreachable)',
+                exc_info=True,
+            )
+        except Exception:  # noqa: BLE001 — must never crash the caller
+            logger.warning(
+                'RealtimeSpanProcessor: unexpected error during export on_end',
+                exc_info=True,
+            )
 
+    @override
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         """Force the exporter to flush any buffered spans.
 
@@ -144,6 +176,7 @@ class RealtimeSpanProcessor(SpanProcessor):
             return self._exporter.force_flush(timeout_millis)
         return True
 
+    @override
     def shutdown(self) -> None:
         """Shut down the processor and exporter."""
         self._exporter.shutdown()

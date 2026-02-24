@@ -22,6 +22,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Protocol, cast
 
+from genkit.core._compat import override
 from genkit.web.typing import Application
 
 from ._adapters import ASGIServerAdapter, ServerType
@@ -56,6 +57,7 @@ class ServerConfig:
     log_level: str = DEFAULT_LOG_LEVEL
     start_time: float | None = None
 
+    @override
     def __repr__(self) -> str:
         """Return a string representation of the server configuration.
 
@@ -171,6 +173,6 @@ class Server:
                 factory method.  Use this to specify a different server
                 implementation.
         """
-        self.config = config
-        self.lifecycle = lifecycle
-        self.adapter = adapter or ASGIServerAdapter.create(cast(ServerType, ServerType.UVICORN))
+        self.config: ServerConfig = config
+        self.lifecycle: ServerLifecycle = lifecycle
+        self.adapter: ASGIServerAdapter = adapter or ASGIServerAdapter.create(cast(ServerType, ServerType.UVICORN))

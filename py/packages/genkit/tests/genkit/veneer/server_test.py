@@ -6,6 +6,7 @@
 
 import json
 import os
+import pathlib
 import tempfile
 
 from genkit.ai._runtime import RuntimeManager
@@ -40,6 +41,7 @@ def test_runtime_manager() -> None:
         spec = ServerSpec(port=3100)
 
         # Test runtime file creation using context manager
+        runtime_path = None
         with RuntimeManager(spec=spec, runtime_dir=temp_dir) as rm:
             runtime_path = rm.write_runtime_file()
             assert runtime_path.exists()
@@ -52,11 +54,12 @@ def test_runtime_manager() -> None:
             assert 'timestamp' in content
 
         # Verify cleanup on exit
+        assert runtime_path is not None
         assert not runtime_path.exists()
 
         # Test directory creation
         new_dir = os.path.join(temp_dir, 'new_dir')
         with RuntimeManager(spec=spec, runtime_dir=new_dir) as rm:
             runtime_path = rm.write_runtime_file()
-            assert os.path.exists(new_dir)
+            assert pathlib.Path(new_dir).exists()
             assert runtime_path.exists()

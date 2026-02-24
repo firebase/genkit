@@ -17,7 +17,7 @@
 """Enumeration of response status codes and their corresponding messages."""
 
 from enum import IntEnum
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -238,7 +238,7 @@ def http_status_code(status: StatusName) -> int:
 class Status(BaseModel):
     """Represents a status with a name and optional message."""
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         frozen=True,
         validate_assignment=True,
         extra='forbid',

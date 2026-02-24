@@ -18,7 +18,7 @@
 
 import json
 from functools import reduce
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -39,6 +39,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     first_message.role = 'assistant'
     first_message.tool_calls = [mock_tool_call]
     first_message.content = None
+    first_message.reasoning_content = None
 
     first_response = MagicMock()
     first_response.choices = [MagicMock(finish_reason='tool_calls', message=first_message)]
@@ -48,15 +49,18 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
     second_message.role = 'model'
     second_message.tool_calls = None
     second_message.content = 'final response'
+    second_message.reasoning_content = None
 
     second_response = MagicMock()
     second_response.choices = [MagicMock(finish_reason='stop', message=second_message)]
 
     mock_client = MagicMock()
-    mock_client.chat.completions.create.side_effect = [
-        first_response,
-        second_response,
-    ]
+    mock_client.chat.completions.create = AsyncMock(
+        side_effect=[
+            first_response,
+            second_response,
+        ]
+    )
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
 
@@ -111,23 +115,24 @@ async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) 
             delta_mock.content = None
             delta_mock.role = None
             delta_mock.tool_calls = [MockToolCall(id, index, name, args_chunk)]
+            delta_mock.reasoning_content = None
 
             choice_mock = MagicMock()
             choice_mock.delta = delta_mock
 
             return MagicMock(choices=[choice_mock])
 
-        def __iter__(self) -> 'MockStream':
+        def __aiter__(self) -> 'MockStream':
             return self
 
-        def __next__(self) -> object:
+        async def __anext__(self) -> object:
             if self._current >= len(self._chunks):
-                raise StopIteration
+                raise StopAsyncIteration
             chunk = self._chunks[self._current]
             self._current += 1
             return chunk
 
-    mock_client.chat.completions.create.return_value = MockStream()
+    mock_client.chat.completions.create = AsyncMock(return_value=MockStream())
 
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
@@ -141,8 +146,11 @@ async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) 
     assert all(isinstance(part, ToolRequestPart) for part in collected_chunks)
 
     tool_part = collected_chunks[0]
-    assert tool_part.tool_request.name == 'tool_fn'
-    assert tool_part.tool_request.ref == 'tool123'
+    assert isinstance(tool_part, ToolRequestPart)
+    assert tool_part.tool_request is not None
+    tool_request = tool_part.tool_request
+    assert tool_request.name == 'tool_fn'
+    assert tool_request.ref == 'tool123'
 
     accumulated_output = reduce(lambda res, tool_call: res + tool_call.tool_request.input, collected_chunks, '')
     assert json.loads(accumulated_output) == {'a': 1}
