@@ -1,4 +1,4 @@
-# Genkit Web Plugin
+# Genkit Web Fetch Plugin
 
 This plugin provides utilities for exposing Genkit flows and actions over the **Web Fetch API** (`Request` / `Response`). Use it with any runtime or framework that supports the standard Fetch API (such as Hono, Bun, Cloudflare Workers, Deno, Node (18+), Vercel Edge, Netlify Edge, Elysia, SvelteKit, etc).
 
@@ -7,7 +7,7 @@ No framework-specific dependencies; only `genkit` and the standard Web APIs.
 ## Installation
 
 ```bash
-npm i @genkit-ai/web
+npm i @genkit-ai/fetch
 ```
 
 ## Usage (Hono)
@@ -15,7 +15,7 @@ npm i @genkit-ai/web
 ### Single flow with `handleFlow`
 
 ```ts
-import { handleFlow } from '@genkit-ai/web';
+import { handleFlow } from '@genkit-ai/fetch';
 import { Hono } from 'hono';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
@@ -36,7 +36,7 @@ app.all('/simpleFlow', async (c) => handleFlow(c.req.raw, simpleFlow));
 Mount several flows under one path; the flow is selected by the request path (e.g. `/api/hello` runs the flow named `hello`):
 
 ```ts
-import { handleFlows } from '@genkit-ai/web';
+import { handleFlows } from '@genkit-ai/fetch';
 
 const flows = [helloFlow, greetingFlow, streamingFlow];
 
@@ -52,7 +52,7 @@ Use a context provider (e.g. for auth) and attach it to a flow with `withFlowOpt
 ```ts
 import { UserFacingError } from 'genkit';
 import type { ContextProvider, RequestData } from 'genkit/context';
-import { handleFlow, handleFlows, withFlowOptions } from '@genkit-ai/web';
+import { handleFlow, handleFlows, withFlowOptions } from '@genkit-ai/fetch';
 
 const authContext: ContextProvider<{ userId: string }> = (req: RequestData) => {
   if (req.headers['authorization'] !== 'Bearer open-sesame') {
@@ -82,7 +82,7 @@ Provide a `streamManager` in the options. For development, use `InMemoryStreamMa
 
 ```ts
 import { InMemoryStreamManager } from 'genkit/beta';
-import { handleFlow, withFlowOptions } from '@genkit-ai/web';
+import { handleFlow, withFlowOptions } from '@genkit-ai/fetch';
 
 app.all('/myDurableFlow', async (c) =>
   handleFlow(c.req.raw, myFlow, {

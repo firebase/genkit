@@ -1,6 +1,6 @@
 {
-  "name": "@genkit-ai/web",
-  "description": "Genkit AI framework plugin for Web API Request/Response handlers",
+  "name": "@genkit-ai/fetch",
+  "description": "Genkit AI framework plugin for Web Fetch API Request/Response handlers",
   "keywords": [
     "genkit",
     "genkit-plugin",
@@ -10,6 +10,7 @@
     "generative-ai",
     "web",
     "web-api",
+    "fetch",
     "hono",
     "cloudflare",
     "bun",

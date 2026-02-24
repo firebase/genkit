@@ -1,7 +1,7 @@
 {
   "name": "js-hono",
   "version": "1.0.0",
-  "description": "Genkit with Hono and @genkit-ai/web",
+  "description": "Genkit with Hono and @genkit-ai/fetch",
   "main": "lib/index.js",
   "type": "module",
   "scripts": {
@@ -16,7 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@genkit-ai/google-genai": "^1.17.0",
-    "@genkit-ai/web": "file:../../js/plugins/web",
+    "@genkit-ai/fetch": "file:../../js/plugins/fetch",
     "@hono/node-server": "^1.13.0",
     "genkit": "^1.17.0",
     "hono": "^4.6.0"

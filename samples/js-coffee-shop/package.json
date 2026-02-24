@@ -16,20 +16,26 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "overrides": {
+    "iconv-lite": "0.6.3"
+  },
   "dependencies": {
-    "@genkit-ai/dev-local-vectorstore": "1.21.0",
-    "@genkit-ai/evaluator": "1.21.0",
-    "@genkit-ai/firebase": "1.21.0",
-    "@genkit-ai/google-genai": "1.21.0",
-    "@genkit-ai/vertexai": "^1.21.0",
-    "genkit": "1.21.0",
-    "genkitx-chromadb": "1.21.0",
-    "genkitx-ollama": "1.21.0",
-    "genkitx-pinecone": "^1.21.0",
-    "zod": "^4.1.12"
+    "@cfworker/json-schema": "^4.1.1",
+    "@genkit-ai/dev-local-vectorstore": "1.29.0",
+    "@genkit-ai/evaluator": "1.29.0",
+    "@genkit-ai/firebase": "1.29.0",
+    "@genkit-ai/google-genai": "1.29.0",
+    "@genkit-ai/vertexai": "^1.29.0",
+    "genkit": "1.29.0",
+    "genkitx-chromadb": "1.29.0",
+    "genkitx-ollama": "1.29.0",
+    "genkitx-pinecone": "^1.29.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "genkit-cli": "^1.21.0",
+    "@types/bun": "^1.3.9",
+    "esbuild": "^0.27.3",
+    "genkit-cli": "^1.29.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3"
   }

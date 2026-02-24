@@ -291,7 +291,7 @@ async function runActionWithDurableStreaming<
  *
  * @example
  * ```typescript
- * import { handleFlow } from '@genkit-ai/web';
+ * import { handleFlow } from '@genkit-ai/fetch';
  *
  * app.all('/myFlow', async (c) => {
  *   return handleFlow(c.req.raw, myFlow);
@@ -447,7 +447,7 @@ export async function handleFlow<
  *
  * @example
  * ```typescript
- * import { handleFlows } from '@genkit-ai/web';
+ * import { handleFlows } from '@genkit-ai/fetch';
  *
  * app.all('/api/genkit/*', async (c) => {
  *   return handleFlows(c.req.raw, [flow1, flow2], '/api/genkit');

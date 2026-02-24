@@ -21,30 +21,13 @@ const ai = genkit({
   plugins: [googleAI()],
 });
 
-// This example generates greetings for a customer at our new AI-powered coffee shop,
-// demonstrating how to use prompts in Genkit flows.
-
-// A flow to greet a customer by name
+// This example generates greetings for a customer at our new AI-powered coffee shop.
+// We use inline prompts (template literals) instead of definePrompt() so the app
+// runs on Workers, where definePrompt/Handlebars are not supported.
 
 const CustomerNameSchema = z.object({
   customerName: z.string(),
 });
-
-const simpleGreetingPrompt = ai.definePrompt(
-  {
-    name: 'simpleGreeting',
-    model: googleAI.model('gemini-2.5-flash'),
-    input: { schema: CustomerNameSchema },
-    output: {
-      format: 'text',
-    },
-  },
-  `
-You're a barista at a nice coffee shop.
-A regular customer named {{customerName}} enters.
-Greet the customer in one sentence, and recommend a coffee drink.
-`
-);
 
 export const simpleGreetingFlow = ai.defineFlow(
   {
@@ -52,12 +35,19 @@ export const simpleGreetingFlow = ai.defineFlow(
     inputSchema: CustomerNameSchema,
     outputSchema: z.string(),
   },
-  async (input) => (await simpleGreetingPrompt(input)).text
+  async (input) => {
+    const prompt = `You're a barista at a nice coffee shop.
+A regular customer named ${input.customerName} enters.
+Greet the customer in one sentence, and recommend a coffee drink.`;
+    const { text } = await ai.generate({
+      prompt,
+      model: googleAI.model('gemini-2.5-flash'),
+    });
+    return text ?? '';
+  }
 );
 
 // Another flow to recommend a drink based on the time of day and a previous order.
-// This prompt uses multiple messages, alternating roles
-// to make the response more conversational.
 
 const CustomerTimeAndHistorySchema = z.object({
   customerName: z.string(),
@@ -65,37 +55,28 @@ const CustomerTimeAndHistorySchema = z.object({
   previousOrder: z.string(),
 });
 
-const greetingWithHistoryPrompt = ai.definePrompt(
-  {
-    name: 'greetingWithHistory',
-    model: googleAI.model('gemini-2.5-flash'),
-    input: { schema: CustomerTimeAndHistorySchema },
-    output: {
-      format: 'text',
-    },
-  },
-  `
-{{role "user"}}
-Hi, my name is {{customerName}}. The time is {{currentTime}}. Who are you?
-
-{{role "model"}}
-I am Barb, a barista at this nice underwater-themed coffee shop called Krabby Kooffee.
-I know pretty much everything there is to know about coffee,
-and I can cheerfully recommend delicious coffee drinks to you based on whatever you like.
-
-{{role "user"}}
-Great. Last time I had {{previousOrder}}.
-I want you to greet me in one sentence, and recommend a drink.
-`
-);
-
 export const greetingWithHistoryFlow = ai.defineFlow(
   {
     name: 'greetingWithHistory',
     inputSchema: CustomerTimeAndHistorySchema,
     outputSchema: z.string(),
   },
-  async (input) => (await greetingWithHistoryPrompt(input)).text
+  async (input) => {
+    const prompt = `You are Barb, a barista at a nice underwater-themed coffee shop called Krabby Kooffee.
+You know pretty much everything there is to know about coffee and can cheerfully recommend drinks.
+
+The customer says: Hi, my name is ${input.customerName}. The time is ${input.currentTime}. Who are you?
+You reply as Barb introducing yourself.
+
+The customer says: Great. Last time I had ${input.previousOrder}. I want you to greet me in one sentence, and recommend a drink.
+
+Reply now with your one-sentence greeting and drink recommendation.`;
+    const { text } = await ai.generate({
+      prompt,
+      model: googleAI.model('gemini-2.5-flash'),
+    });
+    return text ?? '';
+  }
 );
 
 // A flow to quickly test all the above flows

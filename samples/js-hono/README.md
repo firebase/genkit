@@ -1,6 +1,6 @@
-# Genkit + Hono + @genkit-ai/web
+# Genkit + Hono + @genkit-ai/fetch
 
-This sample runs a [Hono](https://hono.dev) server and exposes Genkit flows over HTTP using [@genkit-ai/web](https://www.npmjs.com/package/@genkit-ai/web). It uses the Web API `Request`/`Response` so the same code can run on Node, Cloudflare Workers, Deno, or Bun.
+This sample runs a [Hono](https://hono.dev) server and exposes Genkit flows over HTTP using [@genkit-ai/fetch](https://www.npmjs.com/package/@genkit-ai/fetch). It uses the Web API `Request`/`Response` so the same code can run on Node, Cloudflare Workers, Deno, or Bun.
 
 ## Setup
 
@@ -50,7 +50,7 @@ curl -X POST http://localhost:3780/api/secureGreeting \
 
 ## How it works
 
-- **Hono** handles routing; **@genkit-ai/web**’s `handleFlows(request, flows, pathPrefix)` turns a Web `Request` into a Genkit flow call and returns a Web `Response`.
+- **Hono** handles routing; **@genkit-ai/fetch**’s `handleFlows(request, flows, pathPrefix)` turns a Web `Request` into a Genkit flow call and returns a Web `Response`.
 - Flow URLs are `POST /api/<flowName>` with body `{ "data": <input> }`, matching the [Genkit callable protocol](https://firebase.google.com/docs/genkit/reference/js/client).
 
-**Developing in the genkit repo:** In `package.json` set `"@genkit-ai/web": "file:../../js/plugins/web"`, then build the web plugin (`cd ../../js/plugins/web && pnpm run build`) and run `pnpm install` from this directory.
+**Developing in the genkit repo:** In `package.json` set `"@genkit-ai/fetch": "file:../../js/plugins/web"`, then build the web plugin (`cd ../../js/plugins/web && pnpm run build`) and run `pnpm install` from this directory.

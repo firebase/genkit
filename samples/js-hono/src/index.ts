@@ -15,7 +15,7 @@
  */
 
 import { googleAI } from '@genkit-ai/google-genai';
-import { handleFlows, withFlowOptions } from '@genkit-ai/web';
+import { handleFlows, withFlowOptions } from '@genkit-ai/fetch';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { genkit, UserFacingError, z } from 'genkit';
@@ -37,7 +37,7 @@ const authContextProvider: ContextProvider<{ userId: string }> = (req) => {
   return { userId: 'authenticated-user' };
 };
 
-// Flows served over HTTP via @genkit-ai/web
+// Flows served over HTTP via @genkit-ai/fetch
 const helloFlow = ai.defineFlow('hello', async (input: string) => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.0-flash'),
@@ -105,7 +105,7 @@ const app = new Hono();
 
 app.get('/', (c) =>
   c.json({
-    message: 'Genkit + Hono + @genkit-ai/web',
+    message: 'Genkit + Hono + @genkit-ai/fetch',
     flows: ['hello', 'greeting', 'streaming', 'secureGreeting'],
     usage: 'POST /api/<flowName> with body { "data": <input> }. secureGreeting requires header: Authorization: Bearer open-sesame',
   })
