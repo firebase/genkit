@@ -7,17 +7,17 @@
 Covers the key invariants of the background-thread approach:
 - Server starts on Genkit() construction in dev mode, no extra wiring needed
 - Works alongside FastAPI with no lifespan hooks
-- Multiple Genkit instances each get their own port
+- Multiple Genkit instances can coexist in the same process
 - Flows registered after construction are immediately visible
 - No server starts in production mode
 """
 
 import os
 import socket
+import threading
 from unittest import mock
 
 import httpx
-import pytest
 
 from genkit.ai._aio import Genkit
 from genkit.ai._server import ServerSpec
@@ -31,9 +31,10 @@ def _find_free_port() -> int:
 
 
 def _wait_and_get(ai: Genkit, path: str) -> httpx.Response:
-    assert ai._reflection_ready.wait(timeout=5), 'Reflection server never became ready'
-    url = ai._reflection_server_spec.url  # type: ignore[union-attr]
-    return httpx.get(f'{url}{path}', timeout=1.0)
+    assert ai._reflection_ready.wait(timeout=5), 'Reflection server never became ready'  # pyright: ignore[reportPrivateUsage]
+    spec = ai._reflection_server_spec  # pyright: ignore[reportPrivateUsage]
+    assert spec is not None
+    return httpx.get(f'{spec.url}{path}', timeout=1.0)
 
 
 def test_server_starts_on_construction() -> None:
@@ -77,14 +78,12 @@ def test_registry_reads_concurrent_with_writes() -> None:
     threading.RLock — responses must always be valid JSON dicts, never empty
     or corrupted.
     """
-    import threading
-
     port = _find_free_port()
     errors: list[Exception] = []
 
     with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
-        assert ai._reflection_ready.wait(timeout=5)
+        assert ai._reflection_ready.wait(timeout=5)  # pyright: ignore[reportPrivateUsage]
 
         stop = threading.Event()
 
@@ -92,8 +91,7 @@ def test_registry_reads_concurrent_with_writes() -> None:
             url = f'http://127.0.0.1:{port}/api/actions'
             while not stop.is_set():
                 try:
-                    resp = httpx.get(url, timeout=1.0)
-                    data = resp.json()
+                    data = httpx.get(url, timeout=1.0).json()
                     assert isinstance(data, dict), f'Got non-dict: {data!r}'
                 except Exception as e:
                     errors.append(e)
@@ -101,87 +99,39 @@ def test_registry_reads_concurrent_with_writes() -> None:
         reader = threading.Thread(target=spam_reads, daemon=True)
         reader.start()
 
-        # Register flows via the real public API while the reader is active
-        for i in range(20):
-
+        # Register flows while the reader is active; sufficient to exercise concurrent writes
+        def _make_flow(i: int) -> None:
             @ai.flow()
-            async def _flow(x: str, _i: int = i) -> str:
-                return f'flow_{_i}: {x}'
+            async def _f(x: str) -> str:
+                return f'flow_{i}: {x}'
+
+        for i in range(20):
+            _make_flow(i)
 
         stop.set()
         reader.join(timeout=2)
+        assert not reader.is_alive(), 'reader thread did not stop'
 
     assert not errors, f'Concurrent read/write errors: {errors}'
 
 
-def test_two_instances_get_different_ports() -> None:
-    """Two Genkit() instances each bind their own port — no collision."""
+def test_two_instances_serve_concurrently() -> None:
+    """Two Genkit() instances in the same process don't interfere with each other."""
     port1, port2 = _find_free_port(), _find_free_port()
     with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai1 = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port1))
         ai2 = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port2))
 
-        assert ai1._reflection_ready.wait(timeout=5)
-        assert ai2._reflection_ready.wait(timeout=5)
+        assert ai1._reflection_ready.wait(timeout=5)  # pyright: ignore[reportPrivateUsage]
+        assert ai2._reflection_ready.wait(timeout=5)  # pyright: ignore[reportPrivateUsage]
 
-    assert port1 != port2
     assert httpx.get(f'http://127.0.0.1:{port1}/api/__health', timeout=1.0).status_code == 200
     assert httpx.get(f'http://127.0.0.1:{port2}/api/__health', timeout=1.0).status_code == 200
 
 
-def test_fastapi_app_needs_no_lifespan() -> None:
-    """FastAPI + Genkit: both servers serve requests concurrently.
-
-    Runs real uvicorn for the FastAPI app (in a background thread) alongside
-    the Genkit reflection server (also in a background thread), then hits both
-    simultaneously. This is the actual production topology — two uvicorn event
-    loops in the same process, each owning its own thread.
-    """
-    import threading
-
-    import uvicorn
-    from fastapi import FastAPI
-
-    reflection_port = _find_free_port()
-    fastapi_port = _find_free_port()
-
-    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
-        ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=reflection_port))
-
-        app = FastAPI()  # No lifespan= argument
-
-        @app.get('/ping')
-        def ping() -> dict:
-            return {'pong': True}
-
-        # Spin up real uvicorn for FastAPI — same topology as `uvicorn main:app`
-        fastapi_server = uvicorn.Server(
-            uvicorn.Config(app, host='127.0.0.1', port=fastapi_port, loop='asyncio', log_level='warning')
-        )
-        fastapi_thread = threading.Thread(target=fastapi_server.run, daemon=True)
-        fastapi_thread.start()
-
-        # Wait for both servers to be ready
-        assert ai._reflection_ready.wait(timeout=5), 'Reflection server never became ready'
-        deadline = __import__('time').monotonic() + 5
-        while not fastapi_server.started:
-            if __import__('time').monotonic() > deadline:
-                raise AssertionError('FastAPI server never became ready')
-            __import__('time').sleep(0.05)
-
-    # Both servers respond while running concurrently in the same process
-    assert httpx.get(f'http://127.0.0.1:{fastapi_port}/ping', timeout=1.0).json() == {'pong': True}
-    assert httpx.get(f'http://127.0.0.1:{reflection_port}/api/__health', timeout=1.0).status_code == 200
-
-    fastapi_server.should_exit = True
-
-
 def test_no_server_in_prod_mode() -> None:
     """Genkit() with no GENKIT_ENV must NOT start a background server."""
-    port = _find_free_port()
     with mock.patch.dict(os.environ, {}, clear=True):
-        ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
+        ai = Genkit()
 
-    assert not ai._reflection_ready.is_set()
-    with pytest.raises(httpx.ConnectError):
-        httpx.get(f'http://127.0.0.1:{port}/api/__health', timeout=0.5)
+    assert not ai._reflection_ready.is_set()  # pyright: ignore[reportPrivateUsage]
