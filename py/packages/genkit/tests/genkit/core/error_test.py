@@ -17,9 +17,9 @@
 """Unit tests for the error module."""
 
 from genkit.core.error import (
-    ErrorResponse,
     GenkitError,
     HttpErrorWireFormat,
+    ReflectionError,
     UnstableApiError,
     UserFacingError,
     get_callable_json,
@@ -54,7 +54,7 @@ def test_genkit_error_to_json() -> None:
     """Test that GenkitError can be serialized to JSON."""
     error = GenkitError(status='NOT_FOUND', message='Resource not found', details={'id': 123})
     serializable = error.to_serializable()
-    assert isinstance(serializable, ErrorResponse)
+    assert isinstance(serializable, ReflectionError)
     assert serializable.code == 5
     assert serializable.message == 'Resource not found'
     assert serializable.details is not None

@@ -105,7 +105,7 @@ from pydantic.alias_generators import to_camel
 from genkit.core.status_types import StatusCodes, StatusName, http_status_code
 
 
-class ErrorDetails(BaseModel):
+class ReflectionErrorDetails(BaseModel):
     """Wire format for reflection API error details."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra='allow', populate_by_name=True, alias_generator=to_camel)
@@ -114,10 +114,10 @@ class ErrorDetails(BaseModel):
     trace_id: str | None = None
 
 
-class ErrorResponse(BaseModel):
+class ReflectionError(BaseModel):
     """Wire format for reflection API errors."""
 
-    details: ErrorDetails | None = None
+    details: ReflectionErrorDetails | None = None
     message: str
     code: int = StatusCodes.INTERNAL.value
 
@@ -202,14 +202,14 @@ class GenkitError(Exception):
             message=repr(self.cause) if self.cause else self.original_message,
         )
 
-    def to_serializable(self) -> ErrorResponse:
+    def to_serializable(self) -> ReflectionError:
         """Returns a JSON-serializable representation of this object.
 
         Returns:
-            An ErrorResponse model instance.
+            A ReflectionError model instance.
         """
-        return ErrorResponse(
-            details=ErrorDetails(**self.details) if self.details else None,
+        return ReflectionError(
+            details=ReflectionErrorDetails(**self.details) if self.details else None,
             code=StatusCodes[self.status].value,
             message=f'{self.original_message}: {repr(self.cause)}' if self.cause else self.original_message,
         )
@@ -267,21 +267,21 @@ def get_http_status(error: object) -> int:
     return 500
 
 
-def get_reflection_json(error: object) -> ErrorResponse:
+def get_reflection_json(error: object) -> ReflectionError:
     """Get the JSON representation of an error for reflection API responses.
 
     Args:
         error: The error to convert to JSON.
 
     Returns:
-        An ErrorResponse model instance.
+        A ReflectionError model instance.
     """
     if isinstance(error, GenkitError):
         return error.to_serializable()
-    return ErrorResponse(
+    return ReflectionError(
         message=str(error),
         code=StatusCodes.INTERNAL.value,
-        details=ErrorDetails(stack=get_error_stack(error)),
+        details=ReflectionErrorDetails(stack=get_error_stack(error)),
     )
 
 
