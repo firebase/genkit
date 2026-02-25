@@ -916,11 +916,10 @@ func (mr *ModelResponse) History() []*Message {
 
 // Reasoning concatenates all reasoning parts present in the message
 func (mr *ModelResponse) Reasoning() string {
-	var sb strings.Builder
 	if mr == nil || mr.Message == nil {
 		return ""
 	}
-
+	var sb strings.Builder
 	for _, p := range mr.Message.Content {
 		if !p.IsReasoning() {
 			continue
@@ -934,7 +933,7 @@ func (mr *ModelResponse) Reasoning() string {
 // If a format handler is set, it uses the handler's ParseOutput method.
 // Otherwise, it falls back to parsing the response text as JSON.
 func (mr *ModelResponse) Output(v any) error {
-	if mr.Message == nil || len(mr.Message.Content) == 0 {
+	if mr == nil || mr.Message == nil || len(mr.Message.Content) == 0 {
 		return errors.New("no content in response")
 	}
 
@@ -959,28 +958,28 @@ func (mr *ModelResponse) Output(v any) error {
 }
 
 // ToolRequests returns the tool requests from the response.
-func (mr *ModelResponse) ToolRequests() []*ToolRequest {
-	toolReqs := []*ToolRequest{}
+func (mr *ModelResponse) ToolRequests() []*Part {
+	var parts []*Part
 	if mr == nil || mr.Message == nil {
-		return toolReqs
+		return parts
 	}
-	for _, part := range mr.Message.Content {
-		if part.IsToolRequest() {
-			toolReqs = append(toolReqs, part.ToolRequest)
+	for _, p := range mr.Message.Content {
+		if p.IsToolRequest() {
+			parts = append(parts, p)
 		}
 	}
-	return toolReqs
+	return parts
 }
 
 // Interrupts returns the interrupted tool request parts from the response.
 func (mr *ModelResponse) Interrupts() []*Part {
-	parts := []*Part{}
+	var parts []*Part
 	if mr == nil || mr.Message == nil {
 		return parts
 	}
-	for _, part := range mr.Message.Content {
-		if part.IsInterrupt() {
-			parts = append(parts, part)
+	for _, p := range mr.Message.Content {
+		if p.IsInterrupt() {
+			parts = append(parts, p)
 		}
 	}
 	return parts
@@ -1003,11 +1002,8 @@ func (mr *ModelResponse) Media() string {
 // It returns an empty string if there is no Content in the response chunk.
 // For the parsed structured output, use [ModelResponseChunk.Output] instead.
 func (c *ModelResponseChunk) Text() string {
-	if len(c.Content) == 0 {
+	if c == nil {
 		return ""
-	}
-	if len(c.Content) == 1 {
-		return c.Content[0].Text
 	}
 	var sb strings.Builder
 	for _, p := range c.Content {
@@ -1021,7 +1017,7 @@ func (c *ModelResponseChunk) Text() string {
 // Reasoning returns the reasoning content of the ModelResponseChunk as a string.
 // It returns an empty string if there is no Content in the response chunk.
 func (c *ModelResponseChunk) Reasoning() string {
-	if len(c.Content) == 0 {
+	if c == nil {
 		return ""
 	}
 	var sb strings.Builder
@@ -1036,6 +1032,9 @@ func (c *ModelResponseChunk) Reasoning() string {
 // Interrupts returns the interrupted tool request parts from the chunk.
 func (c *ModelResponseChunk) Interrupts() []*Part {
 	var parts []*Part
+	if c == nil {
+		return parts
+	}
 	for _, p := range c.Content {
 		if p.IsInterrupt() {
 			parts = append(parts, p)
@@ -1049,6 +1048,9 @@ func (c *ModelResponseChunk) Interrupts() []*Part {
 // from final tool results.
 func (c *ModelResponseChunk) ToolResponses() []*Part {
 	var parts []*Part
+	if c == nil {
+		return parts
+	}
 	for _, p := range c.Content {
 		if p.IsToolResponse() {
 			parts = append(parts, p)
@@ -1060,6 +1062,9 @@ func (c *ModelResponseChunk) ToolResponses() []*Part {
 // Output parses the chunk using the format handler and unmarshals the result into v.
 // Returns an error if the format handler is not set or does not support parsing chunks.
 func (c *ModelResponseChunk) Output(v any) error {
+	if c == nil {
+		return errors.New("chunk is nil")
+	}
 	if c.formatHandler == nil {
 		return errors.New("output format chosen does not support parsing chunks")
 	}
