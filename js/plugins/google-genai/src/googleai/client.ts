@@ -452,7 +452,7 @@ async function makeRequest(
     if (!response.ok) {
       let errorText = await response.text();
       let errorMessage = errorText;
-      let errorDetail: any;
+      let errorDetail: unknown;
       try {
         const json = JSON.parse(errorText);
         errorDetail = json;

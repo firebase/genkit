@@ -330,7 +330,7 @@ export declare interface CreateInteractionRequest {
   tools?: InteractionTool[];
 
   /** Enforces that the generated response is a JSON object that complies with the JSON schema specified in this field */
-  response_format?: any; // TODO(ifielker): this is a JSON format
+  response_format?: Record<string, any>;
   /** Required if responseFormat is set. */
   response_mime_type?: string;
 

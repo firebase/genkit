@@ -210,7 +210,7 @@ export function defineModel(
         apiVersion: apiVersion || clientOptions.apiVersion,
       };
 
-      const messages = [...request.messages];
+      const messages = structuredClone(request.messages);
       // Deep Research does not support system instructions, so we map them to
       // user messages.
       for (const message of messages) {
