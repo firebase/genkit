@@ -143,12 +143,13 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 	}, nil
 }
 
+var toolNameRegexCompiled = regexp.MustCompile(toolNameRegex)
+
 // validToolName checks whether the provided tool name matches the
 // following criteria:
 // - Start with a letter or an underscore
 // - Must be alphanumeric and can include underscores, dots or dashes
 // - Maximum length of 64 chars
 func validToolName(n string) bool {
-	re := regexp.MustCompile(toolNameRegex)
-	return re.MatchString(n)
+	return toolNameRegexCompiled.MatchString(n)
 }
