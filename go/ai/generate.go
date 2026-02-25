@@ -840,7 +840,6 @@ func ensureToolRequestRefs(msg *Message) {
 	}
 }
 
-
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
