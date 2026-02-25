@@ -106,6 +106,13 @@ func IsToolInterruptError(err error) (bool, map[string]any) {
 	return false, nil
 }
 
+// NewToolInterruptError creates a tool interrupt error with the given metadata.
+// This is intended for use in middleware that needs to interrupt tool execution
+// without calling the tool itself.
+func NewToolInterruptError(metadata map[string]any) error {
+	return &toolInterruptError{Metadata: metadata}
+}
+
 // InterruptOptions provides configuration for tool interruption.
 type InterruptOptions struct {
 	Metadata map[string]any
@@ -235,6 +242,13 @@ func InterruptAs[T any](p *Part) (T, bool) {
 // IsResumed returns true if this tool execution is a resumption after an interrupt.
 func (tc *ToolContext) IsResumed() bool {
 	return tc.Resumed != nil
+}
+
+// IsToolResumed reports whether the current context is a resumed tool execution.
+// This is intended for use in middleware that needs to distinguish between
+// first-time and restarted tool calls.
+func IsToolResumed(ctx context.Context) bool {
+	return resumedCtxKey.FromContext(ctx) != nil
 }
 
 // ResumedValue retrieves a typed value from the Resumed metadata.
