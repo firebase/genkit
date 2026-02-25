@@ -41,7 +41,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = [
   "aiofiles>=24.1.0",
@@ -66,7 +65,7 @@ license = "Apache-2.0"
 name = "genkit-plugin-dev-local-vectorstore"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.6.0"
+version = "0.5.1"
 
 [project.urls]
 "Bug Tracker"   = "https://github.com/firebase/genkit/issues"

@@ -66,22 +66,20 @@ async function resolver(
         // These are background models. Do not define them here.
         return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
-        return await imagen.defineModel(actionName, options);
+        return imagen.defineModel(actionName, options);
       } else {
         // gemini, tts, image, gemma, unknown models
-        return await gemini.defineModel(actionName, options);
+        return gemini.defineModel(actionName, options);
       }
-      break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        return await veo.defineModel(actionName, options);
+        return veo.defineModel(actionName, options);
       } else if (deepResearch.isDeepResearchModelName(actionName)) {
-        return await deepResearch.defineModel(actionName, options);
+        return deepResearch.defineModel(actionName, options);
       }
-      break;
+      break;  // No default
     case 'embedder':
-      return await embedder.defineEmbedder(actionName, options);
-      break;
+      return embedder.defineEmbedder(actionName, options);
   }
   return undefined;
 }
