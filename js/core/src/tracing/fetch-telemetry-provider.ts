@@ -38,7 +38,7 @@ export interface FetchTelemetryProviderOptions {
   serverUrl?: string;
   /**
    * If true, use SimpleSpanProcessor for more real-time export (e.g. in dev).
-   * Default: false (BatchSpanProcessor for production).
+   * Default: true. Set to false for BatchSpanProcessor (production).
    */
   realtime?: boolean;
 }
@@ -94,9 +94,10 @@ export class FetchTelemetryProvider implements TelemetryProvider {
     }
 
     const exporter = new TraceServerExporter();
-    const processor: SpanProcessor = this.options.realtime
-      ? new SimpleSpanProcessor(exporter)
-      : new BatchSpanProcessor(exporter);
+    const processor: SpanProcessor =
+      this.options.realtime !== false
+        ? new SimpleSpanProcessor(exporter)
+        : new BatchSpanProcessor(exporter);
 
     this.spanProcessors = [processor];
 
