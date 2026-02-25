@@ -19,12 +19,13 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
-import { initNodeFeatures } from '../src/node.js';
+import { initNodeFeatures, initNodeTelemetryProvider } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
 
 initNodeFeatures();
+initNodeTelemetryProvider();
 
 const spanExporter = new TestSpanExporter();
 enableTelemetry({

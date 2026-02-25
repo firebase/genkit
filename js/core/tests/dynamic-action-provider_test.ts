@@ -23,10 +23,11 @@ import {
   defineDynamicActionProvider,
   isDynamicActionProvider,
 } from '../src/dynamic-action-provider.js';
-import { initNodeFeatures } from '../src/node.js';
+import { initNodeFeatures, initNodeTelemetryProvider } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 
 initNodeFeatures();
+initNodeTelemetryProvider();
 
 describe('dynamic action provider', () => {
   let registry: Registry;

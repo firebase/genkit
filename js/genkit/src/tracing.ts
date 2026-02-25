@@ -15,6 +15,7 @@
  */
 
 export {
+  FetchTelemetryProvider,
   SPAN_TYPE_ATTR,
   SpanContextSchema,
   SpanDataSchema,
@@ -34,6 +35,7 @@ export {
   setCustomMetadataAttributes,
   setTelemetryServerUrl,
   toDisplayPath,
+  type FetchTelemetryProviderOptions,
   type PathMetadata,
   type SpanData,
   type SpanMetadata,

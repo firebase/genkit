@@ -14,10 +14,36 @@
  * limitations under the License.
  */
 
+import { getGenkitRuntimeConfig } from './config.js';
 import { initNodeAsyncContext } from './node-async-context.js';
+import {
+  setTelemetryProvider,
+  setTelemetryProviderInitializer,
+} from './tracing.js';
 import { initNodeTelemetryProvider } from './tracing/node-telemetry-provider.js';
 
+export { initNodeTelemetryProvider };
+
+/**
+ * Node-specific runtime setup (e.g. async_hooks for context propagation).
+ */
 export function initNodeFeatures() {
   initNodeAsyncContext();
+}
+
+/**
+ * Ensures a telemetry provider is set: uses config.telemetry if set,
+ * otherwise the default Node provider. Called lazily when telemetry is first needed.
+ */
+function ensureTelemetryProvider() {
+  const config = getGenkitRuntimeConfig();
+  if (config.telemetry) {
+    setTelemetryProvider(config.telemetry);
+    return;
+  }
   initNodeTelemetryProvider();
 }
+
+// Register so that any code path that loads core/node gets the initializer.
+// This ensures telemetry works even when reflection or other core code runs before the genkit package has finished loading.
+setTelemetryProviderInitializer(ensureTelemetryProvider);
