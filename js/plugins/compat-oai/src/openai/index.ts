@@ -30,10 +30,8 @@ import OpenAI from 'openai';
 import {
   defineCompatOpenAISpeechModel,
   defineCompatOpenAITranscriptionModel,
-  defineCompatOpenAIWhisperModel,
   SpeechConfigSchema,
   TranscriptionConfigSchema,
-  WhisperConfigSchema,
 } from '../audio.js';
 import { defineCompatOpenAIEmbedder } from '../embedder.js';
 import {
@@ -58,7 +56,12 @@ import {
 } from './gpt.js';
 import { openAITranscriptionModelRef, SUPPORTED_STT_MODELS } from './stt.js';
 import { openAISpeechModelRef, SUPPORTED_TTS_MODELS } from './tts.js';
-import { openAIWhisperModelRef, SUPPORTED_WHISPER_MODELS } from './whisper.js';
+import {
+  defineOpenAIWhisperModel,
+  openAIWhisperModelRef,
+  SUPPORTED_WHISPER_MODELS,
+  WhisperConfigSchema,
+} from './whisper.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
@@ -93,7 +96,7 @@ function createResolver(pluginOptions: PluginOptions) {
       });
     } else if (actionName.includes('whisper')) {
       const modelRef = openAIWhisperModelRef({ name: actionName });
-      return defineCompatOpenAIWhisperModel({
+      return defineOpenAIWhisperModel({
         name: modelRef.name,
         client,
         pluginOptions,
@@ -225,7 +228,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
       );
       models.push(
         ...Object.values(SUPPORTED_WHISPER_MODELS).map((modelRef) =>
-          defineCompatOpenAIWhisperModel({
+          defineOpenAIWhisperModel({
             name: modelRef.name,
             client,
             pluginOptions,

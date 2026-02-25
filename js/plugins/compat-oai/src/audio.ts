@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import type {
   GenerateRequest,
   GenerateResponseData,
@@ -28,8 +29,6 @@ import type {
   SpeechCreateParams,
   Transcription,
   TranscriptionCreateParams,
-  TranslationCreateParams,
-  TranslationCreateResponse,
 } from 'openai/resources/audio/index.mjs';
 import { PluginOptions } from './index.js';
 import { maybeCreateRequestScopedOpenAIClient, toModelName } from './utils.js';
@@ -41,10 +40,6 @@ export type SpeechRequestBuilder = (
 export type TranscriptionRequestBuilder = (
   req: GenerateRequest,
   params: TranscriptionCreateParams
-) => void;
-export type TranslationRequestBuilder = (
-  req: GenerateRequest,
-  params: TranslationCreateParams
 ) => void;
 
 export const TRANSCRIPTION_MODEL_INFO: ModelInfo = {
@@ -61,16 +56,6 @@ export const SPEECH_MODEL_INFO: ModelInfo = {
   supports: {
     media: false,
     output: ['media'],
-    multiturn: false,
-    systemRole: false,
-    tools: false,
-  },
-};
-
-export const WHISPER_MODER_INFO: ModelInfo = {
-  supports: {
-    media: true,
-    output: ['text', 'json'],
     multiturn: false,
     systemRole: false,
     tools: false,
@@ -106,19 +91,6 @@ export const SpeechConfigSchema = z.object({
   response_format: z
     .enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'])
     .optional(),
-});
-
-export const WhisperConfigSchema = GenerationCommonConfigSchema.pick({
-  temperature: true,
-}).extend({
-  /** When true, uses Translation API. Default: false **/
-  translate: z.boolean().optional().default(false),
-  response_format: z
-    .enum(['json', 'text', 'srt', 'verbose_json', 'vtt'])
-    .optional(),
-  // transcription-only fields (ignored when translate=true)
-  language: z.string().optional(),
-  timestamp_granularities: z.array(z.enum(['word', 'segment'])).optional(),
 });
 
 /**
@@ -444,189 +416,6 @@ export function compatOaiTranscriptionModelRef<
   return modelRef({
     name,
     configSchema: configSchema || (TranscriptionConfigSchema as any),
-    info,
-    config,
-    namespace,
-  });
-}
-
-function toTranslationRequest(
-  modelName: string,
-  request: GenerateRequest,
-  requestBuilder?: TranslationRequestBuilder
-): TranslationCreateParams {
-  const message = new Message(request.messages[0]);
-  const media = message.media;
-  if (!media?.url) {
-    throw new Error('No media found in the request');
-  }
-  const mediaBuffer = Buffer.from(
-    media.url.slice(media.url.indexOf(',') + 1),
-    'base64'
-  );
-  const mediaFile = new File([mediaBuffer], 'input', {
-    type:
-      media.contentType ??
-      media.url.slice('data:'.length, media.url.indexOf(';')),
-  });
-  const {
-    temperature,
-    version: modelVersion,
-    maxOutputTokens,
-    stopSequences,
-    topK,
-    topP,
-    ...restOfConfig
-  } = request.config ?? {};
-
-  let options: TranslationCreateParams = {
-    model: modelVersion ?? modelName,
-    file: mediaFile,
-    prompt: message.text,
-    temperature,
-  };
-  if (requestBuilder) {
-    requestBuilder(request, options);
-  } else {
-    options = {
-      ...options,
-      ...restOfConfig, // passthrough rest of the config
-    };
-  }
-  const outputFormat = request.output?.format as 'json' | 'text' | 'media';
-  const customFormat = request.config?.response_format;
-  if (outputFormat && customFormat) {
-    if (
-      outputFormat === 'json' &&
-      customFormat !== 'json' &&
-      customFormat !== 'verbose_json'
-    ) {
-      throw new Error(
-        `Custom response format ${customFormat} is not compatible with output format ${outputFormat}`
-      );
-    }
-  }
-  if (outputFormat === 'media') {
-    throw new Error(`Output format ${outputFormat} is not supported.`);
-  }
-  options.response_format = customFormat || outputFormat || 'text';
-  for (const k in options) {
-    if (options[k] === undefined) {
-      delete options[k];
-    }
-  }
-  return options;
-}
-
-function translationToGenerateResponse(
-  result: TranslationCreateResponse | string
-): GenerateResponseData {
-  return {
-    message: {
-      role: 'model',
-      content: [
-        {
-          text: typeof result === 'string' ? result : result.text,
-        },
-      ],
-    },
-    finishReason: 'stop',
-    raw: result,
-  };
-}
-
-/**
- * Method to define a new Genkit Model that is compatible with Open AI
- * Whisper API.
- *
- * These models are to be used to transcribe or translate audio to text.
- *
- * @param params An object containing parameters for defining the OpenAI
- * whisper model.
- * @param params.ai The Genkit AI instance.
- * @param params.name The name of the model.
- * @param params.client The OpenAI client instance.
- * @param params.modelRef Optional reference to the model's configuration and
- * custom options.
- *
- * @returns the created {@link ModelAction}
- */
-export function defineCompatOpenAIWhisperModel(params: {
-  name: string;
-  client: OpenAI;
-  pluginOptions?: PluginOptions;
-  modelRef?: ModelReference<any>;
-  requestBuilder?: TranscriptionRequestBuilder | TranslationRequestBuilder;
-}) {
-  const {
-    name,
-    pluginOptions,
-    client: defaultClient,
-    modelRef,
-    requestBuilder,
-  } = params;
-  const modelName = toModelName(name, pluginOptions?.name);
-  const actionName =
-    modelRef?.name ?? `${pluginOptions?.name ?? 'compat-oai'}/${modelName}`;
-
-  return model(
-    {
-      name: actionName,
-      ...modelRef?.info,
-      configSchema: modelRef?.configSchema,
-    },
-    async (request, { abortSignal }) => {
-      const isTranslate = request.config?.translate === true;
-      const client = maybeCreateRequestScopedOpenAIClient(
-        pluginOptions,
-        request,
-        defaultClient
-      );
-
-      if (isTranslate) {
-        // Translation API
-        const params = toTranslationRequest(modelName, request, requestBuilder);
-        const result = await client.audio.translations.create(params, {
-          signal: abortSignal,
-        });
-        return translationToGenerateResponse(result);
-      } else {
-        // Transcription API
-        const params = toSttRequest(modelName, request, requestBuilder);
-        const result = await client.audio.transcriptions.create(
-          {
-            ...params,
-            stream: false,
-          },
-          { signal: abortSignal }
-        );
-        return transcriptionToGenerateResponse(result);
-      }
-    }
-  );
-}
-
-/** Whisper ModelRef helper, with reasonable defaults for
- * OpenAI-compatible providers */
-export function compatOaiWhisperModelRef<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  name: string;
-  info?: ModelInfo;
-  configSchema?: CustomOptions;
-  config?: any;
-  namespace?: string;
-}) {
-  const {
-    name,
-    info = WHISPER_MODER_INFO,
-    configSchema,
-    config = undefined,
-    namespace,
-  } = params;
-  return modelRef({
-    name,
-    configSchema: configSchema || (WhisperConfigSchema as any),
     info,
     config,
     namespace,

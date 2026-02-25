@@ -384,6 +384,7 @@ ai.defineFlow('translate', async () => {
   const { text } = await ai.generate({
     model: openAI.model('whisper-1', {
       translate: true,
+      temperature: 0.5,
     }),
     prompt: [
       {
