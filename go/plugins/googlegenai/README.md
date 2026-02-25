@@ -422,6 +422,10 @@ The Google AI plugin provides access to video generation capabilities through th
 
 ### Available Models
 
+**Veo 3.1 Series**:
+
+- `veo-3.1-generate-preview`
+
 **Veo 3.0 Series**:
 
 - `veo-3.0-generate-001`
@@ -434,6 +438,46 @@ The Google AI plugin provides access to video generation capabilities through th
 ### Usage
 
 Veo operations are long-running and support multiple generation modes.
+
+#### Backend-Specific Considerations
+
+The output format and behavior of Veo differ depending on whether you are using the **Google AI** or **Vertex AI** backend.
+
+##### Model Names
+Ensure you use the correct provider prefix:
+* **Google AI**: `googleai/veo-3.1-generate-preview`
+* **Vertex AI**: `vertexai/veo-3.1-generate-preview`
+
+##### Output Format (Video URLs vs. Raw Bytes)
+Depending on the backend and configuration, the generated video will be returned as either a remote URI or as raw bytes encoded in a base64 data URI.
+
+* **Google AI**: Typically returns a public URI for the video. To download it via HTTP, you must append your API key to the URL: `https://.../video.mp4?key=YOUR_API_KEY`.
+* **Vertex AI**: Can return a Cloud Storage URI (`gs://...`) if configured, but by default often returns **raw video bytes**. The Genkit plugin automatically encodes these raw bytes as a **base64 data URI** in the message's text field.
+
+Your application should be prepared to handle both formats. For example, to save the output directly to a file:
+
+```go
+for _, part := range op.Output.Message.Content {
+	if part.IsMedia() {
+		if strings.HasPrefix(part.Text, "data:video/mp4;base64,") {
+			// Handle base64 encoded bytes (Common for Vertex AI default)
+			data := strings.TrimPrefix(part.Text, "data:video/mp4;base64,")
+			b, _ := base64.StdEncoding.DecodeString(data)
+			os.WriteFile("video.mp4", b, 0644)
+		} else {
+			// Handle remote URI (Common for Google AI or Vertex AI with GCS)
+			// You would typically use an HTTP client or Google Cloud Storage client here
+			fmt.Printf("Video available at URI: %s\n", part.Text)
+		}
+	}
+}
+```
+
+##### Safety Filtering (RAI)
+Veo has strict safety policies. If a prompt triggers a safety filter, the operation will complete but return no video. In this case:
+1. `FinishReason` will be `ai.FinishReasonBlocked`.
+2. The output message will contain a text part listing the specific reasons the content was filtered.
+3. The original API response (including RAI counts) is available in the `Raw` field.
 
 #### Text-to-Video
 

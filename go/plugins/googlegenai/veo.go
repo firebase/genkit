@@ -18,6 +18,7 @@ package googlegenai
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -231,6 +232,14 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 		Metadata: make(map[string]any),
 	}
 
+	// Copy any API-provided metadata (e.g. progress percentage, queue status)
+	// so developers can use it for debugging or UI updates.
+	if veoOp.Metadata != nil {
+		for k, v := range veoOp.Metadata {
+			operation.Metadata[k] = v
+		}
+	}
+
 	// Handle error cases
 	if veoOp.Error != nil {
 		if errorMsg, ok := veoOp.Error["message"].(string); ok {
@@ -256,8 +265,13 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 	if veoOp.Done && veoOp.Response != nil && veoOp.Response.GeneratedVideos != nil && len(veoOp.Response.GeneratedVideos) > 0 {
 		content := make([]*ai.Part, 0, len(veoOp.Response.GeneratedVideos))
 		for _, sample := range veoOp.Response.GeneratedVideos {
-			if sample.Video != nil && sample.Video.URI != "" {
-				content = append(content, ai.NewMediaPart("video/mp4", sample.Video.URI))
+			if sample.Video != nil {
+				if sample.Video.URI != "" {
+					content = append(content, ai.NewMediaPart("video/mp4", sample.Video.URI))
+				} else if len(sample.Video.VideoBytes) > 0 {
+					importBase64 := "data:video/mp4;base64," + base64.StdEncoding.EncodeToString(sample.Video.VideoBytes)
+					content = append(content, ai.NewMediaPart("video/mp4", importBase64))
+				}
 			}
 		}
 
@@ -268,9 +282,25 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 					Content: content,
 				},
 				FinishReason: ai.FinishReasonStop,
+				Raw:          veoOp.Response,
 			}
 			return operation
 		}
+	}
+
+	// Handle Responsible AI (Safety) filtering
+	if veoOp.Done && veoOp.Response != nil && veoOp.Response.RAIMediaFilteredCount > 0 {
+		reasons := strings.Join(veoOp.Response.RAIMediaFilteredReasons, ", ")
+		operation.Output = &ai.ModelResponse{
+			Message: &ai.Message{
+				Role:    ai.RoleModel,
+				Content: []*ai.Part{ai.NewTextPart(fmt.Sprintf("Video generation blocked by safety filters. Reasons: %s", reasons))},
+			},
+			FinishReason:  ai.FinishReasonBlocked,
+			FinishMessage: fmt.Sprintf("%d videos filtered due to RAI policies", veoOp.Response.RAIMediaFilteredCount),
+			Raw:           veoOp.Response,
+		}
+		return operation
 	}
 
 	// Handle completed operations without valid response
@@ -280,6 +310,7 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 			Content: []*ai.Part{ai.NewTextPart("Video generation completed but no videos were generated")},
 		},
 		FinishReason: ai.FinishReasonStop,
+		Raw:          veoOp.Response,
 	}
 
 	return operation
