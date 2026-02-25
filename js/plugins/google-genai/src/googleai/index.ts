@@ -59,20 +59,18 @@ async function resolver(
       if (veo.isVeoModelName(actionName)) {
         return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
-        return await imagen.defineModel(actionName, options);
+        return imagen.defineModel(actionName, options);
       } else {
         // gemini, tts, image, gemma, unknown models
-        return await gemini.defineModel(actionName, options);
+        return gemini.defineModel(actionName, options);
       }
-      break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        return await veo.defineModel(actionName, options);
+        return veo.defineModel(actionName, options);
       }
       break;
     case 'embedder':
-      return await embedder.defineEmbedder(actionName, options);
-      break;
+      return embedder.defineEmbedder(actionName, options);
   }
   return undefined;
 }
