@@ -19,7 +19,7 @@
 import asyncio
 import queue
 import threading
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -111,7 +111,7 @@ async def test_resolve_action_model() -> None:
 
 @patch('genkit.plugins.anthropic.plugin.AsyncAnthropic')
 @pytest.mark.asyncio
-async def test_anthropic_runtime_clients_are_loop_local(mock_client_ctor: object) -> None:
+async def test_anthropic_runtime_clients_are_loop_local(mock_client_ctor: MagicMock) -> None:
     """Runtime Anthropic clients are cached per event loop."""
     created: list[object] = []
 
@@ -121,7 +121,6 @@ async def test_anthropic_runtime_clients_are_loop_local(mock_client_ctor: object
         created.append(client)
         return client
 
-    # pyright: ignore[reportAttributeAccessIssue]
     mock_client_ctor.side_effect = _new_client
     plugin = Anthropic(api_key='test-key')
 

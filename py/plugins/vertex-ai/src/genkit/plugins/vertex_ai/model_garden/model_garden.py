@@ -117,6 +117,7 @@ class ModelGarden:
             A callable function (specifically, the ``generate`` method of an
             ``OpenAIModel`` instance) that can be used by Genkit.
         """
+
         async def _generate(request: 'GenerateRequest', ctx: 'ActionRunContext') -> 'GenerateResponse':
             client = await self.create_client()
             openai_model = OpenAIModel(self.name, client)

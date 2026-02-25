@@ -105,55 +105,6 @@ def _init_compat_oai() -> Genkit:
     return Genkit(plugins=[OpenAI()])
 
 
-def _init_deepseek() -> Genkit:
-    """Initialize the DeepSeek plugin."""
-    from genkit.plugins.deepseek import DeepSeek
-
-    return Genkit(plugins=[DeepSeek()])
-
-
-def _init_mistral() -> Genkit:
-    """Initialize the Mistral plugin."""
-    from genkit.plugins.mistral import Mistral
-
-    return Genkit(plugins=[Mistral()])
-
-
-def _init_xai() -> Genkit:
-    """Initialize the xAI plugin."""
-    from genkit.plugins.xai import XAI
-
-    return Genkit(plugins=[XAI()])
-
-
-def _init_cohere() -> Genkit:
-    """Initialize the Cohere plugin."""
-    from genkit.plugins.cohere import Cohere
-
-    return Genkit(plugins=[Cohere()])
-
-
-def _init_cloudflare_workers_ai() -> Genkit:
-    """Initialize the Cloudflare Workers AI plugin."""
-    from genkit.plugins.cloudflare_workers_ai import CloudflareWorkersAI
-
-    return Genkit(plugins=[CloudflareWorkersAI()])
-
-
-def _init_huggingface() -> Genkit:
-    """Initialize the Hugging Face plugin."""
-    from genkit.plugins.huggingface import HuggingFace
-
-    return Genkit(plugins=[HuggingFace()])
-
-
-def _init_microsoft_foundry() -> Genkit:
-    """Initialize the Microsoft Foundry plugin."""
-    from genkit.plugins.microsoft_foundry import MicrosoftFoundry
-
-    return Genkit(plugins=[MicrosoftFoundry()])
-
-
 PLUGIN_REGISTRY: dict[str, Any] = {
     'google-genai': _init_google_genai,
     'vertex-ai': _init_vertex_ai,
@@ -161,13 +112,6 @@ PLUGIN_REGISTRY: dict[str, Any] = {
     'ollama': _init_ollama,
     'amazon-bedrock': _init_amazon_bedrock,
     'compat-oai': _init_compat_oai,
-    'deepseek': _init_deepseek,
-    'mistral': _init_mistral,
-    'xai': _init_xai,
-    'cohere': _init_cohere,
-    'cloudflare-workers-ai': _init_cloudflare_workers_ai,
-    'huggingface': _init_huggingface,
-    'microsoft-foundry': _init_microsoft_foundry,
 }
 
 # ---------------------------------------------------------------------------

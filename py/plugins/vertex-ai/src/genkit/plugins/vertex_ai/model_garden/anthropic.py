@@ -67,6 +67,7 @@ class AnthropicModelGarden:
         Returns:
             The handler function that can be used as an Action's fn parameter.
         """
+
         async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             model = AnthropicModel(
                 model_name=self._model_name,
