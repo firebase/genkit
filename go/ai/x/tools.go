@@ -93,14 +93,14 @@ type InterruptibleTool[In, Out, Res any] struct {
 //
 // Unlike [tool.Resume], this method also validates that the interrupted part
 // belongs to this tool.
-func (t *InterruptibleTool[In, Out, Res]) Resume(interruptedPart *ai.Part, data Res) (*ai.Part, error) {
-	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+func (t *InterruptibleTool[In, Out, Resume]) Resume(part *ai.Part, res Resume) (*ai.Part, error) {
+	if part == nil || !part.IsInterrupt() {
 		return nil, fmt.Errorf("Resume: part is not an interrupted tool request")
 	}
-	if interruptedPart.ToolRequest.Name != t.Name() {
-		return nil, fmt.Errorf("Resume: tool request is for %q, not %q", interruptedPart.ToolRequest.Name, t.Name())
+	if part.ToolRequest.Name != t.Name() {
+		return nil, fmt.Errorf("Resume: tool request is for %q, not %q", part.ToolRequest.Name, t.Name())
 	}
-	return tool.Resume(interruptedPart, data)
+	return tool.Resume(part, res)
 }
 
 // Respond creates a tool response [ai.Part] for an interrupted tool request.
@@ -109,14 +109,14 @@ func (t *InterruptibleTool[In, Out, Res]) Resume(interruptedPart *ai.Part, data 
 //
 // Unlike [tool.Respond], this method validates that the interrupted part
 // belongs to this tool and accepts a strongly-typed output.
-func (t *InterruptibleTool[In, Out, Res]) Respond(interruptedPart *ai.Part, output Out) (*ai.Part, error) {
-	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+func (t *InterruptibleTool[In, Out, Resume]) Respond(part *ai.Part, output Out) (*ai.Part, error) {
+	if part == nil || !part.IsInterrupt() {
 		return nil, fmt.Errorf("Respond: part is not an interrupted tool request")
 	}
-	if interruptedPart.ToolRequest.Name != t.Name() {
-		return nil, fmt.Errorf("Respond: tool request is for %q, not %q", interruptedPart.ToolRequest.Name, t.Name())
+	if part.ToolRequest.Name != t.Name() {
+		return nil, fmt.Errorf("Respond: tool request is for %q, not %q", part.ToolRequest.Name, t.Name())
 	}
-	return tool.Respond(interruptedPart, output)
+	return tool.Respond(part, output)
 }
 
 // DefineTool creates a new tool with a simple function signature and registers it.
