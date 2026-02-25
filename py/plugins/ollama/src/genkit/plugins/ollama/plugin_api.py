@@ -24,6 +24,7 @@ import ollama as ollama_api
 from genkit.ai import Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.core.schema import to_json_schema
@@ -89,7 +90,7 @@ class Ollama(Plugin):
         self.server_address = server_address or DEFAULT_OLLAMA_SERVER_URL
         self.request_headers = request_headers or {}
 
-        self.client = partial(ollama_api.AsyncClient, host=self.server_address)
+        self.client = _loop_local_client(partial(ollama_api.AsyncClient, host=self.server_address))
 
     async def init(self) -> list:
         """Initialize the Ollama plugin.

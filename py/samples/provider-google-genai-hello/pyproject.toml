@@ -41,7 +41,6 @@ classifiers = [
 dependencies = [
   "rich>=13.0.0",
   "genkit",
-  "genkit-plugin-evaluators",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
@@ -68,5 +67,3 @@ packages = ["src/main.py"]
 [tool.hatch.metadata]
 allow-direct-references = true
 
-[tool.uv.sources]
-genkit-plugin-evaluators = { workspace = true }

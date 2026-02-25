@@ -93,6 +93,7 @@ See Also:
 """
 
 import os
+from collections.abc import Callable
 from typing import Any
 
 from google import genai
@@ -107,6 +108,7 @@ from genkit.blocks.document import Document
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.blocks.reranker import reranker_action_metadata
+from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.error import GenkitError
 from genkit.core.registry import ActionKind
@@ -277,19 +279,22 @@ def vertexai_name(name: str) -> str:
     return f'{VERTEXAI_PLUGIN_NAME}/{name}'
 
 
-def _create_embedder_action(name: str, client: genai.Client, plugin_name: str) -> Action:
+def _create_embedder_action(
+    name: str,
+    client_getter: Callable[[], genai.Client],
+    plugin_name: str,
+) -> Action:
     """Create an Action object for an embedder.
 
     Args:
         name: The namespaced name of the embedder.
-        client: The Google GenAI client instance.
+        client_getter: Function returning the loop-local Google GenAI client.
         plugin_name: The name of the plugin (googleai or vertexai).
 
     Returns:
         Action object for the embedder.
     """
     clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
-    embedder = Embedder(version=clean_name, client=client)
     embedder_info = default_embedder_info(clean_name)
 
     action_metadata = embedder_action_metadata(
@@ -301,10 +306,14 @@ def _create_embedder_action(name: str, client: genai.Client, plugin_name: str) -
         ),
     )
 
+    async def _run(request: Any) -> Any:  # noqa: ANN401
+        embedder = Embedder(version=clean_name, client=client_getter())
+        return await embedder.generate(request)
+
     action = Action(
         kind=ActionKind.EMBEDDER,
         name=name,
-        fn=embedder.generate,
+        fn=_run,
         metadata=action_metadata.metadata,
     )
 
@@ -399,13 +408,15 @@ class GoogleAI(Plugin):
                 'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
 
-        self._client = genai.client.Client(
-            vertexai=self._vertexai,
-            api_key=api_key,
-            credentials=credentials,
-            debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options, base_url, api_version),
-        )
+        self._client_kwargs: dict[str, Any] = {
+            'vertexai': self._vertexai,
+            'api_key': api_key,
+            'credentials': credentials,
+            'debug_config': debug_config,
+            'http_options': _inject_attribution_headers(http_options, base_url, api_version),
+        }
+        # Single loop-local client accessor used everywhere in plugin runtime paths.
+        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -413,7 +424,7 @@ class GoogleAI(Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        genai_models = _list_genai_models(self._client, is_vertex=False)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
 
         actions: list[Action] = []
         # Gemini Models
@@ -445,7 +456,7 @@ class GoogleAI(Plugin):
         """
         # Re-use init logic synchronously? init is async.
         # Let's implementation just mimic init logic but sync call to client.models.list is fine (it is iterator)
-        genai_models = _list_genai_models(self._client, is_vertex=False)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions = []
         for name in genai_models.gemini:
             actions.append(self._resolve_model(googleai_name(name)))
@@ -459,7 +470,7 @@ class GoogleAI(Plugin):
         Returns:
             List of Action objects for known Veo video generation models.
         """
-        genai_models = _list_genai_models(self._client, is_vertex=False)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions = []
         for name in genai_models.veo:
             bg_action = self._resolve_veo_model(googleai_name(name))
@@ -469,7 +480,7 @@ class GoogleAI(Plugin):
 
     def _list_known_embedders(self) -> list[Action]:
         """List known embedders as Action objects."""
-        genai_models = _list_genai_models(self._client, is_vertex=False)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions = []
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(googleai_name(name)))
@@ -521,9 +532,15 @@ class GoogleAI(Plugin):
         """
         clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
-        veo = VeoModel(clean_name, self._client)
-
         # Create actions manually since we don't have registry access here
+
+        async def _start(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+            veo = VeoModel(clean_name, self._runtime_client())
+            return await veo.start(request, ctx)
+
+        async def _check(op: Any, _ctx: Any) -> Any:  # noqa: ANN401
+            veo = VeoModel(clean_name, self._runtime_client())
+            return await veo.check(op)
 
         # Prepare metadata matching model_action_metadata structure
         info = veo_model_info(clean_name).model_dump(by_alias=True)
@@ -532,7 +549,7 @@ class GoogleAI(Plugin):
         start_action = Action(
             kind=ActionKind.BACKGROUND_MODEL,
             name=name,
-            fn=veo.start,
+            fn=_start,
             metadata={
                 'model': {**info, 'customOptions': to_json_schema(config_schema)},
                 'type': 'background-model',
@@ -542,7 +559,7 @@ class GoogleAI(Plugin):
         check_action = Action(
             kind=ActionKind.CHECK_OPERATION,
             name=f'{name}/check',
-            fn=lambda op, ctx: veo.check(op),
+            fn=_check,
             metadata={'type': 'check-operation'},
         )
 
@@ -564,25 +581,30 @@ class GoogleAI(Plugin):
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
 
-        # Determine model type and create appropriate model instance
+        # Determine model type and create model metadata/config schema
         if clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(clean_name)
-            model = ImagenModel(clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = ImagenConfigSchema
         else:
             model_ref = google_model_info(clean_name)
-            model = GeminiModel(clean_name, self._client)
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
+
+        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+            if clean_name.lower().startswith('image'):
+                model = ImagenModel(clean_name, self._runtime_client())
+            else:
+                model = GeminiModel(clean_name, self._runtime_client())
+            return await model.generate(request, ctx)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=model.generate,
+            fn=_run,
             metadata=model_action_metadata(
                 name=name,
-                info=model.metadata['model'],
+                info=model_ref.model_dump(by_alias=True),
                 config_schema=config_schema,
             ).metadata,
         )
@@ -596,7 +618,7 @@ class GoogleAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        return _create_embedder_action(name, self._client, GOOGLEAI_PLUGIN_NAME)
+        return _create_embedder_action(name, self._runtime_client, GOOGLEAI_PLUGIN_NAME)
 
     async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
@@ -608,7 +630,7 @@ class GoogleAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-        genai_models = _list_genai_models(self._client, is_vertex=False)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions_list = []
 
         for name in genai_models.gemini:
@@ -742,15 +764,17 @@ class VertexAI(Plugin):
         self._project = project if project else os.getenv(const.GCLOUD_PROJECT)
         self._location = location if location else const.DEFAULT_REGION
 
-        self._client = genai.client.Client(
-            vertexai=self._vertexai,
-            api_key=api_key,
-            credentials=credentials,
-            project=self._project,
-            location=self._location,
-            debug_config=debug_config,
-            http_options=_inject_attribution_headers(http_options, base_url, api_version),
-        )
+        self._client_kwargs: dict[str, Any] = {
+            'vertexai': self._vertexai,
+            'api_key': api_key,
+            'credentials': credentials,
+            'project': self._project,
+            'location': self._location,
+            'debug_config': debug_config,
+            'http_options': _inject_attribution_headers(http_options, base_url, api_version),
+        }
+        # Single loop-local client accessor used everywhere in plugin runtime paths.
+        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -758,7 +782,7 @@ class VertexAI(Plugin):
         Returns:
             List of Action objects for known/supported models.
         """
-        genai_models = _list_genai_models(self._client, is_vertex=True)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions: list[Action] = []
 
         for name in genai_models.gemini:
@@ -800,7 +824,7 @@ class VertexAI(Plugin):
 
     def _list_known_models(self) -> list[Action]:
         """List known models as Action objects."""
-        genai_models = _list_genai_models(self._client, is_vertex=True)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions = []
         for name in genai_models.gemini:
             actions.append(self._resolve_model(vertexai_name(name)))
@@ -812,7 +836,7 @@ class VertexAI(Plugin):
 
     def _list_known_embedders(self) -> list[Action]:
         """List known embedders as Action objects."""
-        genai_models = _list_genai_models(self._client, is_vertex=True)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions = []
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(vertexai_name(name)))
@@ -884,29 +908,35 @@ class VertexAI(Plugin):
         # Extract local name (remove plugin prefix)
         clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
-        # Determine model type and create appropriate model instance
+        # Determine model type and create model metadata/config schema
         if clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(clean_name)
-            model = ImagenModel(clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = ImagenConfigSchema
         elif is_veo_model(clean_name):
             model_ref = veo_model_info(clean_name)
-            model = VeoModel(clean_name, self._client)
             config_schema = VeoConfigSchema
         else:
             model_ref = google_model_info(clean_name)
-            model = GeminiModel(clean_name, self._client)
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
+
+        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+            if clean_name.lower().startswith('image'):
+                model = ImagenModel(clean_name, self._runtime_client())
+            elif is_veo_model(clean_name):
+                model = VeoModel(clean_name, self._runtime_client())
+            else:
+                model = GeminiModel(clean_name, self._runtime_client())
+            return await model.generate(request, ctx)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=model.generate,
+            fn=_run,
             metadata=model_action_metadata(
                 name=name,
-                info=model.metadata['model'],
+                info=model_ref.model_dump(by_alias=True),
                 config_schema=config_schema,
             ).metadata,
         )
@@ -920,7 +950,7 @@ class VertexAI(Plugin):
         Returns:
             Action object for the embedder.
         """
-        return _create_embedder_action(name, self._client, VERTEXAI_PLUGIN_NAME)
+        return _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
 
     def _resolve_reranker(self, name: str) -> Action:
         """Create an Action object for a Vertex AI reranker.
@@ -1010,7 +1040,7 @@ class VertexAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
-        genai_models = _list_genai_models(self._client, is_vertex=True)
+        genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions_list = []
 
         for name in genai_models.gemini:

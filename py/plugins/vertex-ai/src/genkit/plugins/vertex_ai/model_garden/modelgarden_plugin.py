@@ -150,9 +150,6 @@ class ModelGardenPlugin(Plugin):
             project_id=self.project_id,
         )
 
-        # Create the async client (offloads credential refresh to thread)
-        await model_proxy.create_client()
-
         # Get model info and handler
         model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(clean_name, {})
         handler = model_proxy.to_openai_compatible_model()

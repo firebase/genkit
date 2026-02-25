@@ -134,7 +134,6 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
 from genkit.core.action import ActionRunContext
 from genkit.core.logging import get_logger
-from genkit.plugins.evaluators import GenkitMetricType, MetricConfig, define_genkit_evaluators
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
@@ -187,15 +186,6 @@ if 'GEMINI_API_KEY' not in os.environ:
 ai = Genkit(
     plugins=[GoogleAI()],
     model='googleai/gemini-3-pro-preview',
-)
-
-define_genkit_evaluators(
-    ai,
-    [
-        MetricConfig(metric_type=GenkitMetricType.REGEX),
-        MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
-        MetricConfig(metric_type=GenkitMetricType.JSONATA),
-    ],
 )
 
 ai.tool()(get_weather)

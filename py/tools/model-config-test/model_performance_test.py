@@ -52,11 +52,8 @@ async def discover_models() -> dict[str, Any]:
     plugin_imports = [
         ('genkit.plugins.google_genai', 'GoogleAI'),
         ('genkit.plugins.vertex_ai', 'VertexAI'),
-        ('genkit.plugins.deepseek', 'DeepSeek'),
         ('genkit.plugins.anthropic', 'Anthropic'),
-        ('genkit.plugins.xai', 'XAI'),
         ('genkit.plugins.ollama', 'Ollama'),
-        ('genkit.plugins.mistral', 'Mistral'),
         ('genkit.plugins.amazon_bedrock', 'AmazonBedrock'),
     ]
 

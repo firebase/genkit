@@ -23,9 +23,10 @@ from typing import Any, TypeAlias
 from openai import AsyncOpenAI
 from openai.types import Model
 
-from genkit.ai import Plugin
+from genkit.ai import ActionRunContext, Plugin
 from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import Action, ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.core.schema import to_json_schema
@@ -45,7 +46,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.types import Embedding, EmbedRequest, EmbedResponse, ModelInfo, Supports
+from genkit.types import Embedding, EmbedRequest, EmbedResponse, GenerateRequest, GenerateResponse, ModelInfo, Supports
 
 
 def open_ai_name(name: str) -> str:
@@ -205,7 +206,8 @@ class OpenAI(Plugin):
                            other configuration settings required by OpenAI's API.
         """
         self._openai_params = openai_params
-        self._async_client = AsyncOpenAI(**openai_params)
+        self._runtime_client = _loop_local_client(lambda: AsyncOpenAI(**self._openai_params))
+        self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize plugin.
@@ -309,13 +311,16 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
 
         # Create the model handler
-        openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._async_client))
         model_info = self.get_model_info(clean_name) or {}
+
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+            openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
+            return await openai_model.generate(request, ctx)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=openai_model.generate,
+            fn=_generate,
             metadata={
                 'model': {
                     **model_info,
@@ -343,13 +348,16 @@ class OpenAI(Plugin):
             Action object for the model.
         """
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
-        model_instance = model_class(clean_name, self._async_client)
         info_dict = _get_multimodal_info_dict(clean_name, model_type, supported_models)
+
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+            model_instance = model_class(clean_name, self._runtime_client())
+            return await model_instance.generate(request, ctx)
 
         return Action(
             kind=ActionKind.MODEL,
             name=name,
-            fn=model_instance.generate,
+            fn=_generate,
             metadata={'model': info_dict},
         )
 
@@ -395,7 +403,7 @@ class OpenAI(Plugin):
                     encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
 
             # Create embeddings for each document
-            response = await self._async_client.embeddings.create(
+            response = await self._runtime_client().embeddings.create(
                 model=clean_name,
                 input=texts,
                 dimensions=dimensions,  # type: ignore[arg-type]
@@ -429,8 +437,11 @@ class OpenAI(Plugin):
         Returns:
             list[ActionMetadata]: A list of ActionMetadata objects.
         """
+        if self._list_actions_cache is not None:
+            return self._list_actions_cache
+
         actions: list[ActionMetadata] = []
-        models_ = await self._async_client.models.list()
+        models_ = await self._runtime_client().models.list()
         models: list[Model] = models_.data
         for model in models:
             name = model.id
@@ -463,6 +474,7 @@ class OpenAI(Plugin):
                         },
                     )
                 )
+        self._list_actions_cache = actions
         return actions
 
 
