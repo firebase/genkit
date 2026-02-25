@@ -61,8 +61,8 @@ func InterruptAs[T any](p *ai.Part) (T, bool) {
 // This is a convenience alternative to [aix.InterruptibleTool.Resume] that
 // does not require access to the tool definition.
 func Resume[Res any](interruptedPart *ai.Part, data Res) (*ai.Part, error) {
-	if interruptedPart == nil || !interruptedPart.IsToolRequest() {
-		return nil, fmt.Errorf("tool.Resume: part is not a tool request")
+	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+		return nil, fmt.Errorf("tool.Resume: part is not an interrupted tool request")
 	}
 
 	m, err := base.StructToMap(data)
@@ -84,6 +84,26 @@ func Resume[Res any](interruptedPart *ai.Part, data Res) (*ai.Part, error) {
 	})
 	newPart.Metadata = newMeta
 	return newPart, nil
+}
+
+// --- Respond ---
+
+// Respond creates a tool response [ai.Part] for an interrupted tool request.
+// Instead of re-executing the tool (as [Resume] does), this provides a
+// pre-computed result directly.
+//
+// This is a convenience alternative to [aix.Tool.Respond] that does not
+// require access to the tool definition.
+func Respond(interruptedPart *ai.Part, output any) (*ai.Part, error) {
+	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+		return nil, fmt.Errorf("tool.Respond: part is not an interrupted tool request")
+	}
+
+	resp := ai.NewResponseForToolRequest(interruptedPart, output)
+	resp.Metadata = map[string]any{
+		"interruptResponse": true,
+	}
+	return resp, nil
 }
 
 // --- SendChunk ---

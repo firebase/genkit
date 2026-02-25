@@ -94,13 +94,29 @@ type InterruptibleTool[In, Out, Res any] struct {
 // Unlike [tool.Resume], this method also validates that the interrupted part
 // belongs to this tool.
 func (t *InterruptibleTool[In, Out, Res]) Resume(interruptedPart *ai.Part, data Res) (*ai.Part, error) {
-	if interruptedPart == nil || !interruptedPart.IsToolRequest() {
-		return nil, fmt.Errorf("Resume: part is not a tool request")
+	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+		return nil, fmt.Errorf("Resume: part is not an interrupted tool request")
 	}
 	if interruptedPart.ToolRequest.Name != t.Name() {
 		return nil, fmt.Errorf("Resume: tool request is for %q, not %q", interruptedPart.ToolRequest.Name, t.Name())
 	}
 	return tool.Resume(interruptedPart, data)
+}
+
+// Respond creates a tool response [ai.Part] for an interrupted tool request.
+// Instead of re-executing the tool (as [Resume] does), this provides a
+// pre-computed result directly.
+//
+// Unlike [tool.Respond], this method validates that the interrupted part
+// belongs to this tool and accepts a strongly-typed output.
+func (t *InterruptibleTool[In, Out, Res]) Respond(interruptedPart *ai.Part, output Out) (*ai.Part, error) {
+	if interruptedPart == nil || !interruptedPart.IsInterrupt() {
+		return nil, fmt.Errorf("Respond: part is not an interrupted tool request")
+	}
+	if interruptedPart.ToolRequest.Name != t.Name() {
+		return nil, fmt.Errorf("Respond: tool request is for %q, not %q", interruptedPart.ToolRequest.Name, t.Name())
+	}
+	return tool.Respond(interruptedPart, output)
 }
 
 // DefineTool creates a new tool with a simple function signature and registers it.
