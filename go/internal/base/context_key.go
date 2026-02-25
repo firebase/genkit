@@ -51,4 +51,3 @@ var ToolPartialSenderKey = NewContextKey[func(context.Context, any)]()
 // ai/x/tool (SendChunk). The any value is *ai.ModelResponseChunk (typed as any
 // to avoid a circular import).
 var ToolChunkSenderKey = NewContextKey[func(context.Context, any)]()
-
