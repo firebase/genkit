@@ -53,7 +53,6 @@ members = [
     "provider-vertex-ai-vector-search-bigquery",
     "provider-vertex-ai-vector-search-firestore",
     "web-fastapi-bugbot",
-    "web-fastapi-minimal-devui",
     "web-flask-hello",
 ]
 
@@ -6439,14 +6438,14 @@ wheels = [
 
 [[package]]
 name = "pypdf"
-version = "6.7.0"
+version = "6.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/10/45/8340de1c752bfda2da912ea0fa8c9a432f7de3f6315e82f1c0847811dff6/pypdf-6.7.0.tar.gz", hash = "sha256:eb95e244d9f434e6cfd157272283339ef586e593be64ee699c620f756d5c3f7e", size = 5299947, upload-time = "2026-02-08T14:47:11.897Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/b2/335465d6cff28a772ace8a58beb168f125c2e1d8f7a31527da180f4d89a1/pypdf-6.7.2.tar.gz", hash = "sha256:82a1a48de500ceea59a52a7d979f5095927ef802e4e4fac25ab862a73468acbb", size = 5302986, upload-time = "2026-02-22T11:33:30.776Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/f1/c92e75a0eb18bb10845e792054ded113010de958b6d4998e201c029417bb/pypdf-6.7.0-py3-none-any.whl", hash = "sha256:62e85036d50839cbdf45b8067c2c1a1b925517514d7cba4cbe8755a6c2829bc9", size = 330557, upload-time = "2026-02-08T14:47:10.111Z" },
+    { url = "https://files.pythonhosted.org/packages/df/df/38b06d6e74646a4281856920a11efb431559bdeb643bf1e192bff5e29082/pypdf-6.7.2-py3-none-any.whl", hash = "sha256:331b63cd66f63138f152a700565b3e0cebdf4ec8bec3b7594b2522418782f1f3", size = 331245, upload-time = "2026-02-22T11:33:29.204Z" },
 ]
 
 [[package]]
@@ -8053,25 +8052,6 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "web-fastapi-minimal-devui"
-version = "0.1.0"
-source = { editable = "samples/web-fastapi-minimal-devui" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-compat-oai" },
-    { name = "genkit-plugin-fastapi" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
-]
 
 [[package]]
 name = "web-flask-hello"
