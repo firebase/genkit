@@ -303,6 +303,28 @@ err := googleai.Init(ctx, &googleai.Config{}) // returns error
 
 ---
 
+## Move status and error types out of core
+
+v1 puts canonical status codes (`StatusName`, `OK`, `CANCELLED`, `INTERNAL`, etc.), status-to-HTTP mappings (`HTTPStatusCode`, `StatusNameToCode`), and error types (`GenkitError`, `UserFacingError`, `ReflectionError`) directly in the `core` package.
+
+v2 moves these types into a dedicated package (e.g. `core/status` or `core/gerror`) so that error handling has a clear home and `core` stays focused on bigger picture concepts.
+
+```go
+// v1
+import "github.com/firebase/genkit/go/core"
+
+err := core.NewError(core.NOT_FOUND, "model %q not registered", name)
+code := core.HTTPStatusCode(core.NOT_FOUND)
+
+// v2
+import "github.com/firebase/genkit/go/core/status" // or similar
+
+err := status.NewError(status.NOT_FOUND, "model %q not registered", name)
+code := status.HTTPStatusCode(status.NOT_FOUND)
+```
+
+---
+
 ## Full removed/replaced type reference
 
 | Removed | Replacement |
