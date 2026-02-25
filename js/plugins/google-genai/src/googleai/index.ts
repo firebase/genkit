@@ -77,7 +77,7 @@ async function resolver(
       } else if (deepResearch.isDeepResearchModelName(actionName)) {
         return deepResearch.defineModel(actionName, options);
       }
-      break;  // No default
+      break; // No default
     case 'embedder':
       return embedder.defineEmbedder(actionName, options);
   }
