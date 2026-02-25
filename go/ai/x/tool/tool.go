@@ -106,7 +106,7 @@ func Respond(interruptedPart *ai.Part, output any) (*ai.Part, error) {
 	return resp, nil
 }
 
-// --- SendChunk ---
+// --- SendPartial ---
 
 // SendPartial streams a partial tool response during tool execution.
 // The output is arbitrary structured data (e.g., progress information)
@@ -125,6 +125,23 @@ func SendPartial(ctx context.Context, output any) {
 		return
 	}
 	send(ctx, output)
+}
+
+// --- SendChunk ---
+
+// SendChunk streams a raw [ai.ModelResponseChunk] during tool execution.
+// Unlike [SendPartial], which wraps arbitrary data in a partial tool response,
+// SendChunk gives the tool full control over the chunk contents.
+//
+// This is best-effort: if no streaming callback is available (e.g., the
+// tool is called via a non-streaming Generate), the call is a no-op.
+// The tool's final return value is always the authoritative response.
+func SendChunk(ctx context.Context, chunk *ai.ModelResponseChunk) {
+	send := base.ToolChunkSenderKey.FromContext(ctx)
+	if send == nil {
+		return
+	}
+	send(ctx, chunk)
 }
 
 // --- AttachParts ---

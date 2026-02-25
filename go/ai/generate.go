@@ -796,8 +796,9 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				return
 			}
 
-			// Inject a per-tool chunk sender so tools can stream partial
-			// responses (e.g., progress updates) via tool.SendChunk.
+			// Inject per-tool streaming senders so tools can stream via
+			// tool.SendPartial (wrapped partial responses) and
+			// tool.SendChunk (raw model response chunks).
 			toolCtx := ctx
 			if cb != nil {
 				toolCtx = base.ToolPartialSenderKey.NewContext(ctx, func(sendCtx context.Context, output any) {
@@ -809,6 +810,9 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 							Output: output,
 						})},
 					})
+				})
+				toolCtx = base.ToolChunkSenderKey.NewContext(toolCtx, func(sendCtx context.Context, chunk any) {
+					cb(sendCtx, chunk.(*ModelResponseChunk))
 				})
 			}
 
