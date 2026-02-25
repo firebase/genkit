@@ -96,6 +96,26 @@ func (a *AgentSession[State]) Run(ctx context.Context, fn func(ctx context.Conte
 	return nil
 }
 
+// Result returns an [AgentFlowResult] populated from the current session state:
+// the last message in the conversation history and all artifacts.
+// It is a convenience for custom agent flows that don't need to construct the
+// result manually.
+func (a *AgentSession[State]) Result() *AgentFlowResult {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	result := &AgentFlowResult{}
+	if msgs := a.state.Messages; len(msgs) > 0 {
+		result.Message = msgs[len(msgs)-1]
+	}
+	if len(a.state.Artifacts) > 0 {
+		arts := make([]*Artifact, len(a.state.Artifacts))
+		copy(arts, a.state.Artifacts)
+		result.Artifacts = arts
+	}
+	return result
+}
+
 // maybeSnapshot creates a snapshot if conditions are met (store configured,
 // callback approves). Returns the snapshot ID or empty string.
 func (a *AgentSession[State]) maybeSnapshot(ctx context.Context, event SnapshotEvent) string {
