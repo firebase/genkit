@@ -41,7 +41,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Typing :: Typed",
   "License :: OSI Approved :: Apache Software License",
-  "Private :: Do Not Upload",
 ]
 dependencies = [
   "aiofiles>=24.1.0",

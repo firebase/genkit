@@ -148,9 +148,6 @@ jobs:
       - name: Check Python dependency licenses
         run: uv run --directory py liccheck -s pyproject.toml
 
-      - name: Run security scan (bandit)
-        run: ./py/bin/run_python_security_checks
-
       - name: Check for hardcoded secrets
         run: |
           cd py

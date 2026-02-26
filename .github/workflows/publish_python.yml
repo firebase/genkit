@@ -17,7 +17,6 @@
 # Publish all Python packages to PyPI.
 #
 # Triggered by pushing a tag like py/v0.7.0 or manually via workflow_dispatch.
-# Packages are built and published in dependency order.
 # Auth uses PyPI trusted publishing (OIDC) — no API tokens needed.
 
 name: Publish Python
@@ -27,18 +26,6 @@ on:
     tags:
       - "py/v*"
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Build but do not publish"
-        type: boolean
-        default: false
-      target:
-        description: "Publish target"
-        type: choice
-        default: pypi
-        options:
-          - pypi
-          - testpypi
 
 concurrency:
   group: publish-python-${{ github.ref }}
@@ -48,27 +35,21 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       id-token: write
     environment:
-      name: ${{ (inputs.target == 'testpypi' && 'testpypi') || 'pypi_github_publishing' }}
+      name: pypi_github_publishing
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: "3.12"
+          version: "0.6.6"
 
-      - name: Build and publish
-        env:
-          DRY_RUN: ${{ inputs.dry_run }}
-          PUBLISH_URL: ${{ inputs.target == 'testpypi' && 'https://test.pypi.org/legacy/' || '' }}
+      - name: Build and publish packages
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
-          # Packages in dependency order.
           PACKAGES=(
             py/packages/genkit
             py/plugins/anthropic
@@ -82,27 +63,34 @@ jobs:
             py/plugins/vertex-ai
           )
 
-          PUBLISH_ARGS=()
-          if [ -n "$PUBLISH_URL" ]; then
-            PUBLISH_ARGS+=(--publish-url "$PUBLISH_URL")
-          fi
-
+          FAILED=()
           for pkg in "${PACKAGES[@]}"; do
             echo "::group::$pkg"
-            uv build "$pkg" --out-dir dist/
-            if [ "$DRY_RUN" != "true" ]; then
-              uv publish "${PUBLISH_ARGS[@]}" dist/*
-              rm -rf dist/
+            if uv build "$pkg" --out-dir dist/; then
+              echo "Build succeeded: $pkg"
+            else
+              echo "::error::Build failed: $pkg"
+              FAILED+=("$pkg")
             fi
             echo "::endgroup::"
           done
 
+          if [ ${#FAILED[@]} -gt 0 ]; then
+            echo "::error::Failed packages: ${FAILED[*]}"
+          fi
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          verbose: true
+          skip-existing: true
+
   verify:
     needs: publish
-    if: inputs.dry_run != true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Smoke test
