@@ -17,7 +17,6 @@
 package ollama
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -80,17 +79,49 @@ func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfi
 		return nil
 	}
 
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return err
+	if cfg.Think != nil {
+		o.Think = cfg.Think
+	}
+	if cfg.KeepAlive != "" {
+		o.KeepAlive = cfg.KeepAlive
 	}
 
-	var m map[string]any
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
+	opts := make(map[string]any)
+	if cfg.Seed != 0 {
+		opts["seed"] = cfg.Seed
+	}
+	if cfg.Temperature != 0 {
+		opts["temperature"] = cfg.Temperature
+	}
+	if cfg.TopK != 0 {
+		opts["top_k"] = cfg.TopK
+	}
+	if cfg.TopP != 0 {
+		opts["top_p"] = cfg.TopP
+	}
+	if cfg.MinP != 0 {
+		opts["min_p"] = cfg.MinP
+	}
+	if len(cfg.Stop) > 0 {
+		opts["stop"] = cfg.Stop
+	}
+	if cfg.NumCtx != 0 {
+		opts["num_ctx"] = cfg.NumCtx
+	}
+	if cfg.NumPredict != 0 {
+		opts["num_predict"] = cfg.NumPredict
 	}
 
-	return o.applyMapAny(m)
+	if len(opts) > 0 {
+		if o.Options == nil {
+			o.Options = make(map[string]any)
+		}
+		for k, v := range opts {
+			o.Options[k] = v
+		}
+	}
+
+	return nil
 }
 
 func (o *ollamaChatRequest) applyGenerationCommonConfig(cfg *ai.GenerationCommonConfig) error {

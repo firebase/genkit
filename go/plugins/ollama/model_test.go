@@ -68,7 +68,7 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed":        float64(seed),
+					"seed":        seed,
 					"temperature": temp,
 				},
 			},
@@ -82,7 +82,7 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed": float64(seed),
+					"seed": seed,
 				},
 			},
 		},

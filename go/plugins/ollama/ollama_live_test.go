@@ -19,18 +19,16 @@ package ollama_test
 import (
 	"context"
 	"flag"
-	"log"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/ollama"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
 var (
 	serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
-	modelName     = flag.String("model-name", "qwen3", "model name")
+	modelName     = flag.String("model-name", "tinyllama", "model name")
 	testLive      = flag.Bool("test-live", false, "run live tests")
 )
 
@@ -45,7 +43,7 @@ func TestLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress, Timeout: 360}
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress, Timeout: 60}
 	g := genkit.Init(ctx, genkit.WithPlugins(o))
 
 	// Define the model
@@ -60,8 +58,8 @@ func TestLive(t *testing.T) {
 	// Generate a response from the model
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(m),
-		ai.WithConfig(&ollama.GenerateContentConfig{Temperature: 1.0, Think: true}),
-		ai.WithPrompt("how many r are in strawberry?"),
+		ai.WithConfig(&ollamaPlugin.GenerateContentConfig{Temperature: 1.0, Think: true}),
+		ai.WithPrompt("I'm hungry what should I eat?"),
 	)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
@@ -73,8 +71,7 @@ func TestLive(t *testing.T) {
 
 	// Get the text from the response
 	text := resp.Text()
-	log.Printf("Reasoning: %s", resp.Reasoning())
-	log.Printf("Full response: %s", text)
+	t.Logf("Full response: %s", text)
 
 	// Assert that the response text is as expected
 	if text == "" {

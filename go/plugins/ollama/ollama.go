@@ -17,7 +17,6 @@
 package ollama
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -33,6 +32,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -57,6 +57,11 @@ var (
 		ai.RoleSystem: "system",
 		ai.RoleTool:   "tool",
 	}
+
+	// thinkingRegex matches <think> or <thinking> tags case-insensitively across multiple lines.
+	// It uses non-greedy matching (.*?) to correctly extract individual blocks when
+	// multiple blocks are present in a single response.
+	thinkingRegex = regexp.MustCompile("(?si)<(think|thinking)>(.*?)</(?:think|thinking)>")
 )
 
 func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.ModelOptions) ai.Model {
@@ -84,9 +89,10 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		}
 	}
 	meta := &ai.ModelOptions{
-		Label:    "Ollama - " + model.Name,
-		Supports: modelOpts.Supports,
-		Versions: []string{},
+		Label:        "Ollama - " + model.Name,
+		Supports:     modelOpts.Supports,
+		Versions:     []string{},
+		ConfigSchema: core.InferSchemaMap(GenerateContentConfig{}),
 	}
 	gen := &generator{model: model, serverAddress: o.ServerAddress, timeout: o.Timeout}
 	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
@@ -140,7 +146,7 @@ type GenerateContentConfig struct {
 	NumPredict  int      `json:"num_predict,omitempty"`
 
 	// Ollama-specific
-	KeepAlive string `json:"keep_alive"`
+	KeepAlive string `json:"keep_alive,omitempty"`
 }
 
 type ollamaModelRequest struct {
@@ -333,28 +339,29 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		return response, nil
 	} else {
 		var chunks []*ai.ModelResponseChunk
-		scanner := bufio.NewScanner(resp.Body)
+		decoder := json.NewDecoder(resp.Body)
 		chunkCount := 0
 
-		for scanner.Scan() {
-			line := scanner.Text()
+		for {
+			var raw json.RawMessage
+			if err := decoder.Decode(&raw); err == io.EOF {
+				break
+			} else if err != nil {
+				return nil, fmt.Errorf("reading response stream: %v", err)
+			}
 			chunkCount++
 
 			var chunk *ai.ModelResponseChunk
 			if isChatModel {
-				chunk, err = translateChatChunk(line)
+				chunk, err = translateChatChunk(string(raw))
 			} else {
-				chunk, err = translateGenerateChunk(line)
+				chunk, err = translateGenerateChunk(string(raw))
 			}
 			if err != nil {
 				return nil, fmt.Errorf("failed to translate chunk: %v", err)
 			}
 			chunks = append(chunks, chunk)
 			cb(ctx, chunk)
-		}
-
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("reading response stream: %v", err)
 		}
 
 		// Create a final response with the merged chunks
@@ -521,14 +528,6 @@ func translateChatChunk(input string) (*ai.ModelResponseChunk, error) {
 	if response.Message.Thinking != "" {
 		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
 		chunk.Content = append(chunk.Content, aiPart)
-	} else {
-		// If thinking is not explicitly returned, check if it's in the content
-		thinking, content := parseThinking(response.Message.Content)
-		if thinking != "" {
-			aiPart := ai.NewReasoningPart(thinking, nil)
-			chunk.Content = append(chunk.Content, aiPart)
-			response.Message.Content = content
-		}
 	}
 
 	if response.Message.Content != "" {
@@ -621,11 +620,6 @@ func concatImages(input *ai.ModelRequest, roleFilter []ai.Role) ([]string, error
 
 // parseThinking extracts the thinking content from the response string.
 func parseThinking(content string) (string, string) {
-	// thinkingRegex matches <think> or <thinking> tags case-insensitively across multiple lines.
-	// It uses non-greedy matching (.*?) to correctly extract individual blocks when
-	// multiple blocks are present in a single response.
-	thinkingRegex := regexp.MustCompile("(?si)<(think|thinking)>(.*?)</(?:think|thinking)>")
-
 	matches := thinkingRegex.FindAllStringSubmatch(content, -1)
 	if len(matches) == 0 {
 		return "", content
