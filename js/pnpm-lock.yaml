@@ -1558,6 +1558,31 @@ importers:
         specifier: ^5.3.3
         version: 5.8.3
 
+  testapps/hono:
+    dependencies:
+      '@genkit-ai/fetch':
+        specifier: workspace:*
+        version: link:../../plugins/fetch
+      '@genkit-ai/google-genai':
+        specifier: workspace:*
+        version: link:../../plugins/google-genai
+      '@hono/node-server':
+        specifier: ^1.13.0
+        version: 1.19.9(hono@4.12.3)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      hono:
+        specifier: ^4.6.0
+        version: 4.12.3
+    devDependencies:
+      tsx:
+        specifier: ^4.20.3
+        version: 4.20.3
+      typescript:
+        specifier: ^5.5.4
+        version: 5.8.3
+
   testapps/mcp:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
@@ -2923,6 +2948,12 @@ packages:
     resolution: {integrity: sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==}
     engines: {node: '>=6'}
     hasBin: true
+
+  '@hono/node-server@1.19.9':
+    resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
 
   '@img/colour@1.0.0':
     resolution: {integrity: sha512-A5P/LfWGFSl6nsckYtjw9da+19jB8hkJ6ACTGcDfEJ0aE+l2n2El7dsVM7UVHZQ9s2lmYMWlrS21YLy2IR1LUw==}
@@ -6059,6 +6090,10 @@ packages:
 
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
+
+  hono@4.12.3:
+    resolution: {integrity: sha512-SFsVSjp8sj5UumXOOFlkZOG6XS9SJDKw0TbwFeV+AJ8xlST8kxK5Z/5EYa111UY8732lK2S/xB653ceuaoGwpg==}
+    engines: {node: '>=16.9.0'}
 
   hosted-git-info@2.8.9:
     resolution: {integrity: sha512-mxIDAb9Lsm6DoOJ7xH+5+X4y1LU/4Hi50L9C5sIswK3JzULS4bwk1FvjdBgvYR4bzT4tuUQiC15FE2f5HbLvYw==}
@@ -10240,6 +10275,10 @@ snapshots:
       protobufjs: 7.5.3
       yargs: 17.7.2
 
+  '@hono/node-server@1.19.9(hono@4.12.3)':
+    dependencies:
+      hono: 4.12.3
+
   '@img/colour@1.0.0':
     optional: true
 
@@ -13914,6 +13953,8 @@ snapshots:
       xtend: 4.0.2
 
   highlight.js@10.7.3: {}
+
+  hono@4.12.3: {}
 
   hosted-git-info@2.8.9: {}
 

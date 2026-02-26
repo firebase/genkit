@@ -15,14 +15,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/google-genai": "^1.17.0",
-    "@genkit-ai/fetch": "file:../../js/plugins/fetch",
+    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/fetch": "workspace:*",
     "@hono/node-server": "^1.13.0",
-    "genkit": "^1.17.0",
+    "genkit": "workspace:*",
     "hono": "^4.6.0"
   },
   "devDependencies": {
-    "genkit-cli": "^1.17.0",
     "tsx": "^4.20.3",
     "typescript": "^5.5.4"
   }
