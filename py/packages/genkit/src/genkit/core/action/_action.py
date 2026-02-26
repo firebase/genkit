@@ -595,7 +595,12 @@ def _make_tracing_wrappers(
         start_time = time.perf_counter()
 
         with save_parent_path():
-            with tracer.start_as_current_span(name) as span:
+            span_attributes = {
+                'genkit:type': 'action',
+                'genkit:metadata:subtype': kind,
+                'genkit:name': name,
+            }
+            with tracer.start_as_current_span(name, attributes=span_attributes) as span:
                 # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
                 trace_id = format(span.get_span_context().trace_id, '032x')
                 span_id = format(span.get_span_context().span_id, '016x')
@@ -645,7 +650,12 @@ def _make_tracing_wrappers(
         start_time = time.perf_counter()
 
         with save_parent_path():
-            with tracer.start_as_current_span(name) as span:
+            span_attributes = {
+                'genkit:type': 'action',
+                'genkit:metadata:subtype': kind,
+                'genkit:name': name,
+            }
+            with tracer.start_as_current_span(name, attributes=span_attributes) as span:
                 # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
                 trace_id = format(span.get_span_context().trace_id, '032x')
                 span_id = format(span.get_span_context().span_id, '016x')
