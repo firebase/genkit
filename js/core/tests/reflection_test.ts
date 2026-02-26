@@ -181,7 +181,10 @@ describe('ReflectionServer', () => {
       assert.strictEqual(res.status, 200);
       const envs = (await res.json()) as string[];
       assert.ok(Array.isArray(envs));
-      assert.ok(envs.includes('dev'), `expected ['dev'] to include 'dev', got ${JSON.stringify(envs)}`);
+      assert.ok(
+        envs.includes('dev'),
+        `expected ['dev'] to include 'dev', got ${JSON.stringify(envs)}`
+      );
     });
   });
 });

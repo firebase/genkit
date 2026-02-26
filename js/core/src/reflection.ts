@@ -16,9 +16,9 @@
 
 import { serve } from '@hono/node-server';
 import fs from 'fs/promises';
+import getPort, { makeRange } from 'get-port';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
-import getPort, { makeRange } from 'get-port';
 import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
@@ -220,7 +220,12 @@ export class ReflectionServer {
     });
 
     app.post('/api/runAction', async (c) => {
-      let body: { key?: string; input?: unknown; context?: unknown; telemetryLabels?: unknown };
+      let body: {
+        key?: string;
+        input?: unknown;
+        context?: unknown;
+        telemetryLabels?: unknown;
+      };
       try {
         body = await c.req.json();
       } catch {
@@ -267,7 +272,10 @@ export class ReflectionServer {
             response.setHeader('Transfer-Encoding', 'chunked');
           }
           response.statusCode = 200;
-          if ('flushHeaders' in response && typeof response.flushHeaders === 'function') {
+          if (
+            'flushHeaders' in response &&
+            typeof response.flushHeaders === 'function'
+          ) {
             response.flushHeaders();
           }
         };
@@ -277,9 +285,13 @@ export class ReflectionServer {
               response.write(JSON.stringify(chunk) + '\n');
             };
             const result = await action.run(input, {
-              context: context as import('./context.js').ActionContext | undefined,
+              context: context as
+                | import('./context.js').ActionContext
+                | undefined,
               onChunk: callback,
-              telemetryLabels: telemetryLabels as Record<string, string> | undefined,
+              telemetryLabels: telemetryLabels as
+                | Record<string, string>
+                | undefined,
               onTraceStart: onTraceStartCallback,
               abortSignal: abortController.signal,
             });
@@ -294,17 +306,28 @@ export class ReflectionServer {
           } catch (err) {
             const { message, stack } = err as Error;
             const errorResponse: Status = {
-              code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
+              code: isAbortError(err)
+                ? StatusCodes.CANCELLED
+                : StatusCodes.INTERNAL,
               message: isAbortError(err) ? 'Action was cancelled' : message,
-              details: { stack, ...((err as any).traceId && { traceId: (err as any).traceId }) },
+              details: {
+                stack,
+                ...((err as any).traceId && { traceId: (err as any).traceId }),
+              },
             };
-            response.write(JSON.stringify({ error: errorResponse } as RunActionResponse));
+            response.write(
+              JSON.stringify({ error: errorResponse } as RunActionResponse)
+            );
             response.end();
           }
         } else {
           const result = await action.run(input, {
-            context: context as import('./context.js').ActionContext | undefined,
-            telemetryLabels: telemetryLabels as Record<string, string> | undefined,
+            context: context as
+              | import('./context.js').ActionContext
+              | undefined,
+            telemetryLabels: telemetryLabels as
+              | Record<string, string>
+              | undefined,
             onTraceStart: onTraceStartCallback,
             abortSignal: abortController.signal,
           });
@@ -319,12 +342,16 @@ export class ReflectionServer {
       } catch (err) {
         const { message, stack } = err as Error;
         const errorResponse: Status = {
-          code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
+          code: isAbortError(err)
+            ? StatusCodes.CANCELLED
+            : StatusCodes.INTERNAL,
           message: isAbortError(err) ? 'Action was cancelled' : message,
           details: { stack, traceId: (err as any).traceId || traceId },
         };
         if (response.headersSent) {
-          response.end(JSON.stringify({ error: errorResponse } as RunActionResponse));
+          response.end(
+            JSON.stringify({ error: errorResponse } as RunActionResponse)
+          );
         } else {
           throw err;
         }
@@ -356,29 +383,38 @@ export class ReflectionServer {
         this.activeActions.delete(traceId);
         return c.json({ message: 'Action cancelled' }, 200);
       }
-      return c.json(
-        { message: 'Action not found or already completed' },
-        404
-      );
+      return c.json({ message: 'Action not found or already completed' }, 404);
     });
 
     app.get('/api/envs', (c) => c.json(this.options.configuredEnvs));
 
     app.post('/api/notify', async (c) => {
-      let body: { telemetryServerUrl?: string; reflectionApiSpecVersion?: string };
+      let body: {
+        telemetryServerUrl?: string;
+        reflectionApiSpecVersion?: string;
+      };
       try {
         body = await c.req.json();
       } catch {
         return c.text('OK', 200);
       }
       const { telemetryServerUrl, reflectionApiSpecVersion } = body;
-      if (!process.env.GENKIT_TELEMETRY_SERVER && typeof telemetryServerUrl === 'string') {
+      if (
+        !process.env.GENKIT_TELEMETRY_SERVER &&
+        typeof telemetryServerUrl === 'string'
+      ) {
         setTelemetryServerUrl(telemetryServerUrl);
         logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
       }
       const version = Number(reflectionApiSpecVersion);
-      if (Number.isNaN(version) || version !== GENKIT_REFLECTION_API_SPEC_VERSION) {
-        if (!reflectionApiSpecVersion || version < GENKIT_REFLECTION_API_SPEC_VERSION) {
+      if (
+        Number.isNaN(version) ||
+        version !== GENKIT_REFLECTION_API_SPEC_VERSION
+      ) {
+        if (
+          !reflectionApiSpecVersion ||
+          version < GENKIT_REFLECTION_API_SPEC_VERSION
+        ) {
           logger.warn(
             'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
           );
@@ -406,26 +442,23 @@ export class ReflectionServer {
     });
 
     this.port = await this.findPort();
-    this.server = serve(
-      { fetch: app.fetch, port: this.port },
-      async () => {
-        logger.debug(
-          `Reflection server (${process.pid}) running on http://localhost:${this.port}`
-        );
-        ReflectionServer.RUNNING_SERVERS.push(this);
+    this.server = serve({ fetch: app.fetch, port: this.port }, async () => {
+      logger.debug(
+        `Reflection server (${process.pid}) running on http://localhost:${this.port}`
+      );
+      ReflectionServer.RUNNING_SERVERS.push(this);
+      try {
+        await this.registry.listActions();
+        await this.writeRuntimeFile();
+      } catch (e) {
+        logger.error(`Error initializing plugins: ${e}`);
         try {
-          await this.registry.listActions();
-          await this.writeRuntimeFile();
-        } catch (e) {
-          logger.error(`Error initializing plugins: ${e}`);
-          try {
-            await this.stop();
-          } catch (stopErr) {
-            logger.error(`Failed to stop server gracefully: ${stopErr}`);
-          }
+          await this.stop();
+        } catch (stopErr) {
+          logger.error(`Failed to stop server gracefully: ${stopErr}`);
         }
       }
-    ) as Server;
+    }) as Server;
   }
 
   /**
