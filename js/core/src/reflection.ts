@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-import express from 'express';
+import { serve } from '@hono/node-server';
 import fs from 'fs/promises';
+import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import getPort, { makeRange } from 'get-port';
 import type { Server } from 'http';
 import path from 'path';
@@ -51,6 +53,18 @@ export interface ReflectionServerOptions {
   name?: string;
 }
 
+/** Parses body limit string (e.g. '30mb') to bytes. */
+function parseBodyLimitToBytes(limit: string): number {
+  const match = limit.toLowerCase().match(/^(\d+)\s*(kb|mb|gb)?$/);
+  if (!match) return 30 * 1024 * 1024; // default 30mb
+  const n = parseInt(match[1], 10);
+  const unit = match[2] || '';
+  if (unit === 'kb') return n * 1024;
+  if (unit === 'mb') return n * 1024 * 1024;
+  if (unit === 'gb') return n * 1024 * 1024 * 1024;
+  return n; // bytes
+}
+
 /**
  * Checks if an error is an AbortError (from AbortController.abort()).
  */
@@ -80,7 +94,7 @@ export class ReflectionServer {
   private options: ReflectionServerOptions;
   /** Port the server is actually running on. This may differ from `options.port` if the original was occupied. Null if server is not running. */
   private port: number | null = null;
-  /** Express server instance. Null if server is not running. */
+  /** HTTP server instance. Null if server is not running. */
   private server: Server | null = null;
   /** Path to the runtime file. Null if server is not running. */
   private runtimeFilePath: string | null = null;
@@ -136,101 +150,100 @@ export class ReflectionServer {
       return;
     }
 
-    const server = express();
+    const bodyLimitBytes = parseBodyLimitToBytes(this.options.bodyLimit!);
+    const app = new Hono();
 
-    server.use(express.json({ limit: this.options.bodyLimit }));
-    server.use((req, res, next) => {
-      res.header('x-genkit-version', GENKIT_VERSION);
-      next();
+    app.use('*', bodyLimit({ maxSize: bodyLimitBytes }));
+    app.use('*', async (c, next) => {
+      c.header('x-genkit-version', GENKIT_VERSION);
+      await next();
     });
 
-    server.get('/api/__health', async (req, response) => {
-      if (req.query['id'] && req.query['id'] !== this.runtimeId) {
-        response.status(503).send('Invalid runtime ID');
-        return;
+    app.get('/api/__health', async (c) => {
+      const id = c.req.query('id');
+      if (id && id !== this.runtimeId) {
+        return c.text('Invalid runtime ID', 503);
       }
       await this.registry.listActions();
-      response.status(200).send('OK');
+      return c.text('OK', 200);
     });
 
-    server.get('/api/__quitquitquit', async (_, response) => {
+    app.get('/api/__quitquitquit', async (c) => {
       logger.debug('Received quitquitquit');
-      response.status(200).send('OK');
-      await this.stop();
+      void this.stop();
+      return c.text('OK', 200);
     });
 
-    server.get('/api/values', async (req, response, next) => {
+    app.get('/api/values', async (c) => {
       logger.debug('Fetching values.');
-      try {
-        const type = req.query.type;
-        if (!type) {
-          response.status(400).send('Query parameter "type" is required.');
-          return;
-        }
-        if (type !== 'defaultModel') {
-          response
-            .status(400)
-            .send(
-              `'type' ${type} is not supported. Only 'defaultModel' is supported`
-            );
-          return;
-        }
-        const values = await this.registry.listValues(type as string);
-        response.send(values);
-      } catch (err) {
-        const { message, stack } = err as Error;
-        next({ message, stack });
+      const type = c.req.query('type');
+      if (!type) {
+        return c.text('Query parameter "type" is required.', 400);
       }
+      if (type !== 'defaultModel') {
+        return c.text(
+          `'type' ${type} is not supported. Only 'defaultModel' is supported`,
+          400
+        );
+      }
+      const values = await this.registry.listValues(type);
+      return c.json(values);
     });
 
-    server.get('/api/actions', async (_, response, next) => {
+    app.get('/api/actions', async (c) => {
       logger.debug('Fetching actions.');
-      try {
-        const actions = await this.registry.listResolvableActions();
-        const convertedActions = {};
-        Object.keys(actions).forEach((key) => {
-          const action = actions[key];
-          convertedActions[key] = {
-            key,
-            name: action.name,
-            description: action.description,
-            metadata: action.metadata,
-          };
-          if (action.inputSchema || action.inputJsonSchema) {
-            convertedActions[key].inputSchema = toJsonSchema({
-              schema: action.inputSchema,
-              jsonSchema: action.inputJsonSchema,
-            });
-          }
-          if (action.outputSchema || action.outputJsonSchema) {
-            convertedActions[key].outputSchema = toJsonSchema({
-              schema: action.outputSchema,
-              jsonSchema: action.outputJsonSchema,
-            });
-          }
-        });
-        response.send(convertedActions);
-      } catch (err) {
-        const { message, stack } = err as Error;
-        next({ message, stack });
+      const actions = await this.registry.listResolvableActions();
+      const convertedActions: Record<string, unknown> = {};
+      for (const key of Object.keys(actions)) {
+        const action = actions[key];
+        const entry: Record<string, unknown> = {
+          key,
+          name: action.name,
+          description: action.description,
+          metadata: action.metadata,
+        };
+        if (action.inputSchema || action.inputJsonSchema) {
+          entry.inputSchema = toJsonSchema({
+            schema: action.inputSchema,
+            jsonSchema: action.inputJsonSchema,
+          });
+        }
+        if (action.outputSchema || action.outputJsonSchema) {
+          entry.outputSchema = toJsonSchema({
+            schema: action.outputSchema,
+            jsonSchema: action.outputJsonSchema,
+          });
+        }
+        convertedActions[key] = entry;
       }
+      return c.json(convertedActions);
     });
 
-    server.post('/api/runAction', async (request, response, next) => {
-      const { key, input, context, telemetryLabels } = request.body;
-      const { stream } = request.query;
+    app.post('/api/runAction', async (c) => {
+      let body: { key?: string; input?: unknown; context?: unknown; telemetryLabels?: unknown };
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: 'Invalid JSON body' }, 400);
+      }
+      const { key, input, context, telemetryLabels } = body;
+      const stream = c.req.query('stream');
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
       const abortController = new AbortController();
       let traceId: string | undefined;
+      const env = c.env as { outgoing?: import('http').ServerResponse };
+      const response = env.outgoing;
+      if (!response) {
+        return c.json({ error: 'Missing Node response' }, 500);
+      }
+      if (!key || typeof key !== 'string') {
+        return c.text('action key is required', 400);
+      }
       try {
         const action = await this.registry.lookupAction(key);
         if (!action) {
-          response.status(404).send(`action ${key} not found`);
-          return;
+          return c.text(`action ${key} not found`, 404);
         }
-        // Set up onTraceStart callback to send trace ID in headers early.
-        // This fires once for the root action span, before any streaming chunks
-        // or final result are returned.
         const onTraceStartCallback = ({
           traceId: tid,
           spanId,
@@ -238,7 +251,7 @@ export class ReflectionServer {
           traceId: string;
           spanId: string;
         }) => {
-          traceId = tid; // Update traceId for cleanup later
+          traceId = tid;
           this.activeActions.set(tid, {
             abortController,
             startTime: new Date(),
@@ -251,21 +264,22 @@ export class ReflectionServer {
             response.setHeader('Transfer-Encoding', 'chunked');
           } else {
             response.setHeader('Content-Type', 'application/json');
-            // Force chunked encoding so we can flush headers early
             response.setHeader('Transfer-Encoding', 'chunked');
           }
           response.statusCode = 200;
-          response.flushHeaders();
+          if ('flushHeaders' in response && typeof response.flushHeaders === 'function') {
+            response.flushHeaders();
+          }
         };
         if (stream === 'true') {
           try {
-            const callback = (chunk) => {
+            const callback = (chunk: unknown) => {
               response.write(JSON.stringify(chunk) + '\n');
             };
             const result = await action.run(input, {
-              context,
+              context: context as import('./context.js').ActionContext | undefined,
               onChunk: callback,
-              telemetryLabels,
+              telemetryLabels: telemetryLabels as Record<string, string> | undefined,
               onTraceStart: onTraceStartCallback,
               abortSignal: abortController.signal,
             });
@@ -273,39 +287,24 @@ export class ReflectionServer {
             response.write(
               JSON.stringify({
                 result: result.result,
-                telemetry: {
-                  traceId: result.telemetry.traceId,
-                },
+                telemetry: { traceId: result.telemetry.traceId },
               } as RunActionResponse)
             );
             response.end();
           } catch (err) {
             const { message, stack } = err as Error;
-            // since we're streaming, we must do special error handling here -- the headers are already sent.
             const errorResponse: Status = {
-              code: isAbortError(err)
-                ? StatusCodes.CANCELLED
-                : StatusCodes.INTERNAL,
+              code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
               message: isAbortError(err) ? 'Action was cancelled' : message,
-              details: {
-                stack,
-              },
+              details: { stack, ...((err as any).traceId && { traceId: (err as any).traceId }) },
             };
-            if ((err as any).traceId) {
-              errorResponse.details.traceId = (err as any).traceId;
-            }
-            response.write(
-              JSON.stringify({
-                error: errorResponse,
-              } as RunActionResponse)
-            );
+            response.write(JSON.stringify({ error: errorResponse } as RunActionResponse));
             response.end();
           }
         } else {
-          // Non-streaming: send JSON response
           const result = await action.run(input, {
-            context,
-            telemetryLabels,
+            context: context as import('./context.js').ActionContext | undefined,
+            telemetryLabels: telemetryLabels as Record<string, string> | undefined,
             onTraceStart: onTraceStartCallback,
             abortSignal: abortController.signal,
           });
@@ -313,126 +312,120 @@ export class ReflectionServer {
           response.end(
             JSON.stringify({
               result: result.result,
-              telemetry: {
-                traceId: result.telemetry.traceId,
-              },
+              telemetry: { traceId: result.telemetry.traceId },
             } as RunActionResponse)
           );
         }
       } catch (err) {
         const { message, stack } = err as Error;
         const errorResponse: Status = {
-          code: isAbortError(err)
-            ? StatusCodes.CANCELLED
-            : StatusCodes.INTERNAL,
+          code: isAbortError(err) ? StatusCodes.CANCELLED : StatusCodes.INTERNAL,
           message: isAbortError(err) ? 'Action was cancelled' : message,
           details: { stack, traceId: (err as any).traceId || traceId },
         };
         if (response.headersSent) {
-          // Headers already sent via onTraceStart, must send error in response body
-          response.end(
-            JSON.stringify({ error: errorResponse } as RunActionResponse)
-          );
+          response.end(JSON.stringify({ error: errorResponse } as RunActionResponse));
         } else {
-          // Headers not sent yet, use standard error handling
-          next({ message, stack });
+          throw err;
         }
       } finally {
         if (traceId) {
           this.activeActions.delete(traceId);
         }
       }
+      return new Response(null, {
+        status: 200,
+        headers: { 'x-hono-already-sent': '1' },
+      });
     });
 
-    server.post('/api/cancelAction', async (request, response) => {
-      const { traceId } = request.body;
-
-      if (!traceId || typeof traceId !== 'string') {
-        response.status(400).json({ error: 'traceId is required' });
-        return;
+    app.post('/api/cancelAction', async (c) => {
+      let body: { traceId?: string };
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: 'traceId is required' }, 400);
       }
-
+      const { traceId } = body;
+      if (!traceId || typeof traceId !== 'string') {
+        return c.json({ error: 'traceId is required' }, 400);
+      }
       const activeAction = this.activeActions.get(traceId);
-
       if (activeAction) {
         activeAction.abortController.abort();
         this.activeActions.delete(traceId);
-        response.status(200).json({ message: 'Action cancelled' });
-      } else {
-        response.status(404).json({
-          message: 'Action not found or already completed',
-        });
+        return c.json({ message: 'Action cancelled' }, 200);
       }
+      return c.json(
+        { message: 'Action not found or already completed' },
+        404
+      );
     });
 
-    server.get('/api/envs', async (_, response) => {
-      response.json(this.options.configuredEnvs);
-    });
+    app.get('/api/envs', (c) => c.json(this.options.configuredEnvs));
 
-    server.post('/api/notify', async (request, response) => {
-      const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
-      if (!process.env.GENKIT_TELEMETRY_SERVER) {
-        if (typeof telemetryServerUrl === 'string') {
-          setTelemetryServerUrl(telemetryServerUrl);
-          logger.debug(
-            `Connected to telemetry server on ${telemetryServerUrl}`
-          );
-        }
+    app.post('/api/notify', async (c) => {
+      let body: { telemetryServerUrl?: string; reflectionApiSpecVersion?: string };
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.text('OK', 200);
       }
-      if (reflectionApiSpecVersion !== GENKIT_REFLECTION_API_SPEC_VERSION) {
-        if (
-          !reflectionApiSpecVersion ||
-          reflectionApiSpecVersion < GENKIT_REFLECTION_API_SPEC_VERSION
-        ) {
+      const { telemetryServerUrl, reflectionApiSpecVersion } = body;
+      if (!process.env.GENKIT_TELEMETRY_SERVER && typeof telemetryServerUrl === 'string') {
+        setTelemetryServerUrl(telemetryServerUrl);
+        logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
+      }
+      const version = Number(reflectionApiSpecVersion);
+      if (Number.isNaN(version) || version !== GENKIT_REFLECTION_API_SPEC_VERSION) {
+        if (!reflectionApiSpecVersion || version < GENKIT_REFLECTION_API_SPEC_VERSION) {
           logger.warn(
             'WARNING: Genkit CLI version may be outdated. Please update `genkit-cli` to the latest version.'
           );
         } else {
           logger.warn(
             'Genkit CLI is newer than runtime library. Some feature may not be supported. ' +
-              'Consider upgrading your runtime library version (debug info: expected ' +
-              `${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
+              `Consider upgrading your runtime library version (debug info: expected ${GENKIT_REFLECTION_API_SPEC_VERSION}, got ${reflectionApiSpecVersion}).`
           );
         }
       }
-      response.status(200).send('OK');
+      return c.text('OK', 200);
     });
 
-    server.use((err, req, res, next) => {
+    app.onError((err, c) => {
       logger.error(err.stack);
-      const error = err as Error;
-      const { message, stack } = error;
       const errorResponse: Status = {
         code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          stack,
-        },
+        message: err.message,
+        details: { stack: err.stack },
       };
-
-      // Headers may have been sent already (via onTraceStart), so check before setting status
-      res.status(200).end(JSON.stringify({ error: errorResponse }));
+      return (c as { json: (body: unknown, status?: number) => Response }).json(
+        { error: errorResponse },
+        200
+      );
     });
 
     this.port = await this.findPort();
-    this.server = server.listen(this.port, async () => {
-      logger.debug(
-        `Reflection server (${process.pid}) running on http://localhost:${this.port}`
-      );
-      ReflectionServer.RUNNING_SERVERS.push(this);
-
-      try {
-        await this.registry.listActions();
-        await this.writeRuntimeFile();
-      } catch (e) {
-        logger.error(`Error initializing plugins: ${e}`);
+    this.server = serve(
+      { fetch: app.fetch, port: this.port },
+      async () => {
+        logger.debug(
+          `Reflection server (${process.pid}) running on http://localhost:${this.port}`
+        );
+        ReflectionServer.RUNNING_SERVERS.push(this);
         try {
-          await this.stop();
-        } catch (err) {
-          logger.error(`Failed to stop server gracefully: ${err}`);
+          await this.registry.listActions();
+          await this.writeRuntimeFile();
+        } catch (e) {
+          logger.error(`Error initializing plugins: ${e}`);
+          try {
+            await this.stop();
+          } catch (stopErr) {
+            logger.error(`Failed to stop server gracefully: ${stopErr}`);
+          }
         }
       }
-    });
+    ) as Server;
   }
 
   /**
