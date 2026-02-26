@@ -80,7 +80,7 @@ from genkit.model import (
     Stage,
     model_action_metadata,
     model_ref,
-    ModelReference,
+    ModelRef, # Renamed from ModelReference
     BackgroundAction,
     lookup_background_action,
     compute_usage_stats,
@@ -99,6 +99,7 @@ from genkit.retriever import (
     RetrieverResponse,
     retriever_action_metadata,
     retriever_ref,
+    RetrieverRef,
     IndexerRequest,
     indexer_action_metadata,
     indexer_ref,
@@ -114,6 +115,7 @@ from genkit.embedder import (
     Embedding,
     embedder_action_metadata,
     embedder_ref,
+    EmbedderRef,
     EmbedderSupports,
 )
 ```
@@ -124,6 +126,7 @@ from genkit.embedder import (
 from genkit.reranker import (
     reranker_action_metadata,
     reranker_ref,
+    RerankerRef,
     RankedDocument,
     RerankerRequest,
     RerankerResponse,
@@ -144,6 +147,7 @@ from genkit.evaluator import (
     BaseEvalDataPoint,
     EvalStatusEnum,
     evaluator_action_metadata,
+    EvaluatorRef,
     evaluator_ref,
 )
 ```
