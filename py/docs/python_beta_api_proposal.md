@@ -18,14 +18,12 @@ from genkit import (
     # Core
     Genkit,
     ActionRunContext,
-    GenerateResponse,         # veneer alias of GenerateResponseWrapper
-    GenerateResponseChunk,    # veneer alias of GenerateResponseChunkWrapper
-    ActionStreamResponse,     # base streaming wrapper — Action.stream()
-    FlowStreamResponse,       # flow streaming wrapper — FlowWrapper.stream()
-    GenerateStreamResponse,   # generate/prompt streaming wrapper — subclass of FlowStreamResponse
+    ModelResponse, # renamed from GenerateResponse, wire format + veneer unified
+    ModelResponseChunk, # renamed from GenerateResponse, wire format + veneer unified
+
     ExecutablePrompt,
     GenkitError,
-    PublicError,         # renamed from UserFacingError — matches Go's NewPublicError
+    PublicError,         # renamed from UserFacingError
 
     # Content types
     Part, TextPart, MediaPart, Media,
@@ -36,25 +34,25 @@ from genkit import (
     Message, Role,
 
     # Documents
-    Document, DocumentData, DocumentPart,
+    Document, DocumentPart,
 
     # Tool context
     ToolRunContext,
-    ToolInterruptError,
+    ToolInterruptError, 
     ToolChoice,
 
     # Generation config
-    GenerationCommonConfig,
+    ModelConfig # Renamed from GenerationCommonConfig
 
     # Evaluation
     BaseEvalDataPoint,
 
-    # Web framework integration
-    RequestData,
-    ContextProvider,
+    Flow,                     # Useful for annotation? 50/50 on this one
 
-    # Constants
-    is_dev_environment,
+    # WIP - Streaming Type Annotation
+    ActionStreamResponse,     # base streaming wrapper — Action.stream()
+    FlowStreamResponse,       # flow streaming wrapper — Flow.stream()
+    ModelStreamResponse,      # model/prompt streaming wrapper — subclass of FlowStreamResponse
 
 )
 ```
@@ -63,9 +61,9 @@ from genkit import (
 
 ```python
 from genkit.model import (
-    GenerateRequest,
-    GenerateResponse,        # schema type (NOT the veneer — see §5)
-    GenerateResponseChunk,
+    ModelRequest, # Renamed from GenerateRequest
+    ModelResponse, # Renamed from GenerateResponse, wire format + veneer unified
+    ModelResponseChunk, # Renamed from GenerateResponseChunk, wire format + veneer unified
     GenerationUsage,
     Candidate,
     OutputConfig,
@@ -87,17 +85,16 @@ from genkit.model import (
     lookup_background_action,
     compute_usage_stats,
     resolve_api_key,
-    GenerationCommonConfig,
-    ModelMiddleware,
-    ModelMiddlewareNext,
+    ModelConfig # Renamed from GenerationCommonConfig
 )
 ```
+
+Note: DAP and Model Middleware exports will be included in `genkit.model` namespace. Still working on the re-design of these features. Will update this API surface when done.
 
 ### `genkit.retriever`
 
 ```python
 from genkit.retriever import (
-    RetrieverRef,
     RetrieverRequest,
     RetrieverResponse,
     retriever_action_metadata,
@@ -112,7 +109,6 @@ from genkit.retriever import (
 
 ```python
 from genkit.embedder import (
-    EmbedderRef,
     EmbedRequest,
     EmbedResponse,
     Embedding,
@@ -152,16 +148,10 @@ from genkit.evaluator import (
 )
 ```
 
-### `genkit.tracing` — telemetry plugin authors
+### `genkit.plugin_api` — all plugin authors
 
 ```python
-from genkit.tracing import tracer, add_custom_exporter
-```
-
-### `genkit.plugin` — all plugin authors
-
-```python
-from genkit.plugin import (
+from genkit.plugin_api import (
     # Base class and framework primitives
     Plugin,
     Action,
@@ -185,8 +175,15 @@ from genkit.plugin import (
 ```
 
 Note: The domain sub-modules (`genkit.model`, `genkit.retriever`, etc.) are still the canonical
-paths for domain-specific types. `genkit.plugin` re-exports the cross-cutting framework primitives
+paths for domain-specific types. `genkit.plugin_api` re-exports the cross-cutting framework primitives
 and provides a single entry point for plugin authors who don't want to hunt across multiple paths.
+
+**Canonical import policy (beta):**
+- App developers use `from genkit import ...` for the application-facing API.
+- Plugin authors use `from genkit.plugin_api import ...` for framework primitives (`Plugin`, `Action`, etc.).
+- Domain modules (`genkit.model`, `genkit.retriever`, `genkit.embedder`, `genkit.reranker`, `genkit.evaluator`) are canonical for domain-specific types.
+- Prefer domain-specific imports over importing from `genkit.plugin_api` in all app-developer facing docs and samples. `genkit.plugin_api` convenience exports should be reserved for plugin author-facing documentation.
+- Telemetry/tracing helpers remain core/internal for beta (`genkit.core.tracing`) and align to OpenTelemetry semantics rather than a separate public tracing namespace. (WIP, need to flesh out the primary user journeys more clearly here)
 
 ---
 
@@ -213,231 +210,109 @@ High-traffic paths only — not exhaustive.
 ### `Genkit`
 
 ```python
-from typing import Any, overload
 C = TypeVar('C', bound=GenerationCommonConfig)
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
-# Key invariant: TypeVars are bound ONLY when the caller passes a concrete type[T] argument.
-# When a parameter typed type[T] has no default, the overload only matches when explicitly
-# provided — that absence-of-default is the mechanism that triggers TypeVar binding.
-# Catch-all overloads use dict[str, object] | None = None and return Any-parameterized types.
 
-# generate() has 4 overloads — the (model type) × (output_schema type) cross-product:
-#   [1] ModelReference[C] + type[OutputT]  →  GenerateResponse[OutputT]   ← C and OutputT both bound
-#   [2] ModelReference[C] + dict/None      →  GenerateResponse[Any]
-#   [3] str/None          + type[OutputT]  →  GenerateResponse[OutputT]   ← OutputT bound, C erased
-#   [4] str/None          + dict/None      →  GenerateResponse[Any]       ← catch-all
+# generate(): exact 4-overload matrix
+# Shared params omitted below:
+# prompt, system, messages, tools, return_tool_requests, tool_choice, tool_responses,
+# max_turns, context, output_format, output_content_type, output_instructions,
+# output_constrained, use, docs
 #
-# Typed overloads (1, 3): output_schema has NO default — absence of a default is what forces
-# the type checker to bind OutputT only when the caller explicitly passes a concrete type.
-# Catch-all overloads (2, 4): output_schema: dict[str, object] | None = None covers
-# raw JSON Schema dicts, None, and the omitted-entirely case.
-
-# [1] ModelReference[C] + typed schema — both C and OutputT bound:
+# 1) typed model + typed output
 @overload
 async def generate(
     self,
     *,
     model: ModelReference[C],
     config: C | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-) -> GenerateResponse[OutputT]: ...
+    output_schema: type[OutputT],
+    ...,
+) -> ModelResponse[OutputT]: ...
 
-# [2] ModelReference[C] + untyped schema:
+# 2) typed model + untyped output
 @overload
 async def generate(
     self,
     *,
     model: ModelReference[C],
     config: C | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
     output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-) -> GenerateResponse[Any]: ...
+    ...,
+) -> ModelResponse[Any]: ...
 
-# [3] str model + typed schema — OutputT bound, config falls back to GenerationCommonConfig:
+# 3) string model + typed output
 @overload
 async def generate(
     self,
     *,
     model: str | None = None,
     config: GenerationCommonConfig | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-) -> GenerateResponse[OutputT]: ...
+    output_schema: type[OutputT],
+    ...,
+) -> ModelResponse[OutputT]: ...
 
-# [4] str model + untyped schema — catch-all (dict, None, or omitted):
+# 4) string model + untyped output
 @overload
 async def generate(
     self,
     *,
     model: str | None = None,
     config: GenerationCommonConfig | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
     output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-) -> GenerateResponse[Any]: ...
+    ...,
+) -> ModelResponse[Any]: ...
 
-# generate_stream() has the same 4-overload structure, returning GenerateStreamResponse[T]:
-
-# [1] ModelReference[C] + typed schema:
+# generate_stream(): same 4-overload matrix as generate()
+# Shared params omitted below:
+# prompt, system, messages, tools, return_tool_requests, tool_choice,
+# max_turns, context, output_format, output_content_type, output_instructions,
+# output_constrained, use, docs, timeout
+#
+# 1) typed model + typed output
 @overload
 def generate_stream(
     self,
     *,
     model: ModelReference[C],
     config: C | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-    timeout: float | None = None,
-) -> GenerateStreamResponse[OutputT]: ...
+    output_schema: type[OutputT],
+    ...,
+) -> ModelStreamResponse[OutputT]: ...
 
-# [2] ModelReference[C] + untyped schema:
+# 2) typed model + untyped output
 @overload
 def generate_stream(
     self,
     *,
     model: ModelReference[C],
     config: C | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
     output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-    timeout: float | None = None,
-) -> GenerateStreamResponse[Any]: ...
+    ...,
+) -> ModelStreamResponse[Any]: ...
 
-# [3] str model + typed schema:
+# 3) string model + typed output
 @overload
 def generate_stream(
     self,
     *,
     model: str | None = None,
     config: GenerationCommonConfig | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-    timeout: float | None = None,
-) -> GenerateStreamResponse[OutputT]: ...
+    output_schema: type[OutputT],
+    ...,
+) -> ModelStreamResponse[OutputT]: ...
 
-# [4] str model + untyped schema — catch-all:
+# 4) string model + untyped output
 @overload
 def generate_stream(
     self,
     *,
     model: str | None = None,
     config: GenerationCommonConfig | None = None,
-    prompt: str | Part | list[Part] | None = None,
-    system: str | Part | list[Part] | None = None,
-    messages: list[Message] | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    return_tool_requests: bool | None = None,
-    tool_choice: ToolChoice | None = None,
-    tool_responses: list[Part] | None = None,
-    max_turns: int | None = None,
-    context: dict[str, object] | None = None,
     output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    use: list[ModelMiddleware] | None = None,
-    docs: list[Document] | None = None,
-    timeout: float | None = None,
-) -> GenerateStreamResponse[Any]: ...
+    ...,
+) -> ModelStreamResponse[Any]: ...
 
 # Retrieval
 async def retrieve(
@@ -446,7 +321,7 @@ async def retrieve(
     query: str | Document,
     *,
     options: dict[str, object] | None = None,  # plugin-defined schema; shape varies per retriever
-) -> list[Document]: ...  # JS parity: wire DocumentData converted to Document veneers
+) -> list[Document]: ...
 
 # Embedding
 async def embed(
@@ -457,65 +332,68 @@ async def embed(
     options: dict[str, object] | None = None,  # plugin-defined schema; shape varies per embedder
 ) -> list[Embedding]: ...
 
-# Prompt lookup — 4 overloads (InputT × OutputT cross-product):
-# [1] Both bound:
+# Prompt lookup: same 4-overload input/output matrix as define_prompt()
+# Shared params omitted below:
+# variant
+#
+# 1) typed input + typed output
 @overload
 def prompt(
     self,
     name: str,
-    variant: str | None = None,
     *,
-    input_schema: type[InputT],             # no default — binds InputT
-    output_schema: type[OutputT],           # no default — binds OutputT
+    input_schema: type[InputT],
+    output_schema: type[OutputT],
+    ...,
 ) -> ExecutablePrompt[InputT, OutputT]: ...
 
-# [2] InputT bound, OutputT untyped — typed input, unstructured output:
+# 2) typed input + untyped output
 @overload
 def prompt(
     self,
     name: str,
-    variant: str | None = None,
     *,
-    input_schema: type[InputT],             # no default — binds InputT
+    input_schema: type[InputT],
     output_schema: dict[str, object] | None = None,
+    ...,
 ) -> ExecutablePrompt[InputT, Any]: ...
 
-# [3] OutputT bound, InputT untyped — unstructured input, typed output:
+# 3) untyped input + typed output
 @overload
 def prompt(
     self,
     name: str,
-    variant: str | None = None,
     *,
     input_schema: dict[str, object] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
+    output_schema: type[OutputT],
+    ...,
 ) -> ExecutablePrompt[Any, OutputT]: ...
 
-# [4] Catch-all — neither bound (dict, None, or omitted):
+# 4) untyped input + untyped output
 @overload
 def prompt(
     self,
     name: str,
-    variant: str | None = None,
     *,
     input_schema: dict[str, object] | None = None,
     output_schema: dict[str, object] | None = None,
+    ...,
 ) -> ExecutablePrompt[Any, Any]: ...
 
 # Decorators
 @ai.flow(name: str | None = None)
 async def my_flow(input: InputT) -> OutputT: ...
-# Returns: FlowWrapper
+# Returns: Flow
 
 @ai.tool(name: str | None = None, description: str | None = None)
-def my_tool(input: InputT, ctx: ToolRunContext | None = None) -> OutputT: ...
+def my_tool(input: InputT, ctx: ToolRunContext) -> OutputT: ...
 ```
 
 ### `ExecutablePrompt` — returned by `ai.prompt()` / `@ai.define_prompt`
 
 ```python
 # Call like a function
-await prompt(input: InputT | None = None) -> GenerateResponse[OutputT]
+await prompt(input: InputT | None = None) -> ModelResponse[OutputT]
 
 # Stream
 def stream(
@@ -523,7 +401,7 @@ def stream(
     input: InputT | None = None,
     *,
     timeout: float | None = None,
-) -> GenerateStreamResponse[OutputT]
+) -> ModelStreamResponse[OutputT]
 
 # Render without executing
 async def render(
@@ -532,7 +410,7 @@ async def render(
 ) -> GenerateActionOptions
 ```
 
-### `FlowWrapper` — returned by `@ai.flow`
+### `Flow` — returned by `@ai.flow`
 
 ```python
 # Call like a function — same signature as the wrapped flow
@@ -541,7 +419,7 @@ flow(*args, **kwargs) -> Awaitable[OutputT]
 # Stream
 def stream(
     self,
-    input: InputT | None = None,
+    input: InputT = None,
     *,
     context: dict[str, object] | None = None,
     telemetry_labels: dict[str, object] | None = None,
@@ -552,6 +430,52 @@ def stream(
 ### Plugin authoring surface
 
 ```python
+# define_prompt(): 4-overload input/output matrix only
+# Shared params omitted below:
+# name, variant, model, config, description, system, prompt, messages,
+# docs, output_format, output_content_type, output_instructions,
+# output_constrained, tools, tool_choice, return_tool_requests, max_turns, use
+#
+# 1) typed input + typed output
+@overload
+def define_prompt(
+    self,
+    *,
+    input: Input[InputT],
+    output: Output[OutputT],
+    ...,
+) -> ExecutablePrompt[InputT, OutputT]: ...
+
+# 2) typed input + untyped output
+@overload
+def define_prompt(
+    self,
+    *,
+    input: Input[InputT],
+    output: Output[Any] | None = None,
+    ...,
+) -> ExecutablePrompt[InputT, Any]: ...
+
+# 3) untyped input + typed output
+@overload
+def define_prompt(
+    self,
+    *,
+    input: Input[Any] | None = None,
+    output: Output[OutputT],
+    ...,
+) -> ExecutablePrompt[Any, OutputT]: ...
+
+# 4) untyped input + untyped output
+@overload
+def define_prompt(
+    self,
+    *,
+    input: Input[Any] | None = None,
+    output: Output[Any] | None = None,
+    ...,
+) -> ExecutablePrompt[Any, Any]: ...
+
 def define_model(
     self,
     name: str,
@@ -586,120 +510,35 @@ def define_retriever(
 ) -> Action: ...
 
 # InputT binds through input_schema — all Callables and the return type are typed accordingly
-InputT = TypeVar('InputT')
 
-# define_prompt() — 4 overloads (InputT × OutputT cross-product):
-
-# [1] Both bound — typed input, typed output:
-@overload
 def define_prompt(
     self,
     name: str | None = None,
     *,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | None = None,
+    config: ModelConfig | None = None,  # or GeminiConfig, OpenAIConfig, etc. for model-specific fields
     description: str | None = None,
-    input_schema: type[InputT],             # no default — binds InputT
+    input_schema: type[InputT] | None = None,      # binds InputT for callables below
     system: str | Part | list[Part] | Callable[[InputT, dict | None], str | Part | list[Part]] | None = None,
     prompt: str | Part | list[Part] | Callable[[InputT, dict | None], str | Part | list[Part]] | None = None,
     messages: str | list[Message] | Callable[[InputT, dict | None], list[Message]] | None = None,
     docs: list[Document] | Callable[[InputT, dict | None], list[Document]] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
+    output_schema: type | dict[str, object] | None = None,
     output_format: str | None = None,
     output_content_type: str | None = None,
     output_instructions: bool | str | None = None,
     output_constrained: bool | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
+    tools: list[str | Action | ExecutablePrompt] | None = None,  # str = registered name, Action = inline tool, ExecutablePrompt = sub-agent
     tool_choice: ToolChoice | None = None,
     return_tool_requests: bool | None = None,
     max_turns: int | None = None,
     use: list[ModelMiddleware] | None = None,
-) -> ExecutablePrompt[InputT, OutputT]: ...
+) -> ExecutablePrompt[InputT]: ...
 
-# [2] InputT bound, OutputT untyped — typed input, unstructured output:
-@overload
-def define_prompt(
-    self,
-    name: str | None = None,
-    *,
-    variant: str | None = None,
-    model: str | None = None,
-    config: GenerationCommonConfig | None = None,
-    description: str | None = None,
-    input_schema: type[InputT],             # no default — binds InputT
-    system: str | Part | list[Part] | Callable[[InputT, dict | None], str | Part | list[Part]] | None = None,
-    prompt: str | Part | list[Part] | Callable[[InputT, dict | None], str | Part | list[Part]] | None = None,
-    messages: str | list[Message] | Callable[[InputT, dict | None], list[Message]] | None = None,
-    docs: list[Document] | Callable[[InputT, dict | None], list[Document]] | None = None,
-    output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    tool_choice: ToolChoice | None = None,
-    return_tool_requests: bool | None = None,
-    max_turns: int | None = None,
-    use: list[ModelMiddleware] | None = None,
-) -> ExecutablePrompt[InputT, Any]: ...
-
-# [3] OutputT bound, InputT untyped — unstructured input, typed output:
-@overload
-def define_prompt(
-    self,
-    name: str | None = None,
-    *,
-    variant: str | None = None,
-    model: str | None = None,
-    config: GenerationCommonConfig | None = None,
-    description: str | None = None,
-    input_schema: dict[str, object] | None = None,
-    system: str | Part | list[Part] | Callable[..., str | Part | list[Part]] | None = None,
-    prompt: str | Part | list[Part] | Callable[..., str | Part | list[Part]] | None = None,
-    messages: str | list[Message] | Callable[..., list[Message]] | None = None,
-    docs: list[Document] | Callable[..., list[Document]] | None = None,
-    output_schema: type[OutputT],           # no default — binds OutputT
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    tool_choice: ToolChoice | None = None,
-    return_tool_requests: bool | None = None,
-    max_turns: int | None = None,
-    use: list[ModelMiddleware] | None = None,
-) -> ExecutablePrompt[Any, OutputT]: ...
-
-# [4] Catch-all — neither bound (dict, None, or omitted):
-@overload
-def define_prompt(
-    self,
-    name: str | None = None,
-    *,
-    variant: str | None = None,
-    model: str | None = None,
-    config: GenerationCommonConfig | None = None,
-    description: str | None = None,
-    input_schema: dict[str, object] | None = None,
-    system: str | Part | list[Part] | Callable[..., str | Part | list[Part]] | None = None,
-    prompt: str | Part | list[Part] | Callable[..., str | Part | list[Part]] | None = None,
-    messages: str | list[Message] | Callable[..., list[Message]] | None = None,
-    docs: list[Document] | Callable[..., list[Document]] | None = None,
-    output_schema: dict[str, object] | None = None,
-    output_format: str | None = None,
-    output_content_type: str | None = None,
-    output_instructions: bool | str | None = None,
-    output_constrained: bool | None = None,
-    tools: list[str | Action | ExecutablePrompt] | None = None,
-    tool_choice: ToolChoice | None = None,
-    return_tool_requests: bool | None = None,
-    max_turns: int | None = None,
-    use: list[ModelMiddleware] | None = None,
-) -> ExecutablePrompt[Any, Any]: ...
-
+# Streaming - WIP
 # Action — returned by define_model, define_tool, etc.
-# Calling streams and returns the base wrapper; FlowWrapper/generate_stream build on top
+# Calling streams and returns the base wrapper; Flow/generate_stream build on top
 action.stream(
     input: InputT | None = None,
     *,
@@ -714,10 +553,6 @@ action.stream(
 ctx.is_streaming              # bool — whether caller requested a stream
 ctx.send_chunk(chunk: ChunkT) # type-safe push; no-op if not streaming
 ctx.context                   # dict[str, object] — request context
-
-# ToolRunContext(ActionRunContext[object]) — ChunkT is object, not GenerateResponseChunk
-# Tools don't own their chunk schema — they borrow the parent generate's callback
-# JS ToolAction hardcodes streaming type as z.ZodTypeAny for the same reason
 ```
 
 ---
@@ -726,17 +561,17 @@ ctx.context                   # dict[str, object] — request context
 
 What users get back from calls and interact with.
 
-### `GenerateResponse` — from `generate()`, `await prompt(input)`
+### `ModelResponse` — from `generate()`, `await prompt(input)`
 
 ```python
 response.text          # str — full text of the response
 response.output        # OutputT — typed output if output schema was provided
-response.message       # MessageWrapper — the final message
-response.messages      # list[MessageWrapper] — full conversation history
+response.message       # Message — the final message
+response.messages      # list[Message] — full conversation history
 response.tool_requests # list[ToolRequestPart] — pending tool calls
 ```
 
-### `MessageWrapper` — accessed via `response.message` / `response.messages`
+### `Message` — used for both inputs and returned responses
 
 ```python
 message.text           # str — text content of the message
@@ -744,9 +579,7 @@ message.tool_requests  # list[ToolRequestPart]
 message.interrupts     # list[ToolRequestPart] — tool calls requiring user input
 ```
 
-Note: `MessageWrapper` is not exported for construction. Users construct `Message(role=..., content=[...])` and receive `MessageWrapper` back. See §5.
-
-### `GenerateResponseChunk` — stream chunks from `generate_stream()`
+### `ModelResponseChunk` — stream chunks from `generate_stream()`
 
 ```python
 chunk.text             # str — text in this chunk
@@ -754,9 +587,9 @@ chunk.output           # object — partial typed output
 chunk.accumulated_text # str — all text so far
 ```
 
-### Streaming wrappers — see [`streaming.md`](streaming.md)
+### Streaming wrappers — WIP
 
-Three wrapper types, one hierarchy (`ActionStreamResponse` → `FlowStreamResponse` → `GenerateStreamResponse`). All expose the same two properties:
+Three wrapper types, one hierarchy (`ActionStreamResponse` → `FlowStreamResponse` → `ModelStreamResponse`). All expose the same two properties:
 
 ```python
 result.stream    # AsyncIterable[ChunkT]
@@ -767,123 +600,84 @@ result.response  # Awaitable[OutputT]
 |---|---|---|---|
 | `ActionStreamResponse[C, O]` | `action.stream()` | action-defined | action-defined |
 | `FlowStreamResponse[C, O]` | `flow.stream()` | flow-defined | flow-defined |
-| `GenerateStreamResponse[O]` | `generate_stream()`, `prompt.stream()` | `GenerateResponseChunk` (fixed) | `GenerateResponse[O]` |
+| `ModelStreamResponse[O]` | `generate_stream()`, `prompt.stream()` | `ModelResponseChunk` (fixed) | `ModelResponse[O]` |
 
-### `RetrieverResponse` — from `retrieve()`
+### `retrieve()` return value
 
 ```python
-response.documents     # list[Document]
+documents              # list[Document]
 ```
 
 ---
 
 ## 5. Design Flags
 
-Open questions requiring explicit sign-off.
+### Single public type per concept
 
-### Sync vs async API surface
+For beta, Python uses one public type per concept (no split between "wire type" and
+"veneer type" in the public API):
 
-All `Genkit` methods are `async def`. Users must `await` every call or run inside a flow.
-`run_main(coro)` exists as a helper for scripts. There is no sync API.
+- `ModelResponse` is the single public response type used by app code and plugin contracts.
+- `ModelResponseChunk` is the single public streaming chunk type.
+- `Message` and `Document` are the single public message/document types for both construction and returned values.
 
-Options:
-1. **Async-only** (current) — clean, but friction for scripts and simple use cases
-2. **Sync wrappers** — `ai.generate()` blocks, `ai.generate_stream()` stays async
-3. **Two classes** — `Genkit` (async) and `SyncGenkit` (sync), à la `httpx`
+This is an explicit beta design decision:
 
-Changing this post-beta requires a new class or a deprecation cycle.
+- Originally, JSON-schema-exported wire types were intended to be the plugin contract.
+- JS then added veneer/helper layers for frequently used types.
+- Python copied that split initially, and the resulting surface was too confusing.
+- We adopt Go's approach for common response/message-result types:
+  - Omit the most common response wire types from default autogen output.
+  - Handwrite canonical runtime types (`ModelResponse`, `ModelResponseChunk`).
+  - Use those same types for both plugin contracts and app-developer annotations/usages.
+- Rule: if a wire type is common enough that we'd add a veneer helper layer, do not expose two public types; use one handwritten canonical type instead.
 
+### Plugin namespace role and boundaries
 
-### Naming: `GenerateResponse` — veneer vs schema type
+- We considered `genkit.plugin`, but it collides semantically with `genkit.plugins.*` (actual provider/plugin packages) and repeatedly confused app developers.
+- We therefore standardize on `genkit.plugin_api` for framework/plugin-author primitives.
+- It exists to gather framework primitives plus convenience domain re-exports in one place. Otherwise, it's unclear what common stuff a plugin developer might need and the surface of concepts to grasp suddenly looks huge.
+- Canonical domain contracts should still be documented/imported from domain modules (`genkit.model`, `genkit.retriever`, etc.) to avoid import-path drift.
 
-`from genkit import GenerateResponse` gives the veneer (wrapper with `.text`, `.output`, etc.).
-`from genkit.model import GenerateResponse` gives the raw Pydantic schema type.
+### Tradeoff: overload-heavy typing for `generate()` and `prompt()`
 
-Same name, different type, different import path. A file that imports from both gets a collision.
-Plugin authors import from `genkit.model`; app developers from `genkit`. In practice no single
-file should need both — but it's an implicit contract that could surprise users.
+**Decision**
 
-### `config` typing: `GenerationCommonConfig | dict[str, object]`
+- `generate()` and `generate_stream()` each use a 4-overload matrix across two axes:
+  - model path (`ModelReference[C]` vs `str`)
+  - output typing (`output_schema: type[OutputT]` vs untyped schema)
+- Prompt APIs (`prompt()` and `define_prompt()`) also use 4 overloads, but only across:
+  - input typing
+  - output typing
+- We do **not** add model-config as a prompt overload axis.
 
-`generate()`, `generate_stream()`, and `define_prompt()` currently accept:
+**Why this split**
 
-```python
-config: GenerationCommonConfig | dict[str, object] | None = None
-```
+- For `generate*`, `config` is where plugin-specific correctness matters most. `ModelReference[C]`
+  lets type checking enforce that model config matches the selected model family.
+- For prompt APIs, the highest-value contracts are prompt input/output shapes. Those are what
+  prompt authors and prompt callers interact with most directly.
+- Adding model-config to prompt overload axes would increase prompt overloads from 4 to 8 for
+  relatively low additional value.
 
-`config` passes model-specific generation parameters — both common fields (`temperature`, `top_k`)
-and provider-specific ones (`safety_settings` for Gemini, `frequency_penalty` for OpenAI).
-`GenerationCommonConfig` only covers the common fields; `| dict` is an escape hatch for the rest.
-Cost: no IDE autocomplete on model-specific fields, silent typos.
+**What this buys us**
 
-**How JS solves it:** `ModelArgument<CustomOptions>` is generic — when you pass a typed
-`ModelAction<GeminiOptions>` or `ModelReference<GeminiOptions>`, TypeScript infers
-`config: GeminiOptions` at compile time. String models fall back to untyped (same limitation as
-Python today). Go doesn't solve this at all — `ModelRef.config` is typed as `any`.
+- Strong config safety on the typed model path (`ModelReference[C]`).
+- Strongly typed `response.output` for schema-typed output paths.
+- Bounded overload growth (4 overloads per high-traffic API instead of 8+ for prompt APIs).
+- Practical parity with JS ergonomics while keeping one public response type per concept.
 
-**Proposed fix: make `ModelReference` generic, add overloads.**
+**Cross-language note**
 
-`ModelReference` already exists in Python but its `config` field is `dict[str, object]` — not
-generic. The fix:
-
-```python
-C = TypeVar('C', bound=GenerationCommonConfig)
-
-# 1. Make ModelReference generic (plugin authors export typed refs):
-class ModelReference(BaseModel, Generic[C]):
-    name: str
-    config: C | None = None
-    ...
-
-# Plugin exports:
-gemini_flash: ModelReference[GeminiConfig] = ModelReference(name="googleai/gemini-2.0-flash")
-
-# 2. generate() gains two overloads:
-@overload
-async def generate(self, *, model: ModelReference[C], config: C | None = None, ...) -> GenerateResponse: ...
-@overload
-async def generate(self, *, model: str | None = None, config: GenerationCommonConfig | None = None, ...) -> GenerateResponse: ...
-```
-
-**Result:**
-```python
-# Typed path — IDE enforces config type, flags wrong plugin config:
-await ai.generate(model=gemini_flash, config=GeminiConfig(temperature=0.7, safety_settings=[...]))  # ✅
-await ai.generate(model=gemini_flash, config=OpenAIConfig(...))  # ❌ type error
-
-# String path — unchanged, falls back to GenerationCommonConfig:
-await ai.generate(model="googleai/gemini-2.0-flash", config=GenerationCommonConfig(temperature=0.7))
-```
-
-This achieves full JS parity on the typed path. `ModelReference` already exists — needs to be
-made generic and exported from `genkit`. Plugin authors export typed `ModelReference[C]` objects.
-`| dict` is dropped entirely.
-
-**Decision needed:** Ship this for beta, or ship `GenerationCommonConfig | None` (subclass
-approach, no cross-model safety) and do the generic `ModelReference[C]` post-beta?
-
-### Naming: `Message` vs `MessageWrapper`
-
-Users construct messages with `Message`:
-```python
-messages=[Message(role="user", content=[...])]
-```
-
-But `response.message` returns a `MessageWrapper` — a subclass that adds `.text`, `.tool_requests`,
-`.interrupts`. `MessageWrapper` is not exported, so users can't type-annotate it directly.
-
-Options:
-1. **Current** — `Message` for construction, `MessageWrapper` silently returned
-2. Export `MessageWrapper` under a better name (e.g. `ResponseMessage`)
-3. Add `.text` / `.tool_requests` to `Message` directly, eliminate the subclass
-
----
+- JS has the same dynamic lookup limitation: `prompt(name)` cannot infer types from runtime registry
+  names unless types/schemas are provided at the call site.
+- Go does not provide equivalent generic config typing on model refs.
 
 ---
 
 ## Appendix: Pre-review action items
 
-Already decided — not for discussion. Listed for completeness.
+Smaller decisions we made to clean up the API surface as part of auditing the existing codebase. Referenced here to help with implementation later and remember why we made some of these decisions.
 
 - Rename `UserFacingError` → `PublicError` (matches Go's `NewPublicError`; intent is "safe to return in HTTP response")
 - Remove `reflection_server_spec` from `Genkit.__init__` — server starts automatically via `GENKIT_ENV=dev`, port is auto-selected; expose port override as env var `GENKIT_REFLECTION_PORT` if needed (PR #4812 does the right thing but left the param in)
@@ -891,11 +685,11 @@ Already decided — not for discussion. Listed for completeness.
 - Fix `part.root.text` / `part.root.media` ergonomics — Pydantic `RootModel` internals should not surface to users
 - Flatten `ExecutablePrompt` `opts: PromptGenerateOptions` TypedDict → flat kwargs (consistent with `generate()`)
 - Remove `on_chunk` callback from `generate()` — use `generate_stream()` instead
-- Change `generate_stream()` return type from `tuple[AsyncIterator, Future]` to `GenerateStreamResponse` — unifies with `prompt.stream()` which already returns `GenerateStreamResponse`
-- Introduce streaming type hierarchy (see `streaming.md`): `ActionStreamResponse[ChunkT, OutputT]` as base, `FlowStreamResponse[ChunkT, OutputT]` subclasses it, `GenerateStreamResponse[OutputT]` subclasses `FlowStreamResponse` with `ChunkT` pinned to `GenerateResponseChunk`
+- Change `generate_stream()` return type from `tuple[AsyncIterator, Future]` to `ModelStreamResponse` — unifies with `prompt.stream()` which already returns `ModelStreamResponse`
+- Introduce streaming type hierarchy (see `streaming.md`): `ActionStreamResponse[ChunkT, OutputT]` as base, `FlowStreamResponse[ChunkT, OutputT]` subclasses it, `ModelStreamResponse[OutputT]` subclasses `FlowStreamResponse` with `ChunkT` pinned to `ModelResponseChunk`
 - Fix `Action.stream()` to return `ActionStreamResponse[ChunkT, OutputT]` instead of raw tuple
-- Make `ActionRunContext` generic: `ActionRunContext[ChunkT]` so `send_chunk(chunk: ChunkT)` is type-safe — matches Go's `StreamCallback[Stream]` and JS's `ActionFnArg<S>`; currently `send_chunk(chunk: object)` accepts anything. `ToolRunContext` does NOT pin to `GenerateResponseChunk` — JS's `ToolAction` hardcodes the streaming type as `z.ZodTypeAny` (explicitly untyped) because tools borrow the parent generate's callback and don't own their chunk schema; `class ToolRunContext(ActionRunContext[object])` is the correct equivalent
-- Fix `FlowWrapper.stream()` to return `FlowStreamResponse[ChunkT, OutputT]` instead of raw tuple; fix `input: object` → `input: InputT`
+- Make `ActionRunContext` generic: `ActionRunContext[ChunkT]` so `send_chunk(chunk: ChunkT)` is type-safe — matches Go's `StreamCallback[Stream]` and JS's `ActionFnArg<S>` which are both typed on the chunk; currently Python uses `send_chunk(chunk: object)` which accepts anything
+- Fix `Flow.stream()` to return `FlowStreamResponse[ChunkT, OutputT]` instead of raw tuple; fix `input: object` → `input: InputT`
 - Fix `Channel` internals: (1) simplify to `Generic[T]` — the `R` close-result type parameter is unnecessary coupling; (2) fix `_pop()` falsy check `if not r` → `if r is None` — current code incorrectly stops iteration on any falsy chunk value (empty string, `0`, `False`)
 - Tighten `Callable[..., Any]` on `define_prompt()` resolver params — current code uses `Callable[..., Any]` everywhere; correct parametrized forms are `Callable[[InputT, dict | None], str | Part | list[Part]]` for `system`/`prompt`, `Callable[[InputT, dict | None], list[Message]]` for `messages`, `Callable[[InputT, dict | None], list[Document]]` for `docs`
 - `ai.retrieve()` should return `list[Document]` not `RetrieverResponse` — JS converts wire `DocumentData` to `Document` veneers before returning (`response.documents.map(d => new Document(d))`); Python currently leaks the raw wire type, breaking the retrieve → generate pipeline ergonomics
