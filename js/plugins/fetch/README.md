@@ -1,6 +1,6 @@
 # Genkit Web Fetch Plugin
 
-This plugin provides utilities for exposing Genkit flows and actions over the **Web Fetch API** (`Request` / `Response`). Use it with any runtime or framework that supports the standard Fetch API (such as Hono, Bun, Cloudflare Workers, Deno, Node (18+), Vercel Edge, Netlify Edge, Elysia, SvelteKit, etc).
+This plugin provides utilities for exposing Genkit actions (flows, models, etc.) over the **Web Fetch API** (`Request` / `Response`). Use it with any runtime or framework that supports the standard Fetch API (such as Hono, Bun, Cloudflare Workers, Deno, Node (18+), Vercel Edge, Netlify Edge, Elysia, SvelteKit, etc). Express-like API: pass the action first, then call the returned handler with the request.
 
 No framework-specific dependencies; only `genkit` and the standard Web APIs.
 
@@ -12,10 +12,10 @@ npm i @genkit-ai/fetch
 
 ## Usage (Hono)
 
-### Single flow with `handleFlow`
+### Single action with `fetchHandler`
 
 ```ts
-import { handleFlow } from '@genkit-ai/fetch';
+import { fetchHandler } from '@genkit-ai/fetch';
 import { Hono } from 'hono';
 
 const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
@@ -28,31 +28,39 @@ const simpleFlow = ai.defineFlow('simpleFlow', async (input, { sendChunk }) => {
 });
 
 const app = new Hono();
-app.all('/simpleFlow', async (c) => handleFlow(c.req.raw, simpleFlow));
+app.all('/simpleFlow', (c) => fetchHandler(simpleFlow)(c.req.raw));
 ```
 
-### Multiple flows with `handleFlows`
-
-Mount several flows under one path; the flow is selected by the request path (e.g. `/api/hello` runs the flow named `hello`):
+For a model, resolve it from the plugin then pass to `fetchHandler`:
 
 ```ts
-import { handleFlows } from '@genkit-ai/fetch';
-
-const flows = [helloFlow, greetingFlow, streamingFlow];
-
-app.all('/api/*', async (c) => handleFlows(c.req.raw, flows, '/api'));
+const gai = googleAI();
+const model = await gai.model('gemini-2.0-flash');
+app.post('/models/gemini-flash', (c) => fetchHandler(model)(c.req.raw));
 ```
 
-Clients call `POST /api/<flowName>` with body `{ "data": <input> }`.
+### Multiple actions with `fetchHandlers`
+
+Mount several actions (flows, models, etc.) under one path; the action is selected by the request path (e.g. `/api/hello` runs the action named `hello`):
+
+```ts
+import { fetchHandlers } from '@genkit-ai/fetch';
+
+const actions = [helloFlow, greetingFlow, streamingFlow];
+
+app.all('/api/*', (c) => fetchHandlers(actions, '/api')(c.req.raw));
+```
+
+Clients call `POST /api/<actionName>` with body `{ "data": <input> }`.
 
 ### Auth with context providers
 
-Use a context provider (e.g. for auth) and attach it to a flow with `withFlowOptions`:
+Use a context provider (e.g. for auth) and attach it to an action with `withActionOptions`:
 
 ```ts
 import { UserFacingError } from 'genkit';
 import type { ContextProvider, RequestData } from 'genkit/context';
-import { handleFlow, handleFlows, withFlowOptions } from '@genkit-ai/fetch';
+import { fetchHandler, fetchHandlers, withActionOptions } from '@genkit-ai/fetch';
 
 const authContext: ContextProvider<{ userId: string }> = (req: RequestData) => {
   if (req.headers['authorization'] !== 'Bearer open-sesame') {
@@ -61,42 +69,42 @@ const authContext: ContextProvider<{ userId: string }> = (req: RequestData) => {
   return { userId: 'authenticated-user' };
 };
 
-// Single flow with auth
-app.all('/secureFlow', async (c) =>
-  handleFlow(c.req.raw, secureFlow, { contextProvider: authContext })
+// Single action with auth
+app.all('/secureFlow', (c) =>
+  fetchHandler(secureFlow, { contextProvider: authContext })(c.req.raw)
 );
 
-// Or wrap the flow for use with handleFlows
-const flows = [
+// Or wrap the action for use with fetchHandlers
+const actions = [
   publicFlow,
-  withFlowOptions(secureFlow, { contextProvider: authContext }),
+  withActionOptions(secureFlow, { contextProvider: authContext }),
 ];
-app.all('/api/*', async (c) => handleFlows(c.req.raw, flows, '/api'));
+app.all('/api/*', (c) => fetchHandlers(actions, '/api')(c.req.raw));
 ```
 
 ### Durable streaming (Beta)
 
-You can configure flows to use a `StreamManager` so stream state is persisted. Clients can disconnect and reconnect without losing the stream.
+You can configure actions to use a `StreamManager` so stream state is persisted. Clients can disconnect and reconnect without losing the stream.
 
 Provide a `streamManager` in the options. For development, use `InMemoryStreamManager`:
 
 ```ts
 import { InMemoryStreamManager } from 'genkit/beta';
-import { handleFlow, withFlowOptions } from '@genkit-ai/fetch';
+import { fetchHandler, fetchHandlers, withActionOptions } from '@genkit-ai/fetch';
 
-app.all('/myDurableFlow', async (c) =>
-  handleFlow(c.req.raw, myFlow, {
+app.all('/myDurableFlow', (c) =>
+  fetchHandler(myFlow, {
     streamManager: new InMemoryStreamManager(),
-  })
+  })(c.req.raw)
 );
 
-// Or with handleFlows
-const flows = [
-  withFlowOptions(myFlow, {
+// Or with fetchHandlers
+const actions = [
+  withActionOptions(myFlow, {
     streamManager: new InMemoryStreamManager(),
   }),
 ];
-app.all('/api/*', async (c) => handleFlows(c.req.raw, flows, '/api'));
+app.all('/api/*', (c) => fetchHandlers(actions, '/api')(c.req.raw));
 ```
 
 For production, use a durable implementation such as `FirestoreStreamManager` or `RtdbStreamManager` from `@genkit-ai/firebase`, or a custom `StreamManager`.
@@ -120,7 +128,7 @@ const reconnected = streamFlow({
 });
 ```
 
-### Calling flows from the client
+### Calling actions from the client
 
 Use `runFlow` and `streamFlow` from `genkit/beta/client` (same protocol as the Express plugin):
 
@@ -155,11 +163,11 @@ console.log(await result.output);
 
 | Export              | Description                                                                 |
 |---------------------|-----------------------------------------------------------------------------|
-| `handleFlow(request, action, options?)` | Handles a single flow/action; returns `Promise<Response>`.                  |
-| `handleFlows(request, flows, pathPrefix?)` | Dispatches by path to one of the given flows; returns `Promise<Response>`. |
-| `withFlowOptions(flow, options)`       | Wraps a flow with `contextProvider`, `streamManager`, or custom `path`.    |
-| `FlowWithOptions`   | Type for a flow plus options.                                               |
-| `HandleFlowOptions` | Options for `handleFlow`: `contextProvider`, `streamManager`.               |
+| `fetchHandler(action, options?)` | Returns a handler `(request) => Promise<Response>` for a single action (flow, model, etc.). |
+| `fetchHandlers(actions, pathPrefix?)` | Returns a handler that dispatches by path to one of the given actions.   |
+| `withActionOptions(action, options)`  | Wraps an action with `contextProvider`, `streamManager`, or custom `path`. |
+| `ActionWithOptions` | Type for an action plus options.                                            |
+| `FetchHandlerOptions` | Options for `fetchHandler`: `contextProvider`, `streamManager`.            |
 
 Request body must be JSON with a `data` field: `{ "data": <input> }`. For streaming, use `Accept: text/event-stream` or query `?stream=true`.
 

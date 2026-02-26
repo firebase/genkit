@@ -29,7 +29,11 @@ import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { handleFlow, handleFlows, type FlowWithOptions } from '../src/index.js';
+import {
+  fetchHandler,
+  fetchHandlers,
+  type ActionWithOptions,
+} from '../src/index.js';
 
 interface Context {
   auth: {
@@ -107,7 +111,46 @@ async function writeWebResponseToNode(
   res.end();
 }
 
-describe('handleFlow', () => {
+describe('fetchHandler', () => {
+  it('returns a handler that runs the action', async () => {
+    const ai = genkit({});
+    const flow = ai.defineFlow('testFlow', async () => 'ok');
+    const handler = fetchHandler(flow);
+    const request = new Request('http://localhost/testFlow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: null }),
+    });
+    const response = await handler(request);
+    assert.strictEqual(response.status, 200);
+    const json = (await response.json()) as { result: string };
+    assert.strictEqual(json.result, 'ok');
+  });
+
+  it('accepts options (contextProvider)', async () => {
+    const ai = genkit({});
+    const flow = ai.defineFlow(
+      {
+        name: 'authFlow',
+        inputSchema: z.object({ question: z.string() }),
+      },
+      async () => 'ok'
+    );
+    const handler = fetchHandler(flow, { contextProvider });
+    const request = new Request('http://localhost/authFlow', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'open sesame',
+      },
+      body: JSON.stringify({ data: { question: 'hello' } }),
+    });
+    const response = await handler(request);
+    assert.strictEqual(response.status, 200);
+  });
+});
+
+describe('fetchHandler (single action)', () => {
   describe('direct Request/Response (no server)', () => {
     it('should return 400 when body is not JSON', async () => {
       const ai = genkit({});
@@ -117,7 +160,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 400);
       const json = (await response.json()) as { status: string };
       assert.strictEqual(json.status, 'INVALID_ARGUMENT');
@@ -131,7 +174,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ foo: 'bar' }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 400);
       const json = (await response.json()) as { status: string };
       assert.strictEqual(json.status, 'INVALID_ARGUMENT');
@@ -145,7 +188,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: null }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 200);
       const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'banana');
@@ -166,7 +209,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: 'hello' }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 200);
       const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'Echo: hello');
@@ -193,7 +236,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: { question: 'olleh' } }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 200);
       const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'Echo: olleh');
@@ -214,7 +257,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: { badField: 'hello' } }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 400);
       const json = (await response.json()) as { status?: string };
       assert.ok(
@@ -242,7 +285,7 @@ describe('handleFlow', () => {
         },
         body: JSON.stringify({ data: { question: 'hello' } }),
       });
-      const response = await handleFlow(request, flow, { contextProvider });
+      const response = await fetchHandler(flow, { contextProvider })(request);
       assert.strictEqual(response.status, 200);
       const json = (await response.json()) as { result: string };
       assert.strictEqual(json.result, 'hello - {"user":"Ali Baba"}');
@@ -265,7 +308,7 @@ describe('handleFlow', () => {
         },
         body: JSON.stringify({ data: { question: 'hello' } }),
       });
-      const response = await handleFlow(request, flow, { contextProvider });
+      const response = await fetchHandler(flow, { contextProvider })(request);
       assert.strictEqual(response.status, 403);
       const json = (await response.json()) as { message?: string };
       assert.ok(json.message?.includes('not authorized'));
@@ -279,7 +322,7 @@ describe('handleFlow', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: null }),
       });
-      const response = await handleFlow(request, flow);
+      const response = await fetchHandler(flow)(request);
       assert.strictEqual(response.status, 200);
       assert.ok(response.headers.get('x-genkit-trace-id'));
       assert.ok(response.headers.get('x-genkit-span-id'));
@@ -287,7 +330,7 @@ describe('handleFlow', () => {
   });
 });
 
-describe('handleFlow with HTTP server (runFlow/streamFlow)', () => {
+describe('fetchHandlers with HTTP server (runFlow/streamFlow)', () => {
   let server: http.Server;
   let port: number;
 
@@ -572,7 +615,37 @@ describe('handleFlow with HTTP server (runFlow/streamFlow)', () => {
   });
 });
 
-describe('handleFlows', () => {
+describe('fetchHandlers (path routing)', () => {
+  it('returns a handler that routes by path', async () => {
+    const ai = genkit({});
+    const flow = ai.defineFlow('myFlow', async () => 'ok');
+    const handler = fetchHandlers([flow]);
+    const request = new Request('http://localhost/myFlow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: null }),
+    });
+    const response = await handler(request);
+    assert.strictEqual(response.status, 200);
+    const json = (await response.json()) as { result: string };
+    assert.strictEqual(json.result, 'ok');
+  });
+
+  it('strips pathPrefix when provided', async () => {
+    const ai = genkit({});
+    const flow = ai.defineFlow('myFlow', async () => 'ok');
+    const handler = fetchHandlers([flow], '/api');
+    const request = new Request('http://localhost/api/myFlow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: null }),
+    });
+    const response = await handler(request);
+    assert.strictEqual(response.status, 200);
+    const json = (await response.json()) as { result: string };
+    assert.strictEqual(json.result, 'ok');
+  });
+
   it('should return 404 when no flow matches path', async () => {
     const ai = genkit({});
     const flow = ai.defineFlow('myFlow', async () => 'ok');
@@ -581,7 +654,7 @@ describe('handleFlows', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: null }),
     });
-    const response = await handleFlows(request, [flow]);
+    const response = await fetchHandlers([flow])(request);
     assert.strictEqual(response.status, 404);
     const json = (await response.json()) as { status: string };
     assert.strictEqual(json.status, 'NOT_FOUND');
@@ -595,7 +668,7 @@ describe('handleFlows', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: null }),
     });
-    const response = await handleFlows(request, [flow]);
+    const response = await fetchHandlers([flow])(request);
     assert.ok(response);
     assert.strictEqual(response!.status, 200);
     const json = (await response!.json()) as { result: string };
@@ -610,9 +683,9 @@ describe('handleFlows', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: null }),
     });
-    const response = await handleFlows(request, [
-      { flow, options: { path: 'customPath' } },
-    ]);
+    const response = await fetchHandlers([
+      { action: flow, options: { path: 'customPath' } },
+    ])(request);
     assert.ok(response);
     assert.strictEqual(response!.status, 200);
     const json = (await response!.json()) as { result: string };
@@ -627,7 +700,7 @@ describe('handleFlows', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: null }),
     });
-    const response = await handleFlows(request, [flow], '/api/genkit');
+    const response = await fetchHandlers([flow], '/api/genkit')(request);
     assert.ok(response);
     assert.strictEqual(response!.status, 200);
     const json = (await response!.json()) as { result: string };
@@ -642,7 +715,7 @@ describe('handleFlows', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: null }),
     });
-    const response = await handleFlows(request, [flow], '/api/genkit');
+    const response = await fetchHandlers([flow], '/api/genkit')(request);
     assert.strictEqual(response.status, 404);
     const json = (await response.json()) as { status: string };
     assert.strictEqual(json.status, 'NOT_FOUND');
@@ -689,8 +762,8 @@ async function createServerWithFlows(
   flowWithAuth: import('genkit/beta').Flow<any, any, any>,
   echoModel: ModelAction
 ): Promise<http.Server> {
-  const flows: (
-    | FlowWithOptions<any, any, any>
+  const actions: (
+    | ActionWithOptions<any, any, any>
     | import('genkit/beta').Flow<any, any, any>
   )[] = [
     voidInput,
@@ -698,16 +771,16 @@ async function createServerWithFlows(
     objectInput,
     streamingFlow,
     {
-      flow: streamingFlow,
+      action: streamingFlow,
       options: {
         streamManager: new InMemoryStreamManager(),
         path: 'streamingFlowDurable',
       },
     },
-    { flow: flowWithAuth, options: { contextProvider } },
+    { action: flowWithAuth, options: { contextProvider } },
     echoModel,
     {
-      flow: echoModel,
+      action: echoModel,
       options: { contextProvider, path: 'echoModelWithAuth' },
     },
   ];
@@ -717,7 +790,7 @@ async function createServerWithFlows(
       try {
         const body = await getRequestBody(req);
         const request = nodeRequestToWebRequest(req, baseUrl, body);
-        const response = await handleFlows(request, flows);
+        const response = await fetchHandlers(actions)(request);
         await writeWebResponseToNode(response, res);
       } catch (err) {
         res.writeHead(500);

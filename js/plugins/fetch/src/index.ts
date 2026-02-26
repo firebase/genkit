@@ -18,7 +18,6 @@ import {
   Action,
   ActionStreamInput,
   AsyncTaskQueue,
-  Flow,
   StreamNotFoundError,
   type ActionContext,
   type StreamManager,
@@ -31,7 +30,7 @@ import {
   type RequestData,
 } from 'genkit/context';
 import { logger } from 'genkit/logging';
-import { getErrorMessage, getErrorStack } from './utils';
+import { getErrorMessage, getErrorStack } from './utils.js';
 
 const streamDelimiter = '\n\n';
 
@@ -39,14 +38,14 @@ const streamDelimiter = '\n\n';
 const randomUUID = () => globalThis.crypto.randomUUID();
 
 /**
- * A wrapper object containing a flow with its associated options.
+ * A wrapper object containing an action with its associated options.
  */
-export type FlowWithOptions<
+export type ActionWithOptions<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
-  flow: Flow<I, O, S>;
+  action: Action<I, O, S>;
   options: {
     contextProvider?: ContextProvider<any, I>;
     streamManager?: StreamManager;
@@ -55,9 +54,9 @@ export type FlowWithOptions<
 };
 
 /**
- * Options for handling a flow request.
+ * Options for a fetch handler (context provider, stream manager).
  */
-export interface HandleFlowOptions<
+export interface FetchHandlerOptions<
   C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
 > {
@@ -66,22 +65,22 @@ export interface HandleFlowOptions<
 }
 
 /**
- * Wraps a flow with options (e.g. contextProvider, streamManager, path) for use with {@link handleFlows}.
+ * Wraps an action (flow, model, etc.) with options for use with {@link fetchHandlers}.
  */
-export function withFlowOptions<
+export function withActionOptions<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S>,
+  action: Action<I, O, S>,
   options: {
     contextProvider?: ContextProvider<any, I>;
     streamManager?: StreamManager;
     path?: string;
   }
-): FlowWithOptions<I, O, S> {
+): ActionWithOptions<I, O, S> {
   return {
-    flow,
+    action,
     options,
   };
 }
@@ -283,23 +282,26 @@ async function runActionWithDurableStreaming<
 }
 
 /**
- * Handles a single flow request and returns a Response.
+ * Returns a Fetch handler for a single action (flow, model, or any Genkit action).
+ * Express-like API: pass the action first, then call the returned handler with the request.
  *
- * @param request - The Web API Request object
- * @param action - The Genkit Action/Flow to execute
+ * @param action - The Genkit action to execute (flow, model, etc.)
  * @param options - Optional configuration including contextProvider and streamManager
- * @returns A Promise that resolves to a Response object
+ * @returns A handler function that takes a Request and returns a Promise<Response>
  *
  * @example
  * ```typescript
- * import { handleFlow } from '@genkit-ai/fetch';
+ * import { fetchHandler } from '@genkit-ai/fetch';
  *
- * app.all('/myFlow', async (c) => {
- *   return handleFlow(c.req.raw, myFlow);
- * });
+ * // Flow or model
+ * app.post('/myFlow', (c) => fetchHandler(myFlow)(c.req.raw));
+ * app.post('/models/gpt5', (c) => fetchHandler(gpt5)(c.req.raw));
+ *
+ * // With options
+ * app.post('/secure', (c) => fetchHandler(secureFlow, { contextProvider })(c.req.raw));
  * ```
  */
-export async function handleFlow<
+async function handleActionRequest<
   C extends ActionContext = ActionContext,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -307,18 +309,15 @@ export async function handleFlow<
 >(
   request: Request,
   action: Action<I, O, S>,
-  options?: HandleFlowOptions<C, I>
+  options?: FetchHandlerOptions<C, I>
 ): Promise<Response> {
-  // Parse query parameters
   const url = new URL(request.url);
   const streamParam = url.searchParams.get('stream');
   const shouldStream = streamParam === 'true';
 
-  // Get stream ID from headers
   const streamIdHeader = request.headers.get('x-genkit-stream-id');
   const streamId = streamIdHeader || undefined;
 
-  // Parse request body (same as Express: input only from JSON body)
   let body: any;
   try {
     body = await request.json();
@@ -346,7 +345,6 @@ export async function handleFlow<
 
   const input = body.data as z.infer<I>;
 
-  // Get context from context provider
   let context: C;
   try {
     context = await getContext(request, input, options?.contextProvider);
@@ -362,7 +360,6 @@ export async function handleFlow<
     });
   }
 
-  // Check if streaming is requested
   const acceptHeader = request.headers.get('Accept') || '';
   const isStreaming = acceptHeader === 'text/event-stream' || shouldStream;
 
@@ -379,10 +376,9 @@ export async function handleFlow<
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-    // Start streaming in the background
     runActionWithDurableStreaming(
       action,
-      streamManager,
+      options?.streamManager,
       streamIdToUse,
       input,
       context,
@@ -399,7 +395,7 @@ export async function handleFlow<
       'Transfer-Encoding': 'chunked',
     };
 
-    if (streamManager) {
+    if (options?.streamManager) {
       headers['x-genkit-stream-id'] = streamIdToUse;
     }
 
@@ -409,7 +405,6 @@ export async function handleFlow<
     });
   }
 
-  // Non-streaming request
   try {
     const result = await action.run(input, {
       context,
@@ -438,86 +433,94 @@ export async function handleFlow<
   }
 }
 
+export function fetchHandler<
+  C extends ActionContext = ActionContext,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  action: Action<I, O, S>,
+  options?: FetchHandlerOptions<C, I>
+): (request: Request) => Promise<Response> {
+  return (request: Request) => handleActionRequest(request, action, options);
+}
+
 /**
- * Handles multiple flows by routing based on the URL path.
+ * Returns a Fetch handler for multiple actions with path-based routing.
+ * Express-like API: pass actions and optional path prefix, then call the returned handler with the request.
  *
- * @param request - The Web API Request object
- * @param flows - Array of flows with their options
- * @param pathPrefix - Optional path prefix to strip from the URL (e.g., '/api/genkit')
- * @returns A Promise that resolves to a Response (200 for success, 404 if no flow matches)
+ * @param actions - Array of actions (or ActionWithOptions) to expose; each is routed by path (action name or options.path)
+ * @param pathPrefix - Optional path prefix to strip from the URL (e.g., '/api')
+ * @returns A handler function that takes a Request and returns a Promise<Response>
  *
  * @example
  * ```typescript
- * import { handleFlows } from '@genkit-ai/fetch';
+ * import { fetchHandlers } from '@genkit-ai/fetch';
  *
- * app.all('/api/genkit/*', async (c) => {
- *   return handleFlows(c.req.raw, [flow1, flow2], '/api/genkit');
- * });
+ * // Mount all actions under /api - routes by path (e.g. POST /api/hello, POST /api/models/gpt5)
+ * app.all('/api/*', (c) => fetchHandlers(actions, '/api')(c.req.raw));
  * ```
  */
-export async function handleFlows(
-  request: Request,
-  flows: (Flow<any, any, any> | FlowWithOptions<any, any, any>)[],
+export function fetchHandlers(
+  actions: (Action<any, any, any> | ActionWithOptions<any, any, any>)[],
   pathPrefix?: string
-): Promise<Response> {
-  const url = new URL(request.url);
-  let pathname = url.pathname;
+): (request: Request) => Promise<Response> {
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    let pathname = url.pathname;
 
-  // Remove path prefix if provided (exact match or prefix followed by /)
-  if (pathPrefix) {
-    const prefix = pathPrefix.endsWith('/') ? pathPrefix : pathPrefix + '/';
-    if (pathname === pathPrefix) {
-      pathname = '';
-    } else if (pathname.startsWith(prefix)) {
-      pathname = pathname.slice(prefix.length);
-    } else {
+    if (pathPrefix) {
+      const prefix = pathPrefix.endsWith('/') ? pathPrefix : pathPrefix + '/';
+      if (pathname === pathPrefix) {
+        pathname = '';
+      } else if (pathname.startsWith(prefix)) {
+        pathname = pathname.slice(prefix.length);
+      } else {
+        return new Response(
+          JSON.stringify({
+            status: 'NOT_FOUND',
+            message: 'No action matched the request path.',
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    pathname = pathname.replace(/^\//, '');
+
+    let matchedAction: Action<any, any, any> | null = null;
+    let handlerOptions: FetchHandlerOptions<any, any> | undefined = undefined;
+
+    for (const item of actions) {
+      if ('action' in item) {
+        const options = item.options;
+        const actionPath = options.path ?? item.action.__action.name;
+        if (pathname === actionPath) {
+          matchedAction = item.action;
+          handlerOptions = {
+            contextProvider: options.contextProvider,
+            streamManager: options.streamManager,
+          };
+          break;
+        }
+      } else {
+        if (pathname === item.__action.name) {
+          matchedAction = item;
+          break;
+        }
+      }
+    }
+
+    if (!matchedAction) {
       return new Response(
         JSON.stringify({
           status: 'NOT_FOUND',
-          message: 'No flow matched the request path.',
+          message: 'No action matched the request path.',
         }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
-  }
 
-  // Remove leading slash
-  pathname = pathname.replace(/^\//, '');
-
-  // Find matching flow
-  let matchedFlow: Flow<any, any, any> | null = null;
-  let flowOptions: HandleFlowOptions<any, any> | undefined = undefined;
-
-  for (const flow of flows) {
-    if ('flow' in flow) {
-      const options = flow.options;
-      const flowPath = options.path || flow.flow.__action.name;
-      if (pathname === flowPath) {
-        matchedFlow = flow.flow;
-        flowOptions = {
-          contextProvider: options.contextProvider,
-          streamManager: options.streamManager,
-        };
-        break;
-      }
-    } else {
-      // Plain Flow
-      if (pathname === flow.__action.name) {
-        matchedFlow = flow;
-        break;
-      }
-    }
-  }
-
-  if (!matchedFlow) {
-    return new Response(
-      JSON.stringify({
-        status: 'NOT_FOUND',
-        message: 'No flow matched the request path.',
-      }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  return handleFlow(request, matchedFlow, flowOptions);
+    return handleActionRequest(request, matchedAction, handlerOptions);
+  };
 }

@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { handleFlows, withFlowOptions } from '@genkit-ai/fetch';
+import {
+  fetchHandler,
+  fetchHandlers,
+  withActionOptions,
+} from '@genkit-ai/fetch';
 import { googleAI } from '@genkit-ai/google-genai';
 import { serve } from '@hono/node-server';
 import { UserFacingError, genkit, z } from 'genkit';
@@ -37,7 +41,7 @@ const authContextProvider: ContextProvider<{ userId: string }> = (req) => {
   return { userId: 'authenticated-user' };
 };
 
-// Flows served over HTTP via @genkit-ai/fetch
+// Actions (flows) served over HTTP via @genkit-ai/fetch
 const helloFlow = ai.defineFlow('hello', async (input: string) => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.0-flash'),
@@ -79,7 +83,7 @@ const streamingFlow = ai.defineFlow(
   }
 );
 
-// Example: flow that uses context (auth), secured with withFlowOptions
+// Example: action that uses context (auth), secured with withActionOptions
 const secureGreetingFlow = ai.defineFlow(
   {
     name: 'secureGreeting',
@@ -94,11 +98,13 @@ const secureGreetingFlow = ai.defineFlow(
   }
 );
 
-const flows = [
+const actions = [
   helloFlow,
   greetingFlow,
   streamingFlow,
-  withFlowOptions(secureGreetingFlow, { contextProvider: authContextProvider }),
+  withActionOptions(secureGreetingFlow, {
+    contextProvider: authContextProvider,
+  }),
 ];
 
 const app = new Hono();
@@ -106,19 +112,24 @@ const app = new Hono();
 app.get('/', (c) =>
   c.json({
     message: 'Genkit + Hono + @genkit-ai/fetch',
-    flows: ['hello', 'greeting', 'streaming', 'secureGreeting'],
+    actions: ['hello', 'greeting', 'streaming', 'secureGreeting'],
     usage:
-      'POST /api/<flowName> with body { "data": <input> }. secureGreeting requires header: Authorization: Bearer open-sesame',
+      'POST /api/<actionName> with body { "data": <input> }. secureGreeting requires header: Authorization: Bearer open-sesame',
   })
 );
 
-// Mount Genkit flows under /api - handleFlows routes by path
-app.all('/api/*', async (c) => handleFlows(c.req.raw, flows, '/api'));
+app.post('/models/gemini-flash', async (c) => {
+  const model = await googleAI().model('gemini-2.0-flash');
+  return fetchHandler(model)(c.req.raw);
+});
+
+// Mount Genkit actions under /api - fetchHandlers routes by path
+app.all('/api/*', (c) => fetchHandlers(actions, '/api')(c.req.raw));
 
 const port = Number(process.env.PORT) || 3780;
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Listening on http://localhost:${info.port}`);
   console.log(
-    `Genkit flows: http://localhost:${info.port}/api/hello, /api/greeting, /api/streaming, /api/secureGreeting`
+    `Genkit actions: http://localhost:${info.port}/api/hello, /api/greeting, /api/streaming, /api/secureGreeting`
   );
 });
