@@ -231,23 +231,67 @@ out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
 
 ---
 
-## Typed interrupt/restart API
+## New tool APIs
 
-v1 uses untyped `Restart`/`Respond` methods with `*RestartOptions` (all `any` fields) and an untyped `Interrupt` function. v2 removes the untyped variants entirely. `RestartWith`/`RespondWith` are generic methods on `*Tool[In, Out]`, and `InterruptWith[T]` replaces `Interrupt`.
+v1 introduced experimental tool APIs in `ai/x` ([PR #4797](https://github.com/firebase/genkit/pull/4797)) that simplify tool definitions, add typed interrupt/resume, and provide runtime helpers for multipart responses and streaming progress. These APIs are built on top of the existing v1 tool infrastructure. v2 promotes them to the standard tool APIs and replaces the v1 internals underneath.
+
+The main changes from v1's `DefineTool` / `DefineMultipartTool` / untyped interrupt API:
+
+- **Unified `DefineTool`** replaces both `DefineTool` and `DefineMultipartTool`. Tool functions receive a plain `context.Context` and return `(Out, error)`. Multipart responses (images, media) are attached via `tool.AttachParts(ctx, parts...)` instead of requiring a separate function signature.
+- **`DefineInterruptibleTool`** replaces the untyped `Restart`/`Respond`/`Interrupt` pattern with a typed `*Res` parameter. When the tool is called normally, `*Res` is nil; when resumed after an interrupt, it carries the caller's typed resume data.
+- **`tool` runtime helper package** provides functions for use inside tool bodies: `tool.Interrupt(data)` to pause execution, `tool.AttachParts(ctx, ...)` for multipart content, `tool.SendPartial(ctx, data)` for streaming progress updates during execution, and `tool.OriginalInput[In](ctx)` for accessing the pre-restart input.
+- **Typed interrupt handling on the caller side** via `tool.InterruptAs[T](part)` for extracting interrupt metadata, and `tool.Resume[Res](part, data)` / `tool.Respond(part, output)` for building restart/response parts. The tool definition itself also has `.Resume()` and `.Respond()` methods that validate the part belongs to that tool.
+- **Partial tool responses** let tools stream progress updates to the client during execution via `tool.SendPartial(ctx, data)`. Callers distinguish progress from final results using `Part.IsPartial()`.
 
 ```go
-// v1
-tool.Restart(toolReq, &RestartOptions{
-    ReplaceInput:    rawInput,     // any
-    ResumedMetadata: rawMeta,      // any
-})
+// v1 — two separate APIs, untyped interrupt
+weatherTool := ai.DefineTool(r, "getWeather", "Fetches the weather",
+    func(ctx *ai.ToolContext, input WeatherInput) (string, error) { ... })
 
-// v2
-tool.RestartWith(toolReq,
-    ai.WithNewInput[MyIn](typedInput),
-    ai.WithResumedMetadata[MyIn](typedMeta),
+multipartTool := ai.DefineMultipartTool(r, "screenshot", "Takes a screenshot",
+    func(ctx *ai.ToolContext, input ScreenshotInput) (*ai.MultipartToolResponse, error) { ... })
+
+tool.Restart(toolReq, &RestartOptions{ResumedMetadata: rawMeta}) // untyped
+
+// v2 — single DefineTool, typed interrupts
+weatherTool := genkit.DefineTool(g, "getWeather", "Fetches the weather",
+    func(ctx context.Context, input WeatherInput) (string, error) {
+        return "Sunny, 25°C", nil
+    },
+)
+
+// Multipart via AttachParts instead of a separate function signature
+screenshotTool := genkit.DefineTool(g, "screenshot", "Takes a screenshot",
+    func(ctx context.Context, input ScreenshotInput) (string, error) {
+        img := takeScreenshot(input.URL)
+        tool.AttachParts(ctx, ai.NewMediaPart("image/png", img))
+        return "Screenshot captured", nil
+    },
+)
+
+// Typed interrupt/resume via DefineInterruptibleTool
+transferTool := genkit.DefineInterruptibleTool(g, "transfer", "Transfers money",
+    func(ctx context.Context, input TransferInput, confirm *Confirmation) (string, error) {
+        if confirm != nil && !confirm.Approved {
+            return "cancelled", nil
+        }
+        if confirm == nil && input.Amount > 100 {
+            return "", tool.Interrupt(TransferInterrupt{Reason: "large_amount", Amount: input.Amount})
+        }
+        return "completed", nil
+    },
+)
+
+// Caller-side: typed resume
+restart, _ := transferTool.Resume(interrupt, Confirmation{Approved: true})
+resp, _ = genkit.Generate(ctx, g,
+    ai.WithMessages(resp.History()...),
+    ai.WithTools(transferTool),
+    ai.WithToolRestarts(restart),
 )
 ```
+
+See [PR #4797](https://github.com/firebase/genkit/pull/4797) for the full API reference, agent flow integration, and additional examples.
 
 ---
 
@@ -401,9 +445,10 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `WithInput` (prompt option) | Typed `input In` parameter |
 | `FormatHandler.ParseMessage` | Removed |
 | `StreamingFormatHandler` | Merged into `FormatHandler` |
-| `Interrupt()`, `InterruptOptions` | `InterruptWith[T]` |
-| `OriginalInput()` | `OriginalInputAs[T]` |
-| `Respond`, `Restart` (untyped) | `RespondWith`, `RestartWith` (typed) |
+| `DefineTool`, `DefineMultipartTool` | `DefineTool` (unified), `DefineInterruptibleTool` |
+| `Interrupt()`, `InterruptOptions` | `tool.Interrupt(data)` |
+| `OriginalInput()` | `tool.OriginalInput[In](ctx)` |
+| `Respond`, `Restart` (untyped) | `tool.Resume[Res]`, `tool.Respond`, or typed methods on `*InterruptibleTool` |
 | `ModelFunc` (untyped) | `ModelFunc[Config]` (typed config param) |
 | `EmbedderFunc` (untyped) | `EmbedderFunc[Config]` (typed config param) |
 | `EvaluatorFunc` (untyped) | `EvaluatorFunc[Config]` (typed config param) |
@@ -418,3 +463,5 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `ActionRef` | Unified lazy reference replacing `ModelRef`, `EmbedderRef`, `RetrieverRef`, `EvaluatorRef` |
 | `ToolArg` | Sealed interface for `WithTools` — distinguishes tool references from other named things |
 | `ToolNamed` | String/glob tool reference satisfying `ToolArg` |
+| `InterruptibleTool[In, Out, Res]` | Tool with typed interrupt/resume support |
+| `tool` package | Runtime helpers for tool bodies: `Interrupt`, `AttachParts`, `SendPartial`, `Resume`, `Respond`, etc. |
