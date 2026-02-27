@@ -156,16 +156,18 @@ export type PromptFn<
 
 /**
  * Options for initializing Genkit.
+ * When using genkit<AppContext>(), pass options that extend GenkitOptions<AppContext> so context is type-checked.
+ * Your C is merged with ActionContext (auth, etc.) in flow/tool callbacks — you only declare your own fields.
  */
-export interface GenkitOptions {
+export interface GenkitOptions<C extends object = object> {
   /** List of plugins to load. */
   plugins?: (GenkitPlugin | GenkitPluginV2)[];
   /** Directory where dotprompts are stored. */
   promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
-  /** Additional runtime context data for flows and tools. */
-  context?: ActionContext;
+  /** Additional runtime context data for flows and tools. Must match C when using genkit<C>(). */
+  context?: C;
   /** Display name that will be shown in developer tooling. */
   name?: string;
   /** Additional attribution information to include in the x-goog-api-client header. */
@@ -180,10 +182,12 @@ export interface GenkitOptions {
  * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
  * There may be multiple Genkit instances in a single codebase.
+ *
+ * @template C - App context type for flow/tool callbacks and {@link currentContext}. Pass when calling {@link genkit}, e.g. `genkit<AppContext>({})`, so `context` is typed in all flows and tools without passing a type param each time.
  */
-export class Genkit implements HasRegistry {
+export class Genkit<C extends object = object> implements HasRegistry {
   /** Developer-configured options. */
-  readonly options: GenkitOptions;
+  readonly options: GenkitOptions<C>;
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
   /** Reflection server for this registry. May be null if not started. */
@@ -195,7 +199,7 @@ export class Genkit implements HasRegistry {
     return this.registry.apiStability;
   }
 
-  constructor(options?: GenkitOptions) {
+  constructor(options?: GenkitOptions<C>) {
     this.options = options || {};
     this.registry = new Registry();
     if (this.options.context) {
@@ -216,6 +220,7 @@ export class Genkit implements HasRegistry {
 
   /**
    * Defines and registers a flow function.
+   * Context in the callback is typed from the instance's context type (from `genkit<AppContext>({})`).
    */
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -223,7 +228,7 @@ export class Genkit implements HasRegistry {
     S extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     config: FlowConfig<I, O, S> | string,
-    fn: FlowFn<I, O, S>
+    fn: FlowFn<I, O, S, C>
   ): Action<I, O, S> {
     const flow = defineFlow(this.registry, config, fn);
     this.flows.push(flow);
@@ -234,25 +239,27 @@ export class Genkit implements HasRegistry {
    * Defines and registers a tool that can return multiple parts of content.
    *
    * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
+   * Context in the callback is typed from the instance (genkit<AppContext>()).
    */
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: { multipart: true } & ToolConfig<I, O>,
-    fn: MultipartToolFn<I, O>
+    fn: MultipartToolFn<I, O, C>
   ): MultipartToolAction<I, O>;
 
   /**
    * Defines and registers a tool.
    *
    * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
+   * Context in the callback is typed from the instance (genkit<AppContext>()).
    */
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ToolConfig<I, O>,
-    fn: ToolFn<I, O>
+    fn: ToolFn<I, O, C>
   ): ToolAction<I, O>;
 
   defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ({ multipart?: true } & ToolConfig<I, O>) | string,
-    fn: ToolFn<I, O> | MultipartToolFn<I, O>
+    fn: ToolFn<I, O, C> | MultipartToolFn<I, O, C>
   ): ToolAction<I, O> | MultipartToolAction<I, O> {
     return defineTool(this.registry, config as any, fn as any);
   }
@@ -263,7 +270,7 @@ export class Genkit implements HasRegistry {
    */
   dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     config: ToolConfig<I, O>,
-    fn?: ToolFn<I, O>
+    fn?: ToolFn<I, O, C>
   ): ToolAction<I, O> {
     return dynamicTool(config, fn) as ToolAction<I, O>;
   }
@@ -298,6 +305,7 @@ export class Genkit implements HasRegistry {
 
   /**
    * Defines a new model and adds it to the registry.
+   * The runner's options.context is typed from the instance (genkit<AppContext>()).
    */
   defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
     options: {
@@ -305,7 +313,7 @@ export class Genkit implements HasRegistry {
     } & DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
-      options: ActionFnArg<GenerateResponseChunkData>
+      options: ActionFnArg<GenerateResponseChunkData, C>
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema>;
 
@@ -740,8 +748,14 @@ export class Genkit implements HasRegistry {
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     opts:
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
+      | (Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+          context?: C & ActionContext;
+        })
+      | PromiseLike<
+          Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+            context?: C & ActionContext;
+          }
+        >
   ): Promise<GenerateResponse<z.infer<O>>>;
 
   async generate<
@@ -751,8 +765,14 @@ export class Genkit implements HasRegistry {
     options:
       | string
       | Part[]
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
+      | (Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+          context?: C & ActionContext;
+        })
+      | PromiseLike<
+          Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+            context?: C & ActionContext;
+          }
+        >
   ): Promise<GenerateResponse<z.infer<O>>> {
     let resolvedOptions: GenerateOptions<O, CustomOptions>;
     if (options instanceof Promise) {
@@ -844,8 +864,14 @@ export class Genkit implements HasRegistry {
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     parts:
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
+      | (Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+          context?: C & ActionContext;
+        })
+      | PromiseLike<
+          Omit<GenerateOptions<O, CustomOptions>, 'context'> & {
+            context?: C & ActionContext;
+          }
+        >
   ): GenerateStreamResponse<z.infer<O>>;
 
   generateStream<
@@ -855,8 +881,14 @@ export class Genkit implements HasRegistry {
     options:
       | string
       | Part[]
-      | GenerateStreamOptions<O, CustomOptions>
-      | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
+      | (Omit<GenerateStreamOptions<O, CustomOptions>, 'context'> & {
+          context?: C & ActionContext;
+        })
+      | PromiseLike<
+          Omit<GenerateStreamOptions<O, CustomOptions>, 'context'> & {
+            context?: C & ActionContext;
+          }
+        >
   ): GenerateStreamResponse<z.infer<O>> {
     if (typeof options === 'string' || Array.isArray(options)) {
       options = { prompt: options };
@@ -949,8 +981,8 @@ export class Genkit implements HasRegistry {
    * data set by HTTP server frameworks. If invoked outside of an action (e.g. flow or tool) will
    * return `undefined`.
    */
-  currentContext(): ActionContext | undefined {
-    return getContext();
+  currentContext(): (C & ActionContext) | undefined {
+    return getContext() as (C & ActionContext) | undefined;
   }
 
   /**
@@ -1080,9 +1112,15 @@ function registerActionV2(
  *
  * This will create a new Genkit registry, register the provided plugins, stores, and other configuration. This
  * should be called before any flows are registered.
+ *
+ * Pass your app's context type for typed `context` in flow/tool callbacks and {@link Genkit.currentContext}, e.g.
+ * `const ai = genkit<AppContext>({})`. If you omit the type argument, context in flows/tools is inferred as
+ * {@link ActionContext} and properties like context.hello are typed as `any` (no type safety).
  */
-export function genkit(options: GenkitOptions): Genkit {
-  return new Genkit(options);
+export function genkit<C extends object = object>(
+  options?: GenkitOptions<C>
+): Genkit<C> {
+  return new Genkit<C>(options);
 }
 
 const shutdown = async () => {

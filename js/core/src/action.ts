@@ -120,8 +120,9 @@ export interface ActionRunOptions<S> {
 
 /**
  * Options (side channel) data to pass to the model.
+ * @template C - Your app's context shape; ActionContext (auth, etc.) is merged in automatically, so you only declare your own fields.
  */
-export interface ActionFnArg<S> {
+export interface ActionFnArg<S, C extends object = object> {
   /**
    * Whether the caller of the action requested streaming.
    */
@@ -133,9 +134,9 @@ export interface ActionFnArg<S> {
   sendChunk: StreamingCallback<S>;
 
   /**
-   * Additional runtime context data (ex. auth context data).
+   * Runtime context (always set when the action runs). Typed as C & ActionContext so auth and other built-in context are always available.
    */
-  context?: ActionContext;
+  context: C & ActionContext;
 
   /**
    * Trace context containing trace and span IDs.
