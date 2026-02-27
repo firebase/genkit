@@ -86,28 +86,6 @@ type StreamingFunc[In, Out, Stream any] = func(ctx context.Context, input In, st
 
 ---
 
-## ToolContext → context.Context + helpers
-
-v1 wraps `context.Context` in a `ToolContext` struct solely to carry interrupt/resume metadata. This forces every tool function to accept a non-standard context type. v2 drops the wrapper and stores interrupt data in the context directly, accessed through typed helper functions.
-
-```go
-// v1
-type ToolFunc[In, Out any] = func(ctx *ToolContext, input In) (Out, error)
-
-resumed := ctx.Resumed             // map[string]any
-original := ctx.OriginalInput      // any
-
-// v2
-type ToolFunc[In, Out any] = func(ctx context.Context, input In) (Out, error)
-
-resumed, ok := ai.ResumedMetadata[MyMeta](ctx) // strongly typed
-original, err := ai.OriginalInputAs[MyIn](ctx) // strongly typed
-```
-
-The untyped accessors (`Resumed`, `OriginalInput`) and `InterruptOptions` are removed. Only the typed variants remain.
-
----
-
 ## Define\* argument order: name, fn, opts
 
 v1 places options before the function in some APIs. v2 standardizes all `Define*` and `New*` functions to put required arguments first (name, function) and optional config last.
@@ -235,9 +213,10 @@ out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
 
 v1 introduced experimental tool APIs in `ai/x` ([PR #4797](https://github.com/firebase/genkit/pull/4797)) that simplify tool definitions, add typed interrupt/resume, and provide runtime helpers for multipart responses and streaming progress. These APIs are built on top of the existing v1 tool infrastructure. v2 promotes them to the standard tool APIs and replaces the v1 internals underneath.
 
-The main changes from v1's `DefineTool` / `DefineMultipartTool` / untyped interrupt API:
+The main changes from v1's `DefineTool` / `DefineMultipartTool` / `ToolContext` / untyped interrupt API:
 
-- **Unified `DefineTool`** replaces both `DefineTool` and `DefineMultipartTool`. Tool functions receive a plain `context.Context` and return `(Out, error)`. Multipart responses (images, media) are attached via `tool.AttachParts(ctx, parts...)` instead of requiring a separate function signature.
+- **`ToolContext` removed.** v1 wraps `context.Context` in a `ToolContext` struct solely to carry interrupt/resume metadata, forcing every tool function to accept a non-standard context type. Tool functions now receive a plain `context.Context`. Interrupt/resume data and other tool-specific state are accessed through typed helpers in the `tool` package (see below).
+- **Unified `DefineTool`** replaces both `DefineTool` and `DefineMultipartTool`. Tool functions return `(Out, error)`. Multipart responses (images, media) are attached via `tool.AttachParts(ctx, parts...)` instead of requiring a separate function signature.
 - **`DefineInterruptibleTool`** replaces the untyped `Restart`/`Respond`/`Interrupt` pattern with a typed `*Res` parameter. When the tool is called normally, `*Res` is nil; when resumed after an interrupt, it carries the caller's typed resume data.
 - **`tool` runtime helper package** provides functions for use inside tool bodies: `tool.Interrupt(data)` to pause execution, `tool.AttachParts(ctx, ...)` for multipart content, `tool.SendPartial(ctx, data)` for streaming progress updates during execution, and `tool.OriginalInput[In](ctx)` for accessing the pre-restart input.
 - **Typed interrupt handling on the caller side** via `tool.InterruptAs[T](part)` for extracting interrupt metadata, and `tool.Resume[Res](part, data)` / `tool.Respond(part, output)` for building restart/response parts. The tool definition itself also has `.Resume()` and `.Respond()` methods that validate the part belongs to that tool.
