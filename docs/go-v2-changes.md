@@ -124,6 +124,57 @@ ai.DefineEmbedder(r, "my-embedder", fn, opts)
 
 ---
 
+## Typed config for models, embedders, and evaluators
+
+`DefineModel`, `DefineEmbedder`, `DefineEvaluator`, and `DefineBatchEvaluator` gain a `Config` type parameter. The JSON schema for the config is inferred from the type automatically, and the framework deserializes the config before calling the plugin function. This eliminates manual `ConfigSchema` declaration and the `configFromRequest()` boilerplate every plugin currently has. It also prevents accidentally passing one provider's config type to another -- only the exact `Config` type or `map[string]any` (from the dev UI / JSON callers) are accepted; mismatched struct types are rejected.
+
+`ConfigSchema` remains in each options struct as an optional override for types whose default JSON schema reflection is insufficient (e.g. third-party types with custom wrapper generics like `Opt[float64]`).
+
+```go
+// v1
+// DefineModel is not generic. Plugin manually specifies ConfigSchema and
+// deserializes config from req.Config (which is `any`) in every implementation.
+func DefineModel(g *Genkit, name string, fn ModelFunc, opts *ModelOptions) *Model
+
+type ModelFunc = func(context.Context, *ModelRequest, ModelStreamCallback) (*ModelResponse, error)
+
+genkit.DefineModel(g, "my-model", func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+    cfg, err := configFromRequest(req) // type-switch on any, MapToStruct, etc.
+    // ...
+}, &ModelOptions{
+    ConfigSchema: configToMap(&MyConfig{}),
+})
+
+// v2
+// DefineModel gains a Config type parameter. Config is inferred from the fn
+// signature -- no need to specify it explicitly. The framework deserializes
+// req.Config into the typed Config before calling fn.
+func DefineModel[Config any](g *Genkit, name string, fn ModelFunc[Config], opts *ModelOptions) *Model
+
+type ModelFunc[Config any] = func(context.Context, *ModelRequest, Config, ModelStreamCallback) (*ModelResponse, error)
+
+genkit.DefineModel(g, "my-model", func(ctx context.Context, req *ModelRequest, cfg MyConfig, cb ModelStreamCallback) (*ModelResponse, error) {
+    // cfg is already MyConfig -- no manual deserialization
+    // ...
+}, &ModelOptions{})
+```
+
+The same pattern applies to `DefineEmbedder` (`EmbedderFunc[Config]`), `DefineEvaluator` (`EvaluatorFunc[Config]`), `DefineBatchEvaluator` (`BatchEvaluatorFunc[Config]`), and `DefineBackgroundModel` (which embeds `ModelOptions`). The serialization structs (`ModelRequest.Config`, `EmbedRequest.Config`, etc.) remain `any` -- the typed deserialization happens in the wrapper that `Define*` generates.
+
+---
+
+## Field naming cleanup
+
+v1 has inconsistent field names across generated and hand-written types. v2 fixes these to follow Go conventions.
+
+- **`.Options` to `.Config`**: Fields like `EmbedRequest.Options`, `EvaluatorCallbackRequest.Options`, and `EvaluatorRequest.Options` are renamed to `.Config` for consistency with `ModelRequest.Config`.
+- **`Id` to `ID`**: Generated types use `Id` (e.g. `EvaluationId`, `SpanId`, `TraceId`) which violates Go naming conventions. v2 renames these to `ID` (e.g. `EvaluationID`, `SpanID`, `TraceID`).
+- **`Url` to `URL`**, **`Api` to `API`**, and similar acronym fields follow the same pattern.
+
+This is a mechanical pass across generated types in `gen.go` and any hand-written types that drifted from convention.
+
+---
+
 ## Sealed Registry interface
 
 v1's `Registry` is a public interface that anyone can implement. Adding a method to it is a breaking change. v2 adds an unexported `sealed()` method, preventing external implementations while allowing the interface to grow safely.
@@ -353,6 +404,11 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `Interrupt()`, `InterruptOptions` | `InterruptWith[T]` |
 | `OriginalInput()` | `OriginalInputAs[T]` |
 | `Respond`, `Restart` (untyped) | `RespondWith`, `RestartWith` (typed) |
+| `ModelFunc` (untyped) | `ModelFunc[Config]` (typed config param) |
+| `EmbedderFunc` (untyped) | `EmbedderFunc[Config]` (typed config param) |
+| `EvaluatorFunc` (untyped) | `EvaluatorFunc[Config]` (typed config param) |
+| `BatchEvaluatorFunc` (untyped) | `BatchEvaluatorFunc[Config]` (typed config param) |
+| `configFromRequest()` per plugin | Removed; framework handles deserialization |
 
 ## New types
 
