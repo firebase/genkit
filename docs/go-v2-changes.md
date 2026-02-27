@@ -220,6 +220,7 @@ The main changes from v1's `DefineTool` / `DefineMultipartTool` / `ToolContext` 
 - **`DefineInterruptibleTool`** replaces the untyped `Restart`/`Respond`/`Interrupt` pattern with a typed `*Res` parameter. When the tool is called normally, `*Res` is nil; when resumed after an interrupt, it carries the caller's typed resume data.
 - **`tool` runtime helper package** provides functions for use inside tool bodies: `tool.Interrupt(data)` to pause execution, `tool.AttachParts(ctx, ...)` for multipart content, `tool.SendPartial(ctx, data)` for streaming progress updates during execution, and `tool.OriginalInput[In](ctx)` for accessing the pre-restart input.
 - **Typed interrupt handling on the caller side** via `tool.InterruptAs[T](part)` for extracting interrupt metadata, and `tool.Resume[Res](part, data)` / `tool.Respond(part, output)` for building restart/response parts. The tool definition itself also has `.Resume()` and `.Respond()` methods that validate the part belongs to that tool.
+- **`GenerateActionResume` fields use `[]*Part` directly.** v1's `GenerateActionResume.Restart` and `.Respond` fields are typed as `[]*toolRequestPart` and `[]*toolResponsePart` -- unexported wrapper structs that exist because Go lacks union types and the original implementation modeled tool requests and responses as separate types rather than using `Part` directly. v2 replaces both with `[]*Part`, matching the wire format and aligning with how `tool.Resume` and `tool.Respond` already return `*Part`.
 - **Partial tool responses** let tools stream progress updates to the client during execution via `tool.SendPartial(ctx, data)`. Callers distinguish progress from final results using `Part.IsPartial()`.
 
 ```go
@@ -428,6 +429,7 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `Interrupt()`, `InterruptOptions` | `tool.Interrupt(data)` |
 | `OriginalInput()` | `tool.OriginalInput[In](ctx)` |
 | `Respond`, `Restart` (untyped) | `tool.Resume[Res]`, `tool.Respond`, or typed methods on `*InterruptibleTool` |
+| `GenerateActionResume.Restart` / `.Respond` (`[]*toolRequestPart` / `[]*toolResponsePart`) | `[]*Part` |
 | `ModelFunc` (untyped) | `ModelFunc[Config]` (typed config param) |
 | `EmbedderFunc` (untyped) | `EmbedderFunc[Config]` (typed config param) |
 | `EvaluatorFunc` (untyped) | `EvaluatorFunc[Config]` (typed config param) |
