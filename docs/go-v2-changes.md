@@ -126,6 +126,18 @@ action := core.NewAction(name, atype, fn, nil)
 
 This applies uniformly to all action creation functions (`NewAction`, `NewStreamingAction`, and any higher-level wrappers that create actions internally).
 
+`NewBackgroundAction` follows the same pattern. The three lifecycle functions (`startFn`, `checkFn`, `cancelFn`) remain top-level parameters since they define the action's behavioral contract, even though `cancelFn` is optional (nil when cancellation is not supported). Metadata moves into the options struct.
+
+```go
+// v1
+core.NewBackgroundAction(name, atype, metadata, startFn, checkFn, cancelFn)
+
+// v2
+core.NewBackgroundAction(name, atype, startFn, checkFn, cancelFn, &core.ActionOptions{
+    Metadata: map[string]any{"supports": "polling"},
+})
+```
+
 Separately, `LookupAction` is removed. v1 has both `LookupAction` (registry only) and `ResolveAction` (registry first, then dynamic plugin resolution). v2 keeps only `ResolveAction` as the single lookup path, so callers never accidentally miss dynamically-resolved actions.
 
 ---
@@ -451,6 +463,7 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `configFromRequest()` per plugin | Removed; framework handles deserialization |
 | `NewAction(name, atype, metadata, inputSchema, fn)` | `NewAction(name, atype, fn, *ActionOptions)` |
 | `NewStreamingAction(name, atype, metadata, inputSchema, fn)` | `NewStreamingAction(name, atype, fn, *ActionOptions)` |
+| `NewBackgroundAction(name, atype, metadata, startFn, checkFn, cancelFn)` | `NewBackgroundAction(name, atype, startFn, checkFn, cancelFn, *ActionOptions)` |
 | `LookupAction` | Removed; use `ResolveAction` |
 
 ## New types
