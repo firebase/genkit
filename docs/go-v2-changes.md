@@ -102,6 +102,34 @@ ai.DefineEmbedder(r, "my-embedder", fn, opts)
 
 ---
 
+## Action creation functions: required params only, ActionOptions for the rest
+
+v1's action creation functions (`NewAction`, `NewStreamingAction`, etc.) accept a mix of required and optional parameters as top-level function arguments. This makes signatures long and inconsistent -- some functions take metadata, custom schemas, and other optional fields directly, while others omit them.
+
+v2 narrows top-level parameters to only the required ones (name and function). Everything else -- `Metadata`, `InputSchema`, `OutputSchema`, `StreamSchema` -- moves into an `ActionOptions` struct passed as the final argument. Schema fields in `ActionOptions` override the schemas the framework derives from the type parameters, giving plugin authors an escape hatch for types whose default JSON schema reflection is insufficient without cluttering the common path.
+
+```go
+// v1 — required and optional params mixed together positionally
+action := core.NewAction(name, atype, metadata, inputSchema, fn)
+streaming := core.NewStreamingAction(name, atype, metadata, inputSchema, fn)
+
+// v2 — required params only; everything else in ActionOptions
+action := core.NewAction(name, atype, fn, &core.ActionOptions{
+    Metadata:     map[string]any{"label": "my action"},
+    InputSchema:  customInputSchema,   // overrides schema derived from In type param
+    OutputSchema: customOutputSchema,  // overrides schema derived from Out type param
+})
+
+// common case — no options needed
+action := core.NewAction(name, atype, fn, nil)
+```
+
+This applies uniformly to all action creation functions (`NewAction`, `NewStreamingAction`, and any higher-level wrappers that create actions internally).
+
+Separately, `LookupAction` is removed. v1 has both `LookupAction` (registry only) and `ResolveAction` (registry first, then dynamic plugin resolution). v2 keeps only `ResolveAction` as the single lookup path, so callers never accidentally miss dynamically-resolved actions.
+
+---
+
 ## Typed config for models, embedders, and evaluators
 
 `DefineModel`, `DefineEmbedder`, `DefineEvaluator`, and `DefineBatchEvaluator` gain a `Config` type parameter. The JSON schema for the config is inferred from the type automatically, and the framework deserializes the config before calling the plugin function. This eliminates manual `ConfigSchema` declaration and the `configFromRequest()` boilerplate every plugin currently has. It also prevents accidentally passing one provider's config type to another -- only the exact `Config` type or `map[string]any` (from the dev UI / JSON callers) are accepted; mismatched struct types are rejected.
@@ -168,7 +196,7 @@ type Registry interface {
 // v2
 type Registry interface {
     RegisterAction(typ ActionType, a Action)
-    LookupAction(typ ActionType, name string) Action
+    ResolveAction(ctx context.Context, typ ActionType, name string) (Action, error)
     // ...
     sealed() // prevents external implementations
 }
@@ -421,6 +449,9 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `EvaluatorFunc` (untyped) | `EvaluatorFunc[Config]` (typed config param) |
 | `BatchEvaluatorFunc` (untyped) | `BatchEvaluatorFunc[Config]` (typed config param) |
 | `configFromRequest()` per plugin | Removed; framework handles deserialization |
+| `NewAction(name, atype, metadata, inputSchema, fn)` | `NewAction(name, atype, fn, *ActionOptions)` |
+| `NewStreamingAction(name, atype, metadata, inputSchema, fn)` | `NewStreamingAction(name, atype, fn, *ActionOptions)` |
+| `LookupAction` | Removed; use `ResolveAction` |
 
 ## New types
 
@@ -432,3 +463,4 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `ToolNamed` | String/glob tool reference satisfying `ToolArg` |
 | `InterruptibleTool[In, Out, Res]` | Tool with typed interrupt/resume support |
 | `tool` package | Runtime helpers for tool bodies: `Interrupt`, `AttachParts`, `SendPartial`, `Resume`, `Respond`, etc. |
+| `ActionOptions` | Optional config for action creation: `Metadata`, `InputSchema`, `OutputSchema`, `StreamSchema` |
