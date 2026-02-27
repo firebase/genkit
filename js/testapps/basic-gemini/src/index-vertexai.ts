@@ -720,6 +720,24 @@ ai.defineFlow('lyria-music-generation', async (_) => {
   };
 });
 
+// Tuned model. Replace the 12345 with your ENDPOINT ID
+// from Google Cloud console -> Vertex AI -> Deploy and Use -> Endpoints
+ai.defineFlow(
+  {
+    name: 'tuned-model',
+    inputSchema: z.string().default('endpoints/12345'),
+    outputSchema: z.string(),
+  },
+  async (endpoint) => {
+    const { text } = await ai.generate({
+      model: vertexAI.model(endpoint),
+      config: { location: 'us-central1' },
+      prompt: 'hello tuned model',
+    });
+    return text;
+  }
+);
+
 async function toWav(
   pcmData: Buffer,
   channels = 1,
