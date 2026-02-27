@@ -80,35 +80,6 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
   return text;
 });
 
-// Gemini 3.0 thinkingLevel config. Pro can have Low or High
-ai.defineFlow(
-  {
-    name: 'thinking-level-pro',
-    inputSchema: z.enum(['LOW', 'HIGH']),
-  },
-  async (level) => {
-    const { text } = await ai.generate({
-      model: googleAI.model('gemini-3-pro-preview'),
-      prompt: [
-        'Alice, Bob, and Carol each live in a different house on the ',
-        'same street: red, green, and blue. The person who lives in the red house ',
-        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ',
-        'green house is to the left of the red house. Alice does not own a cat. ',
-        'The person in the blue house owns a fish. ',
-        'Who lives in each house, and what pet do they own? Provide your ',
-        'step-by-step reasoning.',
-      ].join(''),
-      config: {
-        thinkingConfig: {
-          thinkingLevel: level,
-          includeThoughts: true,
-        },
-      },
-    });
-    return text;
-  }
-);
-
 // Gemini 3 Flash can have minimal and medium thinking levels too.
 ai.defineFlow(
   {
@@ -343,7 +314,7 @@ ai.defineFlow(
   },
   async (_, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-3-pro-preview'),
+      model: googleAI.model('gemini-3.1-pro-preview'),
       config: {
         temperature: 1,
       },
@@ -442,7 +413,7 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
 ai.defineFlow('gemini-media-resolution', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-3-pro-preview'),
+    model: googleAI.model('gemini-3.1-pro-preview'),
     prompt: [
       { text: 'What is in this picture?' },
       {

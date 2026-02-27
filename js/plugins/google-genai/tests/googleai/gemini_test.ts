@@ -429,7 +429,10 @@ describe('Google AI Gemini', () => {
       });
 
       it('passes thinkingLevel to the API', async () => {
-        const model = defineModel('gemini-3-pro-preview', defaultPluginOptions);
+        const model = defineModel(
+          'gemini-3.1-pro-preview',
+          defaultPluginOptions
+        );
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
           ...minimalRequest,
