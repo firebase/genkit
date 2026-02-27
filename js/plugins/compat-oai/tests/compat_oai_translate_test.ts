@@ -49,6 +49,7 @@ describe('toTranslationRequest', () => {
                 url: 'data:audio/wav;base64,aGVsbG8=',
               },
             },
+            { text: 'Translate this file' },
           ],
         },
       ],
@@ -59,7 +60,7 @@ describe('toTranslationRequest', () => {
     expect(actualOutput).toStrictEqual({
       model: 'whisper-1',
       file: expect.any(File),
-      prompt: '',
+      prompt: 'Translate this file',
       response_format: 'text',
     });
   });
