@@ -87,29 +87,29 @@ func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfi
 	}
 
 	opts := make(map[string]any)
-	if cfg.Seed != 0 {
-		opts["seed"] = cfg.Seed
+	if cfg.Seed != nil {
+		opts["seed"] = *cfg.Seed
 	}
-	if cfg.Temperature != 0 {
-		opts["temperature"] = cfg.Temperature
+	if cfg.Temperature != nil {
+		opts["temperature"] = *cfg.Temperature
 	}
-	if cfg.TopK != 0 {
-		opts["top_k"] = cfg.TopK
+	if cfg.TopK != nil {
+		opts["top_k"] = *cfg.TopK
 	}
-	if cfg.TopP != 0 {
-		opts["top_p"] = cfg.TopP
+	if cfg.TopP != nil {
+		opts["top_p"] = *cfg.TopP
 	}
-	if cfg.MinP != 0 {
-		opts["min_p"] = cfg.MinP
+	if cfg.MinP != nil {
+		opts["min_p"] = *cfg.MinP
 	}
 	if len(cfg.Stop) > 0 {
 		opts["stop"] = cfg.Stop
 	}
-	if cfg.NumCtx != 0 {
-		opts["num_ctx"] = cfg.NumCtx
+	if cfg.NumCtx != nil {
+		opts["num_ctx"] = *cfg.NumCtx
 	}
-	if cfg.NumPredict != 0 {
-		opts["num_predict"] = cfg.NumPredict
+	if cfg.NumPredict != nil {
+		opts["num_predict"] = *cfg.NumPredict
 	}
 
 	if len(opts) > 0 {

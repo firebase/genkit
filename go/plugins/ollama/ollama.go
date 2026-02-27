@@ -136,14 +136,14 @@ type GenerateContentConfig struct {
 	Think any `json:"think,omitempty"`
 
 	// Runtime options
-	Seed        int      `json:"seed,omitempty"`
-	Temperature float64  `json:"temperature,omitempty"`
-	TopK        int      `json:"top_k,omitempty"`
-	TopP        float64  `json:"top_p,omitempty"`
-	MinP        float64  `json:"min_p,omitempty"`
+	Seed        *int     `json:"seed,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
+	TopK        *int     `json:"top_k,omitempty"`
+	TopP        *float64 `json:"top_p,omitempty"`
+	MinP        *float64 `json:"min_p,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
-	NumCtx      int      `json:"num_ctx,omitempty"`
-	NumPredict  int      `json:"num_predict,omitempty"`
+	NumCtx      *int     `json:"num_ctx,omitempty"`
+	NumPredict  *int     `json:"num_predict,omitempty"`
 
 	// Ollama-specific
 	KeepAlive string `json:"keep_alive,omitempty"`
@@ -230,6 +230,11 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 		o.Timeout = 30
 	}
 	return []api.Action{}
+}
+
+// Ptr returns a pointer to the given value.
+func Ptr[T any](v T) *T {
+	return &v
 }
 
 // Generate makes a request to the Ollama API and processes the response.

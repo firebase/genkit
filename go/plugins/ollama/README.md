@@ -92,6 +92,10 @@ func main() {
 
 You can pass advanced parameters to Ollama models using `ollama.GenerateContentConfig`.
 
+:::note
+The plugin provides an `ollama.Ptr` helper function to easily initialize optional numeric fields (like `Temperature` or `Seed`).
+:::
+
 ```go
 import "github.com/firebase/genkit/go/plugins/ollama"
 
@@ -99,12 +103,12 @@ resp, err := genkit.Generate(ctx, g,
  ai.WithModel(m),
  ai.WithPrompt("Write a poem about the sea."),
  ai.WithConfig(&ollama.GenerateContentConfig{
-  Temperature: 0.8,
-  TopK:        40,
-  TopP:        0.9,
-  NumPredict:  100,  // Max output tokens
-  KeepAlive:   "5m", // Keep model loaded in memory for 5 minutes
-  Seed:        42,
+  Temperature: ollama.Ptr(0.8),
+  TopK:        ollama.Ptr(40),
+  TopP:        ollama.Ptr(0.9),
+  NumPredict:  ollama.Ptr(100), // Max output tokens
+  KeepAlive:   "5m",           // Keep model loaded in memory for 5 minutes
+  Seed:        ollama.Ptr(42),
  }),
 )
 ```
@@ -124,7 +128,7 @@ m := ollama.Model(g, "llama3.1")
 
 // Define a tool
 weatherTool := genkit.DefineTool(g, "getWeather", "gets the weather",
- func(ctx context.Context, input *WeatherInput) (*WeatherOutput, error) {
+ func(ctx *ai.ToolContext, input *WeatherInput) (*WeatherOutput, error) {
   return &WeatherOutput{Temp: 72}, nil
  },
 )
@@ -215,6 +219,5 @@ if err != nil {
  log.Fatal(err)
 }
 
-fmt.Printf("Embedding length: %d
-", len(res.Embeddings[0].Embedding))
+fmt.Printf("Embedding length: %d\n", len(res.Embeddings[0].Embedding))
 ```

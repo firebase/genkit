@@ -49,9 +49,6 @@ func TestOllamaChatRequest_MarshalJSON(t *testing.T) {
 }
 
 func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
-	seed := 42
-	temp := 0.7
-
 	tests := []struct {
 		name    string
 		cfg     any
@@ -61,28 +58,43 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 		{
 			name: "GenerateContentConfig pointer",
 			cfg: &GenerateContentConfig{
-				Seed:        seed,
-				Temperature: temp,
+				Seed:        Ptr(42),
+				Temperature: Ptr(0.7),
 				Think:       true,
 			},
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed":        seed,
-					"temperature": temp,
+					"seed":        42,
+					"temperature": 0.7,
+				},
+			},
+		},
+		{
+			name: "GenerateContentConfig with zero values",
+			cfg: &GenerateContentConfig{
+				Seed:        Ptr(0),
+				Temperature: Ptr(0.0),
+				Think:       true,
+			},
+			want: &ollamaChatRequest{
+				Think: true,
+				Options: map[string]any{
+					"seed":        0,
+					"temperature": 0.0,
 				},
 			},
 		},
 		{
 			name: "GenerateContentConfig value",
 			cfg: GenerateContentConfig{
-				Seed:  seed,
+				Seed:  Ptr(42),
 				Think: true,
 			},
 			want: &ollamaChatRequest{
 				Think: true,
 				Options: map[string]any{
-					"seed": seed,
+					"seed": 42,
 				},
 			},
 		},
@@ -126,13 +138,13 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 		{
 			name: "GenerationCommonConfig pointer",
 			cfg: &ai.GenerationCommonConfig{
-				Temperature: temp,
+				Temperature: 0.7,
 				TopK:        1,
 				TopP:        2.0,
 			},
 			want: &ollamaChatRequest{
 				Options: map[string]any{
-					"temperature": temp,
+					"temperature": 0.7,
 					"top_k":       1,
 					"top_p":       2.0,
 				},
