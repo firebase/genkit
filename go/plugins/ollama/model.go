@@ -19,6 +19,7 @@ package ollama
 import (
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/firebase/genkit/go/ai"
 )
@@ -116,9 +117,7 @@ func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfi
 		if o.Options == nil {
 			o.Options = make(map[string]any)
 		}
-		for k, v := range opts {
-			o.Options[k] = v
-		}
+		maps.Copy(o.Options, opts)
 	}
 
 	return nil
