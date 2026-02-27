@@ -394,7 +394,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     """
 
     model: str | None
-    config: GenerationCommonConfig | dict[str, Any] | None
+    config: dict[str, Any] | GenerationCommonConfig | None
     messages: list[Message] | None
     docs: list[DocumentData] | None
     tools: list[str] | None
@@ -554,7 +554,7 @@ class PromptConfig(BaseModel):
 
     variant: str | None = None
     model: str | None = None
-    config: GenerationCommonConfig | dict[str, Any] | None = None
+    config: dict[str, Any] | GenerationCommonConfig | None = None
     description: str | None = None
     input_schema: type | dict[str, Any] | str | None = None
     system: str | Part | list[Part] | Callable[..., Any] | None = None
@@ -677,7 +677,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         registry: Registry,
         variant: str | None = None,
         model: str | None = None,
-        config: GenerationCommonConfig | dict[str, Any] | None = None,
+        config: dict[str, Any] | GenerationCommonConfig | None = None,
         description: str | None = None,
         input_schema: type | dict[str, Any] | str | None = None,
         system: str | Part | list[Part] | Callable[..., Any] | None = None,
@@ -731,7 +731,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         self._registry: Registry = registry
         self._variant: str | None = variant
         self._model: str | None = model
-        self._config: GenerationCommonConfig | dict[str, Any] | None = config
+        self._config: dict[str, Any] | GenerationCommonConfig | None = config
         self._description: str | None = description
         self._input_schema: type | dict[str, Any] | str | None = input_schema
         self._system: str | Part | list[Part] | Callable[..., Any] | None = system
@@ -1185,7 +1185,7 @@ def define_prompt(
     name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    config: dict[str, Any] | GenerationCommonConfig | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
     system: str | Part | list[Part] | Callable[..., Any] | None = None,
@@ -1216,7 +1216,7 @@ def define_prompt(
     name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    config: dict[str, Any] | GenerationCommonConfig | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
     system: str | Part | list[Part] | Callable[..., Any] | None = None,
@@ -1247,7 +1247,7 @@ def define_prompt(
     name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    config: dict[str, Any] | GenerationCommonConfig | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
     system: str | Part | list[Part] | Callable[..., Any] | None = None,
@@ -1278,7 +1278,7 @@ def define_prompt(
     name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    config: dict[str, Any] | GenerationCommonConfig | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
     system: str | Part | list[Part] | Callable[..., Any] | None = None,
@@ -1307,7 +1307,7 @@ def define_prompt(
     name: str | None = None,
     variant: str | None = None,
     model: str | None = None,
-    config: GenerationCommonConfig | dict[str, Any] | None = None,
+    config: dict[str, Any] | GenerationCommonConfig | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | str | None = None,
     system: str | Part | list[Part] | Callable[..., Any] | None = None,

@@ -64,7 +64,7 @@ async def test_simple_prompt() -> None:
     """Test simple prompt rendering."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'temperature': 11})
 
@@ -87,7 +87,7 @@ async def test_simple_prompt_with_override_config() -> None:
     ai, *_ = setup_test()
 
     # Config is MERGED: prompt config (banana: true) + opts config (temperature: 12)
-    want_txt = '[ECHO] user: "hi" {"banana": true, "temperature": 12}'
+    want_txt = '[ECHO] user: "hi" {"banana":true,"temperature":12}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
@@ -236,7 +236,7 @@ test_cases_parse_partial_json = [
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] system: "hello foo (bar)" {"banana": "ripe", "temperature": 11.0}""",
+        """[ECHO] system: "hello foo (bar)" {"banana":"ripe","temperature":11.0}""",
     ),
     (
         'renders user prompt',
@@ -256,7 +256,7 @@ test_cases_parse_partial_json = [
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] user: "hello foo (bar_system)" {"banana": "ripe", "temperature": 11.0}""",
+        """[ECHO] user: "hello foo (bar_system)" {"banana":"ripe","temperature":11.0}""",
     ),
     (
         'renders user prompt with context',
@@ -276,7 +276,7 @@ test_cases_parse_partial_json = [
         GenerationCommonConfig.model_validate({'temperature': 11}),
         {'auth': {'email': 'a@b.c'}},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] user: "hello foo (bar, a@b.c)" {"banana": "ripe", "temperature": 11.0}""",
+        """[ECHO] user: "hello foo (bar, a@b.c)" {"banana":"ripe","temperature":11.0}""",
     ),
 ]
 

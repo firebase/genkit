@@ -24,13 +24,13 @@ from genkit.codec import dump_dict, dump_json
 def test_dump_json_basic() -> None:
     """Test basic JSON serialization."""
     # Test dictionary
-    assert dump_json({'a': 1, 'b': 'test'}) == '{"a": 1, "b": "test"}'
+    assert dump_json({'a': 1, 'b': 'test'}) == '{"a":1,"b":"test"}'
 
     # Test list
-    assert dump_json([1, 2, 3]) == '[1, 2, 3]'
+    assert dump_json([1, 2, 3]) == '[1,2,3]'
 
     # Test nested structures
-    assert dump_json({'a': [1, 2], 'b': {'c': 3}}) == '{"a": [1, 2], "b": {"c": 3}}'
+    assert dump_json({'a': [1, 2], 'b': {'c': 3}}) == '{"a":[1,2],"b":{"c":3}}'
 
 
 def test_dump_json_special_types() -> None:

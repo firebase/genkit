@@ -38,7 +38,7 @@ class GenerationCommonConfig(CoreGenerationCommonConfig):
     )
 
 
-def get_request_api_key(config: GenerationCommonConfig | Mapping[str, object] | object | None) -> str | None:
+def get_request_api_key(config: Mapping[str, object] | GenerationCommonConfig | object | None) -> str | None:
     """Extract a request-scoped API key from config.
 
     Supports both typed config objects and dict payloads with either snake_case
@@ -66,7 +66,7 @@ def get_request_api_key(config: GenerationCommonConfig | Mapping[str, object] | 
 
 
 def get_effective_api_key(
-    config: GenerationCommonConfig | Mapping[str, object] | object | None,
+    config: Mapping[str, object] | GenerationCommonConfig | object | None,
     plugin_api_key: str | None,
 ) -> str | None:
     """Resolve effective API key using request-over-plugin precedence."""
