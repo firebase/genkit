@@ -143,13 +143,20 @@ export declare interface GoogleSearchRetrievalTool {
   /** Optional. {@link GoogleSearchRetrieval}. */
   googleSearchRetrieval?: GoogleSearchRetrieval;
   googleSearch?: GoogleSearchRetrieval;
+  google_search?: {
+    searchTypes?: {
+      webSearch?: {};
+      imageSearch?: {};
+    };
+  };
 }
 export function isGoogleSearchRetrievalTool(
   tool: Tool
 ): tool is GoogleSearchRetrievalTool {
   return (
     (tool as GoogleSearchRetrievalTool).googleSearchRetrieval !== undefined ||
-    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined
+    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined ||
+    (tool as GoogleSearchRetrievalTool).google_search !== undefined
   );
 }
 

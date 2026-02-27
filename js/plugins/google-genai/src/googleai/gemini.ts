@@ -319,19 +319,37 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
       aspectRatio: z
         .enum([
           '1:1',
+          '1:4',
+          '1:8',
           '2:3',
           '3:2',
           '3:4',
+          '4:1',
           '4:3',
           '4:5',
           '5:4',
+          '8:1',
           '9:16',
           '16:9',
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['0.5K', '1K', '2K', '4K']).optional(),
     })
+    .passthrough()
+    .optional(),
+  google_search: z
+    .object({
+      searchTypes: z
+        .object({
+          webSearch: z.object({}).optional(),
+          imageSearch: z.object({}).optional(),
+        })
+        .optional(),
+    })
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
     .passthrough()
     .optional(),
 }).passthrough();
@@ -457,6 +475,11 @@ export function isTTSModelName(value: string): value is TTSModelName {
 }
 
 const KNOWN_IMAGE_MODELS = {
+  'gemini-3.1-flash-image-preview': commonRef(
+    'gemini-3.1-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
   'gemini-3-pro-image-preview': commonRef(
     'gemini-3-pro-image-preview',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -658,6 +681,7 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        google_search,
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
@@ -679,6 +703,12 @@ export function defineModel(
         tools.push({
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
+
+      if (google_search) {
+        tools.push({
+          google_search: google_search,
         } as GoogleSearchRetrievalTool);
       }
 

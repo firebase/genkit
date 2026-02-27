@@ -503,6 +503,27 @@ ai.defineFlow('nano-banana-pro', async (_) => {
   return media;
 });
 
+// webSearch and imageSearch with Nano Banana 2
+ai.defineFlow('nano-banana-2', async (_) => {
+  const { media } = await ai.generate({
+    model: googleAI.model('gemini-3.1-flash-image-preview'),
+    prompt:
+      'Generate an accurate image of the CN Tower. Use webSearch to determine the date, weather and current time in Toronto. The weather and time should be reflected in the image (day, night, rainy, sunny, snowy etc). Also use words to show the date, time and weather on the image.',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '1:4',
+        imageSize: '0.5K',
+      },
+      google_search: {
+        searchTypes: { webSearch: {}, imageSearch: {} },
+      },
+    },
+  });
+
+  return media;
+});
+
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({

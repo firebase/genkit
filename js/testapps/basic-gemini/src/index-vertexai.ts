@@ -497,6 +497,23 @@ ai.defineFlow('nano-banana-pro', async (_) => {
   return media;
 });
 
+ai.defineFlow('nano-banana-2', async (_) => {
+  const { media } = await ai.generate({
+    model: vertexAI.model('gemini-3.1-flash-image-preview'),
+    prompt:
+      'Generate an image of the CN Tower. Use words to show the current date, time and weather on the image.',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '3:4',
+        imageSize: '2K',
+      },
+    },
+  });
+
+  return media;
+});
+
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
