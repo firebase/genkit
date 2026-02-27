@@ -67,7 +67,7 @@ dp := ai.DefineDataPrompt[MyIn, MyOut](r, "extract", ...) // returns *Prompt[MyI
 out, resp, err := dp.Execute(ctx, myInput)                // same Execute signature
 ```
 
-This cuts the API surface in half while keeping strong types for all prompts. The naming mirrors `Generate`/`GenerateData` at the generation level.
+This cuts the API surface in half while keeping strong types for all prompts. The naming mirrors `Generate`/`GenerateData` at the generation level. As part of this change, `WithInput` is removed -- input is a typed parameter on `Execute` and `ExecuteStream` directly rather than an untyped option.
 
 ---
 
@@ -342,20 +342,6 @@ ai.Generate(ctx, r, ai.WithTools(myTool, ai.ToolRef("other-tool")))
 
 // v2
 ai.Generate(ctx, r, ai.WithTools(myTool, ai.ToolNamed("other-tool"), ai.ToolNamed("mcp/*")))
-```
-
----
-
-## WithInput removed from prompt execution
-
-v1 passes prompt input as an option (`WithInput(val)`) which is untyped. v2 makes input a typed parameter on `Execute` and `ExecuteStream` directly.
-
-```go
-// v1
-resp, err := prompt.Execute(ctx, ai.WithInput(myInput))
-
-// v2
-out, resp, err := prompt.Execute(ctx, myInput)
 ```
 
 ---
