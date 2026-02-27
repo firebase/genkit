@@ -82,7 +82,8 @@ type GenerateActionOptions struct {
 	// Model is a model name (e.g., "vertexai/gemini-1.0-pro").
 	Model string `json:"model,omitempty"`
 	// Output specifies the desired output format. Defaults to the model's default if unspecified.
-	Output *GenerateActionOutputConfig `json:"output,omitempty"`
+	Output    *GenerateActionOutputConfig `json:"output,omitempty"`
+	Resources []string                    `json:"resources,omitempty"`
 	// Resume provides options for resuming an interrupted generation.
 	Resume *GenerateActionResume `json:"resume,omitempty"`
 	// ReturnToolRequests, when true, returns tool calls for manual processing instead of
@@ -95,7 +96,8 @@ type GenerateActionOptions struct {
 	// the model to choose a tool, and none forces the model not to use any tools. Defaults to auto.
 	ToolChoice ToolChoice `json:"toolChoice,omitempty"`
 	// Tools is a list of registered tool names for this generation if supported.
-	Tools []string `json:"tools,omitempty"`
+	Tools []string         `json:"tools,omitempty"`
+	Use   []*MiddlewareRef `json:"use,omitempty"`
 }
 
 // GenerateActionResume holds options for resuming an interrupted generation.
@@ -133,6 +135,8 @@ type GenerateActionOutputConfig struct {
 
 // GenerationCommonConfig holds configuration parameters for model generation requests.
 type GenerationCommonConfig struct {
+	// API Key to use for the model call, overrides API key provided in plugin config.
+	ApiKey string `json:"apiKey,omitempty"`
 	// MaxOutputTokens limits the maximum number of tokens generated in the response.
 	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
 	// StopSequences specifies sequences that will cause generation to stop when encountered.
@@ -206,6 +210,18 @@ type Message struct {
 	Role Role `json:"role,omitempty"`
 }
 
+type MiddlewareDesc struct {
+	ConfigSchema any    `json:"configSchema,omitempty"`
+	Description  string `json:"description,omitempty"`
+	Metadata     any    `json:"metadata,omitempty"`
+	Name         string `json:"name,omitempty"`
+}
+
+type MiddlewareRef struct {
+	Config any    `json:"config,omitempty"`
+	Name   string `json:"name,omitempty"`
+}
+
 // ModelInfo contains metadata about a model's capabilities and characteristics.
 type ModelInfo struct {
 	// ConfigSchema defines the model-specific configuration schema.
@@ -266,6 +282,14 @@ const (
 	ConstrainedSupportAll     ConstrainedSupport = "all"
 	ConstrainedSupportNoTools ConstrainedSupport = "no-tools"
 )
+
+type ModelReference struct {
+	Config       any    `json:"config,omitempty"`
+	ConfigSchema any    `json:"configSchema,omitempty"`
+	Info         any    `json:"info,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Version      string `json:"version,omitempty"`
+}
 
 // A ModelRequest is a request to generate completions from a model.
 type ModelRequest struct {

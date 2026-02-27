@@ -187,13 +187,29 @@ class GenerateActionOutputConfig(BaseModel):
 class GenerationCommonConfig(BaseModel):
     """Model for generationcommonconfig data."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    version: str | None = None
-    temperature: float | None = None
-    max_output_tokens: float | None = Field(default=None)
-    top_k: float | None = Field(default=None)
-    top_p: float | None = Field(default=None)
-    stop_sequences: list[str] | None = Field(default=None)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
+    version: str | None = Field(
+        default=None,
+        description='A specific version of a model family, e.g. `gemini-2.5-flash` for the `googleai` family.',
+    )
+    temperature: float | None = Field(
+        default=None,
+        description='Controls the degree of randomness in token selection. A lower value is good for a more predictable response. A higher value leads to more diverse or unexpected results.',
+    )
+    max_output_tokens: float | None = Field(
+        default=None, description='The maximum number of tokens to include in the response.'
+    )
+    top_k: float | None = Field(default=None, description='The maximum number of tokens to consider when sampling.')
+    top_p: float | None = Field(
+        default=None,
+        description='Decides how many possible words to consider. A higher value means that the model looks at more possible words, even the less likely ones, which makes the generated text more diverse.',
+    )
+    stop_sequences: list[str] | None = Field(
+        default=None, description='Set of character sequences (up to 5) that will stop output generation.'
+    )
+    api_key: str | None = Field(
+        default=None, description='API Key to use for the model call, overrides API key provided in plugin config.'
+    )
 
 
 class GenerationUsage(BaseModel):
@@ -214,6 +230,24 @@ class GenerationUsage(BaseModel):
     custom: dict[str, float] | None = None
     thoughts_tokens: float | None = Field(default=None)
     cached_content_tokens: float | None = Field(default=None)
+
+
+class MiddlewareDesc(BaseModel):
+    """Model for middlewaredesc data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str
+    description: str | None = None
+    config_schema: dict[str, Any] | None = Field(default=None)
+    metadata: dict[str, Any] | None = None
+
+
+class MiddlewareRef(BaseModel):
+    """Model for middlewareref data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str
+    config: Any | None = None
 
 
 class Constrained(StrEnum):
@@ -259,6 +293,17 @@ class ModelInfo(BaseModel):
     config_schema: dict[str, Any] | None = Field(default=None)
     supports: Supports | None = None
     stage: Stage | None = None
+
+
+class ModelReference(BaseModel):
+    """Model for modelreference data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str
+    config_schema: Any | None = Field(default=None)
+    info: Any | None = None
+    version: str | None = None
+    config: Any | None = None
 
 
 class Error(BaseModel):
@@ -1002,6 +1047,7 @@ class GenerateActionOptions(BaseModel):
     return_tool_requests: bool | None = Field(default=None)
     max_turns: float | None = Field(default=None)
     step_name: str | None = Field(default=None)
+    use: list[MiddlewareRef] | None = None
 
 
 class GenerateRequest(BaseModel):

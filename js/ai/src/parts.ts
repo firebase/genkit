@@ -181,7 +181,23 @@ export const ResourcePartSchema = EmptyPartSchema.extend({
  */
 export type ResourcePart = z.infer<typeof ResourcePartSchema>;
 
-export const PartSchema = z.union([TextPartSchema, MediaPartSchema]);
+/**
+ * Zod schema of a message part.
+ */
+export const PartSchema = z.union([
+  TextPartSchema,
+  MediaPartSchema,
+  ToolRequestPartSchema,
+  ToolResponsePartSchema,
+  DataPartSchema,
+  CustomPartSchema,
+  ReasoningPartSchema,
+  ResourcePartSchema,
+]);
+
+/**
+ * Message part.
+ */
 export type Part = z.infer<typeof PartSchema>;
 
 export const MultipartToolResponseSchema = z.object({
