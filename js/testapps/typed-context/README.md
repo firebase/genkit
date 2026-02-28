@@ -1,33 +1,21 @@
-# Express Integration
+# Typed Context
 
-Demonstrates integrating Genkit flows with an Express.js server — including
-authentication context, streaming responses, and the `expressHandler` utility.
+Demonstrates **typed context** in Genkit: define an `AppContext` type, pass it to `genkit<AppContext>({...})`, and get typed `context` in flows, tools, `generate()` options, and `ai.currentContext()`.
 
-## Features Demonstrated
+## What this sample shows
 
-| Feature | Endpoint | Description |
-|---------|----------|-------------|
-| Flow via `expressHandler` | `POST /jokeFlow` | Genkit flow exposed via Express with auth context |
-| Flow handler (no auth) | `POST /jokeHandler` | Flow exposed without auth validation |
-| Direct flow invocation | `GET /jokeWithFlow` | Call a flow directly from a route handler |
-| Raw streaming | `GET /jokeStream` | Chunked transfer encoding with `ai.generate` |
-| Auth context | `Authorization` header | Token-based auth with context validation |
-| Context providers | `auth()` factory | Reusable auth context provider pattern |
+| Feature | Description |
+|--------|-------------|
+| **AppContext type** | Declare your app’s context shape (e.g. `echo`, `hello`, `userId`). |
+| **genkit&lt;AppContext&gt;()** | Create the instance with the type so `context` is typed everywhere. |
+| **Flows** | Flow callbacks receive `context: AppContext & ActionContext`. |
+| **Tools** | Tool callbacks receive the same typed context. |
+| **currentContext()** | `ai.currentContext()` returns `(AppContext & ActionContext) \| undefined`. |
+| **Override at run time** | Pass a different `context` when calling a flow or action. |
+
+If you call `genkit()` without the type argument, `context` in flows/tools is typed as `ActionContext` and properties like `context.hello` are `any`.
 
 ## Setup
-
-### Prerequisites
-
-- **Node.js** (v18 or higher)
-- **pnpm** package manager
-
-### API Keys
-
-```bash
-export GEMINI_API_KEY='<your-api-key>'
-```
-
-### Build and Install
 
 From the repo root:
 
@@ -36,43 +24,27 @@ pnpm install
 pnpm run setup
 ```
 
-## Run the Sample
+## Run the sample
+
+From this directory:
 
 ```bash
 pnpm build && pnpm start
 ```
 
-The Express server starts on port `5000` (or `$PORT`).
+Or run the source directly:
 
-## Testing This Demo
+```bash
+pnpm exec tsx src/index.ts
+```
 
-1. **Test with auth** (requires `Authorization: open sesame` header):
-   ```bash
-   curl http://localhost:5000/jokeFlow?stream=true \
-     -d '{"data": "banana"}' \
-     -H "Content-Type: application/json" \
-     -H "Authorization: open sesame"
-   ```
+## Example output
 
-2. **Test without auth**:
-   ```bash
-   curl http://localhost:5000/jokeHandler?stream=true \
-     -d '{"data": "banana"}' \
-     -H "Content-Type: application/json"
-   ```
-
-3. **Test direct flow invocation**:
-   ```bash
-   curl "http://localhost:5000/jokeWithFlow?subject=banana"
-   ```
-
-4. **Test raw streaming**:
-   ```bash
-   curl "http://localhost:5000/jokeStream?subject=banana"
-   ```
-
-5. **Expected behavior**:
-   - Authenticated requests (`open sesame`) succeed
-   - Unauthenticated requests return `PERMISSION_DENIED`
-   - Streaming endpoints deliver text incrementally
-   - `?stream=true` enables streaming on `expressHandler` endpoints
+```
+Echo with default context: foo
+Echo with overridden context: foo foo
+Greet: Hello, World!
+currentContext() without userId: test (user: anonymous)
+currentContext() with userId: test (user: user-123)
+Tool with typed context: Hello, Tool User!
+```
