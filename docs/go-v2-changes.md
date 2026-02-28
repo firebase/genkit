@@ -469,35 +469,11 @@ err := googleai.Init(ctx, &googleai.Config{}) // returns error
 
 ---
 
-## Move status and error types out of core
-
-v1 puts canonical status codes (`StatusName`, `OK`, `CANCELLED`, `INTERNAL`, etc.), status-to-HTTP mappings (`HTTPStatusCode`, `StatusNameToCode`), and error types (`GenkitError`, `UserFacingError`, `ReflectionError`) directly in the `core` package.
-
-v2 moves these types into a dedicated package (e.g. `core/status` or `core/gerror`) so that error handling has a clear home and `core` stays focused on bigger picture concepts.
-
-**Before:**
-
-```go
-import "github.com/firebase/genkit/go/core"
-
-err := core.NewError(core.NOT_FOUND, "model %q not registered", name)
-code := core.HTTPStatusCode(core.NOT_FOUND)
-```
-
-**After:**
-
-```go
-import "github.com/firebase/genkit/go/core/status" // or similar
-
-err := status.NewError(status.NOT_FOUND, "model %q not registered", name)
-code := status.HTTPStatusCode(status.NOT_FOUND)
-```
-
----
-
 ## Unified error type with sentinel causes
 
-v1 has two unrelated error types: `GenkitError` (internal, captures stack traces) and `UserFacingError` (safe to return over HTTP). They share no interface, so error-handling code must check for both via separate `errors.As` calls. Neither type supports wrapping a cause, so callers cannot use `errors.Is` to distinguish specific failure modes -- the only option is string-matching on error messages.
+v1 puts status codes, HTTP mappings, and error types (`GenkitError`, `UserFacingError`) directly in the `core` package. v2 moves them into a dedicated `status` package so that error handling has a clear home and `core` stays focused on bigger picture concepts.
+
+v1 also has two unrelated error types: `GenkitError` (internal, captures stack traces) and `UserFacingError` (safe to return over HTTP). They share no interface, so error-handling code must check for both via separate `errors.As` calls. Neither type supports wrapping a cause, so callers cannot use `errors.Is` to distinguish specific failure modes -- the only option is string-matching on error messages.
 
 v2 unifies `GenkitError` and `UserFacingError` into a single `GenkitError` type with a `Public` field that controls whether the message is safe to return to clients. `NewError` and `NewPublicError` remain as convenience constructors that set this field accordingly.
 
