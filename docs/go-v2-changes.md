@@ -426,6 +426,50 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 
 ---
 
+## Unified error type with sentinel causes
+
+v1 has two unrelated error types: `GenkitError` (internal, captures stack traces) and `UserFacingError` (safe to return over HTTP). They share no interface, so error-handling code must check for both via separate `errors.As` calls. Neither type supports wrapping a cause, so callers cannot use `errors.Is` to distinguish specific failure modes -- the only option is string-matching on error messages.
+
+v2 unifies `GenkitError` and `UserFacingError` into a single `GenkitError` type with a `Public` field that controls whether the message is safe to return to clients. `NewError` and `NewPublicError` remain as convenience constructors that set this field accordingly.
+
+The package defines sentinel errors that each carry a fixed status code. The sentinel is the sole parameter to `Errorf` -- no separate status code argument. A base sentinel exists for every status code (`ErrInvalidArgument`, `ErrAborted`, `ErrInternal`, etc.) for cases where no more specific sentinel applies. Domain-specific sentinels like `ErrMaxTurnsExceeded` carry their own status code (e.g. `ABORTED`) and can optionally wrap the base sentinel so that `errors.Is` matches at both levels of granularity.
+
+To add context without reclassifying, use plain `fmt.Errorf` with `%w` -- the sentinel and status survive unwrapping. To intentionally reclassify an error at a boundary, wrap it with `status.Errorf` using a different sentinel. When multiple `GenkitError` wrappers are in the chain, `errors.As` finds the outermost one, so the outermost status code is what the HTTP boundary uses.
+
+```go
+// Sentinel errors — each carries a fixed status code
+var (
+    ErrNotFound             = status.NewSentinel(NOT_FOUND, "not found")
+    ErrInvalidArgument      = status.NewSentinel(INVALID_ARGUMENT, "invalid argument")
+    ErrAborted              = status.NewSentinel(ABORTED, "aborted")
+    ErrMaxTurnsExceeded     = status.NewSentinel(ABORTED, "max turns exceeded") // wraps ErrAborted
+    ErrToolInterrupted      = status.NewSentinel(ABORTED, "tool interrupted")  // wraps ErrAborted
+    ErrOutputSchemaMismatch = status.NewSentinel(INTERNAL, "output does not match schema")
+    // ...
+)
+
+// v1 — two separate types, no wrapping, string matching only
+err := core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
+if strings.Contains(err.Error(), "exceeded maximum tool call iterations") { ... }
+
+// v2 — sentinel determines status code, errors.Is works
+err := status.Errorf(status.ErrMaxTurnsExceeded, "exceeded max tool call iterations (%d)", maxTurns)
+if errors.Is(err, status.ErrMaxTurnsExceeded) { ... } // specific match
+if errors.Is(err, status.ErrAborted) { ... }          // broad match (via wrapping)
+
+// Public flag replaces UserFacingError
+err := status.PublicErrorf(status.ErrInvalidArgument, "invalid query parameter: %s", param)
+// err.Public == true; HTTP handler knows it's safe to return the message
+
+// Adding context without reclassifying — use fmt.Errorf
+return fmt.Errorf("agent %q: %w", name, err) // sentinel and status survive
+
+// Intentional reclassification at a boundary — use status.Errorf
+return status.Errorf(status.ErrInternal, "agent %q failed: %w", name, err)
+```
+
+---
+
 ## Full removed/replaced type reference
 
 | Removed | Replacement |
@@ -465,6 +509,9 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `NewStreamingAction(name, atype, metadata, inputSchema, fn)` | `NewStreamingAction(name, atype, fn, *ActionOptions)` |
 | `NewBackgroundAction(name, atype, metadata, startFn, checkFn, cancelFn)` | `NewBackgroundAction(name, atype, startFn, checkFn, cancelFn, *ActionOptions)` |
 | `LookupAction` | Removed; use `ResolveAction` |
+| `UserFacingError` | `GenkitError` with `Public: true` |
+| `NewPublicError(status, msg, details)` | `PublicErrorf(sentinel, msg, args...)` sets `Public: true`; status derived from sentinel |
+| `NewError(status, msg, args...)` | `Errorf(sentinel, msg, args...)` status derived from sentinel |
 
 ## New types
 
@@ -477,3 +524,4 @@ code := status.HTTPStatusCode(status.NOT_FOUND)
 | `InterruptibleTool[In, Out, Res]` | Tool with typed interrupt/resume support |
 | `tool` package | Runtime helpers for tool bodies: `Interrupt`, `AttachParts`, `SendPartial`, `Resume`, `Respond`, etc. |
 | `ActionOptions` | Optional config for action creation: `Metadata`, `InputSchema`, `OutputSchema`, `StreamSchema` |
+| `ErrNotFound`, `ErrMaxTurnsExceeded`, `ErrOutputSchemaMismatch`, ... | Sentinel errors for `errors.Is` matching on specific failure modes |
