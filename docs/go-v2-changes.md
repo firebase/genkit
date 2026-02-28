@@ -16,7 +16,7 @@ v1 defines `Model`, `Tool`, `Embedder`, `Retriever`, `Evaluator`, and `Prompt` a
 
 v2 exports the concrete structs under the clean names. The interfaces that remain (in the `api` package, for registry internals) can be thin and focused — just `Name()` plus the domain method — because infrastructure methods like `Register()` live on the concrete struct. The concrete types can still be passed directly to functions like `genkit.RegisterAction()` or `genkit.Handler()` without casting, since Go resolves methods on the concrete type. One shared `Named` interface and one `ActionRef` struct replace the entire family of `*Arg`/`*Ref` types.
 
-**v1:**
+**Before:**
 
 ```go
 type Model interface {
@@ -32,7 +32,7 @@ ref := ai.NewModelRef("google/gemini-2.5-flash", nil)
 ai.Generate(ctx, r, ai.WithModel(ref))                 // ModelRef also satisfies ModelArg
 ```
 
-**v2:**
+**After:**
 
 ```go
 // api.Model interface is just Name() + Generate()
@@ -56,7 +56,7 @@ v1 has two separate prompt concepts: `Prompt` (an interface, untyped input, retu
 
 v2 merges them into a single `Prompt[In, Out, Stream]` type. Users never specify `Stream` — the constructor determines it. `DefinePrompt[In]` produces text output; `DefineDataPrompt[In, Out]` produces structured output. Both share the same `Execute` and `ExecuteStream` signatures.
 
-**v1:**
+**Before:**
 
 ```go
 p := ai.DefinePrompt(r, "greeting", ...)                  // returns Prompt (interface)
@@ -66,7 +66,7 @@ dp := ai.DefineDataPrompt[MyIn, MyOut](r, "extract", ...) // returns *DataPrompt
 out, resp, err := dp.Execute(ctx, myInput)                // typed input as param, returns (MyOut, *ModelResponse)
 ```
 
-**v2:**
+**After:**
 
 ```go
 p := ai.DefinePrompt[MyIn](r, "greeting", ...)            // returns *Prompt[MyIn, string, *ModelResponseChunk]
@@ -84,14 +84,14 @@ This cuts the API surface in half while keeping strong types for all prompts. Th
 
 v1 streams via a callback function (`func(context.Context, S) error`) passed to action implementations. Channels are the idiomatic Go primitive for streaming data between goroutines and compose naturally with `select`, `range`, and cancellation. This also brings consistency with newer v2 types like `BidiAction`, `BidiFlow`, and `AgentFlow`, which are built on channels from the start.
 
-**v1:**
+**Before:**
 
 ```go
 type StreamingFunc[In, Out, Stream any] = func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error)
 // where StreamCallback[S] = func(context.Context, S) error
 ```
 
-**v2:**
+**After:**
 
 ```go
 type StreamingFunc[In, Out, Stream any] = func(ctx context.Context, input In, streamCh chan<- Stream) (Out, error)
@@ -103,14 +103,14 @@ type StreamingFunc[In, Out, Stream any] = func(ctx context.Context, input In, st
 
 v1 places options before the function in some APIs. v2 standardizes all `Define*` and `New*` functions to put required arguments first (name, function) and optional config last.
 
-**v1:**
+**Before:**
 
 ```go
 ai.DefineModel(r, "my-model", opts, fn)
 ai.DefineEmbedder(r, "my-embedder", opts, fn)
 ```
 
-**v2:**
+**After:**
 
 ```go
 ai.DefineModel(r, "my-model", fn, opts)
@@ -125,14 +125,14 @@ v1's action creation functions (`NewAction`, `NewStreamingAction`, etc.) accept 
 
 v2 narrows top-level parameters to only the required ones (name and function). Everything else -- `Metadata`, `InputSchema`, `OutputSchema`, `StreamSchema` -- moves into an `ActionOptions` struct passed as the final argument. Schema fields in `ActionOptions` override the schemas the framework derives from the type parameters, giving plugin authors an escape hatch for types whose default JSON schema reflection is insufficient without cluttering the common path.
 
-**v1:**
+**Before:**
 
 ```go
 action := core.NewAction(name, atype, metadata, inputSchema, fn)
 streaming := core.NewStreamingAction(name, atype, metadata, inputSchema, fn)
 ```
 
-**v2:**
+**After:**
 
 ```go
 action := core.NewAction(name, atype, fn, &core.ActionOptions{
@@ -149,13 +149,13 @@ This applies uniformly to all action creation functions (`NewAction`, `NewStream
 
 `NewBackgroundAction` follows the same pattern. The three lifecycle functions (`startFn`, `checkFn`, `cancelFn`) remain top-level parameters since they define the action's behavioral contract, even though `cancelFn` is optional (nil when cancellation is not supported). Metadata moves into the options struct.
 
-**v1:**
+**Before:**
 
 ```go
 core.NewBackgroundAction(name, atype, metadata, startFn, checkFn, cancelFn)
 ```
 
-**v2:**
+**After:**
 
 ```go
 core.NewBackgroundAction(name, atype, startFn, checkFn, cancelFn, &core.ActionOptions{
@@ -173,7 +173,7 @@ Separately, `LookupAction` is removed. v1 has both `LookupAction` (registry only
 
 `ConfigSchema` remains in each options struct as an optional override for types whose default JSON schema reflection is insufficient (e.g. third-party types with custom wrapper generics like `Opt[float64]`).
 
-**v1:**
+**Before:**
 
 ```go
 // DefineModel is not generic. Plugin manually specifies ConfigSchema and
@@ -190,7 +190,7 @@ genkit.DefineModel(g, "my-model", func(ctx context.Context, req *ModelRequest, c
 })
 ```
 
-**v2:**
+**After:**
 
 ```go
 // DefineModel gains a Config type parameter. Config is inferred from the fn
@@ -226,7 +226,7 @@ This is a mechanical pass across generated types in `gen.go` and any hand-writte
 
 v1's `Registry` is a public interface that anyone can implement. Adding a method to it is a breaking change. v2 adds an unexported `sealed()` method, preventing external implementations while allowing the interface to grow safely.
 
-**v1:**
+**Before:**
 
 ```go
 type Registry interface {
@@ -236,7 +236,7 @@ type Registry interface {
 }
 ```
 
-**v2:**
+**After:**
 
 ```go
 type Registry interface {
@@ -253,7 +253,7 @@ type Registry interface {
 
 v1 allows specifying structured output types via `WithOutputType(val)` or `WithOutputSchema(schema)` as generate options. This creates a class of runtime type errors — the schema and the variable you unmarshal into can easily drift apart. v2 removes both in favor of `GenerateData[Out]` and `DefineDataPrompt[In, Out]`, where the output type is a compile-time generic parameter.
 
-**v1:**
+**Before:**
 
 ```go
 resp, err := ai.Generate(ctx, r, ai.WithOutputType(MyStruct{}), ...)
@@ -261,7 +261,7 @@ var out MyStruct
 resp.Output(&out)
 ```
 
-**v2:**
+**After:**
 
 ```go
 out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
@@ -274,14 +274,14 @@ out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
 
 v1's `GenerateData[Out]` returns `(*Out, *ModelResponse, error)`. On error or empty output, the caller gets a nil pointer that's easy to dereference without checking. v2 returns `(Out, *ModelResponse, error)` — zero value on error.
 
-**v1:**
+**Before:**
 
 ```go
 out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
 // out is *MyStruct -- nil on error, easy to panic
 ```
 
-**v2:**
+**After:**
 
 ```go
 out, resp, err := ai.GenerateData[MyStruct](ctx, r, ...)
@@ -304,7 +304,7 @@ The main changes from v1's `DefineTool` / `DefineMultipartTool` / `ToolContext` 
 - **`GenerateActionResume` fields use `[]*Part` directly.** v1's `GenerateActionResume.Restart` and `.Respond` fields are typed as `[]*toolRequestPart` and `[]*toolResponsePart` -- unexported wrapper structs that exist because Go lacks union types and the original implementation modeled tool requests and responses as separate types rather than using `Part` directly. v2 replaces both with `[]*Part`, matching the wire format and aligning with how `tool.Resume` and `tool.Respond` already return `*Part`. The fields are also renamed to `Restarts` and `Responses` to reflect that they are plural collections.
 - **Partial tool responses** let tools stream progress updates to the client during execution via `tool.SendPartial(ctx, data)`. Callers distinguish progress from final results using `Part.IsPartial()`.
 
-**v1:**
+**Before:**
 
 ```go
 weatherTool := ai.DefineTool(r, "getWeather", "Fetches the weather",
@@ -316,7 +316,7 @@ multipartTool := ai.DefineMultipartTool(r, "screenshot", "Takes a screenshot",
 tool.Restart(toolReq, &RestartOptions{ResumedMetadata: rawMeta}) // untyped
 ```
 
-**v2:**
+**After:**
 
 ```go
 weatherTool := genkit.DefineTool(g, "getWeather", "Fetches the weather",
@@ -364,7 +364,7 @@ See [PR #4797](https://github.com/firebase/genkit/pull/4797) for the full API re
 
 v1 has two separate interfaces for format handlers: `FormatHandler` (with `ParseMessage`) and `StreamingFormatHandler` (with `ParseOutput`/`ParseChunk`). This split existed to avoid a breaking change in v1. v2 merges them into a single `FormatHandler` with four methods and drops the legacy `ParseMessage`.
 
-**v1:**
+**Before:**
 
 ```go
 type FormatHandler interface {
@@ -378,7 +378,7 @@ type StreamingFormatHandler interface {
 }
 ```
 
-**v2:**
+**After:**
 
 ```go
 type FormatHandler interface {
@@ -395,13 +395,13 @@ type FormatHandler interface {
 
 v1's `DefineFormat` takes a `name` string and a `Formatter`, but `Formatter` already has a `Name()` method. The name parameter is redundant and a source of potential mismatch. v2 drops it.
 
-**v1:**
+**Before:**
 
 ```go
 func DefineFormat(r api.Registry, name string, formatter Formatter)
 ```
 
-**v2:**
+**After:**
 
 ```go
 func DefineFormat(r api.Registry, formatter Formatter)
@@ -414,14 +414,14 @@ func DefineFormat(r api.Registry, formatter Formatter)
 
 v1 has `RunJSON` (discards telemetry) and `RunJSONWithTelemetry` (returns it). There's no reason to discard telemetry — callers who don't need it can ignore the extra fields. v2 removes `RunJSONWithTelemetry` and makes `RunJSON` always return `*api.ActionRunResult` containing both the output and trace metadata.
 
-**v1:**
+**Before:**
 
 ```go
 out, err := action.RunJSON(ctx, input, cb)                 // json.RawMessage
 result, err := action.RunJSONWithTelemetry(ctx, input, cb) // *ActionRunResult[json.RawMessage]
 ```
 
-**v2:**
+**After:**
 
 ```go
 result, err := action.RunJSON(ctx, input, streamCh)        // *ActionRunResult[json.RawMessage] (always)
@@ -433,13 +433,13 @@ result, err := action.RunJSON(ctx, input, streamCh)        // *ActionRunResult[j
 
 v1 uses `ToolRef` for passing tool references. v2 introduces a sealed `ToolArg` interface that both `*Tool[In, Out]` and `ToolNamed` (a string/glob type) satisfy. This lets `WithTools` accept concrete tools, exact names, and glob patterns (e.g. `"mcp/*"`) through one type.
 
-**v1:**
+**Before:**
 
 ```go
 ai.Generate(ctx, r, ai.WithTools(myTool, ai.ToolRef("other-tool")))
 ```
 
-**v2:**
+**After:**
 
 ```go
 ai.Generate(ctx, r, ai.WithTools(myTool, ai.ToolNamed("other-tool"), ai.ToolNamed("mcp/*")))
@@ -453,14 +453,14 @@ v1's `genkit.Init()` returns only a `*Genkit` instance. Plugin functions like `I
 
 v2 adds `error` to the return value of `genkit.Init()` and all plugin functions that take a `context.Context`. This makes the SDK more idiomatic and gives callers control over error handling instead of crashing the process.
 
-**v1:**
+**Before:**
 
 ```go
 g := genkit.Init(ctx, opts)              // panics on failure
 googleai.Init(ctx, &googleai.Config{})   // panics or silently fails
 ```
 
-**v2:**
+**After:**
 
 ```go
 g, err := genkit.Init(ctx, opts)         // returns error
@@ -475,7 +475,7 @@ v1 puts canonical status codes (`StatusName`, `OK`, `CANCELLED`, `INTERNAL`, etc
 
 v2 moves these types into a dedicated package (e.g. `core/status` or `core/gerror`) so that error handling has a clear home and `core` stays focused on bigger picture concepts.
 
-**v1:**
+**Before:**
 
 ```go
 import "github.com/firebase/genkit/go/core"
@@ -484,7 +484,7 @@ err := core.NewError(core.NOT_FOUND, "model %q not registered", name)
 code := core.HTTPStatusCode(core.NOT_FOUND)
 ```
 
-**v2:**
+**After:**
 
 ```go
 import "github.com/firebase/genkit/go/core/status" // or similar
@@ -505,7 +505,7 @@ The package defines sentinel errors that each carry a fixed status code. The sen
 
 To add context without reclassifying, use plain `fmt.Errorf` with `%w` -- the sentinel and status survive unwrapping. To intentionally reclassify an error at a boundary, wrap it with `status.Errorf` using a different sentinel. When multiple `GenkitError` wrappers are in the chain, `errors.As` finds the outermost one, so the outermost status code is what the HTTP boundary uses.
 
-**Sentinel errors (v2):** each carries a fixed status code.
+**Sentinel errors (after):** each carries a fixed status code.
 
 ```go
 var (
@@ -519,14 +519,14 @@ var (
 )
 ```
 
-**v1:**
+**Before:**
 
 ```go
 err := core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 if strings.Contains(err.Error(), "exceeded maximum tool call iterations") { ... }
 ```
 
-**v2:**
+**After:**
 
 ```go
 err := status.Errorf(status.ErrMaxTurnsExceeded, "exceeded max tool call iterations (%d)", maxTurns)
