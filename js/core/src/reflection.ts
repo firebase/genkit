@@ -167,16 +167,26 @@ export class ReflectionServer {
           response.status(400).send('Query parameter "type" is required.');
           return;
         }
-        if (type !== 'defaultModel') {
+        if (type !== 'defaultModel' && type !== 'middleware') {
           response
             .status(400)
             .send(
-              `'type' ${type} is not supported. Only 'defaultModel' is supported`
+              `'type' ${type} is not supported. Only 'defaultModel' and 'middleware' are supported`
             );
           return;
         }
-        const values = await this.registry.listValues(type as string);
-        response.send(values);
+        const values = Object.values(
+          await this.registry.listValues(type as string)
+        );
+
+        response.send(
+          values.map((v: any) => {
+            if (typeof v.toJson === 'function') {
+              return v.toJson();
+            }
+            return v;
+          })
+        );
       } catch (err) {
         const { message, stack } = err as Error;
         next({ message, stack });

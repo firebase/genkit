@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { GenkitError, stripUndefinedProps, z } from '@genkit-ai/core';
+import {
+  ActionRunOptions,
+  GenkitError,
+  stripUndefinedProps,
+  z,
+} from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import type {
@@ -81,10 +86,13 @@ export function toPendingOutput(
   };
 }
 
+import { GenerateMiddlewareDef } from './middleware.js';
+
 export async function resolveToolRequest(
   rawRequest: GenerateActionOptions,
   part: ToolRequestPart,
   toolMap: Record<string, ToolAction>,
+  middleware: GenerateMiddlewareDef[] = [],
   runOptions?: ToolRunOptions
 ): Promise<{
   response?: ToolResponsePart;
@@ -118,54 +126,56 @@ export async function resolveToolRequest(
     return { preamble, response };
   }
 
-  // otherwise, execute the tool and catch interrupts
-  try {
-    const output = await tool(part.toolRequest.input, toRunOptions(part));
+  const dispatch = async (
+    index: number,
+    req: ToolRequestPart,
+    ctx: ActionRunOptions<any>
+  ): Promise<ToolResponsePart | void> => {
+    if (index === middleware.length) {
+      return executeTool(req, ctx);
+    }
+    const currentMiddleware = middleware[index];
+    if (currentMiddleware.tool) {
+      return currentMiddleware.tool(req, ctx, async (modifiedReq, opts) =>
+        dispatch(index + 1, modifiedReq || req, opts || ctx)
+      );
+    } else {
+      return dispatch(index + 1, req, ctx);
+    }
+  };
+
+  const executeTool = async (
+    req: ToolRequestPart,
+    ctx: ActionRunOptions<any>
+  ): Promise<ToolResponsePart> => {
+    // execute the tool and catch interrupts
+    const output = await tool(req.toolRequest.input, ctx as ToolRunOptions);
     if (tool.__action.actionType === 'tool.v2') {
       const multipartResponse = output as z.infer<
         typeof MultipartToolResponseSchema
       >;
-      const response = stripUndefinedProps({
+      return stripUndefinedProps({
         toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
+          name: req.toolRequest.name,
+          ref: req.toolRequest.ref,
           output: multipartResponse.output,
           content: multipartResponse.content,
         } as ToolResponse,
       });
-
-      return { response };
     } else {
-      const response = stripUndefinedProps({
+      return stripUndefinedProps({
         toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
+          name: req.toolRequest.name,
+          ref: req.toolRequest.ref,
           output,
         },
       });
-
-      return { response };
     }
-  } catch (e) {
-    if (
-      e instanceof ToolInterruptError ||
-      // There's an inexplicable case when the above type check fails, only in tests.
-      (e as Error).name === 'ToolInterruptError'
-    ) {
-      const ie = e as ToolInterruptError;
-      logger.debug(
-        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
-      );
-      const interrupt = {
-        toolRequest: part.toolRequest,
-        metadata: { ...part.metadata, interrupt: ie.metadata || true },
-      };
+  };
 
-      return { interrupt };
-    }
-
-    throw e;
-  }
+  const initialCtx = runOptions ?? toRunOptions(part);
+  const dispatchResult = await dispatch(0, part, initialCtx);
+  return dispatchResult ? { response: dispatchResult } : {};
 }
 
 /**
@@ -174,15 +184,16 @@ export async function resolveToolRequest(
  * if a prompt tool is called
  */
 export async function resolveToolRequests(
-  registry: Registry,
   rawRequest: GenerateActionOptions,
-  generatedMessage: MessageData
+  generatedMessage: MessageData,
+  tools: ToolAction[],
+  middleware: GenerateMiddlewareDef[] = []
 ): Promise<{
   revisedModelMessage?: MessageData;
   toolMessage?: MessageData;
   transferPreamble?: GenerateActionOptions;
 }> {
-  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+  const toolMap = toToolMap(tools);
 
   const responseParts: ToolResponsePart[] = [];
   let hasInterrupts = false;
@@ -197,42 +208,68 @@ export async function resolveToolRequests(
     revisedModelMessage.content.map(async (part, i) => {
       if (!part.toolRequest) return; // skip non-tool-request parts
 
-      const { preamble, response, interrupt } = await resolveToolRequest(
-        rawRequest,
-        part as ToolRequestPart,
-        toolMap
-      );
+      try {
+        const { preamble, response, interrupt } = await resolveToolRequest(
+          rawRequest,
+          part as ToolRequestPart,
+          toolMap,
+          middleware
+        );
 
-      if (preamble) {
-        if (transferPreamble) {
-          throw new GenkitError({
-            status: 'INVALID_ARGUMENT',
-            message: `Model attempted to transfer to multiple prompt tools.`,
-          });
+        if (preamble) {
+          if (transferPreamble) {
+            throw new GenkitError({
+              status: 'INVALID_ARGUMENT',
+              message: `Model attempted to transfer to multiple prompt tools.`,
+            });
+          }
+
+          transferPreamble = preamble;
         }
 
-        transferPreamble = preamble;
-      }
+        // this happens for preamble or normal tools
+        if (response) {
+          responseParts.push(response!);
+          revisedModelMessage.content.splice(
+            i,
+            1,
+            toPendingOutput(part, response)
+          );
+        }
 
-      // this happens for preamble or normal tools
-      if (response) {
-        responseParts.push(response!);
-        revisedModelMessage.content.splice(
-          i,
-          1,
-          toPendingOutput(part, response)
-        );
-      }
-
-      if (interrupt) {
-        revisedModelMessage.content.splice(i, 1, interrupt);
-        hasInterrupts = true;
+        if (interrupt) {
+          revisedModelMessage.content.splice(i, 1, interrupt);
+          hasInterrupts = true;
+        }
+      } catch (e) {
+        if (
+          e instanceof ToolInterruptError ||
+          // There's an inexplicable case when the above type check fails, only in tests.
+          (e as Error).name === 'ToolInterruptError'
+        ) {
+          const ie = e as ToolInterruptError;
+          logger.debug(
+            `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
+          );
+          const interrupt = {
+            toolRequest: part.toolRequest,
+            metadata: { ...part.metadata, interrupt: ie.metadata || true },
+          };
+          revisedModelMessage.content.splice(i, 1, interrupt);
+          hasInterrupts = true;
+        } else {
+          throw e;
+        }
       }
     })
   );
 
   if (hasInterrupts) {
     return { revisedModelMessage };
+  }
+
+  if (responseParts.length === 0 && !transferPreamble) {
+    return {};
   }
 
   return {
@@ -268,7 +305,8 @@ function findCorrespondingToolResponse(
 async function resolveResumedToolRequest(
   rawRequest: GenerateActionOptions,
   part: ToolRequestPart,
-  toolMap: Record<string, ToolAction>
+  toolMap: Record<string, ToolAction>,
+  middleware: GenerateMiddlewareDef[] = []
 ): Promise<{
   toolRequest?: ToolRequestPart;
   toolResponse?: ToolResponsePart;
@@ -320,7 +358,8 @@ async function resolveResumedToolRequest(
     const { response, interrupt, preamble } = await resolveToolRequest(
       rawRequest,
       restartRequest,
-      toolMap
+      toolMap,
+      middleware
     );
 
     if (preamble) {
@@ -357,14 +396,16 @@ async function resolveResumedToolRequest(
 /** Amends message history to handle `resume` arguments. Returns the amended history. */
 export async function resolveResumeOption(
   registry: Registry,
-  rawRequest: GenerateActionOptions
+  rawRequest: GenerateActionOptions,
+  tools: ToolAction[],
+  middleware: GenerateMiddlewareDef[] = []
 ): Promise<{
   revisedRequest?: GenerateActionOptions;
   interruptedResponse?: GenerateResponseData;
   toolMessage?: MessageData;
 }> {
   if (!rawRequest.resume) return { revisedRequest: rawRequest }; // no-op if no resume option
-  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+  const toolMap = toToolMap(tools);
 
   const messages = rawRequest.messages;
   const lastMessage = messages.at(-1);
@@ -389,7 +430,8 @@ export async function resolveResumeOption(
       const resolved = await resolveResumedToolRequest(
         rawRequest,
         part,
-        toolMap
+        toolMap,
+        middleware
       );
       if (resolved.interrupt) {
         interrupted = true;
@@ -444,7 +486,8 @@ export async function resolveResumeOption(
 
 export async function resolveRestartedTools(
   registry: Registry,
-  rawRequest: GenerateActionOptions
+  rawRequest: GenerateActionOptions,
+  middleware: GenerateMiddlewareDef[] = []
 ): Promise<ToolRequestPart[]> {
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
   const lastMessage = rawRequest.messages.at(-1);
@@ -459,7 +502,8 @@ export async function resolveRestartedTools(
       const { response, interrupt } = await resolveToolRequest(
         rawRequest,
         p,
-        toolMap
+        toolMap,
+        middleware
       );
 
       // this means that it interrupted *again* after the restart
