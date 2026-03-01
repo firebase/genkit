@@ -936,6 +936,7 @@ class MultipartToolResponse(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     output: Any | None = None
     content: list[Part] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class RerankerRequest(BaseModel):
