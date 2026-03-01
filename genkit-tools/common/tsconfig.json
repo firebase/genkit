@@ -7,7 +7,9 @@
     "esModuleInterop": true,
     "typeRoots": ["./node_modules/@types"],
     "rootDirs": ["src"],
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "jsx": "react",
+    "types": ["jest"]
   },
   "include": ["src"]
 }

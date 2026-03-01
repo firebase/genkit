@@ -29,14 +29,29 @@ const config: Config = {
   preset: 'ts-jest',
 
   // The glob patterns Jest uses to detect test files
-  testMatch: ['**/tests/**/*_test.ts'],
+  testMatch: ['**/tests/**/*_test.ts', '**/tests/**/*_test.tsx'],
+
+  // Test environment for React components
+  testEnvironment: 'jsdom',
+
+  // Setup files after environment
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
   testPathIgnorePatterns: ['/node_modules/'],
 
   // A map from regular expressions to paths to transformers
   transform: {
-    '^.+\\.[jt]s$': 'ts-jest',
+    '^.+\\.[jt]sx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          jsx: 'react',
+          esModuleInterop: true,
+        },
+        isolatedModules: true,
+      },
+    ],
   },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation

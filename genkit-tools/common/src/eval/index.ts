@@ -18,8 +18,14 @@ import type { DatasetStore, EvalStore } from '../types/eval';
 import { LocalFileDatasetStore } from './localFileDatasetStore';
 import { LocalFileEvalStore } from './localFileEvalStore';
 export { InferenceDataset, InferenceDatasetSchema } from '../types/eval';
+export * from './csv-parser';
 export * from './evaluate';
+export * from './evaluation-page';
+export * from './evaluation-viewer';
 export * from './exporter';
+export * from './file-parser';
+export * from './file-upload-component';
+export * from './json-parser';
 export * from './parser';
 export * from './validate';
 
