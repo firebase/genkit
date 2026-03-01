@@ -326,7 +326,8 @@ type ModelResponseChunk struct {
 // MultipartToolResponse represents a tool response with both structured output and content parts.
 type MultipartToolResponse struct {
 	// Content holds additional message parts providing context or details.
-	Content []*Part `json:"content,omitempty"`
+	Content  []*Part        `json:"content,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 	// Output contains the structured output data from the tool.
 	Output any `json:"output,omitempty"`
 }

@@ -135,6 +135,28 @@ describe('defineInterrupt', () => {
       });
     });
 
+    it('should define a multipart tool returning metadata', async () => {
+      const t = defineTool(
+        registry,
+        { name: 'test_meta', description: 'test', multipart: true },
+        async () => {
+          return {
+            output: 'main output',
+            content: [{ text: 'part 1' }],
+            metadata: { customField: 123 },
+          };
+        }
+      );
+      assert.equal(t.__action.metadata.type, 'tool.v2');
+      assert.equal(t.__action.actionType, 'tool.v2');
+      const result = await t({});
+      assert.deepStrictEqual(result, {
+        output: 'main output',
+        content: [{ text: 'part 1' }],
+        metadata: { customField: 123 },
+      });
+    });
+
     it('should handle fallback output', async () => {
       const t = defineTool(
         registry,

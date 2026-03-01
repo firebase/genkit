@@ -906,6 +906,10 @@
           "items": {
             "$ref": "#/$defs/Part"
           }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
         }
       },
       "additionalProperties": false
