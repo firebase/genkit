@@ -219,16 +219,16 @@ ai.defineFlow('gemini 2.5 reasoning', async (_, { sendChunk }) => {
 });
 
 // Current Gemini reasoning example
-ai.defineFlow('thinkingConfig', async(_, { sendChunk }) => {
+ai.defineFlow('thinkingConfig', async (_, { sendChunk }) => {
   const { text } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
-    model: googleAI.model('gemini-3-pro-preview'),
+    model: googleAI.model('gemini-3.1-pro-preview'),
     config: {
-        thinkingConfig: {
-          thinkingLevel: "HIGH",
-          includeThoughts: true,
-        },
+      thinkingConfig: {
+        thinkingLevel: 'HIGH',
+        includeThoughts: true,
       },
+    },
     onChunk: sendChunk,
   });
 
