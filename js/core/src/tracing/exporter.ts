@@ -175,7 +175,7 @@ export class TraceServerExporter implements SpanExporter {
         data.endTime = convertedSpan.endTime;
       }
     }
-    
+
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',

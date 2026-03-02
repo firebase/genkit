@@ -24,10 +24,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import type { TelemetryConfig } from '../telemetryTypes.js';
 import type { TelemetryProvider } from '../tracing.js';
-import {
-  TraceServerExporter,
-  setTelemetryServerConfig,
-} from './exporter.js';
+import { TraceServerExporter, setTelemetryServerConfig } from './exporter.js';
 
 /**
  * Options for the fetch-compatible telemetry provider.

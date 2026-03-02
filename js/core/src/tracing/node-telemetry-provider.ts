@@ -24,10 +24,7 @@ import { logger } from '../logging.js';
 import type { TelemetryConfig } from '../telemetryTypes.js';
 import { setTelemetryProvider } from '../tracing.js';
 import { isDevEnv } from '../utils.js';
-import {
-  TraceServerExporter,
-  setTelemetryServerConfig,
-} from './exporter.js';
+import { TraceServerExporter, setTelemetryServerConfig } from './exporter.js';
 import { RealtimeSpanProcessor } from './realtime-span-processor.js';
 
 let telemetrySDK: NodeSDK | null = null;

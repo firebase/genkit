@@ -1,4 +1,20 @@
 /**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
  * Welcome to Cloudflare Workers! This is your first worker.
  *
  * - Run `npm run dev` in your terminal to start a development server
@@ -55,14 +71,14 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/api/traces' && request.method === 'POST') {
-			const token = request.headers.get('Authorization')?.split(' ').at(1);
+      const token = request.headers.get('Authorization')?.split(' ').at(1);
 
-			if (token !== 'some-secret-token-from-env') {
-				return new Response('Unauthorized', { status: 401 });
-			}
+      if (token !== 'some-secret-token-from-env') {
+        return new Response('Unauthorized', { status: 401 });
+      }
 
-			const body = await request.json() as any;
-			console.log('Received traces: ', body);
+      const body = (await request.json()) as any;
+      console.log('Received traces: ', body);
 
       return new Response('OK', { status: 200 });
     }

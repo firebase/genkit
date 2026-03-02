@@ -1,23 +1,23 @@
 {
-	"name": "cloudflare-workers",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"dev": "wrangler dev",
-		"cf-typegen": "wrangler types"
-	},
-	"dependencies": {
-		"@cfworker/json-schema": "^4.1.1",
-		"@genkit-ai/core": "workspace:*",
-		"@genkit-ai/google-genai": "workspace:*",
-		"genkit": "workspace:*"
-	},
-	"devDependencies": {
-		"@types/node": "^25.3.3",
-		"typescript": "^5.5.2",
-		"wrangler": "^4.69.0"
-	},
-	"overrides": {
-		"iconv-lite": "0.6.3"
-	}
+  "name": "cloudflare-workers",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "^4.1.1",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/google-genai": "workspace:*",
+    "genkit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.5.2",
+    "wrangler": "^4.69.0"
+  },
+  "overrides": {
+    "iconv-lite": "0.6.3"
+  }
 }
