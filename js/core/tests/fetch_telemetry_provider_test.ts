@@ -30,7 +30,11 @@ import { FetchTelemetryProvider } from '../src/tracing/fetch-telemetry-provider.
 import { sleep } from './utils.js';
 
 describe('FetchTelemetryProvider', () => {
-  const capturedRequests: { url: string; body: unknown }[] = [];
+  const capturedRequests: {
+    url: string;
+    body: unknown;
+    headers: Record<string, string>;
+  }[] = [];
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
@@ -47,7 +51,11 @@ describe('FetchTelemetryProvider', () => {
           req.method === 'POST' && req.body
             ? JSON.parse(await req.text())
             : undefined;
-        capturedRequests.push({ url: urlStr, body });
+        const headers: Record<string, string> = {};
+        req.headers.forEach((v, k) => {
+          headers[k] = v;
+        });
+        capturedRequests.push({ url: urlStr, body, headers });
         return new Response('OK', { status: 200 });
       }
       return originalFetch(url, init);
@@ -99,5 +107,45 @@ describe('FetchTelemetryProvider', () => {
     const provider = new FetchTelemetryProvider({});
     await assert.doesNotReject(provider.enableTelemetry({}));
     await assert.doesNotReject(provider.flushTracing());
+  });
+
+  it('sends custom headers with trace export requests when headers option is set', async () => {
+    const serverUrl = 'http://telemetry.test';
+    const provider = new FetchTelemetryProvider({
+      serverUrl,
+      realtime: true,
+      headers: {
+        Authorization: 'Bearer test-token',
+        'X-Custom-Header': 'custom-value',
+      },
+    });
+
+    await provider.enableTelemetry({});
+
+    const tracer = trace.getTracer('test', '1.0');
+    tracer.startActiveSpan('testSpan', {}, (span) => {
+      span.end();
+    });
+
+    await provider.flushTracing();
+    for (let i = 0; i < 50; i++) {
+      if (capturedRequests.length >= 1) break;
+      await sleep(20);
+    }
+    assert.ok(
+      capturedRequests.length >= 1,
+      `expected at least 1 request to /api/traces, got ${capturedRequests.length}`
+    );
+    const last = capturedRequests[capturedRequests.length - 1];
+    assert.strictEqual(
+      last.headers['authorization'],
+      'Bearer test-token',
+      'Authorization header should be sent'
+    );
+    assert.strictEqual(
+      last.headers['x-custom-header'],
+      'custom-value',
+      'X-Custom-Header should be sent'
+    );
   });
 });

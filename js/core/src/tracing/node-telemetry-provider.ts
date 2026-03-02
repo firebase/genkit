@@ -24,7 +24,10 @@ import { logger } from '../logging.js';
 import type { TelemetryConfig } from '../telemetryTypes.js';
 import { setTelemetryProvider } from '../tracing.js';
 import { isDevEnv } from '../utils.js';
-import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
+import {
+  TraceServerExporter,
+  setTelemetryServerConfig,
+} from './exporter.js';
 import { RealtimeSpanProcessor } from './realtime-span-processor.js';
 
 let telemetrySDK: NodeSDK | null = null;
@@ -44,7 +47,7 @@ async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
   if (process.env.GENKIT_TELEMETRY_SERVER) {
-    setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
+    setTelemetryServerConfig({ url: process.env.GENKIT_TELEMETRY_SERVER });
   }
 
   telemetryConfig =

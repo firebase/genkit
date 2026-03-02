@@ -24,7 +24,10 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import type { TelemetryConfig } from '../telemetryTypes.js';
 import type { TelemetryProvider } from '../tracing.js';
-import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
+import {
+  TraceServerExporter,
+  setTelemetryServerConfig,
+} from './exporter.js';
 
 /**
  * Options for the fetch-compatible telemetry provider.
@@ -41,6 +44,10 @@ export interface FetchTelemetryProviderOptions {
    * Default: true. Set to false for BatchSpanProcessor (production).
    */
   realtime?: boolean;
+  /**
+   * Optional headers to send with each trace export request (e.g. Authorization).
+   */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -89,9 +96,13 @@ export class FetchTelemetryProvider implements TelemetryProvider {
     const serverUrl =
       this.options.serverUrl ??
       (typeof process !== 'undefined' && process.env?.GENKIT_TELEMETRY_SERVER);
-    if (typeof serverUrl === 'string') {
-      setTelemetryServerUrl(serverUrl);
-    }
+    setTelemetryServerConfig({
+      ...(typeof serverUrl === 'string' && { url: serverUrl }),
+      ...(this.options.headers &&
+        Object.keys(this.options.headers).length > 0 && {
+          headers: this.options.headers,
+        }),
+    });
 
     const exporter = new TraceServerExporter();
     const processor: SpanProcessor =

@@ -26,7 +26,7 @@ import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
-import { flushTracing, setTelemetryServerUrl } from './tracing.js';
+import { flushTracing, setTelemetryServerConfig } from './tracing.js';
 
 // TODO: Move this to common location for schemas.
 export const RunActionResponseSchema = z.object({
@@ -373,7 +373,7 @@ export class ReflectionServer {
       const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
       if (!process.env.GENKIT_TELEMETRY_SERVER) {
         if (typeof telemetryServerUrl === 'string') {
-          setTelemetryServerUrl(telemetryServerUrl);
+          setTelemetryServerConfig({ url: telemetryServerUrl });
           logger.debug(
             `Connected to telemetry server on ${telemetryServerUrl}`
           );
