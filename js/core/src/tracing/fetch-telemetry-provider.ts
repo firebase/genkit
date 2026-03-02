@@ -92,9 +92,11 @@ export class FetchTelemetryProvider implements TelemetryProvider {
         : telemetryConfig;
     const serverUrl =
       this.options.serverUrl ??
-      (typeof process !== 'undefined' && process.env?.GENKIT_TELEMETRY_SERVER);
+      (typeof process !== 'undefined'
+        ? process.env?.GENKIT_TELEMETRY_SERVER
+        : undefined);
     setTelemetryServerConfig({
-      ...(typeof serverUrl === 'string' && { url: serverUrl }),
+      ...(serverUrl && { url: serverUrl }),
       ...(this.options.headers &&
         Object.keys(this.options.headers).length > 0 && {
           headers: this.options.headers,
