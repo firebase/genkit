@@ -96,7 +96,10 @@ function getTelemetryProvider(): TelemetryProvider {
   }
   if (telemetryProviderInitializer) {
     telemetryProviderInitializer();
-    return global[telemetryProviderKey];
+
+    if (global[telemetryProviderKey]) {
+      return global[telemetryProviderKey];
+    }
   }
   throw new GenkitError({
     status: 'FAILED_PRECONDITION',
