@@ -54,8 +54,6 @@ export default {
   async fetch(request): Promise<Response> {
     const url = new URL(request.url);
 
-		const randomId = Math.random().toString(36).substring(2, 15);
-
     if (url.pathname === '/api/traces' && request.method === 'POST') {
 			const token = request.headers.get('Authorization')?.split(' ').at(1);
 
@@ -64,13 +62,6 @@ export default {
 			}
 
 			const body = await request.json() as any;
-
-			for (const span of Object.values(body.spans as any[])) {
-				if (span.attributes['id'] !== randomId) {
-					throw new Error('Invalid span id');
-				}
-			}
-
 			console.log('Received traces: ', body);
 
       return new Response('OK', { status: 200 });
@@ -80,7 +71,7 @@ export default {
       const name = url.searchParams.get('name') ?? 'Dave';
       const greeting = await greetingFlow(name, {
         telemetryLabels: {
-          id: randomId,
+          via: 'cloudflare-workers-testapp',
         },
         onTraceStart(traceInfo) {
           console.log('Started trace: ', traceInfo);
