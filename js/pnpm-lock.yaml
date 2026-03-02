@@ -6,6 +6,7 @@ settings:
 
 overrides:
   cross-spawn: ^7.0.5
+  iconv-lite: 0.6.3
 
 importers:
 
@@ -83,7 +84,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -168,7 +169,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -181,7 +182,7 @@ importers:
         version: 4.1.1
       '@genkit-ai/firebase':
         specifier: ^1.16.1
-        version: 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+        version: 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
 
   doc-snippets:
     dependencies:
@@ -249,7 +250,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -280,7 +281,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -314,7 +315,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.0.2
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.7.0
         version: 4.20.3
@@ -345,7 +346,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -403,7 +404,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -437,7 +438,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@5.8.3)))(typescript@5.8.3)
       tsup:
         specifier: ^8.0.2
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
       typescript:
         specifier: ^5.4.5
         version: 5.8.3
@@ -465,7 +466,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -505,7 +506,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -551,7 +552,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -603,7 +604,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -691,7 +692,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -731,7 +732,7 @@ importers:
         version: 21.0.0
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -765,7 +766,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -802,7 +803,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -845,7 +846,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@5.8.3)))(typescript@5.8.3)
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -884,7 +885,7 @@ importers:
         version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.0.2
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.7.0
         version: 4.20.3
@@ -915,7 +916,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -946,7 +947,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -1010,7 +1011,7 @@ importers:
         version: 21.0.0
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -1084,6 +1085,31 @@ importers:
         specifier: ^5.6.2
         version: 5.8.3
 
+  testapps/cloudflare-workers:
+    dependencies:
+      '@cfworker/json-schema':
+        specifier: ^4.1.1
+        version: 4.1.1
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@genkit-ai/google-genai':
+        specifier: workspace:*
+        version: link:../../plugins/google-genai
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      typescript:
+        specifier: ^5.5.2
+        version: 5.8.3
+      wrangler:
+        specifier: ^4.69.0
+        version: 4.69.0
+
   testapps/compat-oai:
     dependencies:
       '@genkit-ai/compat-oai':
@@ -1091,7 +1117,7 @@ importers:
         version: link:../../plugins/compat-oai
       '@genkit-ai/express':
         specifier: ^1.1.0
-        version: 1.12.0(@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(express@5.1.0)(genkit@genkit)
+        version: 1.12.0(@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(express@5.1.0)(genkit@genkit)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1664,7 +1690,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(encoding@0.1.13)(ws@8.18.3)
+        version: 0.10.1(@genkit-ai/ai@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(encoding@0.1.13)(ws@8.18.3)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2298,6 +2324,49 @@ packages:
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
 
+  '@cloudflare/kv-asset-handler@0.4.2':
+    resolution: {integrity: sha512-SIOD2DxrRRwQ+jgzlXCqoEFiKOFqaPjhnNTGKXSRLvp1HiOvapLaFG2kEr9dYQTYe8rKrd9uvDUzmAITeNyaHQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@cloudflare/unenv-preset@2.14.0':
+    resolution: {integrity: sha512-XKAkWhi1nBdNsSEoNG9nkcbyvfUrSjSf+VYVPfOto3gLTZVc3F4g6RASCMh6IixBKCG2yDgZKQIHGKtjcnLnKg==}
+    peerDependencies:
+      unenv: 2.0.0-rc.24
+      workerd: ^1.20260218.0
+    peerDependenciesMeta:
+      workerd:
+        optional: true
+
+  '@cloudflare/workerd-darwin-64@1.20260305.0':
+    resolution: {integrity: sha512-chhKOpymo0Eh9J3nymrauMqKGboCc4uz/j0gA1G4gioMnKsN2ZDKJ+qjRZDnCoVGy8u2C4pxlmyIfsXCAfIzhQ==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@cloudflare/workerd-darwin-arm64@1.20260305.0':
+    resolution: {integrity: sha512-K9aG2OQk5bBfOP+fyGPqLcqZ9OR3ra6uwnxJ8f2mveq2A2LsCI7ZeGxQiAj75Ti80ytH/gJffZIx4Np2JtU3aQ==}
+    engines: {node: '>=16'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@cloudflare/workerd-linux-64@1.20260305.0':
+    resolution: {integrity: sha512-tt7XUoIw/cYFeGbkPkcZ6XX1aZm26Aju/4ih+DXxOosbBeGshFSrNJDBfAKKOvkjsAZymJ+WWVDBU+hmNaGfwA==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [linux]
+
+  '@cloudflare/workerd-linux-arm64@1.20260305.0':
+    resolution: {integrity: sha512-72QTkY5EzylmvCZ8ZTrnJ9DctmQsfSof1OKyOWqu/pv/B2yACfuPMikq8RpPxvVu7hhS0ztGP6ZvXz72Htq4Zg==}
+    engines: {node: '>=16'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@cloudflare/workerd-windows-64@1.20260305.0':
+    resolution: {integrity: sha512-BA0uaQPOaI2F6mJtBDqplGnQQhpXCzwEMI33p/TnDxtSk9u8CGIfBFuI6uqo8mJ6ijIaPjeBLGOn2CiRMET4qg==}
+    engines: {node: '>=16'}
+    cpu: [x64]
+    os: [win32]
+
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
@@ -2328,8 +2397,20 @@ packages:
     cpu: [ppc64]
     os: [aix]
 
+  '@esbuild/aix-ppc64@0.27.3':
+    resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
+    engines: {node: '>=18'}
+    cpu: [ppc64]
+    os: [aix]
+
   '@esbuild/android-arm64@0.25.5':
     resolution: {integrity: sha512-VGzGhj4lJO+TVGV1v8ntCZWJktV7SGCs3Pn1GRWI1SBFtRALoomm8k5E9Pmwg3HOAal2VDc2F9+PM/rEY6oIDg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [android]
+
+  '@esbuild/android-arm64@0.27.3':
+    resolution: {integrity: sha512-YdghPYUmj/FX2SYKJ0OZxf+iaKgMsKHVPF1MAq/P8WirnSpCStzKJFjOjzsW0QQ7oIAiccHdcqjbHmJxRb/dmg==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [android]
@@ -2340,8 +2421,20 @@ packages:
     cpu: [arm]
     os: [android]
 
+  '@esbuild/android-arm@0.27.3':
+    resolution: {integrity: sha512-i5D1hPY7GIQmXlXhs2w8AWHhenb00+GxjxRncS2ZM7YNVGNfaMxgzSGuO8o8SJzRc/oZwU2bcScvVERk03QhzA==}
+    engines: {node: '>=18'}
+    cpu: [arm]
+    os: [android]
+
   '@esbuild/android-x64@0.25.5':
     resolution: {integrity: sha512-D2GyJT1kjvO//drbRT3Hib9XPwQeWd9vZoBJn+bu/lVsOZ13cqNdDeqIF/xQ5/VmWvMduP6AmXvylO/PIc2isw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [android]
+
+  '@esbuild/android-x64@0.27.3':
+    resolution: {integrity: sha512-IN/0BNTkHtk8lkOM8JWAYFg4ORxBkZQf9zXiEOfERX/CzxW3Vg1ewAhU7QSWQpVIzTW+b8Xy+lGzdYXV6UZObQ==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [android]
@@ -2352,8 +2445,20 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@esbuild/darwin-arm64@0.27.3':
+    resolution: {integrity: sha512-Re491k7ByTVRy0t3EKWajdLIr0gz2kKKfzafkth4Q8A5n1xTHrkqZgLLjFEHVD+AXdUGgQMq+Godfq45mGpCKg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [darwin]
+
   '@esbuild/darwin-x64@0.25.5':
     resolution: {integrity: sha512-1iT4FVL0dJ76/q1wd7XDsXrSW+oLoquptvh4CLR4kITDtqi2e/xwXwdCVH8hVHU43wgJdsq7Gxuzcs6Iq/7bxQ==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@esbuild/darwin-x64@0.27.3':
+    resolution: {integrity: sha512-vHk/hA7/1AckjGzRqi6wbo+jaShzRowYip6rt6q7VYEDX4LEy1pZfDpdxCBnGtl+A5zq8iXDcyuxwtv3hNtHFg==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [darwin]
@@ -2364,8 +2469,20 @@ packages:
     cpu: [arm64]
     os: [freebsd]
 
+  '@esbuild/freebsd-arm64@0.27.3':
+    resolution: {integrity: sha512-ipTYM2fjt3kQAYOvo6vcxJx3nBYAzPjgTCk7QEgZG8AUO3ydUhvelmhrbOheMnGOlaSFUoHXB6un+A7q4ygY9w==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [freebsd]
+
   '@esbuild/freebsd-x64@0.25.5':
     resolution: {integrity: sha512-PrikaNjiXdR2laW6OIjlbeuCPrPaAl0IwPIaRv+SMV8CiM8i2LqVUHFC1+8eORgWyY7yhQY+2U2fA55mBzReaw==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@esbuild/freebsd-x64@0.27.3':
+    resolution: {integrity: sha512-dDk0X87T7mI6U3K9VjWtHOXqwAMJBNN2r7bejDsc+j03SEjtD9HrOl8gVFByeM0aJksoUuUVU9TBaZa2rgj0oA==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [freebsd]
@@ -2376,8 +2493,20 @@ packages:
     cpu: [arm64]
     os: [linux]
 
+  '@esbuild/linux-arm64@0.27.3':
+    resolution: {integrity: sha512-sZOuFz/xWnZ4KH3YfFrKCf1WyPZHakVzTiqji3WDc0BCl2kBwiJLCXpzLzUBLgmp4veFZdvN5ChW4Eq/8Fc2Fg==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [linux]
+
   '@esbuild/linux-arm@0.25.5':
     resolution: {integrity: sha512-cPzojwW2okgh7ZlRpcBEtsX7WBuqbLrNXqLU89GxWbNt6uIg78ET82qifUy3W6OVww6ZWobWub5oqZOVtwolfw==}
+    engines: {node: '>=18'}
+    cpu: [arm]
+    os: [linux]
+
+  '@esbuild/linux-arm@0.27.3':
+    resolution: {integrity: sha512-s6nPv2QkSupJwLYyfS+gwdirm0ukyTFNl3KTgZEAiJDd+iHZcbTPPcWCcRYH+WlNbwChgH2QkE9NSlNrMT8Gfw==}
     engines: {node: '>=18'}
     cpu: [arm]
     os: [linux]
@@ -2388,8 +2517,20 @@ packages:
     cpu: [ia32]
     os: [linux]
 
+  '@esbuild/linux-ia32@0.27.3':
+    resolution: {integrity: sha512-yGlQYjdxtLdh0a3jHjuwOrxQjOZYD/C9PfdbgJJF3TIZWnm/tMd/RcNiLngiu4iwcBAOezdnSLAwQDPqTmtTYg==}
+    engines: {node: '>=18'}
+    cpu: [ia32]
+    os: [linux]
+
   '@esbuild/linux-loong64@0.25.5':
     resolution: {integrity: sha512-0ur7ae16hDUC4OL5iEnDb0tZHDxYmuQyhKhsPBV8f99f6Z9KQM02g33f93rNH5A30agMS46u2HP6qTdEt6Q1kg==}
+    engines: {node: '>=18'}
+    cpu: [loong64]
+    os: [linux]
+
+  '@esbuild/linux-loong64@0.27.3':
+    resolution: {integrity: sha512-WO60Sn8ly3gtzhyjATDgieJNet/KqsDlX5nRC5Y3oTFcS1l0KWba+SEa9Ja1GfDqSF1z6hif/SkpQJbL63cgOA==}
     engines: {node: '>=18'}
     cpu: [loong64]
     os: [linux]
@@ -2400,8 +2541,20 @@ packages:
     cpu: [mips64el]
     os: [linux]
 
+  '@esbuild/linux-mips64el@0.27.3':
+    resolution: {integrity: sha512-APsymYA6sGcZ4pD6k+UxbDjOFSvPWyZhjaiPyl/f79xKxwTnrn5QUnXR5prvetuaSMsb4jgeHewIDCIWljrSxw==}
+    engines: {node: '>=18'}
+    cpu: [mips64el]
+    os: [linux]
+
   '@esbuild/linux-ppc64@0.25.5':
     resolution: {integrity: sha512-UZCmJ7r9X2fe2D6jBmkLBMQetXPXIsZjQJCjgwpVDz+YMcS6oFR27alkgGv3Oqkv07bxdvw7fyB71/olceJhkQ==}
+    engines: {node: '>=18'}
+    cpu: [ppc64]
+    os: [linux]
+
+  '@esbuild/linux-ppc64@0.27.3':
+    resolution: {integrity: sha512-eizBnTeBefojtDb9nSh4vvVQ3V9Qf9Df01PfawPcRzJH4gFSgrObw+LveUyDoKU3kxi5+9RJTCWlj4FjYXVPEA==}
     engines: {node: '>=18'}
     cpu: [ppc64]
     os: [linux]
@@ -2412,8 +2565,20 @@ packages:
     cpu: [riscv64]
     os: [linux]
 
+  '@esbuild/linux-riscv64@0.27.3':
+    resolution: {integrity: sha512-3Emwh0r5wmfm3ssTWRQSyVhbOHvqegUDRd0WhmXKX2mkHJe1SFCMJhagUleMq+Uci34wLSipf8Lagt4LlpRFWQ==}
+    engines: {node: '>=18'}
+    cpu: [riscv64]
+    os: [linux]
+
   '@esbuild/linux-s390x@0.25.5':
     resolution: {integrity: sha512-K2dSKTKfmdh78uJ3NcWFiqyRrimfdinS5ErLSn3vluHNeHVnBAFWC8a4X5N+7FgVE1EjXS1QDZbpqZBjfrqMTQ==}
+    engines: {node: '>=18'}
+    cpu: [s390x]
+    os: [linux]
+
+  '@esbuild/linux-s390x@0.27.3':
+    resolution: {integrity: sha512-pBHUx9LzXWBc7MFIEEL0yD/ZVtNgLytvx60gES28GcWMqil8ElCYR4kvbV2BDqsHOvVDRrOxGySBM9Fcv744hw==}
     engines: {node: '>=18'}
     cpu: [s390x]
     os: [linux]
@@ -2424,8 +2589,20 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@esbuild/linux-x64@0.27.3':
+    resolution: {integrity: sha512-Czi8yzXUWIQYAtL/2y6vogER8pvcsOsk5cpwL4Gk5nJqH5UZiVByIY8Eorm5R13gq+DQKYg0+JyQoytLQas4dA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [linux]
+
   '@esbuild/netbsd-arm64@0.25.5':
     resolution: {integrity: sha512-pwHtMP9viAy1oHPvgxtOv+OkduK5ugofNTVDilIzBLpoWAM16r7b/mxBvfpuQDpRQFMfuVr5aLcn4yveGvBZvw==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [netbsd]
+
+  '@esbuild/netbsd-arm64@0.27.3':
+    resolution: {integrity: sha512-sDpk0RgmTCR/5HguIZa9n9u+HVKf40fbEUt+iTzSnCaGvY9kFP0YKBWZtJaraonFnqef5SlJ8/TiPAxzyS+UoA==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [netbsd]
@@ -2436,8 +2613,20 @@ packages:
     cpu: [x64]
     os: [netbsd]
 
+  '@esbuild/netbsd-x64@0.27.3':
+    resolution: {integrity: sha512-P14lFKJl/DdaE00LItAukUdZO5iqNH7+PjoBm+fLQjtxfcfFE20Xf5CrLsmZdq5LFFZzb5JMZ9grUwvtVYzjiA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [netbsd]
+
   '@esbuild/openbsd-arm64@0.25.5':
     resolution: {integrity: sha512-7A208+uQKgTxHd0G0uqZO8UjK2R0DDb4fDmERtARjSHWxqMTye4Erz4zZafx7Di9Cv+lNHYuncAkiGFySoD+Mw==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [openbsd]
+
+  '@esbuild/openbsd-arm64@0.27.3':
+    resolution: {integrity: sha512-AIcMP77AvirGbRl/UZFTq5hjXK+2wC7qFRGoHSDrZ5v5b8DK/GYpXW3CPRL53NkvDqb9D+alBiC/dV0Fb7eJcw==}
     engines: {node: '>=18'}
     cpu: [arm64]
     os: [openbsd]
@@ -2448,8 +2637,26 @@ packages:
     cpu: [x64]
     os: [openbsd]
 
+  '@esbuild/openbsd-x64@0.27.3':
+    resolution: {integrity: sha512-DnW2sRrBzA+YnE70LKqnM3P+z8vehfJWHXECbwBmH/CU51z6FiqTQTHFenPlHmo3a8UgpLyH3PT+87OViOh1AQ==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [openbsd]
+
+  '@esbuild/openharmony-arm64@0.27.3':
+    resolution: {integrity: sha512-NinAEgr/etERPTsZJ7aEZQvvg/A6IsZG/LgZy+81wON2huV7SrK3e63dU0XhyZP4RKGyTm7aOgmQk0bGp0fy2g==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [openharmony]
+
   '@esbuild/sunos-x64@0.25.5':
     resolution: {integrity: sha512-l+azKShMy7FxzY0Rj4RCt5VD/q8mG/e+mDivgspo+yL8zW7qEwctQ6YqKX34DTEleFAvCIUviCFX1SDZRSyMQA==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [sunos]
+
+  '@esbuild/sunos-x64@0.27.3':
+    resolution: {integrity: sha512-PanZ+nEz+eWoBJ8/f8HKxTTD172SKwdXebZ0ndd953gt1HRBbhMsaNqjTyYLGLPdoWHy4zLU7bDVJztF5f3BHA==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [sunos]
@@ -2460,14 +2667,32 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@esbuild/win32-arm64@0.27.3':
+    resolution: {integrity: sha512-B2t59lWWYrbRDw/tjiWOuzSsFh1Y/E95ofKz7rIVYSQkUYBjfSgf6oeYPNWHToFRr2zx52JKApIcAS/D5TUBnA==}
+    engines: {node: '>=18'}
+    cpu: [arm64]
+    os: [win32]
+
   '@esbuild/win32-ia32@0.25.5':
     resolution: {integrity: sha512-onOJ02pqs9h1iMJ1PQphR+VZv8qBMQ77Klcsqv9CNW2w6yLqoURLcgERAIurY6QE63bbLuqgP9ATqajFLK5AMQ==}
     engines: {node: '>=18'}
     cpu: [ia32]
     os: [win32]
 
+  '@esbuild/win32-ia32@0.27.3':
+    resolution: {integrity: sha512-QLKSFeXNS8+tHW7tZpMtjlNb7HKau0QDpwm49u0vUp9y1WOF+PEzkU84y9GqYaAVW8aH8f3GcBck26jh54cX4Q==}
+    engines: {node: '>=18'}
+    cpu: [ia32]
+    os: [win32]
+
   '@esbuild/win32-x64@0.25.5':
     resolution: {integrity: sha512-TXv6YnJ8ZMVdX+SXWVBo/0p8LTcrUYngpWjvm91TMjjBQii7Oz11Lw5lbDV5Y0TzuhSJHwiH4hEtC1I42mMS0g==}
+    engines: {node: '>=18'}
+    cpu: [x64]
+    os: [win32]
+
+  '@esbuild/win32-x64@0.27.3':
+    resolution: {integrity: sha512-4uJGhsxuptu3OcpVAzli+/gWusVGwZZHTlS63hh++ehExkVT8SgiEf7/uC/PclrPPkLhZqGgCTjd0VWLo6xMqA==}
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
@@ -2719,11 +2944,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.29.0-rc.0':
-    resolution: {integrity: sha512-sXeU30DY5sCBJ+X6XUbYRpueA/GkaAI/4BwpopLaNtEN54JZ7TMAqTwY8lu8J3xTo6p+QihXVp3stb4me4/jMg==}
+  '@genkit-ai/ai@1.29.0':
+    resolution: {integrity: sha512-a5rc3b6xyOk1e0q8uFjN6PrBAELLfILuLs8y2ozwe4daNjwx3DUfgWdHAr7zDxsAzZfTyCxDwuaOetd8fdJ/eQ==}
 
-  '@genkit-ai/core@1.29.0-rc.0':
-    resolution: {integrity: sha512-hvsOjKyyCmV9u8zutF/2PhZaprP32ClTos8bNf2N88ASs1EUD3RcOS5qRweyVqEPdh2cGAU07xI3Tn5omKtsnA==}
+  '@genkit-ai/core@1.29.0':
+    resolution: {integrity: sha512-nu4+rSEol1vtmgCbqTWDoEh5hHqXdAOkws4iPgXcIqZqw7/fyUwzNYrBnlFTRJlGUCd6lSQdAvzruqrOHZpR3Q==}
 
   '@genkit-ai/express@1.12.0':
     resolution: {integrity: sha512-QAxSS07dX5ovSfsUB4s90KaDnv4zg1wnoxCZCa+jBsYUyv9NvCCTsOk25xAQgGxc7xi3+MD+3AsPier5oZILIg==}
@@ -4080,6 +4305,15 @@ packages:
     resolution: {integrity: sha512-c83qWb22rNRuB0UaVCI0uRPNRr8Z0FWnEIvT47jiHAmOIUHbBOg5XvV7pM5x+rKn9HRpjxquDbXYSXr3fAKFcw==}
     engines: {node: '>=12'}
 
+  '@poppinss/colors@4.1.6':
+    resolution: {integrity: sha512-H9xkIdFswbS8n1d6vmRd8+c10t2Qe+rZITbbDHHkQixH5+2x1FDGmi/0K+WgWiqQFKPSlIYB7jlH6Kpfn6Fleg==}
+
+  '@poppinss/dumper@0.6.5':
+    resolution: {integrity: sha512-NBdYIb90J7LfOI32dOewKI1r7wnkiH6m920puQ3qHUeZkxNkQiFnXVWoE6YtFSv6QOiPPf7ys6i+HWWecDz7sw==}
+
+  '@poppinss/exception@1.2.3':
+    resolution: {integrity: sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw==}
+
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
 
@@ -4229,6 +4463,10 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
+  '@sindresorhus/is@7.2.0':
+    resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
+    engines: {node: '>=18'}
+
   '@sinonjs/commons@3.0.1':
     resolution: {integrity: sha512-K3mCHKQ9sVh8o1C9cxkwxaOmXoAMlDxC1mYyHrjqOWEcBjYr76t96zL2zlj5dUGZ3HSw240X1qgH3Mjf1yJWpQ==}
 
@@ -4240,6 +4478,9 @@ packages:
 
   '@sinonjs/samsam@8.0.2':
     resolution: {integrity: sha512-v46t/fwnhejRSFTGqbpn9u+LQ9xJDse10gNnPgAcxgdoCDMXj/G2asWAC/8Qs+BAZDicX+MNZouXT1A7c83kVw==}
+
+  '@speed-highlight/core@1.2.14':
+    resolution: {integrity: sha512-G4ewlBNhUtlLvrJTb88d2mdy2KRijzs4UhnlrOSRT4bmjh/IqNElZa3zkrZ+TC47TwtlDWzVLFADljF1Ijp5hA==}
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
@@ -4384,6 +4625,9 @@ packages:
 
   '@types/node@22.15.32':
     resolution: {integrity: sha512-3jigKqgSjsH6gYZv2nEsqdXfZqIFGAV36XYYjf9KGZ3PSG+IhLecqPnI310RvjutyMwifE2hhhNEklOUrvx/wA==}
+
+  '@types/node@25.3.3':
+    resolution: {integrity: sha512-DpzbrH7wIcBaJibpKo9nnSQL0MTRdnWttGyE5haGwK86xgMOkFLp7vEyfQPGLOJh5wNYiJ3V9PmUMDhV9u8kkQ==}
 
   '@types/pdf-parse@1.1.5':
     resolution: {integrity: sha512-kBfrSXsloMnUJOKi25s3+hRmkycHfLK6A09eRGqF/N8BkQoPUmaCr+q8Cli5FnfohEz/rsv82zAiPz/LXtOGhA==}
@@ -4729,6 +4973,9 @@ packages:
 
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
+
+  blake3-wasm@2.1.5:
+    resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
 
   body-parser@1.20.3:
     resolution: {integrity: sha512-7rAxByjUMqQ3/bHJy7D6OGXvx/MMc4IqBn/X0fcM1QUcAItpZrBEYhWGem+tzXH90c+G01ypMcYJBO9Y30203g==}
@@ -5108,6 +5355,10 @@ packages:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
 
+  cookie@1.1.1:
+    resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
+    engines: {node: '>=18'}
+
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
@@ -5409,6 +5660,9 @@ packages:
   error-ex@1.3.2:
     resolution: {integrity: sha512-7dFHNmqeFSEt2ZBsCriorKnn3Z2pj+fd9kmI6QoWw4//DL+icEBfc0U7qJCisqrTsKTjw4fNFy2pW9OqStD84g==}
 
+  error-stack-parser-es@1.0.5:
+    resolution: {integrity: sha512-5qucVt2XcuGMcEGgWI7i+yZpmpByQ8J1lHhcL7PwqCwu9FPP3VUXzT4ltHe5i2z9dePwEHcDVOAfSnHsOlCXRA==}
+
   error@7.0.2:
     resolution: {integrity: sha512-UtVv4l5MhijsYUxPJo4390gzfZvAnTHreNnDjnTZaKIiZ/SemXxAhBkYSKtWa5RtBXbLP8tMgn/n0RUa/H7jXw==}
 
@@ -5442,6 +5696,11 @@ packages:
 
   esbuild@0.25.5:
     resolution: {integrity: sha512-P8OtKZRv/5J5hhz0cUAdu/cLuPIKXpQl1R9pZtvmHWQvrAUVd0UNIPT4IB4W3rNOqVO0rlqHmCIbSwxh/c9yUQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  esbuild@0.27.3:
+    resolution: {integrity: sha512-8VwMnyGCONIs6cWue2IdpHxHnAjzxnw2Zr7MkVxB2vjmQ2ivqGFb4LEG3SMnv0Gb2F/G/2yA8zUaiL1gywDCCg==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -5793,8 +6052,8 @@ packages:
     resolution: {integrity: sha512-zV/5HKTfCeKWnxG0Dmrw51hEWFGfcF2xiXqcA3+J90WDuP0SvoiSO5ORvcBsifmx/FoIjgQN3oNOGaQ5PhLFkg==}
     engines: {node: '>=18'}
 
-  genkit@1.29.0-rc.0:
-    resolution: {integrity: sha512-mjqPq9gYsXrZN6WYdzF7UuCoYYyEigfGfLur1NAVGVXos3pBFBOW4yivslMxslCZhWYMDX4koJYtMEMPJApSQg==}
+  genkit@1.29.0:
+    resolution: {integrity: sha512-m0oqw4AU8l6LTELH/0JmWPUA5ZuEVwm4ZhgUaVopy86gqgWyDF+SdNIpIxtXqdTmxxQHK9stQXuq/zJUDCLF4Q==}
 
   genkitx-openai@0.10.1:
     resolution: {integrity: sha512-E9/DzyQcBUSTy81xT2pvEmdnn9Q/cKoojEt6lD/EdOeinhqE9oa59d/kuXTokCMekTrj3Rk7LtNBQIDjnyjNOA==}
@@ -5866,20 +6125,23 @@ packages:
   glob@10.3.12:
     resolution: {integrity: sha512-TCNv8vJ+xz4QiqTpfOJA7HvYv+tNIRHKfUWw/q+v2jdgN4ebz+KY9tGx5J4rHP0o84mNP+ApH66HRX8us3Khqg==}
     engines: {node: '>=16 || 14 >=14.17'}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@10.5.0:
     resolution: {integrity: sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@11.0.0:
     resolution: {integrity: sha512-9UiX/Bl6J2yaBbxKoEBRm4Cipxgok8kQYcOPEhScPwebu2I0HoQOuYdIO6S3hLuWoZgpDpwQZMzTFxgpkyT76g==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global-dirs@3.0.1:
     resolution: {integrity: sha512-NBcGGFbBA9s1VzD41QXDG+3++t9Mn5t1FpLdhESY6oKY4gYTFpX4wO3sqGUa0Srjtbfj3szX0RnemmrVRUdULA==}
@@ -6063,16 +6325,8 @@ packages:
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
 
-  iconv-lite@0.4.24:
-    resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
-    engines: {node: '>=0.10.0'}
-
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
-    engines: {node: '>=0.10.0'}
-
-  iconv-lite@0.7.1:
-    resolution: {integrity: sha512-2Tth85cXwGFHfvRgZWszZSvdo+0Xsqmw8k8ZwxScfcBneNUraK+dxRxRm24nszx80Y0TVio8kKLt5sLE7ZCLlw==}
     engines: {node: '>=0.10.0'}
 
   idb@7.1.1:
@@ -6656,6 +6910,10 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
+  kleur@4.1.5:
+    resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
+    engines: {node: '>=6'}
+
   knex@3.1.0:
     resolution: {integrity: sha512-GLoII6hR0c4ti243gMs5/1Rb3B+AjwMOfjYm97pu0FOQa7JH56hgBxYf5WK2525ceSbBY1cjeZ9yk99GPMB6Kw==}
     engines: {node: '>=16'}
@@ -7133,6 +7391,11 @@ packages:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
     engines: {node: '>=6'}
 
+  miniflare@4.20260305.0:
+    resolution: {integrity: sha512-jVhtKJtiwaZa3rI+WgoLvSJmEazDsoUmAPYRUmEe2VO6VSbvkhbnDRm+dsPbYRatgNIExwrpqG1rv96jHiSb0w==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
   minimatch@10.0.1:
     resolution: {integrity: sha512-ethXTt3SGGR+95gudmqJ1eNhRO7eGEGIgYA9vnPatK4/etz2MEVDno5GMCibdMTuBMyElzIlgxMna3K94XDIDQ==}
     engines: {node: 20 || >=22}
@@ -7578,6 +7841,9 @@ packages:
   path-to-regexp@1.9.0:
     resolution: {integrity: sha512-xIp7/apCFJuUHdDLWe8O1HIkb0kQrOMb/0u6FXQjemHn/ii5LrIzU6bdECnsiTF/GjZkMEKg1xdiZwNqDYlZ6g==}
 
+  path-to-regexp@6.3.0:
+    resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
+
   path-to-regexp@8.2.0:
     resolution: {integrity: sha512-TdrF7fW9Rphjq4RjrW0Kp2AW0Ahwu9sRGTkS6bvDi0SCwZlEZYmcfDbEsTz8RVk0EHIS/Vd1bv3JhG+1xZuAyQ==}
     engines: {node: '>=16'}
@@ -7711,8 +7977,8 @@ packages:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  postcss@8.4.47:
-    resolution: {integrity: sha512-56rxCq7G/XfB4EkXq9Egn5GCqugWvDFjafDOThIdMBsI15iqPqR5r15TfSr1YPYeEI19YeaXMCbY6u88Y76GLQ==}
+  postcss@8.5.6:
+    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@2.0.0:
@@ -8349,6 +8615,10 @@ packages:
     engines: {node: 18 || 20 || 22}
     hasBin: true
 
+  supports-color@10.2.2:
+    resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
+    engines: {node: '>=18'}
+
   supports-color@5.5.0:
     resolution: {integrity: sha512-QjVjwdXIt408MIiAqCX4oUKsgU2EqAGzs2Ppkm4aQYbjm+ZEWEcW4SfFNTr4uMNZma0ey4f5lgLrkB0aX0QMow==}
     engines: {node: '>=4'}
@@ -8375,10 +8645,12 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   tarn@3.0.2:
     resolution: {integrity: sha512-51LAVKUSZSVfI05vjPESNc5vwqqZpbXCsU+/+wxlOrUjk2SnFTt97v9ZgQrD4YmxYW1Px6w2KjaDitCfkvgxMQ==}
@@ -8664,6 +8936,16 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
+  undici-types@7.18.2:
+    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
+
+  undici@7.18.2:
+    resolution: {integrity: sha512-y+8YjDFzWdQlSE9N5nzKMT3g4a5UBX1HKowfdXh0uvAnTaqqwqB92Jt4UXBAeKekDs5IaDKyJFR4X1gYVCgXcw==}
+    engines: {node: '>=20.18.1'}
+
+  unenv@2.0.0-rc.24:
+    resolution: {integrity: sha512-i7qRCmY42zmCwnYlh9H2SvLEypEFGye5iRmEMKjcGi7zk9UquigRjFtTLz0TYqr0ZGLZhaMHl/foy1bZR+Cwlw==}
+
   unicode-emoji-modifier-base@1.0.0:
     resolution: {integrity: sha512-yLSH4py7oFH3oG/9K+XWrz1pSi3dfUrWEnInbxMfArOfc1+33BlGPQtLsOYwvdMy11AwUBetYuaRxSPqgkq+8g==}
     engines: {node: '>=4'}
@@ -8867,6 +9149,21 @@ packages:
   wordwrap@1.0.0:
     resolution: {integrity: sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==}
 
+  workerd@1.20260305.0:
+    resolution: {integrity: sha512-JkhfCLU+w+KbQmZ9k49IcDYc78GBo7eG8Mir8E2+KVjR7otQAmpcLlsous09YLh8WQ3Bt3Mi6/WMStvMAPukeA==}
+    engines: {node: '>=16'}
+    hasBin: true
+
+  wrangler@4.69.0:
+    resolution: {integrity: sha512-EmVfIM65I5b4ITHe3Y9R7zQyf4NUBQ1leStakMlWiVR9n6VlDwuEltyQI2l3i0JciDnWyR3uqe+T6C08ivniTQ==}
+    engines: {node: '>=20.0.0'}
+    hasBin: true
+    peerDependencies:
+      '@cloudflare/workers-types': ^4.20260305.0
+    peerDependenciesMeta:
+      '@cloudflare/workers-types':
+        optional: true
+
   wrap-ansi@6.2.0:
     resolution: {integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==}
     engines: {node: '>=8'}
@@ -8895,6 +9192,18 @@ packages:
     peerDependencies:
       bufferutil: ^4.0.1
       utf-8-validate: ^5.0.2
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.18.0:
+    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
     peerDependenciesMeta:
       bufferutil:
         optional: true
@@ -8974,6 +9283,12 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  youch-core@0.3.3:
+    resolution: {integrity: sha512-ho7XuGjLaJ2hWHoK8yFnsUGy2Y5uDpqSTq1FkHLK4/oqKtyUU1AFbOOxY4IpC9f0fTLjwYbslUz0Po5BpD1wrA==}
+
+  youch@4.1.0-beta.10:
+    resolution: {integrity: sha512-rLfVLB4FgQneDr0dv1oddCVZmKjcJ6yX6mS4pU82Mq/Dt9a3cLZQ62pDBL4AUO+uVrCvtWz3ZFUL2HFAFJ/BXQ==}
 
   zip-stream@6.0.1:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
@@ -9248,7 +9563,29 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
-  '@cfworker/json-schema@4.1.1':
+  '@cfworker/json-schema@4.1.1': {}
+
+  '@cloudflare/kv-asset-handler@0.4.2': {}
+
+  '@cloudflare/unenv-preset@2.14.0(unenv@2.0.0-rc.24)(workerd@1.20260305.0)':
+    dependencies:
+      unenv: 2.0.0-rc.24
+    optionalDependencies:
+      workerd: 1.20260305.0
+
+  '@cloudflare/workerd-darwin-64@1.20260305.0':
+    optional: true
+
+  '@cloudflare/workerd-darwin-arm64@1.20260305.0':
+    optional: true
+
+  '@cloudflare/workerd-linux-64@1.20260305.0':
+    optional: true
+
+  '@cloudflare/workerd-linux-arm64@1.20260305.0':
+    optional: true
+
+  '@cloudflare/workerd-windows-64@1.20260305.0':
     optional: true
 
   '@colors/colors@1.5.0':
@@ -9259,7 +9596,6 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
-    optional: true
 
   '@dabh/diagnostics@2.0.3':
     dependencies:
@@ -9279,76 +9615,154 @@ snapshots:
   '@esbuild/aix-ppc64@0.25.5':
     optional: true
 
+  '@esbuild/aix-ppc64@0.27.3':
+    optional: true
+
   '@esbuild/android-arm64@0.25.5':
+    optional: true
+
+  '@esbuild/android-arm64@0.27.3':
     optional: true
 
   '@esbuild/android-arm@0.25.5':
     optional: true
 
+  '@esbuild/android-arm@0.27.3':
+    optional: true
+
   '@esbuild/android-x64@0.25.5':
+    optional: true
+
+  '@esbuild/android-x64@0.27.3':
     optional: true
 
   '@esbuild/darwin-arm64@0.25.5':
     optional: true
 
+  '@esbuild/darwin-arm64@0.27.3':
+    optional: true
+
   '@esbuild/darwin-x64@0.25.5':
+    optional: true
+
+  '@esbuild/darwin-x64@0.27.3':
     optional: true
 
   '@esbuild/freebsd-arm64@0.25.5':
     optional: true
 
+  '@esbuild/freebsd-arm64@0.27.3':
+    optional: true
+
   '@esbuild/freebsd-x64@0.25.5':
+    optional: true
+
+  '@esbuild/freebsd-x64@0.27.3':
     optional: true
 
   '@esbuild/linux-arm64@0.25.5':
     optional: true
 
+  '@esbuild/linux-arm64@0.27.3':
+    optional: true
+
   '@esbuild/linux-arm@0.25.5':
+    optional: true
+
+  '@esbuild/linux-arm@0.27.3':
     optional: true
 
   '@esbuild/linux-ia32@0.25.5':
     optional: true
 
+  '@esbuild/linux-ia32@0.27.3':
+    optional: true
+
   '@esbuild/linux-loong64@0.25.5':
+    optional: true
+
+  '@esbuild/linux-loong64@0.27.3':
     optional: true
 
   '@esbuild/linux-mips64el@0.25.5':
     optional: true
 
+  '@esbuild/linux-mips64el@0.27.3':
+    optional: true
+
   '@esbuild/linux-ppc64@0.25.5':
+    optional: true
+
+  '@esbuild/linux-ppc64@0.27.3':
     optional: true
 
   '@esbuild/linux-riscv64@0.25.5':
     optional: true
 
+  '@esbuild/linux-riscv64@0.27.3':
+    optional: true
+
   '@esbuild/linux-s390x@0.25.5':
+    optional: true
+
+  '@esbuild/linux-s390x@0.27.3':
     optional: true
 
   '@esbuild/linux-x64@0.25.5':
     optional: true
 
+  '@esbuild/linux-x64@0.27.3':
+    optional: true
+
   '@esbuild/netbsd-arm64@0.25.5':
+    optional: true
+
+  '@esbuild/netbsd-arm64@0.27.3':
     optional: true
 
   '@esbuild/netbsd-x64@0.25.5':
     optional: true
 
+  '@esbuild/netbsd-x64@0.27.3':
+    optional: true
+
   '@esbuild/openbsd-arm64@0.25.5':
+    optional: true
+
+  '@esbuild/openbsd-arm64@0.27.3':
     optional: true
 
   '@esbuild/openbsd-x64@0.25.5':
     optional: true
 
+  '@esbuild/openbsd-x64@0.27.3':
+    optional: true
+
+  '@esbuild/openharmony-arm64@0.27.3':
+    optional: true
+
   '@esbuild/sunos-x64@0.25.5':
+    optional: true
+
+  '@esbuild/sunos-x64@0.27.3':
     optional: true
 
   '@esbuild/win32-arm64@0.25.5':
     optional: true
 
+  '@esbuild/win32-arm64@0.27.3':
+    optional: true
+
   '@esbuild/win32-ia32@0.25.5':
     optional: true
 
+  '@esbuild/win32-ia32@0.27.3':
+    optional: true
+
   '@esbuild/win32-x64@0.25.5':
+    optional: true
+
+  '@esbuild/win32-x64@0.27.3':
     optional: true
 
   '@fastify/busboy@3.0.0': {}
@@ -9725,9 +10139,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
+  '@genkit-ai/ai@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
     dependencies:
-      '@genkit-ai/core': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+      '@genkit-ai/core': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.19.1
       colorette: 2.0.20
@@ -9746,9 +10160,9 @@ snapshots:
       - supports-color
     optional: true
 
-  '@genkit-ai/ai@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)':
+  '@genkit-ai/ai@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)':
     dependencies:
-      '@genkit-ai/core': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
+      '@genkit-ai/core': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.19.1
       colorette: 2.0.20
@@ -9766,7 +10180,7 @@ snapshots:
       - genkit
       - supports-color
 
-  '@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
+  '@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -9788,7 +10202,7 @@ snapshots:
       zod-to-json-schema: 3.24.5(zod@3.25.67)
     optionalDependencies:
       '@cfworker/json-schema': 4.1.1
-      '@genkit-ai/firebase': 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+      '@genkit-ai/firebase': 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
     transitivePeerDependencies:
       - '@google-cloud/firestore'
       - encoding
@@ -9798,7 +10212,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)':
+  '@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -9829,9 +10243,9 @@ snapshots:
       - genkit
       - supports-color
 
-  '@genkit-ai/express@1.12.0(@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(express@5.1.0)(genkit@genkit)':
+  '@genkit-ai/express@1.12.0(@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(express@5.1.0)(genkit@genkit)':
     dependencies:
-      '@genkit-ai/core': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
+      '@genkit-ai/core': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
       body-parser: 1.20.3
       cors: 2.8.5
       express: 5.1.0
@@ -9839,12 +10253,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/firebase@1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
+  '@genkit-ai/firebase@1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
     dependencies:
-      '@genkit-ai/google-cloud': 1.16.1(encoding@0.1.13)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+      '@genkit-ai/google-cloud': 1.16.1(encoding@0.1.13)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
       '@google-cloud/firestore': 7.11.1(encoding@0.1.13)
       firebase-admin: 13.6.0(encoding@0.1.13)
-      genkit: 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)
+      genkit: 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)
     optionalDependencies:
       firebase: 11.9.1
     transitivePeerDependencies:
@@ -9865,7 +10279,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@genkit-ai/google-cloud@1.16.1(encoding@0.1.13)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
+  '@genkit-ai/google-cloud@1.16.1(encoding@0.1.13)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))':
     dependencies:
       '@google-cloud/logging-winston': 6.0.1(encoding@0.1.13)(winston@3.17.0)
       '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.19.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@1.25.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@1.25.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@1.25.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
@@ -9881,7 +10295,7 @@ snapshots:
       '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-node': 0.52.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.0)
-      genkit: 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)
+      genkit: 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)
       google-auth-library: 9.15.1(encoding@0.1.13)
       node-fetch: 3.3.2
       winston: 3.17.0
@@ -10197,8 +10611,7 @@ snapshots:
       protobufjs: 7.5.3
       yargs: 17.7.2
 
-  '@img/colour@1.0.0':
-    optional: true
+  '@img/colour@1.0.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -10297,7 +10710,7 @@ snapshots:
   '@inquirer/external-editor@1.0.3(@types/node@20.19.1)':
     dependencies:
       chardet: 2.1.1
-      iconv-lite: 0.7.1
+      iconv-lite: 0.6.3
     optionalDependencies:
       '@types/node': 20.19.1
 
@@ -10539,13 +10952,12 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
 
   '@jridgewell/trace-mapping@0.3.9':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
-    optional: true
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
@@ -11416,6 +11828,18 @@ snapshots:
       '@pnpm/network.ca-file': 1.0.2
       config-chain: 1.1.13
 
+  '@poppinss/colors@4.1.6':
+    dependencies:
+      kleur: 4.1.5
+
+  '@poppinss/dumper@0.6.5':
+    dependencies:
+      '@poppinss/colors': 4.1.6
+      '@sindresorhus/is': 7.2.0
+      supports-color: 10.2.2
+
+  '@poppinss/exception@1.2.3': {}
+
   '@protobufjs/aspromise@1.1.2': {}
 
   '@protobufjs/base64@1.1.2': {}
@@ -11517,6 +11941,8 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
+  '@sindresorhus/is@7.2.0': {}
+
   '@sinonjs/commons@3.0.1':
     dependencies:
       type-detect: 4.0.8
@@ -11534,6 +11960,8 @@ snapshots:
       '@sinonjs/commons': 3.0.1
       lodash.get: 4.4.2
       type-detect: 4.1.0
+
+  '@speed-highlight/core@1.2.14': {}
 
   '@swc/helpers@0.5.15':
     dependencies:
@@ -11710,6 +12138,10 @@ snapshots:
   '@types/node@22.15.32':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/node@25.3.3':
+    dependencies:
+      undici-types: 7.18.2
 
   '@types/pdf-parse@1.1.5':
     dependencies:
@@ -12075,6 +12507,8 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
 
+  blake3-wasm@2.1.5: {}
+
   body-parser@1.20.3:
     dependencies:
       bytes: 3.1.2
@@ -12083,7 +12517,7 @@ snapshots:
       depd: 2.0.0
       destroy: 1.2.0
       http-errors: 2.0.0
-      iconv-lite: 0.4.24
+      iconv-lite: 0.6.3
       on-finished: 2.4.1
       qs: 6.13.0
       raw-body: 2.5.2
@@ -12504,6 +12938,8 @@ snapshots:
 
   cookie@0.7.2: {}
 
+  cookie@1.1.1: {}
+
   core-util-is@1.0.3: {}
 
   cors@2.8.5:
@@ -12672,8 +13108,7 @@ snapshots:
 
   destroy@1.2.0: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   detect-newline@3.1.0: {}
 
@@ -12775,6 +13210,8 @@ snapshots:
   error-ex@1.3.2:
     dependencies:
       is-arrayish: 0.2.1
+
+  error-stack-parser-es@1.0.5: {}
 
   error@7.0.2:
     dependencies:
@@ -12890,6 +13327,35 @@ snapshots:
       '@esbuild/win32-arm64': 0.25.5
       '@esbuild/win32-ia32': 0.25.5
       '@esbuild/win32-x64': 0.25.5
+
+  esbuild@0.27.3:
+    optionalDependencies:
+      '@esbuild/aix-ppc64': 0.27.3
+      '@esbuild/android-arm': 0.27.3
+      '@esbuild/android-arm64': 0.27.3
+      '@esbuild/android-x64': 0.27.3
+      '@esbuild/darwin-arm64': 0.27.3
+      '@esbuild/darwin-x64': 0.27.3
+      '@esbuild/freebsd-arm64': 0.27.3
+      '@esbuild/freebsd-x64': 0.27.3
+      '@esbuild/linux-arm': 0.27.3
+      '@esbuild/linux-arm64': 0.27.3
+      '@esbuild/linux-ia32': 0.27.3
+      '@esbuild/linux-loong64': 0.27.3
+      '@esbuild/linux-mips64el': 0.27.3
+      '@esbuild/linux-ppc64': 0.27.3
+      '@esbuild/linux-riscv64': 0.27.3
+      '@esbuild/linux-s390x': 0.27.3
+      '@esbuild/linux-x64': 0.27.3
+      '@esbuild/netbsd-arm64': 0.27.3
+      '@esbuild/netbsd-x64': 0.27.3
+      '@esbuild/openbsd-arm64': 0.27.3
+      '@esbuild/openbsd-x64': 0.27.3
+      '@esbuild/openharmony-arm64': 0.27.3
+      '@esbuild/sunos-x64': 0.27.3
+      '@esbuild/win32-arm64': 0.27.3
+      '@esbuild/win32-ia32': 0.27.3
+      '@esbuild/win32-x64': 0.27.3
 
   escalade@3.1.2: {}
 
@@ -13522,10 +13988,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1):
+  genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1):
     dependencies:
-      '@genkit-ai/ai': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
-      '@genkit-ai/core': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+      '@genkit-ai/ai': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
+      '@genkit-ai/core': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1))
       uuid: 10.0.0
     transitivePeerDependencies:
       - '@google-cloud/firestore'
@@ -13535,10 +14001,10 @@ snapshots:
       - supports-color
     optional: true
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(@genkit-ai/core@1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(encoding@0.1.13)(ws@8.18.3):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(@genkit-ai/core@1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit))(encoding@0.1.13)(ws@8.18.3):
     dependencies:
-      '@genkit-ai/ai': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
-      '@genkit-ai/core': 1.29.0-rc.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
+      '@genkit-ai/ai': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
+      '@genkit-ai/core': 1.29.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.6.0(encoding@0.1.13))(firebase@11.9.1)(genkit@genkit)
       openai: 4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.67)
       zod: 3.25.67
     transitivePeerDependencies:
@@ -13917,15 +14383,7 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  iconv-lite@0.4.24:
-    dependencies:
-      safer-buffer: 2.1.2
-
   iconv-lite@0.6.3:
-    dependencies:
-      safer-buffer: 2.1.2
-
-  iconv-lite@0.7.1:
     dependencies:
       safer-buffer: 2.1.2
 
@@ -14787,6 +15245,8 @@ snapshots:
 
   kleur@3.0.3: {}
 
+  kleur@4.1.5: {}
+
   knex@3.1.0(pg@8.16.2):
     dependencies:
       colorette: 2.0.19
@@ -15174,6 +15634,18 @@ snapshots:
     optional: true
 
   mimic-fn@2.1.0: {}
+
+  miniflare@4.20260305.0:
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      sharp: 0.34.5
+      undici: 7.18.2
+      workerd: 1.20260305.0
+      ws: 8.18.0
+      youch: 4.1.0-beta.10
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   minimatch@10.0.1:
     dependencies:
@@ -15643,6 +16115,8 @@ snapshots:
     dependencies:
       isarray: 0.0.1
 
+  path-to-regexp@6.3.0: {}
+
   path-to-regexp@8.2.0: {}
 
   path-type@3.0.0:
@@ -15751,11 +16225,11 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss-load-config@6.0.1(postcss@8.4.47)(tsx@4.20.3)(yaml@2.8.0):
+  postcss-load-config@6.0.1(postcss@8.5.6)(tsx@4.20.3)(yaml@2.8.0):
     dependencies:
       lilconfig: 3.1.2
     optionalDependencies:
-      postcss: 8.4.47
+      postcss: 8.5.6
       tsx: 4.20.3
       yaml: 2.8.0
 
@@ -15765,7 +16239,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postcss@8.4.47:
+  postcss@8.5.6:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -15922,7 +16396,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       http-errors: 2.0.0
-      iconv-lite: 0.4.24
+      iconv-lite: 0.6.3
       unpipe: 1.0.0
 
   raw-body@3.0.0:
@@ -16201,8 +16675,7 @@ snapshots:
 
   semver@7.7.2: {}
 
-  semver@7.7.3:
-    optional: true
+  semver@7.7.3: {}
 
   send@0.19.0:
     dependencies:
@@ -16310,7 +16783,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
@@ -16607,6 +17079,8 @@ snapshots:
       - encoding
       - supports-color
 
+  supports-color@10.2.2: {}
+
   supports-color@5.5.0:
     dependencies:
       has-flag: 3.0.0
@@ -16848,7 +17322,7 @@ snapshots:
 
   tsscmp@1.0.6: {}
 
-  tsup@8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0):
+  tsup@8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.5)
       cac: 6.7.14
@@ -16859,7 +17333,7 @@ snapshots:
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.20.3)(yaml@2.8.0)
+      postcss-load-config: 6.0.1(postcss@8.5.6)(tsx@4.20.3)(yaml@2.8.0)
       resolve-from: 5.0.0
       rollup: 4.43.0
       source-map: 0.8.0-beta.0
@@ -16868,7 +17342,7 @@ snapshots:
       tinyglobby: 0.2.14
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.4.47
+      postcss: 8.5.6
       typescript: 4.9.5
     transitivePeerDependencies:
       - jiti
@@ -16876,7 +17350,7 @@ snapshots:
       - tsx
       - yaml
 
-  tsup@8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0):
+  tsup@8.5.0(postcss@8.5.6)(tsx@4.20.3)(typescript@5.8.3)(yaml@2.8.0):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.25.5)
       cac: 6.7.14
@@ -16887,7 +17361,7 @@ snapshots:
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
       picocolors: 1.1.1
-      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.20.3)(yaml@2.8.0)
+      postcss-load-config: 6.0.1(postcss@8.5.6)(tsx@4.20.3)(yaml@2.8.0)
       resolve-from: 5.0.0
       rollup: 4.43.0
       source-map: 0.8.0-beta.0
@@ -16896,7 +17370,7 @@ snapshots:
       tinyglobby: 0.2.14
       tree-kill: 1.2.2
     optionalDependencies:
-      postcss: 8.4.47
+      postcss: 8.5.6
       typescript: 5.8.3
     transitivePeerDependencies:
       - jiti
@@ -17011,6 +17485,14 @@ snapshots:
   undici-types@5.26.5: {}
 
   undici-types@6.21.0: {}
+
+  undici-types@7.18.2: {}
+
+  undici@7.18.2: {}
+
+  unenv@2.0.0-rc.24:
+    dependencies:
+      pathe: 2.0.3
 
   unicode-emoji-modifier-base@1.0.0: {}
 
@@ -17256,6 +17738,30 @@ snapshots:
 
   wordwrap@1.0.0: {}
 
+  workerd@1.20260305.0:
+    optionalDependencies:
+      '@cloudflare/workerd-darwin-64': 1.20260305.0
+      '@cloudflare/workerd-darwin-arm64': 1.20260305.0
+      '@cloudflare/workerd-linux-64': 1.20260305.0
+      '@cloudflare/workerd-linux-arm64': 1.20260305.0
+      '@cloudflare/workerd-windows-64': 1.20260305.0
+
+  wrangler@4.69.0:
+    dependencies:
+      '@cloudflare/kv-asset-handler': 0.4.2
+      '@cloudflare/unenv-preset': 2.14.0(unenv@2.0.0-rc.24)(workerd@1.20260305.0)
+      blake3-wasm: 2.1.5
+      esbuild: 0.27.3
+      miniflare: 4.20260305.0
+      path-to-regexp: 6.3.0
+      unenv: 2.0.0-rc.24
+      workerd: 1.20260305.0
+    optionalDependencies:
+      fsevents: 2.3.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   wrap-ansi@6.2.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -17289,6 +17795,8 @@ snapshots:
       signal-exit: 3.0.7
 
   ws@7.5.10: {}
+
+  ws@8.18.0: {}
 
   ws@8.18.3: {}
 
@@ -17341,6 +17849,19 @@ snapshots:
     optional: true
 
   yocto-queue@0.1.0: {}
+
+  youch-core@0.3.3:
+    dependencies:
+      '@poppinss/exception': 1.2.3
+      error-stack-parser-es: 1.0.5
+
+  youch@4.1.0-beta.10:
+    dependencies:
+      '@poppinss/colors': 4.1.6
+      '@poppinss/dumper': 0.6.5
+      '@speed-highlight/core': 1.2.14
+      cookie: 1.1.1
+      youch-core: 0.3.3
 
   zip-stream@6.0.1:
     dependencies:
