@@ -43,7 +43,7 @@ const ai = genkit({
 
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-lite-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
   });
 
@@ -52,7 +52,7 @@ ai.defineFlow('basic-hi', async () => {
 
 ai.defineFlow('basic-hi-with-retry', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-pro'),
+    model: googleAI.model('gemini-pro-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       retry({
@@ -71,7 +71,7 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       fallback(ai, {
-        models: [googleAI.model('gemini-2.5-flash')],
+        models: [googleAI.model('gemini-flash-latest')],
         statuses: ['UNKNOWN'],
       }),
     ],
@@ -114,7 +114,7 @@ ai.defineFlow('multimodal-input', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: [
       { text: 'describe this photo' },
       {
@@ -132,7 +132,7 @@ ai.defineFlow('multimodal-input', async () => {
 // YouTube videos
 ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: [
       {
         text: 'transcribe this video',
@@ -152,7 +152,7 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: 'Write a poem about AI.',
   });
 
@@ -168,7 +168,7 @@ ai.defineFlow('streaming', async (_, { sendChunk }) => {
 // Search grounding
 ai.defineFlow('search-grounding', async () => {
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: 'Who is Albert Einstein?',
     config: {
       tools: [{ googleSearch: {} }],
@@ -184,7 +184,7 @@ ai.defineFlow('search-grounding', async () => {
 // Url context
 ai.defineFlow('url-context', async () => {
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt:
       'Compare the ingredients and cooking times from the recipes at ' +
       'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 ' +
@@ -209,7 +209,7 @@ ai.defineFlow('file-search', async () => {
 
   // Use the file search store in your generate request
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: "What is the character's name in the story?",
     config: {
       fileSearch: {
@@ -289,7 +289,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 1,
       },
@@ -314,7 +314,7 @@ ai.defineFlow(
   },
   async (_, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-3.1-pro-preview'),
+      model: googleAI.model('gemini-pro-latest'),
       config: {
         temperature: 1,
       },
@@ -345,7 +345,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 1,
       },
@@ -376,7 +376,7 @@ ai.defineFlow(
   },
   async (name, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 2, // we want creativity
       },
@@ -392,8 +392,8 @@ ai.defineFlow(
   }
 );
 
-// Gemini reasoning example.
-ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+// Gemini reasoning example (legacy thinkingBudget)
+ai.defineFlow('reasoning - thinkingBudget', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
     model: googleAI.model('gemini-2.5-pro'),
@@ -488,6 +488,11 @@ ai.defineFlow('nano-banana-2', async (_) => {
       },
       google_search: {
         searchTypes: { webSearch: {}, imageSearch: {} },
+      },
+      thinkingConfig: {
+        // Optional
+        thinkingLevel: 'HIGH',
+        includeThoughts: true,
       },
     },
   });

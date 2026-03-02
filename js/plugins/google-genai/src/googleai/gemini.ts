@@ -436,6 +436,9 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-pro-latest': commonRef('gemini-pro-latest'),
+  'gemini-flash-latest': commonRef('gemini-flash-latest'),
+  'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
   'gemini-3.1-pro-preview-customtools': commonRef(
     'gemini-3.1-pro-preview-customtools'
   ),

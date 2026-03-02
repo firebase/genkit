@@ -91,7 +91,6 @@ export const KNOWN_MODELS = {
   'claude-opus-4-5@20251101': commonRef('claude-opus-4-5@20251101'),
   'claude-opus-4-1@20250805': commonRef('claude-opus-4-1@20250805'),
   'claude-opus-4@20250514': commonRef('claude-opus-4@20250514'),
-  'claude-3-haiku@20240307': commonRef('claude-3-haiku@20240307'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS;
 export type AnthropicModelName = `claude-${string}`;
