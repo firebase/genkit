@@ -203,6 +203,7 @@ export type Part = z.infer<typeof PartSchema>;
 export const MultipartToolResponseSchema = z.object({
   output: z.unknown().optional(),
   content: z.array(PartSchema).optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export type MultipartToolResponse = z.infer<typeof MultipartToolResponseSchema>;
