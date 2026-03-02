@@ -17,39 +17,18 @@
 import { OperationSchema, z } from '@genkit-ai/core';
 import { DocumentDataSchema } from './document.js';
 import {
-  CustomPartSchema,
-  DataPartSchema,
-  MediaPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-  TextPartSchema,
+  Part,
+  PartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
 } from './parts.js';
+
+export { Part, PartSchema };
 
 //
 // IMPORTANT: Please keep type definitions in sync with
 //   genkit-tools/src/types/model.ts
 //
-
-/**
- * Zod schema of message part.
- */
-export const PartSchema = z.union([
-  TextPartSchema,
-  MediaPartSchema,
-  ToolRequestPartSchema,
-  ToolResponsePartSchema,
-  DataPartSchema,
-  CustomPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-]);
-
-/**
- * Message part.
- */
-export type Part = z.infer<typeof PartSchema>;
 
 /**
  * Zod schema of a message role.
