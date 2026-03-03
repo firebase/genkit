@@ -93,7 +93,7 @@ from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from pydantic.alias_generators import to_camel
 from typing_extensions import Never, TypeVar
 
-from genkit.core._internal import Channel, ensure_async
+from genkit.core._internal._aio import Channel, ensure_async
 from genkit.core._internal._compat import StrEnum
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer

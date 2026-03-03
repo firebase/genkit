@@ -45,7 +45,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from pydantic import BaseModel
 from typing_extensions import Never
 
-from genkit.core._internal import Channel, ensure_async, run_loop
+from genkit.core._internal._aio import Channel, ensure_async, run_loop
 from genkit.core._internal._background import (
     BackgroundAction,
     CancelModelOpFn,

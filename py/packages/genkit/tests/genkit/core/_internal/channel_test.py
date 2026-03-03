@@ -23,7 +23,7 @@ from typing import Any, TypeVar
 
 import pytest
 
-from genkit.core._internal import Channel
+from genkit.core._internal._aio import Channel
 
 T = TypeVar('T')
 

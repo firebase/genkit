@@ -18,7 +18,7 @@
 
 import pytest
 
-from genkit.core._internal import ensure_async
+from genkit.core._internal._aio import ensure_async
 
 
 @pytest.mark.asyncio

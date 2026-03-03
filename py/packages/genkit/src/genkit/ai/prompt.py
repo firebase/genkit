@@ -141,7 +141,7 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
-from genkit.core._internal import Channel, ensure_async
+from genkit.core._internal._aio import Channel, ensure_async
 from genkit.ai.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,

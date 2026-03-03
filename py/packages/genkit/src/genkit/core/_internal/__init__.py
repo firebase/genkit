@@ -14,26 +14,4 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Internal utilities for Genkit core.
-
-This package contains internal implementation details that are not part of the
-public API. These modules may change without notice between releases.
-"""
-
-from ._aio import (
-    Channel,
-    create_loop,
-    ensure_async,
-    iter_over_async,
-    run_async,
-    run_loop,
-)
-
-__all__ = [
-    'Channel',
-    'create_loop',
-    'ensure_async',
-    'iter_over_async',
-    'run_async',
-    'run_loop',
-]
+"""Internal implementation details. Not part of the public API."""
