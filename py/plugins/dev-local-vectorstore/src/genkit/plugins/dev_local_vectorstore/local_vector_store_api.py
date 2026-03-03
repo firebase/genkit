@@ -27,7 +27,7 @@ from functools import cached_property
 import aiofiles
 import aiofiles.os
 
-from genkit.codec import dump_json
+from genkit.core.codec import dump_json
 
 from .constant import DbValue
 

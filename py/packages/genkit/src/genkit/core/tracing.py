@@ -36,11 +36,11 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from genkit.core.environment import is_dev_environment
-from genkit.core.logging import get_logger
+from genkit.core._internal._environment import is_dev_environment
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._typing import SpanMetadata
 from genkit.core.trace.default_exporter import create_span_processor, init_telemetry_server_exporter
 from genkit.core.trace.types import GenkitSpan
-from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
 logger = get_logger(__name__)

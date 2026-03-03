@@ -25,7 +25,7 @@ from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.utils import strip_markdown_fences
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

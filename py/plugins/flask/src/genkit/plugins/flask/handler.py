@@ -22,9 +22,9 @@ from typing import Any, TypeAlias
 
 from flask import Response, request
 from genkit.ai import FlowWrapper, Genkit
-from genkit.aio.loop import create_loop, iter_over_async
-from genkit.codec import dump_dict, dump_json
-from genkit.core.context import ContextProvider, RequestData
+from genkit.core._internal import create_loop, iter_over_async
+from genkit.core.codec import dump_dict, dump_json
+from genkit.core._internal._context import ContextProvider, RequestData
 from genkit.core.error import GenkitError, get_callable_json
 
 # Type alias for Flask-compatible route handler return type
@@ -109,7 +109,7 @@ def genkit_flask_handler(
                 return iter
             else:
                 try:
-                    response = await flow._action.arun_raw(input_data.get('data'), context=action_context)
+                    response = await flow._action.run_raw(input_data.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e

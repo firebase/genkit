@@ -58,7 +58,7 @@ Test Coverage
 import pytest
 
 from genkit.ai import Genkit
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -102,7 +102,8 @@ def ai() -> Genkit:
 class TestEchoModel:
     """Tests for EchoModel functionality."""
 
-    def test_echo_model_basic(self) -> None:
+    @pytest.mark.asyncio
+    async def test_echo_model_basic(self) -> None:
         """Test basic echo functionality."""
         echo = EchoModel()
         ctx = MockActionRunContext()
@@ -117,7 +118,7 @@ class TestEchoModel:
         )
 
         # pyright: ignore[reportArgumentType] - MockActionRunContext is compatible
-        response = echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         text = response.message.content[0].root.text
@@ -126,7 +127,8 @@ class TestEchoModel:
         assert 'user:' in text
         assert 'Hello world' in text
 
-    def test_echo_model_with_config(self) -> None:
+    @pytest.mark.asyncio
+    async def test_echo_model_with_config(self) -> None:
         """Test that echo includes config in response."""
         echo = EchoModel()
         ctx = MockActionRunContext()
@@ -141,14 +143,15 @@ class TestEchoModel:
             config={'temperature': 0.5},
         )
 
-        response = echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         text = response.message.content[0].root.text
         assert isinstance(text, str)
         assert 'temperature' in text
 
-    def test_echo_model_stream_countdown(self) -> None:
+    @pytest.mark.asyncio
+    async def test_echo_model_stream_countdown(self) -> None:
         """Test stream countdown functionality."""
         echo = EchoModel(stream_countdown=True)
         ctx = MockActionRunContext()
@@ -162,7 +165,7 @@ class TestEchoModel:
             ],
         )
 
-        echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        await echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         # Should have streamed 3, 2, 1
         assert len(ctx.chunks) == 3
@@ -170,7 +173,8 @@ class TestEchoModel:
         assert ctx.chunks[1].content[0].root.text == '2'
         assert ctx.chunks[2].content[0].root.text == '1'
 
-    def test_echo_model_stores_request(self) -> None:
+    @pytest.mark.asyncio
+    async def test_echo_model_stores_request(self) -> None:
         """Test that echo stores the last request."""
         echo = EchoModel()
         ctx = MockActionRunContext()
@@ -184,7 +188,7 @@ class TestEchoModel:
             ],
         )
 
-        echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        await echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert echo.last_request is not None
         assert echo.last_request.messages[0].content[0].root.text == 'test'
@@ -203,7 +207,8 @@ class TestEchoModel:
 class TestProgrammableModel:
     """Tests for ProgrammableModel functionality."""
 
-    def test_programmable_model_basic(self) -> None:
+    @pytest.mark.asyncio
+    async def test_programmable_model_basic(self) -> None:
         """Test basic programmable model functionality."""
         pm = ProgrammableModel()
         pm.responses = [
@@ -225,13 +230,14 @@ class TestProgrammableModel:
             ],
         )
 
-        response = pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Response 1'
         assert pm.request_count == 1
 
-    def test_programmable_model_multiple_responses(self) -> None:
+    @pytest.mark.asyncio
+    async def test_programmable_model_multiple_responses(self) -> None:
         """Test multiple sequential responses."""
         pm = ProgrammableModel()
         pm.responses = [
@@ -259,8 +265,8 @@ class TestProgrammableModel:
             ],
         )
 
-        response1 = pm.model_fn(request, ctx)  # type: ignore[arg-type]
-        response2 = pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response1 = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response2 = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response1.message is not None
         assert response2.message is not None
@@ -268,7 +274,8 @@ class TestProgrammableModel:
         assert response2.message.content[0].root.text == 'Response 2'
         assert pm.request_count == 2
 
-    def test_programmable_model_chunks(self) -> None:
+    @pytest.mark.asyncio
+    async def test_programmable_model_chunks(self) -> None:
         """Test streaming programmed chunks."""
         pm = ProgrammableModel()
         pm.responses = [
@@ -296,13 +303,14 @@ class TestProgrammableModel:
             ],
         )
 
-        pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert len(ctx.chunks) == 2
         assert ctx.chunks[0].content[0].root.text == 'Chunk 1'
         assert ctx.chunks[1].content[0].root.text == 'Chunk 2'
 
-    def test_programmable_model_reset(self) -> None:
+    @pytest.mark.asyncio
+    async def test_programmable_model_reset(self) -> None:
         """Test reset clears state."""
         pm = ProgrammableModel()
         pm.responses = [
@@ -324,7 +332,7 @@ class TestProgrammableModel:
             ],
         )
 
-        pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
         assert pm.request_count == 1
         assert pm.last_request is not None
 
@@ -335,7 +343,8 @@ class TestProgrammableModel:
         assert pm.responses == []
         assert pm.chunks is None
 
-    def test_programmable_model_stores_deep_copy(self) -> None:
+    @pytest.mark.asyncio
+    async def test_programmable_model_stores_deep_copy(self) -> None:
         """Test that last_request is a deep copy."""
         pm = ProgrammableModel()
         pm.responses = [
@@ -357,7 +366,7 @@ class TestProgrammableModel:
             ],
         )
 
-        pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         # Modify original request
         original_part = request.messages[0].content[0].root
@@ -392,7 +401,8 @@ class TestProgrammableModel:
 class TestStaticResponseModel:
     """Tests for StaticResponseModel functionality."""
 
-    def test_static_model_basic(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_model_basic(self) -> None:
         """Test basic static response model functionality."""
         static = StaticResponseModel(
             message={
@@ -411,12 +421,13 @@ class TestStaticResponseModel:
             ],
         )
 
-        response = static.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await static.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Static response'
 
-    def test_static_model_request_count(self) -> None:
+    @pytest.mark.asyncio
+    async def test_static_model_request_count(self) -> None:
         """Test request counting."""
         static = StaticResponseModel(
             message={
@@ -435,9 +446,9 @@ class TestStaticResponseModel:
             ],
         )
 
-        static.model_fn(request, ctx)  # type: ignore[arg-type]
-        static.model_fn(request, ctx)  # type: ignore[arg-type]
-        static.model_fn(request, ctx)  # type: ignore[arg-type]
+        await static.model_fn(request, ctx)  # type: ignore[arg-type]
+        await static.model_fn(request, ctx)  # type: ignore[arg-type]
+        await static.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert static.request_count == 3
 

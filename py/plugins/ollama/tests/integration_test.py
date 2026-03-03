@@ -22,7 +22,7 @@ import ollama as ollama_api
 import pytest
 
 from genkit.ai import ActionKind, Genkit
-from genkit.types import GenerateResponse, Message, Part, Role, TextPart
+from genkit import GenerateResponse, Message, Part, Role, TextPart
 
 
 @pytest.mark.asyncio

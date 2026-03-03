@@ -25,7 +25,7 @@ from pytest_mock import MockerFixture
 
 from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     MediaPart,

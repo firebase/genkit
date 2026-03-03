@@ -10,7 +10,7 @@ import pathlib
 import tempfile
 
 from genkit.ai._runtime import RuntimeManager
-from genkit.ai._server import ServerSpec
+from genkit._web.typing import ServerSpec
 
 
 def test_server_spec() -> None:

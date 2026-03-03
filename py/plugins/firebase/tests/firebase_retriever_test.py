@@ -20,7 +20,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.core.typing import DocumentPart, TextPart
+from genkit.core._internal._typing import DocumentPart, TextPart
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 

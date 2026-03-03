@@ -16,16 +16,24 @@
 
 """Action module for defining and managing RPC-over-HTTP functions."""
 
-from ._action import Action, ActionMetadata, ActionRunContext
-from ._key import create_action_key, parse_action_key
+from ._action import (
+    Action,
+    ActionKind,
+    ActionMetadata,
+    ActionName,
+    ActionResponse,
+    ActionRunContext,
+    create_action_key,
+    parse_action_key,
+    parse_plugin_name_from_action_name,
+)
 from ._tracing import SpanAttributeValue
-from ._util import parse_plugin_name_from_action_name
-from .types import ActionKind, ActionResponse
 
 __all__ = [
     'Action',
     'ActionKind',
     'ActionMetadata',
+    'ActionName',
     'ActionResponse',
     'ActionRunContext',
     'SpanAttributeValue',

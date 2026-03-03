@@ -91,12 +91,12 @@ from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit.ai import ActionRunContext
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.core.http_client import get_cached_client
+from genkit.ai.model import get_basic_usage_stats
+from genkit.core._internal._http_client import get_cached_client
 from genkit.plugins.ollama.constants import (
     OllamaAPITypes,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,

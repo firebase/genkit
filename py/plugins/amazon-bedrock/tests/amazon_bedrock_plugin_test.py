@@ -68,7 +68,7 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
-from genkit.types import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
+from genkit import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:

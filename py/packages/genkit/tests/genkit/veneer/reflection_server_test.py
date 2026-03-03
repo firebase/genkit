@@ -20,8 +20,8 @@ from unittest import mock
 import httpx
 
 from genkit.ai._aio import Genkit
-from genkit.ai._server import ServerSpec
-from genkit.core.environment import EnvVar, GenkitEnvironment
+from genkit._web.typing import ServerSpec
+from genkit.core._internal._environment import EnvVar, GenkitEnvironment
 
 
 def _find_free_port() -> int:

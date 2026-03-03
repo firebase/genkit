@@ -59,9 +59,9 @@ from flask import Flask
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.blocks.model import GenerateResponseWrapper
+from genkit.ai.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
-from genkit.core.context import RequestData
+from genkit.core._internal._context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
@@ -103,7 +103,10 @@ async def say_hi(
 ) -> GenerateResponseWrapper:
     """Say hi to the user."""
     username = ctx.context.get('username') if ctx is not None else 'unknown'
-    return await ai.generate(
-        on_chunk=ctx.send_chunk if ctx is not None else None,
+    stream, response = ai.generate_stream(
         prompt=f'tell a medium sized joke about {input.name} for user {username}',
     )
+    async for chunk in stream:
+        if ctx is not None and chunk.text:
+            ctx.send_chunk(chunk.text)
+    return await response

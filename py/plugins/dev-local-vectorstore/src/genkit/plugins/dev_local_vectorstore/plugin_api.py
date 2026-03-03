@@ -19,14 +19,14 @@
 from typing import Any
 
 from genkit.ai import Genkit
-from genkit.blocks.retriever import (
+from genkit.ai.retriever import (
     IndexerOptions,
     RetrieverOptions,
     indexer_action_metadata,
     retriever_action_metadata,
 )
-from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
+from genkit.core._internal._registry import ActionKind
+from genkit.core._internal._schema import to_json_schema
 
 from .indexer import DevLocalVectorStoreIndexer
 from .retriever import DevLocalVectorStoreRetriever, RetrieverOptionsSchema

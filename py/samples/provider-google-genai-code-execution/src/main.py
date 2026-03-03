@@ -57,9 +57,9 @@ import os
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.blocks.model import MessageWrapper
-from genkit.core.logging import get_logger
-from genkit.core.typing import CustomPart, Message, TextPart
+from genkit.ai.model import MessageWrapper
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
 from samples.shared.logging import setup_sample

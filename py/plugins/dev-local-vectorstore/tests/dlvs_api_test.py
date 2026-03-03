@@ -25,7 +25,7 @@ import pytest
 
 from genkit.plugins.dev_local_vectorstore.constant import DbValue
 from genkit.plugins.dev_local_vectorstore.local_vector_store_api import LocalVectorStoreAPI
-from genkit.types import DocumentData, Embedding, TextPart
+from genkit import DocumentData, Embedding, TextPart
 
 
 def _make_db_value(text: str = 'hello', embedding: list[float] | None = None) -> DbValue:

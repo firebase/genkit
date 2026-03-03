@@ -16,7 +16,7 @@
 
 """Firebase telemetry integration."""
 
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.google_cloud.telemetry.config import GcpTelemetry
 
 from .constant import FirebaseTelemetryConfig

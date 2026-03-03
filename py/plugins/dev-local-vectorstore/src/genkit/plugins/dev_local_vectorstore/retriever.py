@@ -22,7 +22,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Document, Genkit
-from genkit.types import Embedding, RetrieverRequest, RetrieverResponse
+from genkit import Embedding, RetrieverRequest, RetrieverResponse
 
 from .local_vector_store_api import LocalVectorStoreAPI
 

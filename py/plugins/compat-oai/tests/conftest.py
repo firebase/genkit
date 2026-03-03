@@ -20,7 +20,7 @@
 import pytest
 
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     Message,
     Part,

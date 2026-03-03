@@ -575,7 +575,7 @@ actions, tools, and configuration options.
 import sys
 from typing import ClassVar
 
-from genkit.core._compat import StrEnum
+from genkit.core._internal._compat import StrEnum
 from pydantic.alias_generators import to_camel
 """
 

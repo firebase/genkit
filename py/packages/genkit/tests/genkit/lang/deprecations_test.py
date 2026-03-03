@@ -25,7 +25,7 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-from genkit.lang.deprecations import (
+from genkit.core._internal._deprecations import (
     DeprecationInfo,
     DeprecationStatus,
     deprecated_enum_metafactory,

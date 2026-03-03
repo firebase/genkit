@@ -20,14 +20,14 @@ from typing import Any, cast
 
 from anthropic import AsyncAnthropic
 from genkit.ai import ActionRunContext, Plugin
-from genkit.blocks.model import model_action_metadata
+from genkit.ai.model import model_action_metadata
 from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
+from genkit.core._internal._registry import ActionKind
+from genkit.core._internal._schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig
+from genkit import GenerateRequest, GenerateResponse, GenerationCommonConfig
 
 ANTHROPIC_PLUGIN_NAME = 'anthropic'
 

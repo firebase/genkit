@@ -48,8 +48,8 @@ Key Components:
     │ Chat                    │ Stateful multi-turn conversation interface    │
     │ ActionRunContext        │ Execution context for actions (streaming)     │
     │ ToolRunContext          │ Execution context for tools (with interrupt)  │
-    │ GenerateResponseWrapper │ Enhanced response with helper methods         │
-    │ GenerateStreamResponse  │ Streaming response with chunks and final resp │
+    │ ModelResponse           │ Enhanced response with helper methods         │
+    │ ModelStreamResponse  │ Streaming response with chunks and final resp │
     └─────────────────────────┴───────────────────────────────────────────────┘
 
 Example:
@@ -86,24 +86,22 @@ See Also:
     - JavaScript SDK: https://github.com/firebase/genkit
 """
 
-from genkit.blocks.document import Document
-from genkit.blocks.interfaces import Input
-from genkit.blocks.model import GenerateResponseWrapper
-from genkit.blocks.prompt import (
+from genkit.ai.document import Document
+from genkit.ai.model import ModelResponse
+from genkit.ai.prompt import (
     ExecutablePrompt,
-    GenerateStreamResponse,
+    ModelStreamResponse,
     OutputOptions,
     PromptGenerateOptions,
     ResumeOptions,
 )
-from genkit.blocks.tools import ToolRunContext, tool_response
+from genkit.ai.tools import ToolRunContext
 from genkit.core import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit.core.action import ActionRunContext
-from genkit.core.action.types import ActionKind
+from genkit.core.action import ActionKind
 from genkit.core.plugin import Plugin
 
-from ._aio import Genkit, Output
-from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
+from ._aio import Genkit
 
 __all__ = [
     # Version info
@@ -111,8 +109,6 @@ __all__ = [
     'GENKIT_VERSION',
     # Main class
     'Genkit',
-    'Input',
-    'Output',
     # Actions
     'ActionKind',
     'ActionRunContext',
@@ -124,15 +120,11 @@ __all__ = [
     'PromptGenerateOptions',
     'ResumeOptions',
     # Registry and flow
-    'FlowWrapper',
-    'GenkitRegistry',
-    'SimpleRetrieverOptions',
     # Response types
-    'GenerateResponseWrapper',
-    'GenerateStreamResponse',
+    'ModelResponse',
+    'ModelStreamResponse',
     # Tools
     'ToolRunContext',
-    'tool_response',
     # Plugin
     'Plugin',
 ]

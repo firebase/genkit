@@ -23,13 +23,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from genkit.core.registry import ActionKind
+from genkit.core._internal._registry import ActionKind
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.plugins.anthropic.model_info import (
     SUPPORTED_ANTHROPIC_MODELS as SUPPORTED_MODELS,
     get_model_info,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerationCommonConfig,
     Message,

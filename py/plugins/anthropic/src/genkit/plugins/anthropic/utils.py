@@ -27,8 +27,8 @@ See:
 import re
 from typing import Any
 
-from genkit.core.logging import get_logger
-from genkit.types import GenerateRequest, GenerationUsage, MediaPart, Part, TextPart
+from genkit.core._internal._logging import get_logger
+from genkit import GenerateRequest, GenerationUsage, MediaPart, Part, TextPart
 
 logger = get_logger(__name__)
 

@@ -32,7 +32,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExportResult
 
-from genkit.core.environment import EnvVar, GenkitEnvironment
+from genkit.core._internal._environment import EnvVar, GenkitEnvironment
 from genkit.core.trace.default_exporter import (
     TelemetryServerSpanExporter,
     create_span_processor,

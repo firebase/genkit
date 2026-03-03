@@ -128,7 +128,7 @@ import sys
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.core.trace import is_realtime_telemetry_enabled
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample

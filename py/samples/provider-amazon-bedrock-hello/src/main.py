@@ -80,7 +80,7 @@ import os
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
     add_aws_telemetry,
@@ -91,7 +91,7 @@ from genkit.plugins.amazon_bedrock import (
     inference_profile,
     nova_pro,
 )
-from genkit.types import Media, MediaPart, Part, TextPart
+from genkit import Media, MediaPart, Part, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,

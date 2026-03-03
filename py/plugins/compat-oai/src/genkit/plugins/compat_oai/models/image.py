@@ -43,9 +43,9 @@ from openai import AsyncOpenAI
 from openai.types.images_response import ImagesResponse
 
 from genkit.ai import ActionRunContext
-from genkit.core.typing import FinishReason
+from genkit.core._internal._typing import FinishReason
 from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     Media,

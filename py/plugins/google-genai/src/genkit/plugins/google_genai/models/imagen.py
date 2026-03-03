@@ -31,9 +31,9 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from genkit.ai import ActionRunContext
-from genkit.codec import dump_dict, dump_json
+from genkit.core.codec import dump_dict, dump_json
 from genkit.core.tracing import tracer
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     Media,

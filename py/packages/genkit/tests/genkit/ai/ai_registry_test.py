@@ -52,8 +52,8 @@ import unittest
 import pytest
 
 from genkit.ai import Genkit
-from genkit.ai._registry import get_func_description
-from genkit.blocks.dap import DapCacheConfig, DapConfig, DapValue, DynamicActionProvider
+from genkit.core._internal._flow import get_func_description
+from genkit.core._internal._dap import DapCacheConfig, DapConfig, DapValue, DynamicActionProvider
 
 
 class TestGetFuncDescription(unittest.TestCase):

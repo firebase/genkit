@@ -11,13 +11,14 @@ from typing import Any, cast
 import pytest
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, Output, ToolRunContext, tool_response
-from genkit.blocks.document import Document
-from genkit.blocks.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.blocks.model import MessageWrapper, ModelMiddlewareNext, text_from_message
+from genkit.ai import Genkit, ToolRunContext
+from genkit.ai.tools import tool_response
+from genkit.ai.document import Document
+from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
+from genkit.ai.model import MessageWrapper, ModelMiddlewareNext, text_from_message
 from genkit.core.action import ActionRunContext
-from genkit.core.action.types import ActionKind
-from genkit.core.typing import (
+from genkit.core.action import ActionKind
+from genkit.core._internal._typing import (
     BaseDataPoint,
     Details,
     DocumentData,
@@ -325,7 +326,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput) -> int:
+    async def test_tool(input: ToolInput) -> int:
         """The tool."""
         return input.value or 0
 
@@ -385,12 +386,12 @@ async def test_generate_with_interrupting_tools(
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
-    def test_tool(input: ToolInput) -> int:
+    async def test_tool(input: ToolInput) -> int:
         """The tool."""
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
+    async def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -498,12 +499,12 @@ async def test_generate_with_interrupt_respond(
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='test_tool')
-    def test_tool(input: ToolInput) -> int:
+    async def test_tool(input: ToolInput) -> int:
         """The tool."""
         return (input.value or 0) + 7
 
     @ai.tool(name='test_interrupt')
-    def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
+    async def test_interrupt(input: ToolInput, ctx: ToolRunContext) -> None:
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
@@ -647,7 +648,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput) -> str:
+    async def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -719,7 +720,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         value: int | None = Field(None, description='value field')
 
     @ai.tool(name='testTool')
-    def test_tool(input: ToolInput) -> str:
+    async def test_tool(input: ToolInput) -> str:
         """The tool."""
         return 'abc'
 
@@ -859,7 +860,10 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, format='json', content_type='application/json', constrained=True),
+        output_schema=TestSchema,
+        output_format='json',
+        output_content_type='application/json',
+        output_constrained=True,
         output_instructions=False,
     )
 
@@ -868,7 +872,10 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, format='json', content_type='application/json', constrained=True),
+        output_schema=TestSchema,
+        output_format='json',
+        output_content_type='application/json',
+        output_constrained=True,
         output_instructions=False,
     )
 
@@ -921,7 +928,7 @@ async def test_generate_defaults_to_json_format(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema),
+        output_schema=TestSchema,
     )
 
     assert response.request == want
@@ -929,7 +936,7 @@ async def test_generate_defaults_to_json_format(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema),
+        output_schema=TestSchema,
     )
 
     assert (await response).request == want
@@ -980,7 +987,8 @@ async def test_generate_json_format_unconstrained(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, constrained=False),
+        output_schema=TestSchema,
+        output_constrained=False,
     )
 
     assert response.request == want
@@ -988,7 +996,8 @@ async def test_generate_json_format_unconstrained(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, constrained=False),
+        output_schema=TestSchema,
+        output_constrained=False,
     )
 
     assert (await response).request == want
@@ -1059,7 +1068,7 @@ async def test_generate_passes_through_current_action_context(
         return await ai.generate(model='echoModel', prompt='hi', use=[inject_context])
 
     action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
-    action_response = await action.arun(context={'foo': 'bar'})
+    action_response = await action.run(context={'foo': 'bar'})
 
     assert action_response.response.text == '''[ECHO] user: "hi {'foo': 'bar'}"'''
 
@@ -1096,7 +1105,7 @@ async def test_generate_uses_explicitly_passed_in_context(
         )
 
     action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
-    action_response = await action.arun(context={'foo': 'bar'})
+    action_response = await action.run(context={'foo': 'bar'})
 
     assert action_response.response.text == '''[ECHO] user: "hi {'bar': 'baz'}"'''
 
@@ -1170,7 +1179,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, constrained=False),
+        output_schema=TestSchema,
+        output_constrained=False,
         output_instructions=True,
     )
 
@@ -1179,7 +1189,8 @@ async def test_generate_json_format_unconstrained_with_instructions(
     _, response = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        output=Output(schema=TestSchema, constrained=False),
+        output_schema=TestSchema,
+        output_constrained=False,
         output_instructions=True,
     )
 
@@ -1307,7 +1318,8 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     stream, aresponse = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
-        output=Output(schema=TestSchema, format='banana'),
+        output_schema=TestSchema,
+        output_format='banana',
     )
 
     async for chunk in stream:
@@ -1372,7 +1384,7 @@ def test_define_model_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define model function works."""
     ai, _, _, *_ = setup_test
 
-    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1393,7 +1405,7 @@ def test_define_model_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1430,7 +1442,7 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
     """Test that the define model function with info works."""
     ai, _, _, *_ = setup_test
 
-    def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1451,7 +1463,7 @@ def test_define_retriever_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define retriever function works."""
     ai, _, _, *_ = setup_test
 
-    def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
+    async def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1472,7 +1484,7 @@ def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
+    async def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
         return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
 
     action = ai.define_retriever(
@@ -1611,18 +1623,18 @@ def test_define_batch_evaluator(setup_test: SetupFixture) -> None:
 
 @pytest.mark.asyncio
 async def test_define_sync_flow(setup_test: SetupFixture) -> None:
-    """Test defining a synchronous flow."""
+    """Test defining an async flow (renamed from sync test - sync flows no longer supported)."""
     ai, _, _, *_ = setup_test
 
-    @cast(Any, ai.flow())
-    def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
+    @ai.flow()
+    async def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
         if ctx:
             ctx.send_chunk(1)
             ctx.send_chunk(2)
             ctx.send_chunk(3)
         return input
 
-    assert my_flow('banana') == 'banana'
+    assert (await my_flow('banana')) == 'banana'
 
     stream, response = my_flow.stream('banana2')
 

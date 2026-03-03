@@ -24,9 +24,11 @@ import pytest
 
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata, ActionRunContext
-from genkit.core.registry import ActionKind
-from genkit.core.typing import FinishReason
-from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
+from genkit.core._internal._registry import ActionKind
+from genkit.core._internal._typing import FinishReason
+from genkit import Message, Part, Role, TextPart
+from genkit.core._internal._typing import GenerateRequest
+from genkit.core._internal._typing import GenerateResponse
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -111,7 +113,7 @@ class AsyncInitPlugin(Plugin):
 async def test_async_resolve_is_awaited_via_generate() -> None:
     """Test that async resolve is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncResolveOnlyPlugin()])
-    resp = await ai.generate('async-resolve-only/lazy-model', prompt='hello')
+    resp = await ai.generate(model='async-resolve-only/lazy-model', prompt='hello')
     assert resp.text == 'OK: lazy'
 
 
@@ -119,5 +121,5 @@ async def test_async_resolve_is_awaited_via_generate() -> None:
 async def test_async_init_is_awaited_via_generate() -> None:
     """Test that async init is awaited when calling generate."""
     ai = Genkit(plugins=[AsyncInitPlugin()])
-    resp = await ai.generate('async-init-plugin/init-model', prompt='hello')
+    resp = await ai.generate(model='async-init-plugin/init-model', prompt='hello')
     assert resp.text == 'OK: resolve'

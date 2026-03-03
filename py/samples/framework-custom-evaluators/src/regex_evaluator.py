@@ -26,7 +26,7 @@ from re import Pattern
 from typing import Any, cast
 
 from genkit.ai import Genkit
-from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit.core._internal._typing import BaseDataPoint, Details, EvalFnResponse, Score
 
 
 def regex_matcher(suffix: str, pattern: Pattern[str]) -> dict[str, object]:

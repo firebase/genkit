@@ -43,9 +43,9 @@ from opentelemetry.sdk.trace.export import (
     SpanExportResult,
 )
 
-from genkit.core._compat import override
-from genkit.core.environment import is_dev_environment
-from genkit.core.logging import get_logger
+from genkit.core._internal._compat import override
+from genkit.core._internal._environment import is_dev_environment
+from genkit.core._internal._logging import get_logger
 
 from .realtime_processor import RealtimeSpanProcessor
 

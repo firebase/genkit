@@ -23,7 +23,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     MediaPart,
     Message,

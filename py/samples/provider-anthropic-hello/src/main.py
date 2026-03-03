@@ -77,9 +77,9 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import Media, MediaPart, Message, Metadata, Part, Role, TextPart
+from genkit import Media, MediaPart, Message, Metadata, Part, Role, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,

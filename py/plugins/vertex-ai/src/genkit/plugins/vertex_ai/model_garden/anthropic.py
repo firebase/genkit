@@ -25,9 +25,9 @@ from pydantic import ConfigDict
 
 from genkit.ai import ActionRunContext
 from genkit.core._loop_local import _loop_local_client
-from genkit.core.typing import Supports
+from genkit.core._internal._typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
+from genkit import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
 
 class AnthropicConfigSchema(GenerationCommonConfig):

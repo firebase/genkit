@@ -45,7 +45,7 @@ from typing import Any, cast
 import structlog
 
 from genkit.ai import Genkit
-from genkit.codec import dump_dict
+from genkit.core.codec import dump_dict
 
 # ---------------------------------------------------------------------------
 # Plugin registry — maps conform plugin names to Genkit init functions.
@@ -125,7 +125,7 @@ def _register_ephemeral_tool(
     tool_def: dict[str, Any],
 ) -> None:
     """Register a no-op tool so generate() can resolve its definition."""
-    from genkit.core.action.types import ActionKind
+    from genkit.core.action import ActionKind
 
     registry = ai.registry
     with registry._lock:  # pyright: ignore[reportPrivateUsage]
@@ -175,7 +175,7 @@ async def handle_request(
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit.core.typing import Message, OutputConfig, Part
+        from genkit.core._internal._typing import Message, OutputConfig, Part
 
         msg_objects = [Message.model_validate(m) for m in messages]
 

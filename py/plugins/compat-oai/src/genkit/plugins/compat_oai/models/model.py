@@ -24,8 +24,8 @@ from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.core.action._action import ActionRunContext
-from genkit.core.logging import get_logger
-from genkit.core.typing import GenerationCommonConfig as CoreGenerationCommonConfig
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._typing import ModelConfig as CoreModelConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import (
     DictMessageAdapter,
@@ -34,7 +34,7 @@ from genkit.plugins.compat_oai.models.utils import (
     strip_markdown_fences,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -406,7 +406,7 @@ class OpenAIModel:
         if isinstance(config, OpenAIConfig):
             return config
 
-        if isinstance(config, (GenerationCommonConfig, CoreGenerationCommonConfig)):
+        if isinstance(config, (GenerationCommonConfig, CoreModelConfig)):
             return OpenAIConfig(
                 temperature=config.temperature,
                 max_tokens=int(config.max_output_tokens) if config.max_output_tokens is not None else None,

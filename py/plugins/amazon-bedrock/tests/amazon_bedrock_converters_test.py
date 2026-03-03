@@ -47,7 +47,7 @@ from genkit.plugins.amazon_bedrock.models.converters import (
     to_bedrock_tool,
 )
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
-from genkit.types import (
+from genkit import (
     FinishReason,
     GenerateRequest,
     GenerationCommonConfig,

@@ -25,7 +25,7 @@ from typing import Any, cast
 
 import pytest
 
-from genkit.blocks.resource import (
+from genkit.ai.resource import (
     ResourceInput,
     define_resource,
     find_matching_resource,
@@ -34,9 +34,9 @@ from genkit.blocks.resource import (
     resource,
 )
 from genkit.core.action import ActionRunContext
-from genkit.core.action.types import ActionKind
-from genkit.core.registry import Registry
-from genkit.core.typing import Metadata, Part, TextPart
+from genkit.core.action import ActionKind
+from genkit.core._internal._registry import Registry
+from genkit.core._internal._typing import Metadata, Part, TextPart
 
 
 @pytest.mark.asyncio
@@ -181,7 +181,7 @@ async def test_parent_metadata() -> None:
 
     res = define_resource(registry, {'template': 'file://{id}'}, fn)
 
-    output = await res.arun({'uri': 'file://dir'})
+    output = await res.run({'uri': 'file://dir'})
     # output is ActionResponse
     # content is in output.response['content'] because wrapped_fn ensures serialization
 

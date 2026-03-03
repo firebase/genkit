@@ -99,7 +99,7 @@ import os
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit.types import Document, RetrieverResponse
+from genkit import Document, RetrieverResponse
 from samples.shared.logging import setup_sample
 
 setup_sample()

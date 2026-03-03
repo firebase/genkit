@@ -33,7 +33,7 @@ import asyncio
 import httpx
 import pytest
 
-from genkit.core.http_client import (
+from genkit.core._internal._http_client import (
     _loop_clients,
     clear_client_cache,
     close_cached_clients,

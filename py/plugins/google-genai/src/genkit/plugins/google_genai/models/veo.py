@@ -81,20 +81,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from genkit.core.action import ActionRunContext
 from genkit.core.tracing import tracer
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     Error,
+    Operation,
+)
+from genkit import (
     GenerateRequest,
     GenerateResponse,
-    ModelInfo,
-    Operation,
-    Supports,
-)
-from genkit.types import (
     Media,
     MediaPart,
     Message,
+    ModelInfo,
     Part,
     Role,
+    Supports,
     TextPart,
 )
 

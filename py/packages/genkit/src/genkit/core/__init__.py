@@ -77,7 +77,7 @@ Usage:
     ```python
     from genkit.core.action import Action
     from genkit.core.plugin import Plugin
-    from genkit.core.registry import Registry
+    from genkit.core._internal._registry import Registry
 
     # Create a registry
     registry = Registry()
@@ -96,9 +96,9 @@ See Also:
     - genkit.types: Re-exported type definitions from core.typing
 """
 
-from .constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
-from .http_client import clear_client_cache, close_cached_clients, get_cached_client
-from .logging import Logger, get_logger
+from ._internal._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from ._internal._http_client import clear_client_cache, close_cached_clients, get_cached_client
+from ._internal._logging import Logger, get_logger
 
 
 def package_name() -> str:
@@ -113,10 +113,4 @@ def package_name() -> str:
 __all__ = [
     'GENKIT_CLIENT_HEADER',
     'GENKIT_VERSION',
-    'Logger',
-    'clear_client_cache',
-    'close_cached_clients',
-    'get_cached_client',
-    'get_logger',
-    'package_name',
 ]

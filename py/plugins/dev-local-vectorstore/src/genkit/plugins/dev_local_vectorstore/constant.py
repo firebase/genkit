@@ -19,7 +19,7 @@
 
 from pydantic import BaseModel
 
-from genkit.types import DocumentData, Embedding
+from genkit import DocumentData, Embedding
 
 
 class DbValue(BaseModel):

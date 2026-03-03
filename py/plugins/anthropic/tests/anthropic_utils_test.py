@@ -33,7 +33,7 @@ from genkit.plugins.anthropic.utils import (
     to_anthropic_image,
     to_anthropic_media,
 )
-from genkit.types import (
+from genkit import (
     GenerationUsage,
     Media,
     MediaPart,

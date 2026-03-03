@@ -50,7 +50,7 @@ import pytest
 from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     GenerateRequest,
     GenerateResponse,
     Message,
@@ -95,7 +95,7 @@ async def test_generate_operation_model_no_long_running_support(ai: Genkit) -> N
     """
 
     # Define a standard model without long_running support
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
@@ -127,7 +127,7 @@ async def test_generate_operation_model_no_supports_info(ai: Genkit) -> None:
     """Test that models without supports info are rejected."""
 
     # Define a model without any ModelInfo
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
@@ -151,7 +151,7 @@ async def test_generate_operation_no_operation_returned(ai: Genkit) -> None:
     """
 
     # Define a model that claims to support long_running but doesn't return an operation
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         # Return a normal response without an operation
         return GenerateResponse(
             message=Message(
@@ -186,7 +186,7 @@ async def test_generate_operation_success_with_lro_model(ai: Genkit) -> None:
     )
 
     # Define a model that supports long_running and returns an operation
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
@@ -221,7 +221,7 @@ async def test_generate_operation_with_default_model(ai: Genkit) -> None:
         done=False,
     )
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
@@ -265,7 +265,7 @@ async def test_generate_operation_passes_all_options(ai: Genkit) -> None:
     captured_request: GenerateRequest | None = None
     expected_operation = Operation(id='opt-test-789', done=False)
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         nonlocal captured_request
         captured_request = request
         return GenerateResponse(

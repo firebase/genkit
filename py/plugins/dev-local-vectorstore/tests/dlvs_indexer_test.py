@@ -20,10 +20,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from genkit.blocks.document import Document
+from genkit.ai.document import Document
 from genkit.plugins.dev_local_vectorstore.constant import DbValue
 from genkit.plugins.dev_local_vectorstore.indexer import DevLocalVectorStoreIndexer
-from genkit.types import DocumentData, Embedding, TextPart
+from genkit import DocumentData, Embedding, TextPart
 
 
 class TestIndexerInit:
@@ -151,7 +151,7 @@ class TestIndexMethod:
 
         indexer = DevLocalVectorStoreIndexer(ai=ai, index_name='test', embedder='my-embedder')
 
-        from genkit.blocks.retriever import IndexerRequest
+        from genkit.ai.retriever import IndexerRequest
 
         docs = [
             DocumentData(content=[TextPart(text='doc1')]),  # type: ignore[list-item]
@@ -181,7 +181,7 @@ class TestIndexMethod:
 
         indexer = DevLocalVectorStoreIndexer(ai=ai, index_name='test', embedder='emb')
 
-        from genkit.blocks.retriever import IndexerRequest
+        from genkit.ai.retriever import IndexerRequest
 
         request = IndexerRequest(
             documents=[DocumentData(content=[TextPart(text='doc')])]  # type: ignore[list-item]

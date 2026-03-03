@@ -31,7 +31,7 @@ import os
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from genkit.core.environment import EnvVar, GenkitEnvironment
+from genkit.core._internal._environment import EnvVar, GenkitEnvironment
 
 
 def test_add_gcp_telemetry_wraps_with_gcp_adjusting_exporter() -> None:

@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field
 from pytest_mock import MockerFixture
 
 from genkit.ai import ActionRunContext
-from genkit.core.schema import to_json_schema
+from genkit.core._internal._schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
     GeminiModel,
@@ -43,7 +43,7 @@ from genkit.plugins.google_genai.models.gemini import (
     is_image_model,
     is_tts_model,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     MediaPart,

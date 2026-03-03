@@ -23,8 +23,8 @@ from typing import Any
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 from genkit.ai import FlowWrapper, Genkit
-from genkit.codec import dump_dict, dump_json
-from genkit.core.context import ContextProvider, RequestData
+from genkit.core.codec import dump_dict, dump_json
+from genkit.core._internal._context import ContextProvider, RequestData
 from genkit.core.error import GenkitError, get_callable_json
 
 
@@ -132,7 +132,7 @@ def genkit_fastapi_handler(
                 return StreamingResponse(event_stream(), media_type='text/event-stream')
             else:
                 try:
-                    response = await flow._action.arun_raw(body.get('data'), context=action_context)
+                    response = await flow._action.run_raw(body.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e.cause if isinstance(e, GenkitError) else e

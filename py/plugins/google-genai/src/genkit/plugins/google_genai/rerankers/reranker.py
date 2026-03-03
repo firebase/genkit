@@ -66,12 +66,12 @@ from google.auth import default as google_auth_default
 from google.auth.transport.requests import Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from genkit.blocks.document import Document
-from genkit.blocks.model import text_from_content
-from genkit.blocks.reranker import RankedDocument
+from genkit.ai.document import Document
+from genkit.ai.model import text_from_content
+from genkit.ai.reranker import RankedDocument
 from genkit.core.error import GenkitError
-from genkit.core.http_client import get_cached_client
-from genkit.core.typing import DocumentData
+from genkit.core._internal._http_client import get_cached_client
+from genkit.core._internal._typing import DocumentData
 
 # Default location for Vertex AI Ranking API (global is recommended per docs)
 DEFAULT_LOCATION = 'global'

@@ -32,7 +32,7 @@ from genkit.plugins.compat_oai.models.utils import (
     extract_config_dict,
     parse_data_uri_content_type,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     Media,
     MediaPart,

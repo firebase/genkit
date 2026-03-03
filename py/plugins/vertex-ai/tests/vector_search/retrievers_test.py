@@ -34,10 +34,10 @@ from google.cloud.aiplatform_v1 import (
 )
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document, DocumentData
-from genkit.core.typing import DocumentPart, Embedding
+from genkit.ai.document import Document, DocumentData
+from genkit.core._internal._typing import DocumentPart, Embedding
 from genkit.plugins.vertex_ai.vector_search import BigQueryRetriever, FirestoreRetriever
-from genkit.types import ActionRunContext, RetrieverRequest, TextPart
+from genkit import ActionRunContext, RetrieverRequest, TextPart
 
 
 class FakeAI:

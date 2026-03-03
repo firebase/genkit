@@ -84,10 +84,10 @@ from math import sqrt
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, Output
-from genkit.blocks.model import GenerateResponseWrapper
+from genkit.ai.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
-from genkit.core.typing import Media, MediaPart, Part, TextPart
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._typing import Media, MediaPart, Part, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition

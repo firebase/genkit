@@ -30,70 +30,139 @@ Key features provided by the `Genkit` class:
 from __future__ import annotations
 
 import asyncio
+import signal
+import socket
+import threading
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from pathlib import Path
-from typing import Any, TypeVar, cast, overload
+from typing import Any, ParamSpec, TypeVar, cast, overload
 
+import anyio
+import uvicorn
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
+from pydantic import BaseModel
+from typing_extensions import Never
 
-from genkit.aio._util import ensure_async
-from genkit.aio.channel import Channel
-from genkit.blocks.background_model import (
+from genkit.core._internal import Channel, ensure_async, run_loop
+from genkit.core._internal._background import (
+    BackgroundAction,
+    CancelModelOpFn,
+    CheckModelOpFn,
+    StartModelOpFn,
     check_operation as check_operation_impl,
+    define_background_model as define_background_model_block,
     lookup_background_action,
 )
-from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedderRef
-from genkit.blocks.evaluator import EvaluatorRef
-from genkit.blocks.generate import (
-    StreamingCallback as ModelStreamingCallback,
-    generate_action,
+from genkit.core._internal._dap import (
+    DapConfig,
+    DapFn,
+    DynamicActionProvider,
+    define_dynamic_action_provider as define_dap_block,
 )
-from genkit.blocks.interfaces import Output, OutputConfigDict
-from genkit.blocks.model import (
-    GenerateResponseChunkWrapper,
-    GenerateResponseWrapper,
-    ModelMiddleware,
-)
-from genkit.blocks.prompt import PromptConfig, load_prompt_folder, to_generate_action_options
-from genkit.blocks.retriever import IndexerRef, IndexerRequest, RetrieverRef
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action.types import ActionKind
-from genkit.core.error import GenkitError
-from genkit.core.plugin import Plugin
-from genkit.core.tracing import run_in_new_span
-from genkit.core.typing import (
+from genkit.core._internal._environment import is_dev_environment
+from genkit.core._internal._flow import FlowWrapper, define_flow
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._registry import Registry
+from genkit.core._internal._typing import (
     BaseDataPoint,
+    DocumentData,
     Embedding,
     EmbedRequest,
     EvalRequest,
     EvalResponse,
-    Operation,
-    SpanMetadata,
-)
-from genkit.types import (
-    DocumentData,
-    GenerationCommonConfig,
     Message,
-    OutputConfig,
+    ModelInfo,
+    Operation,
     Part,
     RetrieverRequest,
     RetrieverResponse,
+    SpanMetadata,
     ToolChoice,
 )
+from genkit.ai.document import Document
+from genkit.ai.embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
+from genkit.ai.evaluator import (
+    BatchEvaluatorFn,
+    EvaluatorFn,
+    EvaluatorRef,
+    define_batch_evaluator,
+    define_evaluator,
+)
+from genkit.ai.formats import built_in_formats
+from genkit.ai.formats.types import FormatDef
+from genkit.ai.generate import define_generate_action, generate_action
+from genkit.ai.model import (
+    ModelFn,
+    ModelMiddleware,
+    ModelResponse,
+    ModelResponseChunk,
+    define_model,
+)
+from genkit.ai.model import ModelConfig
+from genkit.ai.prompt import (
+    ExecutablePrompt,
+    PromptConfig,
+    define_helper,
+    define_partial,
+    define_prompt,
+    define_schema,
+    load_prompt_folder,
+    to_generate_action_options,
+)
+from genkit.ai.reranker import (
+    RankedDocument,
+    RerankerFn,
+    RerankerOptions,
+    RerankerRef,
+    define_reranker as define_reranker_block,
+    rerank as rerank_block,
+)
+from genkit.ai.resource import (
+    ResourceFn,
+    ResourceOptions,
+    define_resource as define_resource_block,
+)
+from genkit.ai.retriever import (
+    IndexerFn,
+    IndexerRef,
+    IndexerRequest,
+    RetrieverFn,
+    RetrieverRef,
+    SimpleRetrieverOptions,
+    define_indexer_action,
+    define_retriever_action,
+    define_simple_retriever,
+)
+from genkit.ai.tools import define_tool
+from genkit.core.action import Action, ActionRunContext
+from genkit.core.action import ActionKind
+from genkit.core.error import GenkitError
+from genkit.core.plugin import Plugin
+from genkit.core.tracing import run_in_new_span
+from genkit._web._reflection import _ReflectionServer, _make_reflection_server, create_reflection_asgi_app
 
-from ._base_async import GenkitBase
-from ._server import ServerSpec
+from genkit._web.typing import ServerSpec
 
-T = TypeVar('T')
+from ._runtime import RuntimeManager
+
+logger = get_logger(__name__)
+
+# TypeVars for generic input/output typing
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
+P = ParamSpec('P')
+R = TypeVar('R')
+T = TypeVar('T')
 
 
-class Genkit(GenkitBase):
-    """Genkit asyncio user-facing API."""
+class Genkit:
+    """Genkit asyncio user-facing API.
+
+    This class combines registry functionality (defining models, tools, flows,
+    retrievers, etc.) with server infrastructure for the reflection API.
+    """
 
     def __init__(
         self,
@@ -110,10 +179,21 @@ class Genkit(GenkitBase):
             prompt_dir: Directory to automatically load prompts from.
                 If not provided, defaults to loading from './prompts' if it exists.
             reflection_server_spec: Server spec for the reflection
-                server.
+                server. If not provided in dev mode, a default will be used.
         """
-        super().__init__(plugins=plugins, model=model, reflection_server_spec=reflection_server_spec)
+        self.registry: Registry = Registry()
+        self._reflection_server_spec: ServerSpec | None = reflection_server_spec
+        self._reflection_ready = threading.Event()
+        self._initialize_registry(model, plugins)
+        # Ensure the default generate action is registered for async usage.
+        define_generate_action(self.registry)
+        # In dev mode, start the reflection server immediately in a background
+        # daemon thread so it's available regardless of which web framework (or
+        # none) the user chooses.
+        if is_dev_environment():
+            self._start_reflection_background()
 
+        # Load prompts
         load_path = prompt_dir
         if load_path is None:
             default_prompts_path = Path('./prompts')
@@ -122,6 +202,842 @@ class Genkit(GenkitBase):
 
         if load_path:
             load_prompt_folder(self.registry, dir_path=load_path)
+
+    # -------------------------------------------------------------------------
+    # Registry methods
+    # -------------------------------------------------------------------------
+
+    @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
+    def flow(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T, Never]']: ...
+
+    @overload
+    # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
+    # Overloads appear to overlap because T could be Awaitable[T], but at runtime we
+    # distinguish async vs sync functions correctly.
+    def flow(  # pyright: ignore[reportOverlappingOverload]
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T, Never]']: ...
+
+    def flow(  # pyright: ignore[reportInconsistentOverload]
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T, Never]']:
+        """Decorator to register a function as a flow.
+
+        Args:
+            name: Optional name for the flow. If not provided, uses the
+                function name.
+            description: Optional description for the flow. If not provided,
+                uses the function docstring.
+
+        Returns:
+            A decorator function that registers the flow.
+        """
+
+        def wrapper(func: Callable[P, Awaitable[T]] | Callable[P, T]) -> 'FlowWrapper[P, Awaitable[T] | T, T, Never]':
+            return define_flow(self.registry, func, name, description)
+
+        return wrapper
+
+    def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
+        """Define a Handlebars helper function in the registry.
+
+        Args:
+            name: The name of the helper function.
+            fn: The helper function to register.
+        """
+        define_helper(self.registry, name, fn)
+
+    def define_partial(self, name: str, source: str) -> None:
+        """Define a Handlebars partial template in the registry.
+
+        Args:
+            name: The name of the partial.
+            source: The template source code for the partial.
+        """
+        define_partial(self.registry, name, source)
+
+    def define_schema(self, name: str, schema: type[BaseModel]) -> type[BaseModel]:
+        """Register a Pydantic schema for use in prompts.
+
+        Args:
+            name: The name to register the schema under.
+            schema: The Pydantic model class to register.
+
+        Returns:
+            The schema that was registered (for convenience).
+        """
+        define_schema(self.registry, name, schema)
+        return schema
+
+    def define_json_schema(self, name: str, json_schema: dict[str, object]) -> dict[str, object]:
+        """Register a JSON schema for use in prompts.
+
+        Args:
+            name: The name to register the schema under.
+            json_schema: The JSON Schema dictionary to register.
+
+        Returns:
+            The JSON schema that was registered (for convenience).
+        """
+        self.registry.register_schema(name, json_schema)
+        return json_schema
+
+    def define_dynamic_action_provider(
+        self,
+        config: DapConfig | str,
+        fn: DapFn,
+    ) -> DynamicActionProvider:
+        """Define and register a Dynamic Action Provider (DAP).
+
+        Args:
+            config: DAP configuration (DapConfig) or just a name string.
+            fn: Async function that returns actions organized by type.
+
+        Returns:
+            The registered DynamicActionProvider.
+        """
+        return define_dap_block(self.registry, config, fn)
+
+    def tool(
+        self, name: str | None = None, description: str | None = None
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+        """Decorator to register a function as a tool.
+
+        Args:
+            name: Optional name for the tool. If not provided, uses the function name.
+            description: Description for the tool to be passed to the model.
+
+        Returns:
+            A decorator function that registers the tool.
+        """
+
+        def wrapper(func: Callable[P, T]) -> Callable[P, T]:
+            return define_tool(self.registry, func, name, description)
+
+        return wrapper
+
+    def define_retriever(
+        self,
+        name: str,
+        fn: RetrieverFn[Any],
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a retriever action.
+
+        Args:
+            name: Name of the retriever.
+            fn: Function implementing the retriever behavior.
+            config_schema: Optional schema for retriever configuration.
+            metadata: Optional metadata for the retriever.
+            description: Optional description for the retriever.
+        """
+        return define_retriever_action(
+            self.registry, name, fn, config_schema, metadata, description
+        )
+
+    def define_simple_retriever(
+        self,
+        *,
+        options: SimpleRetrieverOptions[R] | str,
+        handler: Callable[[DocumentData, Any], list[R] | Awaitable[list[R]]],
+        description: str | None = None,
+    ) -> Action:
+        """Define a simple retriever action.
+
+        Args:
+            options: Configuration options for the retriever, or just the name.
+            handler: A function that queries a datastore and returns items.
+            description: Optional description for the retriever.
+
+        Returns:
+            The registered Action for the retriever.
+        """
+        return define_simple_retriever(self.registry, options, handler, description)
+
+    def define_indexer(
+        self,
+        name: str,
+        fn: IndexerFn[Any],
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define an indexer action.
+
+        Args:
+            name: Name of the indexer.
+            fn: Function implementing the indexer behavior.
+            config_schema: Optional schema for indexer configuration.
+            metadata: Optional metadata for the indexer.
+            description: Optional description for the indexer.
+        """
+        return define_indexer_action(
+            self.registry, name, fn, config_schema, metadata, description
+        )
+
+    def define_reranker(
+        self,
+        name: str,
+        fn: RerankerFn[Any],
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a reranker action.
+
+        Args:
+            name: Name of the reranker.
+            fn: Function implementing the reranker behavior.
+            config_schema: Optional schema for reranker configuration.
+            metadata: Optional metadata for the reranker.
+            description: Optional description for the reranker.
+
+        Returns:
+            The registered Action for the reranker.
+        """
+        from genkit.core._internal._schema import to_json_schema
+
+        # Extract label and config from metadata
+        reranker_label: str = name
+        reranker_config_schema: dict[str, object] | None = None
+
+        # Check if metadata has reranker info
+        if metadata and 'reranker' in metadata:
+            existing = metadata['reranker']
+            if isinstance(existing, dict):
+                existing_dict = cast(dict[str, object], existing)
+                label_val = existing_dict.get('label')
+                if isinstance(label_val, str) and label_val:
+                    reranker_label = label_val
+                opts_val = existing_dict.get('customOptions')
+                if isinstance(opts_val, dict):
+                    reranker_config_schema = cast(dict[str, object], opts_val)
+
+        # Override with config_schema if provided
+        if config_schema:
+            reranker_config_schema = to_json_schema(config_schema)
+
+        return define_reranker_block(
+            self.registry,
+            name=name,
+            fn=fn,
+            options=RerankerOptions(
+                config_schema=reranker_config_schema,
+                label=reranker_label,
+            ),
+            description=description,
+        )
+
+    async def rerank(
+        self,
+        *,
+        reranker: str | Action | RerankerRef,
+        query: str | DocumentData,
+        documents: list[DocumentData],
+        options: object | None = None,
+    ) -> list[RankedDocument]:
+        """Rerank documents based on their relevance to a query.
+
+        Args:
+            reranker: The reranker to use.
+            query: The query to rank documents against.
+            documents: The list of documents to rerank.
+            options: Optional configuration options.
+
+        Returns:
+            A list of RankedDocument objects sorted by relevance score.
+        """
+        return await rerank_block(
+            self.registry,
+            {
+                'reranker': reranker,
+                'query': query,
+                'documents': documents,
+                'options': options,
+            },
+        )
+
+    def define_evaluator(
+        self,
+        name: str,
+        display_name: str,
+        definition: str,
+        fn: EvaluatorFn[Any],
+        is_billed: bool = False,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define an evaluator action.
+
+        Args:
+            name: Name of the evaluator.
+            display_name: User-visible display name.
+            definition: User-visible evaluator definition.
+            fn: Function implementing the evaluator behavior.
+            is_billed: Whether the evaluator performs any billed actions.
+            config_schema: Optional schema for evaluator configuration.
+            metadata: Optional metadata for the evaluator.
+            description: Optional description for the evaluator.
+        """
+        return define_evaluator(
+            self.registry, name, display_name, definition, fn,
+            is_billed, config_schema, metadata, description
+        )
+
+    def define_batch_evaluator(
+        self,
+        name: str,
+        display_name: str,
+        definition: str,
+        fn: BatchEvaluatorFn[Any],
+        is_billed: bool = False,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a batch evaluator action.
+
+        Args:
+            name: Name of the evaluator.
+            display_name: User-visible display name.
+            definition: User-visible evaluator definition.
+            fn: Function implementing the evaluator behavior.
+            is_billed: Whether the evaluator performs any billed actions.
+            config_schema: Optional schema for evaluator configuration.
+            metadata: Optional metadata for the evaluator.
+            description: Optional description for the evaluator.
+        """
+        return define_batch_evaluator(
+            self.registry, name, display_name, definition, fn,
+            is_billed, config_schema, metadata, description
+        )
+
+    def define_model(
+        self,
+        name: str,
+        fn: ModelFn,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        info: ModelInfo | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a custom model action.
+
+        Args:
+            name: Name of the model.
+            fn: Function implementing the model behavior.
+            config_schema: Optional schema for model configuration.
+            metadata: Optional metadata for the model.
+            info: Optional ModelInfo for the model.
+            description: Optional description for the model.
+        """
+        return define_model(
+            self.registry, name, fn, config_schema, metadata, info, description
+        )
+
+    def define_background_model(
+        self,
+        name: str,
+        start: StartModelOpFn,
+        check: CheckModelOpFn,
+        cancel: CancelModelOpFn | None = None,
+        label: str | None = None,
+        info: ModelInfo | None = None,
+        config_schema: type[BaseModel] | dict[str, object] | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> BackgroundAction:
+        """Define a background model for long-running AI operations.
+
+        Args:
+            name: Unique name for this background model.
+            start: Async function to start the background operation.
+            check: Async function to check operation status.
+            cancel: Optional async function to cancel operations.
+            label: Human-readable label (defaults to name).
+            info: Model capability information (ModelInfo).
+            config_schema: Schema for model configuration options.
+            metadata: Additional metadata for the model.
+            description: Description for the model action.
+
+        Returns:
+            A BackgroundAction that can be used to start/check/cancel operations.
+        """
+        return define_background_model_block(
+            registry=self.registry,
+            name=name,
+            start=start,
+            check=check,
+            cancel=cancel,
+            label=label,
+            info=info,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
+        )
+
+    def define_embedder(
+        self,
+        name: str,
+        fn: EmbedderFn,
+        options: EmbedderOptions | None = None,
+        metadata: dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Action:
+        """Define a custom embedder action.
+
+        Args:
+            name: Name of the embedder.
+            fn: Function implementing the embedder behavior.
+            options: Optional options for the embedder.
+            metadata: Optional metadata for the embedder.
+            description: Optional description for the embedder.
+        """
+        return define_embedder(
+            self.registry, name, fn, options, metadata, description
+        )
+
+    def define_format(self, format: FormatDef) -> None:
+        """Registers a custom format in the registry.
+
+        Args:
+            format: The format to register.
+        """
+        self.registry.register_value('format', format.name, format)
+
+    # Overload 1: Both input_schema and output_schema typed -> ExecutablePrompt[InputT, OutputT]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        description: str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        *,
+        input_schema: type[InputT],
+        output_schema: type[OutputT],
+    ) -> 'ExecutablePrompt[InputT, OutputT]': ...
+
+    # Overload 2: Only input_schema typed -> ExecutablePrompt[InputT, Any]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        description: str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        *,
+        input_schema: type[InputT],
+    ) -> 'ExecutablePrompt[InputT, Any]': ...
+
+    # Overload 3: Only output_schema typed -> ExecutablePrompt[Any, OutputT]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        description: str | None = None,
+        input_schema: dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        *,
+        output_schema: type[OutputT],
+    ) -> 'ExecutablePrompt[Any, OutputT]': ...
+
+    # Overload 4: Neither typed -> ExecutablePrompt[Any, Any]
+    @overload
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        description: str | None = None,
+        input_schema: dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+    ) -> 'ExecutablePrompt[Any, Any]': ...
+
+    def define_prompt(
+        self,
+        name: str | None = None,
+        variant: str | None = None,
+        model: str | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        description: str | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        system: str | Part | list[Part] | Callable[..., Any] | None = None,
+        prompt: str | Part | list[Part] | Callable[..., Any] | None = None,
+        messages: str | list[Message] | Callable[..., Any] | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: bool | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
+        output_constrained: bool | None = None,
+        max_turns: int | None = None,
+        return_tool_requests: bool | None = None,
+        metadata: dict[str, object] | None = None,
+        tools: list[str] | None = None,
+        tool_choice: ToolChoice | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[DocumentData] | Callable[..., Any] | None = None,
+    ) -> 'ExecutablePrompt[Any, Any]':
+        """Define a prompt.
+
+        Args:
+            name: Optional name for the prompt.
+            variant: Optional variant name for the prompt.
+            model: Optional model name to use for the prompt.
+            config: Optional configuration for the model.
+            description: Optional description for the prompt.
+            input_schema: Optional schema for the input to the prompt.
+            system: Optional system message for the prompt.
+            prompt: Optional prompt for the model.
+            messages: Optional messages for the model.
+            output_format: Optional output format for the prompt.
+            output_content_type: Optional output content type for the prompt.
+            output_instructions: Optional output instructions for the prompt.
+            output_schema: Optional schema for the output from the prompt.
+            output_constrained: Optional flag indicating whether the output
+                should be constrained.
+            max_turns: Optional maximum number of turns for the prompt.
+            return_tool_requests: Optional flag indicating whether tool requests
+                should be returned.
+            metadata: Optional metadata for the prompt.
+            tools: Optional list of tools to use for the prompt.
+            tool_choice: Optional tool choice for the prompt.
+            use: Optional list of model middlewares to use for the prompt.
+            docs: Optional list of documents or a callable for grounding.
+        """
+        return define_prompt(
+            self.registry,
+            name=name,
+            variant=variant,
+            model=model,
+            config=config,
+            description=description,
+            input_schema=input_schema,
+            system=system,
+            prompt=prompt,
+            messages=messages,
+            output_format=output_format,
+            output_content_type=output_content_type,
+            output_instructions=output_instructions,
+            output_schema=output_schema,
+            output_constrained=output_constrained,
+            max_turns=max_turns,
+            return_tool_requests=return_tool_requests,
+            metadata=metadata,
+            tools=tools,
+            tool_choice=tool_choice,
+            use=use,
+            docs=docs,
+        )
+
+    # Overload 1: Neither typed -> ExecutablePrompt[Any, Any]
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input_schema: None = None,
+        output_schema: None = None,
+    ) -> ExecutablePrompt[Any, Any]: ...
+
+    # Overload 2: Only input_schema typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input_schema: type[InputT],
+        output_schema: None = None,
+    ) -> ExecutablePrompt[InputT, Any]: ...
+
+    # Overload 3: Only output_schema typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input_schema: None = None,
+        output_schema: type[OutputT],
+    ) -> ExecutablePrompt[Any, OutputT]: ...
+
+    # Overload 4: Both input_schema and output_schema typed
+    @overload
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input_schema: type[InputT],
+        output_schema: type[OutputT],
+    ) -> ExecutablePrompt[InputT, OutputT]: ...
+
+    def prompt(
+        self,
+        name: str,
+        variant: str | None = None,
+        *,
+        input_schema: type[InputT] | None = None,
+        output_schema: type[OutputT] | None = None,
+    ) -> ExecutablePrompt[InputT, OutputT] | ExecutablePrompt[Any, Any]:
+        """Look up a prompt by name and optional variant.
+
+        Args:
+            name: The name of the prompt.
+            variant: Optional variant name.
+            input_schema: Optional typed input schema (Pydantic model).
+            output_schema: Optional typed output schema (Pydantic model).
+
+        Returns:
+            An ExecutablePrompt instance.
+        """
+        return ExecutablePrompt(
+            registry=self.registry,
+            _name=name,
+            variant=variant,
+            input_schema=input_schema,
+            output_schema=output_schema,
+        )
+
+    def define_resource(
+        self,
+        *,
+        fn: 'ResourceFn',
+        name: str | None = None,
+        uri: str | None = None,
+        template: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> Action:
+        """Define a resource action.
+
+        Args:
+            fn: Function implementing the resource behavior.
+            name: Optional name for the resource.
+            uri: Optional URI for the resource.
+            template: Optional URI template for the resource.
+            description: Optional description for the resource.
+            metadata: Optional metadata for the resource.
+
+        Returns:
+            The registered Action for the resource.
+        """
+        opts: ResourceOptions = {}
+        if name:
+            opts['name'] = name
+        if uri:
+            opts['uri'] = uri
+        if template:
+            opts['template'] = template
+        if description:
+            opts['description'] = description
+        if metadata:
+            opts['metadata'] = metadata
+
+        return define_resource_block(self.registry, opts, fn)
+
+    # -------------------------------------------------------------------------
+    # Server infrastructure methods
+    # -------------------------------------------------------------------------
+
+    def _start_reflection_background(self) -> None:
+        """Start the Dev UI reflection server in a background daemon thread.
+
+        The thread owns its own asyncio event loop so it never conflicts with
+        the main thread's loop (whether that's uvicorn, FastAPI, or none).
+        Sets ``self._reflection_ready`` once the server is listening.
+        """
+
+        def _thread_main() -> None:
+            async def _run() -> None:
+                sockets: list[socket.socket] | None = None
+                spec = self._reflection_server_spec
+                if spec is None:
+                    # Bind to port 0 to let the OS choose an available port and
+                    # pass the socket to uvicorn to avoid a check-then-bind race.
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.bind(('127.0.0.1', 0))
+                    sock.listen(2048)
+                    host, port = sock.getsockname()
+                    spec = ServerSpec(scheme='http', host=host, port=port)
+                    self._reflection_server_spec = spec
+                    sockets = [sock]
+
+                server = _make_reflection_server(self.registry, spec.host, spec.port, ready=self._reflection_ready)
+                async with RuntimeManager(spec, lazy_write=True) as runtime_manager:
+                    server_task = asyncio.create_task(server.serve(sockets=sockets))
+
+                    # _ReflectionServer.startup() sets _reflection_ready once uvicorn binds.
+                    # Use asyncio.to_thread so we don't block the event loop.
+                    await asyncio.to_thread(self._reflection_ready.wait)
+
+                    if server.should_exit:
+                        logger.warning(f'Reflection server at {spec.url} failed to start.')
+                        return
+
+                    runtime_manager.write_runtime_file()
+                    await logger.ainfo(f'Genkit Dev UI reflection server running at {spec.url}')
+
+                    # Keep running until the process exits (daemon thread).
+                    await server_task
+
+            asyncio.run(_run())
+
+        t = threading.Thread(target=_thread_main, daemon=True, name='genkit-reflection-server')
+        t.start()
+
+    def _initialize_registry(self, model: str | None, plugins: list[Plugin] | None) -> None:
+        """Initialize the registry for the Genkit instance.
+
+        Args:
+            model: Model name to use.
+            plugins: List of plugins to initialize.
+
+        Raises:
+            ValueError: If an invalid plugin is provided.
+
+        Returns:
+            None
+        """
+        self.registry.default_model = model
+        for fmt in built_in_formats:
+            self.define_format(fmt)
+
+        if not plugins:
+            logger.warning('No plugins provided to Genkit')
+        else:
+            for plugin in plugins:
+                if isinstance(plugin, Plugin):  # pyright: ignore[reportUnnecessaryIsInstance]
+                    self.registry.register_plugin(plugin)
+                else:
+                    raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
+
+    def run_main(self, coro: Coroutine[Any, Any, T]) -> T | None:
+        """Run the user's main coroutine.
+
+        In development mode (`GENKIT_ENV=dev`), this runs the user's coroutine
+        then blocks until Ctrl+C or SIGTERM, keeping the background reflection
+        server (started in ``__init__``) alive for the Dev UI.
+
+        In production mode, this simply runs the user's coroutine to completion
+        using ``uvloop.run()`` for performance if available, otherwise
+        ``asyncio.run()``.
+
+        Args:
+            coro: The main coroutine provided by the user.
+
+        Returns:
+            The result of the user's coroutine, or None on graceful shutdown.
+        """
+        if not is_dev_environment():
+            logger.info('Running in production mode.')
+            return run_loop(coro)
+
+        logger.info('Running in development mode.')
+
+        async def dev_runner() -> T | None:
+            user_result: T | None = None
+            try:
+                user_result = await coro
+                logger.debug('User coroutine completed successfully.')
+            except Exception:
+                logger.exception('User coroutine failed')
+
+            # Block until Ctrl+C (SIGINT handled by anyio) or SIGTERM, keeping
+            # the daemon reflection thread alive.
+            logger.info('Script done — Dev UI running. Press Ctrl+C to stop.')
+            try:
+                async with anyio.create_task_group() as tg:
+
+                    async def _handle_sigterm(tg_: anyio.abc.TaskGroup) -> None:  # type: ignore[name-defined]
+                        with anyio.open_signal_receiver(signal.SIGTERM) as sigs:
+                            async for _ in sigs:
+                                tg_.cancel_scope.cancel()
+                                return
+
+                    tg.start_soon(_handle_sigterm, tg)
+                    await anyio.sleep_forever()
+            except anyio.get_cancelled_exc_class():
+                pass
+
+            logger.info('Dev UI server stopped.')
+            return user_result
+
+        return anyio.run(dev_runner)
+
+    # -------------------------------------------------------------------------
+    # Genkit-specific methods (generation, embedding, retrieval, etc.)
+    # -------------------------------------------------------------------------
 
     def _resolve_embedder_name(self, embedder: str | EmbedderRef | None) -> str:
         """Resolve embedder name from string or EmbedderRef.
@@ -142,34 +1058,9 @@ class Genkit(GenkitBase):
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
-    @overload
     async def generate(
         self,
-        model: str | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        system: str | Part | list[Part] | None = None,
-        messages: list[Message] | None = None,
-        tools: list[str] | None = None,
-        return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
-        max_turns: int | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
-        context: dict[str, object] | None = None,
-        output_format: str | None = None,
-        output_content_type: str | None = None,
-        output_instructions: bool | str | None = None,
-        output_constrained: bool | None = None,
         *,
-        output: Output[OutputT],
-        use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper[OutputT]: ...
-
-    @overload
-    async def generate(
-        self,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
         system: str | Part | list[Part] | None = None,
@@ -178,41 +1069,17 @@ class Genkit(GenkitBase):
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         tool_responses: list[Part] | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
         context: dict[str, object] | None = None,
+        output_schema: type | dict | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper[Any]: ...
-
-    async def generate(
-        self,
-        model: str | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        system: str | Part | list[Part] | None = None,
-        messages: list[Message] | None = None,
-        tools: list[str] | None = None,
-        return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
-        max_turns: int | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
-        context: dict[str, object] | None = None,
-        output_format: str | None = None,
-        output_content_type: str | None = None,
-        output_instructions: bool | str | None = None,
-        output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
-        use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-    ) -> GenerateResponseWrapper[Any]:
+        docs: list[Document] | None = None,
+    ) -> ModelResponse[Any]:
         """Generates text or structured data using a language model.
 
         This function provides a flexible interface for interacting with various
@@ -220,106 +1087,43 @@ class Genkit(GenkitBase):
         interactions involving tools and structured conversations.
 
         Args:
-            model: Optional. The name of the model to use for generation. If not
+            model: The name of the model to use for generation. If not
                 provided, a default model may be used.
-            prompt: Optional. A single prompt string, a `Part` object, or a list
-                of `Part` objects to provide as input to the model. This is used
-                for simple text generation.
-            system: Optional. A system message string, a `Part` object, or a
+            prompt: A single prompt string, a `Part` object, or a list
+                of `Part` objects to provide as input to the model.
+            system: A system message string, a `Part` object, or a
                 list of `Part` objects to provide context or instructions to
                 the model, especially for chat-based models.
-            messages: Optional. A list of `Message` objects representing a
-                conversation history.  This is used for chat-based models to
-                maintain context.
-            tools: Optional. A list of tool names (strings) that the model can
-                use.
-            return_tool_requests: Optional. If `True`, the model will return
+            messages: A list of `Message` objects representing a
+                conversation history.
+            tools: A list of tool names (strings) that the model can use.
+            return_tool_requests: If `True`, the model will return
                 tool requests instead of executing them directly.
-            tool_choice: Optional. A `ToolChoice` object specifying how the
+            tool_choice: A `ToolChoice` object specifying how the
                 model should choose which tool to use.
-            tool_responses: Optional. tool_responses should contain a list of
-                tool response parts corresponding to interrupt tool request
-                parts from the most recent model message. Each entry must have
-                a matching `name` and `ref` (if supplied) for its tool request
-                counterpart.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary
+            tool_responses: Tool response parts corresponding to interrupt tool
+                request parts from the most recent model message.
+            config: A `ModelConfig` object or a dictionary
                 containing configuration parameters for the generation process.
-                This allows fine-tuning the model's behavior.
-            max_turns: Optional. The maximum number of turns in a conversation.
-            on_chunk: Optional. A callback function of type
-                `ModelStreamingCallback` that is called for each chunk of
-                generated text during streaming.
-            context: Optional. A dictionary containing additional context
+            max_turns: The maximum number of turns in a conversation.
+            context: A dictionary containing additional context
                 information that can be used during generation.
-            output_format: Optional. The format to use for the output (e.g.,
-                'json').
-            output_content_type: Optional. The content type of the output.
-            output_instructions: Optional. Instructions for formatting the
-                output.
-            output_constrained: Optional. Whether to constrain the output to the
-                schema.
-            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
-                Can also be an `OutputConfig` object or dictionary.
-            use: Optional. A list of `ModelMiddleware` functions to apply to the
-                generation process. Middleware can be used to intercept and
-                modify requests and responses.
-            docs: Optional. A list of documents to be used for grounding.
-
+            output_schema: A Pydantic model class or JSON schema dict for
+                structured output.
+            output_format: The format to use for the output (e.g., 'json').
+            output_content_type: The content type of the output.
+            output_instructions: Instructions for formatting the output.
+            output_constrained: Whether to constrain the output to the schema.
+            use: A list of `ModelMiddleware` functions to apply to the
+                generation process.
+            docs: A list of documents to be used for grounding.
 
         Returns:
-            A `GenerateResponseWrapper` object containing the model's response,
-            which may include generated text, tool requests, or other relevant
-            information.
+            A `ModelResponse` object containing the model's response.
 
         Note:
-            - The `tools`, `return_tool_requests`, and `tool_choice` arguments
-              are used for models that support tool usage.
-            - The `on_chunk` argument enables streaming responses, allowing you
-              to process the generated content as it becomes available.
+            For streaming, use `generate_stream()` instead.
         """
-        # Initialize output_schema - extracted from output parameter
-        output_schema: type | dict[str, object] | None = None
-
-        # Unpack output config if provided
-        if output:
-            if isinstance(output, Output):
-                # Handle typed Output[T] - extract values from the typed wrapper
-                if output_format is None:
-                    output_format = output.format
-                if output_content_type is None:
-                    output_content_type = output.content_type
-                if output_instructions is None:
-                    output_instructions = output.instructions
-                if output_schema is None:
-                    output_schema = output.schema
-                if output_constrained is None:
-                    output_constrained = output.constrained
-            elif isinstance(output, dict):
-                # Handle dict input - extract values directly
-                if output_format is None:
-                    output_format = output.get('format')
-                if output_content_type is None:
-                    output_content_type = output.get('content_type')
-                if output_instructions is None:
-                    output_instructions = output.get('instructions')
-                if output_schema is None:
-                    output_schema = output.get('schema')
-                if output_constrained is None:
-                    output_constrained = output.get('constrained')
-            else:
-                # Handle OutputConfig object - use getattr for safety since
-                # OutputConfig is auto-generated and may not have all fields.
-                if output_format is None:
-                    output_format = getattr(output, 'format', None)
-                if output_content_type is None:
-                    output_content_type = getattr(output, 'content_type', None)
-                if output_instructions is None:
-                    output_instructions = getattr(output, 'instructions', None)
-                if output_schema is None:
-                    output_schema = getattr(output, 'schema', None)
-                if output_constrained is None:
-                    output_constrained = getattr(output, 'constrained', None)
-
         return await generate_action(
             self.registry,
             await to_generate_action_options(
@@ -343,41 +1147,13 @@ class Genkit(GenkitBase):
                     docs=docs,
                 ),
             ),
-            on_chunk=on_chunk,
             middleware=use,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
 
-    @overload
     def generate_stream(
         self,
-        model: str | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        system: str | Part | list[Part] | None = None,
-        messages: list[Message] | None = None,
-        tools: list[str] | None = None,
-        return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
-        max_turns: int | None = None,
-        context: dict[str, object] | None = None,
-        output_format: str | None = None,
-        output_content_type: str | None = None,
-        output_instructions: bool | str | None = None,
-        output_constrained: bool | None = None,
         *,
-        output: Output[OutputT],
-        use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-        timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper[OutputT]],
-    ]: ...
-
-    @overload
-    def generate_stream(
-        self,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
         system: str | Part | list[Part] | None = None,
@@ -385,134 +1161,100 @@ class Genkit(GenkitBase):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
+        output_schema: type | dict | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
+        docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> tuple[
-        AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper[Any]],
-    ]: ...
-
-    def generate_stream(
-        self,
-        model: str | None = None,
-        prompt: str | Part | list[Part] | None = None,
-        system: str | Part | list[Part] | None = None,
-        messages: list[Message] | None = None,
-        tools: list[str] | None = None,
-        return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
-        max_turns: int | None = None,
-        context: dict[str, object] | None = None,
-        output_format: str | None = None,
-        output_content_type: str | None = None,
-        output_instructions: bool | str | None = None,
-        output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
-        use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-        timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[GenerateResponseChunkWrapper],
-        asyncio.Future[GenerateResponseWrapper[Any]],
+        AsyncIterator[ModelResponseChunk],
+        asyncio.Future[ModelResponse[Any]],
     ]:
         """Streams generated text or structured data using a language model.
 
-        This function provides a flexible interface for interacting with various
-        language models, supporting both simple text generation and more complex
-        interactions involving tools and structured conversations.
-
         Args:
-            model: Optional. The name of the model to use for generation. If not
+            model: The name of the model to use for generation. If not
                 provided, a default model may be used.
-            prompt: Optional. A single prompt string, a `Part` object, or a list
-                of `Part` objects to provide as input to the model. This is used
-                for simple text generation.
-            system: Optional. A system message string, a `Part` object, or a
-                list of `Part` objects to provide context or instructions to the
-                model, especially for chat-based models.
-            messages: Optional. A list of `Message` objects representing a
-                conversation history.  This is used for chat-based models to
-                maintain context.
-            tools: Optional. A list of tool names (strings) that the model can
-                use.
-            return_tool_requests: Optional. If `True`, the model will return
+            prompt: A single prompt string, a `Part` object, or a list
+                of `Part` objects to provide as input to the model.
+            system: A system message string, a `Part` object, or a
+                list of `Part` objects to provide context or instructions to
+                the model, especially for chat-based models.
+            messages: A list of `Message` objects representing a
+                conversation history.
+            tools: A list of tool names (strings) that the model can use.
+            return_tool_requests: If `True`, the model will return
                 tool requests instead of executing them directly.
-            tool_choice: Optional. A `ToolChoice` object specifying how the
+            tool_choice: A `ToolChoice` object specifying how the
                 model should choose which tool to use.
-            config: Optional. A `GenerationCommonConfig` object or a dictionary
+            config: A `ModelConfig` object or a dictionary
                 containing configuration parameters for the generation process.
-                This allows fine-tuning the model's behavior.
-            max_turns: Optional. The maximum number of turns in a conversation.
-            context: Optional. A dictionary containing additional context
+            max_turns: The maximum number of turns in a conversation.
+            context: A dictionary containing additional context
                 information that can be used during generation.
-            output_format: Optional. The format to use for the output (e.g.,
-                'json').
-            output_content_type: Optional. The content type of the output.
-            output_instructions: Optional. Instructions for formatting the
-                output.
-            output_constrained: Optional. Whether to constrain the output to the
-                schema.
-            output: Optional. Use `Output(schema=YourSchema)` for typed responses.
-                Can also be an `OutputConfig` object or dictionary.
-            use: Optional. A list of `ModelMiddleware` functions to apply to the
-                generation process. Middleware can be used to intercept and
-                modify requests and responses.
-            docs: Optional. A list of documents to be used for grounding.
-            timeout: Optional. The timeout for the streaming action.
+            output_schema: A Pydantic model class or JSON schema dict for
+                structured output.
+            output_format: The format to use for the output (e.g., 'json').
+            output_content_type: The content type of the output.
+            output_instructions: Instructions for formatting the output.
+            output_constrained: Whether to constrain the output to the schema.
+            use: A list of `ModelMiddleware` functions to apply to the
+                generation process.
+            docs: A list of documents to be used for grounding.
+            timeout: The timeout for the streaming action.
 
         Returns:
-            A `GenerateResponseWrapper` object containing the model's response,
-            which may include generated text, tool requests, or other relevant
-            information.
-
-        Note:
-            - The `tools`, `return_tool_requests`, and `tool_choice` arguments
-              are used for models that support tool usage.
-            - The `on_chunk` argument enables streaming responses, allowing you
-              to process the generated content as it becomes available.
+            A tuple of (stream, response_future) where stream is an async
+            iterator of chunks and response_future resolves to the final
+            ModelResponse.
         """
-        stream: Channel[GenerateResponseChunkWrapper, GenerateResponseWrapper[Any]] = Channel(timeout=timeout)
+        stream: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
-        resp = self.generate(
-            model=model,
-            prompt=prompt,
-            system=system,
-            messages=messages,
-            tools=tools,
-            return_tool_requests=return_tool_requests,
-            tool_choice=tool_choice,
-            config=config,
-            max_turns=max_turns,
-            context=context,
-            output_format=output_format,
-            output_content_type=output_content_type,
-            output_instructions=output_instructions,
-            output_constrained=output_constrained,
-            output=output,
-            docs=docs,
-            use=use,
-            on_chunk=lambda c: stream.send(c),
-        )
-        stream.set_close_future(asyncio.create_task(resp))
+        async def _run_generate() -> ModelResponse[Any]:
+            return await generate_action(
+                self.registry,
+                await to_generate_action_options(
+                    self.registry,
+                    PromptConfig(
+                        model=model,
+                        prompt=prompt,
+                        system=system,
+                        messages=messages,
+                        tools=tools,
+                        return_tool_requests=return_tool_requests,
+                        tool_choice=tool_choice,
+                        config=config,
+                        max_turns=max_turns,
+                        output_format=output_format,
+                        output_content_type=output_content_type,
+                        output_instructions=output_instructions,
+                        output_schema=output_schema,
+                        output_constrained=output_constrained,
+                        docs=docs,
+                    ),
+                ),
+                on_chunk=lambda c: stream.send(c),
+                middleware=use,
+                context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
+            )
+
+        stream.set_close_future(asyncio.create_task(_run_generate()))
 
         return stream, stream.closed
 
     async def retrieve(
         self,
+        *,
         retriever: str | RetrieverRef | None = None,
         query: str | DocumentData | None = None,
         options: dict[str, object] | None = None,
-    ) -> RetrieverResponse:
+    ) -> list[Document]:
         """Retrieves documents based on query.
 
         Args:
@@ -521,7 +1263,7 @@ class Genkit(GenkitBase):
             options: Optional retriever-specific options.
 
         Returns:
-            The generated response with documents.
+            A list of Document objects matching the query.
         """
         retriever_name: str
         retriever_config: dict[str, object] = {}
@@ -548,17 +1290,19 @@ class Genkit(GenkitBase):
         if query is None:
             raise ValueError('Query must be specified for retrieval.')
 
-        return (
-            await retrieve_action.arun(
+        response = (
+            await retrieve_action.run(
                 RetrieverRequest(
                     query=query,
                     options=request_options if request_options else None,
                 )
             )
         ).response
+        return [Document.from_document_data(doc) for doc in response.documents]
 
     async def index(
         self,
+        *,
         indexer: str | IndexerRef | None = None,
         documents: list[Document] | None = None,
         options: dict[str, object] | None = None,
@@ -592,7 +1336,7 @@ class Genkit(GenkitBase):
         if documents is None:
             raise ValueError('Documents must be specified for indexing.')
 
-        _ = await index_action.arun(
+        _ = await index_action.run(
             IndexerRequest(
                 # Document subclasses DocumentData, so this is type-safe at runtime.
                 # list is invariant so list[Document] isn't assignable to list[DocumentData]
@@ -603,6 +1347,7 @@ class Genkit(GenkitBase):
 
     async def embed(
         self,
+        *,
         embedder: str | EmbedderRef | None = None,
         content: str | Document | DocumentData | None = None,
         metadata: dict[str, object] | None = None,
@@ -679,7 +1424,7 @@ class Genkit(GenkitBase):
         # Document subclasses DocumentData, so this is type-safe at runtime.
         # list is invariant so list[Document] isn't assignable to list[DocumentData]
         response = (
-            await embed_action.arun(
+            await embed_action.run(
                 EmbedRequest(
                     input=documents,  # pyright: ignore[reportArgumentType]
                     options=final_options,
@@ -690,6 +1435,7 @@ class Genkit(GenkitBase):
 
     async def embed_many(
         self,
+        *,
         embedder: str | EmbedderRef | None = None,
         content: list[str] | list[Document] | list[DocumentData] | None = None,
         metadata: dict[str, object] | None = None,
@@ -757,7 +1503,7 @@ class Genkit(GenkitBase):
         if embed_action is None:
             raise ValueError(f'Embedder "{embedder_name}" not found')
 
-        response = (await embed_action.arun(EmbedRequest(input=documents, options=options))).response
+        response = (await embed_action.run(EmbedRequest(input=documents, options=options))).response
         return response.embeddings
 
     async def evaluate(
@@ -802,7 +1548,7 @@ class Genkit(GenkitBase):
             raise ValueError('Dataset must be specified for evaluation.')
 
         return (
-            await eval_action.arun(
+            await eval_action.run(
                 EvalRequest(
                     dataset=dataset,
                     options=final_options,
@@ -826,6 +1572,7 @@ class Genkit(GenkitBase):
 
     def dynamic_tool(
         self,
+        *,
         name: str,
         fn: Callable[..., object],
         description: str | None = None,
@@ -869,9 +1616,9 @@ class Genkit(GenkitBase):
 
     async def run(
         self,
+        *,
         name: str,
-        func_or_input: object,
-        maybe_fn: Callable[..., T | Awaitable[T]] | None = None,
+        fn: Callable[[], Awaitable[T]],
         metadata: dict[str, Any] | None = None,
     ) -> T:
         """Runs a function as a discrete step within a trace.
@@ -880,43 +1627,26 @@ class Genkit(GenkitBase):
         Each run step is recorded separately in the trace, making it easier to
         debug and monitor the internal execution of complex flows.
 
-        It supports two call signatures:
-        1. `run(name, fn)`: Runs the provided function.
-        2. `run(name, input, fn)`: Passes the input to the function and records it.
-
         Args:
             name: The descriptive name of the span/step.
-            func_or_input: Either the function to execute, or input data to pass
-                to `maybe_fn`.
-            maybe_fn: An optional function to execute if `func_or_input` is
-                provided as input data.
+            fn: The async function to execute.
             metadata: Optional metadata to associate with the generated trace span.
 
         Returns:
             The result of the function execution.
-        """
-        fn: Callable[..., T | Awaitable[T]]
-        input_data: Any = None
-        has_input = False
 
-        if maybe_fn:
-            fn = maybe_fn
-            input_data = func_or_input
-            has_input = True
-        elif callable(func_or_input):
-            fn = cast(Callable[..., T | Awaitable[T]], func_or_input)
-        else:
-            raise ValueError('A function must be provided to run.')
+        Raises:
+            TypeError: If fn is not a coroutine function.
+        """
+        import inspect as _inspect
+
+        if not _inspect.iscoroutinefunction(fn):
+            raise TypeError('fn must be a coroutine function')
 
         span_metadata = SpanMetadata(name=name, metadata=metadata)
         with run_in_new_span(span_metadata, labels={'genkit:type': 'flowStep'}) as span:
             try:
-                if has_input:
-                    span.set_input(input_data)
-                    result = await ensure_async(fn)(input_data)
-                else:
-                    result = await ensure_async(fn)()
-
+                result = await fn()
                 span.set_output(result)
                 return result
             except Exception:
@@ -996,6 +1726,7 @@ class Genkit(GenkitBase):
 
     async def generate_operation(
         self,
+        *,
         model: str | None = None,
         prompt: str | Part | list[Part] | None = None,
         system: str | Part | list[Part] | None = None,
@@ -1003,17 +1734,16 @@ class Genkit(GenkitBase):
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        config: dict[str, object] | GenerationCommonConfig | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
+        output_schema: type | dict | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: bool | str | None = None,
         output_constrained: bool | None = None,
-        output: OutputConfig | OutputConfigDict | Output[Any] | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
+        docs: list[Document] | None = None,
     ) -> Operation:
         """Generate content using a long-running model and return an Operation.
 
@@ -1066,14 +1796,13 @@ class Genkit(GenkitBase):
             config: Generation configuration.
             max_turns: Maximum conversation turns.
             context: Additional context data.
+            output_schema: A Pydantic model class or JSON schema dict.
             output_format: Output format (e.g., 'json').
             output_content_type: Output content type.
             output_instructions: Output formatting instructions.
             output_constrained: Whether to constrain output to schema.
-            output: Typed output configuration.
             use: Middleware to apply.
             docs: Documents for grounding.
-            on_chunk: Callback for streaming chunks.
 
         Returns:
             An Operation object for tracking the long-running generation.
@@ -1144,14 +1873,13 @@ class Genkit(GenkitBase):
             config=config,
             max_turns=max_turns,
             context=context,
+            output_schema=output_schema,
             output_format=output_format,
             output_content_type=output_content_type,
             output_instructions=output_instructions,
             output_constrained=output_constrained,
-            output=output,
             use=use,
             docs=docs,
-            on_chunk=on_chunk,
         )
 
         # Extract operation from response
@@ -1162,3 +1890,7 @@ class Genkit(GenkitBase):
             )
 
         return response.operation
+
+
+# Keep GenkitRegistry as an alias for backward compatibility
+GenkitRegistry = Genkit

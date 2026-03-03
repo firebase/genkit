@@ -104,10 +104,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.blocks.background_model import lookup_background_action
-from genkit.blocks.model import GenerateResponseWrapper
+from genkit.core._internal._background import lookup_background_action
+from genkit.ai.model import GenerateResponseWrapper
 from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     Error,
     FinishReason,
     GenerateRequest,
@@ -120,7 +120,7 @@ from genkit.core.typing import (
     Supports,
     TextPart,
 )
-from genkit.types import (
+from genkit import (
     GenerationCommonConfig,
     Media,
     MediaPart,

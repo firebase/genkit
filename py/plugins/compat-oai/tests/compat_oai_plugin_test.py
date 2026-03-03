@@ -27,7 +27,7 @@ from openai.types import Model
 
 from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import ActionMetadata
-from genkit.core.action.types import ActionKind
+from genkit.core.action import ActionKind
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
 

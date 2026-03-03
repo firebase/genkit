@@ -22,7 +22,7 @@ import json
 import structlog
 
 from genkit.core.error import GenkitError
-from genkit.core.typing import GenerateRequest
+from genkit.core._internal._typing import GenerateRequest
 from genkit.plugins.google_genai.models.context_caching.constants import (
     CONTEXT_CACHE_SUPPORTED_MODELS,
     INVALID_ARGUMENT_MESSAGES,

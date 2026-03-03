@@ -55,7 +55,7 @@ from io import BytesIO
 from PIL import Image
 
 from genkit.ai import Genkit
-from genkit.blocks.model import GenerateResponseWrapper
+from genkit.ai.model import GenerateResponseWrapper
 from genkit.plugins.google_genai import VertexAI
 from samples.shared.logging import setup_sample
 

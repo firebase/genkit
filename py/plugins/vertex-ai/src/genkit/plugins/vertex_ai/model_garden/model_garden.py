@@ -24,7 +24,7 @@ if typing.TYPE_CHECKING:
     from openai import AsyncOpenAI
 
     from genkit.ai import ActionRunContext
-    from genkit.types import GenerateRequest, GenerateResponse
+    from genkit import GenerateRequest, GenerateResponse
 
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,

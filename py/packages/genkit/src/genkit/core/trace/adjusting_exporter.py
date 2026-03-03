@@ -77,7 +77,7 @@ from opentelemetry.sdk.util.instrumentation import InstrumentationInfo, Instrume
 from opentelemetry.trace import Link, SpanContext, SpanKind, Status, StatusCode
 from opentelemetry.util.types import Attributes
 
-from genkit.core._compat import override
+from genkit.core._internal._compat import override
 
 
 class RedactedSpan(ReadableSpan):

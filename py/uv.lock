@@ -53,7 +53,6 @@ members = [
     "provider-vertex-ai-vector-search-bigquery",
     "provider-vertex-ai-vector-search-firestore",
     "web-fastapi-bugbot",
-    "web-fastapi-minimal-devui",
     "web-flask-hello",
 ]
 
@@ -8053,25 +8052,6 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
 provides-extras = ["dev"]
-
-[[package]]
-name = "web-fastapi-minimal-devui"
-version = "0.1.0"
-source = { editable = "samples/web-fastapi-minimal-devui" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-compat-oai" },
-    { name = "genkit-plugin-fastapi" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
-]
 
 [[package]]
 name = "web-flask-hello"

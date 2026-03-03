@@ -71,11 +71,11 @@ from google.auth.transport.requests import Request
 from pydantic import BaseModel, ConfigDict
 
 from genkit.ai import GENKIT_CLIENT_HEADER
-from genkit.blocks.evaluator import EvalFnResponse
+from genkit.ai.evaluator import EvalFnResponse
 from genkit.core.action import Action
 from genkit.core.error import GenkitError
-from genkit.core.http_client import get_cached_client
-from genkit.core.typing import BaseDataPoint, Details, Score
+from genkit.core._internal._http_client import get_cached_client
+from genkit.core._internal._typing import BaseDataPoint, Details, Score
 
 if TYPE_CHECKING:
     from genkit.ai._registry import GenkitRegistry

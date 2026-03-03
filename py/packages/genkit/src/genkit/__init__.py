@@ -14,10 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit - Build AI-powered applications with ease.
-
-Genkit is an open-source Python toolkit designed to help you build
-AI-powered features in web and mobile apps.
+"""Genkit — Build AI-powered applications.
 
 Basic usage:
     from genkit import Genkit
@@ -27,52 +24,41 @@ Basic usage:
 
     @ai.flow()
     async def hello(name: str) -> str:
-        response = await ai.generate(model="gemini-2.0-flash", prompt=f"Hello {name}")
+        response = await ai.generate(model='gemini-2.0-flash', prompt=f'Hello {name}')
         return response.text
 """
 
-# Main class
-# Re-export everything from genkit.ai for backwards compatibility
 from genkit.ai import (
-    GENKIT_CLIENT_HEADER,
-    GENKIT_VERSION,
     ActionKind,
     ActionRunContext,
     ExecutablePrompt,
-    FlowWrapper,
-    GenerateStreamResponse,
-    GenkitRegistry,
+    ModelStreamResponse,
     OutputOptions,
     PromptGenerateOptions,
     ResumeOptions,
-    SimpleRetrieverOptions,
     ToolRunContext,
-    tool_response,
 )
-from genkit.ai._aio import Genkit, Output
-
-# Core types for convenience (also available from genkit.types)
-from genkit.blocks.document import Document
-from genkit.blocks.interfaces import Input
-
-# Response types
-from genkit.blocks.model import GenerateResponseWrapper
-
-# Setup plugin discovery (must be done before any plugin imports)
+from genkit.ai._aio import Genkit
+from genkit.ai.document import Document
+from genkit.ai.model import ModelResponse
+from genkit.ai.model import ModelConfig
+from genkit.ai.tools import ToolInterruptError
 from genkit.core._plugins import extend_plugin_namespace
-
-# Errors (user-facing)
-from genkit.core.error import GenkitError, UserFacingError
-
-# Plugin interface
+from genkit.core.error import GenkitError, PublicError
 from genkit.core.plugin import Plugin
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
+    Embedding,
+    FinishReason,
+    GenerationUsage,
     Media,
     MediaPart,
     Message,
     Part,
     Role,
     TextPart,
+    ToolChoice,
+    ToolRequestPart,
+    ToolResponsePart,
 )
 
 extend_plugin_namespace()
@@ -80,37 +66,37 @@ extend_plugin_namespace()
 __all__ = [
     # Main class
     'Genkit',
-    'Input',
-    'Output',
     # Response types
-    'GenerateResponseWrapper',
-    'GenerateStreamResponse',
+    'ModelResponse',
+    'ModelStreamResponse',
     # Errors
     'GenkitError',
-    'UserFacingError',
-    # Core types (convenience)
-    'Document',
+    'PublicError',
+    'ToolInterruptError',
+    # Content types
+    'Embedding',
+    'FinishReason',
+    'GenerationUsage',
     'Media',
     'MediaPart',
     'Message',
     'Part',
     'Role',
     'TextPart',
+    'ToolChoice',
+    'ToolRequestPart',
+    'ToolResponsePart',
+    # Domain types
+    'Document',
+    'ModelConfig',
     # Plugin interface
     'Plugin',
-    # From genkit.ai
+    # AI runtime
     'ActionKind',
     'ActionRunContext',
     'ExecutablePrompt',
-    'FlowWrapper',
-    'GenkitRegistry',
     'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
-    'SimpleRetrieverOptions',
     'ToolRunContext',
-    'tool_response',
-    # Version info
-    'GENKIT_CLIENT_HEADER',
-    'GENKIT_VERSION',
 ]

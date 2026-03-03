@@ -49,24 +49,21 @@ or orchestrating flows.
 
 2.  Execution Methods
 
-    *   `run()`: Executes the action synchronously. It calls the internal
-        synchronous tracing wrapper (`_fn`).
-
-    *   `arun()`: Executes the action asynchronously. It calls the internal
+    *   `run()`: Executes the action asynchronously. It calls the internal
         asynchronous tracing wrapper (`_afn`). This wrapper handles
         awaiting the original function if it was async or running it via
         `ensure_async` if it was sync.
 
-    *   `arun_raw()`: Similar to `arun`, but performs Pydantic validation on
-        the `raw_input` before calling `arun`.
+    *   `run_raw()`: Similar to `run`, but performs Pydantic validation on
+        the `raw_input` before calling `run`.
 
-    *   `stream()`: Initiates an asynchronous execution via `arun` and returns
+    *   `stream()`: Initiates an asynchronous execution via `run` and returns
         an `AsyncIterator` (via `Channel`) for receiving chunks and an
         `asyncio.Future` that resolves with the final `ActionResponse`.
 
 3.  Streaming and Context
 
-    *   During execution (`run`/`arun`/`stream`), an `ActionRunContext` instance
+    *   During execution (`run`/`stream`), an `ActionRunContext` instance
         is created.
 
     *   This context holds an `on_chunk` callback (provided by the caller, e.g.,
@@ -87,15 +84,17 @@ generation, tracing, and streaming mechanics.
 import asyncio
 import inspect
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextvars import ContextVar
 from functools import cached_property
-from typing import Any, Generic, Protocol, cast, get_type_hints
+from typing import Any, ClassVar, Generic, Protocol, cast, get_type_hints
 
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
+from pydantic.alias_generators import to_camel
 from typing_extensions import Never, TypeVar
 
-from genkit.aio import Channel, ensure_async
+from genkit.core._internal import Channel, ensure_async
+from genkit.core._internal._compat import StrEnum
 from genkit.core.error import GenkitError
 from genkit.core.tracing import tracer
 
@@ -105,8 +104,203 @@ from ._tracing import (
     record_output_metadata,
     save_parent_path,
 )
-from ._util import extract_action_args_and_types, noop_streaming_callback
-from .types import ActionKind, ActionMetadataKey, ActionResponse
+
+# =============================================================================
+# Action types (from types.py)
+# =============================================================================
+
+# Type alias for action name.
+ActionName = str
+
+# Type alias for action resolver.
+ActionResolver = Callable[['ActionKind', str], None]
+
+
+class ActionKind(StrEnum):
+    """Enumerates all the types of action that can be registered.
+
+    This enum defines the various types of actions supported by the framework,
+    including chat models, embedders, evaluators, and other utility functions.
+    """
+
+    BACKGROUND_MODEL = 'background-model'
+    CANCEL_OPERATION = 'cancel-operation'
+    CHECK_OPERATION = 'check-operation'
+    CUSTOM = 'custom'
+    DYNAMIC_ACTION_PROVIDER = 'dynamic-action-provider'
+    EMBEDDER = 'embedder'
+    EVALUATOR = 'evaluator'
+    EXECUTABLE_PROMPT = 'executable-prompt'
+    FLOW = 'flow'
+    INDEXER = 'indexer'
+    MODEL = 'model'
+    PROMPT = 'prompt'
+    RERANKER = 'reranker'
+    RESOURCE = 'resource'
+    RETRIEVER = 'retriever'
+    TOOL = 'tool'
+    UTIL = 'util'
+
+
+ResponseT = TypeVar('ResponseT')
+
+
+class ActionResponse(BaseModel, Generic[ResponseT]):
+    """The response from an action.
+
+    Attributes:
+        response: The actual response data from the action execution.
+        trace_id: A unique identifier for tracing the action execution.
+        span_id: The span ID of the root action span.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra='forbid', populate_by_name=True, alias_generator=to_camel, arbitrary_types_allowed=True
+    )
+
+    response: ResponseT
+    trace_id: str
+    span_id: str = ''
+
+
+class ActionMetadataKey(StrEnum):
+    """Enumerates all the keys of the action metadata.
+
+    Attributes:
+        INPUT_KEY: Key for the input schema metadata.
+        OUTPUT_KEY: Key for the output schema metadata.
+        RETURN: Key for the return type metadata.
+    """
+
+    INPUT_KEY = 'inputSchema'
+    OUTPUT_KEY = 'outputSchema'
+    RETURN = 'return'
+
+
+# =============================================================================
+# Action utilities (from _util.py)
+# =============================================================================
+
+
+def noop_streaming_callback(_chunk: Any) -> None:  # noqa: ANN401
+    """A no-op streaming callback.
+
+    This callback does nothing and is used when no streaming is desired.
+
+    Args:
+        _chunk: The chunk (unused, callback is a no-op).
+
+    Returns:
+        None.
+    """
+    pass
+
+
+def parse_plugin_name_from_action_name(name: str) -> str | None:
+    """Parses the plugin name from an action name.
+
+    As per convention, the plugin name is optional. If present, it's the first
+    part of the action name, separated by a forward slash: `pluginname/*`.
+
+    Args:
+        name: The action name string.
+
+    Returns:
+        The plugin name, or None if no plugin name is found in the action name.
+    """
+    tokens = name.split('/')
+    if len(tokens) > 1:
+        return tokens[0]
+    return None
+
+
+def extract_action_args_and_types(
+    input_spec: inspect.FullArgSpec,
+    annotations: Mapping[str, Any] | None = None,
+) -> tuple[list[str], list[Any]]:
+    """Extracts relevant argument names and types from a function's FullArgSpec.
+
+    Specifically handles the case where the first argument might be 'self'
+    (for methods) and determines the type hint for each argument.
+
+    Args:
+        input_spec: The FullArgSpec object obtained from
+            inspect.getfullargspec().
+        annotations: Optional override for type annotations. If not provided,
+            uses input_spec.annotations.
+
+    Returns:
+        A tuple containing:
+            - A list of argument names (potentially excluding 'self').
+            - A list of corresponding argument types (using Any if no
+            annotation).
+    """
+    arg_types = []
+    action_args = input_spec.args.copy()
+    resolved_annotations = annotations or input_spec.annotations
+
+    # Special case when using a method as an action, we ignore first "self"
+    # arg. (Note: The original condition `len(action_args) <= 3` is preserved
+    # from the source snippet).
+    if len(action_args) > 0 and len(action_args) <= 3 and action_args[0] == 'self':
+        del action_args[0]
+
+    for arg in action_args:
+        arg_types.append(resolved_annotations.get(arg, Any))
+
+    return action_args, arg_types
+
+
+# =============================================================================
+# Action key utilities (from _key.py)
+# =============================================================================
+
+
+def parse_action_key(key: str) -> tuple[ActionKind, str]:
+    """Parse an action key into its kind and name components.
+
+    Args:
+        key: The action key to parse, in the format "/kind/name".
+
+    Returns:
+        A tuple containing the ActionKind and name.
+
+    Raises:
+        ValueError: If the key format is invalid or if the kind is not a valid
+            ActionKind.
+    """
+    tokens = key.split('/')
+    if len(tokens) < 3 or not tokens[1] or not tokens[2]:
+        msg = f'Invalid action key format: `{key}`.Expected format: `/<kind>/<name>`'
+        raise ValueError(msg)
+
+    kind_str = tokens[1]
+    name = '/'.join(tokens[2:])
+    try:
+        kind = ActionKind(kind_str)
+    except ValueError as e:
+        msg = f'Invalid action kind: `{kind_str}`'
+        raise ValueError(msg) from e
+    # pyrefly: ignore[bad-return] - ActionKind is StrEnum subclass, pyrefly doesn't narrow properly
+    return kind, name
+
+
+def create_action_key(kind: ActionKind, name: str) -> str:
+    """Create an action key from its kind and name components.
+
+    Args:
+        kind: The kind of action.
+        name: The name of the action.
+
+    Returns:
+        The action key in the format `/<kind>/<name>`.
+    """
+    return f'/{kind}/{name}'
+
+
+# =============================================================================
+# Action core
+# =============================================================================
 
 InputT = TypeVar('InputT', default=Any)
 OutputT = TypeVar('OutputT', default=Any)
@@ -251,6 +445,20 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         # Optional matcher function for resource actions
         self.matches: Callable[[object], bool] | None = None
 
+        # Enforce async handlers for core action kinds
+        _ASYNC_REQUIRED_KINDS = {
+            ActionKind.TOOL,
+            ActionKind.MODEL,
+            ActionKind.RETRIEVER,
+            ActionKind.EMBEDDER,
+            ActionKind.FLOW,
+        }
+        if kind in _ASYNC_REQUIRED_KINDS and not self._is_async:
+            raise TypeError(
+                f'{kind.value} handlers must be async functions. '
+                f"Got sync function for '{name}'."
+            )
+
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)
         try:
             resolved_annotations = get_type_hints(metadata_fn if metadata_fn else fn)
@@ -307,45 +515,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def is_async(self) -> bool:
         return self._is_async
 
-    def run(
-        self,
-        input: InputT | None = None,
-        on_chunk: StreamingCallback | None = None,
-        context: dict[str, object] | None = None,
-        _telemetry_labels: dict[str, object] | None = None,
-    ) -> ActionResponse[OutputT]:
-        """Executes the action synchronously with the given input.
-
-        This method runs the action's underlying function synchronously.
-        It handles input validation, tracing, and output serialization.
-        If the action's function is async, it will be run in the current event loop.
-
-        Args:
-            input: The input data for the action. It should conform to the action's
-                   input schema.
-            on_chunk: An optional callback function to receive streaming output chunks.
-                      Note: For synchronous execution of streaming actions, chunks
-                      will be delivered synchronously via this callback.
-            context: An optional dictionary containing context data for the execution.
-            telemetry_labels: Optional labels for telemetry.
-
-        Returns:
-            An ActionResponse object containing the final result and trace ID.
-
-        Raises:
-            GenkitError: If an error occurs during action execution.
-        """
-        # TODO(#4348): handle telemetry_labels
-
-        if context:
-            _ = _action_context.set(context)
-
-        return self._fn(
-            input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None)),
-        )
-
-    async def arun(
+    async def run(
         self,
         input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
@@ -385,7 +555,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
             ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None), on_trace_start=on_trace_start),
         )
 
-    async def arun_raw(
+    async def run_raw(
         self,
         raw_input: InputT | None = None,
         on_chunk: StreamingCallback | None = None,
@@ -429,7 +599,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
                 )
             input_action = self._input_type.validate_python(raw_input)
 
-        return await self.arun(
+        return await self.run(
             input=input_action,
             on_chunk=on_chunk,
             context=context,
@@ -468,7 +638,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         def send_chunk(c: object) -> None:
             stream.send(cast(ChunkT, c))
 
-        resp = self.arun(
+        resp = self.run(
             input=input,
             context=context,
             _telemetry_labels=telemetry_labels,

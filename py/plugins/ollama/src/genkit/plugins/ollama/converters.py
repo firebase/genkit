@@ -28,7 +28,7 @@ See: https://github.com/ollama/ollama/blob/main/docs/api.md
 
 from typing import Any, Literal, cast
 
-from genkit.types import (
+from genkit import (
     GenerationCommonConfig,
     GenerationUsage,
     Message,

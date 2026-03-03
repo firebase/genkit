@@ -101,9 +101,9 @@ import httpx
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
-from genkit.types import GenerationCommonConfig, Message, Part, Role, TextPart
+from genkit import GenerationCommonConfig, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()

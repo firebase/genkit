@@ -36,16 +36,16 @@ from google.cloud.aiplatform_v1 import (
 from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
-from genkit.blocks.retriever import RetrieverOptions, retriever_action_metadata
-from genkit.core.action.types import ActionKind
-from genkit.core.schema import to_json_schema
-from genkit.core.typing import (
+from genkit.ai.document import Document
+from genkit.ai.retriever import RetrieverOptions, retriever_action_metadata
+from genkit.core.action import ActionKind
+from genkit.core._internal._schema import to_json_schema
+from genkit.core._internal._typing import (
     DocumentData,
     Embedding,
     RetrieverResponse,
 )
-from genkit.types import ActionRunContext, RetrieverRequest
+from genkit import ActionRunContext, RetrieverRequest
 
 logger = structlog.get_logger(__name__)
 

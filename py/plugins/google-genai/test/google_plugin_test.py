@@ -29,7 +29,7 @@ from google.auth.credentials import Credentials
 from google.genai.types import HttpOptions
 
 from genkit.ai import GENKIT_CLIENT_HEADER, Genkit
-from genkit.core.registry import ActionKind
+from genkit.core._internal._registry import ActionKind
 from genkit.plugins.google_genai import GoogleAI, VertexAI
 from genkit.plugins.google_genai.google import _inject_attribution_headers, googleai_name, vertexai_name
 from genkit.plugins.google_genai.models.gemini import (
@@ -42,7 +42,7 @@ from genkit.plugins.google_genai.models.imagen import (
     DEFAULT_IMAGE_SUPPORT,
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     Message,
     ModelInfo,

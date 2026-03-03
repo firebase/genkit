@@ -29,7 +29,7 @@ from genkit.plugins.compat_oai.models.image import (
     _to_generate_response,
     _to_image_generate_params,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     MediaPart,
     Message,

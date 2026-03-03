@@ -19,9 +19,9 @@
 from genkit.core.error import (
     GenkitError,
     HttpErrorWireFormat,
+    PublicError,
     ReflectionError,
     UnstableApiError,
-    UserFacingError,
     get_callable_json,
     get_error_message,
     get_error_stack,
@@ -72,9 +72,9 @@ def test_unstable_api_error() -> None:
     assert "This API requires 'beta' stability level" in error_no_message.original_message
 
 
-def test_user_facing_error() -> None:
-    """Test creating a UserFacingError."""
-    error = UserFacingError(
+def test_public_error() -> None:
+    """Test creating a PublicError."""
+    error = PublicError(
         status='UNAUTHENTICATED',
         message='Please log in',
         details={'extra_msg': 'Session expired'},

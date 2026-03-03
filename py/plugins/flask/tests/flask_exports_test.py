@@ -16,7 +16,7 @@
 
 """Tests for Flask plugin module exports and integration types."""
 
-from genkit.core.context import RequestData
+from genkit.core._internal._context import RequestData
 
 
 class TestFlaskModuleExports:

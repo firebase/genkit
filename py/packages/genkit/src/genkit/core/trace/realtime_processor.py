@@ -74,8 +74,8 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from genkit.core._compat import override
-from genkit.core.logging import get_logger
+from genkit.core._internal._compat import override
+from genkit.core._internal._logging import get_logger
 
 logger = get_logger(__name__)
 

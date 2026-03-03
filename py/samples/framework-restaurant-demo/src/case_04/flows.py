@@ -25,7 +25,7 @@ from menu_ai import ai
 from menu_schemas import AnswerOutputSchema, MenuItemSchema, MenuQuestionInputSchema
 from pydantic import BaseModel, Field
 
-from genkit.blocks.document import Document
+from genkit.ai.document import Document
 
 from .prompts import s04_rag_data_menu_prompt
 

@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from genkit.core.registry import ActionKind
+from genkit.core._internal._registry import ActionKind
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,

@@ -22,7 +22,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit.core._internal._typing import BaseDataPoint, Details, EvalFnResponse, Score
 
 
 class DeliciousnessResponse(BaseModel):

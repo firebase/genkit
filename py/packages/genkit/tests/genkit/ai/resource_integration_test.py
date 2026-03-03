@@ -21,11 +21,11 @@ from typing import cast
 
 import pytest
 
-from genkit.blocks.generate import generate_action
-from genkit.blocks.resource import ResourceInput, ResourceOutput, define_resource, resource
+from genkit.ai.generate import generate_action
+from genkit.ai.resource import ResourceInput, ResourceOutput, define_resource, resource
 from genkit.core.action import ActionRunContext
-from genkit.core.registry import ActionKind, Registry
-from genkit.core.typing import (
+from genkit.core._internal._registry import ActionKind, Registry
+from genkit.core._internal._typing import (
     GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,

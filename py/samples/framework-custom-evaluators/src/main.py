@@ -66,7 +66,7 @@ import os
 from pathlib import Path
 
 from genkit.ai import Genkit
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
 from src.constants import PERMISSIVE_SAFETY_SETTINGS, URL_REGEX, US_PHONE_REGEX
 from src.deliciousness_evaluator import register_deliciousness_evaluator

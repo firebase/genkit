@@ -20,8 +20,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from genkit.blocks.document import Document
-from genkit.core.typing import TextPart
+from genkit.ai.document import Document
+from genkit.core._internal._typing import TextPart
 from genkit.plugins.google_genai.rerankers import (
     DEFAULT_MODEL_NAME,
     KNOWN_MODELS,
@@ -207,7 +207,7 @@ def test_get_vertex_rerank_url_different_location() -> None:
 
 def test_to_reranker_doc_from_document() -> None:
     """Test _to_reranker_doc converts Document to RerankRequestRecord."""
-    from genkit.core.typing import DocumentPart
+    from genkit.core._internal._typing import DocumentPart
 
     doc = Document(content=[DocumentPart(root=TextPart(text='This is document content.'))])
 
@@ -219,7 +219,7 @@ def test_to_reranker_doc_from_document() -> None:
 
 def test_to_reranker_doc_different_index() -> None:
     """Test _to_reranker_doc uses provided index."""
-    from genkit.core.typing import DocumentPart
+    from genkit.core._internal._typing import DocumentPart
 
     doc = Document(content=[DocumentPart(root=TextPart(text='Content'))])
 
@@ -230,7 +230,7 @@ def test_to_reranker_doc_different_index() -> None:
 
 def test_from_rerank_response_basic() -> None:
     """Test _from_rerank_response converts response to scored documents."""
-    from genkit.core.typing import DocumentPart
+    from genkit.core._internal._typing import DocumentPart
 
     original_docs = [
         Document(content=[DocumentPart(root=TextPart(text='Doc 0'))]),
@@ -256,7 +256,7 @@ def test_from_rerank_response_basic() -> None:
 
 def test_from_rerank_response_preserves_content() -> None:
     """Test _from_rerank_response preserves document content."""
-    from genkit.core.typing import DocumentPart
+    from genkit.core._internal._typing import DocumentPart
 
     original_docs = [
         Document(content=[DocumentPart(root=TextPart(text='Original content'))]),
@@ -274,7 +274,7 @@ def test_from_rerank_response_preserves_content() -> None:
 
 def test_from_rerank_response_preserves_original_metadata() -> None:
     """Test _from_rerank_response preserves original document metadata."""
-    from genkit.core.typing import DocumentPart
+    from genkit.core._internal._typing import DocumentPart
 
     original_docs = [
         Document(

@@ -33,8 +33,8 @@ import structlog
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
-from genkit.core.typing import BaseDataPoint, DocumentData, Score
+from genkit.ai.document import Document
+from genkit.core._internal._typing import BaseDataPoint, DocumentData, Score
 from genkit.plugins.google_genai import VertexAI
 from samples.shared.logging import setup_sample
 

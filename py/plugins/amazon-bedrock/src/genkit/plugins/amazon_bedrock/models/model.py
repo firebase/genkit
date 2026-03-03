@@ -129,14 +129,14 @@ from typing import Any
 import httpx
 
 from genkit.ai import ActionRunContext
-from genkit.core.http_client import get_cached_client
-from genkit.core.logging import get_logger
+from genkit.core._internal._http_client import get_cached_client
+from genkit.core._internal._logging import get_logger
 from genkit.plugins.amazon_bedrock.models.converters import (
     StreamingFenceStripper,
     maybe_strip_fences,
 )
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
-from genkit.types import (
+from genkit import (
     FinishReason,
     GenerateRequest,
     GenerateResponse,

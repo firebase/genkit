@@ -63,7 +63,7 @@ from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types.audio import Transcription
 
 from genkit.ai import ActionRunContext
-from genkit.core.typing import FinishReason
+from genkit.core._internal._typing import FinishReason
 from genkit.plugins.compat_oai.models.utils import (
     _extract_media,
     _extract_text,
@@ -71,7 +71,7 @@ from genkit.plugins.compat_oai.models.utils import (
     decode_data_uri_bytes,
     extract_config_dict,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     Media,

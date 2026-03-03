@@ -8,7 +8,7 @@
 import os
 from unittest import mock
 
-from genkit.core.environment import (
+from genkit.core._internal._environment import (
     EnvVar,
     GenkitEnvironment,
     get_current_environment,

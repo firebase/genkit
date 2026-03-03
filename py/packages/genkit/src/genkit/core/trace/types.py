@@ -38,7 +38,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.util import types
 from pydantic import BaseModel
 
-from genkit.core.logging import get_logger
+from genkit.core._internal._logging import get_logger
 
 ATTR_PREFIX = 'genkit'
 

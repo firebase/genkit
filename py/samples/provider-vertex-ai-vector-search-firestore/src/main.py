@@ -132,9 +132,9 @@ from google.cloud import aiplatform, firestore
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
-from genkit.core.logging import get_logger
-from genkit.core.typing import RetrieverResponse
+from genkit.ai.document import Document
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._typing import RetrieverResponse
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import define_vertex_vector_search_firestore
 from samples.shared.logging import setup_sample

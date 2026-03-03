@@ -23,7 +23,7 @@ import pytest
 
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponseChunk,
     GenerationCommonConfig,

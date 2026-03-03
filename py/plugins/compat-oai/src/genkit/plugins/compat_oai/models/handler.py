@@ -27,7 +27,7 @@ from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_MODELS,
     PluginSource,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     GenerateResponse,
     ModelInfo,

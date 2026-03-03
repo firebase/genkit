@@ -21,10 +21,10 @@ provider samples can delegate to them from thin ``@ai.flow()`` wrappers.
 Provider-specific flow logic stays in each sample's main.py.
 """
 
-from genkit.ai import Genkit, Output
+from genkit.ai import Genkit
 from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
-from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
+from genkit.core._internal._logging import get_logger
+from genkit import Media, MediaPart, Message, Part, Role, TextPart
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
 
@@ -123,7 +123,7 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
     """
     result = await ai.generate(
         prompt=f'Generate a RPG character named {name}.\n{schema_hint}',
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
     )
     return result.output
 

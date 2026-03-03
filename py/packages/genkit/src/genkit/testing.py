@@ -63,12 +63,12 @@ from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, Output
-from genkit.codec import dump_json
+from genkit.ai import Genkit
+from genkit.core.codec import dump_json
 from genkit.core.action import Action, ActionRunContext
-from genkit.core.action.types import ActionKind
+from genkit.core.action import ActionKind
 from genkit.core.tracing import run_in_new_span
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -134,7 +134,7 @@ class ProgrammableModel:
         self.chunks = None
         self.last_request = None
 
-    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and return a programmed response.
 
         This function returns pre-configured responses and streams
@@ -206,8 +206,8 @@ def define_programmable_model(
     """
     pm = ProgrammableModel()
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return pm.model_fn(request, ctx)
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        return await pm.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
 
@@ -247,7 +247,7 @@ class EchoModel:
         self.last_request: GenerateRequest | None = None
         self.stream_countdown: bool = stream_countdown
 
-    def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and echo it back in the response.
 
         Args:
@@ -318,8 +318,8 @@ def define_echo_model(
     """
     echo = EchoModel(stream_countdown=stream_countdown)
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return echo.model_fn(request, ctx)
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        return await echo.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
 
@@ -347,7 +347,7 @@ class StaticResponseModel:
         self.last_request: GenerateRequest | None = None
         self.request_count: int = 0
 
-    def model_fn(self, request: GenerateRequest, _ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: GenerateRequest, _ctx: ActionRunContext) -> GenerateResponse:
         """Return the static response.
 
         Args:
@@ -392,8 +392,8 @@ def define_static_response_model(
     """
     static = StaticResponseModel(message)
 
-    def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return static.model_fn(request, ctx)
+    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        return await static.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
 
@@ -523,7 +523,7 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
     # Register the gablorken tool for tool calling tests
     # NOTE: Tool name is camelCase to match JS implementation for parity
     @ai.tool(name='gablorkenTool')
-    def gablorken_tool(input: GablorkenInput) -> float:
+    async def gablorken_tool(input: GablorkenInput) -> float:
         """Calculate the gablorken of a value. Use when need to calculate a gablorken."""
         return (input.value**3) + 1.407
 
@@ -626,7 +626,7 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
         response = await ai.generate(
             model=model,
             prompt='extract data as json from: Jack was a Lumberjack',
-            output=Output(schema=PersonInfo),
+            output_schema=PersonInfo,
         )
         got = response.output
         assert got is not None, 'Expected structured output'

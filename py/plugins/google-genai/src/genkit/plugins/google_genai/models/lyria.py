@@ -73,7 +73,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.core.typing import (
+from genkit.core._internal._typing import (
     ModelInfo,
     Supports,
 )

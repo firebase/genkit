@@ -73,7 +73,7 @@ Example:
     ```python
     from genkit.core.plugin import Plugin
     from genkit.core.action import Action, ActionMetadata
-    from genkit.core.action.types import ActionKind
+    from genkit.core.action import ActionKind
 
 
     class MyPlugin(Plugin):
@@ -124,14 +124,9 @@ See Also:
 """
 
 import abc
-from typing import TYPE_CHECKING
 
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.action.types import ActionKind
-
-if TYPE_CHECKING:
-    from genkit.blocks.embedding import EmbedderRef
-    from genkit.blocks.model import ModelReference
+from genkit.core.action import ActionKind
 
 
 class Plugin(abc.ABC):
@@ -185,36 +180,30 @@ class Plugin(abc.ABC):
         """
         ...
 
-    def model(self, name: str) -> 'ModelReference':
-        """Creates a model reference.
+    async def model(self, name: str) -> Action | None:
+        """Resolve a model action by name.
 
-        Prefixes local name with plugin namespace.
+        Prefixes local name with plugin namespace and resolves to Action.
 
         Args:
             name: The model name (local or namespaced).
 
         Returns:
-            ModelReference: A reference to the model.
+            Action | None: The resolved model action, or None if not found.
         """
-        # Deferred import: avoid circular import with genkit.blocks.model
-        from genkit.blocks.model import ModelReference  # noqa: PLC0415
-
         target = name if '/' in name else f'{self.name}/{name}'
-        return ModelReference(name=target)
+        return await self.resolve(ActionKind.MODEL, target)
 
-    def embedder(self, name: str) -> 'EmbedderRef':
-        """Creates an embedder reference.
+    async def embedder(self, name: str) -> Action | None:
+        """Resolve an embedder action by name.
 
-        Prefixes local name with plugin namespace.
+        Prefixes local name with plugin namespace and resolves to Action.
 
         Args:
             name: The embedder name (local or namespaced).
 
         Returns:
-            EmbedderRef: A reference to the embedder.
+            Action | None: The resolved embedder action, or None if not found.
         """
-        # Deferred import: avoid circular import with genkit.blocks.embedding
-        from genkit.blocks.embedding import EmbedderRef  # noqa: PLC0415
-
         target = name if '/' in name else f'{self.name}/{name}'
-        return EmbedderRef(name=target)
+        return await self.resolve(ActionKind.EMBEDDER, target)

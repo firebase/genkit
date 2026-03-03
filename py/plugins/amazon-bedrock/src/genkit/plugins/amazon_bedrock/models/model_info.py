@@ -61,7 +61,7 @@ Trademark Notice:
     model providers.
 """
 
-from genkit.types import ModelInfo, Supports
+from genkit import ModelInfo, Supports
 
 # Model capability definitions
 MULTIMODAL_MODEL_SUPPORTS = Supports(

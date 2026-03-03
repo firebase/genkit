@@ -36,8 +36,8 @@ from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resou
 from opentelemetry.sdk.trace.sampling import Sampler
 from opentelemetry.trace import get_current_span, span as trace_span
 
-from genkit.core.environment import is_dev_environment
-from genkit.core.logging import get_logger
+from genkit.core._internal._environment import is_dev_environment
+from genkit.core._internal._logging import get_logger
 from genkit.core.tracing import add_custom_exporter
 
 from .constants import (

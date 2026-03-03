@@ -25,7 +25,7 @@ else:
     from enum import StrEnum
 
 from genkit.plugins.compat_oai.typing import SupportedOutputFormat
-from genkit.types import (
+from genkit import (
     ModelInfo,
     Supports,
 )

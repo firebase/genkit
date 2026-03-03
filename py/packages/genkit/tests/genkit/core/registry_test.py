@@ -13,8 +13,8 @@ import pytest
 
 from genkit.ai import Genkit, Plugin
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.action.types import ActionKind
-from genkit.core.registry import Registry
+from genkit.core.action import ActionKind
+from genkit.core._internal._registry import Registry
 
 
 @pytest.mark.asyncio
@@ -66,7 +66,7 @@ async def test_resolve_action_from_plugin() -> None:
             nonlocal resolver_calls
             resolver_calls.append([action_type, name])
 
-            def model_fn() -> None:
+            async def model_fn() -> None:
                 pass
 
             return Action(name=name, fn=model_fn, kind=action_type)

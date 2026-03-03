@@ -9,7 +9,7 @@ from typing import cast
 
 import pytest
 
-from genkit.codec import dump_json
+from genkit.core.codec import dump_json
 from genkit.core.action import (
     Action,
     ActionRunContext,
@@ -17,7 +17,7 @@ from genkit.core.action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-from genkit.core.action.types import ActionKind
+from genkit.core.action import ActionKind
 from genkit.core.error import GenkitError
 
 
@@ -94,7 +94,7 @@ async def test_define_sync_action() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await action.arun()).response == 'syncFoo'
+    assert (await action.run()).response == 'syncFoo'
     assert sync_foo() == 'syncFoo'
 
 
@@ -108,7 +108,7 @@ async def test_define_sync_action_with_input_without_type_annotation() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await action.arun('foo')).response == 'syncFoo foo'
+    assert (await action.run('foo')).response == 'syncFoo foo'
     assert sync_foo('foo') == 'syncFoo foo'
 
 
@@ -122,7 +122,7 @@ async def test_define_sync_action_with_input() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await action.arun('foo')).response == 'syncFoo foo'
+    assert (await action.run('foo')).response == 'syncFoo foo'
     assert sync_foo('foo') == 'syncFoo foo'
 
 
@@ -136,7 +136,7 @@ async def test_define_sync_action_with_input_and_context() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
 
-    assert (await action.arun('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
+    assert (await action.run('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
     assert sync_foo('foo', ActionRunContext(context={'foo': 'bar'})) == 'syncFoo foo bar'
 
 
@@ -157,7 +157,7 @@ async def test_define_sync_streaming_action() -> None:
     def on_chunk(c: object) -> None:
         chunks.append(c)
 
-    assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
+    assert (await action.run('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
     assert chunks == ['1', '2']
 
 
@@ -193,7 +193,7 @@ async def test_define_async_action() -> None:
 
     action = Action(name='asyncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (await action.arun()).response == 'asyncFoo'
+    assert (await action.run()).response == 'asyncFoo'
     assert (await async_foo()) == 'asyncFoo'
 
 
@@ -207,7 +207,7 @@ async def test_define_async_action_with_input() -> None:
 
     action = Action(name='asyncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (await action.arun('foo')).response == 'asyncFoo foo'
+    assert (await action.run('foo')).response == 'asyncFoo foo'
     assert (await async_foo('foo')) == 'asyncFoo foo'
 
 
@@ -221,7 +221,7 @@ async def test_define_async_action_with_input_and_context() -> None:
 
     action = Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=async_foo)
 
-    assert (await action.arun('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
+    assert (await action.run('foo', context={'foo': 'bar'})).response == 'syncFoo foo bar'
     assert (await async_foo('foo', ActionRunContext(context={'foo': 'bar'}))) == 'syncFoo foo bar'
 
 
@@ -242,7 +242,7 @@ async def test_define_async_streaming_action() -> None:
     def on_chunk(c: object) -> None:
         chunks.append(c)
 
-    assert (await action.arun('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
+    assert (await action.run('foo', context={'foo': 'bar'}, on_chunk=on_chunk)).response == 3
     assert chunks == ['1', '2']
 
 
@@ -263,17 +263,17 @@ async def test_propagates_context_via_contextvar() -> None:
     foo_action = cast(Action[str | None, str], Action(name='foo', kind=ActionKind.CUSTOM, fn=foo))
 
     async def bar() -> str:
-        return (await foo_action.arun()).response
+        return (await foo_action.run()).response
 
     bar_action = cast(Action[None, str], Action(name='bar', kind=ActionKind.CUSTOM, fn=bar))
 
     async def baz() -> str:
-        return (await bar_action.arun()).response
+        return (await bar_action.run()).response
 
     baz_action = cast(Action[None, str], Action(name='baz', kind=ActionKind.CUSTOM, fn=baz))
 
-    first = baz_action.arun(context={'foo': 'bar'})
-    second = baz_action.arun(context={'bar': 'baz'})
+    first = baz_action.run(context={'foo': 'bar'})
+    second = baz_action.run(context={'bar': 'baz'})
 
     assert (await second).response == '{"bar":"baz"}'
     assert (await first).response == '{"foo":"bar"}'
@@ -289,7 +289,7 @@ async def test_sync_action_raises_errors() -> None:
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=sync_foo)
 
     with pytest.raises(GenkitError, match=r'.*Error while running action fooAction.*') as e:
-        await action.arun()
+        await action.run()
 
     assert 'stack' in e.value.details
     assert 'trace_id' in e.value.details
@@ -306,7 +306,7 @@ async def test_async_action_raises_errors() -> None:
     action = Action(name='fooAction', kind=ActionKind.CUSTOM, fn=async_foo)
 
     with pytest.raises(GenkitError, match=r'.*Error while running action fooAction.*') as e:
-        await action.arun()
+        await action.run()
 
     assert 'stack' in e.value.details
     assert 'trace_id' in e.value.details
@@ -323,7 +323,7 @@ async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
     action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
 
     with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
-        await action.arun_raw(raw_input=None)
+        await action.run_raw(raw_input=None)
 
 
 @pytest.mark.asyncio
@@ -335,7 +335,7 @@ async def test_arun_raw_succeeds_with_valid_input() -> None:
 
     action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
 
-    result = await action.arun_raw(raw_input='hello')
+    result = await action.run_raw(raw_input='hello')
     assert result.response == 'got hello'
 
 
@@ -348,5 +348,5 @@ async def test_arun_raw_no_input_type_allows_none() -> None:
 
     action = Action(name='noInputAction', kind=ActionKind.CUSTOM, fn=no_input_fn)
 
-    result = await action.arun_raw(raw_input=None)
+    result = await action.run_raw(raw_input=None)
     assert result.response == 'no input needed'

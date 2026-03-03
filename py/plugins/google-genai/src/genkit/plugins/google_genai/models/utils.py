@@ -52,9 +52,9 @@ from urllib.parse import urlparse
 
 from google import genai
 
-from genkit.core.http_client import get_cached_client
-from genkit.core.typing import DocumentPart, Metadata
-from genkit.types import (
+from genkit.core._internal._http_client import get_cached_client
+from genkit.core._internal._typing import DocumentPart, Metadata
+from genkit import (
     CustomPart,
     Media,
     MediaPart,

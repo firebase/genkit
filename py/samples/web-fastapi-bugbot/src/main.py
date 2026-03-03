@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing_extensions import Never
 
-from genkit import Genkit, Input, Output
+from genkit import Genkit
 from genkit.ai import FlowWrapper
 from genkit.plugins.fastapi import genkit_fastapi_handler
 from genkit.plugins.google_genai import GoogleAI
@@ -71,10 +71,10 @@ class DiffInput(BaseModel):
     context: str = ''
 
 
-security_prompt = ai.prompt('analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-bugs_prompt = ai.prompt('analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-style_prompt = ai.prompt('analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-diff_prompt = ai.prompt('analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis))
+security_prompt = ai.prompt('analyze_security', input_schema=CodeInput, output_schema=Analysis)
+bugs_prompt = ai.prompt('analyze_bugs', input_schema=CodeInput, output_schema=Analysis)
+style_prompt = ai.prompt('analyze_style', input_schema=CodeInput, output_schema=Analysis)
+diff_prompt = ai.prompt('analyze_diff', input_schema=DiffInput, output_schema=Analysis)
 
 
 @ai.flow()

@@ -22,7 +22,7 @@ from typing import Any
 from flask import Flask, Request
 
 from genkit.ai import ActionRunContext, Genkit
-from genkit.core.context import RequestData
+from genkit.core._internal._context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 
 

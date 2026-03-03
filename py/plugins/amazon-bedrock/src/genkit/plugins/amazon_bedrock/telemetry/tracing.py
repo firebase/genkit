@@ -242,7 +242,7 @@ from opentelemetry.sdk.trace.sampling import Sampler
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from genkit.core.environment import is_dev_environment
+from genkit.core._internal._environment import is_dev_environment
 from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 from genkit.core.tracing import add_custom_exporter
 

@@ -32,7 +32,7 @@ from genkit.plugins.ollama.converters import (
     strip_data_uri_prefix,
     to_ollama_role,
 )
-from genkit.types import (
+from genkit import (
     GenerationCommonConfig,
     GenerationUsage,
     Message,

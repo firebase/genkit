@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from genkit.core.action import ActionKind
-from genkit.types import Media
+from genkit import Media
 
 logging.getLogger().setLevel(logging.ERROR)
 logging.getLogger('asyncio').setLevel(logging.ERROR)
@@ -194,7 +194,7 @@ def main() -> None:  # noqa: ASYNC240, ASYNC230 - test script, blocking I/O acce
         # This is needed because the current working directory isn't the sample dir.
         prompts_dir = sample_path / 'prompts'
         if prompts_dir.exists() and prompts_dir.is_dir():
-            from genkit.blocks.prompt import load_prompt_folder
+            from genkit.ai.prompt import load_prompt_folder
 
             load_prompt_folder(ai_instance.registry, prompts_dir)
 

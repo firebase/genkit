@@ -24,7 +24,7 @@ from urllib.parse import quote
 from opentelemetry.trace import Span
 from opentelemetry.util import types as otel_types
 
-from genkit.codec import dump_json
+from genkit.core.codec import dump_json
 
 # Type alias for span attribute values
 SpanAttributeValue = otel_types.AttributeValue

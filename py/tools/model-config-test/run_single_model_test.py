@@ -59,7 +59,7 @@ async def run_model_test(
 
     try:
         from genkit import Genkit
-        from genkit.core.typing import Message, TextPart
+        from genkit.core._internal._typing import Message, TextPart
 
         plugins = []
         try:

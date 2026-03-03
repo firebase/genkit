@@ -21,9 +21,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import ollama as ollama_api
 
-from genkit.core.typing import DocumentPart
+from genkit.core._internal._typing import DocumentPart
 from genkit.plugins.ollama.embedders import EmbeddingDefinition, OllamaEmbedder
-from genkit.types import (
+from genkit import (
     Document,
     Embedding,
     EmbedRequest,

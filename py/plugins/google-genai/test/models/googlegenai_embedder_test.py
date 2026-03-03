@@ -25,7 +25,7 @@ from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
 )
-from genkit.types import (
+from genkit import (
     EmbedRequest,
     EmbedResponse,
 )

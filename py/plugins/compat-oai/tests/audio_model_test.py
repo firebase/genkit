@@ -35,7 +35,7 @@ from genkit.plugins.compat_oai.models.audio import (
     _to_tts_params,
     _to_tts_response,
 )
-from genkit.types import (
+from genkit import (
     GenerateRequest,
     Media,
     MediaPart,

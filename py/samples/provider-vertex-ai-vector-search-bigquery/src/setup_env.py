@@ -24,10 +24,10 @@ import structlog
 from google.cloud import aiplatform, aiplatform_v1, bigquery
 
 from genkit.ai import Genkit
-from genkit.core.typing import DocumentPart
+from genkit.core._internal._typing import DocumentPart
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import define_vertex_vector_search_big_query
-from genkit.types import Document, TextPart
+from genkit import Document, TextPart
 
 # Environment Variables
 LOCATION = os.environ['LOCATION']
