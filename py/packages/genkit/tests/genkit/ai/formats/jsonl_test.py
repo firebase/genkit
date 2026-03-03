@@ -82,9 +82,7 @@ class TestJsonlFormatMessage:
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         result = fmt.parse_message(
-            Message(
-                Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}\n{"id": 2}\n'))])
-            )
+            Message(Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}\n{"id": 2}\n'))]))
         )
         assert result == [{'id': 1, 'name': 'test'}, {'id': 2}]
 

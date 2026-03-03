@@ -47,9 +47,7 @@ class TestTextFormatMessage:
         text_fmt = TextFormat()
         fmt = text_fmt.handle(None)
 
-        result = fmt.parse_message(
-            Message(Message(role='model', content=[Part(root=TextPart(text='Hello world'))]))
-        )
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='Hello world'))])))
         assert result == 'Hello world'
 
     def test_handles_empty_response(self) -> None:

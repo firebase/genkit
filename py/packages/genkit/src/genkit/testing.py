@@ -455,71 +455,71 @@ class GablorkenInput(BaseModel):
 async def test_models(ai: Genkit, models: list[str]) -> TestReport:
     r"""Run a standard test suite against one or more models.
 
-    This function runs a series of tests to validate model implementations,
-    checking for basic functionality, multimodal support, conversation history,
-    system prompts, structured output, and tool calling.
+        This function runs a series of tests to validate model implementations,
+        checking for basic functionality, multimodal support, conversation history,
+        system prompts, structured output, and tool calling.
 
-    Test Suite Overview
-    ===================
+        Test Suite Overview
+        ===================
 
-    ┌─────────────────────────────────────────────────────────────────────────┐
-    │                          Model Test Suite                                │
-    ├─────────────────────────────────────────────────────────────────────────┤
-    │                                                                          │
-    │  Test Case              │ Description                    │ Auto-Skip    │
-    │  ───────────────────────┼────────────────────────────────┼─────────────│
-    │  basic hi               │ Simple text generation         │ Never        │
-    │  multimodal             │ Image input processing         │ No media     │
-    │  history                │ Multi-turn conversation        │ No multiturn │
-    │  system prompt          │ System message handling        │ Never        │
-    │  structured output      │ JSON schema output             │ Never        │
-    │  tool calling           │ Function calling               │ No tools     │
-    │                                                                          │
-    └─────────────────────────────────────────────────────────────────────────┘
+        ┌─────────────────────────────────────────────────────────────────────────┐
+        │                          Model Test Suite                                │
+        ├─────────────────────────────────────────────────────────────────────────┤
+        │                                                                          │
+        │  Test Case              │ Description                    │ Auto-Skip    │
+        │  ───────────────────────┼────────────────────────────────┼─────────────│
+        │  basic hi               │ Simple text generation         │ Never        │
+        │  multimodal             │ Image input processing         │ No media     │
+        │  history                │ Multi-turn conversation        │ No multiturn │
+        │  system prompt          │ System message handling        │ Never        │
+        │  structured output      │ JSON schema output             │ Never        │
+        │  tool calling           │ Function calling               │ No tools     │
+        │                                                                          │
+        └─────────────────────────────────────────────────────────────────────────┘
 
-    Args:
-        ai: The Genkit instance with models to test.
-        models: List of model names to test (e.g., ['googleai/gemini-2.0-flash']).
+        Args:
+            ai: The Genkit instance with models to test.
+            models: List of model names to test (e.g., ['googleai/gemini-2.0-flash']).
 
-    Returns:
-        A TestReport containing results for each test case and model.
+        Returns:
+            A TestReport containing results for each test case and model.
 
-    Example:
-        ```python
-        from genkit.ai import Genkit
-from genkit.ai.model import Message
-        from genkit.plugins.google_genai import GoogleAI
-        from genkit.testing import test_models
+        Example:
+            ```python
+            from genkit.ai import Genkit
+    from genkit.ai.model import Message
+            from genkit.plugins.google_genai import GoogleAI
+            from genkit.testing import test_models
 
-        ai = Genkit(plugins=[GoogleAI()])
+            ai = Genkit(plugins=[GoogleAI()])
 
-        # Test multiple models
-        report = await test_models(
-            ai,
-            [
-                'googleai/gemini-2.0-flash',
-                'googleai/gemini-1.5-pro',
-            ],
-        )
+            # Test multiple models
+            report = await test_models(
+                ai,
+                [
+                    'googleai/gemini-2.0-flash',
+                    'googleai/gemini-1.5-pro',
+                ],
+            )
 
-        # Print results
-        for test in report:
-            print(f'\\n{test["description"]}:')
-            for model in test['models']:
-                status = '✓' if model['passed'] else ('⊘' if model.get('skipped') else '✗')
-                print(f'  {status} {model["name"]}')
-                if 'error' in model:
-                    print(f'      Error: {model["error"]["message"]}')
-        ```
+            # Print results
+            for test in report:
+                print(f'\\n{test["description"]}:')
+                for model in test['models']:
+                    status = '✓' if model['passed'] else ('⊘' if model.get('skipped') else '✗')
+                    print(f'  {status} {model["name"]}')
+                    if 'error' in model:
+                        print(f'      Error: {model["error"]["message"]}')
+            ```
 
-    Note:
-        - Tests are automatically skipped if the model doesn't support
-          the required capability (e.g., tools, media, multiturn).
-        - A 'gablorkenTool' is automatically registered for tool calling tests.
-        - The test uses a small base64-encoded test image for multimodal tests.
+        Note:
+            - Tests are automatically skipped if the model doesn't support
+              the required capability (e.g., tools, media, multiturn).
+            - A 'gablorkenTool' is automatically registered for tool calling tests.
+            - The test uses a small base64-encoded test image for multimodal tests.
 
-    See Also:
-        - JS implementation: js/ai/src/testing/model-tester.ts
+        See Also:
+            - JS implementation: js/ai/src/testing/model-tester.ts
     """
 
     # Register the gablorken tool for tool calling tests

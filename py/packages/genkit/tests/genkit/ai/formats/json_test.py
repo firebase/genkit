@@ -94,9 +94,7 @@ class TestJsonFormatMessage:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        result = fmt.parse_message(
-            Message(Message(role='user', content=[Part(root=TextPart(text='{"foo": "bar"'))]))
-        )
+        result = fmt.parse_message(Message(Message(role='user', content=[Part(root=TextPart(text='{"foo": "bar"'))])))
         assert result == {'foo': 'bar'}
 
     def test_parses_complex_nested_json(self) -> None:

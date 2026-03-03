@@ -195,9 +195,7 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
         wrapped_message: Message | None = None
         if response.message is not None:
             wrapped_message = (
-                Message(response.message)
-                if not isinstance(response.message, Message)
-                else response.message
+                Message(response.message) if not isinstance(response.message, Message) else response.message
             )
 
         super().__init__(

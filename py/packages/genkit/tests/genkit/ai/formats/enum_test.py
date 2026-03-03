@@ -30,9 +30,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['VALUE1', 'VALUE2']})
 
-        result = fmt.parse_message(
-            Message(Message(role='model', content=[Part(root=TextPart(text='  VALUE2\n'))]))
-        )
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='  VALUE2\n'))])))
         assert result == 'VALUE2'
 
     def test_removes_double_quotes(self) -> None:

@@ -58,10 +58,10 @@ class ClassTransformer(ast.NodeTransformer):
     # hand-written veneer types in the SDK. These wire types should not be
     # exposed — the veneer types are the public API.
     EXCLUDED_CLASSES: frozenset[str] = frozenset({
-        'DocumentData',       # veneer: ai/document.py Document
-        'Message',            # veneer: ai/messages.py Message
-        'RankedDocumentData', # veneer: ai/reranker.py RankedDocument
-        'ModelRequest',       # veneer: ai/model.py (hand-written)
+        'DocumentData',  # veneer: ai/document.py Document
+        'Message',  # veneer: ai/messages.py Message
+        'RankedDocumentData',  # veneer: ai/reranker.py RankedDocument
+        'ModelRequest',  # veneer: ai/model.py (hand-written)
     })
 
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
@@ -591,6 +591,13 @@ from typing import ClassVar
 
 from genkit.core._internal._compat import StrEnum
 from pydantic.alias_generators import to_camel
+
+# Veneer types — hand-written classes that replace auto-generated wire types.
+# These are imported here so that field annotations in other generated classes
+# (e.g. `message: Message | None`) continue to resolve correctly.
+from genkit.ai.document import Document  # noqa: E402
+from genkit.ai.model import Message  # noqa: E402
+from genkit.core._internal._typing import DocumentData, RankedDocumentData  # noqa: E402
 """
 
     header_text = header.format(year=datetime.now().year)
