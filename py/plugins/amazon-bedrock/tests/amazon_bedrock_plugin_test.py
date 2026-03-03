@@ -68,7 +68,7 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
-from genkit import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
+from genkit import ModelRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:
@@ -925,7 +925,7 @@ class TestStreamingToolUseParsing:
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -1020,7 +1020,7 @@ class TestStreamingToolUseParsing:
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,

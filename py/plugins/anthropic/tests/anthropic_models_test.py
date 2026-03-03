@@ -24,7 +24,7 @@ import pytest
 from genkit.plugins.anthropic.models import AnthropicModel
 from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponseChunk,
     GenerationCommonConfig,
     Media,
@@ -40,9 +40,9 @@ from genkit import (
 )
 
 
-def _create_sample_request() -> GenerateRequest:
+def _create_sample_request() -> ModelRequest:
     """Create a sample generation request for testing."""
-    return GenerateRequest(
+    return ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -139,7 +139,7 @@ async def test_generate_with_config() -> None:
 
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
         config=GenerationCommonConfig(
             temperature=0.7,
@@ -381,7 +381,7 @@ class TestMaybeStripFences:
 
     def test_strips_fences_for_json_output(self) -> None:
         """Strips markdown fences when JSON output is requested."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )
@@ -391,7 +391,7 @@ class TestMaybeStripFences:
 
     def test_no_op_for_text_output(self) -> None:
         """Does not modify responses when output format is not json."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='text'),
         )
@@ -402,7 +402,7 @@ class TestMaybeStripFences:
 
     def test_no_op_for_no_output(self) -> None:
         """Does not modify responses when no output config is set."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
         )
         fenced = '```json\n{"a": 1}\n```'
@@ -412,7 +412,7 @@ class TestMaybeStripFences:
 
     def test_no_op_when_no_fences(self) -> None:
         """Does not modify clean JSON responses."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )
@@ -487,7 +487,7 @@ async def test_cache_token_tracking_in_usage() -> None:
     mock_client.messages.create = AsyncMock(return_value=mock_response)
 
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
     )
 
@@ -516,7 +516,7 @@ async def test_no_cache_tokens_when_caching_not_used() -> None:
     mock_client.messages.create = AsyncMock(return_value=mock_response)
 
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
     )
 
@@ -635,7 +635,7 @@ def test_structured_output_uses_native_output_config() -> None:
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-opus-4-6', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
         output=OutputConfig(
             format='json',
@@ -655,7 +655,7 @@ def test_structured_output_falls_back_to_system_prompt() -> None:
     mock_client = MagicMock()
     model = AnthropicModel(model_name='claude-sonnet-4', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate JSON'))])],
         output=OutputConfig(format='json'),
     )
@@ -673,7 +673,7 @@ def test_structured_output_falls_back_for_unsupported_models() -> None:
     # Claude 3.5 Haiku is marked as not supporting JSON natively in model_info.py
     model = AnthropicModel(model_name='claude-3-5-haiku', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
         output=OutputConfig(
             format='json',

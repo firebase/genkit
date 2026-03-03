@@ -8,9 +8,10 @@
 import pytest
 
 from genkit.ai.formats.enum import EnumFormat
-from genkit.ai.model import ModelResponseChunk, MessageWrapper
+from genkit.ai.model import ModelResponseChunk, Message
 from genkit.core.error import GenkitError
-from genkit.core._internal._typing import GenerateResponseChunk, Message, Part, TextPart
+from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit.ai.model import Message
 
 
 class TestEnumFormatMessage:
@@ -21,7 +22,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['VALUE1', 'VALUE2']})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='VALUE1'))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='VALUE1'))])))
         assert result == 'VALUE1'
 
     def test_trims_whitespace(self) -> None:
@@ -30,7 +31,7 @@ class TestEnumFormatMessage:
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['VALUE1', 'VALUE2']})
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='  VALUE2\n'))]))
+            Message(Message(role='model', content=[Part(root=TextPart(text='  VALUE2\n'))]))
         )
         assert result == 'VALUE2'
 
@@ -39,7 +40,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='"foo"'))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='"foo"'))])))
         assert result == 'foo'
 
     def test_removes_single_quotes(self) -> None:
@@ -47,7 +48,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text="'bar'"))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text="'bar'"))])))
         assert result == 'bar'
 
     def test_handles_unquoted_value(self) -> None:
@@ -55,7 +56,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='bar'))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='bar'))])))
         assert result == 'bar'
 
 

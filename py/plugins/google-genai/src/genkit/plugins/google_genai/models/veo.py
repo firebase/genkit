@@ -86,7 +86,7 @@ from genkit.core._internal._typing import (
     Operation,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
@@ -169,8 +169,8 @@ def veo_model_info(version: str) -> ModelInfo:
     )
 
 
-def _extract_text(request: GenerateRequest) -> str:
-    """Extract text prompt from a GenerateRequest.
+def _extract_text(request: ModelRequest) -> str:
+    """Extract text prompt from a ModelRequest.
 
     Args:
         request: The generation request.
@@ -287,7 +287,7 @@ class VeoModel:
         self._version = version
         self._client = client
 
-    def _build_prompt(self, request: GenerateRequest) -> str:
+    def _build_prompt(self, request: ModelRequest) -> str:
         """Build prompt request from Genkit request."""
         prompt = []
         for message in request.messages:
@@ -300,7 +300,7 @@ class VeoModel:
                     pass
         return ' '.join(prompt)
 
-    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, _: ActionRunContext) -> GenerateResponse:
         """Handle a generation request (synchronous/blocking mode for Vertex AI).
 
         Args:
@@ -340,7 +340,7 @@ class VeoModel:
             )
         )
 
-    async def start(self, request: GenerateRequest, ctx: ActionRunContext) -> Operation:
+    async def start(self, request: ModelRequest, ctx: ActionRunContext) -> Operation:
         """Start a video generation operation (background model pattern for GoogleAI).
 
         Args:
@@ -400,7 +400,7 @@ class VeoModel:
 
         return _from_veo_operation(op_dict)
 
-    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateVideosConfigOrDict | None:
+    def _get_config(self, request: ModelRequest) -> genai_types.GenerateVideosConfigOrDict | None:
         cfg = None
         if request.config:
             # Simple cast/validate

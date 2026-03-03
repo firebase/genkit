@@ -44,7 +44,7 @@ from genkit.plugins.google_genai.models.gemini import (
     is_tts_model,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     MediaPart,
     Message,
@@ -66,7 +66,7 @@ async def test_generate_text_response(mocker: MockerFixture, version: str) -> No
     response_text = 'request answer'
     request_text = 'response question'
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -114,7 +114,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
     response_text = 'request answer'
     request_text = 'response question'
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -165,7 +165,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
     response_mimetype = 'image/png'
     modalities = ['Text', 'Image']
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -299,7 +299,7 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
     system_instruction = 'system instruction text'
     version = GoogleAIGeminiVersion.GEMINI_2_0_FLASH
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -431,7 +431,7 @@ def test_gemini_model__get_tools(
         ),
     ]
 
-    request = GenerateRequest(
+    request = ModelRequest(
         tools=request_tools,
         messages=[
             Message(
@@ -756,7 +756,7 @@ async def test_gemini_model__retrieve_cached_content(
 
     gemini_model_instance._client = mock_client
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,

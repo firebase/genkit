@@ -6,8 +6,9 @@
 """Tests for the Text format."""
 
 from genkit.ai.formats.text import TextFormat
-from genkit.ai.model import ModelResponseChunk, MessageWrapper
-from genkit.core._internal._typing import GenerateResponseChunk, Message, Part, TextPart
+from genkit.ai.model import ModelResponseChunk, Message
+from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit.ai.model import Message
 
 
 class TestTextFormatStreaming:
@@ -47,7 +48,7 @@ class TestTextFormatMessage:
         fmt = text_fmt.handle(None)
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='Hello world'))]))
+            Message(Message(role='model', content=[Part(root=TextPart(text='Hello world'))]))
         )
         assert result == 'Hello world'
 
@@ -56,7 +57,7 @@ class TestTextFormatMessage:
         text_fmt = TextFormat()
         fmt = text_fmt.handle(None)
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text=''))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text=''))])))
         assert result == ''
 
     def test_handles_multiline_text(self) -> None:
@@ -65,7 +66,7 @@ class TestTextFormatMessage:
         fmt = text_fmt.handle(None)
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='Line 1\nLine 2\nLine 3'))]))
+            Message(Message(role='model', content=[Part(root=TextPart(text='Line 1\nLine 2\nLine 3'))]))
         )
         assert result == 'Line 1\nLine 2\nLine 3'
 

@@ -25,9 +25,10 @@ from genkit.ai.formats.types import FormatDef, Formatter
 from genkit.ai.messages import inject_instructions
 from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import (
+    Message,
     ModelResponse,
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
     ModelMiddleware,
 )
 from genkit.ai.resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
@@ -41,10 +42,9 @@ from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import (
     FinishReason,
     GenerateActionOptions,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Message,
     Metadata,
     OutputConfig,
     Part,
@@ -237,7 +237,7 @@ async def generate_action(
     if raw_request.docs and not supports_context:
         middleware.append(augment_with_context())
 
-    async def dispatch(index: int, req: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def dispatch(index: int, req: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Dispatches model request, passing it through middleware if present.
 
         Args:
@@ -261,7 +261,7 @@ async def generate_action(
         current_middleware = middleware[index]
 
         async def next_fn(
-            modified_req: GenerateRequest | None = None,
+            modified_req: ModelRequest | None = None,
             modified_ctx: ActionRunContext | None = None,
         ) -> GenerateResponse:
             return await dispatch(
@@ -290,7 +290,7 @@ async def generate_action(
         ),
     )
 
-    def message_parser(msg: MessageWrapper) -> Any:  # noqa: ANN401
+    def message_parser(msg: Message) -> Any:  # noqa: ANN401
         """Parse a message using the current formatter.
 
         Args:
@@ -356,7 +356,7 @@ async def generate_action(
         )
         interrupted_resp.finish_reason = FinishReason.INTERRUPTED
         interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
-        interrupted_resp.message = MessageWrapper(revised_model_msg)
+        interrupted_resp.message = Message(revised_model_msg)
         return interrupted_resp
 
     # If the loop will continue, stream out the tool response message...
@@ -668,7 +668,7 @@ async def resolve_parameters(
 
 async def action_to_generate_request(
     options: GenerateActionOptions, resolved_tools: list[Action[Any, Any, Any]], _model: Action[Any, Any, Any]
-) -> GenerateRequest:
+) -> ModelRequest:
     """Convert generate action options to a generate request.
 
     Args:
@@ -683,7 +683,7 @@ async def action_to_generate_request(
     # TODO(#4341): add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
-    return GenerateRequest(
+    return ModelRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,

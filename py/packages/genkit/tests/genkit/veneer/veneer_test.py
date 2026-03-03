@@ -15,7 +15,7 @@ from genkit.ai import Genkit, ToolRunContext
 from genkit.ai.tools import tool_response
 from genkit.ai.document import Document
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import MessageWrapper, ModelMiddlewareNext, text_from_message
+from genkit.ai.model import Message, ModelMiddlewareNext, text_from_message
 from genkit.core.action import ActionRunContext
 from genkit.core.action import ActionKind
 from genkit.core._internal._typing import (
@@ -27,10 +27,9 @@ from genkit.core._internal._typing import (
     EvalRequest,
     EvalResponse,
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Message,
     Metadata,
     ModelInfo,
     OutputConfig,
@@ -395,7 +394,7 @@ async def test_generate_with_interrupting_tools(
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
-    tool_request_msg = MessageWrapper(
+    tool_request_msg = Message(
         Message(
             role=Role.MODEL,
             content=[
@@ -464,7 +463,7 @@ async def test_generate_with_interrupting_tools(
     ]
 
     assert response.text == 'call these tools'
-    assert response.message == MessageWrapper(
+    assert response.message == Message(
         Message(
             role=Role.MODEL,
             content=[
@@ -508,7 +507,7 @@ async def test_generate_with_interrupt_respond(
         """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
-    tool_request_msg = MessageWrapper(
+    tool_request_msg = Message(
         Message(
             role=Role.MODEL,
             content=[
@@ -652,7 +651,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         """The tool."""
         return 'abc'
 
-    tool_request_msg = MessageWrapper(
+    tool_request_msg = Message(
         Message(
             role=Role.MODEL,
             content=[
@@ -724,7 +723,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         """The tool."""
         return 'abc'
 
-    tool_request_msg = MessageWrapper(
+    tool_request_msg = Message(
         Message(
             role=Role.MODEL,
             content=[
@@ -826,7 +825,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         foo: int | None = Field(None, description='foo field')
         bar: str | None = Field(None, description='bar field')
 
-    want = GenerateRequest(
+    want = ModelRequest(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
@@ -893,7 +892,7 @@ async def test_generate_defaults_to_json_format(
         foo: int | None = Field(None, description='foo field')
         bar: str | None = Field(None, description='bar field')
 
-    want = GenerateRequest(
+    want = ModelRequest(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
@@ -953,7 +952,7 @@ async def test_generate_json_format_unconstrained(
         foo: int | None = Field(None, description='foo field')
         bar: str | None = Field(None, description='bar field')
 
-    want = GenerateRequest(
+    want = ModelRequest(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
@@ -1010,10 +1009,10 @@ async def test_generate_with_middleware(
     """When middleware is provided, applies it."""
     ai, *_ = setup_test
 
-    async def pre_middle(req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
+    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
-            GenerateRequest(
+            ModelRequest(
                 messages=[
                     Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))]),
                 ],
@@ -1021,7 +1020,7 @@ async def test_generate_with_middleware(
             ctx,
         )
 
-    async def post_middle(req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
+    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
         resp: GenerateResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)
@@ -1049,11 +1048,11 @@ async def test_generate_passes_through_current_action_context(
     ai, *_ = setup_test
 
     async def inject_context(
-        req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
+        req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
     ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
-            GenerateRequest(
+            ModelRequest(
                 messages=[
                     Message(
                         role=Role.USER,
@@ -1081,11 +1080,11 @@ async def test_generate_uses_explicitly_passed_in_context(
     ai, *_ = setup_test
 
     async def inject_context(
-        req: GenerateRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
+        req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext
     ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
-            GenerateRequest(
+            ModelRequest(
                 messages=[
                     Message(
                         role=Role.USER,
@@ -1121,7 +1120,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         foo: int | None = Field(None, description='foo field')
         bar: str | None = Field(None, description='bar field')
 
-    want = GenerateRequest(
+    want = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -1224,7 +1223,7 @@ async def test_generate_simulates_doc_grounding(
                 content=[Part(root=TextPart(text='hi'))],
             ),
         ],
-        docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
+        docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
     )
 
     assert response.request is not None
@@ -1238,7 +1237,7 @@ async def test_generate_simulates_doc_grounding(
                 content=[Part(root=TextPart(text='hi'))],
             ),
         ],
-        docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
+        docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
     )
 
     resp = await response
@@ -1330,7 +1329,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     assert response.output == 'banana model says'
     assert chunks == ['banana chunk 1', 'banana chunk 2', 'banana chunk 3']
 
-    assert response.request == GenerateRequest(
+    assert response.request == ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -1384,7 +1383,7 @@ def test_define_model_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define model function works."""
     ai, _, _, *_ = setup_test
 
-    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1405,7 +1404,7 @@ def test_define_model_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
@@ -1442,7 +1441,7 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
     """Test that the define model function with info works."""
     ai, _, _, *_ = setup_test
 
-    async def foo_model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(

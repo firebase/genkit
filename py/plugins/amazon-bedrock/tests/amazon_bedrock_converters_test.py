@@ -49,7 +49,7 @@ from genkit.plugins.amazon_bedrock.models.converters import (
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit import (
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerationCommonConfig,
     Media,
     MediaPart,
@@ -484,19 +484,19 @@ class TestBuildJsonInstruction:
 
     def test_no_output_returns_none(self) -> None:
         """Test No output returns none."""
-        request = GenerateRequest(messages=[])
+        request = ModelRequest(messages=[])
         got = build_json_instruction(request)
         assert got is None, f'Expected None, got {got}'
 
     def test_text_format_returns_none(self) -> None:
         """Test Text format returns none."""
-        request = GenerateRequest(messages=[], output=OutputConfig(format='text'))
+        request = ModelRequest(messages=[], output=OutputConfig(format='text'))
         got = build_json_instruction(request)
         assert got is None, f'Expected None, got {got}'
 
     def test_json_format_without_schema(self) -> None:
         """Test Json format without schema."""
-        request = GenerateRequest(messages=[], output=OutputConfig(format='json'))
+        request = ModelRequest(messages=[], output=OutputConfig(format='json'))
         got = build_json_instruction(request)
         assert got is not None, 'Expected non-None instruction'
         assert 'valid JSON' in got, f'Missing JSON instruction: {got}'
@@ -504,7 +504,7 @@ class TestBuildJsonInstruction:
     def test_json_format_with_schema(self) -> None:
         """Test Json format with schema."""
         schema = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
-        request = GenerateRequest(messages=[], output=OutputConfig(format='json', schema=schema))
+        request = ModelRequest(messages=[], output=OutputConfig(format='json', schema=schema))
         got = build_json_instruction(request)
         assert got is not None, 'Expected non-None instruction'
         assert 'name' in got, f'Schema not in instruction: {got}'
@@ -665,7 +665,7 @@ class TestMaybeStripFences:
 
     def test_strips_fences_for_json_output(self) -> None:
         """Strips markdown fences when JSON output is requested."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )
@@ -675,7 +675,7 @@ class TestMaybeStripFences:
 
     def test_no_op_for_text_output(self) -> None:
         """Does not modify responses when output format is not json."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='text'),
         )
@@ -686,7 +686,7 @@ class TestMaybeStripFences:
 
     def test_no_op_when_no_fences(self) -> None:
         """Does not modify clean JSON responses."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema={'type': 'object'}),
         )

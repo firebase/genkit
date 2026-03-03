@@ -23,7 +23,7 @@ import json5
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core.codec import dump_json
 from genkit.core._internal._compat import override
@@ -98,7 +98,7 @@ class JsonlFormat(FormatDef):
                     ),
                 )
 
-        def message_parser(msg: MessageWrapper) -> list[object]:
+        def message_parser(msg: Message) -> list[object]:
             """Parses a complete message into a list of objects."""
             lines = [line.strip() for line in msg.text.split('\n') if line.strip().startswith('{')]
             items = []

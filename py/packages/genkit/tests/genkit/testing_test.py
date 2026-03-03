@@ -58,11 +58,11 @@ Test Coverage
 import pytest
 
 from genkit.ai import Genkit
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Message,
     Part,
     Role,
     TextPart,
@@ -108,7 +108,7 @@ class TestEchoModel:
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -133,7 +133,7 @@ class TestEchoModel:
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -156,7 +156,7 @@ class TestEchoModel:
         echo = EchoModel(stream_countdown=True)
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -179,7 +179,7 @@ class TestEchoModel:
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -221,7 +221,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -256,7 +256,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -294,7 +294,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -323,7 +323,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -357,7 +357,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -412,7 +412,7 @@ class TestStaticResponseModel:
         )
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -437,7 +437,7 @@ class TestStaticResponseModel:
         )
         ctx = MockActionRunContext()
 
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,

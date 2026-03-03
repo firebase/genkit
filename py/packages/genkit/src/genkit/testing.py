@@ -25,6 +25,7 @@ Key Components
 Example:
     ```python
     from genkit.ai import Genkit
+from genkit.ai.model import Message
     from genkit.testing import (
         define_echo_model,
         define_programmable_model,
@@ -64,17 +65,17 @@ from typing import Any, TypedDict
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.ai.model import Message
 from genkit.core.codec import dump_json
 from genkit.core.action import Action, ActionRunContext
 from genkit.core.action import ActionKind
 from genkit.core.tracing import run_in_new_span
 from genkit.core._internal._typing import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Media,
     MediaPart,
-    Message,
     ModelInfo,
     Part,
     Role,
@@ -124,7 +125,7 @@ class ProgrammableModel:
         self.request_count: int = 0
         self.responses: list[GenerateResponse] = []
         self.chunks: list[list[GenerateResponseChunk]] | None = None
-        self.last_request: GenerateRequest | None = None
+        self.last_request: ModelRequest | None = None
 
     def reset(self) -> None:
         """Reset the model state for reuse in tests."""
@@ -134,7 +135,7 @@ class ProgrammableModel:
         self.chunks = None
         self.last_request = None
 
-    async def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and return a programmed response.
 
         This function returns pre-configured responses and streams
@@ -206,7 +207,7 @@ def define_programmable_model(
     """
     pm = ProgrammableModel()
 
-    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return await pm.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -244,10 +245,10 @@ class EchoModel:
         Args:
             stream_countdown: If True, stream "3", "2", "1" chunks before response.
         """
-        self.last_request: GenerateRequest | None = None
+        self.last_request: ModelRequest | None = None
         self.stream_countdown: bool = stream_countdown
 
-    async def model_fn(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Process a generation request and echo it back in the response.
 
         Args:
@@ -318,7 +319,7 @@ def define_echo_model(
     """
     echo = EchoModel(stream_countdown=stream_countdown)
 
-    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return await echo.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -344,10 +345,10 @@ class StaticResponseModel:
             message: The message data to always return.
         """
         self.response_message: Message = Message.model_validate(message)
-        self.last_request: GenerateRequest | None = None
+        self.last_request: ModelRequest | None = None
         self.request_count: int = 0
 
-    async def model_fn(self, request: GenerateRequest, _ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, _ctx: ActionRunContext) -> GenerateResponse:
         """Return the static response.
 
         Args:
@@ -392,7 +393,7 @@ def define_static_response_model(
     """
     static = StaticResponseModel(message)
 
-    async def model_fn(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         return await static.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -486,6 +487,7 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
     Example:
         ```python
         from genkit.ai import Genkit
+from genkit.ai.model import Message
         from genkit.plugins.google_genai import GoogleAI
         from genkit.testing import test_models
 

@@ -33,7 +33,6 @@ from genkit.ai import (
     ActionRunContext,
     ExecutablePrompt,
     ModelStreamResponse,
-    OutputOptions,
     PromptGenerateOptions,
     ResumeOptions,
     ToolRunContext,
@@ -41,7 +40,7 @@ from genkit.ai import (
 from genkit.ai._aio import Genkit
 from genkit.ai.document import Document
 from genkit.ai.model import ModelResponse
-from genkit.ai.model import ModelConfig
+from genkit.ai.model import Message, ModelConfig
 from genkit.ai.tools import ToolInterruptError
 from genkit.core._plugins import extend_plugin_namespace
 from genkit.core.error import GenkitError, PublicError
@@ -52,7 +51,6 @@ from genkit.core._internal._typing import (
     GenerationUsage,
     Media,
     MediaPart,
-    Message,
     Part,
     Role,
     TextPart,
@@ -95,7 +93,6 @@ __all__ = [
     'ActionKind',
     'ActionRunContext',
     'ExecutablePrompt',
-    'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
     'ToolRunContext',

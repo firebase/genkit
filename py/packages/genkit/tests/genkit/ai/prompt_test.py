@@ -28,13 +28,13 @@ from pydantic import BaseModel, Field
 from genkit.ai import Genkit
 from genkit.ai.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core.action import ActionKind
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
     DocumentData,
     DocumentPart,
     GenerateActionOptions,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
-    Message,
     ModelConfig,
     Part,
     Role,
@@ -688,7 +688,7 @@ async def test_file_based_prompt_registers_two_actions() -> None:
 
 @pytest.mark.asyncio
 async def test_prompt_and_executable_prompt_return_types() -> None:
-    """PROMPT action returns GenerateRequest, EXECUTABLE_PROMPT returns GenerateActionOptions."""
+    """PROMPT action returns ModelRequest, EXECUTABLE_PROMPT returns GenerateActionOptions."""
     ai, *_ = setup_test()
 
     # Test with file-based prompt (which creates both actions)
@@ -710,7 +710,7 @@ async def test_prompt_and_executable_prompt_return_types() -> None:
         assert executable_prompt_action is not None
 
         prompt_result = await prompt_action.run(input={'name': 'World'})
-        assert isinstance(prompt_result.response, GenerateRequest)
+        assert isinstance(prompt_result.response, ModelRequest)
 
         exec_result = await executable_prompt_action.run(input={'name': 'World'})
         assert isinstance(exec_result.response, GenerateActionOptions)

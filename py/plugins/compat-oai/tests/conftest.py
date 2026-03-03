@@ -21,7 +21,7 @@ import pytest
 
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     Message,
     Part,
     Role,
@@ -30,9 +30,9 @@ from genkit import (
 
 
 @pytest.fixture
-def sample_request() -> GenerateRequest:
-    """Fixture to create a sample GenerateRequest object."""
-    return GenerateRequest(
+def sample_request() -> ModelRequest:
+    """Fixture to create a sample ModelRequest object."""
+    return ModelRequest(
         messages=[
             Message(
                 role=Role.SYSTEM,

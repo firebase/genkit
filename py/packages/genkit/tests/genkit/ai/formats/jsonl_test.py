@@ -8,9 +8,10 @@
 import pytest
 
 from genkit.ai.formats.jsonl import JsonlFormat
-from genkit.ai.model import ModelResponseChunk, MessageWrapper
+from genkit.ai.model import ModelResponseChunk, Message
 from genkit.core.error import GenkitError
-from genkit.core._internal._typing import GenerateResponseChunk, Message, Part, TextPart
+from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit.ai.model import Message
 
 
 class TestJsonlFormatStreaming:
@@ -81,7 +82,7 @@ class TestJsonlFormatMessage:
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         result = fmt.parse_message(
-            MessageWrapper(
+            Message(
                 Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}\n{"id": 2}\n'))])
             )
         )
@@ -92,7 +93,7 @@ class TestJsonlFormatMessage:
         jsonl_fmt = JsonlFormat()
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text=''))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text=''))])))
         assert result == []
 
     def test_parses_jsonl_with_preamble_and_code_fence(self) -> None:
@@ -101,7 +102,7 @@ class TestJsonlFormatMessage:
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         result = fmt.parse_message(
-            MessageWrapper(
+            Message(
                 Message(
                     role='model',
                     content=[Part(root=TextPart(text='Here are the objects:\n\n```\n{"id": 1}\n{"id": 2}\n```'))],

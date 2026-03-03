@@ -17,6 +17,7 @@
 """Middleware for the Genkit framework."""
 
 from genkit.ai.model import (
+    Message,
     ModelMiddleware,
     ModelMiddlewareNext,
     text_from_content,
@@ -24,9 +25,8 @@ from genkit.ai.model import (
 from genkit.core.action import ActionRunContext
 from genkit.core._internal._typing import (
     DocumentData,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
-    Message,
     Metadata,
     Part,
     TextPart,
@@ -59,7 +59,7 @@ def context_item_template(d: DocumentData, index: int) -> str:
 def augment_with_context() -> ModelMiddleware:
     """Returns a ModelMiddleware that augments the prompt with document context.
 
-    This middleware checks if the `GenerateRequest` includes documents (`req.docs`).
+    This middleware checks if the `ModelRequest` includes documents (`req.docs`).
     If documents are present, it finds the last user message and injects the
     rendered content of the documents into it as a special context Part.
 
@@ -68,7 +68,7 @@ def augment_with_context() -> ModelMiddleware:
     """
 
     async def middleware(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next_middleware: ModelMiddlewareNext,
     ) -> GenerateResponse:
@@ -80,7 +80,7 @@ def augment_with_context() -> ModelMiddleware:
         passing the request to the next middleware or the model.
 
         Args:
-            req: The incoming GenerateRequest.
+            req: The incoming ModelRequest.
             ctx: The ActionRunContext.
             next_middleware: The next function in the middleware chain.
 

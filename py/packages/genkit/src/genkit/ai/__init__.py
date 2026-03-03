@@ -91,7 +91,6 @@ from genkit.ai.model import ModelResponse
 from genkit.ai.prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
-    OutputOptions,
     PromptGenerateOptions,
     ResumeOptions,
 )
@@ -116,7 +115,6 @@ __all__ = [
     'Document',
     # Prompts
     'ExecutablePrompt',
-    'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
     # Registry and flow

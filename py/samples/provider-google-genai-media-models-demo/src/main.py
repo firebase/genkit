@@ -110,7 +110,7 @@ from genkit.core.action import ActionRunContext
 from genkit.core._internal._typing import (
     Error,
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     Message,
     ModelInfo,
@@ -329,7 +329,7 @@ class SimulatedLyriaConfig(BaseModel):
     sample_count: int = Field(default=1, description='Number of audio samples')
 
 
-def _extract_prompt(request: GenerateRequest) -> str:
+def _extract_prompt(request: ModelRequest) -> str:
     """Extract text prompt from request."""
     if request.messages:
         for msg in request.messages:
@@ -341,7 +341,7 @@ def _extract_prompt(request: GenerateRequest) -> str:
 
 # --- Simulated TTS ---
 async def simulated_tts_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate TTS audio generation."""
@@ -371,7 +371,7 @@ async def simulated_tts_generate(
 
 # --- Simulated Image ---
 async def simulated_image_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate image generation."""
@@ -402,7 +402,7 @@ async def simulated_image_generate(
 
 # --- Simulated Lyria ---
 async def simulated_lyria_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
 ) -> GenerateResponse:
     """Simulate audio generation."""
@@ -430,7 +430,7 @@ async def simulated_lyria_generate(
 
 # --- Simulated Veo (Background Model) ---
 async def simulated_veo_start(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
 ) -> Operation:
     """Start simulated video generation."""
@@ -916,7 +916,7 @@ async def veo_video_generator_flow(input: VideoInput | None = None) -> dict[str,
 
     # Start the operation
     operation = await video_model.start(
-        GenerateRequest(
+        ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=prompt))])],
             config=config,
         )

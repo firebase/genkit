@@ -8,9 +8,10 @@
 import pytest
 
 from genkit.ai.formats.array import ArrayFormat
-from genkit.ai.model import ModelResponseChunk, MessageWrapper
+from genkit.ai.model import ModelResponseChunk, Message
 from genkit.core.error import GenkitError
-from genkit.core._internal._typing import GenerateResponseChunk, Message, Part, TextPart
+from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit.ai.model import Message
 
 
 class TestArrayFormatStreaming:
@@ -72,7 +73,7 @@ class TestArrayFormatMessage:
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='[{"id": 1, "name": "test"}]'))]))
+            Message(Message(role='model', content=[Part(root=TextPart(text='[{"id": 1, "name": "test"}]'))]))
         )
         assert result == [{'id': 1, 'name': 'test'}]
 
@@ -81,7 +82,7 @@ class TestArrayFormatMessage:
         array_fmt = ArrayFormat()
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='[]'))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='[]'))])))
         assert result == []
 
     def test_parses_array_with_preamble_and_code_fence(self) -> None:
@@ -90,7 +91,7 @@ class TestArrayFormatMessage:
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         result = fmt.parse_message(
-            MessageWrapper(
+            Message(
                 Message(
                     role='model', content=[Part(root=TextPart(text='Here is the array:\n\n```json\n[{"id": 1}]\n```'))]
                 )

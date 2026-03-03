@@ -30,7 +30,7 @@ from genkit.plugins.anthropic.model_info import (
     get_model_info,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerationCommonConfig,
     Message,
     Part,
@@ -186,9 +186,9 @@ def test_get_model_info_unknown() -> None:
     assert info.supports.tools is True
 
 
-def _create_sample_request() -> GenerateRequest:
+def _create_sample_request() -> ModelRequest:
     """Create a sample generation request for testing."""
-    return GenerateRequest(
+    return ModelRequest(
         messages=[
             Message(
                 role=Role.USER,

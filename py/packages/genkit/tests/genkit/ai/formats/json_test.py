@@ -6,8 +6,9 @@
 """Tests for the JSON format."""
 
 from genkit.ai.formats import JsonFormat
-from genkit.ai.model import ModelResponseChunk, MessageWrapper
-from genkit.core._internal._typing import GenerateResponseChunk, Message, Part, TextPart
+from genkit.ai.model import ModelResponseChunk, Message
+from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit.ai.model import Message
 
 
 class TestJsonFormatStreaming:
@@ -62,7 +63,7 @@ class TestJsonFormatMessage:
         fmt = json_fmt.handle({'type': 'object'})
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))]))
+            Message(Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))]))
         )
         assert result == {'id': 1, 'name': 'test'}
 
@@ -71,7 +72,7 @@ class TestJsonFormatMessage:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        result = fmt.parse_message(MessageWrapper(Message(role='model', content=[Part(root=TextPart(text=''))])))
+        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text=''))])))
         assert result is None
 
     def test_parses_json_with_preamble_and_code_fence(self) -> None:
@@ -80,7 +81,7 @@ class TestJsonFormatMessage:
         fmt = json_fmt.handle({'type': 'object'})
 
         result = fmt.parse_message(
-            MessageWrapper(
+            Message(
                 Message(
                     role='model', content=[Part(root=TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```'))]
                 )
@@ -94,7 +95,7 @@ class TestJsonFormatMessage:
         fmt = json_fmt.handle({'type': 'object'})
 
         result = fmt.parse_message(
-            MessageWrapper(Message(role='user', content=[Part(root=TextPart(text='{"foo": "bar"'))]))
+            Message(Message(role='user', content=[Part(root=TextPart(text='{"foo": "bar"'))]))
         )
         assert result == {'foo': 'bar'}
 

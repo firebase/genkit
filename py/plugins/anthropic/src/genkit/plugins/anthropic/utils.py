@@ -28,7 +28,7 @@ import re
 from typing import Any
 
 from genkit.core._internal._logging import get_logger
-from genkit import GenerateRequest, GenerationUsage, MediaPart, Part, TextPart
+from genkit import ModelRequest, GenerationUsage, MediaPart, Part, TextPart
 
 logger = get_logger(__name__)
 
@@ -76,7 +76,7 @@ def strip_markdown_fences(text: str) -> str:
     return text
 
 
-def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     """Strip markdown fences from text parts when JSON output is expected.
 
     Args:

@@ -23,12 +23,12 @@ import pytest
 
 from genkit.ai.middleware import augment_with_context
 from genkit.core.action import ActionRunContext
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
     DocumentData,
     DocumentPart,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
-    Message,
     Metadata,
     Part,
     Role,
@@ -36,12 +36,12 @@ from genkit.core._internal._typing import (
 )
 
 
-async def run_augmenter(req: GenerateRequest) -> GenerateRequest:
+async def run_augmenter(req: ModelRequest) -> ModelRequest:
     """Helper to run the augment_with_context middleware."""
     augmenter = augment_with_context()
     req_future = asyncio.Future()
 
-    async def next(req: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def next(req: ModelRequest, _: ActionRunContext) -> GenerateResponse:
         req_future.set_result(req)
         return GenerateResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 
@@ -53,7 +53,7 @@ async def run_augmenter(req: GenerateRequest) -> GenerateRequest:
 @pytest.mark.asyncio
 async def test_augment_with_context_ignores_no_docs() -> None:
     """Test simple prompt rendering."""
-    req = GenerateRequest(
+    req = ModelRequest(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
@@ -67,7 +67,7 @@ async def test_augment_with_context_ignores_no_docs() -> None:
 @pytest.mark.asyncio
 async def test_augment_with_context_adds_docs_as_context() -> None:
     """Test simple prompt rendering."""
-    req = GenerateRequest(
+    req = ModelRequest(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
@@ -79,7 +79,7 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
 
     transformed_req = await run_augmenter(req)
 
-    assert transformed_req == GenerateRequest(
+    assert transformed_req == ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -107,7 +107,7 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
 @pytest.mark.asyncio
 async def test_augment_with_context_should_not_modify_non_pending_part() -> None:
     """Test simple prompt rendering."""
-    req = GenerateRequest(
+    req = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -135,7 +135,7 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
 @pytest.mark.asyncio
 async def test_augment_with_context_with_purpose_part() -> None:
     """Test simple prompt rendering."""
-    req = GenerateRequest(
+    req = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -157,7 +157,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
 
     transformed_req = await run_augmenter(req)
 
-    assert transformed_req == GenerateRequest(
+    assert transformed_req == ModelRequest(
         messages=[
             Message(
                 role=Role.USER,

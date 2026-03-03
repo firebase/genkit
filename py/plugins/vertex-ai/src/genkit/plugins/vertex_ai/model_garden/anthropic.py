@@ -27,7 +27,7 @@ from genkit.ai import ActionRunContext
 from genkit.core._loop_local import _loop_local_client
 from genkit.core._internal._typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
+from genkit import ModelRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
 
 class AnthropicConfigSchema(GenerationCommonConfig):
@@ -61,14 +61,14 @@ class AnthropicModelGarden:
         clean_model_name = model.removeprefix('anthropic/')
         self._model_name = clean_model_name
 
-    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
+    def get_handler(self) -> Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse]]:
         """Returns the generate handler function for this model.
 
         Returns:
             The handler function that can be used as an Action's fn parameter.
         """
 
-        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
             model = AnthropicModel(
                 model_name=self._model_name,
                 client=cast(AsyncAnthropic, self._runtime_client()),

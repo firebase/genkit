@@ -41,7 +41,7 @@ from genkit.plugins.anthropic.utils import (
 )
 from genkit import (
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
@@ -107,7 +107,7 @@ class AnthropicModel:
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         """Generate response from Anthropic.
 
         Args:
@@ -182,7 +182,7 @@ class AnthropicModel:
             cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', None) or 0,
         )
 
-    def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
+    def _build_params(self, request: ModelRequest) -> dict[str, Any]:
         """Build Anthropic API parameters."""
         config = request.config
         params: dict[str, Any] = {}

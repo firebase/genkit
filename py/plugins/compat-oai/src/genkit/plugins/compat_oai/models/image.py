@@ -22,7 +22,7 @@ supporting models like DALL-E 3 and GPT-Image-1.
 Data Flow::
 
     ┌─────────────────────────────────────────────────────────────────────┐
-    │  GenerateRequest (text prompt)                                      │
+    │  ModelRequest (text prompt)                                      │
     │         │                                                           │
     │         ▼                                                           │
     │  to_image_generate_params()  ──►  ImageGenerateParams               │
@@ -46,7 +46,7 @@ from genkit.ai import ActionRunContext
 from genkit.core._internal._typing import FinishReason
 from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
@@ -88,9 +88,9 @@ _extract_prompt_text = _extract_text
 
 def _to_image_generate_params(
     model_name: str,
-    request: GenerateRequest,
+    request: ModelRequest,
 ) -> dict[str, Any]:
-    """Convert a GenerateRequest into OpenAI image generation parameters.
+    """Convert a ModelRequest into OpenAI image generation parameters.
 
     Extracts the text prompt and maps Genkit config options to OpenAI's
     image generation API parameters.
@@ -179,7 +179,7 @@ class OpenAIImageModel:
         """The name of the image model."""
         return self._model_name
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Generate images from the request.
 
         Args:

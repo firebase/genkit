@@ -148,6 +148,8 @@ from genkit.ai.generate import (
     to_tool_definition,
 )
 from genkit.ai.model import (
+    Message,
+    Message,
     ModelResponse,
     ModelResponseChunk,
     ModelMiddleware,
@@ -162,8 +164,7 @@ from genkit.core._internal._typing import (
     DocumentData,
     GenerateActionOptions,
     GenerateActionOutputConfig,
-    GenerateRequest,
-    Message,
+    ModelRequest,
     ModelConfig,
     OutputConfig,
     Part,
@@ -1293,7 +1294,7 @@ def define_prompt(
 
 
 # Implementation
-def define_prompt(
+def define_prompt(  # pyright: ignore[reportInconsistentOverload]
     registry: Registry,
     name: str | None = None,
     variant: str | None = None,
@@ -1412,8 +1413,8 @@ def define_prompt(
             },
         }
 
-        async def prompt_action_fn(input: Any = None) -> GenerateRequest:  # noqa: ANN401
-            """PROMPT action function - renders prompt and returns GenerateRequest."""
+        async def prompt_action_fn(input: Any = None) -> ModelRequest:  # noqa: ANN401
+            """PROMPT action function - renders prompt and returns ModelRequest."""
             options = await executable_prompt.render(input=input)
             return await to_generate_request(registry, options)
 
@@ -1546,8 +1547,8 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     )
 
 
-async def to_generate_request(registry: Registry, options: GenerateActionOptions) -> GenerateRequest:
-    """Converts GenerateActionOptions to a GenerateRequest.
+async def to_generate_request(registry: Registry, options: GenerateActionOptions) -> ModelRequest:
+    """Converts GenerateActionOptions to a ModelRequest.
 
     This function resolves tool names into their respective tool definitions
     by looking them up in the provided registry. it also validates that the
@@ -1559,7 +1560,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             messages, and tool references to be converted.
 
     Returns:
-        A GenerateRequest object populated with messages, config, resolved
+        A ModelRequest object populated with messages, config, resolved
         tools, and output configurations.
 
     Raises:
@@ -1583,7 +1584,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             message='at least one message is required in generate request',
         )
 
-    return GenerateRequest(
+    return ModelRequest(
         messages=options.messages,
         config=options.config if options.config is not None else {},
         docs=options.docs,
@@ -2190,18 +2191,18 @@ def load_prompt(registry: Registry, path: Path, filename: str, prefix: str = '',
     }
 
     # Create two separate action functions :
-    # 1. PROMPT action - returns GenerateRequest (for rendering prompts)
+    # 1. PROMPT action - returns ModelRequest (for rendering prompts)
     # 2. EXECUTABLE_PROMPT action - returns GenerateActionOptions (for executing prompts)
 
-    async def prompt_action_fn(input: Any = None) -> GenerateRequest:  # noqa: ANN401
-        """PROMPT action function - renders prompt and returns GenerateRequest."""
+    async def prompt_action_fn(input: Any = None) -> ModelRequest:  # noqa: ANN401
+        """PROMPT action function - renders prompt and returns ModelRequest."""
         # Load the prompt (lazy loading)
         prompt = await create_prompt_from_file()
 
         # Render the prompt with input to get GenerateActionOptions
         options = await prompt.render(input=input)
 
-        # Convert GenerateActionOptions to GenerateRequest
+        # Convert GenerateActionOptions to ModelRequest
         return await to_generate_request(registry, options)
 
     async def executable_prompt_action_fn(input: Any = None) -> GenerateActionOptions:  # noqa: ANN401
@@ -2406,5 +2407,6 @@ async def prompt(
         GenkitError: If the prompt is not found.
     """
     return await lookup_prompt(registry, name, variant)
+
 
 # Renamed — use ModelStreamResponse

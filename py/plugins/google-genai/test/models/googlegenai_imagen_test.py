@@ -26,7 +26,7 @@ from pytest_mock import MockerFixture
 from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     MediaPart,
     Message,
@@ -44,7 +44,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: ImagenVer
     response_byte_string = b'\x89PNG\r\n\x1a\n'
     response_mimetype = 'image/png'
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(
                 role=Role.USER,

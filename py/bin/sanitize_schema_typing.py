@@ -54,6 +54,16 @@ from typing import cast
 class ClassTransformer(ast.NodeTransformer):
     """AST transformer that modifies class definitions."""
 
+    # Classes to exclude from the generated output because they have
+    # hand-written veneer types in the SDK. These wire types should not be
+    # exposed — the veneer types are the public API.
+    EXCLUDED_CLASSES: frozenset[str] = frozenset({
+        'DocumentData',       # veneer: ai/document.py Document
+        'Message',            # veneer: ai/messages.py Message
+        'RankedDocumentData', # veneer: ai/reranker.py RankedDocument
+        'ModelRequest',       # veneer: ai/model.py (hand-written)
+    })
+
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
         """Initialize the ClassTransformer.
 
@@ -261,8 +271,12 @@ class ClassTransformer(ast.NodeTransformer):
             node: The ClassDef AST node to transform.
 
         Returns:
-            The transformed ClassDef node.
+            The transformed ClassDef node, or None to remove it.
         """
+        # Exclude classes that have hand-written veneer types.
+        if node.name in self.EXCLUDED_CLASSES:
+            return None
+
         # First apply base class transformations recursively
         node = cast(ast.ClassDef, super().generic_visit(node))
         new_body: list[ast.stmt | ast.Constant | ast.Assign] = []

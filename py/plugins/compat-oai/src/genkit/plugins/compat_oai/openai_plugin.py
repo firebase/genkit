@@ -46,7 +46,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit import Embedding, EmbedRequest, EmbedResponse, GenerateRequest, GenerateResponse, ModelInfo, Supports
+from genkit import Embedding, EmbedRequest, EmbedResponse, ModelRequest, GenerateResponse, ModelInfo, Supports
 
 
 def open_ai_name(name: str) -> str:
@@ -313,7 +313,7 @@ class OpenAI(Plugin):
         # Create the model handler
         model_info = self.get_model_info(clean_name) or {}
 
-        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
             openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
             return await openai_model.generate(request, ctx)
 
@@ -350,7 +350,7 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
         info_dict = _get_multimodal_info_dict(clean_name, model_type, supported_models)
 
-        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
             model_instance = model_class(clean_name, self._runtime_client())
             return await model_instance.generate(request, ctx)
 

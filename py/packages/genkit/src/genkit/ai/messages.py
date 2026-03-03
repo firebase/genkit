@@ -18,8 +18,8 @@
 
 from typing import Any
 
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    Message,
     Metadata,
     Part,
     Role,

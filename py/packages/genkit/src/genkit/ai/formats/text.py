@@ -21,7 +21,7 @@ from typing import Any
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core._internal._compat import override
 
@@ -63,7 +63,7 @@ class TextFormat(FormatDef):
             A Formatter instance configured for text handling.
         """
 
-        def message_parser(msg: MessageWrapper) -> str:
+        def message_parser(msg: Message) -> str:
             """Extracts text from a Message object.
 
             Args:

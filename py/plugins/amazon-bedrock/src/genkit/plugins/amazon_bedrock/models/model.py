@@ -138,7 +138,7 @@ from genkit.plugins.amazon_bedrock.models.converters import (
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit import (
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
@@ -272,7 +272,7 @@ class BedrockModel:
 
     async def generate(
         self,
-        request: GenerateRequest,
+        request: ModelRequest,
         ctx: ActionRunContext | None = None,
     ) -> GenerateResponse:
         """Generate a response from AWS Bedrock.
@@ -339,7 +339,7 @@ class BedrockModel:
         self,
         params: dict[str, Any],
         ctx: ActionRunContext,
-        request: GenerateRequest,
+        request: ModelRequest,
     ) -> GenerateResponse:
         """Handle streaming generation using ConverseStream.
 
@@ -533,7 +533,7 @@ class BedrockModel:
 
     async def _build_request_body(
         self,
-        request: GenerateRequest,
+        request: ModelRequest,
         config: BedrockConfig,
     ) -> dict[str, Any]:
         """Build the AWS Bedrock Converse API request body.
@@ -589,7 +589,7 @@ class BedrockModel:
 
         return body
 
-    def _build_json_instruction(self, request: GenerateRequest) -> str | None:
+    def _build_json_instruction(self, request: ModelRequest) -> str | None:
         """Build a JSON output instruction based on request.output configuration.
 
         The Bedrock Converse API doesn't have native JSON mode like OpenAI's response_format.

@@ -100,7 +100,7 @@ class InProcessRunner:
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """Run a model action via ``ai.generate()`` in-process.
 
-        Converts the raw test input (GenerateRequest-shaped dict) into
+        Converts the raw test input (ModelRequest-shaped dict) into
         ``ai.generate()`` keyword arguments so the full framework
         pipeline is exercised, including output format handling
         (``extract_json`` for JSON output) and streaming chunk wrapping.
@@ -129,7 +129,7 @@ class InProcessRunner:
         # e.g. "/model/googleai/gemini-2.5-flash" -> "googleai/gemini-2.5-flash"
         model_name = key.removeprefix('/model/')
 
-        # Extract fields from the GenerateRequest-shaped input.
+        # Extract fields from the ModelRequest-shaped input.
         messages = input_data.get('messages', [])
         output_config = input_data.get('output')
         tools_defs = input_data.get('tools')

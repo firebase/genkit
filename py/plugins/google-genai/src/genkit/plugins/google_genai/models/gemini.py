@@ -167,7 +167,7 @@ from genkit.core._internal._deprecations import (
 from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit import (
     Constrained,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
@@ -1047,7 +1047,7 @@ class GeminiModel:
         self._version = version
         self._client = client
 
-    def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
+    def _get_tools(self, request: ModelRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
         Args:
@@ -1165,7 +1165,7 @@ class GeminiModel:
         return schema
 
     async def _retrieve_cached_content(
-        self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
+        self, request: ModelRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
 
@@ -1211,7 +1211,7 @@ class GeminiModel:
             )
         return cache
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -1558,7 +1558,7 @@ class GeminiModel:
         }
 
     async def _build_messages(
-        self, request: GenerateRequest, model_name: str
+        self, request: ModelRequest, model_name: str
     ) -> tuple[list[genai_types.Content], genai_types.CachedContent | None]:
         """Build google-genai request contents from Genkit request.
 
@@ -1618,8 +1618,8 @@ class GeminiModel:
         # Ensure we always return a list, even if empty
         return content if content else []
 
-    async def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
-        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig.
+    async def _genkit_to_googleai_cfg(self, request: ModelRequest) -> genai_types.GenerateContentConfig | None:
+        """Converts a Genkit ModelRequest to a Gemini GenerateContentConfig.
 
         The conversion follows a linear pipeline:
         1. Extract system instructions from messages
@@ -1784,7 +1784,7 @@ class GeminiModel:
             if key in config and key not in genai_types.GenerateContentConfig.model_fields:
                 del config[key]
 
-    def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
+    def _create_usage_stats(self, request: ModelRequest, response: GenerateResponse) -> GenerationUsage:
         """Create usage statistics.
 
         Args:

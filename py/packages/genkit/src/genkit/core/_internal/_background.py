@@ -98,7 +98,7 @@ Workflow:
 
 Example:
     >>> # Define a background model for video generation
-    >>> async def start_video(request: GenerateRequest, ctx) -> Operation:
+    >>> async def start_video(request: ModelRequest, ctx) -> Operation:
     ...     job_id = await video_api.submit(request.messages[0].content[0].text)
     ...     return Operation(id=job_id, done=False)
     >>> async def check_video(op: Operation, ctx) -> Operation:
@@ -132,7 +132,7 @@ from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     ModelInfo,
     Operation,
@@ -157,7 +157,7 @@ def _make_action_key(action_type: ActionKind | str, name: str) -> str:
 
 # Type aliases for background model functions matching JS signatures
 # JS: start: (input, options) => Promise<Operation<OutputT>>
-StartModelOpFn = Callable[[GenerateRequest, ActionRunContext], Awaitable[Operation]]
+StartModelOpFn = Callable[[ModelRequest, ActionRunContext], Awaitable[Operation]]
 # JS: check: (input: Operation<OutputT>) => Promise<Operation<OutputT>>
 CheckModelOpFn = Callable[[Operation], Awaitable[Operation]]
 # JS: cancel?: (input: Operation<OutputT>) => Promise<Operation<OutputT>>
@@ -218,7 +218,7 @@ class BackgroundAction(Generic[OutputT]):
 
     async def start(
         self,
-        input: GenerateRequest | None = None,
+        input: ModelRequest | None = None,
         options: dict[str, Any] | None = None,
     ) -> Operation:
         """Start a background operation.
@@ -370,7 +370,7 @@ def define_background_model(
     model_meta['outputSchema'] = output_schema_meta
 
     # Wrap the start function to add the action key and timing (matching JS)
-    async def wrapped_start(request: GenerateRequest, ctx: ActionRunContext) -> Operation:
+    async def wrapped_start(request: ModelRequest, ctx: ActionRunContext) -> Operation:
         start_time = time.perf_counter()
         op = await start(request, ctx)
         # Set action key matching JS format: /{actionType}/{name}

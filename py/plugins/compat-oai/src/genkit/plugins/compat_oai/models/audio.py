@@ -25,7 +25,7 @@ Supported STT models: gpt-4o-transcribe, gpt-4o-mini-transcribe, whisper-1
 Data Flow (TTS)::
 
     ┌─────────────────────────────────────────────────────────────────────┐
-    │  GenerateRequest (text input)                                       │
+    │  ModelRequest (text input)                                       │
     │         │                                                           │
     │         ▼                                                           │
     │  to_tts_params()  ──►  SpeechCreateParams                           │
@@ -40,7 +40,7 @@ Data Flow (TTS)::
 Data Flow (STT)::
 
     ┌─────────────────────────────────────────────────────────────────────┐
-    │  GenerateRequest (audio media input)                                │
+    │  ModelRequest (audio media input)                                │
     │         │                                                           │
     │         ▼                                                           │
     │  to_stt_params()  ──►  TranscriptionCreateParams                    │
@@ -72,7 +72,7 @@ from genkit.plugins.compat_oai.models.utils import (
     extract_config_dict,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
@@ -176,9 +176,9 @@ SUPPORTED_STT_MODELS: dict[str, ModelInfo] = {
 
 def _to_tts_params(
     model_name: str,
-    request: GenerateRequest,
+    request: ModelRequest,
 ) -> dict[str, Any]:
-    """Convert a GenerateRequest into OpenAI TTS parameters.
+    """Convert a ModelRequest into OpenAI TTS parameters.
 
     Args:
         model_name: The TTS model name (e.g., 'tts-1').
@@ -249,9 +249,9 @@ def _to_tts_response(
 
 def _to_stt_params(
     model_name: str,
-    request: GenerateRequest,
+    request: ModelRequest,
 ) -> dict[str, Any]:
-    """Convert a GenerateRequest into OpenAI transcription parameters.
+    """Convert a ModelRequest into OpenAI transcription parameters.
 
     Extracts the audio media from the first message and converts it into
     a file-like object suitable for the transcriptions API.
@@ -353,7 +353,7 @@ class OpenAITTSModel:
         """The name of the TTS model."""
         return self._model_name
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Generate speech audio from the request.
 
         Args:
@@ -392,7 +392,7 @@ class OpenAISTTModel:
         """The name of the STT model."""
         return self._model_name
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Transcribe audio from the request.
 
         Args:

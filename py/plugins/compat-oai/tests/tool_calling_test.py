@@ -23,11 +23,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit import GenerateRequest, GenerateResponseChunk, TextPart, ToolRequestPart
+from genkit import ModelRequest, GenerateResponseChunk, TextPart, ToolRequestPart
 
 
 @pytest.mark.asyncio
-async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest) -> None:
+async def test_generate_with_tool_calls_executes_tools(sample_request: ModelRequest) -> None:
     """Test generate with tool calls executes tools."""
     mock_tool_call = MagicMock()
     mock_tool_call.id = 'tool123'
@@ -86,7 +86,7 @@ async def test_generate_with_tool_calls_executes_tools(sample_request: GenerateR
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_with_tool_calls(sample_request: GenerateRequest) -> None:
+async def test_generate_stream_with_tool_calls(sample_request: ModelRequest) -> None:
     """Test generate_stream processes tool calls streamed in chunks correctly."""
     mock_client = MagicMock()
 

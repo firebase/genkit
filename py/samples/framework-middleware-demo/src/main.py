@@ -92,7 +92,7 @@ from genkit.ai.model import ModelMiddlewareNext
 from genkit.core.action import ActionRunContext
 from genkit.core._internal._logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
-from genkit import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
+from genkit import ModelRequest, GenerateResponse, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()
@@ -127,7 +127,7 @@ class ChainedInput(BaseModel):
 
 
 async def logging_middleware(
-    req: GenerateRequest,
+    req: ModelRequest,
     ctx: ActionRunContext,
     next_handler: ModelMiddlewareNext,
 ) -> GenerateResponse:
@@ -158,7 +158,7 @@ async def logging_middleware(
 
 
 async def system_instruction_middleware(
-    req: GenerateRequest,
+    req: ModelRequest,
     ctx: ActionRunContext,
     next_handler: ModelMiddlewareNext,
 ) -> GenerateResponse:

@@ -916,7 +916,7 @@ class GenerateResponseChunk(BaseModel):
     aggregated: bool | None = None
 
 
-class Message(BaseModel):
+class MessageData(BaseModel):
     """Model for message data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
@@ -974,10 +974,10 @@ class Docs(RootModel[list[DocumentData]]):
     root: list[DocumentData]
 
 
-class Messages(RootModel[list[Message]]):
+class Messages(RootModel[list[MessageData]]):
     """Root model for messages."""
 
-    root: list[Message]
+    root: list[MessageData]
 
 
 class Candidate(BaseModel):
@@ -985,7 +985,7 @@ class Candidate(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     index: float
-    message: Message
+    message: MessageData
     usage: GenerationUsage | None = None
     finish_reason: FinishReason = Field(...)
     finish_message: str | None = Field(default=None)
@@ -998,7 +998,7 @@ class GenerateActionOptions(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     model: str | None = None
     docs: list[DocumentData] | None = None
-    messages: list[Message]
+    messages: list[MessageData]
     tools: list[str] | None = None
     resources: list[str] | None = None
     tool_choice: ToolChoice | None = Field(default=None)
@@ -1010,11 +1010,11 @@ class GenerateActionOptions(BaseModel):
     step_name: str | None = Field(default=None)
 
 
-class GenerateRequest(BaseModel):
+class ModelRequest(BaseModel):
     """Model for generaterequest data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    messages: list[Message]
+    messages: list[MessageData]
     config: Any | None = None
     tools: list[ToolDefinition] | None = None
     tool_choice: ToolChoice | None = Field(default=None)
@@ -1027,19 +1027,19 @@ class GenerateResponse(BaseModel):
     """Model for generateresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    message: Message | None = None
+    message: MessageData | None = None
     finish_reason: FinishReason | None = Field(default=None)
     finish_message: str | None = Field(default=None)
     latency_ms: float | None = Field(default=None)
     usage: GenerationUsage | None = None
     custom: Any | None = None
     raw: Any | None = None
-    request: GenerateRequest | None = None
+    request: ModelRequest | None = None
     operation: Operation | None = None
     candidates: list[Candidate] | None = None
 
 
-class ModelRequest(BaseModel):
+class _ModelRequestLoose(BaseModel):
     """Model for modelrequest data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
@@ -1051,17 +1051,17 @@ class ModelRequest(BaseModel):
     docs: Docs | None = None
 
 
-class Request(RootModel[GenerateRequest]):
+class Request(RootModel[_ModelRequestLoose]):
     """Root model for request."""
 
-    root: GenerateRequest
+    root: _ModelRequestLoose
 
 
 class ModelResponse(BaseModel):
     """Model for modelresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
-    message: Message | None = None
+    message: MessageData | None = None
     finish_reason: FinishReason = Field(...)
     finish_message: FinishMessage | None = Field(default=None)
     latency_ms: LatencyMs | None = Field(default=None)

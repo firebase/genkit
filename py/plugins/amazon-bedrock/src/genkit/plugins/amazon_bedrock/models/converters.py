@@ -33,7 +33,7 @@ from typing import Any
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit import (
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerationCommonConfig,
     GenerationUsage,
     Media,
@@ -299,7 +299,7 @@ def strip_markdown_fences(text: str) -> str:
     return text
 
 
-def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     """Strip markdown fences from text parts when JSON output is expected.
 
     Args:
@@ -497,7 +497,7 @@ def normalize_config(config: object) -> BedrockConfig:
     return BedrockConfig()
 
 
-def build_json_instruction(request: GenerateRequest) -> str | None:
+def build_json_instruction(request: ModelRequest) -> str | None:
     """Build a JSON output instruction for the system prompt.
 
     The Bedrock Converse API doesn't have native JSON mode. Instead,

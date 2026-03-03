@@ -614,9 +614,7 @@ class _ReflectionServer(uvicorn.Server):
             self._ready.set()
 
 
-def _make_reflection_server(
-    registry: Registry, host: str, port: int, ready: threading.Event
-) -> _ReflectionServer:
+def _make_reflection_server(registry: Registry, host: str, port: int, ready: threading.Event) -> _ReflectionServer:
     """Make a reflection server for the given registry and spec.
 
     This is a helper function to make it easier to test the reflection server

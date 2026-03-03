@@ -24,7 +24,7 @@ if typing.TYPE_CHECKING:
     from openai import AsyncOpenAI
 
     from genkit.ai import ActionRunContext
-    from genkit import GenerateRequest, GenerateResponse
+    from genkit import ModelRequest, GenerateResponse
 
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -118,7 +118,7 @@ class ModelGarden:
             ``OpenAIModel`` instance) that can be used by Genkit.
         """
 
-        async def _generate(request: 'GenerateRequest', ctx: 'ActionRunContext') -> 'GenerateResponse':
+        async def _generate(request: 'ModelRequest', ctx: 'ActionRunContext') -> 'GenerateResponse':
             client = await self.create_client()
             openai_model = OpenAIModel(self.name, client)
             return await openai_model.generate(request, ctx)

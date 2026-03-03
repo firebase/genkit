@@ -6,8 +6,8 @@
 """Tests for the message utils."""
 
 from genkit.ai.messages import inject_instructions
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    Message,
     Metadata,
     Part,
     Role,

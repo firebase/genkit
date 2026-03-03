@@ -22,7 +22,7 @@ from typing import Any, Generic, TypeVar
 
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core._internal._typing import (
     OutputConfig,
@@ -53,7 +53,7 @@ class Formatter(Generic[OutputT, ChunkT]):
 
     def __init__(
         self,
-        message_parser: Callable[[MessageWrapper], OutputT],
+        message_parser: Callable[[Message], OutputT],
         chunk_parser: Callable[[ModelResponseChunk], ChunkT],
         instructions: str | None,
     ) -> None:
@@ -68,7 +68,7 @@ class Formatter(Generic[OutputT, ChunkT]):
         self.__message_parser = message_parser
         self.__chunk_parser = chunk_parser
 
-    def parse_message(self, message: MessageWrapper) -> OutputT:
+    def parse_message(self, message: Message) -> OutputT:
         """Parses a message.
 
         Args:

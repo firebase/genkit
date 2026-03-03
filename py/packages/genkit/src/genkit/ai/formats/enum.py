@@ -22,7 +22,7 @@ from typing import Any
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core._internal._compat import override
 from genkit.core.error import GenkitError
@@ -86,7 +86,7 @@ class EnumFormat(FormatDef):
                 message="Must supply a schema of type 'string' with an 'enum' property when using the enum format.",
             )
 
-        def message_parser(msg: MessageWrapper) -> str:
+        def message_parser(msg: Message) -> str:
             """Parses a complete message, removing quotes."""
             return re.sub(r'[\'"]', '', msg.text).strip()
 

@@ -72,7 +72,6 @@ from genkit.core._internal._typing import (
     EmbedRequest,
     EvalRequest,
     EvalResponse,
-    Message,
     ModelInfo,
     Operation,
     Part,
@@ -94,6 +93,7 @@ from genkit.ai.formats import built_in_formats
 from genkit.ai.formats.types import FormatDef
 from genkit.ai.generate import define_generate_action, generate_action
 from genkit.ai.model import (
+    Message,
     ModelFn,
     ModelMiddleware,
     ModelResponse,
@@ -336,15 +336,13 @@ class Genkit:
             metadata: Optional metadata for the retriever.
             description: Optional description for the retriever.
         """
-        return define_retriever_action(
-            self.registry, name, fn, config_schema, metadata, description
-        )
+        return define_retriever_action(self.registry, name, fn, config_schema, metadata, description)
 
     def define_simple_retriever(
         self,
         *,
         options: SimpleRetrieverOptions[R] | str,
-        handler: Callable[[DocumentData, Any], list[R] | Awaitable[list[R]]],
+        handler: Callable[[DocumentData, Any], Awaitable[list[R]]],
         description: str | None = None,
     ) -> Action:
         """Define a simple retriever action.
@@ -376,9 +374,7 @@ class Genkit:
             metadata: Optional metadata for the indexer.
             description: Optional description for the indexer.
         """
-        return define_indexer_action(
-            self.registry, name, fn, config_schema, metadata, description
-        )
+        return define_indexer_action(self.registry, name, fn, config_schema, metadata, description)
 
     def define_reranker(
         self,
@@ -486,8 +482,7 @@ class Genkit:
             description: Optional description for the evaluator.
         """
         return define_evaluator(
-            self.registry, name, display_name, definition, fn,
-            is_billed, config_schema, metadata, description
+            self.registry, name, display_name, definition, fn, is_billed, config_schema, metadata, description
         )
 
     def define_batch_evaluator(
@@ -514,8 +509,7 @@ class Genkit:
             description: Optional description for the evaluator.
         """
         return define_batch_evaluator(
-            self.registry, name, display_name, definition, fn,
-            is_billed, config_schema, metadata, description
+            self.registry, name, display_name, definition, fn, is_billed, config_schema, metadata, description
         )
 
     def define_model(
@@ -537,9 +531,7 @@ class Genkit:
             info: Optional ModelInfo for the model.
             description: Optional description for the model.
         """
-        return define_model(
-            self.registry, name, fn, config_schema, metadata, info, description
-        )
+        return define_model(self.registry, name, fn, config_schema, metadata, info, description)
 
     def define_background_model(
         self,
@@ -599,9 +591,7 @@ class Genkit:
             metadata: Optional metadata for the embedder.
             description: Optional description for the embedder.
         """
-        return define_embedder(
-            self.registry, name, fn, options, metadata, description
-        )
+        return define_embedder(self.registry, name, fn, options, metadata, description)
 
     def define_format(self, format: FormatDef) -> None:
         """Registers a custom format in the registry.
@@ -722,7 +712,7 @@ class Genkit:
         docs: list[DocumentData] | Callable[..., Any] | None = None,
     ) -> 'ExecutablePrompt[Any, Any]': ...
 
-    def define_prompt(
+    def define_prompt(  # pyright: ignore[reportInconsistentOverload]
         self,
         name: str | None = None,
         variant: str | None = None,
@@ -773,21 +763,21 @@ class Genkit:
             use: Optional list of model middlewares to use for the prompt.
             docs: Optional list of documents or a callable for grounding.
         """
-        return define_prompt(
+        return define_prompt(  # pyright: ignore[reportCallIssue]
             self.registry,
             name=name,
             variant=variant,
             model=model,
             config=config,
             description=description,
-            input_schema=input_schema,
+            input_schema=cast(dict[str, Any] | str | None, input_schema),  # pyright: ignore[reportArgumentType]
             system=system,
             prompt=prompt,
             messages=messages,
             output_format=output_format,
             output_content_type=output_content_type,
             output_instructions=output_instructions,
-            output_schema=output_schema,
+            output_schema=cast(dict[str, Any] | str | None, output_schema),  # pyright: ignore[reportArgumentType]
             output_constrained=output_constrained,
             max_turns=max_turns,
             return_tool_requests=return_tool_requests,
@@ -1144,7 +1134,7 @@ class Genkit:
                     output_instructions=output_instructions,
                     output_schema=output_schema,
                     output_constrained=output_constrained,
-                    docs=docs,
+                    docs=cast(list[DocumentData] | None, docs),
                 ),
             ),
             middleware=use,
@@ -1236,7 +1226,7 @@ class Genkit:
                         output_instructions=output_instructions,
                         output_schema=output_schema,
                         output_constrained=output_constrained,
-                        docs=docs,
+                        docs=cast(list[DocumentData] | None, docs),
                     ),
                 ),
                 on_chunk=lambda c: stream.send(c),

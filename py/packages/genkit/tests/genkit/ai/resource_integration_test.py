@@ -25,11 +25,11 @@ from genkit.ai.generate import generate_action
 from genkit.ai.resource import ResourceInput, ResourceOutput, define_resource, resource
 from genkit.core.action import ActionRunContext
 from genkit.core._internal._registry import ActionKind, Registry
+from genkit.ai.model import Message
 from genkit.core._internal._typing import (
     GenerateActionOptions,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
-    Message,
     Part,
     Resource1,
     ResourcePart,
@@ -50,7 +50,7 @@ async def test_generate_with_resources() -> None:
     define_resource(registry, {'uri': 'test://foo'}, my_resource)
 
     # 2. Register a mock model
-    async def mock_model(input: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def mock_model(input: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         # Verify docs are EMPTY (not auto-populated)
         assert not input.docs
         # Access via root because DocumentPart is a RootModel
@@ -96,7 +96,7 @@ async def test_dynamic_action_provider_resource() -> None:
 
     # Register mock model
     # Register mock model
-    async def mock_model(input: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def mock_model(input: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         # Verify docs are empty
         assert not input.docs
         # Verify dynamic hydration

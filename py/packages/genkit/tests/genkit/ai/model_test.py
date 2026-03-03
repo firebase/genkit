@@ -8,9 +8,10 @@
 import pytest
 
 from genkit.ai.model import (
+    Message,
     ModelResponse,
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
     PartCounts,
     get_basic_usage_stats,
     get_part_counts,
@@ -22,13 +23,12 @@ from genkit.core._internal._typing import (
     Candidate,
     DocumentPart,
     FinishReason,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaPart,
-    Message,
     Metadata,
     Part,
     TextPart,
@@ -38,8 +38,8 @@ from genkit.core._internal._typing import (
 
 
 def test_message_wrapper_text() -> None:
-    """Test text property of MessageWrapper."""
-    wrapper = MessageWrapper(
+    """Test text property of Message."""
+    wrapper = Message(
         Message(
             role='model',
             content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))],
@@ -58,7 +58,7 @@ def test_response_wrapper_text() -> None:
                 content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[],  # doesn't matter for now
         ),
     )
@@ -75,7 +75,7 @@ def test_response_wrapper_output() -> None:
                 content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[],  # doesn't matter for now
         ),
     )
@@ -92,7 +92,7 @@ def test_response_wrapper_messages() -> None:
                 content=[Part(root=TextPart(text='baz'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[
                 Message(
                     role='user',
@@ -131,7 +131,7 @@ def test_response_wrapper_output_uses_parser() -> None:
                 content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[],  # doesn't matter for now
         ),
         message_parser=lambda x: 'banana',
@@ -396,7 +396,7 @@ def test_response_wrapper_tool_requests() -> None:
                 content=[Part(root=TextPart(text='bar'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[
                 Message(
                     role='user',
@@ -418,7 +418,7 @@ def test_response_wrapper_tool_requests() -> None:
                 ],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[
                 Message(
                     role='user',
@@ -440,7 +440,7 @@ def test_response_wrapper_interrupts() -> None:
                 content=[Part(root=TextPart(text='bar'))],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[
                 Message(
                     role='user',
@@ -468,7 +468,7 @@ def test_response_wrapper_interrupts() -> None:
                 ],
             )
         ),
-        request=GenerateRequest(
+        request=ModelRequest(
             messages=[
                 Message(
                     role='user',

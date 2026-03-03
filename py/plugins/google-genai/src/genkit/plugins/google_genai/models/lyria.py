@@ -152,7 +152,7 @@ def _extract_text(messages: list[Any]) -> str:
     """Extract text prompt from messages.
 
     Args:
-        messages: The message list from a GenerateRequest.
+        messages: The message list from a ModelRequest.
 
     Returns:
         The text prompt string.

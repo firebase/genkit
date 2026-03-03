@@ -16,6 +16,7 @@ from pydantic import TypeAdapter
 from genkit.ai import ActionKind, Genkit
 from genkit.ai.generate import generate_action
 from genkit.ai.model import (
+    Message,
     ModelMiddlewareNext,
     text_from_content,
     text_from_message,
@@ -27,10 +28,9 @@ from genkit.core._internal._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
-    Message,
     Metadata,
     Part,
     Role,
@@ -141,13 +141,13 @@ async def test_generate_applies_middleware(
     define_echo_model(ai)
 
     async def pre_middle(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
-            GenerateRequest(
+            ModelRequest(
                 messages=[
                     Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))]),
                 ],
@@ -156,7 +156,7 @@ async def test_generate_applies_middleware(
         )
 
     async def post_middle(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:
@@ -194,7 +194,7 @@ async def test_generate_middleware_next_fn_args_optional(
     define_echo_model(ai)
 
     async def post_middle(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:
@@ -232,20 +232,20 @@ async def test_generate_middleware_can_modify_context(
     define_echo_model(ai)
 
     async def add_context(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:
         return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
     async def inject_context(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
-            GenerateRequest(
+            ModelRequest(
                 messages=[
                     Message(
                         role=Role.USER,
@@ -296,7 +296,7 @@ async def test_generate_middleware_can_modify_stream(
     ]
 
     async def modify_stream(
-        req: GenerateRequest,
+        req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
     ) -> GenerateResponse:

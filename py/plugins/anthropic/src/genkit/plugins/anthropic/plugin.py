@@ -27,7 +27,7 @@ from genkit.core._internal._registry import ActionKind
 from genkit.core._internal._schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
-from genkit import GenerateRequest, GenerateResponse, GenerationCommonConfig
+from genkit import ModelRequest, GenerateResponse, GenerationCommonConfig
 
 ANTHROPIC_PLUGIN_NAME = 'anthropic'
 
@@ -108,7 +108,7 @@ class Anthropic(Plugin):
 
         model_info = get_model_info(clean_name)
 
-        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
             model = AnthropicModel(model_name=clean_name, client=self._runtime_client())
             return await model.generate(request, ctx)
 

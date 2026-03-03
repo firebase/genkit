@@ -34,7 +34,7 @@ from genkit.ai import ActionRunContext
 from genkit.core.codec import dump_dict, dump_json
 from genkit.core.tracing import tracer
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
@@ -136,7 +136,7 @@ class ImagenModel:
         self._version = version
         self._client = client
 
-    def _build_prompt(self, request: GenerateRequest) -> str:
+    def _build_prompt(self, request: ModelRequest) -> str:
         """Build prompt request from Genkit request.
 
         Args:
@@ -154,7 +154,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, _: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -190,7 +190,7 @@ class ImagenModel:
             )
         )
 
-    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict | None:
+    def _get_config(self, request: ModelRequest) -> genai_types.GenerateImagesConfigOrDict | None:
         cfg = None
 
         if request.config:

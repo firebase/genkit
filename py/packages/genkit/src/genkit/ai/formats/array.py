@@ -21,7 +21,7 @@ from typing import Any
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core.codec import dump_json
 from genkit.core._internal._compat import override
@@ -91,7 +91,7 @@ class ArrayFormat(FormatDef):
                 message="Must supply an 'array' schema type when using the 'items' parser format.",
             )
 
-        def message_parser(msg: MessageWrapper) -> list[object]:
+        def message_parser(msg: Message) -> list[object]:
             """Parses a complete message into a list of items."""
             result = extract_items(msg.text, 0)
             return result.items

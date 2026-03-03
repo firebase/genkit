@@ -35,7 +35,7 @@ from genkit.plugins.compat_oai.models.utils import (
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
@@ -173,7 +173,7 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
-    def _clean_json_response(self, response: 'GenerateResponse', request: 'GenerateRequest') -> 'GenerateResponse':
+    def _clean_json_response(self, response: 'GenerateResponse', request: 'ModelRequest') -> 'GenerateResponse':
         """Strip markdown fences from JSON responses for json_object-mode models.
 
         Only applies when the model uses ``json_object`` mode (e.g. DeepSeek)
@@ -244,7 +244,7 @@ class OpenAIModel:
             ),
         }
 
-    async def _get_openai_request_config(self, request: GenerateRequest) -> dict:
+    async def _get_openai_request_config(self, request: ModelRequest) -> dict:
         """Get the OpenAI request configuration.
 
         Args:
@@ -281,11 +281,11 @@ class OpenAIModel:
             openai_config.update(**request.config.model_dump(exclude_none=True))
         return openai_config
 
-    async def _generate(self, request: GenerateRequest) -> GenerateResponse:
+    async def _generate(self, request: ModelRequest) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API and returns the generated response.
 
         Args:
-            request: The GenerateRequest object containing the input text and configuration.
+            request: The ModelRequest object containing the input text and configuration.
 
         Returns:
             A GenerateResponse object containing the generated message.
@@ -306,12 +306,12 @@ class OpenAIModel:
         return self._clean_json_response(result, request)
 
     async def _generate_stream(
-        self, request: GenerateRequest, callback: Callable[[GenerateResponseChunk], None]
+        self, request: ModelRequest, callback: Callable[[GenerateResponseChunk], None]
     ) -> GenerateResponse:
         """Streams responses from the OpenAI client and sends chunks to a callback.
 
         Args:
-            request: The GenerateRequest object containing generation parameters.
+            request: The ModelRequest object containing generation parameters.
             callback: A function to receive streamed GenerateResponseChunk objects.
 
         Returns:
@@ -382,7 +382,7 @@ class OpenAIModel:
         )
         return self._clean_json_response(result, request)
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:

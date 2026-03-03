@@ -51,7 +51,7 @@ from genkit.core._internal._typing import (
     EmbedResponse,
     EvalRequest,
     EvalResponse,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     RerankerRequest,
@@ -622,7 +622,7 @@ class Registry:
             return None
         return cast(Action[RerankerRequest, RerankerResponse, Never], action)
 
-    async def resolve_model(self, name: str) -> Action[GenerateRequest, GenerateResponse, GenerateResponseChunk] | None:
+    async def resolve_model(self, name: str) -> Action[ModelRequest, GenerateResponse, GenerateResponseChunk] | None:
         """Resolve a model action by name with full type information.
 
         Args:
@@ -635,7 +635,7 @@ class Registry:
         if action is None:
             return None
         return cast(
-            Action[GenerateRequest, GenerateResponse, GenerateResponseChunk],
+            Action[ModelRequest, GenerateResponse, GenerateResponseChunk],
             action,
         )
 

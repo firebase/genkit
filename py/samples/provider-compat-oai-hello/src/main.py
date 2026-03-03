@@ -269,7 +269,7 @@ async def calculate_gablorken(input: GablorkenFlowInput) -> str:
         input: Input with value for gablorken calculation.
 
     Returns:
-        A GenerateRequest object with the evaluation output
+        A ModelRequest object with the evaluation output
     """
     response = await ai.generate(
         prompt=f'what is the gablorken of {input.value}',

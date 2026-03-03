@@ -29,6 +29,7 @@ from typing_extensions import Never, TypeVar
 
 from genkit.core.action import Action, ActionResponse
 from genkit.core.action import ActionKind
+from genkit.core._internal._aio import run_loop
 from genkit.core._internal._registry import Registry
 
 P = ParamSpec('P')
@@ -164,11 +165,9 @@ def define_flow(
         """
         # Flows accept at most one input argument
         input_arg = cast(T | None, args[0] if args else None)
-        return action.run(input_arg).response
+        return run_loop(action.run(input_arg)).response
 
-    wrapped_fn = cast(
-        Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper
-    )
+    wrapped_fn = cast(Callable[P, Awaitable[T]] | Callable[P, T], async_wrapper if action.is_async else sync_wrapper)
     flow = FlowWrapper(
         fn=cast(Callable[P, Awaitable[T] | T], wrapped_fn),
         action=cast(Action[Any, T, Never], action),

@@ -21,7 +21,7 @@ These types ensure consistent interaction with different AI models and provide
 type safety when working with model inputs and outputs.
 
 Example:
-    def my_model(request: GenerateRequest) -> GenerateResponse:
+    def my_model(request: ModelRequest) -> GenerateResponse:
         # Model implementation
         return GenerateResponse(...)
 
@@ -46,13 +46,13 @@ from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
     Candidate,
     DocumentPart,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaModel,
-    Message,
+    MessageData,
     ModelConfig as CoreModelConfig,
     ModelInfo,
     Part,
@@ -60,17 +60,17 @@ from genkit.core._internal._typing import (
     ToolRequestPart,
 )
 
-# type ModelFn = Callable[[GenerateRequest], GenerateResponse]
-ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
+# type ModelFn = Callable[[ModelRequest], GenerateResponse]
+ModelFn = Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse] | GenerateResponse]
 
-# type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
-ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
+# type ModelMiddlewareNext = Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse]]
+ModelMiddlewareNext = Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse]]
 # type ModelMiddleware = Callable[
-#     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
+#     [ModelRequest, ActionRunContext, ModelMiddlewareNext],
 #     Awaitable[GenerateResponse],
 # ]
 ModelMiddleware = Callable[
-    [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
+    [ModelRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
 ]
 
@@ -92,7 +92,7 @@ class ModelRef(BaseModel):
 ModelReference = ModelRef
 
 
-class MessageWrapper(Message):
+class Message(MessageData):
     """A wrapper around the base Message type providing utility methods.
 
     This class extends the standard `Message` by adding convenient cached properties
@@ -102,19 +102,33 @@ class MessageWrapper(Message):
 
     def __init__(
         self,
-        message: Message,
+        message: MessageData | None = None,
+        **kwargs: object,
     ) -> None:
-        """Initializes the MessageWrapper.
+        """Initializes the Message.
 
         Args:
-            message: The original Message object to wrap.
+            message: An existing MessageData object to wrap, or None to use kwargs.
+            **kwargs: Keyword arguments passed directly to MessageData (role, content, metadata).
         """
-        super().__init__(
-            role=message.role,
-            content=message.content,
-            metadata=message.metadata,
-        )
-        self._original_message: Message = message
+        if message is not None:
+            super().__init__(
+                role=message.role,
+                content=message.content,
+                metadata=message.metadata,
+            )
+        else:
+            super().__init__(**kwargs)  # type: ignore[arg-type]
+        self._original_message: MessageData = message or MessageData(**kwargs)  # type: ignore[arg-type]
+
+    def __eq__(self, other: object) -> bool:
+        """Compare by field values, allowing equality with MessageData."""
+        if isinstance(other, MessageData):
+            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
     @cached_property
     def text(self) -> str:
@@ -155,34 +169,34 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
     """
 
     # _message_parser is a private attribute that Pydantic will ignore
-    _message_parser: Callable[[MessageWrapper], object] | None = PrivateAttr(None)
+    _message_parser: Callable[[Message], object] | None = PrivateAttr(None)
     # _schema_type stores the Pydantic class for runtime validation
     _schema_type: type[BaseModel] | None = PrivateAttr(None)
     # Override the parent's message field with our wrapper type (intentional Liskov violation)
     # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
-    message: MessageWrapper | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def __init__(
         self,
         response: GenerateResponse,
-        request: GenerateRequest,
-        message_parser: Callable[[MessageWrapper], object] | None = None,
+        request: ModelRequest,
+        message_parser: Callable[[Message], object] | None = None,
         schema_type: type[BaseModel] | None = None,
     ) -> None:
         """Initializes a ModelResponse instance.
 
         Args:
             response: The original GenerateResponse object.
-            request: The GenerateRequest object associated with the response.
+            request: The ModelRequest object associated with the response.
             message_parser: An optional function to parse the output from the message.
             schema_type: Optional Pydantic model class for runtime validation.
         """
-        # Wrap the message if it's not already a MessageWrapper
-        wrapped_message: MessageWrapper | None = None
+        # Wrap the message if it's not already a Message
+        wrapped_message: Message | None = None
         if response.message is not None:
             wrapped_message = (
-                MessageWrapper(response.message)
-                if not isinstance(response.message, MessageWrapper)
+                Message(response.message)
+                if not isinstance(response.message, Message)
                 else response.message
             )
 
@@ -222,6 +236,15 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
         """
         # TODO(#4343): implement
         pass
+
+    def __eq__(self, other: object) -> bool:
+        """Compare by field values, allowing equality with MessageData."""
+        if isinstance(other, MessageData):
+            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
     @cached_property
     def text(self) -> str:
@@ -266,10 +289,10 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
             list[Message]: list of messages.
         """
         if self.message is None:
-            return list(self.request.messages) if self.request else []
+            return [Message(m) for m in self.request.messages] if self.request else []
         return [
-            *(self.request.messages if self.request else []),
-            self.message._original_message,  # pyright: ignore[reportPrivateUsage]
+            *(Message(m) for m in (self.request.messages if self.request else [])),
+            self.message,
         ]
 
     @cached_property
@@ -333,6 +356,15 @@ class ModelResponseChunk(GenerateResponseChunk):
         # Set subclass-specific fields after parent initialization
         self.previous_chunks = previous_chunks
         self.chunk_parser = chunk_parser
+
+    def __eq__(self, other: object) -> bool:
+        """Compare by field values, allowing equality with MessageData."""
+        if isinstance(other, MessageData):
+            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
     @cached_property
     def text(self) -> str:
@@ -525,7 +557,7 @@ def model_action_metadata(
     return ActionMetadata(
         kind=cast(ActionKind, ActionKind.MODEL),
         name=name,
-        input_json_schema=to_json_schema(GenerateRequest),
+        input_json_schema=to_json_schema(ModelRequest),
         output_json_schema=to_json_schema(GenerateResponse),
         metadata={'model': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
     )

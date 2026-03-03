@@ -21,7 +21,7 @@ from typing import Any
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
     ModelResponseChunk,
-    MessageWrapper,
+    Message,
 )
 from genkit.core.codec import dump_json
 from genkit.core._internal._compat import override
@@ -78,7 +78,7 @@ class JsonFormat(FormatDef):
             the provided schema.
         """
 
-        def message_parser(msg: MessageWrapper) -> object:
+        def message_parser(msg: Message) -> object:
             """Extracts JSON from a Message object.
 
             Concatenates the text content of all parts in the message and

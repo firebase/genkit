@@ -43,7 +43,7 @@ from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     Message,
     ModelInfo,
     Part,
@@ -961,7 +961,7 @@ async def test_system_prompt_handling() -> None:
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are a helpful assistant'))]),
             Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),

@@ -97,7 +97,7 @@ from genkit.plugins.ollama.constants import (
     OllamaAPITypes,
 )
 from genkit import (
-    GenerateRequest,
+    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
@@ -166,7 +166,7 @@ class OllamaModel:
         """
         return self._client_factory()
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         """Generate a response from Ollama.
 
         Args:
@@ -233,7 +233,7 @@ class OllamaModel:
         )
 
     async def _chat_with_ollama(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
         """Chat with Ollama.
 
@@ -310,7 +310,7 @@ class OllamaModel:
             return chat_response
 
     async def _generate_ollama_response(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.GenerateResponse | None:
         """Generate a response from Ollama.
 
@@ -430,7 +430,7 @@ class OllamaModel:
         return config
 
     @staticmethod
-    def build_prompt(request: GenerateRequest) -> str:
+    def build_prompt(request: ModelRequest) -> str:
         """Build the prompt for the generate API.
 
         Args:
@@ -449,7 +449,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    async def build_chat_messages(cls, request: GenerateRequest) -> list[ollama_api.Message]:
+    async def build_chat_messages(cls, request: ModelRequest) -> list[ollama_api.Message]:
         """Build the messages for the chat API.
 
         Handles MediaPart by converting image URLs to the format expected

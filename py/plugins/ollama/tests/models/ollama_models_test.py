@@ -29,7 +29,7 @@ from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.models import ModelDefinition, OllamaModel, _convert_parameters
 from genkit import (
     ActionRunContext,
-    GenerateRequest,
+    ModelRequest,
     GenerateResponseChunk,
     GenerationUsage,
     Media,
@@ -48,7 +48,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Common setup for all async tests."""
         self.mock_client = MagicMock()
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
+        self.request = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext()
         cast(Any, self.ctx).send_chunk = MagicMock()
 
@@ -312,7 +312,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
         self.mock_ollama_client_factory = MagicMock(return_value=self.mock_ollama_client_instance)
         self.model_definition = ModelDefinition(name='test-chat-model', api_type=OllamaAPITypes.CHAT)
         self.ollama_model = OllamaModel(client=self.mock_ollama_client_factory, model_definition=self.model_definition)
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
+        self.request = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext()
         cast(Any, self.ctx).send_chunk = MagicMock()
 
@@ -491,7 +491,7 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
 
         self.model_definition = ModelDefinition(name='test-generate-model', api_type=OllamaAPITypes.GENERATE)
         self.ollama_model = OllamaModel(client=self.mock_ollama_client_factory, model_definition=self.model_definition)
-        self.request = GenerateRequest(
+        self.request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -750,7 +750,7 @@ class TestBuildChatMessagesWithMedia(unittest.IsolatedAsyncioTestCase):
 
     async def test_text_and_media_message(self) -> None:
         """Messages with text + media should produce text content and images."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -771,7 +771,7 @@ class TestBuildChatMessagesWithMedia(unittest.IsolatedAsyncioTestCase):
 
     async def test_media_only_message(self) -> None:
         """Messages with only media should have empty text content."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,

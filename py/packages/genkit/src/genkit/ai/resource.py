@@ -228,7 +228,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                 parts = await fn(input_data, ctx)
 
             # Post-processing parts to add metadata
-            content_list = parts.content if hasattr(parts, 'content') else parts.get('content', [])
+            content_list = parts.content if isinstance(parts, ResourceOutput) else parts.get('content', [])
 
             for p in content_list:
                 if isinstance(p, Part):
