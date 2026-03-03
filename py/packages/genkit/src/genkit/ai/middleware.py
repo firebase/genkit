@@ -90,7 +90,7 @@ def augment_with_context() -> ModelMiddleware:
         if not req.docs:
             return await next_middleware(req, ctx)
 
-        user_message = last_user_message(req.messages)
+        user_message = last_user_message(req.messages)  # type: ignore[arg-type]
         if not user_message:
             return await next_middleware(req, ctx)
 

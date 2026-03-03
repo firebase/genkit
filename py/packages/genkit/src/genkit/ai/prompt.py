@@ -1133,7 +1133,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return GenerateActionOptions(
             model=model,
-            messages=resolved_msgs,
+            messages=resolved_msgs,  # type: ignore[arg-type]
             config=prompt_options.config,
             tools=prompt_options.tools,
             return_tool_requests=prompt_options.return_tool_requests,
@@ -1533,7 +1533,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     return GenerateActionOptions(
         model=model,
-        messages=resolved_msgs,
+        messages=resolved_msgs,  # type: ignore[arg-type]
         config=options.config,
         tools=options.tools,
         return_tool_requests=options.return_tool_requests,

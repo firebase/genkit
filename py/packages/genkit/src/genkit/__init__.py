@@ -48,11 +48,15 @@ from genkit.core._internal._typing import (
     Media,
     MediaPart,
     ModelRequest,
+    OutputConfig,
     Part,
     Role,
     TextPart,
     ToolChoice,
+    ToolDefinition,
+    ToolRequest,
     ToolRequestPart,
+    ToolResponse,
     ToolResponsePart,
 )
 from genkit.core._plugins import extend_plugin_namespace
@@ -83,7 +87,11 @@ __all__ = [
     'Role',
     'TextPart',
     'ToolChoice',
+    'OutputConfig',
+    'ToolDefinition',
+    'ToolRequest',
     'ToolRequestPart',
+    'ToolResponse',
     'ToolResponsePart',
     # Domain types
     'Document',

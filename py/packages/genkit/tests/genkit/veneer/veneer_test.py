@@ -1008,7 +1008,7 @@ async def test_generate_with_middleware(
     ai, *_ = setup_test
 
     async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
-        txt = ''.join(text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
                 messages=[
@@ -1021,7 +1021,7 @@ async def test_generate_with_middleware(
     async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
         resp: GenerateResponse = await next(req, ctx)
         assert resp.message is not None
-        txt = text_from_message(resp.message)
+        txt = text_from_message(resp.message)  # type: ignore[arg-type]
         return GenerateResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
@@ -1046,7 +1046,7 @@ async def test_generate_passes_through_current_action_context(
     ai, *_ = setup_test
 
     async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
-        txt = ''.join(text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
                 messages=[
@@ -1076,7 +1076,7 @@ async def test_generate_uses_explicitly_passed_in_context(
     ai, *_ = setup_test
 
     async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
-        txt = ''.join(text_from_message(m) for m in req.messages)
+        txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
                 messages=[

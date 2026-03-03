@@ -26,10 +26,10 @@ import base64
 
 from genkit import (
     FinishReason,
-    GenerationCommonConfig,
     Media,
     MediaPart,
     Message,
+    ModelConfig,
     ModelRequest,
     OutputConfig,
     Part,
@@ -453,7 +453,7 @@ class TestNormalizeConfig:
 
     def test_generation_common_config(self) -> None:
         """Test Generation common config."""
-        config = GenerationCommonConfig(temperature=0.7, max_output_tokens=100, top_p=0.9)
+        config = ModelConfig(temperature=0.7, max_output_tokens=100, top_p=0.9)
         got = normalize_config(config)
         assert got.temperature == 0.7, f'temperature = {got.temperature}'
         assert got.max_tokens == 100, f'max_tokens = {got.max_tokens}'

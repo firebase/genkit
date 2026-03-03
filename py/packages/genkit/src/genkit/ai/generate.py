@@ -341,7 +341,7 @@ async def generate_action(
         revised_model_msg,
         tool_msg,
         transfer_preamble,
-    ) = await resolve_tool_requests(registry, raw_request, generated_msg._original_message)  # pyright: ignore[reportPrivateUsage]
+    ) = await resolve_tool_requests(registry, raw_request, generated_msg)
 
     # if an interrupt message is returned, stop the tool loop and return a
     # response.
@@ -428,7 +428,7 @@ def apply_format(
         should_inject = True
 
     if should_inject and instructions is not None:
-        out_request.messages = inject_instructions(out_request.messages, instructions)
+        out_request.messages = inject_instructions(out_request.messages, instructions)  # type: ignore[arg-type]
 
     # Ensure output is set before modifying its properties
     if out_request.output is None:

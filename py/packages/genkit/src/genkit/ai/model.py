@@ -127,8 +127,8 @@ class Message(MessageData):
         return super().__eq__(other)
 
     def __hash__(self) -> int:
-        """Return hash based on parent implementation."""
-        return super().__hash__()
+        """Return identity-based hash (required when __eq__ is defined)."""
+        return hash(id(self))
 
     @cached_property
     def text(self) -> str:
@@ -236,14 +236,14 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
         pass
 
     def __eq__(self, other: object) -> bool:
-        """Compare by field values, allowing equality with MessageData."""
-        if isinstance(other, MessageData):
-            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        """Compare ModelResponse instances by their wrapped message and finish reason."""
+        if isinstance(other, ModelResponse):
+            return self.message == other.message and self.finish_reason == other.finish_reason
         return super().__eq__(other)
 
     def __hash__(self) -> int:
-        """Return hash based on parent implementation."""
-        return super().__hash__()
+        """Return identity-based hash (required when __eq__ is defined)."""
+        return hash(id(self))
 
     @cached_property
     def text(self) -> str:
@@ -357,14 +357,14 @@ class ModelResponseChunk(GenerateResponseChunk):
         self.chunk_parser = chunk_parser
 
     def __eq__(self, other: object) -> bool:
-        """Compare by field values, allowing equality with MessageData."""
-        if isinstance(other, MessageData):
-            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        """Compare ModelResponseChunk instances by their chunk fields."""
+        if isinstance(other, ModelResponseChunk):
+            return self.role == other.role and self.content == other.content
         return super().__eq__(other)
 
     def __hash__(self) -> int:
-        """Return hash based on parent implementation."""
-        return super().__hash__()
+        """Return identity-based hash (required when __eq__ is defined)."""
+        return hash(id(self))
 
     @cached_property
     def text(self) -> str:
