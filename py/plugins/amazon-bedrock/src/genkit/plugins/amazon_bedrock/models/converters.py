@@ -30,14 +30,13 @@ import json
 import re
 from typing import Any
 
-from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 from genkit import (
     FinishReason,
-    ModelRequest,
     GenerationCommonConfig,
     GenerationUsage,
     Media,
     Message,
+    ModelRequest,
     Part,
     Role,
     TextPart,
@@ -46,6 +45,7 @@ from genkit import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 
 __all__ = [
     'FINISH_REASON_MAP',

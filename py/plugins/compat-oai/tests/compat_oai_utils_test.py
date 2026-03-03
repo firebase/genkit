@@ -21,6 +21,20 @@ import base64
 import pytest
 from pydantic import BaseModel
 
+from genkit import (
+    Media,
+    MediaPart,
+    Message,
+    ModelRequest,
+    Part,
+    ReasoningPart,
+    Role,
+    TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+)
 from genkit.plugins.compat_oai.models.utils import (
     DictMessageAdapter,
     MessageAdapter,
@@ -31,20 +45,6 @@ from genkit.plugins.compat_oai.models.utils import (
     decode_data_uri_bytes,
     extract_config_dict,
     parse_data_uri_content_type,
-)
-from genkit import (
-    ModelRequest,
-    Media,
-    MediaPart,
-    Message,
-    Part,
-    ReasoningPart,
-    Role,
-    TextPart,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
 )
 
 

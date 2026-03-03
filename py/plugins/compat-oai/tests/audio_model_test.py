@@ -23,6 +23,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from genkit import (
+    Media,
+    MediaPart,
+    Message,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+)
 from genkit.plugins.compat_oai.models.audio import (
     SUPPORTED_STT_MODELS,
     SUPPORTED_TTS_MODELS,
@@ -34,15 +43,6 @@ from genkit.plugins.compat_oai.models.audio import (
     _to_stt_response,
     _to_tts_params,
     _to_tts_response,
-)
-from genkit import (
-    ModelRequest,
-    Media,
-    MediaPart,
-    Message,
-    Part,
-    Role,
-    TextPart,
 )
 
 

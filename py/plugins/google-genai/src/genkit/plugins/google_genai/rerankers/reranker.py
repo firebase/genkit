@@ -69,9 +69,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from genkit.ai.document import Document
 from genkit.ai.model import text_from_content
 from genkit.ai.reranker import RankedDocument
-from genkit.core.error import GenkitError
 from genkit.core._internal._http_client import get_cached_client
 from genkit.core._internal._typing import DocumentData
+from genkit.core.error import GenkitError
 
 # Default location for Vertex AI Ranking API (global is recommended per docs)
 DEFAULT_LOCATION = 'global'

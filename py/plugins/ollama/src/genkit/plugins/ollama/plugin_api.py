@@ -21,13 +21,14 @@ from functools import partial
 import structlog
 
 import ollama as ollama_api
+from genkit import GenerationCommonConfig
 from genkit.ai import Plugin
 from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.ai.model import model_action_metadata
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionMetadata
 from genkit.core._internal._registry import ActionKind
 from genkit.core._internal._schema import to_json_schema
+from genkit.core._loop_local import _loop_local_client
+from genkit.core.action import Action, ActionMetadata
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
@@ -40,7 +41,6 @@ from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaModel,
 )
-from genkit import GenerationCommonConfig
 
 OLLAMA_PLUGIN_NAME = 'ollama'
 logger = structlog.get_logger(__name__)

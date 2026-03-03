@@ -23,9 +23,22 @@ from typing import Any, cast
 from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
-from genkit.core.action._action import ActionRunContext
+from genkit import (
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationCommonConfig,
+    Message,
+    ModelRequest,
+    OutputConfig,
+    Part,
+    ReasoningPart,
+    Role,
+    TextPart,
+    ToolDefinition,
+)
 from genkit.core._internal._logging import get_logger
 from genkit.core._internal._typing import ModelConfig as CoreModelConfig
+from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import (
     DictMessageAdapter,
@@ -34,19 +47,6 @@ from genkit.plugins.compat_oai.models.utils import (
     strip_markdown_fences,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
-from genkit import (
-    ModelRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
-    Message,
-    OutputConfig,
-    Part,
-    ReasoningPart,
-    Role,
-    TextPart,
-    ToolDefinition,
-)
 
 logger = get_logger(__name__)
 

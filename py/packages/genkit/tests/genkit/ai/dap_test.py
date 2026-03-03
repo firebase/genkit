@@ -54,9 +54,8 @@ from genkit.core._internal._dap import (
     is_dynamic_action_provider,
     transform_dap_value,
 )
-from genkit.core.action import Action
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
+from genkit.core.action import Action, ActionKind
 
 
 @pytest.fixture

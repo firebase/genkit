@@ -103,29 +103,29 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core._internal._background import lookup_background_action
-from genkit.ai.model import GenerateResponseWrapper
-from genkit.core.action import ActionRunContext
-from genkit.core._internal._typing import (
-    Error,
-    FinishReason,
-    ModelRequest,
-    GenerateResponse,
-    Message,
-    ModelInfo,
-    Operation,
-    Part,
-    Role,
-    Supports,
-    TextPart,
-)
 from genkit import (
     GenerationCommonConfig,
     Media,
     MediaPart,
     Metadata,
 )
+from genkit.ai import Genkit
+from genkit.ai.model import GenerateResponseWrapper
+from genkit.core._internal._background import lookup_background_action
+from genkit.core._internal._typing import (
+    Error,
+    FinishReason,
+    GenerateResponse,
+    Message,
+    ModelInfo,
+    ModelRequest,
+    Operation,
+    Part,
+    Role,
+    Supports,
+    TextPart,
+)
+from genkit.core.action import ActionRunContext
 from samples.shared.logging import setup_sample
 
 setup_sample()

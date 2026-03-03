@@ -6,32 +6,29 @@
 """Tests for the action module."""
 
 import json
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit, ToolRunContext
-from genkit.ai.tools import tool_response
 from genkit.ai.document import Document
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import Message, ModelMiddlewareNext, text_from_message
-from genkit.core.action import ActionRunContext
-from genkit.core.action import ActionKind
+from genkit.ai.tools import tool_response
 from genkit.core._internal._typing import (
     BaseDataPoint,
     Details,
-    DocumentData,
     DocumentPart,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
     FinishReason,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Metadata,
     ModelInfo,
+    ModelRequest,
     OutputConfig,
     Part,
     RetrieverResponse,
@@ -46,6 +43,7 @@ from genkit.core._internal._typing import (
     ToolResponse,
     ToolResponsePart,
 )
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,

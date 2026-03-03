@@ -102,7 +102,6 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-
 # =============================================================================
 # Status Types (merged from status_types.py)
 # =============================================================================

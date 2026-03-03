@@ -33,10 +33,9 @@ from genkit.ai.resource import (
     resolve_resources,
     resource,
 )
-from genkit.core.action import ActionRunContext
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import Metadata, Part, TextPart
+from genkit.core.action import ActionKind, ActionRunContext
 
 
 @pytest.mark.asyncio

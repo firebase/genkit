@@ -21,8 +21,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Document, Genkit
 from genkit import Embedding, RetrieverRequest, RetrieverResponse
+from genkit.ai import ActionRunContext, Document, Genkit
 
 from .local_vector_store_api import LocalVectorStoreAPI
 

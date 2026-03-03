@@ -23,8 +23,8 @@ from collections.abc import Callable
 if typing.TYPE_CHECKING:
     from openai import AsyncOpenAI
 
+    from genkit import GenerateResponse, ModelRequest
     from genkit.ai import ActionRunContext
-    from genkit import ModelRequest, GenerateResponse
 
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,

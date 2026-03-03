@@ -90,14 +90,7 @@ import structlog
 from pydantic import BaseModel
 
 import ollama as ollama_api
-from genkit.ai import ActionRunContext
-from genkit.ai.model import get_basic_usage_stats
-from genkit.core._internal._http_client import get_cached_client
-from genkit.plugins.ollama.constants import (
-    OllamaAPITypes,
-)
 from genkit import (
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
@@ -105,12 +98,19 @@ from genkit import (
     Media,
     MediaPart,
     Message,
+    ModelRequest,
     Part,
     Role,
     TextPart,
     ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
+)
+from genkit.ai import ActionRunContext
+from genkit.ai.model import get_basic_usage_stats
+from genkit.core._internal._http_client import get_cached_client
+from genkit.plugins.ollama.constants import (
+    OllamaAPITypes,
 )
 
 logger = structlog.get_logger(__name__)

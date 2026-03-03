@@ -128,8 +128,6 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from genkit.ai.document import Document
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
@@ -139,6 +137,7 @@ from genkit.core._internal._typing import (
     RerankerRequest,
     RerankerResponse,
 )
+from genkit.core.action import Action, ActionKind, ActionMetadata
 
 T = TypeVar('T')
 

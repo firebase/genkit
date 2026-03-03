@@ -103,14 +103,11 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
-from genkit.core._internal._background import BackgroundAction
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.ai.model import model_action_metadata
 from genkit.ai.reranker import reranker_action_metadata
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.error import GenkitError
+from genkit.core._internal._background import BackgroundAction
 from genkit.core._internal._registry import ActionKind
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
@@ -121,6 +118,9 @@ from genkit.core._internal._typing import (
     RerankerRequest,
     RerankerResponse,
 )
+from genkit.core._loop_local import _loop_local_client
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.error import GenkitError
 from genkit.plugins.google_genai.evaluators import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,

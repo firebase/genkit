@@ -32,6 +32,17 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 from pytest_mock import MockerFixture
 
+from genkit import (
+    GenerateResponse,
+    MediaPart,
+    Message,
+    ModelInfo,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+    ToolDefinition,
+)
 from genkit.ai import ActionRunContext
 from genkit.core._internal._schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
@@ -42,17 +53,6 @@ from genkit.plugins.google_genai.models.gemini import (
     google_model_info,
     is_image_model,
     is_tts_model,
-)
-from genkit import (
-    ModelRequest,
-    GenerateResponse,
-    MediaPart,
-    Message,
-    ModelInfo,
-    Part,
-    Role,
-    TextPart,
-    ToolDefinition,
 )
 
 ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)

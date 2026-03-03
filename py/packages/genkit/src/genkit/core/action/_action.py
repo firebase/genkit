@@ -446,14 +446,14 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         self.matches: Callable[[object], bool] | None = None
 
         # Enforce async handlers for core action kinds
-        _ASYNC_REQUIRED_KINDS = {
+        async_required_kinds = {
             ActionKind.TOOL,
             ActionKind.MODEL,
             ActionKind.RETRIEVER,
             ActionKind.EMBEDDER,
             ActionKind.FLOW,
         }
-        if kind in _ASYNC_REQUIRED_KINDS and not self._is_async:
+        if kind in async_required_kinds and not self._is_async:
             raise TypeError(f"{kind.value} handlers must be async functions. Got sync function for '{name}'.")
 
         input_spec = inspect.getfullargspec(metadata_fn if metadata_fn else fn)

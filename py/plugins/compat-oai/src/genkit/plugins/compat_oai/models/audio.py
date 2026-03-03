@@ -62,6 +62,18 @@ from openai import AsyncOpenAI
 from openai._legacy_response import HttpxBinaryResponseContent
 from openai.types.audio import Transcription
 
+from genkit import (
+    GenerateResponse,
+    Media,
+    MediaPart,
+    Message,
+    ModelInfo,
+    ModelRequest,
+    Part,
+    Role,
+    Supports,
+    TextPart,
+)
 from genkit.ai import ActionRunContext
 from genkit.core._internal._typing import FinishReason
 from genkit.plugins.compat_oai.models.utils import (
@@ -70,18 +82,6 @@ from genkit.plugins.compat_oai.models.utils import (
     _find_text,
     decode_data_uri_bytes,
     extract_config_dict,
-)
-from genkit import (
-    ModelRequest,
-    GenerateResponse,
-    Media,
-    MediaPart,
-    Message,
-    ModelInfo,
-    Part,
-    Role,
-    Supports,
-    TextPart,
 )
 
 # Maps audio response formats to their MIME types.

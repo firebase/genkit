@@ -29,8 +29,6 @@ from typing import Any, ClassVar, TypeVar, cast
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action import ActionKind
 from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
@@ -43,6 +41,7 @@ from genkit.core._internal._typing import (
     Score,
     SpanMetadata,
 )
+from genkit.core.action import Action, ActionKind, ActionMetadata
 from genkit.core.tracing import run_in_new_span
 
 logger = get_logger(__name__)

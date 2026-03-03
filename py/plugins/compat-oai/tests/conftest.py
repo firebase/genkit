@@ -19,14 +19,14 @@
 
 import pytest
 
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit import (
-    ModelRequest,
     Message,
+    ModelRequest,
     Part,
     Role,
     TextPart,
 )
+from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 
 @pytest.fixture

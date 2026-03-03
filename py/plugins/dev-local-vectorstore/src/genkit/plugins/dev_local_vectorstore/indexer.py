@@ -22,10 +22,10 @@ import hashlib
 import json
 from typing import Any
 
+from genkit import Embedding
 from genkit.ai import Genkit
 from genkit.ai.document import Document
 from genkit.ai.retriever import IndexerRequest
-from genkit import Embedding
 
 from .constant import DbValue
 from .local_vector_store_api import LocalVectorStoreAPI

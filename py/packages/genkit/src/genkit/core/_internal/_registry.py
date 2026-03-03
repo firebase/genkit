@@ -36,29 +36,30 @@ from dotpromptz.dotprompt import Dotprompt
 from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
-from genkit.core.action import (
-    Action,
-    ActionMetadata,
-    ActionRunContext,
-    SpanAttributeValue,
-    parse_action_key,
-)
-from genkit.core.action import ActionKind, ActionName
 from genkit.core._internal._logging import get_logger
-from genkit.core.plugin import Plugin
 from genkit.core._internal._typing import (
     EmbedRequest,
     EmbedResponse,
     EvalRequest,
     EvalResponse,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    ModelRequest,
     RerankerRequest,
     RerankerResponse,
     RetrieverRequest,
     RetrieverResponse,
 )
+from genkit.core.action import (
+    Action,
+    ActionKind,
+    ActionMetadata,
+    ActionName,
+    ActionRunContext,
+    SpanAttributeValue,
+    parse_action_key,
+)
+from genkit.core.plugin import Plugin
 
 logger = get_logger(__name__)
 

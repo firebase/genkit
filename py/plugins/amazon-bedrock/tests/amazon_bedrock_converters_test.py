@@ -24,6 +24,23 @@ ID resolution.
 
 import base64
 
+from genkit import (
+    FinishReason,
+    GenerationCommonConfig,
+    Media,
+    MediaPart,
+    Message,
+    ModelRequest,
+    OutputConfig,
+    Part,
+    Role,
+    TextPart,
+    ToolDefinition,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+)
 from genkit.plugins.amazon_bedrock.models.converters import (
     FINISH_REASON_MAP,
     INFERENCE_PROFILE_PREFIXES,
@@ -47,23 +64,6 @@ from genkit.plugins.amazon_bedrock.models.converters import (
     to_bedrock_tool,
 )
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
-from genkit import (
-    FinishReason,
-    ModelRequest,
-    GenerationCommonConfig,
-    Media,
-    MediaPart,
-    Message,
-    OutputConfig,
-    Part,
-    Role,
-    TextPart,
-    ToolDefinition,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
-)
 
 
 class TestMapFinishReason:

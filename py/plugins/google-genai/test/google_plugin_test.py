@@ -28,6 +28,14 @@ from google import genai
 from google.auth.credentials import Credentials
 from google.genai.types import HttpOptions
 
+from genkit import (
+    Message,
+    ModelInfo,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+)
 from genkit.ai import GENKIT_CLIENT_HEADER, Genkit
 from genkit.core._internal._registry import ActionKind
 from genkit.plugins.google_genai import GoogleAI, VertexAI
@@ -41,14 +49,6 @@ from genkit.plugins.google_genai.models.gemini import (
 from genkit.plugins.google_genai.models.imagen import (
     DEFAULT_IMAGE_SUPPORT,
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
-)
-from genkit import (
-    ModelRequest,
-    Message,
-    ModelInfo,
-    Part,
-    Role,
-    TextPart,
 )
 
 

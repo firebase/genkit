@@ -48,19 +48,19 @@ Note:
 import pytest
 
 from genkit.ai import Genkit
-from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError
 from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    ModelRequest,
     GenerateResponse,
     ModelInfo,
+    ModelRequest,
     Operation,
     Part,
     Role,
     Supports,
     TextPart,
 )
+from genkit.core.action import ActionRunContext
+from genkit.core.error import GenkitError
 
 
 @pytest.fixture

@@ -24,14 +24,6 @@ from typing import Any, cast
 
 import pytest
 
-from genkit.plugins.ollama.converters import (
-    build_prompt,
-    build_request_options_dict,
-    build_response_parts,
-    get_usage_info,
-    strip_data_uri_prefix,
-    to_ollama_role,
-)
 from genkit import (
     GenerationCommonConfig,
     GenerationUsage,
@@ -40,6 +32,14 @@ from genkit import (
     Role,
     TextPart,
     ToolRequestPart,
+)
+from genkit.plugins.ollama.converters import (
+    build_prompt,
+    build_request_options_dict,
+    build_response_parts,
+    get_usage_info,
+    strip_data_uri_prefix,
+    to_ollama_role,
 )
 
 

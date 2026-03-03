@@ -22,20 +22,20 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from genkit import (
+    MediaPart,
+    Message,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+)
 from genkit.plugins.compat_oai.models.image import (
     SUPPORTED_IMAGE_MODELS,
     OpenAIImageModel,
     _extract_prompt_text,
     _to_generate_response,
     _to_image_generate_params,
-)
-from genkit import (
-    ModelRequest,
-    MediaPart,
-    Message,
-    Part,
-    Role,
-    TextPart,
 )
 
 

@@ -22,13 +22,13 @@ import json5
 
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
-    ModelResponseChunk,
     Message,
+    ModelResponseChunk,
 )
-from genkit.core.codec import dump_json
 from genkit.core._internal._compat import override
-from genkit.core.error import GenkitError
 from genkit.core._internal._extract import extract_json
+from genkit.core.codec import dump_json
+from genkit.core.error import GenkitError
 
 
 class JsonlFormat(FormatDef):

@@ -109,14 +109,14 @@ import os
 
 from pydantic import BaseModel, Field
 
+from genkit import Embedding
 from genkit.ai import Genkit, Output, ToolRunContext, tool_response
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._logging import get_logger
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
 )
-from genkit import Embedding
 from samples.shared import (
     CharacterInput,
     CodeInput,

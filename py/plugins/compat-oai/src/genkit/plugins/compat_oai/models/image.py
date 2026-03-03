@@ -42,20 +42,20 @@ from typing import Any
 from openai import AsyncOpenAI
 from openai.types.images_response import ImagesResponse
 
-from genkit.ai import ActionRunContext
-from genkit.core._internal._typing import FinishReason
-from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
 from genkit import (
-    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
+    ModelRequest,
     Part,
     Role,
     Supports,
 )
+from genkit.ai import ActionRunContext
+from genkit.core._internal._typing import FinishReason
+from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
 
 # Supported image generation models with their metadata.
 SUPPORTED_IMAGE_MODELS: dict[str, ModelInfo] = {

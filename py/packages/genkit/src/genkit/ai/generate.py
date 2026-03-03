@@ -26,26 +26,21 @@ from genkit.ai.messages import inject_instructions
 from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import (
     Message,
+    ModelMiddleware,
     ModelResponse,
     ModelResponseChunk,
-    Message,
-    ModelMiddleware,
 )
 from genkit.ai.resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit.ai.tools import ToolInterruptError
-from genkit.core.codec import dump_dict
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
-from genkit.core.error import GenkitError
 from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import (
     FinishReason,
     GenerateActionOptions,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Metadata,
+    ModelRequest,
     OutputConfig,
     Part,
     Role,
@@ -55,6 +50,9 @@ from genkit.core._internal._typing import (
     ToolResponse,
     ToolResponsePart,
 )
+from genkit.core.action import Action, ActionKind, ActionRunContext
+from genkit.core.codec import dump_dict
+from genkit.core.error import GenkitError
 
 StreamingCallback = Callable[[ModelResponseChunk], None]
 

@@ -21,16 +21,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit.plugins.anthropic.models import AnthropicModel
-from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
 from genkit import (
-    ModelRequest,
     GenerateResponseChunk,
     GenerationCommonConfig,
     Media,
     MediaPart,
     Message,
     Metadata,
+    ModelRequest,
     OutputConfig,
     Part,
     Role,
@@ -38,6 +36,8 @@ from genkit import (
     ToolDefinition,
     ToolRequestPart,
 )
+from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.plugins.anthropic.utils import maybe_strip_fences, strip_markdown_fences
 
 
 def _create_sample_request() -> ModelRequest:

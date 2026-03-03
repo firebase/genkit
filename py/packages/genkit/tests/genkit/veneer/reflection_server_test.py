@@ -19,8 +19,8 @@ from unittest import mock
 
 import httpx
 
-from genkit.ai._aio import Genkit
 from genkit._web.typing import ServerSpec
+from genkit.ai._aio import Genkit
 from genkit.core._internal._environment import EnvVar, GenkitEnvironment
 
 

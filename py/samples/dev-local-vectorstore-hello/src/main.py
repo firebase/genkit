@@ -96,10 +96,10 @@ See README.md for testing instructions.
 import asyncio
 import os
 
+from genkit import Document, RetrieverResponse
 from genkit.ai import Genkit
 from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit import Document, RetrieverResponse
 from samples.shared.logging import setup_sample
 
 setup_sample()

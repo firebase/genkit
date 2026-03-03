@@ -20,10 +20,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from genkit import DocumentData, Embedding, TextPart
 from genkit.ai.document import Document
 from genkit.plugins.dev_local_vectorstore.constant import DbValue
 from genkit.plugins.dev_local_vectorstore.indexer import DevLocalVectorStoreIndexer
-from genkit import DocumentData, Embedding, TextPart
 
 
 class TestIndexerInit:

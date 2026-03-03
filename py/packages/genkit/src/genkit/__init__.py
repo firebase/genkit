@@ -39,18 +39,15 @@ from genkit.ai import (
 )
 from genkit.ai._aio import Genkit
 from genkit.ai.document import Document
-from genkit.ai.model import ModelResponse
-from genkit.ai.model import Message, ModelConfig
+from genkit.ai.model import Message, ModelConfig, ModelResponse
 from genkit.ai.tools import ToolInterruptError
-from genkit.core._plugins import extend_plugin_namespace
-from genkit.core.error import GenkitError, PublicError
-from genkit.core.plugin import Plugin
 from genkit.core._internal._typing import (
     Embedding,
     FinishReason,
     GenerationUsage,
     Media,
     MediaPart,
+    ModelRequest,
     Part,
     Role,
     TextPart,
@@ -58,6 +55,9 @@ from genkit.core._internal._typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.core._plugins import extend_plugin_namespace
+from genkit.core.error import GenkitError, PublicError
+from genkit.core.plugin import Plugin
 
 extend_plugin_namespace()
 
@@ -78,6 +78,7 @@ __all__ = [
     'Media',
     'MediaPart',
     'Message',
+    'ModelRequest',
     'Part',
     'Role',
     'TextPart',

@@ -113,9 +113,8 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from genkit.core.action import Action
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
+from genkit.core.action import Action, ActionKind
 
 ActionMetadataLike = Mapping[str, object]
 """Type alias for action metadata - any string-keyed mapping.

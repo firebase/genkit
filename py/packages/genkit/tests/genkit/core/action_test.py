@@ -9,15 +9,15 @@ from typing import cast
 
 import pytest
 
-from genkit.core.codec import dump_json
 from genkit.core.action import (
     Action,
+    ActionKind,
     ActionRunContext,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-from genkit.core.action import ActionKind
+from genkit.core.codec import dump_json
 from genkit.core.error import GenkitError
 
 

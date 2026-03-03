@@ -87,8 +87,8 @@ import os
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._logging import get_logger
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

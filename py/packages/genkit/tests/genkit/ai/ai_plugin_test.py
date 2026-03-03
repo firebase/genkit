@@ -22,14 +22,12 @@
 
 import pytest
 
+from genkit import Part, Role, TextPart
 from genkit.ai import Genkit, Plugin
-from genkit.core.action import Action, ActionMetadata, ActionRunContext
-from genkit.core._internal._registry import ActionKind
 from genkit.ai.model import Message
-from genkit.core._internal._typing import FinishReason
-from genkit import Message, Part, Role, TextPart
-from genkit.core._internal._typing import ModelRequest
-from genkit.core._internal._typing import GenerateResponse
+from genkit.core._internal._registry import ActionKind
+from genkit.core._internal._typing import FinishReason, GenerateResponse, ModelRequest
+from genkit.core.action import Action, ActionMetadata, ActionRunContext
 
 
 class AsyncResolveOnlyPlugin(Plugin):

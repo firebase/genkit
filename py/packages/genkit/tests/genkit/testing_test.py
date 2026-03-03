@@ -60,9 +60,9 @@ import pytest
 from genkit.ai import Genkit
 from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
+    ModelRequest,
     Part,
     Role,
     TextPart,

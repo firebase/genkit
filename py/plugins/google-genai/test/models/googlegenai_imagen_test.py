@@ -23,17 +23,17 @@ import pytest
 from google import genai
 from pytest_mock import MockerFixture
 
-from genkit.ai import ActionRunContext
-from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 from genkit import (
-    ModelRequest,
     GenerateResponse,
     MediaPart,
     Message,
+    ModelRequest,
     Part,
     Role,
     TextPart,
 )
+from genkit.ai import ActionRunContext
+from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
 
 @pytest.mark.asyncio

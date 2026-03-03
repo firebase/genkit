@@ -29,6 +29,21 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
+from genkit import (
+    FinishReason,
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationUsage,
+    MediaPart,
+    Message,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponsePart,
+)
 from genkit.ai import ActionRunContext
 from genkit.ai.model import get_basic_usage_stats
 from genkit.core._internal._logging import get_logger
@@ -38,21 +53,6 @@ from genkit.plugins.anthropic.utils import (
     get_cache_control,
     maybe_strip_fences,
     to_anthropic_media,
-)
-from genkit import (
-    FinishReason,
-    ModelRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationUsage,
-    MediaPart,
-    Message,
-    Part,
-    Role,
-    TextPart,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponsePart,
 )
 
 logger = get_logger(__name__)

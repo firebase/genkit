@@ -96,8 +96,7 @@ from genkit.ai.prompt import (
 )
 from genkit.ai.tools import ToolRunContext
 from genkit.core._internal._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
-from genkit.core.action import ActionRunContext
-from genkit.core.action import ActionKind
+from genkit.core.action import ActionKind, ActionRunContext
 from genkit.core.plugin import Plugin
 
 from ._aio import Genkit

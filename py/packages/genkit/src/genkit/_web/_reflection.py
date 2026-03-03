@@ -56,18 +56,17 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-from genkit.core.codec import dump_dict, dump_json
-from genkit.core.action import Action
-from genkit.core.action import ActionKind
-from genkit.core._internal._constants import DEFAULT_GENKIT_VERSION
-from genkit.core.error import get_reflection_json
-from genkit.core._internal._logging import get_logger
-from genkit.core._internal._registry import Registry
 from genkit._web.typing import (
     Application,
     StartupHandler,
     is_streaming_requested,
 )
+from genkit.core._internal._constants import DEFAULT_GENKIT_VERSION
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._registry import Registry
+from genkit.core.action import Action, ActionKind
+from genkit.core.codec import dump_dict, dump_json
+from genkit.core.error import get_reflection_json
 
 logger = get_logger(__name__)
 

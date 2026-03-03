@@ -39,47 +39,13 @@ from pathlib import Path
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
 import anyio
-import uvicorn
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import BaseModel
 from typing_extensions import Never
 
-from genkit.core._internal._aio import Channel, ensure_async, run_loop
-from genkit.core._internal._background import (
-    BackgroundAction,
-    CancelModelOpFn,
-    CheckModelOpFn,
-    StartModelOpFn,
-    check_operation as check_operation_impl,
-    define_background_model as define_background_model_block,
-    lookup_background_action,
-)
-from genkit.core._internal._dap import (
-    DapConfig,
-    DapFn,
-    DynamicActionProvider,
-    define_dynamic_action_provider as define_dap_block,
-)
-from genkit.core._internal._environment import is_dev_environment
-from genkit.core._internal._flow import FlowWrapper, define_flow
-from genkit.core._internal._logging import get_logger
-from genkit.core._internal._registry import Registry
-from genkit.core._internal._typing import (
-    BaseDataPoint,
-    DocumentData,
-    Embedding,
-    EmbedRequest,
-    EvalRequest,
-    EvalResponse,
-    ModelInfo,
-    Operation,
-    Part,
-    RetrieverRequest,
-    RetrieverResponse,
-    SpanMetadata,
-    ToolChoice,
-)
+from genkit._web._reflection import _make_reflection_server
+from genkit._web.typing import ServerSpec
 from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
 from genkit.ai.evaluator import (
@@ -94,13 +60,13 @@ from genkit.ai.formats.types import FormatDef
 from genkit.ai.generate import define_generate_action, generate_action
 from genkit.ai.model import (
     Message,
+    ModelConfig,
     ModelFn,
     ModelMiddleware,
     ModelResponse,
     ModelResponseChunk,
     define_model,
 )
-from genkit.ai.model import ModelConfig
 from genkit.ai.prompt import (
     ExecutablePrompt,
     PromptConfig,
@@ -136,14 +102,44 @@ from genkit.ai.retriever import (
     define_simple_retriever,
 )
 from genkit.ai.tools import define_tool
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
+from genkit.core._internal._aio import Channel, ensure_async, run_loop
+from genkit.core._internal._background import (
+    BackgroundAction,
+    CancelModelOpFn,
+    CheckModelOpFn,
+    StartModelOpFn,
+    check_operation as check_operation_impl,
+    define_background_model as define_background_model_block,
+    lookup_background_action,
+)
+from genkit.core._internal._dap import (
+    DapConfig,
+    DapFn,
+    DynamicActionProvider,
+    define_dynamic_action_provider as define_dap_block,
+)
+from genkit.core._internal._environment import is_dev_environment
+from genkit.core._internal._flow import FlowWrapper, define_flow
+from genkit.core._internal._logging import get_logger
+from genkit.core._internal._registry import Registry
+from genkit.core._internal._typing import (
+    BaseDataPoint,
+    DocumentData,
+    Embedding,
+    EmbedRequest,
+    EvalRequest,
+    EvalResponse,
+    ModelInfo,
+    Operation,
+    Part,
+    RetrieverRequest,
+    SpanMetadata,
+    ToolChoice,
+)
+from genkit.core.action import Action, ActionKind, ActionRunContext
 from genkit.core.error import GenkitError
 from genkit.core.plugin import Plugin
 from genkit.core.tracing import run_in_new_span
-from genkit._web._reflection import _ReflectionServer, _make_reflection_server, create_reflection_asgi_app
-
-from genkit._web.typing import ServerSpec
 
 from ._runtime import RuntimeManager
 
@@ -211,7 +207,7 @@ class Genkit:
     # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
     def flow(
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, Awaitable[T]]], 'FlowWrapper[P, Awaitable[T], T, Never]']: ...
+    ) -> Callable[[Callable[P, Awaitable[T]]], FlowWrapper[P, Awaitable[T], T, Never]]: ...
 
     @overload
     # pyrefly: ignore[inconsistent-overload] - Overloads differentiate async vs sync returns
@@ -219,11 +215,11 @@ class Genkit:
     # distinguish async vs sync functions correctly.
     def flow(  # pyright: ignore[reportOverlappingOverload]
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, T]], 'FlowWrapper[P, T, T, Never]']: ...
+    ) -> Callable[[Callable[P, T]], FlowWrapper[P, T, T, Never]]: ...
 
     def flow(  # pyright: ignore[reportInconsistentOverload]
         self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], 'FlowWrapper[P, Awaitable[T] | T, T, Never]']:
+    ) -> Callable[[Callable[P, Awaitable[T]] | Callable[P, T]], FlowWrapper[P, Awaitable[T] | T, T, Never]]:
         """Decorator to register a function as a flow.
 
         Args:
@@ -236,7 +232,7 @@ class Genkit:
             A decorator function that registers the flow.
         """
 
-        def wrapper(func: Callable[P, Awaitable[T]] | Callable[P, T]) -> 'FlowWrapper[P, Awaitable[T] | T, T, Never]':
+        def wrapper(func: Callable[P, Awaitable[T]] | Callable[P, T]) -> FlowWrapper[P, Awaitable[T] | T, T, Never]:
             return define_flow(self.registry, func, name, description)
 
         return wrapper
@@ -627,7 +623,7 @@ class Genkit:
         *,
         input_schema: type[InputT],
         output_schema: type[OutputT],
-    ) -> 'ExecutablePrompt[InputT, OutputT]': ...
+    ) -> ExecutablePrompt[InputT, OutputT]: ...
 
     # Overload 2: Only input_schema typed -> ExecutablePrompt[InputT, Any]
     @overload
@@ -655,7 +651,7 @@ class Genkit:
         docs: list[DocumentData] | Callable[..., Any] | None = None,
         *,
         input_schema: type[InputT],
-    ) -> 'ExecutablePrompt[InputT, Any]': ...
+    ) -> ExecutablePrompt[InputT, Any]: ...
 
     # Overload 3: Only output_schema typed -> ExecutablePrompt[Any, OutputT]
     @overload
@@ -683,7 +679,7 @@ class Genkit:
         docs: list[DocumentData] | Callable[..., Any] | None = None,
         *,
         output_schema: type[OutputT],
-    ) -> 'ExecutablePrompt[Any, OutputT]': ...
+    ) -> ExecutablePrompt[Any, OutputT]: ...
 
     # Overload 4: Neither typed -> ExecutablePrompt[Any, Any]
     @overload
@@ -710,7 +706,7 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable[..., Any] | None = None,
-    ) -> 'ExecutablePrompt[Any, Any]': ...
+    ) -> ExecutablePrompt[Any, Any]: ...
 
     def define_prompt(  # pyright: ignore[reportInconsistentOverload]
         self,
@@ -735,7 +731,7 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | Callable[..., Any] | None = None,
-    ) -> 'ExecutablePrompt[Any, Any]':
+    ) -> ExecutablePrompt[Any, Any]:
         """Define a prompt.
 
         Args:
@@ -862,7 +858,7 @@ class Genkit:
     def define_resource(
         self,
         *,
-        fn: 'ResourceFn',
+        fn: ResourceFn,
         name: str | None = None,
         uri: str | None = None,
         template: str | None = None,

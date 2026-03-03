@@ -66,22 +66,21 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.ai.model import Message
-from genkit.core.codec import dump_json
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
-from genkit.core.tracing import run_in_new_span
 from genkit.core._internal._typing import (
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Media,
     MediaPart,
     ModelInfo,
+    ModelRequest,
     Part,
     Role,
     SpanMetadata,
     TextPart,
 )
+from genkit.core.action import Action, ActionKind, ActionRunContext
+from genkit.core.codec import dump_json
+from genkit.core.tracing import run_in_new_span
 
 
 class ProgrammableModel:
@@ -477,14 +476,14 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
         │                                                                          │
         └─────────────────────────────────────────────────────────────────────────┘
 
-        Args:
+    Args:
             ai: The Genkit instance with models to test.
             models: List of model names to test (e.g., ['googleai/gemini-2.0-flash']).
 
-        Returns:
+    Returns:
             A TestReport containing results for each test case and model.
 
-        Example:
+    Example:
             ```python
             from genkit.ai import Genkit
     from genkit.ai.model import Message
@@ -512,13 +511,13 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
                         print(f'      Error: {model["error"]["message"]}')
             ```
 
-        Note:
+    Note:
             - Tests are automatically skipped if the model doesn't support
               the required capability (e.g., tools, media, multiturn).
             - A 'gablorkenTool' is automatically registered for tool calling tests.
             - The test uses a small base64-encoded test image for multimodal tests.
 
-        See Also:
+    See Also:
             - JS implementation: js/ai/src/testing/model-tester.ts
     """
 

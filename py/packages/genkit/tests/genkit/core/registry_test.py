@@ -12,9 +12,8 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit.ai import Genkit, Plugin
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
+from genkit.core.action import Action, ActionKind, ActionMetadata
 
 
 @pytest.mark.asyncio

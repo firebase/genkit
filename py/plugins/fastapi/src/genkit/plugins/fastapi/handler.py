@@ -23,8 +23,8 @@ from typing import Any
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 from genkit.ai import FlowWrapper, Genkit
-from genkit.core.codec import dump_dict, dump_json
 from genkit.core._internal._context import ContextProvider, RequestData
+from genkit.core.codec import dump_dict, dump_json
 from genkit.core.error import GenkitError, get_callable_json
 
 

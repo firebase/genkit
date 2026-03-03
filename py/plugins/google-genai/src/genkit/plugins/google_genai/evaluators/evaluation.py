@@ -72,10 +72,10 @@ from pydantic import BaseModel, ConfigDict
 
 from genkit.ai import GENKIT_CLIENT_HEADER
 from genkit.ai.evaluator import EvalFnResponse
-from genkit.core.action import Action
-from genkit.core.error import GenkitError
 from genkit.core._internal._http_client import get_cached_client
 from genkit.core._internal._typing import BaseDataPoint, Details, Score
+from genkit.core.action import Action
+from genkit.core.error import GenkitError
 
 if TYPE_CHECKING:
     from genkit.ai._registry import GenkitRegistry

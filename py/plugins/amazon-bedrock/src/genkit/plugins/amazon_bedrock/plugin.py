@@ -66,12 +66,13 @@ from typing import Any
 import aioboto3
 from botocore.config import Config
 
+from genkit import Embedding, EmbedRequest, EmbedResponse
 from genkit.ai import Plugin
 from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.ai.model import model_action_metadata
-from genkit.core.action import Action, ActionMetadata
 from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import ActionKind
+from genkit.core.action import Action, ActionMetadata
 from genkit.plugins.amazon_bedrock.models.model import BedrockModel
 from genkit.plugins.amazon_bedrock.models.model_info import (
     SUPPORTED_BEDROCK_MODELS,
@@ -97,7 +98,6 @@ from genkit.plugins.amazon_bedrock.typing import (
     TitanConfig,
     WriterConfig,
 )
-from genkit import Embedding, EmbedRequest, EmbedResponse
 
 # Regional prefixes for inference profiles (must match model.py)
 _INFERENCE_PROFILE_PREFIXES = ('us.', 'eu.', 'apac.')

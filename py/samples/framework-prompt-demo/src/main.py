@@ -72,8 +72,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from genkit.ai import ActionKind, Genkit
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._logging import get_logger
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

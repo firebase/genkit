@@ -8,10 +8,9 @@
 import pytest
 
 from genkit.ai.formats.array import ArrayFormat
-from genkit.ai.model import ModelResponseChunk, Message
-from genkit.core.error import GenkitError
+from genkit.ai.model import Message, ModelResponseChunk
 from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
-from genkit.ai.model import Message
+from genkit.core.error import GenkitError
 
 
 class TestArrayFormatStreaming:

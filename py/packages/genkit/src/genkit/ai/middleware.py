@@ -22,15 +22,15 @@ from genkit.ai.model import (
     ModelMiddlewareNext,
     text_from_content,
 )
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._typing import (
     DocumentData,
-    ModelRequest,
     GenerateResponse,
     Metadata,
+    ModelRequest,
     Part,
     TextPart,
 )
+from genkit.core.action import ActionRunContext
 
 CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 

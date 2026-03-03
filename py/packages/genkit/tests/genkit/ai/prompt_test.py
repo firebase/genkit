@@ -26,21 +26,21 @@ import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
-from genkit.ai.prompt import load_prompt_folder, lookup_prompt, prompt
-from genkit.core.action import ActionKind
 from genkit.ai.model import Message
+from genkit.ai.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core._internal._typing import (
     DocumentData,
     DocumentPart,
     GenerateActionOptions,
-    ModelRequest,
     GenerateResponse,
     ModelConfig,
+    ModelRequest,
     Part,
     Role,
     TextPart,
     ToolChoice,
 )
+from genkit.core.action import ActionKind
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,

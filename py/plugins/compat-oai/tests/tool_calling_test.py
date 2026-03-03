@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from genkit import GenerateResponseChunk, ModelRequest, TextPart, ToolRequestPart
 from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit import ModelRequest, GenerateResponseChunk, TextPart, ToolRequestPart
 
 
 @pytest.mark.asyncio

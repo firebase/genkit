@@ -21,8 +21,8 @@ from collections.abc import Callable
 from typing import Any, Generic, TypeVar
 
 from genkit.ai.model import (
-    ModelResponseChunk,
     Message,
+    ModelResponseChunk,
 )
 from genkit.core._internal._typing import (
     OutputConfig,

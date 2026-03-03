@@ -26,10 +26,9 @@ from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 
+from genkit._web.typing import ServerSpec
 from genkit.core._internal._constants import DEFAULT_GENKIT_VERSION
 from genkit.core._internal._logging import get_logger
-
-from genkit._web.typing import ServerSpec
 
 logger = get_logger(__name__)
 

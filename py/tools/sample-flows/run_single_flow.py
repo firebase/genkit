@@ -41,8 +41,8 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-from genkit.core.action import ActionKind
 from genkit import Media
+from genkit.core.action import ActionKind
 
 
 def format_output(

@@ -20,12 +20,12 @@ from typing import Any
 
 from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
 from genkit.ai.model import (
-    ModelResponseChunk,
     Message,
+    ModelResponseChunk,
 )
-from genkit.core.codec import dump_json
 from genkit.core._internal._compat import override
 from genkit.core._internal._extract import extract_json
+from genkit.core.codec import dump_json
 
 
 class JsonFormat(FormatDef):

@@ -22,8 +22,8 @@ from collections.abc import Callable
 from pydantic import BaseModel
 
 import ollama as ollama_api
-from genkit.ai.embedding import EmbedRequest, EmbedResponse
 from genkit import Embedding
+from genkit.ai.embedding import EmbedRequest, EmbedResponse
 
 
 class EmbeddingDefinition(BaseModel):

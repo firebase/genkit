@@ -20,17 +20,17 @@ from collections.abc import Awaitable, Callable
 
 from openai import AsyncOpenAI
 
+from genkit import (
+    GenerateResponse,
+    ModelInfo,
+    ModelRequest,
+)
 from genkit.ai import ActionRunContext
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
     PluginSource,
-)
-from genkit import (
-    ModelRequest,
-    GenerateResponse,
-    ModelInfo,
 )
 
 

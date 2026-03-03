@@ -92,10 +92,10 @@ from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
+from genkit import Document, RetrieverResponse
 from genkit.ai import Genkit
 from genkit.plugins.firebase import add_firebase_telemetry, define_firestore_vector_store
 from genkit.plugins.google_genai import VertexAI
-from genkit import Document, RetrieverResponse
 from samples.shared.logging import setup_sample
 
 setup_sample()

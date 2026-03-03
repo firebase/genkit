@@ -26,8 +26,8 @@ import pytest
 
 from genkit.ai import ActionRunContext, Genkit
 from genkit.ai.resource import ResourceInput
-from genkit.core.action import ActionKind
 from genkit.core._internal._typing import Part, TextPart
+from genkit.core.action import ActionKind
 
 
 @pytest.mark.asyncio

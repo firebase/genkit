@@ -125,8 +125,7 @@ See Also:
 
 import abc
 
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action import ActionKind
+from genkit.core.action import Action, ActionKind, ActionMetadata
 
 
 class Plugin(abc.ABC):

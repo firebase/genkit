@@ -30,21 +30,21 @@ from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from genkit.ai import ActionRunContext
-from genkit.core.codec import dump_dict, dump_json
-from genkit.core.tracing import tracer
 from genkit import (
-    ModelRequest,
     GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
+    ModelRequest,
     Part,
     Role,
     Supports,
     TextPart,
 )
+from genkit.ai import ActionRunContext
+from genkit.core.codec import dump_dict, dump_json
+from genkit.core.tracing import tracer
 
 
 class ImagenVersion(StrEnum):

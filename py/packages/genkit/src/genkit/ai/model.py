@@ -37,16 +37,12 @@ from typing import Any, Generic, cast
 from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
-from genkit.core.action import Action, ActionMetadata, ActionRunContext
-from genkit.core.action import ActionKind
-from genkit.core.codec import dump_dict
 from genkit.core._internal._extract import extract_json
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
     Candidate,
     DocumentPart,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationUsage,
@@ -55,10 +51,13 @@ from genkit.core._internal._typing import (
     MessageData,
     ModelConfig as CoreModelConfig,
     ModelInfo,
+    ModelRequest,
     Part,
     Text,
     ToolRequestPart,
 )
+from genkit.core.action import Action, ActionKind, ActionMetadata, ActionRunContext
+from genkit.core.codec import dump_dict
 
 # type ModelFn = Callable[[ModelRequest], GenerateResponse]
 ModelFn = Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse] | GenerateResponse]
@@ -128,6 +127,7 @@ class Message(MessageData):
         return super().__eq__(other)
 
     def __hash__(self) -> int:
+        """Return hash based on parent implementation."""
         return super().__hash__()
 
     @cached_property
@@ -242,6 +242,7 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
         return super().__eq__(other)
 
     def __hash__(self) -> int:
+        """Return hash based on parent implementation."""
         return super().__hash__()
 
     @cached_property
@@ -362,6 +363,7 @@ class ModelResponseChunk(GenerateResponseChunk):
         return super().__eq__(other)
 
     def __hash__(self) -> int:
+        """Return hash based on parent implementation."""
         return super().__hash__()
 
     @cached_property

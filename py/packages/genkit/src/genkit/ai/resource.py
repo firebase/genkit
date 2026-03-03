@@ -29,10 +29,9 @@ from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel
 
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import Metadata, Part
+from genkit.core.action import Action, ActionKind, ActionRunContext
 
 
 class ResourceOptions(TypedDict, total=False):

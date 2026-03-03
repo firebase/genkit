@@ -21,21 +21,21 @@ from genkit.ai.model import (
     text_from_content,
     text_from_message,
 )
-from genkit.core.codec import dump_dict, dump_json
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._typing import (
     DocumentData,
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     Metadata,
+    ModelRequest,
     Part,
     Role,
     TextPart,
 )
+from genkit.core.action import ActionRunContext
+from genkit.core.codec import dump_dict, dump_json
 from genkit.testing import (
     ProgrammableModel,
     define_echo_model,

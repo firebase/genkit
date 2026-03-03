@@ -25,21 +25,21 @@ import httpx
 import ollama as ollama_api
 import pytest
 
-from genkit.plugins.ollama.constants import OllamaAPITypes
-from genkit.plugins.ollama.models import ModelDefinition, OllamaModel, _convert_parameters
 from genkit import (
     ActionRunContext,
-    ModelRequest,
     GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelRequest,
     OutputConfig,
     Part,
     Role,
     TextPart,
 )
+from genkit.plugins.ollama.constants import OllamaAPITypes
+from genkit.plugins.ollama.models import ModelDefinition, OllamaModel, _convert_parameters
 
 
 class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):

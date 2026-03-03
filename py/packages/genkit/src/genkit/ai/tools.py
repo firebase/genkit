@@ -126,10 +126,9 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, NoReturn, ParamSpec, TypeVar, cast
 
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import Metadata, Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit.core.action import ActionKind, ActionRunContext
 
 P = ParamSpec('P')
 T = TypeVar('T')

@@ -60,8 +60,8 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.ai.model import GenerateResponseWrapper
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._context import RequestData
+from genkit.core.action import ActionRunContext
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion

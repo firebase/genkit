@@ -13,15 +13,12 @@ import pytest
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
+from genkit import TextPart
 from genkit.ai import Genkit
 from genkit.ai.retriever import SimpleRetrieverOptions
-from genkit.core.action import Action
+from genkit.core._internal._typing import DocumentData, DocumentPart, Operation, RetrieverRequest, RetrieverResponse
+from genkit.core.action import Action, ActionKind
 from genkit.core.action._action import _action_context
-from genkit.core.action import ActionKind
-from genkit.core._internal._typing import DocumentPart, Operation
-from genkit import TextPart
-from genkit.core._internal._typing import RetrieverRequest, RetrieverResponse
-from genkit.core._internal._typing import DocumentData
 
 
 @pytest.mark.asyncio

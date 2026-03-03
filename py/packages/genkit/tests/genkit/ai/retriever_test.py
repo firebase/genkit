@@ -35,8 +35,8 @@ from genkit.ai.retriever import (
     indexer_action_metadata,
     retriever_action_metadata,
 )
-from genkit.core.action import ActionMetadata
 from genkit.core._internal._schema import to_json_schema
+from genkit.core.action import ActionMetadata
 
 
 def test_retriever_action_metadata() -> None:

@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from google import genai
 
-from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit import Media, MediaPart, Part
+from genkit.plugins.google_genai.models.utils import PartConverter
 
 
 class TestIsGeminiNativeUrl:

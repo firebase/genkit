@@ -25,8 +25,8 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 
 from genkit.ai import Genkit
 from genkit.ai.retriever import RetrieverOptions, retriever_action_metadata
-from genkit.core.action import ActionKind
 from genkit.core._internal._typing import DocumentPart
+from genkit.core.action import ActionKind
 from genkit.plugins.firebase.retriever import FirestoreRetriever
 
 from .constant import MetadataTransformFn

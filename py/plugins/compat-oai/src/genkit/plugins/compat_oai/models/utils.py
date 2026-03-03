@@ -24,9 +24,9 @@ from collections.abc import Callable
 from typing import Any
 
 from genkit import (
-    ModelRequest,
     MediaPart,
     Message,
+    ModelRequest,
     Part,
     ReasoningPart,
     Role,

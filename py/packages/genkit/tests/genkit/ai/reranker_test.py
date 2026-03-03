@@ -24,6 +24,7 @@ from typing import Any, cast
 
 import pytest
 
+from genkit import Document
 from genkit.ai.reranker import (
     RankedDocument,
     RerankerInfo,
@@ -33,7 +34,6 @@ from genkit.ai.reranker import (
     rerank,
     reranker_action_metadata,
 )
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import (
     DocumentData,
@@ -43,7 +43,7 @@ from genkit.core._internal._typing import (
     RerankerResponse,
     TextPart,
 )
-from genkit import Document
+from genkit.core.action import ActionKind
 
 
 class TestRankedDocument:

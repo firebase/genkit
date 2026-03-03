@@ -150,30 +150,15 @@ from google.genai import types as genai_types
 from google.genai.errors import ClientError
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
-from genkit.ai import (
-    ActionRunContext,
-)
-from genkit.ai.model import get_basic_usage_stats
-from genkit.core.codec import dump_dict, dump_json
-from genkit.core.error import GenkitError, StatusName
-from genkit.core.tracing import tracer
-from genkit.core._internal._typing import (
-    Candidate,
-    FinishReason,
-)
-from genkit.core._internal._deprecations import (
-    deprecated_enum_metafactory,
-)
-from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit import (
     Constrained,
-    ModelRequest,
     GenerateResponse,
     GenerateResponseChunk,
     GenerationCommonConfig,
     GenerationUsage,
     Message,
     ModelInfo,
+    ModelRequest,
     Part,
     Role,
     Stage,
@@ -181,6 +166,21 @@ from genkit import (
     TextPart,
     ToolDefinition,
 )
+from genkit.ai import (
+    ActionRunContext,
+)
+from genkit.ai.model import get_basic_usage_stats
+from genkit.core._internal._deprecations import (
+    deprecated_enum_metafactory,
+)
+from genkit.core._internal._typing import (
+    Candidate,
+    FinishReason,
+)
+from genkit.core.codec import dump_dict, dump_json
+from genkit.core.error import GenkitError, StatusName
+from genkit.core.tracing import tracer
+from genkit.plugins.google_genai.models.utils import PartConverter
 
 
 class HarmCategory(StrEnum):

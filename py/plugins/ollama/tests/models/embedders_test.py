@@ -21,8 +21,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import ollama as ollama_api
 
-from genkit.core._internal._typing import DocumentPart
-from genkit.plugins.ollama.embedders import EmbeddingDefinition, OllamaEmbedder
 from genkit import (
     Document,
     Embedding,
@@ -30,6 +28,8 @@ from genkit import (
     EmbedResponse,
     TextPart,
 )
+from genkit.core._internal._typing import DocumentPart
+from genkit.plugins.ollama.embedders import EmbeddingDefinition, OllamaEmbedder
 
 
 class TestOllamaEmbedderEmbed(unittest.IsolatedAsyncioTestCase):

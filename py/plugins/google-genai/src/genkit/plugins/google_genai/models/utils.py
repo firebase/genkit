@@ -52,8 +52,6 @@ from urllib.parse import urlparse
 
 from google import genai
 
-from genkit.core._internal._http_client import get_cached_client
-from genkit.core._internal._typing import DocumentPart, Metadata
 from genkit import (
     CustomPart,
     Media,
@@ -66,6 +64,8 @@ from genkit import (
     ToolResponse,
     ToolResponsePart,
 )
+from genkit.core._internal._http_client import get_cached_client
+from genkit.core._internal._typing import DocumentPart, Metadata
 
 
 class PartConverter:

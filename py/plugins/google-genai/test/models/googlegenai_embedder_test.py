@@ -20,14 +20,14 @@ import pytest
 from google import genai
 from pytest_mock import MockerFixture
 
+from genkit import (
+    EmbedRequest,
+    EmbedResponse,
+)
 from genkit.ai import Document
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
-)
-from genkit import (
-    EmbedRequest,
-    EmbedResponse,
 )
 
 

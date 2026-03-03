@@ -39,8 +39,8 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from genkit.core.action import ActionKind
 from genkit import Media
+from genkit.core.action import ActionKind
 
 logging.getLogger().setLevel(logging.ERROR)
 logging.getLogger('asyncio').setLevel(logging.ERROR)

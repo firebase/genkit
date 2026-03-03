@@ -100,10 +100,10 @@ import pathlib
 import httpx
 from pydantic import BaseModel, Field
 
+from genkit import GenerationCommonConfig, Message, Part, Role, TextPart
 from genkit.ai import Genkit
 from genkit.core._internal._logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
-from genkit import GenerationCommonConfig, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()

@@ -31,10 +31,9 @@ from genkit.ai.embedding import (
     create_embedder_ref,
     embedder_action_metadata,
 )
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action import ActionResponse
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import Embedding, EmbedRequest, EmbedResponse
+from genkit.core.action import Action, ActionMetadata, ActionResponse
 
 
 def test_embedder_action_metadata() -> None:

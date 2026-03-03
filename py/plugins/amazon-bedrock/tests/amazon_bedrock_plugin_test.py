@@ -30,6 +30,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from genkit import GenerateResponseChunk, Message, ModelRequest, Part, Role, TextPart, ToolRequest
 from genkit.core.action import ActionRunContext
 from genkit.plugins.amazon_bedrock import (
     AMAZON_BEDROCK_PLUGIN_NAME,
@@ -68,7 +69,6 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
-from genkit import ModelRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:

@@ -27,10 +27,9 @@ from typing import Any, Generic, ParamSpec, cast
 
 from typing_extensions import Never, TypeVar
 
-from genkit.core.action import Action, ActionResponse
-from genkit.core.action import ActionKind
 from genkit.core._internal._aio import run_loop
 from genkit.core._internal._registry import Registry
+from genkit.core.action import Action, ActionKind, ActionResponse
 
 P = ParamSpec('P')
 T = TypeVar('T')

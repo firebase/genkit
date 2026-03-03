@@ -87,12 +87,12 @@ import os
 
 from pydantic import BaseModel, Field
 
+from genkit import GenerateResponse, Message, ModelRequest, Part, Role, TextPart
 from genkit.ai import Genkit
 from genkit.ai.model import ModelMiddlewareNext
-from genkit.core.action import ActionRunContext
 from genkit.core._internal._logging import get_logger
+from genkit.core.action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
-from genkit import ModelRequest, GenerateResponse, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()

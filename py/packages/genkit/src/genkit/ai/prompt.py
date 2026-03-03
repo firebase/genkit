@@ -141,7 +141,6 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
-from genkit.core._internal._aio import Channel, ensure_async
 from genkit.ai.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -149,14 +148,11 @@ from genkit.ai.generate import (
 )
 from genkit.ai.model import (
     Message,
-    Message,
+    ModelMiddleware,
     ModelResponse,
     ModelResponseChunk,
-    ModelMiddleware,
 )
-from genkit.core.action import Action, ActionRunContext, create_action_key
-from genkit.core.action import ActionKind
-from genkit.core.error import GenkitError
+from genkit.core._internal._aio import Channel, ensure_async
 from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
@@ -164,8 +160,8 @@ from genkit.core._internal._typing import (
     DocumentData,
     GenerateActionOptions,
     GenerateActionOutputConfig,
-    ModelRequest,
     ModelConfig,
+    ModelRequest,
     OutputConfig,
     Part,
     Resume,
@@ -175,6 +171,8 @@ from genkit.core._internal._typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.core.action import Action, ActionKind, ActionRunContext, create_action_key
+from genkit.core.error import GenkitError
 
 logger = get_logger(__name__)
 

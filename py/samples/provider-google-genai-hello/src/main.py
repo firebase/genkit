@@ -131,14 +131,6 @@ import pathlib
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, Output, ToolRunContext, tool_response
-from genkit.core.action import ActionRunContext
-from genkit.core._internal._logging import get_logger
-from genkit.plugins.google_cloud import add_gcp_telemetry
-from genkit.plugins.google_genai import (
-    EmbeddingTaskType,
-    GoogleAI,
-)
 from genkit import (
     GenerationCommonConfig,
     Media,
@@ -147,6 +139,14 @@ from genkit import (
     Part,
     Role,
     TextPart,
+)
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
+from genkit.core._internal._logging import get_logger
+from genkit.core.action import ActionRunContext
+from genkit.plugins.google_cloud import add_gcp_telemetry
+from genkit.plugins.google_genai import (
+    EmbeddingTaskType,
+    GoogleAI,
 )
 from samples.shared import (
     CharacterInput,

@@ -126,17 +126,16 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from genkit.core.codec import dump_dict
-from genkit.core.action import Action, ActionRunContext
-from genkit.core.action import ActionKind
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
-    ModelRequest,
     GenerateResponse,
     ModelInfo,
+    ModelRequest,
     Operation,
 )
+from genkit.core.action import Action, ActionKind, ActionRunContext
+from genkit.core.codec import dump_dict
 
 # Type variable for operation output
 OutputT = TypeVar('OutputT')

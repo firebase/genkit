@@ -77,10 +77,10 @@ import os
 import httpx
 from pydantic import BaseModel, Field
 
+from genkit import Media, MediaPart, Message, Part, Role, TextPart
 from genkit.ai import ActionRunContext, Genkit, Output
 from genkit.core._internal._logging import get_logger
 from genkit.plugins.compat_oai import OpenAI, openai_model
-from genkit import Media, MediaPart, Message, Part, Role, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,
