@@ -292,11 +292,12 @@ func (g *generator) buildPayload(input *ai.ModelRequest, stream bool) (any, erro
 		}
 
 		if format != "" {
-			if isChatModel {
-				payload.(*ollamaChatRequest).Format = format
-			} else {
-				payload.(*ollamaModelRequest).Format = format
-			}
+			switch p := payload.(type) {
+            case *ollamaChatRequest:
+                p.Format = format
+            case *ollamaModelRequest:
+                p.Format = format
+            }
 		}
 	}
 

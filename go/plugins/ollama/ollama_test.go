@@ -20,6 +20,7 @@ package ollama
 import (
     "encoding/json"
     "fmt"
+    "reflect"
     "strings"
     "testing"
 
@@ -248,9 +249,22 @@ func TestSchemaDetectionAndSerialization(t *testing.T) {
 			}
 
 			if tt.wantFormatSet {
-				if gotFormat != tt.wantFormat {
-					t.Errorf("Format = %q, want %q", gotFormat, tt.wantFormat)
-				}
+				if tt.wantFormat == "json" {
+                    if gotFormat != "json" {
+                        t.Errorf("Format = %q, want %q", gotFormat, "json")
+                    }
+                } else {
+                    var want, got map[string]any
+                    if err := json.Unmarshal([]byte(tt.wantFormat), &want); err != nil {
+                        t.Fatalf("invalid wantFormat in test case: %v", err)
+                    }
+                    if err := json.Unmarshal([]byte(gotFormat), &got); err != nil {
+                        t.Fatalf("gotFormat is not valid JSON: %v", err)
+                    }
+                    if !reflect.DeepEqual(want, got) {
+                        t.Errorf("Format mismatch.\ngot:  %v\nwant: %v", got, want)
+                    }
+                }
 			} else {
 				if gotFormat != "" {
 					t.Errorf("Format should be empty, got %q", gotFormat)
