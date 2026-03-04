@@ -280,7 +280,7 @@ func (g *generator) buildPayload(input *ai.ModelRequest, stream bool) (any, erro
 
 	// Handle structured output via Ollama's format parameter.
 	if input.Output != nil {
-                var format string
+		var format string
 		if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
 			schemaJSON, err := json.Marshal(input.Output.Schema)
 			if err != nil {
