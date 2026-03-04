@@ -280,22 +280,22 @@ func (g *generator) buildPayload(input *ai.ModelRequest, stream bool) (any, erro
 
 	// Handle structured output via Ollama's format parameter.
 	if input.Output != nil {
+                var format string
 		if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
 			schemaJSON, err := json.Marshal(input.Output.Schema)
 			if err != nil {
 				return nil, fmt.Errorf("failed to serialize output schema: %v", err)
 			}
-
-			if isChatModel {
-				payload.(*ollamaChatRequest).Format = string(schemaJSON)
-			} else {
-				payload.(*ollamaModelRequest).Format = string(schemaJSON)
-			}
+			format = string(schemaJSON)
 		} else if input.Output.Format == "json" {
+			format = "json"
+		}
+
+		if format != "" {
 			if isChatModel {
-				payload.(*ollamaChatRequest).Format = "json"
+				payload.(*ollamaChatRequest).Format = format
 			} else {
-				payload.(*ollamaModelRequest).Format = "json"
+				payload.(*ollamaModelRequest).Format = format
 			}
 		}
 	}
