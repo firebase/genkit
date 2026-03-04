@@ -591,7 +591,7 @@ func TestIntegration_ErrorScenarios(t *testing.T) {
 		
 		// Verify error message contains useful information
 		errMsg := err.Error()
-		if !contains(errMsg, "server returned non-200 status") && !contains(errMsg, "failed") {
+		if !strings.Contains(errMsg, "server returned non-200 status") && !strings.Contains(errMsg, "failed") {
 			t.Errorf("Error message doesn't contain expected information: %s", errMsg)
 		}
 		
