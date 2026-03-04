@@ -16,11 +16,12 @@
 
 package ollama
 
+
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-	"testing"
+    "encoding/json"
+    "fmt"
+    "strings"
+    "testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
