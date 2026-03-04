@@ -214,7 +214,6 @@ func TestSchemaDetectionAndSerialization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a minimal model request
 			input := &ai.ModelRequest{
 				Messages: []*ai.Message{
 					{
@@ -225,65 +224,26 @@ func TestSchemaDetectionAndSerialization(t *testing.T) {
 				Output: tt.output,
 			}
 
-			// Create payload based on model type
-			var payload any
+			modelType := "generate"
 			if tt.isChatModel {
-				chatReq := ollamaChatRequest{
-					Messages: []*ollamaMessage{
-						{
-							Role:    "user",
-							Content: "Test message",
-						},
-					},
-					Model:  "test-model",
-					Stream: false,
-				}
-				payload = chatReq
-			} else {
-				modelReq := ollamaModelRequest{
-					Model:  "test-model",
-					Prompt: "Test message",
-					Stream: false,
-				}
-				payload = modelReq
+				modelType = "chat"
+			}
+			gen := &generator{
+				model:         ModelDefinition{Name: "test-model", Type: modelType},
+				serverAddress: "http://localhost:11434",
+				timeout:       30,
 			}
 
-			// Apply the schema detection and serialization logic
-			if input.Output != nil {
-				if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
-					schemaJSON, err := json.Marshal(input.Output.Schema)
-					if err != nil {
-						t.Fatalf("failed to serialize schema: %v", err)
-					}
-
-					if tt.isChatModel {
-						chatReq := payload.(ollamaChatRequest)
-						chatReq.Format = string(schemaJSON)
-						payload = chatReq
-					} else {
-						modelReq := payload.(ollamaModelRequest)
-						modelReq.Format = string(schemaJSON)
-						payload = modelReq
-					}
-				} else if input.Output.Format == "json" {
-					if tt.isChatModel {
-						chatReq := payload.(ollamaChatRequest)
-						chatReq.Format = "json"
-						payload = chatReq
-					} else {
-						modelReq := payload.(ollamaModelRequest)
-						modelReq.Format = "json"
-						payload = modelReq
-					}
-				}
+			payload, err := gen.buildPayload(input, false)
+			if err != nil {
+				t.Fatalf("buildPayload() error = %v", err)
 			}
 
-			// Verify the format field
 			var gotFormat string
 			if tt.isChatModel {
-				gotFormat = payload.(ollamaChatRequest).Format
+				gotFormat = payload.(*ollamaChatRequest).Format
 			} else {
-				gotFormat = payload.(ollamaModelRequest).Format
+				gotFormat = payload.(*ollamaModelRequest).Format
 			}
 
 			if tt.wantFormatSet {
@@ -866,7 +826,6 @@ func TestStreamingFormatParameterInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a minimal model request
 			input := &ai.ModelRequest{
 				Messages: []*ai.Message{
 					{
@@ -877,76 +836,35 @@ func TestStreamingFormatParameterInclusion(t *testing.T) {
 				Output: tt.output,
 			}
 
-			// Create payload based on model type
-			var payload any
+			modelType := "generate"
 			if tt.isChatModel {
-				chatReq := ollamaChatRequest{
-					Messages: []*ollamaMessage{
-						{
-							Role:    "user",
-							Content: "Test message",
-						},
-					},
-					Model:  "test-model",
-					Stream: tt.isStreaming,
-				}
-				payload = chatReq
-			} else {
-				modelReq := ollamaModelRequest{
-					Model:  "test-model",
-					Prompt: "Test message",
-					Stream: tt.isStreaming,
-				}
-				payload = modelReq
+				modelType = "chat"
+			}
+			gen := &generator{
+				model:         ModelDefinition{Name: "test-model", Type: modelType},
+				serverAddress: "http://localhost:11434",
+				timeout:       30,
 			}
 
-			// Apply the schema detection and serialization logic (same as in generate())
-			if input.Output != nil {
-				if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
-					schemaJSON, err := json.Marshal(input.Output.Schema)
-					if err != nil {
-						t.Fatalf("failed to serialize schema: %v", err)
-					}
-
-					if tt.isChatModel {
-						chatReq := payload.(ollamaChatRequest)
-						chatReq.Format = string(schemaJSON)
-						payload = chatReq
-					} else {
-						modelReq := payload.(ollamaModelRequest)
-						modelReq.Format = string(schemaJSON)
-						payload = modelReq
-					}
-				} else if input.Output.Format == "json" {
-					if tt.isChatModel {
-						chatReq := payload.(ollamaChatRequest)
-						chatReq.Format = "json"
-						payload = chatReq
-					} else {
-						modelReq := payload.(ollamaModelRequest)
-						modelReq.Format = "json"
-						payload = modelReq
-					}
-				}
+			payload, err := gen.buildPayload(input, tt.isStreaming)
+			if err != nil {
+				t.Fatalf("buildPayload() error = %v", err)
 			}
 
-			// Verify the format field
 			var gotFormat string
 			var gotStream bool
 			if tt.isChatModel {
-				gotFormat = payload.(ollamaChatRequest).Format
-				gotStream = payload.(ollamaChatRequest).Stream
+				gotFormat = payload.(*ollamaChatRequest).Format
+				gotStream = payload.(*ollamaChatRequest).Stream
 			} else {
-				gotFormat = payload.(ollamaModelRequest).Format
-				gotStream = payload.(ollamaModelRequest).Stream
+				gotFormat = payload.(*ollamaModelRequest).Format
+				gotStream = payload.(*ollamaModelRequest).Stream
 			}
 
-			// Verify streaming flag is set correctly
 			if gotStream != tt.isStreaming {
 				t.Errorf("Stream flag = %v, want %v", gotStream, tt.isStreaming)
 			}
 
-			// Verify format parameter
 			if tt.wantFormatSet {
 				if gotFormat != tt.wantFormat {
 					t.Errorf("Format = %q, want %q", gotFormat, tt.wantFormat)

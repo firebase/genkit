@@ -226,9 +226,8 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 	return []api.Action{}
 }
 
-// Generate makes a request to the Ollama API and processes the response.
-func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-	stream := cb != nil
+// buildPayload creates the request payload for Ollama API.
+func (g *generator) buildPayload(input *ai.ModelRequest, stream bool) (any, error) {
 	var payload any
 	isChatModel := g.model.Type == "chat"
 
@@ -280,40 +279,38 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	}
 
 	// Handle structured output via Ollama's format parameter.
-	// Ollama supports structured outputs through the "format" field in API requests,
-	// which can accept either a JSON schema object or the string "json" for generic JSON output.
-	// See: https://docs.ollama.com/capabilities/structured-outputs
 	if input.Output != nil {
-		// Schema-based structured output: When a schema is provided, serialize it to JSON
-		// and pass it to Ollama's format parameter. This constrains the model's response
-		// to match the specified JSON schema structure.
 		if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
-			// Serialize the schema map to a JSON string for the Ollama API
 			schemaJSON, err := json.Marshal(input.Output.Schema)
 			if err != nil {
-				// Return error before making HTTP request if schema serialization fails
 				return nil, fmt.Errorf("failed to serialize output schema: %v", err)
 			}
 
-			// Set the format field on the appropriate request type (chat or generate endpoint)
 			if isChatModel {
 				payload.(*ollamaChatRequest).Format = string(schemaJSON)
 			} else {
 				payload.(*ollamaModelRequest).Format = string(schemaJSON)
 			}
 		} else if input.Output.Format == "json" {
-			// Schema-less JSON mode: Request generic JSON output without schema constraints
-			// by setting format to the string "json". The model will return valid JSON
-			// but is not constrained to any specific structure.
 			if isChatModel {
 				payload.(*ollamaChatRequest).Format = "json"
 			} else {
 				payload.(*ollamaModelRequest).Format = "json"
 			}
 		}
-		// If Output is set but neither Schema nor Format=="json", format parameter is omitted
-		// and the model returns unstructured text output (backward compatible behavior)
 	}
+
+	return payload, nil
+}
+
+// Generate makes a request to the Ollama API and processes the response.
+func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	stream := cb != nil
+	payload, err := g.buildPayload(input, stream)
+	if err != nil {
+		return nil, err
+	}
+	isChatModel := g.model.Type == "chat"
 
 	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
