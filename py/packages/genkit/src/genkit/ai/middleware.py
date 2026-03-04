@@ -16,6 +16,7 @@
 
 """Middleware for the Genkit framework."""
 
+from genkit.ai.document import Document
 from genkit.ai.model import (
     Message,
     ModelMiddleware,
@@ -23,7 +24,6 @@ from genkit.ai.model import (
     text_from_content,
 )
 from genkit.core._internal._typing import (
-    DocumentData,
     GenerateResponse,
     Metadata,
     ModelRequest,
@@ -35,7 +35,7 @@ from genkit.core.action import ActionRunContext
 CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 
 
-def context_item_template(d: DocumentData, index: int) -> str:
+def context_item_template(d: Document, index: int) -> str:
     """Renders a DocumentData object into a formatted string for context injection.
 
     Creates a string representation of the document, typically for inclusion in a
@@ -43,7 +43,7 @@ def context_item_template(d: DocumentData, index: int) -> str:
     as a citation marker.
 
     Args:
-        d: The DocumentData object to render.
+        d: The Document object to render.
         index: The index of the document in a list, used as a fallback citation.
 
     Returns:
@@ -111,7 +111,7 @@ def augment_with_context() -> ModelMiddleware:
 
         out = CONTEXT_PREFACE
         for i, doc_data in enumerate(req.docs):
-            doc = DocumentData(content=doc_data.content, metadata=doc_data.metadata)
+            doc = Document(content=doc_data.content, metadata=doc_data.metadata)
             out += context_item_template(doc, i)
         out += '\n'
 

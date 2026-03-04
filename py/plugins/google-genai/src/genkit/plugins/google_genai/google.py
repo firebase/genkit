@@ -103,24 +103,17 @@ from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
-from genkit.ai.document import Document
 from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.ai.model import model_action_metadata
-from genkit.ai.reranker import reranker_action_metadata
 from genkit.core._internal._background import BackgroundAction
 from genkit.core._internal._registry import ActionKind
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
     EvalFnResponse,
     EvalRequest,
-    RankedDocumentData,
-    RankedDocumentMetadata,
-    RerankerRequest,
-    RerankerResponse,
 )
 from genkit.core._loop_local import _loop_local_client
 from genkit.core.action import Action, ActionMetadata
-from genkit.core.error import GenkitError
 from genkit.plugins.google_genai.evaluators import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
@@ -146,15 +139,6 @@ from genkit.plugins.google_genai.models.veo import (
     VeoModel,
     is_veo_model,
     veo_model_info,
-)
-from genkit.plugins.google_genai.rerankers.reranker import (
-    KNOWN_MODELS as RERANKER_MODELS,
-    RerankRequest,
-    VertexRerankerClientOptions,
-    VertexRerankerConfig,
-    _from_rerank_response,
-    _to_reranker_doc,
-    reranker_rank,
 )
 
 
@@ -797,10 +781,6 @@ class VertexAI(Plugin):
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(vertexai_name(name)))
 
-        # Register Vertex AI rerankers
-        for name in RERANKER_MODELS:
-            actions.append(self._resolve_reranker(vertexai_name(name)))
-
         # Register Vertex AI evaluators
         # Deferred import to avoid circular dependency
         from genkit.ai._registry import GenkitRegistry
@@ -951,84 +931,6 @@ class VertexAI(Plugin):
             Action object for the embedder.
         """
         return _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
-
-    def _resolve_reranker(self, name: str) -> Action:
-        """Create an Action object for a Vertex AI reranker.
-
-        Args:
-            name: The namespaced name of the reranker.
-
-        Returns:
-            Action object for the reranker.
-        """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-
-        # Validate project is configured (required for reranker API)
-        if not self._project:
-            raise ValueError(
-                'VertexAI plugin requires a project ID to use rerankers. '
-                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
-            )
-
-        # Use project and location stored on the plugin instance during init.
-        # This avoids accessing private attributes of the client library.
-        client_options = VertexRerankerClientOptions(
-            project_id=self._project,
-            location=self._location,
-        )
-
-        async def wrapper(
-            request: RerankerRequest,
-            _ctx: Any,  # noqa: ANN401
-        ) -> RerankerResponse:
-            """Wrapper that takes RerankerRequest and returns RerankerResponse.
-
-            This matches the signature expected by the Action class (max 2 args).
-            """
-            query_doc = Document.from_document_data(request.query)
-            documents = [Document.from_document_data(d) for d in request.documents]
-            options = request.options
-
-            config = VertexRerankerConfig.model_validate(options or {})
-
-            # Use location from config if provided, otherwise use client default
-            effective_options = VertexRerankerClientOptions(
-                project_id=client_options.project_id,
-                location=config.location or client_options.location,
-            )
-
-            query_text = query_doc.text()
-            if not query_text:
-                raise GenkitError(message='Reranker query cannot be empty.')
-
-            rerank_request = RerankRequest(
-                model=clean_name,
-                query=query_text,
-                records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
-                top_n=config.top_n,
-                ignore_record_details_in_response=config.ignore_record_details_in_response,
-            )
-
-            response = await reranker_rank(clean_name, rerank_request, effective_options)
-            ranked_docs = _from_rerank_response(response, documents)
-
-            # Convert to RerankerResponse format - ranked_docs are RankedDocument instances
-            response_docs: list[RankedDocumentData] = []
-            for doc in ranked_docs:
-                metadata = RankedDocumentMetadata(score=doc.score if doc.score is not None else 0.0)
-                response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
-
-            return RerankerResponse(documents=response_docs)
-
-        metadata = reranker_action_metadata(name)
-
-        return Action(
-            kind=ActionKind.RERANKER,
-            name=name,
-            fn=wrapper,
-            metadata=metadata.metadata,
-        )
 
     async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.

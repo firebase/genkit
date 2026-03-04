@@ -21,9 +21,7 @@ dependencies = [
   "genkit",
   "genkit-plugin-anthropic",
   "genkit-plugin-compat-oai",
-  "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-fastapi",
-  "genkit-plugin-firebase",
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
@@ -142,7 +140,6 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-dev-local-vectorstore-hello                = { workspace = true }
 framework-context-demo                     = { workspace = true }
 framework-custom-evaluators                = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
@@ -179,9 +176,7 @@ genkit = { workspace = true }
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
-genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-fastapi               = { workspace = true }
-genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
@@ -388,8 +383,6 @@ root = [
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
   "plugins/compat-oai/src",
-  "plugins/dev-local-vectorstore/src",
-  "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
@@ -426,9 +419,7 @@ extraPaths = [
   "plugins/amazon-bedrock/src",
   "plugins/anthropic/src",
   "plugins/compat-oai/src",
-  "plugins/dev-local-vectorstore/src",
   "plugins/fastapi/src",
-  "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",

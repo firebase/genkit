@@ -97,7 +97,7 @@ from pydantic.alias_generators import to_camel
 from genkit.ai.document import Document
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
-from genkit.core._internal._typing import DocumentData, EmbedRequest, EmbedResponse
+from genkit.core._internal._typing import EmbedRequest, EmbedResponse
 from genkit.core.action import Action, ActionKind, ActionMetadata
 
 
@@ -158,10 +158,8 @@ class Embedder:
         Returns:
             The generated embedding response.
         """
-        # NOTE: Document subclasses DocumentData, so this is type-safe at runtime.
-        # NOTE: Document subclasses DocumentData, so this is type-safe at runtime.
         return (
-            await self._action.run(EmbedRequest(input=cast(list['DocumentData'], documents), options=options))
+            await self._action.run(EmbedRequest(input=documents, options=options))  # type: ignore[arg-type]
         ).response
 
 

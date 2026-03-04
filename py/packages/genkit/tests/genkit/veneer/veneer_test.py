@@ -31,7 +31,6 @@ from genkit.core._internal._typing import (
     ModelRequest,
     OutputConfig,
     Part,
-    RetrieverResponse,
     Role,
     Score,
     Supports,
@@ -1449,65 +1448,6 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
             'multiturn': True,
             'tools': True,
         },
-    }
-
-
-def test_define_retriever_default_metadata(setup_test: SetupFixture) -> None:
-    """Test that the define retriever function works."""
-    ai, _, _, *_ = setup_test
-
-    async def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
-        return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
-
-    action = ai.define_retriever(
-        name='fooRetriever',
-        fn=my_retriever,
-    )
-
-    assert action.metadata['retriever'] == {
-        'label': 'fooRetriever',
-    }
-
-
-def test_define_retriever_with_schema(setup_test: SetupFixture) -> None:
-    """Test that the define retriever function with schema works."""
-    ai, _, _, *_ = setup_test
-
-    class Config(BaseModel):
-        field_a: str = Field(description='a field')
-        field_b: str = Field(description='b field')
-
-    async def my_retriever(doc: Document, config: dict[str, Any] | None = None) -> RetrieverResponse:
-        return RetrieverResponse(documents=[Document.from_text('Hello'), Document.from_text('World')])
-
-    action = ai.define_retriever(
-        name='fooRetriever',
-        fn=my_retriever,
-        config_schema=Config,
-    )
-
-    assert action.metadata['retriever'] == {
-        'customOptions': {
-            'properties': {
-                'field_a': {
-                    'description': 'a field',
-                    'title': 'Field A',
-                    'type': 'string',
-                },
-                'field_b': {
-                    'description': 'b field',
-                    'title': 'Field B',
-                    'type': 'string',
-                },
-            },
-            'required': [
-                'field_a',
-                'field_b',
-            ],
-            'title': 'Config',
-            'type': 'object',
-        },
-        'label': 'fooRetriever',
     }
 
 

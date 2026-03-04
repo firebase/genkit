@@ -20,7 +20,6 @@
 import os
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vectorstore import define_dev_local_vector_store
 from genkit.plugins.google_genai import GoogleAI
 
 if 'GEMINI_API_KEY' not in os.environ:
@@ -33,10 +32,3 @@ if 'GEMINI_API_KEY' not in os.environ:
 
 
 ai = Genkit(plugins=[GoogleAI()])
-
-# Define dev local vector store
-define_dev_local_vector_store(
-    ai,
-    name='menu-items',
-    embedder='googleai/gemini-embedding-001',
-)

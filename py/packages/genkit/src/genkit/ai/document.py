@@ -22,14 +22,12 @@ Genkit.
 
 from __future__ import annotations
 
-import warnings
 from copy import deepcopy
 from typing import Any
 
 from genkit.core._internal._typing import (
     DocumentData,
     DocumentPart,
-    Embedding,
     Media,
     MediaPart,
     TextPart,
@@ -197,56 +195,3 @@ class Document(DocumentData):
             return self.media()[0].content_type
 
         return None
-
-    def get_embedding_documents(self, embeddings: list[Embedding]) -> list[Document]:
-        """Creates multiple Document instances from a single document and its embeddings.
-
-        Since embedders can return multiple embeddings for one input document,
-        but storage often requires a 1:1 document-to-embedding relationship,
-        this method duplicates the original document for each embedding.
-        Embedding metadata is added to the corresponding document's metadata
-        under the 'embedMetadata' key.
-
-        Args:
-            embeddings: A list of Embedding objects generated for this document.
-
-        Returns:
-            A list of Document objects, one for each provided embedding.
-        """
-        documents = []
-        for embedding in embeddings:
-            content = deepcopy(self.content)
-            metadata = deepcopy(self.metadata)
-            if embedding.metadata:
-                if not metadata:
-                    metadata = {}
-                metadata['embedMetadata'] = embedding.metadata
-            documents.append(Document(content=content, metadata=metadata))
-        _ = check_unique_documents(documents)
-        return documents
-
-
-def check_unique_documents(documents: list[Document]) -> bool:
-    """Checks if a list of documents contains duplicates based on their JSON representation.
-
-    Prints a warning if duplicates are found, as this can cause issues with
-    vector storage systems that key documents by their content hash.
-    Duplicate documents might arise if embeddings are generated without unique
-    metadata for different parts or aspects of the same original document.
-
-    Args:
-        documents: A list of Document objects to check.
-
-    Returns:
-        True if all documents are unique, False otherwise (primarily for testing).
-    """
-    seen = set()
-    for doc in documents:
-        if doc.model_dump_json() in seen:
-            warnings.warn(
-                'Embedding documents are not unique. Are you missing embed metadata?',
-                stacklevel=2,
-            )
-            return False
-        seen.add(doc.model_dump_json())
-    return True

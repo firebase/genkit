@@ -21,10 +21,10 @@ import asyncio
 
 import pytest
 
+from genkit.ai.document import Document
 from genkit.ai.middleware import augment_with_context
 from genkit.ai.model import Message
 from genkit.core._internal._typing import (
-    DocumentData,
     DocumentPart,
     GenerateResponse,
     Metadata,
@@ -72,8 +72,8 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
         docs=[
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -98,8 +98,8 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
             )
         ],
         docs=[
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 2'))]),
         ],
     )
 
@@ -123,7 +123,7 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
             ),
         ],
         docs=[
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -151,7 +151,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
             ),
         ],
         docs=[
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )
 
@@ -175,6 +175,6 @@ async def test_augment_with_context_with_purpose_part() -> None:
             )
         ],
         docs=[
-            DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
+            Document(content=[DocumentPart(root=TextPart(text='doc content 1'))]),
         ],
     )

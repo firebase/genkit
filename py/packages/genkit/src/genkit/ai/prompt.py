@@ -141,6 +141,7 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
+from genkit.ai.document import Document
 from genkit.ai.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -157,7 +158,6 @@ from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._schema import to_json_schema
 from genkit.core._internal._typing import (
-    DocumentData,
     GenerateActionOptions,
     GenerateActionOutputConfig,
     ModelConfig,
@@ -394,7 +394,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     model: str | None
     config: dict[str, Any] | ModelConfig | None
     messages: list[Message] | None
-    docs: list[DocumentData] | None
+    docs: list[Document] | None
     tools: list[str] | None
     resources: list[str] | None
     tool_choice: ToolChoice | None
@@ -569,7 +569,7 @@ class PromptConfig(BaseModel):
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
-    docs: list[DocumentData] | Callable[..., Any] | None = None
+    docs: list[Document] | Callable[..., Any] | None = None
     tool_responses: list[Part] | None = None
     resources: list[str] | None = None
 
@@ -692,7 +692,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
         resources: list[str] | None = None,
         _name: str | None = None,  # prompt name for action lookup
         _ns: str | None = None,  # namespace for action lookup
@@ -746,7 +746,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         self._tools: list[str] | None = tools
         self._tool_choice: ToolChoice | None = tool_choice
         self._use: list[ModelMiddleware] | None = use
-        self._docs: list[DocumentData] | Callable[..., Any] | None = docs
+        self._docs: list[Document] | Callable[..., Any] | None = docs
         self._resources: list[str] | None = resources
         self._cache_prompt: PromptCache = PromptCache()
         self._name: str | None = _name  # Store name/ns for action lookup (used by as_tool())
@@ -1198,7 +1198,7 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    docs: list[Document] | Callable[..., Any] | None = None,
     *,
     input_schema: type[InputT],
     output_schema: type[OutputT],
@@ -1228,7 +1228,7 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    docs: list[Document] | Callable[..., Any] | None = None,
     *,
     input_schema: type[InputT],
 ) -> 'ExecutablePrompt[InputT, Any]': ...
@@ -1257,7 +1257,7 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    docs: list[Document] | Callable[..., Any] | None = None,
     *,
     output_schema: type[OutputT],
 ) -> 'ExecutablePrompt[Any, OutputT]': ...
@@ -1287,7 +1287,7 @@ def define_prompt(
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    docs: list[Document] | Callable[..., Any] | None = None,
 ) -> 'ExecutablePrompt[Any, Any]': ...
 
 
@@ -1314,7 +1314,7 @@ def define_prompt(  # pyright: ignore[reportInconsistentOverload]
     tools: list[str] | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
-    docs: list[DocumentData] | Callable[..., Any] | None = None,
+    docs: list[Document] | Callable[..., Any] | None = None,
 ) -> 'ExecutablePrompt[Any, Any]':
     """Defines an executable prompt.
 
@@ -1849,7 +1849,7 @@ async def render_docs(
     input: dict[str, Any],
     options: PromptConfig,
     context: dict[str, Any] | None = None,
-) -> list[DocumentData] | None:
+) -> list[Document] | None:
     """Renders the docs for a prompt action.
 
     Args:
@@ -1858,7 +1858,7 @@ async def render_docs(
         context: Optional dictionary of context values.
 
     Returns:
-        A list of DocumentData objects or None.
+        A list of Document objects or None.
     """
     if options.docs is None:
         return None

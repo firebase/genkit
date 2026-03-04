@@ -14,6 +14,7 @@ import yaml
 from pydantic import TypeAdapter
 
 from genkit.ai import ActionKind, Genkit
+from genkit.ai.document import Document
 from genkit.ai.generate import generate_action
 from genkit.ai.model import (
     Message,
@@ -22,7 +23,6 @@ from genkit.ai.model import (
     text_from_message,
 )
 from genkit.core._internal._typing import (
-    DocumentData,
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
@@ -112,7 +112,7 @@ async def test_simulates_doc_grounding(
                     content=[Part(root=TextPart(text='hi'))],
                 ),
             ],
-            docs=[DocumentData(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
+            docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
         ),
     )
 

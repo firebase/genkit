@@ -135,9 +135,7 @@ class ActionKind(StrEnum):
     INDEXER = 'indexer'
     MODEL = 'model'
     PROMPT = 'prompt'
-    RERANKER = 'reranker'
     RESOURCE = 'resource'
-    RETRIEVER = 'retriever'
     TOOL = 'tool'
     UTIL = 'util'
 
@@ -449,7 +447,6 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         async_required_kinds = {
             ActionKind.TOOL,
             ActionKind.MODEL,
-            ActionKind.RETRIEVER,
             ActionKind.EMBEDDER,
             ActionKind.FLOW,
         }

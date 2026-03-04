@@ -26,10 +26,10 @@ import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
+from genkit.ai.document import Document
 from genkit.ai.model import Message
 from genkit.ai.prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.core._internal._typing import (
-    DocumentData,
     DocumentPart,
     GenerateActionOptions,
     GenerateResponse,
@@ -200,8 +200,8 @@ async def test_prompt_with_docs_resolver() -> None:
 
     pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
 
-    async def docs_resolver(input: dict[str, Any], context: object) -> list[DocumentData]:
-        return [DocumentData(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
+    async def docs_resolver(input: dict[str, Any], context: object) -> list[Document]:
+        return [Document(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
 
     my_prompt = ai.define_prompt(
         model='programmableModel',

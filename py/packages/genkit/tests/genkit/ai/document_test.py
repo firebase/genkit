@@ -20,9 +20,7 @@ from typing import cast
 
 from genkit.ai.document import Document
 from genkit.core._internal._typing import (
-    DocumentData,
     DocumentPart,
-    Embedding,
     Media,
     MediaPart,
     TextPart,
@@ -46,7 +44,7 @@ def test_makes_deep_copy() -> None:
 
 def test_from_document_data() -> None:
     """Test creating a Document from DocumentData."""
-    doc = Document.from_document_data(DocumentData(content=[DocumentPart(root=TextPart(text='some text'))]))
+    doc = Document.from_document_data(Document(content=[DocumentPart(root=TextPart(text='some text'))]))
 
     assert doc.text() == 'some text'
 
@@ -141,43 +139,3 @@ def test_data_type_with_media() -> None:
     doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
     assert doc.data_type() == 'image/png'
-
-
-def test_get_embedding_documents() -> None:
-    """Test getting embedding documents for a single embedding."""
-    doc = Document.from_text('foo')
-    embeddings: list[Embedding] = [Embedding(embedding=[0.1, 0.2, 0.3])]
-    docs = doc.get_embedding_documents(embeddings)
-
-    assert docs == [doc]
-
-
-def test_get_embedding_documents_multiple_embeddings() -> None:
-    """Test getting embedding documents for multiple embeddings."""
-    url = 'gs://somebucket/somevideo.mp4'
-    content_type = 'video/mp4'
-    metadata = {'start': 0, 'end': 60}
-    doc = Document.from_media(url, content_type, metadata)
-    embeddings: list[Embedding] = []
-
-    for start in range(0, 60, 15):
-        embeddings.append(make_test_embedding(start))
-    docs = doc.get_embedding_documents(embeddings)
-
-    assert len(docs) == len(embeddings)
-
-    for i in range(len(docs)):
-        assert docs[i].content == doc.content
-        metadata = docs[i].metadata or {}
-        assert metadata.get('embedMetadata') == embeddings[i].metadata
-        orig_metadata = dict(metadata)
-        orig_metadata.pop('embedMetadata', None)
-        assert orig_metadata, doc.metadata
-
-
-def make_test_embedding(start: int) -> Embedding:
-    """Helper to create a test embedding with specific metadata."""
-    return Embedding(
-        embedding=[0.1, 0.2, 0.3],
-        metadata={'embeddingType': 'video', 'start': start, 'end': start + 15},
-    )

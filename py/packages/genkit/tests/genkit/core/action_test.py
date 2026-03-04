@@ -34,8 +34,6 @@ def test_action_enum_behaves_like_str() -> None:
     assert ActionKind.FLOW == 'flow'
     assert ActionKind.MODEL == 'model'
     assert ActionKind.PROMPT == 'prompt'
-    assert ActionKind.RERANKER == 'reranker'
-    assert ActionKind.RETRIEVER == 'retriever'
     assert ActionKind.TOOL == 'tool'
     assert ActionKind.UTIL == 'util'
 
@@ -79,7 +77,6 @@ def test_create_action_key() -> None:
     assert create_action_key(ActionKind.CUSTOM, 'foo') == '/custom/foo'
     assert create_action_key(ActionKind.MODEL, 'foo') == '/model/foo'
     assert create_action_key(ActionKind.PROMPT, 'foo') == '/prompt/foo'
-    assert create_action_key(ActionKind.RETRIEVER, 'foo') == '/retriever/foo'
     assert create_action_key(ActionKind.TOOL, 'foo') == '/tool/foo'
     assert create_action_key(ActionKind.UTIL, 'foo') == '/util/foo'
 

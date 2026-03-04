@@ -77,29 +77,10 @@ from genkit.ai.prompt import (
     load_prompt_folder,
     to_generate_action_options,
 )
-from genkit.ai.reranker import (
-    RankedDocument,
-    RerankerFn,
-    RerankerOptions,
-    RerankerRef,
-    define_reranker as define_reranker_block,
-    rerank as rerank_block,
-)
 from genkit.ai.resource import (
     ResourceFn,
     ResourceOptions,
     define_resource as define_resource_block,
-)
-from genkit.ai.retriever import (
-    IndexerFn,
-    IndexerRef,
-    IndexerRequest,
-    RetrieverFn,
-    RetrieverRef,
-    SimpleRetrieverOptions,
-    define_indexer_action,
-    define_retriever_action,
-    define_simple_retriever,
 )
 from genkit.ai.tools import define_tool
 from genkit.core._internal._aio import Channel, ensure_async, run_loop
@@ -124,7 +105,6 @@ from genkit.core._internal._logging import get_logger
 from genkit.core._internal._registry import Registry
 from genkit.core._internal._typing import (
     BaseDataPoint,
-    DocumentData,
     Embedding,
     EmbedRequest,
     EvalRequest,
@@ -132,7 +112,6 @@ from genkit.core._internal._typing import (
     ModelInfo,
     Operation,
     Part,
-    RetrieverRequest,
     SpanMetadata,
     ToolChoice,
 )
@@ -315,145 +294,6 @@ class Genkit:
 
         return wrapper
 
-    def define_retriever(
-        self,
-        name: str,
-        fn: RetrieverFn[Any],
-        config_schema: type[BaseModel] | dict[str, object] | None = None,
-        metadata: dict[str, object] | None = None,
-        description: str | None = None,
-    ) -> Action:
-        """Define a retriever action.
-
-        Args:
-            name: Name of the retriever.
-            fn: Function implementing the retriever behavior.
-            config_schema: Optional schema for retriever configuration.
-            metadata: Optional metadata for the retriever.
-            description: Optional description for the retriever.
-        """
-        return define_retriever_action(self.registry, name, fn, config_schema, metadata, description)
-
-    def define_simple_retriever(
-        self,
-        *,
-        options: SimpleRetrieverOptions[R] | str,
-        handler: Callable[[DocumentData, Any], Awaitable[list[R]]],
-        description: str | None = None,
-    ) -> Action:
-        """Define a simple retriever action.
-
-        Args:
-            options: Configuration options for the retriever, or just the name.
-            handler: A function that queries a datastore and returns items.
-            description: Optional description for the retriever.
-
-        Returns:
-            The registered Action for the retriever.
-        """
-        return define_simple_retriever(self.registry, options, handler, description)
-
-    def define_indexer(
-        self,
-        name: str,
-        fn: IndexerFn[Any],
-        config_schema: type[BaseModel] | dict[str, object] | None = None,
-        metadata: dict[str, object] | None = None,
-        description: str | None = None,
-    ) -> Action:
-        """Define an indexer action.
-
-        Args:
-            name: Name of the indexer.
-            fn: Function implementing the indexer behavior.
-            config_schema: Optional schema for indexer configuration.
-            metadata: Optional metadata for the indexer.
-            description: Optional description for the indexer.
-        """
-        return define_indexer_action(self.registry, name, fn, config_schema, metadata, description)
-
-    def define_reranker(
-        self,
-        name: str,
-        fn: RerankerFn[Any],
-        config_schema: type[BaseModel] | dict[str, object] | None = None,
-        metadata: dict[str, object] | None = None,
-        description: str | None = None,
-    ) -> Action:
-        """Define a reranker action.
-
-        Args:
-            name: Name of the reranker.
-            fn: Function implementing the reranker behavior.
-            config_schema: Optional schema for reranker configuration.
-            metadata: Optional metadata for the reranker.
-            description: Optional description for the reranker.
-
-        Returns:
-            The registered Action for the reranker.
-        """
-        from genkit.core._internal._schema import to_json_schema
-
-        # Extract label and config from metadata
-        reranker_label: str = name
-        reranker_config_schema: dict[str, object] | None = None
-
-        # Check if metadata has reranker info
-        if metadata and 'reranker' in metadata:
-            existing = metadata['reranker']
-            if isinstance(existing, dict):
-                existing_dict = cast(dict[str, object], existing)
-                label_val = existing_dict.get('label')
-                if isinstance(label_val, str) and label_val:
-                    reranker_label = label_val
-                opts_val = existing_dict.get('customOptions')
-                if isinstance(opts_val, dict):
-                    reranker_config_schema = cast(dict[str, object], opts_val)
-
-        # Override with config_schema if provided
-        if config_schema:
-            reranker_config_schema = to_json_schema(config_schema)
-
-        return define_reranker_block(
-            self.registry,
-            name=name,
-            fn=fn,
-            options=RerankerOptions(
-                config_schema=reranker_config_schema,
-                label=reranker_label,
-            ),
-            description=description,
-        )
-
-    async def rerank(
-        self,
-        *,
-        reranker: str | Action | RerankerRef,
-        query: str | DocumentData,
-        documents: list[DocumentData],
-        options: object | None = None,
-    ) -> list[RankedDocument]:
-        """Rerank documents based on their relevance to a query.
-
-        Args:
-            reranker: The reranker to use.
-            query: The query to rank documents against.
-            documents: The list of documents to rerank.
-            options: Optional configuration options.
-
-        Returns:
-            A list of RankedDocument objects sorted by relevance score.
-        """
-        return await rerank_block(
-            self.registry,
-            {
-                'reranker': reranker,
-                'query': query,
-                'documents': documents,
-                'options': options,
-            },
-        )
-
     def define_evaluator(
         self,
         name: str,
@@ -619,7 +459,7 @@ class Genkit:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
         *,
         input_schema: type[InputT],
         output_schema: type[OutputT],
@@ -648,7 +488,7 @@ class Genkit:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
         *,
         input_schema: type[InputT],
     ) -> ExecutablePrompt[InputT, Any]: ...
@@ -676,7 +516,7 @@ class Genkit:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
         *,
         output_schema: type[OutputT],
     ) -> ExecutablePrompt[Any, OutputT]: ...
@@ -705,7 +545,7 @@ class Genkit:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
     ) -> ExecutablePrompt[Any, Any]: ...
 
     def define_prompt(  # pyright: ignore[reportInconsistentOverload]
@@ -730,7 +570,7 @@ class Genkit:
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
-        docs: list[DocumentData] | Callable[..., Any] | None = None,
+        docs: list[Document] | Callable[..., Any] | None = None,
     ) -> ExecutablePrompt[Any, Any]:
         """Define a prompt.
 
@@ -1130,7 +970,7 @@ class Genkit:
                     output_instructions=output_instructions,
                     output_schema=output_schema,
                     output_constrained=output_constrained,
-                    docs=cast(list[DocumentData] | None, docs),
+                    docs=docs,  # type: ignore[arg-type]
                 ),
             ),
             middleware=use,
@@ -1222,7 +1062,7 @@ class Genkit:
                         output_instructions=output_instructions,
                         output_schema=output_schema,
                         output_constrained=output_constrained,
-                        docs=cast(list[DocumentData] | None, docs),
+                        docs=docs,  # type: ignore[arg-type]
                     ),
                 ),
                 on_chunk=lambda c: stream.send(c),
@@ -1234,108 +1074,11 @@ class Genkit:
 
         return stream, stream.closed
 
-    async def retrieve(
-        self,
-        *,
-        retriever: str | RetrieverRef | None = None,
-        query: str | DocumentData | None = None,
-        options: dict[str, object] | None = None,
-    ) -> list[Document]:
-        """Retrieves documents based on query.
-
-        Args:
-            retriever: Optional retriever name or reference to use.
-            query: Text query or a DocumentData containing query text.
-            options: Optional retriever-specific options.
-
-        Returns:
-            A list of Document objects matching the query.
-        """
-        retriever_name: str
-        retriever_config: dict[str, object] = {}
-
-        if isinstance(retriever, RetrieverRef):
-            retriever_name = retriever.name
-            retriever_config = retriever.config or {}
-            if retriever.version:
-                retriever_config['version'] = retriever.version
-        elif isinstance(retriever, str):
-            retriever_name = retriever
-        else:
-            raise ValueError('Retriever must be specified as a string name or a RetrieverRef.')
-
-        if isinstance(query, str):
-            query = Document.from_text(query)
-
-        request_options = {**(retriever_config or {}), **(options or {})}
-
-        retrieve_action = await self.registry.resolve_retriever(retriever_name)
-        if retrieve_action is None:
-            raise ValueError(f'Retriever "{retriever_name}" not found')
-
-        if query is None:
-            raise ValueError('Query must be specified for retrieval.')
-
-        response = (
-            await retrieve_action.run(
-                RetrieverRequest(
-                    query=query,
-                    options=request_options if request_options else None,
-                )
-            )
-        ).response
-        return [Document.from_document_data(doc) for doc in response.documents]
-
-    async def index(
-        self,
-        *,
-        indexer: str | IndexerRef | None = None,
-        documents: list[Document] | None = None,
-        options: dict[str, object] | None = None,
-    ) -> None:
-        """Indexes documents.
-
-        Args:
-            indexer: Optional indexer name or reference to use.
-            documents: Documents to index.
-            options: Optional indexer-specific options.
-        """
-        indexer_name: str
-        indexer_config: dict[str, object] = {}
-
-        if isinstance(indexer, IndexerRef):
-            indexer_name = indexer.name
-            indexer_config = indexer.config or {}
-            if indexer.version:
-                indexer_config['version'] = indexer.version
-        elif isinstance(indexer, str):
-            indexer_name = indexer
-        else:
-            raise ValueError('Indexer must be specified as a string name or an IndexerRef.')
-
-        req_options = {**(indexer_config or {}), **(options or {})}
-
-        index_action = await self.registry.resolve_action(cast(ActionKind, ActionKind.INDEXER), indexer_name)
-        if index_action is None:
-            raise ValueError(f'Indexer "{indexer_name}" not found')
-
-        if documents is None:
-            raise ValueError('Documents must be specified for indexing.')
-
-        _ = await index_action.run(
-            IndexerRequest(
-                # Document subclasses DocumentData, so this is type-safe at runtime.
-                # list is invariant so list[Document] isn't assignable to list[DocumentData]
-                documents=cast(list[DocumentData], documents),
-                options=req_options if req_options else None,
-            )
-        )
-
     async def embed(
         self,
         *,
         embedder: str | EmbedderRef | None = None,
-        content: str | Document | DocumentData | None = None,
+        content: str | Document | None = None,
         metadata: dict[str, object] | None = None,
         options: dict[str, object] | None = None,
     ) -> list[Embedding]:
@@ -1352,7 +1095,7 @@ class Genkit:
         Args:
             embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
                 an EmbedderRef with configuration.
-            content: A single string, Document, or DocumentData to embed.
+            content: A single string, Document, to embed.
             metadata: Optional metadata to apply to the document. Only used
                 when content is a string.
             options: Optional embedder-specific options (e.g., task_type).
@@ -1407,8 +1150,6 @@ class Genkit:
 
         documents = [Document.from_text(content, metadata)] if isinstance(content, str) else [content]
 
-        # Document subclasses DocumentData, so this is type-safe at runtime.
-        # list is invariant so list[Document] isn't assignable to list[DocumentData]
         response = (
             await embed_action.run(
                 EmbedRequest(
@@ -1423,7 +1164,7 @@ class Genkit:
         self,
         *,
         embedder: str | EmbedderRef | None = None,
-        content: list[str] | list[Document] | list[DocumentData] | None = None,
+        content: list[str] | list[Document] | None = None,
         metadata: dict[str, object] | None = None,
         options: dict[str, object] | None = None,
     ) -> list[Embedding]:
@@ -1440,7 +1181,7 @@ class Genkit:
         Args:
             embedder: Embedder name (e.g., 'googleai/text-embedding-004') or
                 an EmbedderRef.
-            content: List of strings, Documents, or DocumentData to embed.
+            content: List of strings, Documents, to embed.
             metadata: Optional metadata to apply to all items. Only used when
                 content items are strings.
             options: Optional embedder-specific options.
@@ -1478,7 +1219,7 @@ class Genkit:
             raise ValueError('Content must be specified for embedding.')
 
         # Convert strings to Documents if needed
-        documents: list[Document | DocumentData] = [
+        documents: list[Document] = [
             Document.from_text(item, metadata) if isinstance(item, str) else item for item in content
         ]
 

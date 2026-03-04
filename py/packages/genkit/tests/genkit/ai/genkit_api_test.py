@@ -5,7 +5,6 @@
 
 """Tests for the Genkit extra API methods."""
 
-from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,10 +12,8 @@ import pytest
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit import TextPart
 from genkit.ai import Genkit
-from genkit.ai.retriever import SimpleRetrieverOptions
-from genkit.core._internal._typing import DocumentData, DocumentPart, Operation, RetrieverRequest, RetrieverResponse
+from genkit.core._internal._typing import Operation
 from genkit.core.action import Action, ActionKind
 from genkit.core.action._action import _action_context
 
@@ -108,56 +105,6 @@ async def test_genkit_check_operation_not_found() -> None:
 
     with pytest.raises(ValueError, match='Failed to resolve background action from original request: missing'):
         await ai.check_operation(op)
-
-
-@pytest.mark.asyncio
-async def test_define_simple_retriever_legacy() -> None:
-    """Test define_simple_retriever with legacy handler signature."""
-    ai = Genkit()
-
-    async def simple_retriever(query: DocumentData, options: Any) -> list[DocumentData]:  # noqa: ANN401
-        # Returns list[DocumentData] directly
-
-        text_part: DocumentPart = DocumentPart(root=TextPart(text='doc1'))
-        return [DocumentData(content=[text_part])]
-
-    retriever_action = ai.define_simple_retriever(options='simple', handler=simple_retriever)
-
-    assert retriever_action.kind == ActionKind.RETRIEVER
-
-    # Test execution
-    req = RetrieverRequest(query=DocumentData(content=[]))
-    resp_wrapper = await retriever_action.run(req)
-    response = resp_wrapper.response
-
-    assert isinstance(response, RetrieverResponse)
-    assert len(response.documents) == 1
-    assert response.documents[0].content[0].root.text == 'doc1'
-
-
-@pytest.mark.asyncio
-async def test_define_simple_retriever_mapped() -> None:
-    """Test define_simple_retriever with mapping options."""
-    ai = Genkit()
-
-    async def db_handler(query: DocumentData, options: Any) -> list[dict[str, Any]]:  # noqa: ANN401
-        return [
-            {'id': '1', 'text': 'hello', 'extra': 'data'},
-            {'id': '2', 'text': 'world', 'extra': 'more'},
-        ]
-
-    options = SimpleRetrieverOptions(name='mapped', content='text', metadata=['extra'])
-
-    retriever_action = ai.define_simple_retriever(options=options, handler=db_handler)
-
-    req = RetrieverRequest(query=DocumentData(content=[]))
-    resp_wrapper = await retriever_action.run(req)
-    response = resp_wrapper.response
-
-    assert len(response.documents) == 2
-    assert response.documents[0].content[0].root.text == 'hello'
-    assert response.documents[0].metadata == {'extra': 'data'}
-    assert 'id' not in response.documents[0].metadata
 
 
 @pytest.mark.asyncio

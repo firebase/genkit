@@ -12,7 +12,6 @@ resolution-markers = [
 [manifest]
 members = [
     "conform",
-    "dev-local-vectorstore-hello",
     "framework-context-demo",
     "framework-custom-evaluators",
     "framework-dynamic-tools-demo",
@@ -26,21 +25,17 @@ members = [
     "genkit-plugin-amazon-bedrock",
     "genkit-plugin-anthropic",
     "genkit-plugin-compat-oai",
-    "genkit-plugin-dev-local-vectorstore",
     "genkit-plugin-fastapi",
-    "genkit-plugin-firebase",
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
     "genkit-plugin-google-genai",
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-tools-model-config-test",
-    "genkit-tools-sample-flows",
     "genkit-workspace",
     "provider-amazon-bedrock-hello",
     "provider-anthropic-hello",
     "provider-compat-oai-hello",
-    "provider-firestore-retriever",
     "provider-google-genai-code-execution",
     "provider-google-genai-context-caching",
     "provider-google-genai-hello",
@@ -49,9 +44,6 @@ members = [
     "provider-google-genai-vertexai-image",
     "provider-ollama-hello",
     "provider-vertex-ai-model-garden",
-    "provider-vertex-ai-rerank-eval",
-    "provider-vertex-ai-vector-search-bigquery",
-    "provider-vertex-ai-vector-search-firestore",
     "web-fastapi-bugbot",
     "web-flask-hello",
 ]
@@ -1353,38 +1345,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dev-local-vectorstore-hello"
-version = "0.2.0"
-source = { editable = "samples/dev-local-vectorstore-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-dev-local-vectorstore" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "distlib"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1818,8 +1778,6 @@ version = "0.2.0"
 source = { editable = "samples/framework-restaurant-demo" }
 dependencies = [
     { name = "genkit" },
-    { name = "genkit-plugin-dev-local-vectorstore" },
-    { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-ollama" },
@@ -1837,8 +1795,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
-    { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
@@ -2028,9 +1984,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-dev-local-vectorstore = [
-    { name = "genkit-plugin-dev-local-vectorstore" },
-]
 flask = [
     { name = "genkit-plugin-flask" },
 ]
@@ -2056,7 +2009,6 @@ requires-dist = [
     { name = "asgiref", specifier = ">=3.8.1" },
     { name = "dotpromptz", specifier = ">=0.1.5" },
     { name = "genkit-plugin-compat-oai", marker = "extra == 'openai'", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-dev-local-vectorstore", marker = "extra == 'dev-local-vectorstore'", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-flask", marker = "extra == 'flask'", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", marker = "extra == 'google-cloud'", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", marker = "extra == 'google-genai'", editable = "plugins/google-genai" },
@@ -2081,7 +2033,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.34.0" },
     { name = "uvloop", marker = "sys_platform != 'win32'", specifier = ">=0.21.0" },
 ]
-provides-extras = ["dev-local-vectorstore", "flask", "google-cloud", "google-genai", "ollama", "openai", "vertex-ai"]
+provides-extras = ["flask", "google-cloud", "google-genai", "ollama", "openai", "vertex-ai"]
 
 [[package]]
 name = "genkit-plugin-amazon-bedrock"
@@ -2143,27 +2095,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "genkit-plugin-dev-local-vectorstore"
-version = "0.5.1"
-source = { editable = "plugins/dev-local-vectorstore" }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "genkit" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-mock" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-mock" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-]
-
-[[package]]
 name = "genkit-plugin-fastapi"
 version = "0.5.1"
 source = { editable = "plugins/fastapi" }
@@ -2179,32 +2110,6 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "pydantic", specifier = ">=2.10.5" },
 ]
-
-[[package]]
-name = "genkit-plugin-firebase"
-version = "0.5.1"
-source = { editable = "plugins/firebase" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "google-cloud-firestore" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-]
-
-[package.optional-dependencies]
-telemetry = [
-    { name = "genkit-plugin-google-cloud" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-cloud", marker = "extra == 'telemetry'", editable = "plugins/google-cloud" },
-    { name = "google-cloud-firestore" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-]
-provides-extras = ["telemetry"]
 
 [[package]]
 name = "genkit-plugin-flask"
@@ -2379,23 +2284,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "genkit-tools-sample-flows"
-version = "0.1.1"
-source = { editable = "tools/sample-flows" }
-dependencies = [
-    { name = "genkit" },
-    { name = "httpx" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "httpx" },
-    { name = "structlog" },
-]
-
-[[package]]
 name = "genkit-workspace"
 version = "0.1.0"
 source = { virtual = "." }
@@ -2406,9 +2294,7 @@ dependencies = [
     { name = "genkit-plugin-amazon-bedrock" },
     { name = "genkit-plugin-anthropic" },
     { name = "genkit-plugin-compat-oai" },
-    { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-fastapi" },
-    { name = "genkit-plugin-firebase" },
     { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
@@ -2479,9 +2365,7 @@ requires-dist = [
     { name = "genkit-plugin-amazon-bedrock", editable = "plugins/amazon-bedrock" },
     { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
-    { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
     { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
@@ -5720,36 +5604,6 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
-name = "provider-firestore-retriever"
-version = "0.2.0"
-source = { editable = "samples/provider-firestore-retriever" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-firebase" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "google-cloud-firestore" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "google-cloud-firestore" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "provider-google-genai-code-execution"
 version = "0.2.0"
 source = { editable = "samples/provider-google-genai-code-execution" }
@@ -5982,112 +5836,6 @@ requires-dist = [
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-vertex-ai-rerank-eval"
-version = "0.2.0"
-source = { editable = "samples/provider-vertex-ai-rerank-eval" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-vertex-ai-vector-search-bigquery"
-version = "0.2.0"
-source = { editable = "samples/provider-vertex-ai-vector-search-bigquery" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "google-cloud-aiplatform" },
-    { name = "google-cloud-bigquery" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "google-cloud-aiplatform" },
-    { name = "google-cloud-bigquery" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-vertex-ai-vector-search-firestore"
-version = "0.2.0"
-source = { editable = "samples/provider-vertex-ai-vector-search-firestore" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "google-cloud-aiplatform" },
-    { name = "google-cloud-firestore" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "strenum", marker = "python_full_version < '3.11'" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "google-cloud-aiplatform" },
-    { name = "google-cloud-firestore" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
-    { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
     { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]

@@ -45,10 +45,6 @@ from genkit.core._internal._typing import (
     GenerateResponse,
     GenerateResponseChunk,
     ModelRequest,
-    RerankerRequest,
-    RerankerResponse,
-    RetrieverRequest,
-    RetrieverResponse,
 )
 from genkit.core.action import (
     Action,
@@ -581,20 +577,6 @@ class Registry:
     # They wrap resolve_action() with appropriate casts to preserve generic
     # type parameters that would otherwise be erased.
 
-    async def resolve_retriever(self, name: str) -> Action[RetrieverRequest, RetrieverResponse, Never] | None:
-        """Resolve a retriever action by name with full type information.
-
-        Args:
-            name: The retriever name (e.g., "my-retriever" or "plugin/retriever").
-
-        Returns:
-            A fully typed retriever action, or None if not found.
-        """
-        action = await self.resolve_action(ActionKind.RETRIEVER, name)
-        if action is None:
-            return None
-        return cast(Action[RetrieverRequest, RetrieverResponse, Never], action)
-
     async def resolve_embedder(self, name: str) -> Action[EmbedRequest, EmbedResponse, Never] | None:
         """Resolve an embedder action by name with full type information.
 
@@ -608,20 +590,6 @@ class Registry:
         if action is None:
             return None
         return cast(Action[EmbedRequest, EmbedResponse, Never], action)
-
-    async def resolve_reranker(self, name: str) -> Action[RerankerRequest, RerankerResponse, Never] | None:
-        """Resolve a reranker action by name with full type information.
-
-        Args:
-            name: The reranker name (e.g., "my-reranker" or "plugin/reranker").
-
-        Returns:
-            A fully typed reranker action, or None if not found.
-        """
-        action = await self.resolve_action(ActionKind.RERANKER, name)
-        if action is None:
-            return None
-        return cast(Action[RerankerRequest, RerankerResponse, Never], action)
 
     async def resolve_model(self, name: str) -> Action[ModelRequest, GenerateResponse, GenerateResponseChunk] | None:
         """Resolve a model action by name with full type information.
