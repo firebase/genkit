@@ -522,6 +522,43 @@ return status.Errorf(status.ErrInternal, "agent %q failed: %w", name, err)
 
 ---
 
+## Remove ModelSupports
+
+v1 requires plugins to declare a `ModelSupports` struct listing the capabilities their model supports (multiturn, media, tool calls, system role, constrained output, etc.). The framework uses this declaration to run middleware that compensates for missing capabilities -- for example, merging system messages into user messages when `SystemRole` is false, or simulating constrained output when `Constrained` is `ConstrainedNone`.
+
+v2 removes `ModelSupports`, `Stage`, and `Versions` from `ModelOptions` and drops the associated middleware. Plugins are expected to support all features of the Genkit model contract. If a plugin receives a request it genuinely cannot fulfill (e.g. a model that has no concept of tool calling receives tool definitions), it should return a clear error so the developer knows the limitation up front rather than getting silently degraded behavior.
+
+The one exception is `Constrained`, which is promoted to a top-level field on `ModelOptions`. Unlike the other `ModelSupports` fields, constrained output is not a feature the middleware fakes. It is a strategy selector: the framework must choose between sending a schema for native enforcement or injecting format instructions into the prompt *before* building the request. This decision depends on the model (and on whether tools are present in the request), so the framework needs the hint up front.
+
+**Before:**
+
+```go
+ai.DefineModel(g, "my-model", fn, &ai.ModelOptions{
+    Stage:    ai.ModelStageStable,
+    Versions: []string{"v1", "v2"},
+    Supports: &ai.ModelSupports{
+        Multiturn:   true,
+        Tools:       true,
+        SystemRole:  false, // framework will merge system messages into user messages
+        Media:       false,
+        Constrained: ai.ConstrainedNoTools,
+    },
+})
+```
+
+**After:**
+
+```go
+ai.DefineModel(g, "my-model", fn, &ai.ModelOptions{
+    Constrained: ai.ConstrainedNoTools, // strategy hint for structured output
+    // Other capabilities, stage, and versions are no longer declared.
+    // Plugins handle unsupported features by returning errors and manage
+    // their own deprecation warnings and version validation.
+})
+```
+
+---
+
 ## Full removed/replaced type reference
 
 | Removed | Replacement |
@@ -564,6 +601,10 @@ return status.Errorf(status.ErrInternal, "agent %q failed: %w", name, err)
 | `UserFacingError` | `GenkitError` with `Public: true` |
 | `NewPublicError(status, msg, details)` | `PublicErrorf(sentinel, msg, args...)` sets `Public: true`; status derived from sentinel |
 | `NewError(status, msg, args...)` | `Errorf(sentinel, msg, args...)` status derived from sentinel |
+| `ModelSupports` | Removed; `Constrained` promoted to `ModelOptions.Constrained` |
+| `ModelOptions.Supports` | Removed; only `Constrained` field survives (moved up) |
+| `ModelOptions.Stage`, `ModelStage` | Removed; plugins manage their own deprecation warnings |
+| `ModelOptions.Versions` | Removed; plugins validate versions in their model function |
 
 ## New types
 
