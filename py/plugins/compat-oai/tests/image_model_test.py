@@ -122,8 +122,8 @@ class TestToImageGenerateParams:
         assert got['model'] == 'dall-e-3-custom'
 
 
-class TestToGenerateResponse:
-    """Tests for converting OpenAI ImagesResponse to GenerateResponse."""
+class TestToModelResponse:
+    """Tests for converting OpenAI ImagesResponse to ModelResponse."""
 
     def test_empty_data(self) -> None:
         """Verify empty image data produces empty content."""

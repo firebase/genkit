@@ -3,84 +3,26 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing utilities for Genkit applications.
+"""Testing utilities for Genkit applications."""
 
-This module provides mock models, test utilities, and a model test suite for
-testing Genkit applications without making actual API calls to AI providers.
-
-Key Components
-==============
-
-┌───────────────────────────────────────────────────────────────────────────┐
-│                         Testing Components                                 │
-├───────────────────────┬───────────────────────────────────────────────────┤
-│ Component             │ Purpose                                           │
-├───────────────────────┼───────────────────────────────────────────────────┤
-│ EchoModel             │ Echoes input back - verify request formatting     │
-│ ProgrammableModel     │ Returns configurable responses - test scenarios   │
-│ StaticResponseModel   │ Always returns same response - simple tests       │
-│ test_models()         │ Run standard test suite against models            │
-└───────────────────────┴───────────────────────────────────────────────────┘
-
-Example:
-    ```python
-    from genkit.ai import Genkit
-from genkit.ai.model import Message
-    from genkit.testing import (
-        define_echo_model,
-        define_programmable_model,
-        test_models,
-    )
-
-    ai = Genkit()
-
-    # Echo model - useful for verifying request formatting
-    echo, echo_action = define_echo_model(ai)
-    response = await ai.generate(model='echoModel', prompt='Hello')
-    # response contains: "[ECHO] user: "Hello""
-
-    # Programmable model - useful for testing specific scenarios
-    pm, pm_action = define_programmable_model(ai)
-    pm.responses = [GenerateResponse(message=Message(...))]
-    response = await ai.generate(model='programmableModel', prompt='test')
-    assert pm.last_request is not None
-
-    # Test suite - validate model implementations
-    report = await test_models(ai, ['googleai/gemini-2.0-flash'])
-    for test in report:
-        print(f'{test["description"]}: {test["models"]}')
-    ```
-
-Cross-Language Parity:
-    - JavaScript: js/ai/src/testing/model-tester.ts
-    - Go: go/ai/testutil_test.go
-
-See Also:
-    - https://genkit.dev for Genkit documentation
-"""
-
+import json
 from copy import deepcopy
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
-
-from genkit.ai import Genkit
-from genkit.ai.model import Message
-from genkit.core._internal._typing import (
-    GenerateResponse,
-    GenerateResponseChunk,
+from genkit._core._tracing import run_in_new_span
+from genkit._core._typing import (
     Media,
     MediaPart,
     ModelInfo,
-    ModelRequest,
     Part,
     Role,
     SpanMetadata,
     TextPart,
 )
-from genkit.core.action import Action, ActionKind, ActionRunContext
-from genkit.core.codec import dump_json
-from genkit.core.tracing import run_in_new_span
+from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._ai import Genkit
+from genkit.model import Message, ModelRequest, ModelResponse, ModelResponseChunk
 
 
 class ProgrammableModel:
@@ -103,8 +45,8 @@ class ProgrammableModel:
 
         # Set up responses
         pm.responses = [
-            GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Response 1'))])),
-            GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Response 2'))])),
+            ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Response 1'))])),
+            ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='Response 2'))])),
         ]
 
         # First call returns "Response 1"
@@ -122,8 +64,8 @@ class ProgrammableModel:
         """Initialize a new ProgrammableModel instance."""
         self._request_idx: int = 0
         self.request_count: int = 0
-        self.responses: list[GenerateResponse] = []
-        self.chunks: list[list[GenerateResponseChunk]] | None = None
+        self.responses: list[ModelResponse] = []
+        self.chunks: list[list[ModelResponseChunk]] | None = None
         self.last_request: ModelRequest | None = None
 
     def reset(self) -> None:
@@ -134,7 +76,7 @@ class ProgrammableModel:
         self.chunks = None
         self.last_request = None
 
-    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Process a generation request and return a programmed response.
 
         This function returns pre-configured responses and streams
@@ -186,7 +128,7 @@ def define_programmable_model(
 
         # Configure response with tool call
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[
@@ -206,7 +148,7 @@ def define_programmable_model(
     """
     pm = ProgrammableModel()
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return await pm.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -247,7 +189,7 @@ class EchoModel:
         self.last_request: ModelRequest | None = None
         self.stream_countdown: bool = stream_countdown
 
-    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Process a generation request and echo it back in the response.
 
         Args:
@@ -263,29 +205,30 @@ class EchoModel:
         merged_txt = ''
         for m in request.messages:
             merged_txt += f' {m.role}: ' + ','.join(
-                dump_json(p.root.text) if p.root.text is not None else '""' for p in m.content
+                json.dumps(p.root.text) if p.root.text is not None else '""' for p in m.content
             )
         echo_resp = f'[ECHO]{merged_txt}'
 
         # Add config, tools, and output info
         if request.config:
-            echo_resp += f' {dump_json(request.config)}'
+            echo_resp += f' {request.config.model_dump_json()}'
         if request.tools:
             echo_resp += f' tools={",".join(t.name for t in request.tools)}'
         if request.tool_choice is not None:
             echo_resp += f' tool_choice={request.tool_choice}'
-        if request.output and dump_json(request.output) != '{}':
-            echo_resp += f' output={dump_json(request.output)}'
+        output_json = request.output.model_dump_json() if request.output else '{}'
+        if request.output and output_json != '{}':
+            echo_resp += f' output={output_json}'
 
         # Stream countdown chunks if enabled (matches JS behavior)
         if self.stream_countdown:
             for i, countdown in enumerate(['3', '2', '1']):
                 ctx.send_chunk(
-                    chunk=GenerateResponseChunk(role=Role.MODEL, index=i, content=[Part(root=TextPart(text=countdown))])
+                    chunk=ModelResponseChunk(role=Role.MODEL, index=i, content=[Part(root=TextPart(text=countdown))])
                 )
 
         # NOTE: Part is a RootModel requiring root=TextPart(...) syntax.
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=echo_resp))]))
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=echo_resp))]))
 
 
 def define_echo_model(
@@ -318,7 +261,7 @@ def define_echo_model(
     """
     echo = EchoModel(stream_countdown=stream_countdown)
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return await echo.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -347,7 +290,7 @@ class StaticResponseModel:
         self.last_request: ModelRequest | None = None
         self.request_count: int = 0
 
-    async def model_fn(self, request: ModelRequest, _ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(self, request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
         """Return the static response.
 
         Args:
@@ -355,11 +298,11 @@ class StaticResponseModel:
             _ctx: The action run context (unused).
 
         Returns:
-            GenerateResponse with the static message.
+            ModelResponse with the static message.
         """
         self.last_request = request
         self.request_count += 1
-        return GenerateResponse(message=self.response_message)
+        return ModelResponse(message=self.response_message)
 
 
 def define_static_response_model(
@@ -392,7 +335,7 @@ def define_static_response_model(
     """
     static = StaticResponseModel(message)
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         return await static.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -485,8 +428,8 @@ async def test_models(ai: Genkit, models: list[str]) -> TestReport:
 
     Example:
             ```python
-            from genkit.ai import Genkit
-    from genkit.ai.model import Message
+            from genkit._ai import Genkit
+    from genkit._ai._model import Message, ModelResponse, ModelResponseChunk
             from genkit.plugins.google_genai import GoogleAI
             from genkit.testing import test_models
 

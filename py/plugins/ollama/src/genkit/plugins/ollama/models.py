@@ -91,14 +91,14 @@ from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit import (
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+    ModelConfig,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
     ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     Part,
     Role,
     TextPart,
@@ -106,9 +106,8 @@ from genkit import (
     ToolRequestPart,
     ToolResponsePart,
 )
-from genkit.ai import ActionRunContext
-from genkit.ai.model import get_basic_usage_stats
-from genkit.core._internal._http_client import get_cached_client
+from genkit.model import get_basic_usage_stats
+from genkit.plugin_api import ActionRunContext, get_cached_client
 from genkit.plugins.ollama.constants import (
     OllamaAPITypes,
 )
@@ -166,7 +165,7 @@ class OllamaModel:
         """
         return self._client_factory()
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
         """Generate a response from Ollama.
 
         Args:
@@ -221,7 +220,7 @@ class OllamaModel:
             response=response_message,
         )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=content,
@@ -287,7 +286,7 @@ class OllamaModel:
                 role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=role,
                             index=idx,
                             content=self._build_multimodal_chat_response(chat_response=chunk),
@@ -338,7 +337,7 @@ class OllamaModel:
                 idx += 1
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=Role.MODEL,
                             index=idx,
                             content=[Part(root=TextPart(text=chunk.response))],
@@ -403,7 +402,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | ollama_api.Options | dict[str, object] | None,
+        config: ModelConfig | ollama_api.Options | dict[str, object] | None,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -415,7 +414,7 @@ class OllamaModel:
         """
         if config is None:
             return ollama_api.Options()
-        if isinstance(config, GenerationCommonConfig):
+        if isinstance(config, ModelConfig):
             config = dict(
                 top_k=config.top_k,
                 topP=config.top_p,

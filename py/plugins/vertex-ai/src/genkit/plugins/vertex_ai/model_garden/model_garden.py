@@ -17,14 +17,16 @@
 
 """Model Garden implementation."""
 
+from __future__ import annotations
+
 import typing
 from collections.abc import Callable
 
 if typing.TYPE_CHECKING:
     from openai import AsyncOpenAI
 
-    from genkit import GenerateResponse, ModelRequest
-    from genkit.ai import ActionRunContext
+    from genkit import ModelRequest, ModelResponse
+    from genkit.plugin_api import ActionRunContext
 
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -80,7 +82,7 @@ class ModelGarden:
         self.name = model
         self._openai_params = {'location': location, 'project_id': project_id}
 
-    async def create_client(self) -> 'AsyncOpenAI':
+    async def create_client(self) -> AsyncOpenAI:
         """Create the AsyncOpenAI client with refreshed credentials.
 
         This offloads the blocking ``credentials.refresh()`` call to a
@@ -118,7 +120,7 @@ class ModelGarden:
             ``OpenAIModel`` instance) that can be used by Genkit.
         """
 
-        async def _generate(request: 'ModelRequest', ctx: 'ActionRunContext') -> 'GenerateResponse':
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             client = await self.create_client()
             openai_model = OpenAIModel(self.name, client)
             return await openai_model.generate(request, ctx)

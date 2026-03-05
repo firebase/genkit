@@ -11,12 +11,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, ToolRunContext
-from genkit.ai.document import Document
-from genkit.ai.formats.types import FormatDef, Formatter, FormatterConfig
-from genkit.ai.model import Message, ModelMiddlewareNext, text_from_message
-from genkit.ai.tools import tool_response
-from genkit.core._internal._typing import (
+from genkit._core._typing import (
     BaseDataPoint,
     Details,
     DocumentPart,
@@ -24,8 +19,6 @@ from genkit.core._internal._typing import (
     EvalRequest,
     EvalResponse,
     FinishReason,
-    GenerateResponse,
-    GenerateResponseChunk,
     Metadata,
     ModelInfo,
     ModelRequest,
@@ -42,7 +35,19 @@ from genkit.core._internal._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.core.action import ActionKind, ActionRunContext
+from genkit._core._action import ActionKind, ActionRunContext
+from genkit import (
+    Document,
+    Genkit,
+    Message,
+    ModelResponse,
+    ModelResponseChunk,
+    tool_response,
+    ToolRunContext,
+)
+from genkit.model import ModelMiddlewareNext
+from genkit._ai._model import text_from_message
+from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,
@@ -144,11 +149,11 @@ async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
 
     want_txt = '[ECHO] user: "hi" {"temperature":11}'
 
-    response = await ai.generate(prompt=Part(root=TextPart(text='hi')), config={'temperature': 11})
+    response = await ai.generate(prompt=[Part(root=TextPart(text='hi'))], config={'temperature': 11})
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(prompt=Part(root=TextPart(text='hi')), config={'temperature': 11})
+    _, response = ai.generate_stream(prompt=[Part(root=TextPart(text='hi'))], config={'temperature': 11})
 
     assert (await response).text == want_txt
 
@@ -199,7 +204,7 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
     want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature":11}'
 
     response = await ai.generate(
-        system=Part(root=TextPart(text='talk like pirate')),
+        system=[Part(root=TextPart(text='talk like pirate'))],
         prompt='hi',
         config={'temperature': 11},
     )
@@ -207,7 +212,7 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
     assert response.text == want_txt
 
     _, response = ai.generate_stream(
-        system=Part(root=TextPart(text='talk like pirate')),
+        system=[Part(root=TextPart(text='talk like pirate'))],
         prompt='hi',
         config={'temperature': 11},
     )
@@ -404,13 +409,13 @@ async def test_generate_with_interrupting_tools(
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
@@ -517,13 +522,13 @@ async def test_generate_with_interrupt_respond(
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
@@ -657,13 +662,13 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
@@ -729,25 +734,25 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=tool_request_msg,
         )
     )
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(
+            ModelResponseChunk(
                 role=Role(tool_request_msg.role),
                 content=tool_request_msg.content,
             )
         ],
-        [GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))])],
+        [ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))])],
     ]
 
     stream, aresponse = ai.generate_stream(
@@ -794,15 +799,15 @@ async def test_generate_stream_no_need_to_await_response(
     ai, _, pm, *_ = setup_test
 
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='something else'))]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='h'))]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='i'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='h'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='i'))]),
         ],
     ]
 
@@ -860,7 +865,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         output_format='json',
         output_content_type='application/json',
         output_constrained=True,
-        output_instructions=False,
+        output_instructions='',
     )
 
     assert response.request == want
@@ -872,7 +877,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         output_format='json',
         output_content_type='application/json',
         output_constrained=True,
-        output_instructions=False,
+        output_instructions='',
     )
 
     assert (await response).request == want
@@ -1006,7 +1011,7 @@ async def test_generate_with_middleware(
     """When middleware is provided, applies it."""
     ai, *_ = setup_test
 
-    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
+    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1017,11 +1022,11 @@ async def test_generate_with_middleware(
             ctx,
         )
 
-    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
-        resp: GenerateResponse = await next(req, ctx)
+    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
+        resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)  # type: ignore[arg-type]
-        return GenerateResponse(
+        return ModelResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
@@ -1044,7 +1049,7 @@ async def test_generate_passes_through_current_action_context(
     """Test that generate uses current action context by default."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
+    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1058,7 +1063,7 @@ async def test_generate_passes_through_current_action_context(
             ctx,
         )
 
-    async def action_fn() -> GenerateResponse:
+    async def action_fn() -> ModelResponse:
         return await ai.generate(model='echoModel', prompt='hi', use=[inject_context])
 
     action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
@@ -1074,7 +1079,7 @@ async def test_generate_uses_explicitly_passed_in_context(
     """Generate uses specific context instead of current action context."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> GenerateResponse:
+    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1088,7 +1093,7 @@ async def test_generate_uses_explicitly_passed_in_context(
             ctx,
         )
 
-    async def action_fn() -> GenerateResponse:
+    async def action_fn() -> ModelResponse:
         return await ai.generate(
             model='echoModel',
             prompt='hi',
@@ -1106,12 +1111,28 @@ async def test_generate_uses_explicitly_passed_in_context(
 async def test_generate_json_format_unconstrained_with_instructions(
     setup_test: SetupFixture,
 ) -> None:
-    """When Output is provided, format will default to json."""
+    """When output_instructions is provided, instructions are injected."""
     ai, *_ = setup_test
 
     class TestSchema(BaseModel):
         foo: int | None = Field(None, description='foo field')
         bar: str | None = Field(None, description='bar field')
+
+    # Explicit instructions text to inject (matches formatter output for this schema)
+    instructions_text = (
+        'Output should be in JSON format and conform to the '
+        'following schema:\n\n```\n{\n  "properties": {\n    '
+        '"foo": {\n      "anyOf": [\n        {\n          '
+        '"type": "integer"\n        },\n        {\n          '
+        '"type": "null"\n        }\n      ],\n      '
+        '"default": null,\n      "description": "foo field",\n      '
+        '"title": "Foo"\n    },\n    "bar": {\n      '
+        '"anyOf": [\n        {\n          "type": "string"\n        },\n        '
+        '{\n          "type": "null"\n        }\n      ],\n      '
+        '"default": null,\n      "description": "bar field",\n      '
+        '"title": "Bar"\n    }\n  },\n  "title": "TestSchema",\n  '
+        '"type": "object"\n}\n```\n'
+    )
 
     want = ModelRequest(
         messages=[
@@ -1121,20 +1142,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
                     Part(root=TextPart(text='hi')),
                     Part(
                         root=TextPart(
-                            text=(
-                                'Output should be in JSON format and conform to the '
-                                'following schema:\n\n```\n{\n  "properties": {\n    '
-                                '"foo": {\n      "anyOf": [\n        {\n          '
-                                '"type": "integer"\n        },\n        {\n          '
-                                '"type": "null"\n        }\n      ],\n      '
-                                '"default": null,\n      "description": "foo field",\n      '
-                                '"title": "Foo"\n    },\n    "bar": {\n      '
-                                '"anyOf": [\n        {\n          "type": "string"\n        },\n        '
-                                '{\n          "type": "null"\n        }\n      ],\n      '
-                                '"default": null,\n      "description": "bar field",\n      '
-                                '"title": "Bar"\n    }\n  },\n  "title": "TestSchema",\n  '
-                                '"type": "object"\n}\n```\n'
-                            ),
+                            text=instructions_text,
                             metadata=Metadata(root={'purpose': 'output'}),
                         )
                     ),
@@ -1173,7 +1181,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         prompt='hi',
         output_schema=TestSchema,
         output_constrained=False,
-        output_instructions=True,
+        output_instructions=instructions_text,
     )
 
     assert response.request == want
@@ -1183,7 +1191,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         prompt='hi',
         output_schema=TestSchema,
         output_constrained=False,
-        output_instructions=True,
+        output_instructions=instructions_text,
     )
 
     assert (await response).request == want
@@ -1261,7 +1269,7 @@ class MockBananaFormat(FormatDef):
             parts = [p.root.text or '' for p in msg.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana {"".join(parts)}'  # type: ignore[arg-type]
 
-        def chunk_parser(chunk: GenerateResponseChunk) -> str:
+        def chunk_parser(chunk: ModelResponseChunk) -> str:
             """Parse the chunk."""
             parts = [p.root.text or '' for p in chunk.content if hasattr(p.root, 'text') and p.root.text]
             return f'banana chunk {"".join(parts)}'  # type: ignore[arg-type]
@@ -1291,7 +1299,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
 
     pm.responses = [
         (
-            GenerateResponse(
+            ModelResponse(
                 finish_reason=FinishReason.STOP,
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='model says'))]),
             )
@@ -1299,9 +1307,9 @@ async def test_define_format(setup_test: SetupFixture) -> None:
     ]
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
         ]
     ]
 
@@ -1376,8 +1384,8 @@ def test_define_model_default_metadata(setup_test: SetupFixture) -> None:
     """Test that the define model function works."""
     ai, _, _, *_ = setup_test
 
-    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
         name='foo',
@@ -1397,8 +1405,8 @@ def test_define_model_with_schema(setup_test: SetupFixture) -> None:
         field_a: str = Field(description='a field')
         field_b: str = Field(description='b field')
 
-    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
         name='foo',
@@ -1434,8 +1442,8 @@ def test_define_model_with_info(setup_test: SetupFixture) -> None:
     """Test that the define model function with info works."""
     ai, _, _, *_ = setup_test
 
-    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
+    async def foo_model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='banana!'))]))
 
     action = ai.define_model(
         name='foo',
@@ -1569,14 +1577,14 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
 
     assert (await my_flow('banana')) == 'banana'
 
-    stream, response = my_flow.stream('banana2')
+    result = my_flow.stream('banana2')
 
     chunks = []
-    async for chunk in stream:
+    async for chunk in result.stream:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response).response == 'banana2'
+    assert (await result.response).response == 'banana2'
 
 
 @pytest.mark.asyncio
@@ -1594,14 +1602,14 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
 
     assert (await my_flow('banana')) == 'banana'
 
-    stream, response = my_flow.stream('banana2')
+    result = my_flow.stream('banana2')
 
     chunks = []
-    async for chunk in stream:
+    async for chunk in result.stream:
         chunks.append(chunk)
 
     assert chunks == [1, 2, 3]
-    assert (await response).response == 'banana2'
+    assert (await result.response).response == 'banana2'
 
 
 @pytest.mark.asyncio

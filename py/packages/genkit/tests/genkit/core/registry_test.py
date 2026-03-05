@@ -11,16 +11,20 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 
-from genkit.ai import Genkit, Plugin
-from genkit.core._internal._registry import Registry
-from genkit.core.action import Action, ActionKind, ActionMetadata
+from genkit._core._registry import Registry
+from genkit._core._action import Action, ActionKind, ActionMetadata
+from genkit import Genkit, Plugin
+
+
+async def _identity(x: object) -> object:
+    return x
 
 
 @pytest.mark.asyncio
 async def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""
     registry = Registry()
-    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=_identity)
     got = await registry.resolve_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
@@ -33,7 +37,7 @@ async def test_register_action_with_name_and_kind() -> None:
 async def test_resolve_action_by_key() -> None:
     """Ensure we can resolve an action by its key."""
     registry = Registry()
-    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=_identity)
     got = await registry.resolve_action_by_key('/custom/test_action')
 
     assert got == action
@@ -118,10 +122,13 @@ async def test_trigger_lazy_loading_reentrant_guard() -> None:
         # _trigger_lazy_loading again.  Without the guard, infinite recursion.
         await registry.resolve_action(ActionKind.CUSTOM, 'self_ref')
 
+    async def noop() -> None:
+        pass
+
     action = registry.register_action(
         kind=ActionKind.CUSTOM,
         name='self_ref',
-        fn=lambda: None,
+        fn=noop,
         metadata={'lazy': True},
     )
     setattr(action, '_async_factory', self_resolving_factory)  # noqa: B010

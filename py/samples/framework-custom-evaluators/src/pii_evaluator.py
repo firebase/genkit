@@ -20,8 +20,8 @@ from functools import partial
 
 from pydantic import BaseModel
 
-from genkit.ai import Genkit
-from genkit.core._internal._typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit import Genkit
 
 
 class PiiDetectionResponse(BaseModel):

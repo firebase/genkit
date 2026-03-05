@@ -65,8 +65,8 @@ import asyncio
 import os
 from pathlib import Path
 
-from genkit.ai import Genkit
-from genkit.core._internal._logging import get_logger
+import structlog
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from src.constants import PERMISSIVE_SAFETY_SETTINGS, URL_REGEX, US_PHONE_REGEX
 from src.deliciousness_evaluator import register_deliciousness_evaluator
@@ -74,7 +74,7 @@ from src.funniness_evaluator import register_funniness_evaluator
 from src.pii_evaluator import register_pii_evaluator
 from src.regex_evaluator import regex_matcher, register_regex_evaluators
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Get prompts directory path
 current_dir = Path(__file__).resolve().parent

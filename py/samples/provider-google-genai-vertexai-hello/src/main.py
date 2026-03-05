@@ -110,9 +110,9 @@ import os
 from pydantic import BaseModel, Field
 
 from genkit import Embedding
-from genkit.ai import Genkit, Output, ToolRunContext, tool_response
-from genkit.core._internal._logging import get_logger
-from genkit.core.action import ActionRunContext
+import structlog
+from genkit._core._action import ActionRunContext
+from genkit import Genkit, ToolRunContext, tool_response
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,
@@ -143,7 +143,7 @@ from samples.shared import (
 
 setup_sample()
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Check for GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT
 # If GOOGLE_CLOUD_PROJECT is set but GCLOUD_PROJECT isn't, use it
@@ -183,7 +183,7 @@ class ToolsFlowInput(BaseModel):
 
 
 @ai.tool(name='gablorkenTool')
-def gablorken_tool(input_: GablorkenInput) -> int:
+async def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
 
     Args:
@@ -196,7 +196,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.tool(name='gablorkenTool2')
-def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
+async def gablorken_tool2(input_: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function.
 
     Args:
@@ -282,9 +282,8 @@ async def generate_character_instructions(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {input.name}',
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
         output_constrained=False,
-        output_instructions=True,
     )
     return result.output
 
@@ -415,7 +414,7 @@ async def streaming_structured_output(
 ) -> RpgCharacter:
     """Demonstrate streaming with structured output schemas.
 
-    Combines `generate_stream` with `Output(schema=...)` so the model
+    Combines `generate_stream` with `output_schema=...` so the model
     streams JSON tokens that are progressively parsed into the Pydantic
     model. Each chunk exposes a partial `.output` you can forward to
     clients for incremental rendering.
@@ -435,7 +434,7 @@ async def streaming_structured_output(
             'Include a creative backstory, 3-4 unique abilities, '
             'and skill ratings for strength, charisma, and endurance (0-100 each).'
         ),
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
     )
     async for chunk in stream:
         if ctx is not None:

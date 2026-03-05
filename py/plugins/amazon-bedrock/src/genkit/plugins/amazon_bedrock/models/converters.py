@@ -32,7 +32,7 @@ from typing import Any
 
 from genkit import (
     FinishReason,
-    GenerationCommonConfig,
+    ModelConfig,
     GenerationUsage,
     Media,
     Message,
@@ -455,11 +455,11 @@ def build_usage(usage_data: dict[str, Any]) -> GenerationUsage:
 def normalize_config(config: object) -> BedrockConfig:
     """Normalize config to BedrockConfig.
 
-    Handles dicts with camelCase keys, GenerationCommonConfig, and
+    Handles dicts with camelCase keys, ModelConfig, and
     BedrockConfig passthrough.
 
     Args:
-        config: Request configuration (dict, BedrockConfig, or GenerationCommonConfig).
+        config: Request configuration (dict, BedrockConfig, or ModelConfig).
 
     Returns:
         Normalized BedrockConfig instance.
@@ -470,7 +470,7 @@ def normalize_config(config: object) -> BedrockConfig:
     if isinstance(config, BedrockConfig):
         return config
 
-    if isinstance(config, GenerationCommonConfig):
+    if isinstance(config, ModelConfig):
         max_tokens = int(config.max_output_tokens) if config.max_output_tokens is not None else None
         return BedrockConfig(
             temperature=config.temperature,

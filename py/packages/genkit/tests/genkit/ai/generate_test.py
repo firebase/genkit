@@ -5,37 +5,47 @@
 
 """Tests for the action module."""
 
+import json
 import pathlib
 from collections.abc import Sequence
 from typing import Any, cast
 
 import pytest
 import yaml
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
-from genkit.ai import ActionKind, Genkit
-from genkit.ai.document import Document
-from genkit.ai.generate import generate_action
-from genkit.ai.model import (
-    Message,
-    ModelMiddlewareNext,
-    text_from_content,
-    text_from_message,
-)
-from genkit.core._internal._typing import (
+
+def _to_dict(obj: object) -> object:
+    """Convert object to dict for test comparisons."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    if isinstance(obj, list):
+        return [_to_dict(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: _to_dict(v) for k, v in obj.items()}
+    return obj
+
+
+def _to_json(obj: object, indent: int | None = None) -> str:
+    """Convert object to JSON string for test output."""
+    if isinstance(obj, BaseModel):
+        return obj.model__to_json(indent=indent)
+    return json.dumps(obj, indent=indent)
+from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
-    GenerateResponse,
-    GenerateResponseChunk,
     Metadata,
     ModelRequest,
     Part,
     Role,
     TextPart,
 )
-from genkit.core.action import ActionRunContext
-from genkit.core.codec import dump_dict, dump_json
+from genkit._core._action import ActionRunContext
+from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
+from genkit._ai._generate import generate_action
+from genkit.model import ModelMiddlewareNext
+from genkit._ai._model import text_from_content, text_from_message
 from genkit.testing import (
     ProgrammableModel,
     define_echo_model,
@@ -66,7 +76,7 @@ async def test_simple_text_generate_request(
     ai, pm = setup_test
 
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
@@ -96,7 +106,7 @@ async def test_simulates_doc_grounding(
     ai, pm = setup_test
 
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
@@ -144,7 +154,7 @@ async def test_generate_applies_middleware(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -159,11 +169,11 @@ async def test_generate_applies_middleware(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
-        resp: GenerateResponse = await next(req, ctx)
+    ) -> ModelResponse:
+        resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)  # type: ignore[arg-type]
-        return GenerateResponse(
+        return ModelResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
@@ -197,11 +207,11 @@ async def test_generate_middleware_next_fn_args_optional(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
-        resp: GenerateResponse = await next(req, ctx)
+    ) -> ModelResponse:
+        resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)  # type: ignore[arg-type]
-        return GenerateResponse(
+        return ModelResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
         )
@@ -235,14 +245,14 @@ async def test_generate_middleware_can_modify_context(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
     async def inject_context(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -282,16 +292,16 @@ async def test_generate_middleware_can_modify_stream(
     ai, pm = setup_test
 
     pm.responses.append(
-        GenerateResponse(
+        ModelResponse(
             finish_reason=FinishReason.STOP,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
         )
     )
     pm.chunks = [
         [
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
-            GenerateResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
         ]
     ]
 
@@ -299,18 +309,18 @@ async def test_generate_middleware_can_modify_stream(
         req: ModelRequest,
         ctx: ActionRunContext,
         next: ModelMiddlewareNext,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         ctx.send_chunk(
-            GenerateResponseChunk(
+            ModelResponseChunk(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='something extra before'))],
             )
         )
 
         def chunk_handler(chunk: object) -> None:
-            assert isinstance(chunk, GenerateResponseChunk)
+            assert isinstance(chunk, ModelResponseChunk)
             ctx.send_chunk(
-                GenerateResponseChunk(
+                ModelResponseChunk(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
                 )
@@ -318,7 +328,7 @@ async def test_generate_middleware_can_modify_stream(
 
         resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
         ctx.send_chunk(
-            GenerateResponseChunk(
+            ModelResponseChunk(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='something extra after'))],
             )
@@ -327,7 +337,7 @@ async def test_generate_middleware_can_modify_stream(
 
     got_chunks = []
 
-    def collect_chunks(c: GenerateResponseChunk) -> None:
+    def collect_chunks(c: ModelResponseChunk) -> None:
         got_chunks.append(text_from_content(c.content))
 
     response = await generate_action(
@@ -384,7 +394,7 @@ async def test_generate_action_spec(spec: dict[str, Any]) -> None:
         return 'tool called'
 
     if 'modelResponses' in spec:
-        pm.responses = [TypeAdapter(GenerateResponse).validate_python(resp) for resp in spec['modelResponses']]
+        pm.responses = [TypeAdapter(ModelResponse).validate_python(resp) for resp in spec['modelResponses']]
 
     if 'streamChunks' in spec:
         pm.chunks = []
@@ -392,19 +402,19 @@ async def test_generate_action_spec(spec: dict[str, Any]) -> None:
             converted = []
             if stream_chunks:
                 for chunk in stream_chunks:
-                    converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
+                    converted.append(TypeAdapter(ModelResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
     action = await ai.registry.resolve_action(kind=ActionKind.UTIL, name='generate')
     assert action is not None
 
     response = None
-    chunks: list[GenerateResponseChunk] | None = None
+    chunks: list[ModelResponseChunk] | None = None
     if spec.get('stream'):
         chunks = []
         captured_chunks = chunks  # Capture list reference for closure
 
-        def on_chunk(chunk: GenerateResponseChunk) -> None:
+        def on_chunk(chunk: ModelResponseChunk) -> None:
             captured_chunks.append(chunk)
 
         action_response = await action.run(
@@ -425,15 +435,15 @@ async def test_generate_action_spec(spec: dict[str, Any]) -> None:
         assert isinstance(got, list) and isinstance(want, list)
         if not is_equal_lists(got, want):
             raise AssertionError(
-                f'{dump_json(got, indent=2)}\n\nis not equal to expected:\n\n{dump_json(want, indent=2)}'
+                f'{_to_json(got, indent=2)}\n\nis not equal to expected:\n\n{_to_json(want, indent=2)}'
             )
 
     if 'expectResponse' in spec:
-        got = clean_schema(dump_dict(response))
+        got = clean_schema(_to_dict(response))
         want = clean_schema(spec['expectResponse'])
         if got != want:
             raise AssertionError(
-                f'{dump_json(got, indent=2)}\n\nis not equal to expected:\n\n{dump_json(want, indent=2)}'
+                f'{_to_json(got, indent=2)}\n\nis not equal to expected:\n\n{_to_json(want, indent=2)}'
             )
 
 
@@ -442,7 +452,7 @@ def is_equal_lists(a: Sequence[object], b: Sequence[object]) -> bool:
     if len(a) != len(b):
         return False
 
-    return all(dump_dict(a[i]) == dump_dict(b[i]) for i in range(len(a)))
+    return all(_to_dict(a[i]) == _to_dict(b[i]) for i in range(len(a)))
 
 
 primitives = (bool, str, int, float, type(None))

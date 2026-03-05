@@ -23,17 +23,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import BaseModel
 
-from genkit.ai._aio import Genkit
-from genkit.ai.document import Document
-from genkit.ai.embedding import (
+from genkit._core._schema import to_json_schema
+from genkit._core._typing import Embedding, EmbedRequest, EmbedResponse
+from genkit._core._action import Action, ActionMetadata, ActionResponse
+from genkit import Genkit
+from genkit import Document
+from genkit._ai._embedding import (
     EmbedderOptions,
     EmbedderSupports,
     create_embedder_ref,
     embedder_action_metadata,
 )
-from genkit.core._internal._schema import to_json_schema
-from genkit.core._internal._typing import Embedding, EmbedRequest, EmbedResponse
-from genkit.core.action import Action, ActionMetadata, ActionResponse
 
 
 def test_embedder_action_metadata() -> None:

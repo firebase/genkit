@@ -54,8 +54,10 @@ from google import genai
 
 from genkit import (
     CustomPart,
+    DocumentPart,
     Media,
     MediaPart,
+    Metadata,
     Part,
     ReasoningPart,
     TextPart,
@@ -64,8 +66,7 @@ from genkit import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.core._internal._http_client import get_cached_client
-from genkit.core._internal._typing import DocumentPart, Metadata
+from genkit.plugin_api import get_cached_client
 
 
 class PartConverter:

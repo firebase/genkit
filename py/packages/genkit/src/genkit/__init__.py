@@ -14,21 +14,29 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit — Build AI-powered applications.
+"""Genkit — Build AI-powered applications."""
 
-Basic usage:
-    from genkit import Genkit
-    from genkit.plugins.google_genai import GoogleAI
-
-    ai = Genkit(plugins=[GoogleAI()])
-
-    @ai.flow()
-    async def hello(name: str) -> str:
-        response = await ai.generate(model='gemini-2.0-flash', prompt=f'Hello {name}')
-        return response.text
-"""
-
-from genkit.ai import (
+from genkit._core._action import Action, StreamResponse
+from genkit._core._error import GenkitError, PublicError
+from genkit._core._plugin import Plugin
+from genkit._core._plugins import extend_plugin_namespace
+from genkit._core._typing import (
+    CustomPart,
+    DocumentPart,
+    Media,
+    MediaPart,
+    Metadata,
+    Part,
+    ReasoningPart,
+    Role,
+    TextPart,
+    ToolChoice,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+)
+from genkit._ai import (
     ActionKind,
     ActionRunContext,
     ExecutablePrompt,
@@ -37,31 +45,35 @@ from genkit.ai import (
     ResumeOptions,
     ToolRunContext,
 )
-from genkit.ai._aio import Genkit
-from genkit.ai.document import Document
-from genkit.ai.model import Message, ModelConfig, ModelResponse
-from genkit.ai.tools import ToolInterruptError
-from genkit.core._internal._typing import (
+from genkit._ai._aio import Genkit
+from genkit._ai._document import Document
+from genkit._ai._tools import ToolInterruptError, tool_response
+
+# Import embedder-related types from the embedder namespace
+from genkit.embedder import (
+    EmbedderOptions,
+    EmbedderRef,
     Embedding,
+    EmbedRequest,
+    EmbedResponse,
+)
+
+# Import model-related types from the model namespace
+from genkit.model import (
+    Constrained,
     FinishReason,
     GenerationUsage,
-    Media,
-    MediaPart,
+    Message,
+    ModelConfig,
+    ModelInfo,
     ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     OutputConfig,
-    Part,
-    Role,
-    TextPart,
-    ToolChoice,
+    Stage,
+    Supports,
     ToolDefinition,
-    ToolRequest,
-    ToolRequestPart,
-    ToolResponse,
-    ToolResponsePart,
 )
-from genkit.core._plugins import extend_plugin_namespace
-from genkit.core.error import GenkitError, PublicError
-from genkit.core.plugin import Plugin
 
 extend_plugin_namespace()
 
@@ -69,14 +81,28 @@ __all__ = [
     # Main class
     'Genkit',
     # Response types
+    'Action',
+    'StreamResponse',
+    'EmbedRequest',
+    'EmbedResponse',
+    'EmbedderOptions',
+    'EmbedderRef',
+    'ModelResponseChunk',
+    'ModelConfig',
+    'ModelInfo',
     'ModelResponse',
+    'ModelResponseChunk',
     'ModelStreamResponse',
     # Errors
     'GenkitError',
     'PublicError',
     'ToolInterruptError',
     # Content types
+    'Constrained',
+    'CustomPart',
     'Embedding',
+    'Metadata',
+    'ReasoningPart',
     'FinishReason',
     'GenerationUsage',
     'Media',
@@ -85,6 +111,8 @@ __all__ = [
     'ModelRequest',
     'Part',
     'Role',
+    'Stage',
+    'Supports',
     'TextPart',
     'ToolChoice',
     'OutputConfig',
@@ -95,6 +123,7 @@ __all__ = [
     'ToolResponsePart',
     # Domain types
     'Document',
+    'DocumentPart',
     'ModelConfig',
     # Plugin interface
     'Plugin',
@@ -105,4 +134,5 @@ __all__ = [
     'PromptGenerateOptions',
     'ResumeOptions',
     'ToolRunContext',
+    'tool_response',
 ]

@@ -18,13 +18,13 @@
 
 from typing import cast
 
-from genkit.ai.document import Document
-from genkit.core._internal._typing import (
+from genkit._core._typing import (
     DocumentPart,
     Media,
     MediaPart,
     TextPart,
 )
+from genkit import Document
 
 
 def test_makes_deep_copy() -> None:
@@ -40,13 +40,6 @@ def test_makes_deep_copy() -> None:
     assert doc.content[0].root.text == 'some text'
     assert doc.metadata is not None
     assert doc.metadata['foo'] == 'bar'
-
-
-def test_from_document_data() -> None:
-    """Test creating a Document from DocumentData."""
-    doc = Document.from_document_data(Document(content=[DocumentPart(root=TextPart(text='some text'))]))
-
-    assert doc.text() == 'some text'
 
 
 def test_simple_text_document() -> None:

@@ -83,8 +83,8 @@ import os
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core._internal._logging import get_logger
+import structlog
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -93,7 +93,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],

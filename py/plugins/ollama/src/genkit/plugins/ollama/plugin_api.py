@@ -21,14 +21,17 @@ from functools import partial
 import structlog
 
 import ollama as ollama_api
-from genkit import GenerationCommonConfig
-from genkit.ai import Plugin
-from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.ai.model import model_action_metadata
-from genkit.core._internal._registry import ActionKind
-from genkit.core._internal._schema import to_json_schema
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionMetadata
+from genkit import ModelConfig
+from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.model import model_action_metadata
+from genkit.plugin_api import (
+    Action,
+    ActionKind,
+    ActionMetadata,
+    Plugin,
+    loop_local_client,
+    to_json_schema,
+)
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
@@ -90,7 +93,7 @@ class Ollama(Plugin):
         self.server_address = server_address or DEFAULT_OLLAMA_SERVER_URL
         self.request_headers = request_headers or {}
 
-        self.client = _loop_local_client(partial(ollama_api.AsyncClient, host=self.server_address))
+        self.client = loop_local_client(partial(ollama_api.AsyncClient, host=self.server_address))
 
     async def init(self) -> list:
         """Initialize the Ollama plugin.
@@ -172,7 +175,7 @@ class Ollama(Plugin):
                     'tools': model_ref.supports.tools,
                     'output': ['text', 'json'],
                     'constrained': 'all',
-                    'customOptions': to_json_schema(GenerationCommonConfig),
+                    'customOptions': to_json_schema(ModelConfig),
                 },
             },
         )
@@ -242,7 +245,7 @@ class Ollama(Plugin):
                 actions.append(
                     model_action_metadata(
                         name=ollama_name(name),
-                        config_schema=GenerationCommonConfig,
+                        config_schema=ModelConfig,
                         info={
                             'label': f'Ollama - {name}',
                             'multiturn': True,

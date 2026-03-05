@@ -11,7 +11,7 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from genkit.core.action import Action, ActionKind
+from genkit._core._action import Action, ActionKind
 
 
 class MockResponse(BaseModel):

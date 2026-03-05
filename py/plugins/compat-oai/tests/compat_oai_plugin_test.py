@@ -25,8 +25,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from openai.types import Model
 
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import ActionKind, ActionMetadata
+from genkit.plugin_api import ActionKind, ActionMetadata, loop_local_client
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
 
@@ -102,7 +101,7 @@ async def test_openai_plugin_list_actions() -> None:
 async def test_openai_runtime_clients_are_loop_local() -> None:
     """Runtime OpenAI clients are cached per event loop."""
     plugin = OpenAI(api_key='test-key')
-    plugin._runtime_client = _loop_local_client(lambda: object())
+    plugin._runtime_client = loop_local_client(lambda: object())
 
     first = plugin._runtime_client()
     second = plugin._runtime_client()

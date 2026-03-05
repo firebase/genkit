@@ -23,11 +23,11 @@
 import pytest
 
 from genkit import Part, Role, TextPart
-from genkit.ai import Genkit, Plugin
-from genkit.ai.model import Message
-from genkit.core._internal._registry import ActionKind
-from genkit.core._internal._typing import FinishReason, GenerateResponse, ModelRequest
-from genkit.core.action import Action, ActionMetadata, ActionRunContext
+from genkit._core._registry import ActionKind
+from genkit._core._typing import FinishReason, ModelRequest
+from genkit._core._action import Action, ActionMetadata, ActionRunContext
+from genkit import Genkit, Plugin
+from genkit import Message, ModelResponse
 
 
 class AsyncResolveOnlyPlugin(Plugin):
@@ -47,8 +47,8 @@ class AsyncResolveOnlyPlugin(Plugin):
         if name != f'{self.name}/lazy-model':
             return None
 
-        async def _generate(req: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-            return GenerateResponse(
+        async def _generate(req: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+            return ModelResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: lazy'))]),
                 finish_reason=FinishReason.STOP,
             )
@@ -86,8 +86,8 @@ class AsyncInitPlugin(Plugin):
         if name != f'{self.name}/init-model':
             return None
 
-        async def _generate(req: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-            return GenerateResponse(
+        async def _generate(req: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+            return ModelResponse(
                 message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='OK: resolve'))]),
                 finish_reason=FinishReason.STOP,
             )

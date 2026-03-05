@@ -12,10 +12,10 @@ import pytest
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit.ai import Genkit
-from genkit.core._internal._typing import Operation
-from genkit.core.action import Action, ActionKind
-from genkit.core.action._action import _action_context
+from genkit._core._typing import Operation
+from genkit._core._action import Action, ActionKind
+from genkit._core._action import _action_context
+from genkit import Genkit
 
 
 @pytest.mark.asyncio
@@ -76,7 +76,7 @@ async def test_genkit_check_operation() -> None:
 
     # Patch lookup_background_action to return our mock
     with mock.patch(
-        'genkit.core._internal._background.lookup_background_action',
+        'genkit._core._background.lookup_background_action',
         new=AsyncMock(return_value=mock_background_action),
     ) as mock_lookup:
         updated_op = await ai.check_operation(op)

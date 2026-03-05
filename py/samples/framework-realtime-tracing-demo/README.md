@@ -44,10 +44,10 @@ genkit start -- python src/main.py
 ```python
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit.core.trace import RealtimeSpanProcessor, TelemetryServerSpanExporter
+from genkit._core.trace import RealtimeSpanProcessor, TraceServerExporter
 
 # Create exporter
-exporter = TelemetryServerSpanExporter(
+exporter = TraceServerExporter(
     telemetry_server_url='http://localhost:4000'
 )
 

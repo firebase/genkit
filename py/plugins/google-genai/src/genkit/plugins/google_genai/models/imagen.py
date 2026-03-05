@@ -31,20 +31,18 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from genkit import (
-    GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
+    ModelResponse,
     Part,
     Role,
     Supports,
     TextPart,
 )
-from genkit.ai import ActionRunContext
-from genkit.core.codec import dump_dict, dump_json
-from genkit.core.tracing import tracer
+from genkit.plugin_api import ActionRunContext, dump_dict, dump_json, tracer
 
 
 class ImagenVersion(StrEnum):
@@ -154,7 +152,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def generate(self, request: ModelRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, _: ActionRunContext) -> ModelResponse:
         """Handle a generation request.
 
         Args:
@@ -183,7 +181,7 @@ class ImagenModel:
 
         content = self._contents_from_response(response)
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,

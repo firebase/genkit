@@ -23,12 +23,12 @@ import ollama as ollama_api
 
 from genkit import (
     Document,
+    DocumentPart,
     Embedding,
     EmbedRequest,
     EmbedResponse,
     TextPart,
 )
-from genkit.core._internal._typing import DocumentPart
 from genkit.plugins.ollama.embedders import EmbeddingDefinition, OllamaEmbedder
 
 

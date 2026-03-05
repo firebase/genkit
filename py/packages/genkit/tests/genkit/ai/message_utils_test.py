@@ -5,14 +5,14 @@
 
 """Tests for the message utils."""
 
-from genkit.ai.messages import inject_instructions
-from genkit.ai.model import Message
-from genkit.core._internal._typing import (
+from genkit._core._typing import (
     Metadata,
     Part,
     Role,
     TextPart,
 )
+from genkit._ai._messages import inject_instructions
+from genkit import Message
 
 
 def test_inject_instructions_user_message() -> None:

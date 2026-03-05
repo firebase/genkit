@@ -242,9 +242,12 @@ from opentelemetry.sdk.trace.sampling import Sampler
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from genkit.core._internal._environment import is_dev_environment
-from genkit.core.trace.adjusting_exporter import AdjustingTraceExporter, RedactedSpan
-from genkit.core.tracing import add_custom_exporter
+from genkit.plugin_api import (
+    AdjustingTraceExporter,
+    RedactedSpan,
+    add_custom_exporter,
+    is_dev_environment,
+)
 
 logger = structlog.get_logger(__name__)
 

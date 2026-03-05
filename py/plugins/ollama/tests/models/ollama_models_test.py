@@ -27,12 +27,12 @@ import pytest
 
 from genkit import (
     ActionRunContext,
-    GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
     ModelRequest,
+    ModelResponseChunk,
     OutputConfig,
     Part,
     Role,
@@ -53,7 +53,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         cast(Any, self.ctx).send_chunk = MagicMock()
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(
             input_tokens=10,
             output_tokens=20,
@@ -115,7 +115,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 10)
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(
             input_tokens=10,
             output_tokens=20,
@@ -170,7 +170,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 14)
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_chat_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -215,7 +215,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(Message, response.message).content, [])
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_generate_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -257,7 +257,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(Message, response.message).content, [])
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -281,7 +281,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, None)
 
     @patch(
-        'genkit.ai.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_generate_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -571,10 +571,10 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(cast(MagicMock, self.ctx.send_chunk).call_count, 2)
         cast(MagicMock, self.ctx.send_chunk).assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=1, content=[Part(root=TextPart(text='chunk1 '))])
+            chunk=ModelResponseChunk(role=Role.MODEL, index=1, content=[Part(root=TextPart(text='chunk1 '))])
         )
         cast(MagicMock, self.ctx.send_chunk).assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=2, content=[Part(root=TextPart(text='chunk2'))])
+            chunk=ModelResponseChunk(role=Role.MODEL, index=2, content=[Part(root=TextPart(text='chunk2'))])
         )
 
     async def test_generate_api_raises_exception(self) -> None:

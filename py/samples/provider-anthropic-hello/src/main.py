@@ -75,10 +75,9 @@ import os
 
 from pydantic import BaseModel, Field
 
-from genkit import Media, MediaPart, Message, Metadata, Part, Role, TextPart
-from genkit.ai import Genkit
-from genkit.core._internal._logging import get_logger
-from genkit.core.action import ActionRunContext
+from genkit import Genkit, Media, MediaPart, Message, Metadata, Part, Role, TextPart
+import structlog
+from genkit._core._action import ActionRunContext
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from samples.shared import (
     CharacterInput,
@@ -113,7 +112,7 @@ setup_sample()
 if 'ANTHROPIC_API_KEY' not in os.environ:
     os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[Anthropic()],

@@ -60,15 +60,15 @@ from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core._internal._logging import get_logger
-from genkit.core._internal._typing import OutputConfig
+import structlog
+from genkit._core._typing import OutputConfig
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
 setup_sample()
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')

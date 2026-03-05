@@ -19,7 +19,7 @@
 
 import os
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
 if 'GEMINI_API_KEY' not in os.environ:

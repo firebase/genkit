@@ -7,10 +7,10 @@
 
 import pytest
 
-from genkit.ai.formats.jsonl import JsonlFormat
-from genkit.ai.model import Message, ModelResponseChunk
-from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
-from genkit.core.error import GenkitError
+from genkit._core._error import GenkitError
+from genkit._core._typing import Part, TextPart
+from genkit import Message, ModelResponseChunk
+from genkit._ai._formats._jsonl import JsonlFormat
 
 
 class TestJsonlFormatStreaming:
@@ -22,17 +22,17 @@ class TestJsonlFormatStreaming:
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         # Chunk 1: first complete object
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "first"}\n'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "first"}\n'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == [{'id': 1, 'name': 'first'}]
 
         # Chunk 2: second object complete, third starts
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 2, "name": "second"}\n{"id": 3'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 2, "name": "second"}\n{"id": 3'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == [{'id': 2, 'name': 'second'}]
 
         # Chunk 3: third object completes
-        chunk3 = GenerateResponseChunk(content=[Part(root=TextPart(text=', "name": "third"}\n'))])
+        chunk3 = ModelResponseChunk(content=[Part(root=TextPart(text=', "name": "third"}\n'))])
         result3 = fmt.parse_chunk(ModelResponseChunk(chunk3, index=0, previous_chunks=[chunk1, chunk2]))
         assert result3 == [{'id': 3, 'name': 'third'}]
 
@@ -41,7 +41,7 @@ class TestJsonlFormatStreaming:
         jsonl_fmt = JsonlFormat()
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
-        chunk = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "single"}\n'))])
+        chunk = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "single"}\n'))])
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))
         assert result == [{'id': 1, 'name': 'single'}]
 
@@ -51,12 +51,12 @@ class TestJsonlFormatStreaming:
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         # Chunk 1: preamble
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='Here are the objects:\n\n```\n'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='Here are the objects:\n\n```\n'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == []
 
         # Chunk 2: actual data
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "item"}\n```'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "item"}\n```'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == [{'id': 1, 'name': 'item'}]
 
@@ -65,7 +65,7 @@ class TestJsonlFormatStreaming:
         jsonl_fmt = JsonlFormat()
         fmt = jsonl_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
-        chunk = GenerateResponseChunk(
+        chunk = ModelResponseChunk(
             content=[Part(root=TextPart(text='First object:\n{"id": 1}\nSecond object:\n{"id": 2}\n'))]
         )
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))

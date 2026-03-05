@@ -22,13 +22,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit import (
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+    ModelConfig,
     Media,
     MediaPart,
     Message,
     Metadata,
     ModelRequest,
+    ModelResponseChunk,
     OutputConfig,
     Part,
     Role,
@@ -49,7 +49,7 @@ def _create_sample_request() -> ModelRequest:
                 content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
-        config=GenerationCommonConfig(),
+        config=ModelConfig(),
         tools=[
             ToolDefinition(
                 name='get_weather',
@@ -141,7 +141,7 @@ async def test_generate_with_config() -> None:
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Test'))])],
-        config=GenerationCommonConfig(
+        config=ModelConfig(
             temperature=0.7,
             max_output_tokens=100,
             top_p=0.9,
@@ -244,9 +244,9 @@ async def test_streaming_generation() -> None:
 
     ctx = MagicMock()
     ctx.is_streaming = True
-    collected_chunks: list[GenerateResponseChunk] = []
+    collected_chunks: list[ModelResponseChunk] = []
 
-    def send_chunk(chunk: GenerateResponseChunk) -> None:
+    def send_chunk(chunk: ModelResponseChunk) -> None:
         collected_chunks.append(chunk)
 
     ctx.send_chunk = send_chunk
@@ -318,7 +318,7 @@ async def test_streaming_tool_request() -> None:
 
     ctx = MagicMock()
     ctx.is_streaming = True
-    collected_chunks: list[GenerateResponseChunk] = []
+    collected_chunks: list[ModelResponseChunk] = []
     ctx.send_chunk = lambda chunk: collected_chunks.append(chunk)
 
     response = await model.generate(sample_request, ctx)

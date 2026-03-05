@@ -86,9 +86,9 @@ import os
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core._internal._logging import get_logger
-from genkit.core.action import ActionRunContext
+import structlog
+from genkit._core._action import ActionRunContext
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -97,7 +97,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -136,7 +136,7 @@ class ContextInput(BaseModel):
 
 
 @ai.tool()
-def get_user_info() -> str:
+async def get_user_info() -> str:
     """Look up the current user from context.
 
     This tool takes no explicit input -- it reads the user ID from the
@@ -151,7 +151,7 @@ def get_user_info() -> str:
 
 
 @ai.tool()
-def get_user_via_static() -> str:
+async def get_user_via_static() -> str:
     """Look up the current user using Genkit.current_context().
 
     Demonstrates the static method approach -- useful when context is needed
@@ -170,7 +170,7 @@ def get_user_via_static() -> str:
 
 
 @ai.tool()
-def get_user_permissions() -> str:
+async def get_user_permissions() -> str:
     """Return permissions based on the user's plan from context.
 
     Used in the propagation chain demo to verify context survives

@@ -22,17 +22,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit import (
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+    ModelConfig,
     Message,
     ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     OutputConfig,
     Part,
     Role,
     TextPart,
 )
-from genkit.core.action._action import ActionRunContext
+from genkit.plugin_api import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.utils import strip_markdown_fences
 from genkit.plugins.compat_oai.typing import OpenAIConfig
@@ -70,7 +70,7 @@ async def test_get_openai_config(sample_request: ModelRequest) -> None:
 
 @pytest.mark.asyncio
 async def test__generate(sample_request: ModelRequest) -> None:
-    """Test generate method calls OpenAI API and returns GenerateResponse."""
+    """Test generate method calls OpenAI API and returns ModelResponse."""
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
     mock_message.role = 'model'
@@ -87,7 +87,7 @@ async def test__generate(sample_request: ModelRequest) -> None:
     response = await model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
     assert response.message.role == Role.MODEL
     assert response.message.content[0].root.text == 'Hello, user!'
@@ -129,7 +129,7 @@ async def test__generate_stream(sample_request: ModelRequest) -> None:
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
-    def callback(chunk: GenerateResponseChunk) -> None:
+    def callback(chunk: ModelResponseChunk) -> None:
         collected_chunks.append(chunk.content[0].root.text)
 
     await model._generate_stream(sample_request, callback)
@@ -150,7 +150,7 @@ async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
     ctx_mock = MagicMock(spec=ActionRunContext)
     ctx_mock.is_streaming = stream
 
-    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
+    mock_response = ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 
     model = OpenAIModel(model='gpt-4', client=MagicMock())
     model._generate_stream = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
@@ -171,7 +171,7 @@ async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
         (OpenAIConfig(model='test'), OpenAIConfig(model='test')),
         ({'model': 'test'}, OpenAIConfig(model='test')),
         (
-            GenerationCommonConfig(temperature=0.7),
+            ModelConfig(temperature=0.7),
             OpenAIConfig(temperature=0.7),
         ),
         (
@@ -381,7 +381,7 @@ class TestCleanJsonResponse:
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
             output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
-        response = GenerateResponse(
+        response = ModelResponse(
             request=request,
             message=Message(
                 role=Role.MODEL,
@@ -400,7 +400,7 @@ class TestCleanJsonResponse:
             output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         fenced_text = '```json\n{"name": "John", "level": 5}\n```'
-        response = GenerateResponse(
+        response = ModelResponse(
             request=request,
             message=Message(
                 role=Role.MODEL,
@@ -419,7 +419,7 @@ class TestCleanJsonResponse:
             output=OutputConfig(format='text'),
         )
         text = '```json\n{"a": 1}\n```'
-        response = GenerateResponse(
+        response = ModelResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
@@ -434,7 +434,7 @@ class TestCleanJsonResponse:
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
         )
         text = '```json\n{"a": 1}\n```'
-        response = GenerateResponse(
+        response = ModelResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
@@ -450,7 +450,7 @@ class TestCleanJsonResponse:
             output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         text = '{"name": "John", "level": 5}'
-        response = GenerateResponse(
+        response = ModelResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )

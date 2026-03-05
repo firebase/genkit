@@ -79,21 +79,21 @@ lib: {
   opentelemetry
 }
 
-genkit.blocks -> genkit.core
+genkit.blocks -> genkit._core
 genkit.blocks -> lib.dotprompt
-genkit.core -> lib.asgiref
-genkit.core -> lib.opentelemetry
-genkit.core -> lib.pydantic
-genkit.core -> lib.starlette
-genkit.plugins.chroma -> genkit.ai
-genkit.plugins.firebase -> genkit.ai
-genkit.plugins.google_cloud -> genkit.ai
-genkit.plugins.google_genai -> genkit.ai
-genkit.plugins.ollama -> genkit.ai
-genkit.plugins.pinecone -> genkit.ai
-genkit.ai -> genkit.blocks
-genkit.ai -> genkit.core
-genkit.ai -> lib.uvicorn
+genkit._core -> lib.asgiref
+genkit._core -> lib.opentelemetry
+genkit._core -> lib.pydantic
+genkit._core -> lib.starlette
+genkit.plugins.chroma -> genkit._ai
+genkit.plugins.firebase -> genkit._ai
+genkit.plugins.google_cloud -> genkit._ai
+genkit.plugins.google_genai -> genkit._ai
+genkit.plugins.ollama -> genkit._ai
+genkit.plugins.pinecone -> genkit._ai
+genkit._ai -> genkit.blocks
+genkit._ai -> genkit._core
+genkit._ai -> lib.uvicorn
 lib.dotprompt -> lib.handlebars
 ```
 

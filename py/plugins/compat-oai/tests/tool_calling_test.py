@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit import GenerateResponseChunk, ModelRequest, TextPart, ToolRequestPart
+from genkit import ModelRequest, ModelResponseChunk, TextPart, ToolRequestPart
 from genkit.plugins.compat_oai.models import OpenAIModel
 
 
@@ -137,7 +137,7 @@ async def test_generate_stream_with_tool_calls(sample_request: ModelRequest) -> 
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
-    def callback(chunk: GenerateResponseChunk) -> None:
+    def callback(chunk: ModelResponseChunk) -> None:
         collected_chunks.append(chunk.content[0].root)
 
     await model._generate_stream(sample_request, callback)

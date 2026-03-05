@@ -24,15 +24,15 @@ from google import genai
 from pytest_mock import MockerFixture
 
 from genkit import (
-    GenerateResponse,
+    ActionRunContext,
     MediaPart,
     Message,
     ModelRequest,
+    ModelResponse,
     Part,
     Role,
     TextPart,
 )
-from genkit.ai import ActionRunContext
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
 
@@ -74,7 +74,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: ImagenVer
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.generate_images(model=version, prompt=request_text, config=None)
     ])
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
     content = response.message.content[0]
     assert isinstance(content.root, MediaPart)

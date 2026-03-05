@@ -127,17 +127,18 @@ import os
 from typing import Any
 
 import httpx
+import structlog
 
 from genkit import (
     FinishReason,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+    ModelConfig,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
     ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     Part,
     Role,
     TextPart,
@@ -146,9 +147,7 @@ from genkit import (
     ToolRequestPart,
     ToolResponsePart,
 )
-from genkit.ai import ActionRunContext
-from genkit.core._internal._http_client import get_cached_client
-from genkit.core._internal._logging import get_logger
+from genkit.plugin_api import ActionRunContext, get_cached_client
 from genkit.plugins.amazon_bedrock.models.converters import (
     StreamingFenceStripper,
     maybe_strip_fences,
@@ -156,7 +155,7 @@ from genkit.plugins.amazon_bedrock.models.converters import (
 from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 
 # Logger for this module
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Regional prefixes for inference profiles (us, eu, apac)
 _INFERENCE_PROFILE_PREFIXES = ('us.', 'eu.', 'apac.')
@@ -274,7 +273,7 @@ class BedrockModel:
         self,
         request: ModelRequest,
         ctx: ActionRunContext | None = None,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Generate a response from AWS Bedrock.
 
         Args:
@@ -282,7 +281,7 @@ class BedrockModel:
             ctx: Action run context for streaming support.
 
         Returns:
-            GenerateResponse with the model's output.
+            ModelResponse with the model's output.
         """
         config = self._normalize_config(request.config)
         params = await self._build_request_body(request, config)
@@ -328,7 +327,7 @@ class BedrockModel:
         stop_reason = response.get('stopReason', '')
         finish_reason = FINISH_REASON_MAP.get(stop_reason, FinishReason.UNKNOWN)
 
-        return GenerateResponse(
+        return ModelResponse(
             message=response_message,
             usage=usage,
             finish_reason=finish_reason,
@@ -340,7 +339,7 @@ class BedrockModel:
         params: dict[str, Any],
         ctx: ActionRunContext,
         request: ModelRequest,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Handle streaming generation using ConverseStream.
 
         Args:
@@ -349,7 +348,7 @@ class BedrockModel:
             request: Original generation request.
 
         Returns:
-            Final GenerateResponse after streaming completes.
+            Final ModelResponse after streaming completes.
         """
         try:
             # Use converse_stream for streaming
@@ -376,7 +375,7 @@ class BedrockModel:
                 return
             part = Part(root=TextPart(text=text))
             accumulated_content.append(part)
-            ctx.send_chunk(GenerateResponseChunk(role=Role.MODEL, content=[part], index=0))
+            ctx.send_chunk(ModelResponseChunk(role=Role.MODEL, content=[part], index=0))
 
         # Process the event stream
         stream = response.get('stream', [])
@@ -437,7 +436,7 @@ class BedrockModel:
                     except json.JSONDecodeError:
                         tool_input = tool_data['input']
                     ctx.send_chunk(
-                        GenerateResponseChunk(
+                        ModelResponseChunk(
                             role=Role.MODEL,
                             content=[
                                 Part(
@@ -482,7 +481,7 @@ class BedrockModel:
 
         finish_reason = FINISH_REASON_MAP.get(stop_reason, FinishReason.UNKNOWN)
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(role=Role.MODEL, content=accumulated_content),
             usage=final_usage,
             finish_reason=finish_reason,
@@ -493,7 +492,7 @@ class BedrockModel:
         """Normalize config to BedrockConfig.
 
         Args:
-            config: Request configuration (dict, BedrockConfig, or GenerationCommonConfig).
+            config: Request configuration (dict, BedrockConfig, or ModelConfig).
 
         Returns:
             Normalized BedrockConfig instance.
@@ -504,7 +503,7 @@ class BedrockModel:
         if isinstance(config, BedrockConfig):
             return config
 
-        if isinstance(config, GenerationCommonConfig):
+        if isinstance(config, ModelConfig):
             max_tokens = int(config.max_output_tokens) if config.max_output_tokens is not None else None
             return BedrockConfig(
                 temperature=config.temperature,

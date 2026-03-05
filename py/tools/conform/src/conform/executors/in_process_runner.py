@@ -39,7 +39,7 @@ from typing import Any, cast
 
 from rich.console import Console
 
-from genkit.core.codec import dump_dict
+from genkit._core.codec import dump_dict
 
 console = Console(stderr=True)
 
@@ -136,7 +136,7 @@ class InProcessRunner:
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit.core._internal._typing import Message, OutputConfig, Part
+        from genkit._core._typing import Message, OutputConfig, Part
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -218,7 +218,7 @@ def _register_ephemeral_tool(
     and ``description`` so ``to_tool_definition()`` can build the right
     ``ToolDefinition`` for the model.
     """
-    from genkit.core.action import ActionKind
+    from genkit._core._action import ActionKind
 
     registry = ai.registry
 

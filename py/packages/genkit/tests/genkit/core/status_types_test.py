@@ -19,7 +19,7 @@
 import pytest
 from pydantic import ValidationError
 
-from genkit.core.error import Status, StatusCodes, http_status_code
+from genkit._core._error import Status, StatusCodes, http_status_code
 
 
 def test_status_codes_values() -> None:

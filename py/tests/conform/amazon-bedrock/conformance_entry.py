@@ -26,7 +26,7 @@ Env:
 
 import asyncio
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.amazon_bedrock import AmazonBedrock
 
 ai = Genkit(plugins=[AmazonBedrock()])

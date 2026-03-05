@@ -47,10 +47,8 @@ Note:
 
 import pytest
 
-from genkit.ai import Genkit
-from genkit.ai.model import Message
-from genkit.core._internal._typing import (
-    GenerateResponse,
+from genkit._core._error import GenkitError
+from genkit._core._typing import (
     ModelInfo,
     ModelRequest,
     Operation,
@@ -59,8 +57,9 @@ from genkit.core._internal._typing import (
     Supports,
     TextPart,
 )
-from genkit.core.action import ActionRunContext
-from genkit.core.error import GenkitError
+from genkit._core._action import ActionRunContext
+from genkit import Genkit
+from genkit import Message, ModelResponse
 
 
 @pytest.fixture
@@ -95,8 +94,8 @@ async def test_generate_operation_model_no_long_running_support(ai: Genkit) -> N
     """
 
     # Define a standard model without long_running support
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Hello'))],
@@ -127,8 +126,8 @@ async def test_generate_operation_model_no_supports_info(ai: Genkit) -> None:
     """Test that models without supports info are rejected."""
 
     # Define a model without any ModelInfo
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Hello'))],
@@ -151,9 +150,9 @@ async def test_generate_operation_no_operation_returned(ai: Genkit) -> None:
     """
 
     # Define a model that claims to support long_running but doesn't return an operation
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         # Return a normal response without an operation
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Hello'))],
@@ -186,8 +185,8 @@ async def test_generate_operation_success_with_lro_model(ai: Genkit) -> None:
     )
 
     # Define a model that supports long_running and returns an operation
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Started'))],
@@ -221,8 +220,8 @@ async def test_generate_operation_with_default_model(ai: Genkit) -> None:
         done=False,
     )
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
-        return GenerateResponse(
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Started'))],
@@ -265,10 +264,10 @@ async def test_generate_operation_passes_all_options(ai: Genkit) -> None:
     captured_request: ModelRequest | None = None
     expected_operation = Operation(id='opt-test-789', done=False)
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         nonlocal captured_request
         captured_request = request
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=[Part(root=TextPart(text='Started'))],

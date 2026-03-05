@@ -49,7 +49,7 @@
 | **Flows** | `flows.mdx` | js, go, python | **Flow steps** (`genkit.Run()` equivalent in Python). **Durable streaming** — needs investigation. |
 | **RAG** | `rag.mdx` | js, go, python | Python tab may be stale. Verify: indexers, embedders, retrievers, simple retrievers, custom retrievers, rerankers sections. |
 | **Context** | `context.mdx` | js only (rendered) | The rendered page shows JS-only. Python supports `context=` on `generate()` and flows. Needs Python examples for context in actions, context at runtime, context propagation. |
-| **Dotprompt** | `dotprompt.mdx` | js, go | Python SDK has dotprompt support (`genkit.core.prompt`). Needs full Python tab with: creating prompt files, running prompts, model configuration, schemas, tool calling in prompts, multi-message prompts, partials, prompt variants, defining prompts in code. |
+| **Dotprompt** | `dotprompt.mdx` | js, go | Python SDK has dotprompt support (`genkit._core.prompt`). Needs full Python tab with: creating prompt files, running prompts, model configuration, schemas, tool calling in prompts, multi-message prompts, partials, prompt variants, defining prompts in code. |
 
 ### ❌ Python Tab Missing (needs to be added)
 

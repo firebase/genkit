@@ -102,18 +102,18 @@ from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
-from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
-from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.ai.model import model_action_metadata
-from genkit.core._internal._background import BackgroundAction
-from genkit.core._internal._registry import ActionKind
-from genkit.core._internal._schema import to_json_schema
-from genkit.core._internal._typing import (
-    EvalFnResponse,
-    EvalRequest,
+from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.evaluator import EvalFnResponse, EvalRequest
+from genkit.model import BackgroundAction, model_action_metadata
+from genkit.plugin_api import (
+    GENKIT_CLIENT_HEADER,
+    Action,
+    ActionKind,
+    ActionMetadata,
+    Plugin,
+    loop_local_client,
+    to_json_schema,
 )
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionMetadata
 from genkit.plugins.google_genai.evaluators import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
@@ -400,7 +400,7 @@ class GoogleAI(Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -505,7 +505,7 @@ class GoogleAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_veo_model(self, name: str) -> 'BackgroundAction':
+    def _resolve_veo_model(self, name: str) -> BackgroundAction:
         """Create a BackgroundAction for a Veo video generation model.
 
         Args:
@@ -758,7 +758,7 @@ class VertexAI(Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -783,14 +783,14 @@ class VertexAI(Plugin):
 
         # Register Vertex AI evaluators
         # Deferred import to avoid circular dependency
-        from genkit.ai._registry import GenkitRegistry
+        from genkit import Genkit
 
         if not self._project:
             raise ValueError(
                 'VertexAI plugin requires a project ID to use evaluators. '
                 'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
             )
-        registry = GenkitRegistry()
+        registry = Genkit()
         actions.extend(
             create_vertex_evaluators(
                 registry,
@@ -836,8 +836,6 @@ class VertexAI(Plugin):
             return self._resolve_model(name)
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
-        elif action_type == ActionKind.RERANKER:
-            return self._resolve_reranker(name)
         elif action_type == ActionKind.EVALUATOR:
             return self._resolve_evaluator(name)
         return None
@@ -859,9 +857,9 @@ class VertexAI(Plugin):
         except ValueError:
             return None
 
-        from genkit.ai._registry import GenkitRegistry
+        from genkit import Genkit
 
-        registry = GenkitRegistry()
+        registry = Genkit()
         if not self._project:
             raise ValueError(
                 'VertexAI plugin requires a project ID to use evaluators. '

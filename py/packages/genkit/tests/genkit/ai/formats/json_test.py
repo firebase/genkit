@@ -5,9 +5,9 @@
 
 """Tests for the JSON format."""
 
-from genkit.ai.formats import JsonFormat
-from genkit.ai.model import Message, ModelResponseChunk
-from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit._core._typing import Part, TextPart
+from genkit import Message, ModelResponseChunk
+from genkit._ai._formats import JsonFormat
 
 
 class TestJsonFormatStreaming:
@@ -18,7 +18,7 @@ class TestJsonFormatStreaming:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        chunk = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))])
+        chunk = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))])
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))
         assert result == {'id': 1, 'name': 'test'}
 
@@ -28,12 +28,12 @@ class TestJsonFormatStreaming:
         fmt = json_fmt.handle({'type': 'object'})
 
         # Chunk 1: partial object
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == {'id': 1}
 
         # Chunk 2: complete object
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text=', "name": "test"}'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text=', "name": "test"}'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == {'id': 1, 'name': 'test'}
 
@@ -43,12 +43,12 @@ class TestJsonFormatStreaming:
         fmt = json_fmt.handle({'type': 'object'})
 
         # Chunk 1: preamble
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='Here is the JSON:\n\n```json\n'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='Here is the JSON:\n\n```json\n'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 is None
 
         # Chunk 2: actual data
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1}\n```'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1}\n```'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == {'id': 1}
 
@@ -103,13 +103,11 @@ class TestJsonFormatMessage:
 
         result = fmt.parse_chunk(
             ModelResponseChunk(
-                GenerateResponseChunk(content=[Part(root=TextPart(text='", "baz": [1,2'))]),
+                ModelResponseChunk(content=[Part(root=TextPart(text='", "baz": [1,2'))]),
                 index=0,
                 previous_chunks=[
-                    GenerateResponseChunk(
-                        content=[Part(root=TextPart(text='{"bar":')), Part(root=TextPart(text='"ba'))]
-                    ),
-                    GenerateResponseChunk(content=[Part(root=TextPart(text='z'))]),
+                    ModelResponseChunk(content=[Part(root=TextPart(text='{"bar":')), Part(root=TextPart(text='"ba'))]),
+                    ModelResponseChunk(content=[Part(root=TextPart(text='z'))]),
                 ],
             )
         )

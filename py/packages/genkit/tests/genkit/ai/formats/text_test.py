@@ -5,9 +5,9 @@
 
 """Tests for the Text format."""
 
-from genkit.ai.formats.text import TextFormat
-from genkit.ai.model import Message, ModelResponseChunk
-from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
+from genkit._core._typing import Part, TextPart
+from genkit import Message, ModelResponseChunk
+from genkit._ai._formats._text import TextFormat
 
 
 class TestTextFormatStreaming:
@@ -19,12 +19,12 @@ class TestTextFormatStreaming:
         fmt = text_fmt.handle(None)
 
         # Chunk 1: "Hello"
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='Hello'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='Hello'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == 'Hello'
 
         # Chunk 2: " world" - should return only this chunk's text, not accumulated
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text=' world'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text=' world'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == ' world'
 
@@ -33,7 +33,7 @@ class TestTextFormatStreaming:
         text_fmt = TextFormat()
         fmt = text_fmt.handle(None)
 
-        chunk = GenerateResponseChunk(content=[Part(root=TextPart(text=''))])
+        chunk = ModelResponseChunk(content=[Part(root=TextPart(text=''))])
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))
         assert result == ''
 

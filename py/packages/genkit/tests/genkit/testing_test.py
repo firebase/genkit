@@ -57,16 +57,13 @@ Test Coverage
 
 import pytest
 
-from genkit.ai import Genkit
-from genkit.ai.model import Message
-from genkit.core._internal._typing import (
-    GenerateResponse,
-    GenerateResponseChunk,
+from genkit._core._typing import (
     ModelRequest,
     Part,
     Role,
     TextPart,
 )
+from genkit import Genkit, Message, ModelResponse, ModelResponseChunk
 from genkit.testing import (
     EchoModel,
     GablorkenInput,
@@ -86,9 +83,9 @@ class MockActionRunContext:
 
     def __init__(self) -> None:
         """Initialize with empty chunks list."""
-        self.chunks: list[GenerateResponseChunk] = []
+        self.chunks: list[ModelResponseChunk] = []
 
-    def send_chunk(self, chunk: GenerateResponseChunk) -> None:
+    def send_chunk(self, chunk: ModelResponseChunk) -> None:
         """Append a chunk to the chunks list."""
         self.chunks.append(chunk)
 
@@ -212,7 +209,7 @@ class TestProgrammableModel:
         """Test basic programmable model functionality."""
         pm = ProgrammableModel()
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 1'))],
@@ -241,13 +238,13 @@ class TestProgrammableModel:
         """Test multiple sequential responses."""
         pm = ProgrammableModel()
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 1'))],
                 ),
             ),
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 2'))],
@@ -279,7 +276,7 @@ class TestProgrammableModel:
         """Test streaming programmed chunks."""
         pm = ProgrammableModel()
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Final'))],
@@ -288,8 +285,8 @@ class TestProgrammableModel:
         ]
         pm.chunks = [
             [
-                GenerateResponseChunk(content=[Part(root=TextPart(text='Chunk 1'))]),
-                GenerateResponseChunk(content=[Part(root=TextPart(text='Chunk 2'))]),
+                ModelResponseChunk(content=[Part(root=TextPart(text='Chunk 1'))]),
+                ModelResponseChunk(content=[Part(root=TextPart(text='Chunk 2'))]),
             ],
         ]
         ctx = MockActionRunContext()
@@ -314,7 +311,7 @@ class TestProgrammableModel:
         """Test reset clears state."""
         pm = ProgrammableModel()
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response'))],
@@ -348,7 +345,7 @@ class TestProgrammableModel:
         """Test that last_request is a deep copy."""
         pm = ProgrammableModel()
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response'))],
@@ -384,7 +381,7 @@ class TestProgrammableModel:
         """Test define_programmable_model helper function."""
         pm, _action = define_programmable_model(ai, name='testPM')
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Programmed response'))],
@@ -511,48 +508,48 @@ class TestTestModels:
         pm, _ = define_programmable_model(ai, name='testModel')
         pm.responses = [
             # For basic hi test
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
                 ),
             ),
             # For multimodal test (will skip since no media support)
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='plus'))],
                 ),
             ),
             # For history test
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Nice to meet you'))],
                 ),
             ),
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Your name is Glorb'))],
                 ),
             ),
             # For system prompt test
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Bye'))],
                 ),
             ),
             # For structured output test
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='{"name": "Jack", "occupation": "Lumberjack"}'))],
                 ),
             ),
             # For tool calling test (will skip since no tools support)
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='9.407'))],
@@ -580,7 +577,7 @@ class TestTestModels:
         """Test that report format matches JS implementation."""
         pm, _ = define_programmable_model(ai, name='formatTestModel')
         pm.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
@@ -608,7 +605,7 @@ class TestTestModels:
         """Test test_models with multiple models."""
         pm1, _ = define_programmable_model(ai, name='model1')
         pm1.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
@@ -618,7 +615,7 @@ class TestTestModels:
 
         pm2, _ = define_programmable_model(ai, name='model2')
         pm2.responses = [
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hello'))],
@@ -641,7 +638,7 @@ class TestTestModels:
         pm, _ = define_programmable_model(ai, name='failingModel')
         pm.responses = [
             # Return something that doesn't match expected pattern
-            GenerateResponse(
+            ModelResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Goodbye'))],  # Should be "Hi"

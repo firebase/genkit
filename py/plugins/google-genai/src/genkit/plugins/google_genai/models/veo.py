@@ -80,23 +80,19 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit import (
-    GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
+    ModelResponse,
     Part,
     Role,
     Supports,
     TextPart,
 )
-from genkit.core._internal._typing import (
-    Error,
-    Operation,
-)
-from genkit.core.action import ActionRunContext
-from genkit.core.tracing import tracer
+from genkit.model import Error, Operation
+from genkit.plugin_api import ActionRunContext, tracer
 
 
 class VeoVersion(StrEnum):
@@ -300,7 +296,7 @@ class VeoModel:
                     pass
         return ' '.join(prompt)
 
-    async def generate(self, request: ModelRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, _: ActionRunContext) -> ModelResponse:
         """Handle a generation request (synchronous/blocking mode for Vertex AI).
 
         Args:
@@ -333,7 +329,7 @@ class VeoModel:
 
             content = self._contents_from_response(cast(genai_types.GenerateVideosResponse, response))
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,

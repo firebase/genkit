@@ -7,10 +7,10 @@
 
 import pytest
 
-from genkit.ai.formats.enum import EnumFormat
-from genkit.ai.model import Message, ModelResponseChunk
-from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
-from genkit.core.error import GenkitError
+from genkit._core._error import GenkitError
+from genkit._core._typing import Part, TextPart
+from genkit import Message, ModelResponseChunk
+from genkit._ai._formats._enum import EnumFormat
 
 
 class TestEnumFormatMessage:
@@ -65,8 +65,8 @@ class TestEnumFormatStreaming:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='"f'))])
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='oo"'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='"f'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='oo"'))])
 
         result = fmt.parse_chunk(
             ModelResponseChunk(

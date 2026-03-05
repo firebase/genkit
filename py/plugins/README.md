@@ -4,14 +4,14 @@ This directory contains all official Genkit plugins for Python.
 
 ## Plugin Architecture
 
-All plugins inherit from `genkit.core.plugin.Plugin` and implement three
+All plugins inherit from `genkit._core.plugin.Plugin` and implement three
 async methods. The registry calls them lazily — `init()` runs only on
 first use, not at registration time.
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
   │                  Plugin (Abstract Base Class)                       │
-  │                  genkit.core.plugin.Plugin                          │
+  │                  genkit._core.plugin.Plugin                          │
   ├─────────────────────────────────────────────────────────────────────┤
   │                                                                     │
   │  name: str              Plugin namespace (e.g., 'googleai')        │
@@ -531,7 +531,7 @@ pip install genkit-cohere-plugin
 ## Quick Start
 
 ```python
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
 # Initialize with your chosen plugin

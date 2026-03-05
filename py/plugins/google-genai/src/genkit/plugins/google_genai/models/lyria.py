@@ -73,10 +73,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.core._internal._typing import (
-    ModelInfo,
-    Supports,
-)
+from genkit import ModelInfo, Supports
 
 
 class LyriaVersion(StrEnum):

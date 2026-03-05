@@ -7,22 +7,8 @@
 
 import pytest
 
-from genkit.ai.model import (
-    Message,
-    ModelResponse,
-    ModelResponseChunk,
-    PartCounts,
-    get_basic_usage_stats,
-    get_part_counts,
-    model_action_metadata,
-    text_from_content,
-)
-from genkit.core._internal._typing import (
-    Candidate,
+from genkit._core._typing import (
     DocumentPart,
-    FinishReason,
-    GenerateResponse,
-    GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaPart,
@@ -33,7 +19,10 @@ from genkit.core._internal._typing import (
     ToolRequest,
     ToolRequestPart,
 )
-from genkit.core.action import ActionMetadata
+from genkit._core._action import ActionMetadata
+from genkit import Message, ModelResponse, ModelResponseChunk
+from genkit.model import get_basic_usage_stats, model_action_metadata
+from genkit._ai._model import text_from_content
 
 
 def test_message_wrapper_text() -> None:
@@ -51,16 +40,12 @@ def test_message_wrapper_text() -> None:
 def test_response_wrapper_text() -> None:
     """Test text property of ModelResponse."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))],
-            )
-        ),
-        request=ModelRequest(
-            messages=[],  # doesn't matter for now
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))],
         ),
     )
+    wrapper.request = ModelRequest(messages=[])
 
     assert wrapper.text == 'hello world'
 
@@ -68,16 +53,12 @@ def test_response_wrapper_text() -> None:
 def test_response_wrapper_output() -> None:
     """Test output property of ModelResponse."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
-            )
-        ),
-        request=ModelRequest(
-            messages=[],  # doesn't matter for now
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
         ),
     )
+    wrapper.request = ModelRequest(messages=[])
 
     assert wrapper.output == {'foo': 'bar'}
 
@@ -85,24 +66,22 @@ def test_response_wrapper_output() -> None:
 def test_response_wrapper_messages() -> None:
     """Test messages property of ModelResponse."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='baz'))],
-            )
-        ),
-        request=ModelRequest(
-            messages=[
-                Message(
-                    role='user',
-                    content=[Part(root=TextPart(text='foo'))],
-                ),
-                Message(
-                    role='tool',
-                    content=[Part(root=TextPart(text='bar'))],
-                ),
-            ],
-        ),
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='baz'))],
+        )
+    )
+    wrapper.request = ModelRequest(
+        messages=[
+            Message(
+                role='user',
+                content=[Part(root=TextPart(text='foo'))],
+            ),
+            Message(
+                role='tool',
+                content=[Part(root=TextPart(text='bar'))],
+            ),
+        ],
     )
 
     assert wrapper.messages == [
@@ -124,17 +103,13 @@ def test_response_wrapper_messages() -> None:
 def test_response_wrapper_output_uses_parser() -> None:
     """Test that ModelResponse uses the provided message_parser."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
-            )
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"bar'))],
         ),
-        request=ModelRequest(
-            messages=[],  # doesn't matter for now
-        ),
-        message_parser=lambda x: 'banana',
     )
+    wrapper.request = ModelRequest(messages=[])
+    wrapper._message_parser = lambda x: 'banana'
 
     assert wrapper.output == 'banana'
 
@@ -142,7 +117,7 @@ def test_response_wrapper_output_uses_parser() -> None:
 def test_chunk_wrapper_text() -> None:
     """Test text property of ModelResponseChunk."""
     wrapper = ModelResponseChunk(
-        chunk=GenerateResponseChunk(content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))]),
+        chunk=ModelResponseChunk(content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' world'))]),
         index=0,
         previous_chunks=[],
     )
@@ -153,11 +128,11 @@ def test_chunk_wrapper_text() -> None:
 def test_chunk_wrapper_accumulated_text() -> None:
     """Test accumulated_text property of ModelResponseChunk."""
     wrapper = ModelResponseChunk(
-        GenerateResponseChunk(content=[Part(root=TextPart(text=' PS: aliens'))]),
+        ModelResponseChunk(content=[Part(root=TextPart(text=' PS: aliens'))]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' '))]),
-            GenerateResponseChunk(content=[Part(root=TextPart(text='world!'))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='hello')), Part(root=TextPart(text=' '))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='world!'))]),
         ],
     )
 
@@ -167,11 +142,11 @@ def test_chunk_wrapper_accumulated_text() -> None:
 def test_chunk_wrapper_output() -> None:
     """Test output property of ModelResponseChunk."""
     wrapper = ModelResponseChunk(
-        GenerateResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
+        ModelResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"ba'))]),
-            GenerateResponseChunk(content=[Part(root=TextPart(text='r"'))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"ba'))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='r"'))]),
         ],
     )
 
@@ -181,11 +156,11 @@ def test_chunk_wrapper_output() -> None:
 def test_chunk_wrapper_output_uses_parser() -> None:
     """Test that ModelResponseChunk uses the provided chunk_parser."""
     wrapper = ModelResponseChunk(
-        GenerateResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
+        ModelResponseChunk(content=[Part(root=TextPart(text=', "baz":[1,2,'))]),
         index=0,
         previous_chunks=[
-            GenerateResponseChunk(content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"ba'))]),
-            GenerateResponseChunk(content=[Part(root=TextPart(text='r"'))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='{"foo":')), Part(root=TextPart(text='"ba'))]),
+            ModelResponseChunk(content=[Part(root=TextPart(text='r"'))]),
         ],
         chunk_parser=lambda x: 'banana',
     )
@@ -194,39 +169,11 @@ def test_chunk_wrapper_output_uses_parser() -> None:
 
 
 @pytest.mark.parametrize(
-    'test_parts,expected_part_counts',
-    (
-        [[], PartCounts()],
-        [
-            [
-                Part(root=MediaPart(media=Media(content_type='image', url=''))),
-                Part(root=MediaPart(media=Media(url='data:image'))),
-                Part(root=MediaPart(media=Media(content_type='audio', url=''))),
-                Part(root=MediaPart(media=Media(url='data:audio'))),
-                Part(root=MediaPart(media=Media(content_type='video', url=''))),
-                Part(root=MediaPart(media=Media(url='data:video'))),
-                Part(root=TextPart(text='test')),
-            ],
-            PartCounts(
-                characters=len('test'),
-                audio=2,
-                videos=2,
-                images=2,
-            ),
-        ],
-    ),
-)
-def test_get_part_counts(test_parts: list[Part], expected_part_counts: PartCounts) -> None:
-    """Test get_part_counts utility."""
-    assert get_part_counts(parts=test_parts) == expected_part_counts
-
-
-@pytest.mark.parametrize(
     'test_input,test_response,expected_output',
     (
         [
             [],
-            [],
+            Message(role='model', content=[]),
             GenerationUsage(
                 input_images=0,
                 input_videos=0,
@@ -260,7 +207,7 @@ def test_get_part_counts(test_parts: list[Part], expected_part_counts: PartCount
                 ),
             ],
             Message(
-                role='user',
+                role='model',
                 content=[
                     Part(root=TextPart(text='3')),
                     Part(root=MediaPart(media=Media(content_type='image', url=''))),
@@ -282,104 +229,11 @@ def test_get_part_counts(test_parts: list[Part], expected_part_counts: PartCount
                 output_videos=2,
             ),
         ],
-        [
-            [
-                Message(
-                    role='user',
-                    content=[
-                        Part(root=TextPart(text='1')),
-                        Part(root=TextPart(text='2')),
-                    ],
-                ),
-            ],
-            [
-                Candidate(
-                    index=0,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=TextPart(text='3')),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=1,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(content_type='image', url=''))),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=2,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(url='data:image'))),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=3,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(content_type='audio', url=''))),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=4,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(url='data:audio'))),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=5,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(content_type='video', url=''))),
-                        ],
-                    ),
-                ),
-                Candidate(
-                    index=6,
-                    finish_reason=FinishReason.STOP,
-                    message=Message(
-                        role='user',
-                        content=[
-                            Part(root=MediaPart(media=Media(url='data:video'))),
-                        ],
-                    ),
-                ),
-            ],
-            GenerationUsage(
-                input_images=0,
-                input_videos=0,
-                input_characters=2,
-                input_audio_files=0,
-                output_audio_files=2,
-                output_characters=1,
-                output_images=2,
-                output_videos=2,
-            ),
-        ],
     ),
 )
 def test_get_basic_usage_stats(
     test_input: list[Message],
-    test_response: Message | list[Candidate],
+    test_response: Message,
     expected_output: GenerationUsage,
 ) -> None:
     """Test get_basic_usage_stats utility."""
@@ -389,42 +243,38 @@ def test_get_basic_usage_stats(
 def test_response_wrapper_tool_requests() -> None:
     """Test tool_requests property of ModelResponse."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='bar'))],
-            )
-        ),
-        request=ModelRequest(
-            messages=[
-                Message(
-                    role='user',
-                    content=[Part(root=TextPart(text='foo'))],
-                ),
-            ],
-        ),
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='bar'))],
+        )
+    )
+    wrapper.request = ModelRequest(
+        messages=[
+            Message(
+                role='user',
+                content=[Part(root=TextPart(text='foo'))],
+            ),
+        ],
     )
 
     assert wrapper.tool_requests == []
 
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[
-                    Part(root=ToolRequestPart(tool_request=ToolRequest(name='tool', input={'abc': 3}))),
-                    Part(root=TextPart(text='bar')),
-                ],
-            )
-        ),
-        request=ModelRequest(
-            messages=[
-                Message(
-                    role='user',
-                    content=[Part(root=TextPart(text='foo'))],
-                ),
+        message=Message(
+            role='model',
+            content=[
+                Part(root=ToolRequestPart(tool_request=ToolRequest(name='tool', input={'abc': 3}))),
+                Part(root=TextPart(text='bar')),
             ],
-        ),
+        )
+    )
+    wrapper.request = ModelRequest(
+        messages=[
+            Message(
+                role='user',
+                content=[Part(root=TextPart(text='foo'))],
+            ),
+        ],
     )
 
     assert wrapper.tool_requests == [ToolRequestPart(tool_request=ToolRequest(name='tool', input={'abc': 3}))]
@@ -433,48 +283,44 @@ def test_response_wrapper_tool_requests() -> None:
 def test_response_wrapper_interrupts() -> None:
     """Test interrupts property of ModelResponse."""
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[Part(root=TextPart(text='bar'))],
-            )
-        ),
-        request=ModelRequest(
-            messages=[
-                Message(
-                    role='user',
-                    content=[Part(root=TextPart(text='foo'))],
-                ),
-            ],
-        ),
+        message=Message(
+            role='model',
+            content=[Part(root=TextPart(text='bar'))],
+        )
+    )
+    wrapper.request = ModelRequest(
+        messages=[
+            Message(
+                role='user',
+                content=[Part(root=TextPart(text='foo'))],
+            ),
+        ],
     )
 
     assert wrapper.interrupts == []
 
     wrapper = ModelResponse(
-        response=GenerateResponse(
-            message=Message(
-                role='model',
-                content=[
-                    Part(root=ToolRequestPart(tool_request=ToolRequest(name='tool1', input={'abc': 3}))),
-                    Part(
-                        root=ToolRequestPart(
-                            tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
-                            metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
-                        )
-                    ),
-                    Part(root=TextPart(text='bar')),
-                ],
-            )
-        ),
-        request=ModelRequest(
-            messages=[
-                Message(
-                    role='user',
-                    content=[Part(root=TextPart(text='foo'))],
+        message=Message(
+            role='model',
+            content=[
+                Part(root=ToolRequestPart(tool_request=ToolRequest(name='tool1', input={'abc': 3}))),
+                Part(
+                    root=ToolRequestPart(
+                        tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
+                        metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
+                    )
                 ),
+                Part(root=TextPart(text='bar')),
             ],
-        ),
+        )
+    )
+    wrapper.request = ModelRequest(
+        messages=[
+            Message(
+                role='user',
+                content=[Part(root=TextPart(text='foo'))],
+            ),
+        ],
     )
 
     assert wrapper.interrupts == [

@@ -20,15 +20,16 @@ import json
 from collections.abc import Callable
 from typing import Any, cast
 
+import structlog
 from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit import (
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+    ModelConfig,
     Message,
     ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     OutputConfig,
     Part,
     ReasoningPart,
@@ -36,9 +37,8 @@ from genkit import (
     TextPart,
     ToolDefinition,
 )
-from genkit.core._internal._logging import get_logger
-from genkit.core._internal._typing import ModelConfig as CoreModelConfig
-from genkit.core.action._action import ActionRunContext
+from genkit.model import ModelConfig
+from genkit.plugin_api import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import (
     DictMessageAdapter,
@@ -48,7 +48,7 @@ from genkit.plugins.compat_oai.models.utils import (
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class OpenAIModel:
@@ -173,7 +173,7 @@ class OpenAIModel:
 
         return {'type': 'text'}
 
-    def _clean_json_response(self, response: 'GenerateResponse', request: 'ModelRequest') -> 'GenerateResponse':
+    def _clean_json_response(self, response: ModelResponse, request: ModelRequest) -> ModelResponse:
         """Strip markdown fences from JSON responses for json_object-mode models.
 
         Only applies when the model uses ``json_object`` mode (e.g. DeepSeek)
@@ -208,7 +208,7 @@ class OpenAIModel:
                 cleaned_parts.append(part)
 
         if changed:
-            return GenerateResponse(
+            return ModelResponse(
                 request=request,
                 message=Message(role=response.message.role, content=cleaned_parts),
                 finish_reason=response.finish_reason,
@@ -281,14 +281,14 @@ class OpenAIModel:
             openai_config.update(**request.config.model_dump(exclude_none=True))
         return openai_config
 
-    async def _generate(self, request: ModelRequest) -> GenerateResponse:
+    async def _generate(self, request: ModelRequest) -> ModelResponse:
         """Processes the request using OpenAI's chat completion API and returns the generated response.
 
         Args:
             request: The ModelRequest object containing the input text and configuration.
 
         Returns:
-            A GenerateResponse object containing the generated message.
+            A ModelResponse object containing the generated message.
         """
         openai_config = await self._get_openai_request_config(request=request)
         logger.debug('OpenAI generate request', model=self._model, streaming=False)
@@ -299,23 +299,23 @@ class OpenAIModel:
             finish_reason=str(response.choices[0].finish_reason) if response.choices else None,
         )
 
-        result = GenerateResponse(
+        result = ModelResponse(
             request=request,
             message=MessageConverter.to_genkit(MessageAdapter(response.choices[0].message)),
         )
         return self._clean_json_response(result, request)
 
     async def _generate_stream(
-        self, request: ModelRequest, callback: Callable[[GenerateResponseChunk], None]
-    ) -> GenerateResponse:
+        self, request: ModelRequest, callback: Callable[[ModelResponseChunk], None]
+    ) -> ModelResponse:
         """Streams responses from the OpenAI client and sends chunks to a callback.
 
         Args:
             request: The ModelRequest object containing generation parameters.
-            callback: A function to receive streamed GenerateResponseChunk objects.
+            callback: A function to receive streamed ModelResponseChunk objects.
 
         Returns:
-            GenerateResponse: A final message with accumulated content after streaming is complete.
+            ModelResponse: A final message with accumulated content after streaming is complete.
         """
         openai_config = await self._get_openai_request_config(request=request)
         openai_config['stream'] = True
@@ -332,7 +332,7 @@ class OpenAIModel:
                 message = MessageConverter.to_genkit(MessageAdapter(delta))
                 accumulated_content.extend(message.content)
                 callback(
-                    GenerateResponseChunk(
+                    ModelResponseChunk(
                         role=Role.MODEL,
                         content=message.content,
                     )
@@ -345,7 +345,7 @@ class OpenAIModel:
                 reasoning_part = Part(root=ReasoningPart(reasoning=reasoning_text))
                 accumulated_content.append(reasoning_part)
                 callback(
-                    GenerateResponseChunk(
+                    ModelResponseChunk(
                         role=Role.MODEL,
                         content=[reasoning_part],
                     )
@@ -368,7 +368,7 @@ class OpenAIModel:
                     )
                     for tool_call in delta.tool_calls
                 ]
-                callback(GenerateResponseChunk(role=Role.MODEL, content=content))
+                callback(ModelResponseChunk(role=Role.MODEL, content=content))
 
         if tool_calls:
             message = MessageConverter.to_genkit(
@@ -376,13 +376,13 @@ class OpenAIModel:
             )
             accumulated_content.extend(message.content)
 
-        result = GenerateResponse(
+        result = ModelResponse(
             request=request,
             message=Message(role=Role.MODEL, content=accumulated_content),
         )
         return self._clean_json_response(result, request)
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:
@@ -390,7 +390,7 @@ class OpenAIModel:
             ctx: The context of the action run.
 
         Returns:
-            A GenerateResponse containing the model's response.
+            A ModelResponse containing the model's response.
         """
         request.config = self.normalize_config(request.config)
 
@@ -406,7 +406,7 @@ class OpenAIModel:
         if isinstance(config, OpenAIConfig):
             return config
 
-        if isinstance(config, (GenerationCommonConfig, CoreModelConfig)):
+        if isinstance(config, (ModelConfig, ModelConfig)):
             return OpenAIConfig(
                 temperature=config.temperature,
                 max_tokens=int(config.max_output_tokens) if config.max_output_tokens is not None else None,

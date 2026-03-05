@@ -21,11 +21,11 @@ from collections.abc import Awaitable, Callable
 from openai import AsyncOpenAI
 
 from genkit import (
-    GenerateResponse,
     ModelInfo,
     ModelRequest,
+    ModelResponse,
 )
-from genkit.ai import ActionRunContext
+from genkit.plugin_api import ActionRunContext
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
@@ -66,14 +66,14 @@ class OpenAIModelHandler:
     @classmethod
     def get_model_handler(
         cls, model: str, client: AsyncOpenAI, source: PluginSource = PluginSource.OPENAI
-    ) -> Callable[[ModelRequest, ActionRunContext], Awaitable[GenerateResponse]]:
+    ) -> Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]]:
         """Factory method to initialize the model handler for the specified OpenAI model.
 
         OpenAI models in this context are not instantiated as traditional
         classes but rather as Actions. This method returns a callable that
         serves as an action handler, conforming to the structure of:
 
-            Action[ModelRequest, GenerateResponse, GenerateResponseChunk]
+            Action[ModelRequest, ModelResponse, ModelResponseChunk]
 
         Args:
             model: The OpenAI model name.
@@ -109,7 +109,7 @@ class OpenAIModelHandler:
         if model_info.versions is not None and version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Processes the request using OpenAI's chat completion API.
 
         Args:
@@ -117,7 +117,7 @@ class OpenAIModelHandler:
             ctx: The context of the action run.
 
         Returns:
-            A GenerateResponse containing the model's response.
+            A ModelResponse containing the model's response.
 
         Raises:
             ValueError: If the specified model version is not supported.

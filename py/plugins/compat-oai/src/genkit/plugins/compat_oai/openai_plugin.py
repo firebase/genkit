@@ -23,14 +23,18 @@ from typing import Any, TypeAlias
 from openai import AsyncOpenAI
 from openai.types import Model
 
-from genkit import Embedding, EmbedRequest, EmbedResponse, GenerateResponse, ModelInfo, ModelRequest, Supports
-from genkit.ai import ActionRunContext, Plugin
-from genkit.ai.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.ai.model import model_action_metadata
-from genkit.core._internal._schema import to_json_schema
-from genkit.core._internal._typing import ModelConfig
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionKind, ActionMetadata
+from genkit import Embedding, EmbedRequest, EmbedResponse, ModelInfo, ModelRequest, ModelResponse, Supports
+from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.model import ModelConfig, model_action_metadata
+from genkit.plugin_api import (
+    Action,
+    ActionKind,
+    ActionMetadata,
+    ActionRunContext,
+    Plugin,
+    loop_local_client,
+    to_json_schema,
+)
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_EMBEDDING_MODELS,
     SUPPORTED_IMAGE_MODELS,
@@ -205,7 +209,7 @@ class OpenAI(Plugin):
                            other configuration settings required by OpenAI's API.
         """
         self._openai_params = openai_params
-        self._runtime_client = _loop_local_client(lambda: AsyncOpenAI(**self._openai_params))
+        self._runtime_client = loop_local_client(lambda: AsyncOpenAI(**self._openai_params))
         self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
@@ -312,7 +316,7 @@ class OpenAI(Plugin):
         # Create the model handler
         model_info = self.get_model_info(clean_name) or {}
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
             return await openai_model.generate(request, ctx)
 
@@ -349,7 +353,7 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
         info_dict = _get_multimodal_info_dict(clean_name, model_type, supported_models)
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> GenerateResponse:
+        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             model_instance = model_class(clean_name, self._runtime_client())
             return await model_instance.generate(request, ctx)
 

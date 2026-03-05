@@ -58,10 +58,10 @@ from typing import cast
 from flask import Flask
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.ai.model import GenerateResponseWrapper
-from genkit.core._internal._context import RequestData
-from genkit.core.action import ActionRunContext
+from genkit import ModelResponse
+from genkit._core._context import RequestData
+from genkit._core._action import ActionRunContext
+from genkit import Genkit
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
@@ -100,7 +100,7 @@ async def my_context_provider(request: RequestData[dict[str, object]]) -> dict[s
 async def say_hi(
     input: SayHiInput,
     ctx: ActionRunContext | None = None,
-) -> GenerateResponseWrapper:
+) -> ModelResponse:
     """Say hi to the user."""
     username = ctx.context.get('username') if ctx is not None else 'unknown'
     stream, response = ai.generate_stream(

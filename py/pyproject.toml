@@ -114,6 +114,13 @@ addopts = [
   "--import-mode=importlib",
 ]
 asyncio_default_fixture_loop_scope = "session"
+filterwarnings = [
+    # Pydantic warns when a field named 'schema' shadows BaseModel.schema()
+    # We intentionally use 'schema' to match the JSON schema spec.
+    "ignore:Field name .schema. in .* shadows an attribute in parent .BaseModel.:UserWarning",
+    # dotpromptz uses the same pattern; not our code, suppress it too.
+    "ignore:Field name .schema. in .Prompt.*Config. shadows:UserWarning",
+]
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 pythonpath = ["."] # For samples.shared imports
@@ -300,13 +307,14 @@ skip-magic-trailing-comma  = false
 #collapse-root-models = true # Don't use; produces Any as types.
 #strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
 #use-subclass-enum        = true
+base-class               = "genkit._core._base.GenkitModel"
 capitalize-enum-members  = true
 disable-timestamp        = true
 enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit/src/genkit/core/typing.py"
+output                   = "packages/genkit/src/genkit/_core/_typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true

@@ -24,7 +24,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from genkit import (
-    GenerationCommonConfig,
+    ActionKind,
+    ModelConfig,
     Message,
     ModelRequest,
     Part,
@@ -32,7 +33,6 @@ from genkit import (
     TextPart,
     ToolDefinition,
 )
-from genkit.core._internal._registry import ActionKind
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.plugins.anthropic.model_info import (
     SUPPORTED_ANTHROPIC_MODELS as SUPPORTED_MODELS,
@@ -195,7 +195,7 @@ def _create_sample_request() -> ModelRequest:
                 content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
-        config=GenerationCommonConfig(),
+        config=ModelConfig(),
         tools=[
             ToolDefinition(
                 name='get_weather',

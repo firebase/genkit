@@ -7,10 +7,10 @@
 
 import pytest
 
-from genkit.ai.formats.array import ArrayFormat
-from genkit.ai.model import Message, ModelResponseChunk
-from genkit.core._internal._typing import GenerateResponseChunk, Part, TextPart
-from genkit.core.error import GenkitError
+from genkit._core._error import GenkitError
+from genkit._core._typing import Part, TextPart
+from genkit import Message, ModelResponseChunk
+from genkit._ai._formats._array import ArrayFormat
 
 
 class TestArrayFormatStreaming:
@@ -22,17 +22,17 @@ class TestArrayFormatStreaming:
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         # Chunk 1: [{"id": 1,
-        chunk1 = GenerateResponseChunk(content=[Part(root=TextPart(text='[{"id": 1,'))])
+        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='[{"id": 1,'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == []
 
         # Chunk 2: "name": "first"}
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='"name": "first"}'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='"name": "first"}'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == [{'id': 1, 'name': 'first'}]
 
         # Chunk 3: , {"id": 2, "name": "second"}]
-        chunk3 = GenerateResponseChunk(content=[Part(root=TextPart(text=', {"id": 2, "name": "second"}]'))])
+        chunk3 = ModelResponseChunk(content=[Part(root=TextPart(text=', {"id": 2, "name": "second"}]'))])
         result3 = fmt.parse_chunk(ModelResponseChunk(chunk3, index=0, previous_chunks=[chunk1, chunk2]))
         assert result3 == [{'id': 2, 'name': 'second'}]
 
@@ -41,7 +41,7 @@ class TestArrayFormatStreaming:
         array_fmt = ArrayFormat()
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
-        chunk = GenerateResponseChunk(content=[Part(root=TextPart(text='[{"id": 1, "name": "single"}]'))])
+        chunk = ModelResponseChunk(content=[Part(root=TextPart(text='[{"id": 1, "name": "single"}]'))])
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))
         assert result == [{'id': 1, 'name': 'single'}]
 
@@ -51,14 +51,14 @@ class TestArrayFormatStreaming:
         fmt = array_fmt.handle({'type': 'array', 'items': {'type': 'object'}})
 
         # Chunk 1: preamble with code fence start
-        chunk1 = GenerateResponseChunk(
+        chunk1 = ModelResponseChunk(
             content=[Part(root=TextPart(text='Here is the array you requested:\n\n```json\n['))]
         )
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == []
 
         # Chunk 2: the actual data
-        chunk2 = GenerateResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "item"}]\n```'))])
+        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "item"}]\n```'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == [{'id': 1, 'name': 'item'}]
 

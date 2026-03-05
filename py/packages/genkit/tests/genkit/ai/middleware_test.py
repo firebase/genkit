@@ -21,19 +21,18 @@ import asyncio
 
 import pytest
 
-from genkit.ai.document import Document
-from genkit.ai.middleware import augment_with_context
-from genkit.ai.model import Message
-from genkit.core._internal._typing import (
+from genkit._core._typing import (
     DocumentPart,
-    GenerateResponse,
     Metadata,
     ModelRequest,
     Part,
     Role,
     TextPart,
 )
-from genkit.core.action import ActionRunContext
+from genkit._core._action import ActionRunContext
+from genkit import Document
+from genkit._ai._middleware import augment_with_context
+from genkit import Message, ModelResponse
 
 
 async def run_augmenter(req: ModelRequest) -> ModelRequest:
@@ -41,9 +40,9 @@ async def run_augmenter(req: ModelRequest) -> ModelRequest:
     augmenter = augment_with_context()
     req_future = asyncio.Future()
 
-    async def next(req: ModelRequest, _: ActionRunContext) -> GenerateResponse:
+    async def next(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
         req_future.set_result(req)
-        return GenerateResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
+        return ModelResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 
     await augmenter(req, ActionRunContext(), next)
 

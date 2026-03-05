@@ -5,7 +5,7 @@
 
 """Tests for the formats module initialization and built-in formats."""
 
-from genkit.ai.formats import (
+from genkit._ai._formats import (
     ArrayFormat,
     EnumFormat,
     FormatDef,

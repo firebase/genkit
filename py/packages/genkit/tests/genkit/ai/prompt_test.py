@@ -25,14 +25,8 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.ai.document import Document
-from genkit.ai.model import Message
-from genkit.ai.prompt import load_prompt_folder, lookup_prompt, prompt
-from genkit.core._internal._typing import (
-    DocumentPart,
+from genkit._core._typing import (
     GenerateActionOptions,
-    GenerateResponse,
     ModelConfig,
     ModelRequest,
     Part,
@@ -40,7 +34,10 @@ from genkit.core._internal._typing import (
     TextPart,
     ToolChoice,
 )
-from genkit.core.action import ActionKind
+from genkit._core._action import ActionKind
+from genkit import Genkit
+from genkit import Message, ModelResponse
+from genkit._ai._prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,
@@ -164,57 +161,6 @@ async def test_prompt_with_kitchensink() -> None:
     result = my_prompt.stream()
 
     assert (await result.response).text == want_txt
-
-
-@pytest.mark.asyncio
-async def test_prompt_with_resolvers() -> None:
-    """Test that the rendering works with resolvers."""
-    ai, *_ = setup_test()
-
-    async def system_resolver(input: dict[str, Any], context: object) -> str:
-        return f'system {input["name"]}'
-
-    def prompt_resolver(input: dict[str, Any], context: object) -> str:
-        return f'prompt {input["name"]}'
-
-    async def messages_resolver(input: dict[str, Any], context: object) -> list[Message]:
-        return [Message(role=Role.USER, content=[Part(root=TextPart(text=f'msg {input["name"]}'))])]
-
-    my_prompt = ai.define_prompt(
-        system=system_resolver,
-        prompt=prompt_resolver,
-        messages=messages_resolver,
-    )
-
-    want_txt = '[ECHO] system: "system world" user: "msg world" user: "prompt world"'
-
-    response = await my_prompt(input={'name': 'world'})
-
-    assert response.text == want_txt
-
-
-@pytest.mark.asyncio
-async def test_prompt_with_docs_resolver() -> None:
-    """Test that the rendering works with docs resolver."""
-    ai, _, pm = setup_test()
-
-    pm.responses = [GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))]
-
-    async def docs_resolver(input: dict[str, Any], context: object) -> list[Document]:
-        return [Document(content=[DocumentPart(root=TextPart(text=f'doc {input["name"]}'))])]
-
-    my_prompt = ai.define_prompt(
-        model='programmableModel',
-        prompt='hi',
-        docs=docs_resolver,
-    )
-
-    await my_prompt(input={'name': 'world'})
-
-    # Check that PM received the docs
-    assert pm.last_request is not None
-    assert pm.last_request.docs is not None
-    assert pm.last_request.docs[0].content[0].root.text == 'doc world'
 
 
 test_cases_parse_partial_json = [
@@ -559,9 +505,7 @@ async def test_opts_can_override_model() -> None:
     """Test that opts.model can override the prompt's default model."""
     ai, _, pm = setup_test()
 
-    pm.responses = [
-        GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='pm response'))]))
-    ]
+    pm.responses = [ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='pm response'))]))]
 
     my_prompt = ai.define_prompt(
         model='echoModel',

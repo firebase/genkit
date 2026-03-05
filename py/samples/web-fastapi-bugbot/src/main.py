@@ -20,8 +20,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing_extensions import Never
 
-from genkit import Genkit
-from genkit.ai import FlowWrapper
+from genkit import Flow, Genkit
 from genkit.plugins.fastapi import genkit_fastapi_handler
 from genkit.plugins.google_genai import GoogleAI
 
@@ -139,14 +138,14 @@ async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
 
 @app.post('/flow/review', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_review() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_review() -> Flow[..., Awaitable[Analysis], Analysis, Never]:
     """Expose review_code flow directly via {"data": {"code": "...", "language": "..."}}."""
     return review_code
 
 
 @app.post('/flow/security', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_security() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_security() -> Flow[..., Awaitable[Analysis], Analysis, Never]:
     """Expose analyze_security flow directly."""
     return analyze_security
 

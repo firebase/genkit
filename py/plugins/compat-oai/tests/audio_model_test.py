@@ -143,7 +143,7 @@ class TestToTTSParams:
 
 
 class TestToTTSResponse:
-    """Tests for converting speech response to GenerateResponse."""
+    """Tests for converting speech response to ModelResponse."""
 
     def test_converts_audio_to_media_part(self) -> None:
         """Verify audio bytes are encoded as base64 data URI."""
@@ -224,7 +224,7 @@ class TestToSTTParams:
 
 
 class TestToSTTResponse:
-    """Tests for converting transcription result to GenerateResponse."""
+    """Tests for converting transcription result to ModelResponse."""
 
     def test_transcription_object(self) -> None:
         """Verify Transcription object is converted to text part."""

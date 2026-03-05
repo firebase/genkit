@@ -14,102 +14,102 @@ This module provides all public types for Genkit applications.
 
 ## Message and Part Types
 
-::: genkit.core.typing.Message
+::: genkit._core.typing.Message
 
 ::: genkit.blocks.model.MessageWrapper
 
-::: genkit.core.typing.Part
+::: genkit._core.typing.Part
 
-::: genkit.core.typing.TextPart
+::: genkit._core.typing.TextPart
 
-::: genkit.core.typing.MediaPart
+::: genkit._core.typing.MediaPart
 
-::: genkit.core.typing.Media
+::: genkit._core.typing.Media
 
-::: genkit.core.typing.CustomPart
+::: genkit._core.typing.CustomPart
 
-::: genkit.core.typing.DataPart
+::: genkit._core.typing.DataPart
 
-::: genkit.core.typing.ReasoningPart
+::: genkit._core.typing.ReasoningPart
 
-::: genkit.core.typing.Role
+::: genkit._core.typing.Role
 
-::: genkit.core.typing.Metadata
+::: genkit._core.typing.Metadata
 
 ## Tool Types
 
-::: genkit.core.typing.ToolRequest
+::: genkit._core.typing.ToolRequest
 
-::: genkit.core.typing.ToolRequestPart
+::: genkit._core.typing.ToolRequestPart
 
-::: genkit.core.typing.ToolResponse
+::: genkit._core.typing.ToolResponse
 
-::: genkit.core.typing.ToolResponsePart
+::: genkit._core.typing.ToolResponsePart
 
-::: genkit.core.typing.ToolDefinition
+::: genkit._core.typing.ToolDefinition
 
-::: genkit.core.typing.ToolChoice
+::: genkit._core.typing.ToolChoice
 
 ## Document Types
 
 ::: genkit.types.Document
 
-::: genkit.core.typing.DocumentData
+::: genkit._core.typing.DocumentData
 
 ## Generation Types
 
-::: genkit.core.typing.GenerateRequest
+::: genkit._core.typing.GenerateRequest
 
-::: genkit.core.typing.GenerateResponse
+::: genkit._core.typing.GenerateResponse
 
 ::: genkit.blocks.model.GenerateResponseWrapper
 
-::: genkit.core.typing.GenerateResponseChunk
+::: genkit._core.typing.GenerateResponseChunk
 
-::: genkit.core.typing.GenerateActionOptions
+::: genkit._core.typing.GenerateActionOptions
 
-::: genkit.core.typing.GenerationCommonConfig
+::: genkit._core.typing.GenerationCommonConfig
 
-::: genkit.core.typing.GenerationUsage
+::: genkit._core.typing.GenerationUsage
 
-::: genkit.core.typing.OutputConfig
+::: genkit._core.typing.OutputConfig
 
-::: genkit.core.typing.FinishReason
+::: genkit._core.typing.FinishReason
 
 ## Embedding Types
 
-::: genkit.core.typing.Embedding
+::: genkit._core.typing.Embedding
 
-::: genkit.core.typing.EmbedRequest
+::: genkit._core.typing.EmbedRequest
 
-::: genkit.core.typing.EmbedResponse
+::: genkit._core.typing.EmbedResponse
 
 ## Retriever Types
 
-::: genkit.core.typing.RetrieverRequest
+::: genkit._core.typing.RetrieverRequest
 
-::: genkit.core.typing.RetrieverResponse
+::: genkit._core.typing.RetrieverResponse
 
 ## Evaluation Types
 
-::: genkit.core.typing.BaseEvalDataPoint
+::: genkit._core.typing.BaseEvalDataPoint
 
-::: genkit.core.typing.EvalRequest
+::: genkit._core.typing.EvalRequest
 
-::: genkit.core.typing.EvalResponse
+::: genkit._core.typing.EvalResponse
 
-::: genkit.core.typing.EvalFnResponse
+::: genkit._core.typing.EvalFnResponse
 
-::: genkit.core.typing.EvalStatusEnum
+::: genkit._core.typing.EvalStatusEnum
 
-::: genkit.core.typing.Score
+::: genkit._core.typing.Score
 
 ## Model Info (for Plugin Authors)
 
-::: genkit.core.typing.ModelInfo
+::: genkit._core.typing.ModelInfo
 
-::: genkit.core.typing.Supports
+::: genkit._core.typing.Supports
 
-::: genkit.core.typing.Constrained
+::: genkit._core.typing.Constrained
 
-::: genkit.core.typing.Stage
+::: genkit._core.typing.Stage

@@ -30,8 +30,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit import GenerateResponseChunk, Message, ModelRequest, Part, Role, TextPart, ToolRequest
-from genkit.core.action import ActionRunContext
+from genkit import Message, ModelRequest, ModelResponseChunk, Part, Role, TextPart, ToolRequest
+from genkit._core._action import ActionRunContext
 from genkit.plugins.amazon_bedrock import (
     AMAZON_BEDROCK_PLUGIN_NAME,
     AnthropicConfig,
@@ -935,7 +935,7 @@ class TestStreamingToolUseParsing:
             tools=[],
         )
 
-        chunks: list[GenerateResponseChunk] = []
+        chunks: list[ModelResponseChunk] = []
         ctx = MagicMock(spec=ActionRunContext)
         ctx.send_chunk = MagicMock(side_effect=lambda c: chunks.append(c))
 

@@ -33,18 +33,18 @@ from pydantic import BaseModel, Field
 from pytest_mock import MockerFixture
 
 from genkit import (
-    GenerateResponse,
+    ActionRunContext,
     MediaPart,
     Message,
     ModelInfo,
     ModelRequest,
+    ModelResponse,
     Part,
     Role,
     TextPart,
     ToolDefinition,
 )
-from genkit.ai import ActionRunContext
-from genkit.core._internal._schema import to_json_schema
+from genkit.plugin_api import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
     GeminiModel,
@@ -102,7 +102,7 @@ async def test_generate_text_response(mocker: MockerFixture, version: str) -> No
             config=expected_config,
         )
     ])
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
@@ -151,7 +151,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
             config=expected_config,
         )
     ])
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
     assert response.message.content == []
 
@@ -201,7 +201,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
             config=genai.types.GenerateContentConfig(response_modalities=modalities),
         )
     ])
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
 
     content = response.message.content[0]
@@ -335,7 +335,7 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             config=genai.types.GenerateContentConfig(system_instruction=expected_system_instruction),
         )
     ])
-    assert isinstance(response, GenerateResponse)
+    assert isinstance(response, ModelResponse)
     assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
