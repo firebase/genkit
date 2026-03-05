@@ -49,10 +49,7 @@ from genkit import (
 
     Flow,                     # Useful for annotation? 50/50 on this one
 
-    # WIP - Streaming Type Annotation
-    ActionStreamResponse,     # base streaming wrapper — Action.stream()
-    FlowStreamResponse,       # flow streaming wrapper — Flow.stream()
-    ModelStreamResponse,      # model/prompt streaming wrapper — subclass of FlowStreamResponse
+    StreamResponse # Flow.stream(), Action.stream() return generic StreamResponse, ExecutablePrompt.stream() returns StreamResponse[GenerateStreamResponse]
 
 )
 ```
