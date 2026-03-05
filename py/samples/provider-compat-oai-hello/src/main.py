@@ -75,11 +75,10 @@ import asyncio
 import os
 
 import httpx
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Media, MediaPart, Message, Part, Role, TextPart
-import structlog
-from genkit import ActionRunContext, Genkit
+from genkit import ActionRunContext, Genkit, Media, MediaPart, Message, Part, Role, TextPart
 from genkit.plugins.compat_oai import OpenAI, openai_model
 from samples.shared import (
     CharacterInput,

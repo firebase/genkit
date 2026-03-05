@@ -20,12 +20,12 @@ import abc
 from collections.abc import Callable
 from typing import Any, Generic, TypeVar
 
-from genkit._core._typing import (
-    OutputConfig,
-)
 from genkit._ai._model import (
     Message,
     ModelResponseChunk,
+)
+from genkit._core._typing import (
+    OutputConfig,
 )
 
 

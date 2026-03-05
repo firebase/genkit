@@ -17,6 +17,7 @@
 """Framework primitives for plugin authors."""
 
 # Base class and framework primitives
+from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext
 from genkit._core._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit._core._environment import is_dev_environment
 from genkit._core._error import GenkitError, StatusCodes, StatusName, get_callable_json
@@ -25,7 +26,6 @@ from genkit._core._loop_cache import _loop_local_client as loop_local_client
 from genkit._core._plugin import Plugin
 from genkit._core._schema import to_json_schema
 from genkit._core._tracing import add_custom_exporter, tracer
-from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext
 from genkit._core.trace import to_display_path
 from genkit._core.trace._adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 

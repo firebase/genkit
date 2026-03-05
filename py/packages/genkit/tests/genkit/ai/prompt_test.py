@@ -25,6 +25,9 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from pydantic import BaseModel, Field
 
+from genkit import Genkit, Message, ModelResponse
+from genkit._ai._prompt import load_prompt_folder, lookup_prompt, prompt
+from genkit._core._action import ActionKind
 from genkit._core._typing import (
     GenerateActionOptions,
     ModelConfig,
@@ -34,10 +37,6 @@ from genkit._core._typing import (
     TextPart,
     ToolChoice,
 )
-from genkit._core._action import ActionKind
-from genkit import Genkit
-from genkit import Message, ModelResponse
-from genkit._ai._prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,

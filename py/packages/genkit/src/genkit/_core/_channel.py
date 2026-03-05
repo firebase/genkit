@@ -25,6 +25,7 @@ from typing import Any, Generic, TypeVar
 from typing_extensions import TypeVar as TypeVarExt
 
 from genkit._core._logger import get_logger
+
 from ._compat import wait_for
 
 logger = get_logger(__name__)
@@ -108,6 +109,7 @@ def run_loop(coro: Coroutine[object, object, T], *, debug: bool | None = None) -
     """Run a coroutine using uvloop if available, otherwise asyncio."""
     try:
         import uvloop  # noqa: PLC0415
+
         logger.debug('Using uvloop (recommended)')
         return uvloop.run(coro, debug=debug)
     except ImportError as e:

@@ -104,12 +104,14 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from genkit import (
-    ModelConfig,
+    Genkit,
     Media,
     MediaPart,
     Metadata,
+    ModelConfig,
     ModelResponse,
 )
+from genkit._core._action import ActionRunContext
 from genkit._core._background import lookup_background_action
 from genkit._core._typing import (
     Error,
@@ -123,8 +125,6 @@ from genkit._core._typing import (
     Supports,
     TextPart,
 )
-from genkit._core._action import ActionRunContext
-from genkit import Genkit
 from samples.shared.logging import setup_sample
 
 setup_sample()

@@ -152,10 +152,10 @@ from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from genkit import (
     Constrained,
-    ModelConfig,
     GenerationUsage,
     GenkitError,
     Message,
+    ModelConfig,
     ModelInfo,
     ModelRequest,
     ModelResponse,

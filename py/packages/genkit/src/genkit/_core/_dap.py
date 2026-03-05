@@ -21,8 +21,8 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from genkit._core._registry import Registry
 from genkit._core._action import Action, ActionKind
+from genkit._core._registry import Registry
 
 ActionMetadataLike = Mapping[str, object]
 DapValue = dict[str, list[Action[Any, Any]]]
@@ -47,7 +47,9 @@ class DynamicActionProvider:
         self._value: DapValue | None = None
         self._expires_at: float | None = None
         self._fetch_task: asyncio.Task[DapValue] | None = None
-        self._ttl_millis = _DEFAULT_CACHE_TTL_MS if cache_ttl_millis is None or cache_ttl_millis == 0 else cache_ttl_millis
+        self._ttl_millis = (
+            _DEFAULT_CACHE_TTL_MS if cache_ttl_millis is None or cache_ttl_millis == 0 else cache_ttl_millis
+        )
 
     def invalidate_cache(self) -> None:
         self._value = None
@@ -137,6 +139,7 @@ def define_dynamic_action_provider(
     metadata: dict[str, Any] | None = None,
 ) -> DynamicActionProvider:
     """Define and register a Dynamic Action Provider for lazy action resolution."""
+
     async def dap_action(input: DapMetadata) -> DapMetadata:
         return input
 

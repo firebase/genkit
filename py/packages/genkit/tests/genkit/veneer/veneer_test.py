@@ -11,6 +11,18 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, Field
 
+from genkit import (
+    Document,
+    Genkit,
+    Message,
+    ModelResponse,
+    ModelResponseChunk,
+    ToolRunContext,
+    tool_response,
+)
+from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
+from genkit._ai._model import text_from_message
+from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._typing import (
     BaseDataPoint,
     Details,
@@ -35,19 +47,7 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit._core._action import ActionKind, ActionRunContext
-from genkit import (
-    Document,
-    Genkit,
-    Message,
-    ModelResponse,
-    ModelResponseChunk,
-    tool_response,
-    ToolRunContext,
-)
 from genkit.model import ModelMiddlewareNext
-from genkit._ai._model import text_from_message
-from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,

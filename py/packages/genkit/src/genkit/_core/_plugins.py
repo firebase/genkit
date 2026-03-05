@@ -66,5 +66,3 @@ def extend_plugin_namespace() -> None:
             if plugins_path_str not in existing_paths:
                 genkit_plugins.__path__.append(plugins_path_str)
                 existing_paths.add(plugins_path_str)
-
-

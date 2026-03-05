@@ -10,6 +10,9 @@ from copy import deepcopy
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
+
+from genkit._ai import Genkit
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
     Media,
@@ -20,8 +23,6 @@ from genkit._core._typing import (
     SpanMetadata,
     TextPart,
 )
-from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._ai import Genkit
 from genkit.model import Message, ModelRequest, ModelResponse, ModelResponseChunk
 
 

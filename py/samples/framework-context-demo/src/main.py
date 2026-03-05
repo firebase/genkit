@@ -84,11 +84,11 @@ See README.md for the full testing checklist.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-import structlog
-from genkit._core._action import ActionRunContext
 from genkit import Genkit
+from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

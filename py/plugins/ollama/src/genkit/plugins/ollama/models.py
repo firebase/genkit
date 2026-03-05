@@ -91,11 +91,11 @@ from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit import (
-    ModelConfig,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelConfig,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,

@@ -12,10 +12,9 @@ import pytest
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit._core._typing import Operation
-from genkit._core._action import Action, ActionKind
-from genkit._core._action import _action_context
 from genkit import Genkit
+from genkit._core._action import Action, ActionKind, _action_context
+from genkit._core._typing import Operation
 
 
 @pytest.mark.asyncio

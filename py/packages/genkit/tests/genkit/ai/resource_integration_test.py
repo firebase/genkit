@@ -21,6 +21,10 @@ from typing import cast
 
 import pytest
 
+from genkit import Message, ModelResponse
+from genkit._ai._generate import generate_action
+from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource, resource
+from genkit._core._action import ActionRunContext
 from genkit._core._registry import ActionKind, Registry
 from genkit._core._typing import (
     GenerateActionOptions,
@@ -31,10 +35,6 @@ from genkit._core._typing import (
     Role,
     TextPart,
 )
-from genkit._core._action import ActionRunContext
-from genkit._ai._generate import generate_action
-from genkit import Message, ModelResponse
-from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource, resource
 
 
 @pytest.mark.asyncio

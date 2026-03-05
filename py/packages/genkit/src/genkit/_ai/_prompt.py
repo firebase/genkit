@@ -32,6 +32,20 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
+from genkit._ai._document import Document
+from genkit._ai._generate import (
+    StreamingCallback as ModelStreamingCallback,
+    generate_action,
+    to_tool_definition,
+)
+from genkit._ai._model import (
+    Message,
+    ModelMiddleware,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
+)
+from genkit._core._action import Action, ActionKind, ActionRunContext, create_action_key
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -49,20 +63,6 @@ from genkit._core._typing import (
     ToolChoice,
     ToolRequestPart,
     ToolResponsePart,
-)
-from genkit._core._action import Action, ActionKind, ActionRunContext, create_action_key
-from genkit._ai._document import Document
-from genkit._ai._generate import (
-    StreamingCallback as ModelStreamingCallback,
-    generate_action,
-    to_tool_definition,
-)
-from genkit._ai._model import (
-    Message,
-    ModelMiddleware,
-    ModelRequest,
-    ModelResponse,
-    ModelResponseChunk,
 )
 
 logger = get_logger(__name__)
@@ -350,14 +350,24 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         # Config merge requires special handling (dict merge with Pydantic conversion)
         merged_config: dict[str, Any] | ModelConfig | None
         if opts.get('config') is not None:
-            base = self._config.model_dump(exclude_none=True) if isinstance(self._config, BaseModel) else (self._config or {})
-            override = opts['config'].model_dump(exclude_none=True) if isinstance(opts['config'], BaseModel) else (opts['config'] or {})
+            base = (
+                self._config.model_dump(exclude_none=True)
+                if isinstance(self._config, BaseModel)
+                else (self._config or {})
+            )
+            override = (
+                opts['config'].model_dump(exclude_none=True)
+                if isinstance(opts['config'], BaseModel)
+                else (opts['config'] or {})
+            )
             merged_config = {**base, **override} if base or override else None
         else:
             merged_config = self._config
 
         # Metadata merge (combine dicts)
-        merged_metadata = {**(self._metadata or {}), **(opts.get('metadata') or {})} if opts.get('metadata') else self._metadata
+        merged_metadata = (
+            {**(self._metadata or {}), **(opts.get('metadata') or {})} if opts.get('metadata') else self._metadata
+        )
 
         def _or(opt_val: Any, default: Any) -> Any:  # noqa: ANN401
             return opt_val if opt_val is not None else default
@@ -753,8 +763,14 @@ async def render_system_prompt(
 ) -> Message:
     """Render the system prompt."""
     msg, prompt_cache.system = await _render_template(
-        registry, Role.SYSTEM, options.system, input,
-        options.input_schema, options.metadata, prompt_cache.system, context
+        registry,
+        Role.SYSTEM,
+        options.system,
+        input,
+        options.input_schema,
+        options.metadata,
+        prompt_cache.system,
+        context,
     )
     return msg
 
@@ -840,8 +856,14 @@ async def render_user_prompt(
 ) -> Message:
     """Render the user prompt."""
     msg, prompt_cache.user_prompt = await _render_template(
-        registry, Role.USER, options.prompt, input,
-        options.input_schema, options.metadata, prompt_cache.user_prompt, context
+        registry,
+        Role.USER,
+        options.prompt,
+        input,
+        options.input_schema,
+        options.metadata,
+        prompt_cache.user_prompt,
+        context,
     )
     return msg
 

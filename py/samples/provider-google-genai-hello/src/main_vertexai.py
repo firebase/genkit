@@ -21,8 +21,7 @@ from enum import Enum
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit import ModelConfig, Media, MediaPart, Metadata, Part, TextPart
-from genkit import Genkit
+from genkit import Genkit, Media, MediaPart, Metadata, ModelConfig, Part, TextPart
 from genkit.plugins.google_genai import GeminiImageConfigSchema, VertexAI
 
 logger = structlog.get_logger(__name__)

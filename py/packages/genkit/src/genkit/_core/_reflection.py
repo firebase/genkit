@@ -36,11 +36,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
+from genkit._core._action import Action, ActionKind
 from genkit._core._constants import GENKIT_VERSION
 from genkit._core._error import get_reflection_json
 from genkit._core._logger import get_logger
 from genkit._core._registry import Registry
-from genkit._core._action import Action, ActionKind
 
 logger = get_logger(__name__)
 
@@ -88,10 +88,12 @@ class ActionRunner:
                 on_trace_start=self.on_trace_start,
             )
             result = output.response.model_dump() if isinstance(output.response, BaseModel) else output.response
-            self.queue.put_nowait(json.dumps({
-                'result': result,
-                'telemetry': {'traceId': output.trace_id, 'spanId': output.span_id},
-            }))
+            self.queue.put_nowait(
+                json.dumps({
+                    'result': result,
+                    'telemetry': {'traceId': output.trace_id, 'spanId': output.span_id},
+                })
+            )
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -233,13 +235,15 @@ def create_reflection_asgi_app(
             Route('/api/runAction', run, methods=['POST']),
             Route('/api/cancelAction', cancel, methods=['POST']),
         ],
-        middleware=[Middleware(
-            CORSMiddleware,  # type: ignore[arg-type]
-            allow_origins=['*'],
-            allow_methods=['*'],
-            allow_headers=['*'],
-            expose_headers=['X-Genkit-Trace-Id', 'X-Genkit-Span-Id', 'x-genkit-version'],
-        )],
+        middleware=[
+            Middleware(
+                CORSMiddleware,  # type: ignore[arg-type]
+                allow_origins=['*'],
+                allow_methods=['*'],
+                allow_headers=['*'],
+                expose_headers=['X-Genkit-Trace-Id', 'X-Genkit-Span-Id', 'x-genkit-version'],
+            )
+        ],
         on_startup=[on_startup] if on_startup else [],
         on_shutdown=[on_shutdown] if on_shutdown else [],
     )

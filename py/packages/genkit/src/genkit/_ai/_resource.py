@@ -17,13 +17,13 @@
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from pydantic import BaseModel
 
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._registry import Registry
 from genkit._core._typing import Metadata, Part
-from genkit._core._action import Action, ActionKind, ActionRunContext
 
 
 class ResourceOptions(TypedDict, total=False):

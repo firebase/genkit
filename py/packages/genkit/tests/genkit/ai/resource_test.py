@@ -25,9 +25,6 @@ from typing import Any, cast
 
 import pytest
 
-from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part, TextPart
-from genkit._core._action import ActionKind, ActionRunContext
 from genkit._ai._resource import (
     ResourceInput,
     define_resource,
@@ -36,6 +33,9 @@ from genkit._ai._resource import (
     resolve_resources,
     resource,
 )
+from genkit._core._action import ActionKind, ActionRunContext
+from genkit._core._registry import Registry
+from genkit._core._typing import Metadata, Part, TextPart
 
 
 @pytest.mark.asyncio

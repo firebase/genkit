@@ -73,10 +73,10 @@ Key Features
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit import Genkit, Media, MediaPart, Message, Metadata, Part, Role, TextPart
-import structlog
 from genkit._core._action import ActionRunContext
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from samples.shared import (

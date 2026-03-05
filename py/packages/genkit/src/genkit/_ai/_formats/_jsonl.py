@@ -21,14 +21,14 @@ from typing import Any, cast
 
 import json5
 
-from genkit._core._compat import override
-from genkit._core._error import GenkitError
-from genkit._core._extract import extract_json
+from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import (
     Message,
     ModelResponseChunk,
 )
-from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
+from genkit._core._compat import override
+from genkit._core._error import GenkitError
+from genkit._core._extract import extract_json
 
 
 class JsonlFormat(FormatDef):

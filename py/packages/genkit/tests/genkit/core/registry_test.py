@@ -11,9 +11,9 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 
-from genkit._core._registry import Registry
-from genkit._core._action import Action, ActionKind, ActionMetadata
 from genkit import Genkit, Plugin
+from genkit._core._action import Action, ActionKind, ActionMetadata
+from genkit._core._registry import Registry
 
 
 async def _identity(x: object) -> object:

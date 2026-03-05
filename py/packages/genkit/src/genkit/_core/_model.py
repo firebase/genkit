@@ -29,9 +29,9 @@ from typing import Any, Generic, cast
 from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import TypeVar
 
+from genkit._core._action import ActionRunContext
 from genkit._core._extract import extract_json
 from genkit._core._typing import (
-    DocumentData,
     DocumentPart,
     GenerateResponse,
     GenerateResponseChunk,
@@ -41,14 +41,10 @@ from genkit._core._typing import (
     MessageData,
     ModelConfig,
     ModelRequest as GeneratedModelRequest,
-    OutputConfig,
     Part,
     Text,
-    ToolChoice,
-    ToolDefinition,
     ToolRequestPart,
 )
-from genkit._core._action import ActionRunContext
 
 # TypeVars for generic types
 OutputT = TypeVar('OutputT', default=object)

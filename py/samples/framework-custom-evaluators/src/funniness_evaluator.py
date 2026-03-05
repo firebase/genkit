@@ -21,8 +21,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
 from genkit import Genkit
+from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
 
 
 class FunninessResponse(BaseModel):

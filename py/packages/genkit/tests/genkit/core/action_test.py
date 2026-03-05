@@ -10,7 +10,6 @@ from typing import cast
 
 import pytest
 
-from genkit._core._error import GenkitError
 from genkit._core._action import (
     Action,
     ActionKind,
@@ -19,6 +18,7 @@ from genkit._core._action import (
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
+from genkit._core._error import GenkitError
 
 
 def test_action_enum_behaves_like_str() -> None:

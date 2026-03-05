@@ -125,11 +125,11 @@ import asyncio
 import os
 import sys
 
+import structlog
 from pydantic import BaseModel, Field
 
-import structlog
-from genkit._core.trace import is_realtime_telemetry_enabled
 from genkit import Genkit
+from genkit._core.trace import is_realtime_telemetry_enabled
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

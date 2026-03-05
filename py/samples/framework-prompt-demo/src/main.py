@@ -69,11 +69,11 @@ See README.md for more details.
 import os
 from pathlib import Path
 
+import structlog
 from pydantic import BaseModel, Field
 
-import structlog
-from genkit._core._action import ActionRunContext
 from genkit import ActionKind, Genkit
+from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

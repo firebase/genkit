@@ -39,8 +39,6 @@ from typing import Any, cast
 
 from rich.console import Console
 
-from genkit._core.codec import dump_dict
-
 console = Console(stderr=True)
 
 
@@ -185,7 +183,7 @@ class InProcessRunner:
             )
             # Consume the stream to collect chunks.
             async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
+                chunks.append(cast(dict[str, Any], chunk.model_dump()))
             result = await response_future
         else:
             result = await self._ai.generate(
@@ -198,7 +196,7 @@ class InProcessRunner:
                 return_tool_requests=True,
             )
 
-        response = cast(dict[str, Any], dump_dict(result))
+        response = cast(dict[str, Any], result.model_dump())
         return response, chunks
 
     async def close(self) -> None:

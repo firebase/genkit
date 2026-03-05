@@ -19,9 +19,9 @@ from unittest import mock
 
 import httpx
 
+from genkit import Genkit
 from genkit._core._environment import GENKIT_ENV, GenkitEnvironment
 from genkit._core._reflection import ServerSpec
-from genkit import Genkit
 
 
 def _find_free_port() -> int:

@@ -25,8 +25,8 @@ import pytest
 
 from genkit import (
     ActionKind,
-    ModelConfig,
     Message,
+    ModelConfig,
     ModelRequest,
     Part,
     Role,

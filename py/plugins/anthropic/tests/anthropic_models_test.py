@@ -22,11 +22,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit import (
-    ModelConfig,
     Media,
     MediaPart,
     Message,
     Metadata,
+    ModelConfig,
     ModelRequest,
     ModelResponseChunk,
     OutputConfig,

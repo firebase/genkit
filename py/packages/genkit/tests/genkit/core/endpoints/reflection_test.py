@@ -44,9 +44,9 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from genkit._core._registry import Registry
 from genkit._core._action import ActionKind, ActionMetadata
 from genkit._core._reflection import create_reflection_asgi_app
+from genkit._core._registry import Registry
 
 
 @pytest.fixture

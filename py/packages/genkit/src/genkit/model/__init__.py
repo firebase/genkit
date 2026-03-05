@@ -16,6 +16,11 @@
 
 """Model protocol types for plugin authors."""
 
+from genkit._ai._model import (
+    ModelConfig,
+    model_action_metadata,
+    model_ref,
+)
 from genkit._core._background import BackgroundAction
 from genkit._core._model import (
     Message,
@@ -41,11 +46,6 @@ from genkit._core._typing import (
     ToolDefinition,
     ToolRequest,
     ToolResponse,
-)
-from genkit._ai._model import (
-    ModelConfig,
-    model_action_metadata,
-    model_ref,
 )
 
 __all__ = [

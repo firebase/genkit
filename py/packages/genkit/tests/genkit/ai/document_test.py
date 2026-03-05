@@ -18,13 +18,13 @@
 
 from typing import cast
 
+from genkit import Document
 from genkit._core._typing import (
     DocumentPart,
     Media,
     MediaPart,
     TextPart,
 )
-from genkit import Document
 
 
 def test_makes_deep_copy() -> None:

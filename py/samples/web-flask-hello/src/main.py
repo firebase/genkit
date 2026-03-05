@@ -58,10 +58,9 @@ from typing import cast
 from flask import Flask
 from pydantic import BaseModel, Field
 
-from genkit import ModelResponse
-from genkit._core._context import RequestData
+from genkit import Genkit, ModelResponse
 from genkit._core._action import ActionRunContext
-from genkit import Genkit
+from genkit._core._context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion

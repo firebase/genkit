@@ -18,13 +18,13 @@
 
 from typing import Any
 
+from genkit._ai._model import Message
 from genkit._core._typing import (
     Metadata,
     Part,
     Role,
     TextPart,
 )
-from genkit._ai._model import Message
 
 
 def _get_metadata_dict(metadata: Metadata | dict[str, Any] | None) -> dict[str, Any]:

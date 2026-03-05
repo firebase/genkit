@@ -27,6 +27,11 @@ Example:
     )
 """
 
+from genkit._ai._evaluator import (
+    EvaluatorRef,
+    evaluator_action_metadata,
+    evaluator_ref,
+)
 from genkit._core._typing import (
     BaseDataPoint,
     BaseEvalDataPoint,
@@ -36,11 +41,6 @@ from genkit._core._typing import (
     EvalResponse,
     EvalStatusEnum,
     Score,
-)
-from genkit._ai._evaluator import (
-    EvaluatorRef,
-    evaluator_action_metadata,
-    evaluator_ref,
 )
 
 __all__ = [

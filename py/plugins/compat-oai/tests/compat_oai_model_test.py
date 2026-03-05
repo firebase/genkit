@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from genkit import (
-    ModelConfig,
     Message,
+    ModelConfig,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,

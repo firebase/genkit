@@ -21,9 +21,9 @@ import unittest
 
 import pytest
 
+from genkit import Genkit
 from genkit._core._dap import DapValue, DynamicActionProvider
 from genkit._core._flow import get_func_description
-from genkit import Genkit
 
 
 class TestGetFuncDescription(unittest.TestCase):

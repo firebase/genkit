@@ -78,10 +78,10 @@ Supported Models
 import asyncio
 import os
 
-from genkit import Media, MediaPart, Part, TextPart
 import structlog
+
+from genkit import Genkit, Media, MediaPart, Part, TextPart
 from genkit._core._action import ActionRunContext
-from genkit import Genkit
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
     add_aws_telemetry,

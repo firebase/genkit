@@ -23,6 +23,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
+from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext, get_func_description
 from genkit._core._model import (
     Message,
     ModelMiddleware,
@@ -41,7 +42,6 @@ from genkit._core._typing import (
     ModelConfig as CoreModelConfig,
     ModelInfo,
 )
-from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext, get_func_description
 
 # Re-export veneer types from core._internal._model for backward compatibility
 __all__ = [
@@ -160,7 +160,6 @@ class ModelConfig(CoreModelConfig):
         alias='apiKey',
         description='API Key to use for the model call, overrides API key provided in plugin config.',
     )
-
 
 
 def get_request_api_key(config: Mapping[str, object] | ModelConfig | object | None) -> str | None:

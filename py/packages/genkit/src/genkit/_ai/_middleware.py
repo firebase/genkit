@@ -16,12 +16,6 @@
 
 """Middleware for the Genkit framework."""
 
-from genkit._core._typing import (
-    Metadata,
-    Part,
-    TextPart,
-)
-from genkit._core._action import ActionRunContext
 from genkit._ai._document import Document
 from genkit._ai._model import (
     Message,
@@ -30,6 +24,12 @@ from genkit._ai._model import (
     ModelRequest,
     ModelResponse,
     text_from_content,
+)
+from genkit._core._action import ActionRunContext
+from genkit._core._typing import (
+    Metadata,
+    Part,
+    TextPart,
 )
 
 CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'

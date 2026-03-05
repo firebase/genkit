@@ -7,10 +7,10 @@
 
 import pytest
 
-from genkit._core._error import GenkitError
-from genkit._core._typing import Part, TextPart
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats._array import ArrayFormat
+from genkit._core._error import GenkitError
+from genkit._core._typing import Part, TextPart
 
 
 class TestArrayFormatStreaming:

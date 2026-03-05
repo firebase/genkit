@@ -29,7 +29,6 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
-    SimpleSpanProcessor,
     SpanExporter,
     SpanExportResult,
 )

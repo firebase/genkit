@@ -28,17 +28,17 @@ Example:
     )
 """
 
-from genkit._core._typing import (
-    Embedding,
-    EmbedRequest,
-    EmbedResponse,
-)
 from genkit._ai._embedding import (
     EmbedderOptions,
     EmbedderRef,
     EmbedderSupports,
     create_embedder_ref as embedder_ref,
     embedder_action_metadata,
+)
+from genkit._core._typing import (
+    Embedding,
+    EmbedRequest,
+    EmbedResponse,
 )
 
 __all__ = [

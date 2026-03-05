@@ -129,20 +129,22 @@ else:
 
 import pathlib
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit import (
-    ModelConfig,
+    Genkit,
     Media,
     MediaPart,
     Message,
+    ModelConfig,
     Part,
     Role,
     TextPart,
+    ToolRunContext,
+    tool_response,
 )
-import structlog
 from genkit._core._action import ActionRunContext
-from genkit import Genkit, ToolRunContext, tool_response
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,

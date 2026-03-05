@@ -7,6 +7,9 @@
 
 import pytest
 
+from genkit import Message, ModelResponse, ModelResponseChunk
+from genkit._ai._model import text_from_content
+from genkit._core._action import ActionMetadata
 from genkit._core._typing import (
     DocumentPart,
     GenerationUsage,
@@ -19,10 +22,7 @@ from genkit._core._typing import (
     ToolRequest,
     ToolRequestPart,
 )
-from genkit._core._action import ActionMetadata
-from genkit import Message, ModelResponse, ModelResponseChunk
 from genkit.model import get_basic_usage_stats, model_action_metadata
-from genkit._ai._model import text_from_content
 
 
 def test_message_wrapper_text() -> None:

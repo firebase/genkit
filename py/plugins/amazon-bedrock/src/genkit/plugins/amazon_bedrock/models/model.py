@@ -131,11 +131,11 @@ import structlog
 
 from genkit import (
     FinishReason,
-    ModelConfig,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelConfig,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,

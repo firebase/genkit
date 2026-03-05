@@ -22,8 +22,8 @@ import inspect
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
-from genkit._core._registry import Registry
 from genkit._core._action import Action, ActionKind, get_func_description
+from genkit._core._registry import Registry
 
 T = TypeVar('T')
 

@@ -19,14 +19,14 @@
 import json
 from typing import Any
 
-from genkit._core._compat import override
-from genkit._core._error import GenkitError
-from genkit._core._extract import extract_items
+from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import (
     Message,
     ModelResponseChunk,
 )
-from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
+from genkit._core._compat import override
+from genkit._core._error import GenkitError
+from genkit._core._extract import extract_items
 
 
 class ArrayFormat(FormatDef):

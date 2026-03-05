@@ -58,11 +58,11 @@ import asyncio
 import os
 from typing import Any, cast
 
+import structlog
 from pydantic import BaseModel, Field
 
-import structlog
-from genkit._core._typing import OutputConfig
 from genkit import Genkit
+from genkit._core._typing import OutputConfig
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

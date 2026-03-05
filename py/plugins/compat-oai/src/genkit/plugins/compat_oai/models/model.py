@@ -25,8 +25,8 @@ from openai import AsyncOpenAI
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit import (
-    ModelConfig,
     Message,
+    ModelConfig,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
@@ -37,7 +37,6 @@ from genkit import (
     TextPart,
     ToolDefinition,
 )
-from genkit.model import ModelConfig
 from genkit.plugin_api import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import (

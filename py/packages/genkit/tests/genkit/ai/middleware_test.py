@@ -21,6 +21,9 @@ import asyncio
 
 import pytest
 
+from genkit import Document, Message, ModelResponse
+from genkit._ai._middleware import augment_with_context
+from genkit._core._action import ActionRunContext
 from genkit._core._typing import (
     DocumentPart,
     Metadata,
@@ -29,10 +32,6 @@ from genkit._core._typing import (
     Role,
     TextPart,
 )
-from genkit._core._action import ActionRunContext
-from genkit import Document
-from genkit._ai._middleware import augment_with_context
-from genkit import Message, ModelResponse
 
 
 async def run_augmenter(req: ModelRequest) -> ModelRequest:

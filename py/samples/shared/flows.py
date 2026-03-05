@@ -21,8 +21,9 @@ provider samples can delegate to them from thin ``@ai.flow()`` wrappers.
 Provider-specific flow logic stays in each sample's main.py.
 """
 
-from genkit import Genkit, Media, MediaPart, Message, Part, Role, TextPart
 import structlog
+
+from genkit import Genkit, Media, MediaPart, Message, Part, Role, TextPart
 from genkit._core._action import ActionRunContext
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput

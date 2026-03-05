@@ -81,9 +81,9 @@ See README.md for more details.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-import structlog
 from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample

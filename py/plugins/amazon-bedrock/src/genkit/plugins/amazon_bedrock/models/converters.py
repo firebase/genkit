@@ -32,10 +32,10 @@ from typing import Any
 
 from genkit import (
     FinishReason,
-    ModelConfig,
     GenerationUsage,
     Media,
     Message,
+    ModelConfig,
     ModelRequest,
     Part,
     Role,

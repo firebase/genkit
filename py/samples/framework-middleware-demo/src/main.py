@@ -85,12 +85,11 @@ See README.md for more details.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Message, ModelRequest, ModelResponse, Part, Role, TextPart
-import structlog
+from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
 from genkit._core._action import ActionRunContext
-from genkit import Genkit
 from genkit.model import ModelMiddlewareNext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample

@@ -98,11 +98,10 @@ import os
 import pathlib
 
 import httpx
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import ModelConfig, Message, Part, Role, TextPart
-import structlog
-from genkit import Genkit
+from genkit import Genkit, Message, ModelConfig, Part, Role, TextPart
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 

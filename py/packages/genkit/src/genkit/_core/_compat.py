@@ -25,16 +25,16 @@ T = TypeVar('T')
 # StrEnum - Added in Python 3.11
 # Used for string enums throughout the codebase
 if sys.version_info >= (3, 11):
-    from enum import StrEnum
+    pass
 else:
-    from strenum import StrEnum
+    pass
 
 # override decorator - Added in Python 3.12
 # We use this throughout the codebase to mark methods that override parent methods
 if sys.version_info >= (3, 12):
-    from typing import override
+    pass
 else:
-    from typing_extensions import override
+    pass
 
 
 async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> T:
@@ -49,4 +49,3 @@ if sys.version_info < (3, 11):
     wait_for = wait_for_310  # pyright: ignore[reportUnreachable]
 else:
     wait_for = asyncio.wait_for
-

@@ -22,11 +22,11 @@ from typing import Any, ClassVar, cast
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
+from genkit._ai._document import Document
+from genkit._core._action import Action, ActionKind, ActionMetadata, get_func_description
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import EmbedRequest, EmbedResponse
-from genkit._core._action import Action, ActionKind, ActionMetadata, get_func_description
-from genkit._ai._document import Document
 
 
 class EmbedderSupports(BaseModel):

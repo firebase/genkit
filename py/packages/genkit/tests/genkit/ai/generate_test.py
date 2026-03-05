@@ -14,6 +14,27 @@ import pytest
 import yaml
 from pydantic import BaseModel, TypeAdapter
 
+from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
+from genkit._ai._generate import generate_action
+from genkit._ai._model import text_from_content, text_from_message
+from genkit._core._action import ActionRunContext
+from genkit._core._typing import (
+    DocumentPart,
+    FinishReason,
+    GenerateActionOptions,
+    Metadata,
+    ModelRequest,
+    Part,
+    Role,
+    TextPart,
+)
+from genkit.model import ModelMiddlewareNext
+from genkit.testing import (
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
+)
+
 
 def _to_dict(obj: object) -> object:
     """Convert object to dict for test comparisons."""
@@ -29,28 +50,8 @@ def _to_dict(obj: object) -> object:
 def _to_json(obj: object, indent: int | None = None) -> str:
     """Convert object to JSON string for test output."""
     if isinstance(obj, BaseModel):
-        return obj.model__to_json(indent=indent)
+        return obj.model_dump_json(indent=indent)
     return json.dumps(obj, indent=indent)
-from genkit._core._typing import (
-    DocumentPart,
-    FinishReason,
-    GenerateActionOptions,
-    Metadata,
-    ModelRequest,
-    Part,
-    Role,
-    TextPart,
-)
-from genkit._core._action import ActionRunContext
-from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
-from genkit._ai._generate import generate_action
-from genkit.model import ModelMiddlewareNext
-from genkit._ai._model import text_from_content, text_from_message
-from genkit.testing import (
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
-)
 
 
 @pytest.fixture

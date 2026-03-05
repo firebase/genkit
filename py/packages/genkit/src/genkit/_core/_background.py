@@ -24,6 +24,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._model import ModelRequest, ModelResponse
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -31,7 +32,6 @@ from genkit._core._typing import (
     ModelInfo,
     Operation,
 )
-from genkit._core._action import Action, ActionKind, ActionRunContext
 
 # Type variable for operation output
 OutputT = TypeVar('OutputT')

@@ -81,13 +81,12 @@ Key Features
 
 from math import sqrt
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import ModelResponse
-import structlog
-from genkit._core._typing import Media, MediaPart, Part, TextPart
+from genkit import Genkit, ModelResponse
 from genkit._core._action import ActionRunContext
-from genkit import Genkit
+from genkit._core._typing import Media, MediaPart, Part, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition

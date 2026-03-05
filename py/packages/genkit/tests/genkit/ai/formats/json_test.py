@@ -5,9 +5,9 @@
 
 """Tests for the JSON format."""
 
-from genkit._core._typing import Part, TextPart
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats import JsonFormat
+from genkit._core._typing import Part, TextPart
 
 
 class TestJsonFormatStreaming:

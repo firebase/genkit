@@ -9,8 +9,8 @@ import os
 import pathlib
 import tempfile
 
-from genkit._core._reflection import ServerSpec
 from genkit._ai._runtime import RuntimeManager
+from genkit._core._reflection import ServerSpec
 
 
 def test_server_spec() -> None:

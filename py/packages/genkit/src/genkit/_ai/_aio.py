@@ -26,7 +26,7 @@ import threading
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar, cast, overload
+from typing import Any, ParamSpec, TypeVar, overload
 
 import anyio
 import uvicorn
@@ -34,42 +34,6 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import BaseModel
 
-from genkit._core._channel import Channel, run_loop
-from genkit._core._background import (
-    BackgroundAction,
-    CancelModelOpFn,
-    CheckModelOpFn,
-    StartModelOpFn,
-    check_operation as check_operation_impl,
-    define_background_model as define_background_model_block,
-    lookup_background_action,
-)
-from genkit._core._dap import (
-    DapFn,
-    DynamicActionProvider,
-    define_dynamic_action_provider as define_dap_block,
-)
-from genkit._core._environment import is_dev_environment
-from genkit._core._error import GenkitError
-from genkit._core._flow import define_flow
-from genkit._core._logger import get_logger
-from genkit._core._plugin import Plugin
-from genkit._core._registry import Registry
-from genkit._core._tracing import run_in_new_span
-from genkit._core._typing import (
-    BaseDataPoint,
-    Embedding,
-    EmbedRequest,
-    EvalRequest,
-    EvalResponse,
-    ModelInfo,
-    Operation,
-    Part,
-    SpanMetadata,
-    ToolChoice,
-)
-from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._core._reflection import ServerSpec, ReflectionServer, create_reflection_asgi_app
 from genkit._ai._document import Document
 from genkit._ai._embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
@@ -79,6 +43,8 @@ from genkit._ai._evaluator import (
     define_batch_evaluator,
     define_evaluator,
 )
+from genkit._ai._formats import built_in_formats
+from genkit._ai._formats._types import FormatDef
 from genkit._ai._generate import define_generate_action, generate_action
 from genkit._ai._model import (
     Message,
@@ -105,8 +71,42 @@ from genkit._ai._resource import (
     define_resource as define_resource_block,
 )
 from genkit._ai._tools import define_tool
-from genkit._ai._formats import built_in_formats
-from genkit._ai._formats._types import FormatDef
+from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._core._background import (
+    BackgroundAction,
+    CancelModelOpFn,
+    CheckModelOpFn,
+    StartModelOpFn,
+    check_operation as check_operation_impl,
+    define_background_model as define_background_model_block,
+    lookup_background_action,
+)
+from genkit._core._channel import Channel, run_loop
+from genkit._core._dap import (
+    DapFn,
+    DynamicActionProvider,
+    define_dynamic_action_provider as define_dap_block,
+)
+from genkit._core._environment import is_dev_environment
+from genkit._core._error import GenkitError
+from genkit._core._flow import define_flow
+from genkit._core._logger import get_logger
+from genkit._core._plugin import Plugin
+from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app
+from genkit._core._registry import Registry
+from genkit._core._tracing import run_in_new_span
+from genkit._core._typing import (
+    BaseDataPoint,
+    Embedding,
+    EmbedRequest,
+    EvalRequest,
+    EvalResponse,
+    ModelInfo,
+    Operation,
+    Part,
+    SpanMetadata,
+    ToolChoice,
+)
 
 from ._runtime import RuntimeManager
 
@@ -211,7 +211,9 @@ class Genkit:
     ) -> DynamicActionProvider:
         """Register a Dynamic Action Provider (DAP)."""
         return define_dap_block(
-            self.registry, name, fn,
+            self.registry,
+            name,
+            fn,
             description=description,
             cache_ttl_millis=cache_ttl_millis,
             metadata=metadata,
@@ -935,7 +937,11 @@ class Genkit:
         with run_in_new_span(span_metadata, labels={'genkit:type': 'flowStep'}) as span:
             try:
                 result = await fn()
-                output = result.model_dump_json(by_alias=True, exclude_none=True) if isinstance(result, BaseModel) else json.dumps(result)
+                output = (
+                    result.model_dump_json(by_alias=True, exclude_none=True)
+                    if isinstance(result, BaseModel)
+                    else json.dumps(result)
+                )
                 span.set_attribute('genkit:output', output)
                 return result
             except Exception:

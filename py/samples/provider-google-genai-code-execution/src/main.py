@@ -54,10 +54,10 @@ See README.md for testing instructions.
 
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
 from genkit import Genkit, Message
-import structlog
 from genkit._core._typing import CustomPart, TextPart
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter

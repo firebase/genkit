@@ -20,6 +20,7 @@ import asyncio
 
 import pytest
 
+from genkit._core._action import Action, ActionKind
 from genkit._core._dap import (
     DapValue,
     DynamicActionProvider,
@@ -27,7 +28,6 @@ from genkit._core._dap import (
     is_dynamic_action_provider,
 )
 from genkit._core._registry import Registry
-from genkit._core._action import Action, ActionKind
 
 
 @pytest.fixture

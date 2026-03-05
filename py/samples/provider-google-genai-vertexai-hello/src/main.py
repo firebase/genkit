@@ -107,12 +107,11 @@ Testing This Demo
 
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Embedding
-import structlog
+from genkit import Embedding, Genkit, ToolRunContext, tool_response
 from genkit._core._action import ActionRunContext
-from genkit import Genkit, ToolRunContext, tool_response
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     VertexAI,

@@ -44,7 +44,6 @@ from typing import Any, cast
 
 import structlog
 
-from genkit._core.codec import dump_dict
 from genkit import Genkit
 
 # ---------------------------------------------------------------------------
@@ -215,7 +214,7 @@ async def handle_request(
                 return_tool_requests=True,
             )
             async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
+                chunks.append(cast(dict[str, Any], chunk.model_dump()))
             result = await response_future
         else:
             result = await ai.generate(
@@ -228,7 +227,7 @@ async def handle_request(
                 return_tool_requests=True,
             )
 
-        response = cast(dict[str, Any], dump_dict(result))
+        response = cast(dict[str, Any], result.model_dump())
         return {'response': response, 'chunks': chunks}
 
     except Exception:

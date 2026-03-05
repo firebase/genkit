@@ -47,6 +47,8 @@ Note:
 
 import pytest
 
+from genkit import Genkit, Message, ModelResponse
+from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._typing import (
     ModelInfo,
@@ -57,9 +59,6 @@ from genkit._core._typing import (
     Supports,
     TextPart,
 )
-from genkit._core._action import ActionRunContext
-from genkit import Genkit
-from genkit import Message, ModelResponse
 
 
 @pytest.fixture

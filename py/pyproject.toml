@@ -269,7 +269,14 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Auto-generated file from schema
 "packages/genkit/src/genkit/core/typing.py" = ["E501"]
-# Typing tests use reveal_type(), intentional unused vars, and don't need docstrings
+# Base model uses **kwargs: Any to match pydantic signatures
+"packages/genkit/src/genkit/_core/_base.py" = ["ANN401"]
+# HTTP client uses **httpx_kwargs: Any to forward arbitrary options
+"packages/genkit/src/genkit/_core/_http_client.py" = ["ANN401"]
+# Span wrapper uses __getattr__ -> Any for dynamic delegation
+"packages/genkit/src/genkit/_core/trace/_adjusting_exporter.py" = ["ANN401"]
+# Test files don't need docstrings; test method names are self-documenting
+"**/tests/**/*.py" = ["D", "ANN401"]
 "packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
 # Validation/provenance/safe-defaults test methods are self-documenting via names;
 # S108 false positives on Path('/tmp/x') used as dummy non-existent paths in tests.

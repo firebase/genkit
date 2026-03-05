@@ -62,12 +62,11 @@ See README.md for testing instructions.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Message, Part, Role, TextPart
-import structlog
+from genkit import Genkit, Message, Part, Role, TextPart
 from genkit._core._action import ActionRunContext
-from genkit import Genkit
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
 from samples.shared.logging import setup_sample

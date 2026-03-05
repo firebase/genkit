@@ -66,6 +66,7 @@ import os
 from pathlib import Path
 
 import structlog
+
 from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from src.constants import PERMISSIVE_SAFETY_SETTINGS, URL_REGEX, US_PHONE_REGEX
