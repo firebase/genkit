@@ -19,10 +19,8 @@ import { z } from 'zod';
 import { getDatasetStore, getEvalStore } from '.';
 import type { RuntimeManager } from '../manager/manager';
 import {
-  DatasetSchema,
   GenerateActionOptions,
-  GenerateActionOptionsSchema,
-  GenerateResponseSchema,
+  GenerateResponseData,
   type Action,
   type CandidateData,
   type Dataset,
@@ -96,7 +94,7 @@ export async function runNewEvaluation(
     if (dataset.length === 0) {
       throw new Error(`Dataset ${datasetId} is empty`);
     }
-    inferenceDataset = DatasetSchema.parse(dataset);
+    inferenceDataset = dataset as Dataset;
 
     const datasetMetadatas = await datasetStore.listDatasets();
     const targetDatasetMetadata = datasetMetadatas.find(
@@ -109,7 +107,7 @@ export async function runNewEvaluation(
       ...sample,
       testCaseId: sample.testCaseId ?? generateTestCaseId(),
     }));
-    inferenceDataset = DatasetSchema.parse(rawData);
+    inferenceDataset = rawData as Dataset;
   }
 
   logger.info('Running inference...');
@@ -411,7 +409,7 @@ async function runPromptAction(params: {
 
     renderedPrompt = {
       traceId: runActionResponse.telemetry?.traceId!,
-      result: GenerateActionOptionsSchema.parse(runActionResponse.result),
+      result: runActionResponse.result as GenerateActionOptions,
     };
   } catch (e: any) {
     if (e instanceof z.ZodError) {
@@ -563,7 +561,7 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
 }
 
 function getErrorFromModelResponse(obj: any): string | undefined {
-  const response = GenerateResponseSchema.parse(obj);
+  const response = obj as GenerateResponseData;
 
   // Legacy response is present
   const hasLegacyResponse =
