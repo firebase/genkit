@@ -18,7 +18,7 @@ import { action, z, type Action } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { runInNewSpan } from '@genkit-ai/core/tracing';
+import { SpanMetadata, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
 
 export const ATTR_PREFIX = 'genkit';
@@ -370,7 +370,7 @@ async function runBatch<
   batchIndex: number,
   evalRunId: string,
   options: any,
-  batchMetadata?: any
+  batchMetadata?: SpanMetadata
 ): Promise<EvalResponses> {
   if (batchMetadata) {
     batchMetadata.input = batch;
