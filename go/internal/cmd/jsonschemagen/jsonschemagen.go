@@ -131,9 +131,14 @@ func run(infile, defaultPkgPath, configFile, outRoot string) error {
 
 	// Generate code by package.
 	for pkgPath, schemaMap := range schemasByPackage {
+		// Derive package name from path, with config override.
+		pkgName := path.Base(pkgPath)
+		if pc := cfg.configFor(pkgPath); pc != nil && pc.name != "" {
+			pkgName = pc.name
+		}
 		// Generate code for each type in the package.
 		gen := &generator{
-			pkgName: path.Base(pkgPath),
+			pkgName: pkgName,
 			schemas: schemaMap,
 			cfg:     cfg,
 		}
@@ -292,7 +297,15 @@ func (g *generator) generate() ([]byte, error) {
 	g.pr("package %s\n\n", g.pkgName)
 
 	if pc := g.cfg.configFor(g.pkgName); pc != nil {
-		g.pr("import %q\n", pc.pkgPath)
+		if len(pc.imports) > 0 {
+			g.pr("import (\n")
+			for _, imp := range pc.imports {
+				g.pr("  %q\n", imp)
+			}
+			g.pr(")\n\n")
+		} else if pc.pkgPath != "" {
+			g.pr("import %q\n", pc.pkgPath)
+		}
 	}
 
 	// Sort the names so the output is deterministic.
@@ -386,7 +399,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 	if goName == "" {
 		goName = adjustIdentifier(name)
 	}
-	g.pr("type %s struct {\n", goName)
+	g.pr("type %s%s struct {\n", goName, tcfg.typeparams)
 	for _, field := range sortedKeys(s.Properties) {
 		fcfg := g.cfg.configFor(name + "." + field)
 		if fcfg == nil {
@@ -416,7 +429,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		g.generateDoc(fs, fcfg)
 
 		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
-		if skipOmitEmpty(goName, field) {
+		if skipOmitEmpty(goName, field) || fcfg.noOmitEmpty {
 			jsonTag = fmt.Sprintf(`json:"%s"`, field)
 		}
 		g.pr(fmt.Sprintf("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag))
@@ -603,12 +616,15 @@ func (c config) configFor(name string) *itemConfig {
 // itemConfig is configuration for one item: a type, a field or a package.
 // Not all itemConfig fields apply to both, but using one type simplifies the parser.
 type itemConfig struct {
-	omit     bool
-	name     string
-	pkgPath  string
-	typeExpr string
-	docLines []string
-	fields   []extraField
+	omit        bool
+	name        string
+	pkgPath     string
+	typeExpr    string
+	docLines    []string
+	fields      []extraField
+	typeparams  string   // Go type parameters (e.g., "[State any]")
+	noOmitEmpty bool     // omit the omitempty tag for this field
+	imports     []string // import paths for the package
 }
 
 // extraField represents an additional unexported field to add to a struct.
@@ -636,7 +652,11 @@ type extraField struct {
 //	pkg
 //	    package path, relative to outdir (last component is package name)
 //	import
-//	    path of package to import (for packages only)
+//	    path of package to import (for packages only, may be repeated)
+//	typeparams PARAMS
+//	    Go type parameters to add to the type declaration (e.g., "[State any]")
+//	noomitempty
+//	    don't add omitempty to this field's json tag
 //	field NAME TYPE
 //	    add an unexported field to the struct (for types only)
 func parseConfigFile(filename string) (config, error) {
@@ -703,7 +723,14 @@ func parseConfigFile(filename string) (config, error) {
 			if len(words) < 3 {
 				return errf("need NAME import PATH")
 			}
-			ic.pkgPath = words[2]
+			ic.imports = append(ic.imports, words[2])
+		case "typeparams":
+			if len(words) < 3 {
+				return errf("need NAME typeparams PARAMS")
+			}
+			ic.typeparams = strings.Join(words[2:], " ")
+		case "noomitempty":
+			ic.noOmitEmpty = true
 		case "field":
 			if len(words) < 4 {
 				return errf("need NAME field FIELDNAME TYPE")

@@ -64,6 +64,7 @@ const (
 	ActionTypeCustom           ActionType = "custom"
 	ActionTypeCheckOperation   ActionType = "check-operation"
 	ActionTypeCancelOperation  ActionType = "cancel-operation"
+	ActionTypeSessionFlow      ActionType = "session-flow"
 )
 
 // ActionDesc is a descriptor of an action.
