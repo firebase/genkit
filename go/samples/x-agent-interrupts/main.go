@@ -13,10 +13,10 @@
 // limitations under the License.
 
 // x-agent-interrupts demonstrates the experimental tool interrupts API
-// using DefinePromptAgent. Unlike x-interrupts (which handles interrupts
-// inside a flow), this sample separates concerns: the agent streams
-// interrupts to the client, and the client handles user interaction
-// and sends resume data back.
+// using DefineSessionFlowFromPrompt. Unlike x-interrupts (which handles
+// interrupts inside a flow), this sample separates concerns: the session
+// flow streams interrupts to the client, and the client handles user
+// interaction and sends resume data back.
 package main
 
 import (
@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/ai/x/tool"
+	"github.com/firebase/genkit/go/ai/exp/tool"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
@@ -100,7 +100,7 @@ func main() {
 			}, nil
 		})
 
-	paymentAgent := genkit.DefinePromptAgent[any, any](g, "paymentAgent", nil)
+	paymentAgent := genkit.DefineSessionFlowFromPrompt[any, any](g, "paymentAgent", nil)
 
 	fmt.Println("Payment Agent (Prompt Agent + Interrupts)")
 	fmt.Printf("Balance: $%.2f\n", accountBalance)

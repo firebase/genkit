@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This sample demonstrates the AgentFlow API for multi-turn conversation
+// This sample demonstrates the SessionFlow API for multi-turn conversation
 // with token-level streaming. It runs a CLI REPL where conversation history
 // is managed automatically by the session.
 package main
@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	aix "github.com/firebase/genkit/go/ai/x"
+	aix "github.com/firebase/genkit/go/ai/exp"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -35,10 +35,9 @@ func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
-	chatFlow := genkit.DefineCustomAgent(g, "chat",
-		func(ctx context.Context, resp aix.Responder[any], sess *aix.AgentSession[any]) (*aix.AgentFlowResult, error) {
-			var lastMessage *ai.Message
-			err := sess.Run(ctx, func(ctx context.Context, input *aix.AgentFlowInput) error {
+	chatFlow := genkit.DefineSessionFlow(g, "chat",
+		func(ctx context.Context, resp aix.Responder[any], sess *aix.SessionRunner[any]) (*aix.SessionFlowResult, error) {
+			if err := sess.Run(ctx, func(ctx context.Context, input *aix.SessionFlowInput) error {
 				for chunk, err := range genkit.GenerateStream(ctx, g,
 					ai.WithModel(googlegenai.ModelRef("googleai/gemini-3-flash-preview", &genai.GenerateContentConfig{
 						ThinkingConfig: &genai.ThinkingConfig{
@@ -52,25 +51,23 @@ func main() {
 						return err
 					}
 					if chunk.Done {
-						lastMessage = chunk.Response.Message
-						sess.AddMessages(lastMessage)
+						sess.AddMessages(chunk.Response.Message)
 						break
 					}
 					resp.SendModelChunk(chunk.Chunk)
 				}
 
 				return nil
-			})
-			if err != nil {
+			}); err != nil {
 				return nil, err
 			}
-			return &aix.AgentFlowResult{Message: lastMessage}, nil
+			return sess.Result(), nil
 		},
 		aix.WithSessionStore(aix.NewInMemorySessionStore[any]()),
 		aix.WithSnapshotOn[any](aix.SnapshotEventTurnEnd),
 	)
 
-	fmt.Println("Agent Flow Chat (type 'quit' to exit)")
+	fmt.Println("Session Flow Chat (type 'quit' to exit)")
 	fmt.Println()
 
 	conn, err := chatFlow.StreamBidi(ctx)
@@ -119,4 +116,5 @@ func main() {
 	}
 
 	conn.Close()
+	fmt.Println(conn.Output())
 }

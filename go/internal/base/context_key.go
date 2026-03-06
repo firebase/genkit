@@ -43,11 +43,11 @@ func (k ContextKey[T]) FromContext(ctx context.Context) T {
 }
 
 // ToolPartialSenderKey is the context key for streaming partial tool responses.
-// Set by ai/generate.go (handleToolRequests), read by ai/x/tool (SendPartial).
+// Set by ai/generate.go (handleToolRequests), read by ai/exp/tool (SendPartial).
 var ToolPartialSenderKey = NewContextKey[func(context.Context, any)]()
 
 // ToolChunkSenderKey is the context key for streaming raw model response chunks
 // from within a tool. Set by ai/generate.go (handleToolRequests), read by
-// ai/x/tool (SendChunk). The any value is *ai.ModelResponseChunk (typed as any
+// ai/exp/tool (SendChunk). The any value is *ai.ModelResponseChunk (typed as any
 // to avoid a circular import).
 var ToolChunkSenderKey = NewContextKey[func(context.Context, any)]()
