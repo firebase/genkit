@@ -15,6 +15,7 @@
  */
 
 export {
+  FetchTelemetryProvider,
   SPAN_TYPE_ATTR,
   SpanContextSchema,
   SpanDataSchema,
@@ -32,11 +33,13 @@ export {
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  setTelemetryServerUrl,
+  setTelemetryServerConfig,
   toDisplayPath,
+  type FetchTelemetryProviderOptions,
   type PathMetadata,
   type SpanData,
   type SpanMetadata,
+  type TelemetryServerConfig,
   type TraceData,
   type TraceMetadata,
 } from '@genkit-ai/core/tracing';

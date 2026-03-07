@@ -18,10 +18,11 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action, defineAction } from '../src/action.js';
-import { initNodeFeatures } from '../src/node.js';
+import { initNodeFeatures, initNodeTelemetryProvider } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 
 initNodeFeatures();
+initNodeTelemetryProvider();
 
 describe('action', () => {
   var registry: Registry;

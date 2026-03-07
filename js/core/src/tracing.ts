@@ -19,12 +19,25 @@ import { logger } from './logging.js';
 import type { TelemetryConfig } from './telemetryTypes.js';
 
 export * from './tracing/exporter.js';
+export * from './tracing/fetch-telemetry-provider.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/types.js';
 
 const oTelInitializationKey = '__GENKIT_DISABLE_GENKIT_OTEL_INITIALIZATION';
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 const telemetryProviderKey = '__GENKIT_TELEMETRY_PROVIDER';
+
+let telemetryProviderInitializer: (() => void) | null = null;
+
+/**
+ * Registers a function to run when the telemetry provider is first needed.
+ * This allows config (e.g. custom telemetry) to be set after importing genkit
+ * and still take effect. Called by the genkit package on load.
+ * @hidden
+ */
+export function setTelemetryProviderInitializer(fn: () => void) {
+  telemetryProviderInitializer = fn;
+}
 
 /**
  * @hidden
@@ -80,6 +93,13 @@ export interface TelemetryProvider {
 function getTelemetryProvider(): TelemetryProvider {
   if (global[telemetryProviderKey]) {
     return global[telemetryProviderKey];
+  }
+  if (telemetryProviderInitializer) {
+    telemetryProviderInitializer();
+
+    if (global[telemetryProviderKey]) {
+      return global[telemetryProviderKey];
+    }
   }
   throw new GenkitError({
     status: 'FAILED_PRECONDITION',

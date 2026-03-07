@@ -27,12 +27,29 @@ import { deleteUndefinedProps } from '../utils.js';
 import type { SpanData, TraceData } from './types.js';
 
 export let telemetryServerUrl: string | undefined;
+export let telemetryServerHeaders: Record<string, string> | undefined;
 
 /**
+ * Configuration for the telemetry server used by TraceServerExporter.
  * @hidden
  */
-export function setTelemetryServerUrl(url: string) {
-  telemetryServerUrl = url;
+export interface TelemetryServerConfig {
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Set telemetry server URL and/or headers in one call.
+ * @hidden
+ */
+export function setTelemetryServerConfig(config: TelemetryServerConfig) {
+  if (config.url !== undefined) {
+    telemetryServerUrl = config.url;
+  }
+  if (config.headers !== undefined) {
+    telemetryServerHeaders =
+      Object.keys(config.headers).length > 0 ? config.headers : undefined;
+  }
 }
 
 /**
@@ -158,16 +175,19 @@ export class TraceServerExporter implements SpanExporter {
         data.endTime = convertedSpan.endTime;
       }
     }
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...telemetryServerHeaders,
+    };
     // Suppress tracing to prevent infinite loops when auto-instrumentation
     // (e.g., undici) is enabled. Without this, the fetch call would be traced,
     // creating new spans that trigger more exports, causing stack overflow.
     await context.with(suppressTracing(context.active()), () =>
       fetch(`${telemetryServerUrl}/api/traces`, {
         method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(data),
       })
     );

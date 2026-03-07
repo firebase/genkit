@@ -15,6 +15,7 @@
  */
 
 import { logger } from './logging';
+import type { TelemetryProvider } from './tracing.js';
 
 const CONFIG_KEY = '__GENKIT_RUNTIME_CONFIG__';
 
@@ -34,6 +35,17 @@ export interface GenkitRuntimeConfig {
    * If true, features that require access to the file system or spawning processes (like the Reflection API) will be disabled.
    */
   sandboxedRuntime?: boolean;
+
+  /**
+   * Optional custom telemetry provider.
+   * When set, this provider is used instead of the default Node.js OpenTelemetry setup.
+   * Use this in worker-type environments (e.g. Cloudflare Workers) where Node SDK is not
+   * available; use a fetch-compatible provider such as {@link FetchTelemetryProvider}.
+   *
+   * Must be set before importing flows/actions (e.g. call setGenkitRuntimeConfig before
+   * any other genkit imports).
+   */
+  telemetry?: TelemetryProvider;
 }
 
 function getConfig(): GenkitRuntimeConfig {
@@ -64,6 +76,7 @@ export function getGenkitRuntimeConfig(): GenkitRuntimeConfig {
   return {
     jsonSchemaMode: config.jsonSchemaMode ?? 'compile',
     sandboxedRuntime: config.sandboxedRuntime ?? false,
+    telemetry: config.telemetry,
   };
 }
 
