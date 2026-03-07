@@ -30,14 +30,13 @@ import json
 import re
 from typing import Any
 
-from genkit.plugins.amazon_bedrock.typing import BedrockConfig
-from genkit.types import (
+from genkit import (
     FinishReason,
-    GenerateRequest,
-    GenerationCommonConfig,
     GenerationUsage,
     Media,
     Message,
+    ModelConfig,
+    ModelRequest,
     Part,
     Role,
     TextPart,
@@ -46,6 +45,7 @@ from genkit.types import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.plugins.amazon_bedrock.typing import BedrockConfig
 
 __all__ = [
     'FINISH_REASON_MAP',
@@ -299,7 +299,7 @@ def strip_markdown_fences(text: str) -> str:
     return text
 
 
-def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     """Strip markdown fences from text parts when JSON output is expected.
 
     Args:
@@ -455,11 +455,11 @@ def build_usage(usage_data: dict[str, Any]) -> GenerationUsage:
 def normalize_config(config: object) -> BedrockConfig:
     """Normalize config to BedrockConfig.
 
-    Handles dicts with camelCase keys, GenerationCommonConfig, and
+    Handles dicts with camelCase keys, ModelConfig, and
     BedrockConfig passthrough.
 
     Args:
-        config: Request configuration (dict, BedrockConfig, or GenerationCommonConfig).
+        config: Request configuration (dict, BedrockConfig, or ModelConfig).
 
     Returns:
         Normalized BedrockConfig instance.
@@ -470,7 +470,7 @@ def normalize_config(config: object) -> BedrockConfig:
     if isinstance(config, BedrockConfig):
         return config
 
-    if isinstance(config, GenerationCommonConfig):
+    if isinstance(config, ModelConfig):
         max_tokens = int(config.max_output_tokens) if config.max_output_tokens is not None else None
         return BedrockConfig(
             temperature=config.temperature,
@@ -497,7 +497,7 @@ def normalize_config(config: object) -> BedrockConfig:
     return BedrockConfig()
 
 
-def build_json_instruction(request: GenerateRequest) -> str | None:
+def build_json_instruction(request: ModelRequest) -> str | None:
     """Build a JSON output instruction for the system prompt.
 
     The Bedrock Converse API doesn't have native JSON mode. Instead,

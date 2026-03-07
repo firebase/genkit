@@ -44,8 +44,7 @@ from typing import Any, cast
 
 import structlog
 
-from genkit.ai import Genkit
-from genkit.codec import dump_dict
+from genkit import Genkit
 
 # ---------------------------------------------------------------------------
 # Plugin registry — maps conform plugin names to Genkit init functions.
@@ -125,7 +124,7 @@ def _register_ephemeral_tool(
     tool_def: dict[str, Any],
 ) -> None:
     """Register a no-op tool so generate() can resolve its definition."""
-    from genkit.core.action.types import ActionKind
+    from genkit._core._action import ActionKind
 
     registry = ai.registry
     with registry._lock:  # pyright: ignore[reportPrivateUsage]
@@ -175,7 +174,7 @@ async def handle_request(
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit.core.typing import Message, OutputConfig, Part
+        from genkit._core._typing import Message, OutputConfig, Part
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -215,7 +214,7 @@ async def handle_request(
                 return_tool_requests=True,
             )
             async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
+                chunks.append(cast(dict[str, Any], chunk.model_dump()))
             result = await response_future
         else:
             result = await ai.generate(
@@ -228,7 +227,7 @@ async def handle_request(
                 return_tool_requests=True,
             )
 
-        response = cast(dict[str, Any], dump_dict(result))
+        response = cast(dict[str, Any], result.model_dump())
         return {'response': response, 'chunks': chunks}
 
     except Exception:
@@ -247,7 +246,7 @@ async def handle_request(
 async def main() -> None:
     """Run the JSONL-over-stdio loop."""
     # CRITICAL: Redirect all logging to stderr BEFORE plugin initialization.
-    # Plugins use structlog (via genkit.core.logging) which defaults to stdout.
+    # Plugins use structlog (via genkit._core.logging) which defaults to stdout.
     # Since this executor uses JSONL-over-stdio, ANY non-JSON line on stdout
     # causes the conform runner to fail with "invalid JSON".
     logging.basicConfig(

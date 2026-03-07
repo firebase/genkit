@@ -25,21 +25,21 @@ import httpx
 import ollama as ollama_api
 import pytest
 
-from genkit.plugins.ollama.constants import OllamaAPITypes
-from genkit.plugins.ollama.models import ModelDefinition, OllamaModel, _convert_parameters
-from genkit.types import (
+from genkit import (
     ActionRunContext,
-    GenerateRequest,
-    GenerateResponseChunk,
     GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelRequest,
+    ModelResponseChunk,
     OutputConfig,
     Part,
     Role,
     TextPart,
 )
+from genkit.plugins.ollama.constants import OllamaAPITypes
+from genkit.plugins.ollama.models import ModelDefinition, OllamaModel, _convert_parameters
 
 
 class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
@@ -48,12 +48,12 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Common setup for all async tests."""
         self.mock_client = MagicMock()
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
+        self.request = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext()
         cast(Any, self.ctx).send_chunk = MagicMock()
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(
             input_tokens=10,
             output_tokens=20,
@@ -115,7 +115,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 10)
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(
             input_tokens=10,
             output_tokens=20,
@@ -170,7 +170,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 14)
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_chat_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -215,7 +215,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(Message, response.message).content, [])
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_generate_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -257,7 +257,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(Message, response.message).content, [])
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -281,7 +281,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, None)
 
     @patch(
-        'genkit.blocks.model.get_basic_usage_stats',
+        'genkit.model.get_basic_usage_stats',
         return_value=GenerationUsage(),
     )
     async def test_generate_generate_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
@@ -312,7 +312,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
         self.mock_ollama_client_factory = MagicMock(return_value=self.mock_ollama_client_instance)
         self.model_definition = ModelDefinition(name='test-chat-model', api_type=OllamaAPITypes.CHAT)
         self.ollama_model = OllamaModel(client=self.mock_ollama_client_factory, model_definition=self.model_definition)
-        self.request = GenerateRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
+        self.request = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))])])
         self.ctx = ActionRunContext()
         cast(Any, self.ctx).send_chunk = MagicMock()
 
@@ -491,7 +491,7 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
 
         self.model_definition = ModelDefinition(name='test-generate-model', api_type=OllamaAPITypes.GENERATE)
         self.ollama_model = OllamaModel(client=self.mock_ollama_client_factory, model_definition=self.model_definition)
-        self.request = GenerateRequest(
+        self.request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -571,10 +571,10 @@ class TestOllamaModelGenerateOllamaResponse(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(cast(MagicMock, self.ctx.send_chunk).call_count, 2)
         cast(MagicMock, self.ctx.send_chunk).assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=1, content=[Part(root=TextPart(text='chunk1 '))])
+            chunk=ModelResponseChunk(role=Role.MODEL, index=1, content=[Part(root=TextPart(text='chunk1 '))])
         )
         cast(MagicMock, self.ctx.send_chunk).assert_any_call(
-            chunk=GenerateResponseChunk(role=Role.MODEL, index=2, content=[Part(root=TextPart(text='chunk2'))])
+            chunk=ModelResponseChunk(role=Role.MODEL, index=2, content=[Part(root=TextPart(text='chunk2'))])
         )
 
     async def test_generate_api_raises_exception(self) -> None:
@@ -750,7 +750,7 @@ class TestBuildChatMessagesWithMedia(unittest.IsolatedAsyncioTestCase):
 
     async def test_text_and_media_message(self) -> None:
         """Messages with text + media should produce text content and images."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -771,7 +771,7 @@ class TestBuildChatMessagesWithMedia(unittest.IsolatedAsyncioTestCase):
 
     async def test_media_only_message(self) -> None:
         """Messages with only media should have empty text content."""
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,

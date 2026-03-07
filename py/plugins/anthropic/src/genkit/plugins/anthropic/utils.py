@@ -27,10 +27,11 @@ See:
 import re
 from typing import Any
 
-from genkit.core.logging import get_logger
-from genkit.types import GenerateRequest, GenerationUsage, MediaPart, Part, TextPart
+import structlog
 
-logger = get_logger(__name__)
+from genkit import GenerationUsage, MediaPart, ModelRequest, Part, TextPart
+
+logger = structlog.get_logger(__name__)
 
 # PDF MIME type for document handling.
 PDF_MIME_TYPE = 'application/pdf'
@@ -76,7 +77,7 @@ def strip_markdown_fences(text: str) -> str:
     return text
 
 
-def maybe_strip_fences(request: GenerateRequest, parts: list[Part]) -> list[Part]:
+def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     """Strip markdown fences from text parts when JSON output is expected.
 
     Args:

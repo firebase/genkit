@@ -39,8 +39,6 @@ from typing import Any, cast
 
 from rich.console import Console
 
-from genkit.codec import dump_dict
-
 console = Console(stderr=True)
 
 
@@ -100,7 +98,7 @@ class InProcessRunner:
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """Run a model action via ``ai.generate()`` in-process.
 
-        Converts the raw test input (GenerateRequest-shaped dict) into
+        Converts the raw test input (ModelRequest-shaped dict) into
         ``ai.generate()`` keyword arguments so the full framework
         pipeline is exercised, including output format handling
         (``extract_json`` for JSON output) and streaming chunk wrapping.
@@ -129,14 +127,14 @@ class InProcessRunner:
         # e.g. "/model/googleai/gemini-2.5-flash" -> "googleai/gemini-2.5-flash"
         model_name = key.removeprefix('/model/')
 
-        # Extract fields from the GenerateRequest-shaped input.
+        # Extract fields from the ModelRequest-shaped input.
         messages = input_data.get('messages', [])
         output_config = input_data.get('output')
         tools_defs = input_data.get('tools')
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit.core.typing import Message, OutputConfig, Part
+        from genkit._core._typing import Message, OutputConfig, Part
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -185,7 +183,7 @@ class InProcessRunner:
             )
             # Consume the stream to collect chunks.
             async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
+                chunks.append(cast(dict[str, Any], chunk.model_dump()))
             result = await response_future
         else:
             result = await self._ai.generate(
@@ -198,7 +196,7 @@ class InProcessRunner:
                 return_tool_requests=True,
             )
 
-        response = cast(dict[str, Any], dump_dict(result))
+        response = cast(dict[str, Any], result.model_dump())
         return response, chunks
 
     async def close(self) -> None:
@@ -218,7 +216,7 @@ def _register_ephemeral_tool(
     and ``description`` so ``to_tool_definition()`` can build the right
     ``ToolDefinition`` for the model.
     """
-    from genkit.core.action.types import ActionKind
+    from genkit._core._action import ActionKind
 
     registry = ai.registry
 

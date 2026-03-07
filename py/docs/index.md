@@ -5,58 +5,56 @@
 
 ## Core Classes
 
-::: genkit.ai.Genkit
+::: genkit._ai.Genkit
 
-::: genkit.ai.GenkitRegistry
+::: genkit._ai.GenkitRegistry
 
-::: genkit.ai.Plugin
+::: genkit._ai.Plugin
 
 ## Inputs and Outputs
 
-::: genkit.ai.Input
+::: genkit._ai.Input
 
-::: genkit.ai.Output
-
-::: genkit.ai.OutputOptions
+::: genkit._ai.OutputOptions
 
 ## Actions
 
-::: genkit.ai.ActionKind
+::: genkit._ai.ActionKind
 
-::: genkit.ai.ActionRunContext
+::: genkit._ai.ActionRunContext
 
-::: genkit.ai.FlowWrapper
+::: genkit.Flow
 
 ## Prompts
 
-::: genkit.ai.ExecutablePrompt
+::: genkit._ai.ExecutablePrompt
 
-::: genkit.ai.PromptGenerateOptions
+::: genkit._ai.PromptGenerateOptions
 
-::: genkit.ai.ResumeOptions
+::: genkit._ai.ResumeOptions
 
 ## Response Types
 
-::: genkit.ai.GenerateResponseWrapper
+::: genkit._ai.GenerateResponseWrapper
 
-::: genkit.ai.GenerateStreamResponse
+::: genkit._ai.GenerateStreamResponse
 
 ## Tools
 
-::: genkit.ai.ToolRunContext
+::: genkit._ai.ToolRunContext
 
-::: genkit.ai.tool_response
+::: genkit._ai.tool_response
 
 ## Documents
 
-::: genkit.ai.Document
+::: genkit._ai.Document
 
 ## Retriever
 
-::: genkit.ai.SimpleRetrieverOptions
+::: genkit._ai.SimpleRetrieverOptions
 
 ## Version Info
 
-::: genkit.ai.GENKIT_VERSION
+::: genkit._ai.GENKIT_VERSION
 
-::: genkit.ai.GENKIT_CLIENT_HEADER
+::: genkit._ai.GENKIT_CLIENT_HEADER

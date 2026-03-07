@@ -54,6 +54,23 @@ from typing import cast
 class ClassTransformer(ast.NodeTransformer):
     """AST transformer that modifies class definitions."""
 
+    # Classes to exclude from the generated output because they have
+    # hand-written veneer types in the SDK. These wire types should not be
+    # exposed — the veneer types are the public API.
+    EXCLUDED_CLASSES: frozenset[str] = frozenset({
+        # These classes have hand-written veneer types in the SDK.
+        # The veneer is the ONLY type — used by plugins and end users alike.
+        # Wire types are NOT exposed.
+        # DocumentData stays in _typing.py — it's the wire base used internally.
+        'Message',  # veneer: ai/messages.py -> Message
+        'RankedDocumentData',  # veneer: blocks/reranker.py -> RankedDocument
+        'ModelRequest',  # veneer: ai/model.py -> ModelRequest
+        'GenerateResponse',  # veneer: ai/model.py -> ModelResponse
+        'GenerateResponseChunk',  # veneer: ai/model.py -> ModelResponseChunk
+        'ModelResponse',  # veneer: ai/model.py -> ModelResponse
+        'ModelResponseChunk',  # veneer: ai/model.py -> ModelResponseChunk
+    })
+
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
         """Initialize the ClassTransformer.
 
@@ -261,8 +278,12 @@ class ClassTransformer(ast.NodeTransformer):
             node: The ClassDef AST node to transform.
 
         Returns:
-            The transformed ClassDef node.
+            The transformed ClassDef node, or None to remove it.
         """
+        # Exclude classes that have hand-written veneer types.
+        if node.name in self.EXCLUDED_CLASSES:
+            return None
+
         # First apply base class transformations recursively
         node = cast(ast.ClassDef, super().generic_visit(node))
         new_body: list[ast.stmt | ast.Constant | ast.Assign] = []
@@ -575,7 +596,7 @@ actions, tools, and configuration options.
 import sys
 from typing import ClassVar
 
-from genkit.core._compat import StrEnum
+from genkit._core._compat import StrEnum
 from pydantic.alias_generators import to_camel
 """
 
@@ -723,12 +744,12 @@ def main() -> None:
 
     typing_file = Path(sys.argv[1])
 
-    # Derive genkit-schema.json path relative to the typing.py file
-    # typing.py is at: py/packages/genkit/src/genkit/core/typing.py
+    # Derive genkit-schema.json path relative to the _typing.py file
+    # _typing.py is at: py/packages/genkit/src/genkit/_core/_typing.py
     # schema is at: genkit-tools/genkit-schema.json
-    # So we go up 6 directories from typing.py to reach repo root, then into genkit-tools/
+    # So we go up 6 directories from _typing.py to reach repo root, then into genkit-tools/
     schema_path = typing_file.parent
-    for _ in range(6):  # Go up: core -> genkit -> src -> genkit -> packages -> py -> (repo root)
+    for _ in range(6):  # Go up: _core -> genkit -> src -> genkit -> packages -> py -> (repo root)
         schema_path = schema_path.parent
     schema_path = schema_path / 'genkit-tools' / 'genkit-schema.json'
 

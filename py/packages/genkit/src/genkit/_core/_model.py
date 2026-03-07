@@ -1,0 +1,365 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""Model veneer types for the Genkit framework.
+
+This module contains the hand-written wrapper classes that provide convenient
+properties and methods on top of the generated wire types.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable, Sequence
+from functools import cached_property
+from typing import Any, Generic, cast
+
+from pydantic import BaseModel, Field, PrivateAttr
+from typing_extensions import TypeVar
+
+from genkit._core._action import ActionRunContext
+from genkit._core._extract import extract_json
+from genkit._core._typing import (
+    DocumentPart,
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationUsage,
+    Media,
+    MediaModel,
+    MessageData,
+    ModelConfig,
+    ModelRequest as GeneratedModelRequest,
+    Part,
+    Text,
+    ToolRequestPart,
+)
+
+# TypeVars for generic types
+OutputT = TypeVar('OutputT', default=object)
+ConfigT = TypeVar('ConfigT', bound=ModelConfig, default=ModelConfig)
+
+
+class ModelRef(BaseModel):
+    """Reference to a model with configuration."""
+
+    name: str
+    config_schema: object | None = None
+    info: object | None = None
+    version: str | None = None
+    config: dict[str, object] | None = None
+
+
+class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
+    """Model request with strongly-typed config.
+
+    This generic wrapper allows model implementations to specify their
+    config type for better type safety and IDE autocomplete.
+
+    Example:
+        class GeminiConfig(ModelConfig):
+            safety_settings: dict[str, str] | None = None
+
+        def gemini_model(request: ModelRequest[GeminiConfig]) -> ModelResponse:
+            temp = request.config.temperature  # inherited from ModelConfig
+            safety = request.config.safety_settings  # provider-specific
+    """
+
+    config: ConfigT | None = None  # type: ignore[assignment]
+
+
+class Message(MessageData):
+    """Message wrapper with utility properties for text and tool requests."""
+
+    def __init__(
+        self,
+        message: MessageData | None = None,
+        **kwargs: object,
+    ) -> None:
+        """Initialize from MessageData or keyword arguments."""
+        if message is not None:
+            super().__init__(
+                role=message.role,
+                content=message.content,
+                metadata=message.metadata,
+            )
+        else:
+            super().__init__(**kwargs)  # type: ignore[arg-type]
+
+    def __eq__(self, other: object) -> bool:
+        """Compare messages by role, content, and metadata."""
+        if isinstance(other, MessageData):
+            return self.role == other.role and self.content == other.content and self.metadata == other.metadata
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        """Return identity-based hash."""
+        return hash(id(self))
+
+    @cached_property
+    def text(self) -> str:
+        """All text parts concatenated into a single string."""
+        return text_from_message(self)
+
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """All tool request parts in this message."""
+        return [p.root for p in self.content if isinstance(p.root, ToolRequestPart)]
+
+    @cached_property
+    def interrupts(self) -> list[ToolRequestPart]:
+        """Tool requests marked as interrupted."""
+        return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
+
+
+class ModelResponse(GenerateResponse, Generic[OutputT]):
+    """Model response with utilities for text extraction, output parsing, and validation."""
+
+    # _message_parser and _schema_type are set by the framework after construction
+    # when output format parsing or schema validation is needed.
+    _message_parser: Callable[[Message], object] | None = PrivateAttr(None)
+    _schema_type: type[BaseModel] | None = PrivateAttr(None)
+    # Override the parent's message field with our wrapper type (intentional Liskov violation)
+    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
+    message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    def model_post_init(self, __context: object) -> None:
+        """Initialize default usage and custom dict if not provided."""
+        if self.usage is None:
+            self.usage = GenerationUsage()
+        if self.custom is None:
+            self.custom = {}
+
+    def assert_valid(self) -> None:
+        """Validate response structure. (TODO: not yet implemented)."""
+        # TODO(#4343): implement
+        pass
+
+    def assert_valid_schema(self) -> None:
+        """Validate response conforms to output schema. (TODO: not yet implemented)."""
+        # TODO(#4343): implement
+        pass
+
+    def __eq__(self, other: object) -> bool:
+        """Compare responses by message and finish_reason."""
+        if isinstance(other, ModelResponse):
+            return self.message == other.message and self.finish_reason == other.finish_reason
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        """Return identity-based hash."""
+        return hash(id(self))
+
+    @cached_property
+    def text(self) -> str:
+        """All text parts concatenated into a single string."""
+        if self.message is None:
+            return ''
+        return self.message.text
+
+    @cached_property
+    def output(self) -> OutputT:
+        """Parsed JSON output from the response text, validated against schema if set."""
+        if self._message_parser and self.message is not None:
+            parsed = self._message_parser(self.message)
+        else:
+            parsed = extract_json(self.text)
+
+        # If we have a schema type and the parsed output is a dict, validate and
+        # return a proper Pydantic instance. Skip if parsed is already the correct
+        # type or if it's not a dict (e.g., custom formats may return strings).
+        if self._schema_type is not None and parsed is not None and isinstance(parsed, dict):
+            return cast(OutputT, self._schema_type.model_validate(parsed))
+
+        return cast(OutputT, parsed)
+
+    @cached_property
+    def messages(self) -> list[Message]:
+        """All messages including request history and the response message."""
+        if self.message is None:
+            return [Message(m) for m in self.request.messages] if self.request else []
+        return [
+            *(Message(m) for m in (self.request.messages if self.request else [])),
+            self.message,
+        ]
+
+    @cached_property
+    def tool_requests(self) -> list[ToolRequestPart]:
+        """All tool request parts in the response message."""
+        if self.message is None:
+            return []
+        return self.message.tool_requests
+
+    @cached_property
+    def interrupts(self) -> list[ToolRequestPart]:
+        """Tool requests marked as interrupted."""
+        if self.message is None:
+            return []
+        return self.message.interrupts
+
+
+class ModelResponseChunk(GenerateResponseChunk, Generic[OutputT]):
+    """Streaming chunk with text, accumulated text, and output parsing."""
+
+    # Field(exclude=True) means these fields are not included in serialization
+    previous_chunks: list[ModelResponseChunk[Any]] = Field(default_factory=list, exclude=True)
+    chunk_parser: Callable[[ModelResponseChunk[Any]], object] | None = Field(None, exclude=True)
+
+    def __init__(
+        self,
+        chunk: ModelResponseChunk[Any] | None = None,
+        previous_chunks: list[ModelResponseChunk[Any]] | None = None,
+        index: int | float | None = None,
+        chunk_parser: Callable[[ModelResponseChunk[Any]], object] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Initialize from a chunk or keyword arguments."""
+        if chunk is not None:
+            # Framework wrapping mode
+            super().__init__(
+                role=chunk.role,
+                index=index,
+                content=chunk.content,
+                custom=chunk.custom,
+                aggregated=chunk.aggregated,
+            )
+        else:
+            # Direct construction mode: role=..., content=... kwargs
+            super().__init__(**kwargs)
+        self.previous_chunks = previous_chunks or []
+        self.chunk_parser = chunk_parser
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality."""
+        if isinstance(other, ModelResponseChunk):
+            return self.role == other.role and self.content == other.content
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        """Return hash."""
+        return hash(id(self))
+
+    @cached_property
+    def text(self) -> str:
+        """Text content of this chunk."""
+        parts: list[str] = []
+        for p in self.content:
+            text_val = p.root.text
+            if text_val is not None:
+                # Handle Text RootModel (access .root) or plain str
+                if isinstance(text_val, Text):
+                    parts.append(str(text_val.root) if text_val.root is not None else '')
+                else:
+                    parts.append(str(text_val))
+        return ''.join(parts)
+
+    @cached_property
+    def accumulated_text(self) -> str:
+        """Text from all previous chunks plus this chunk."""
+        parts: list[str] = []
+        if self.previous_chunks:
+            for chunk in self.previous_chunks:
+                for p in chunk.content:
+                    text_val = p.root.text
+                    if text_val:
+                        # Handle Text RootModel (access .root) or plain str
+                        if isinstance(text_val, Text):
+                            parts.append(str(text_val.root) if text_val.root is not None else '')
+                        else:
+                            parts.append(str(text_val))
+        return ''.join(parts) + self.text
+
+    @cached_property
+    def output(self) -> OutputT:
+        """Parsed JSON output from accumulated text."""
+        if self.chunk_parser:
+            return cast(OutputT, self.chunk_parser(self))
+        return cast(OutputT, extract_json(self.accumulated_text))
+
+
+def text_from_message(msg: Message) -> str:
+    """Concatenate text from all parts of a message."""
+    return text_from_content(msg.content)
+
+
+def text_from_content(content: Sequence[Part | DocumentPart]) -> str:
+    """Concatenate text from a list of parts."""
+    return ''.join(str(p.root.text) for p in content if hasattr(p.root, 'text') and p.root.text is not None)
+
+
+def get_basic_usage_stats(input_: list[Message], response: Message) -> GenerationUsage:
+    """Calculate usage stats (characters, media counts) from messages."""
+    request_parts: list[Part] = []
+    for msg in input_:
+        request_parts.extend(msg.content)
+
+    response_parts = response.content
+
+    def count_parts(parts: list[Part]) -> tuple[int, int, int, int]:
+        """Count characters, images, videos, audio in parts."""
+        characters = 0
+        images = 0
+        videos = 0
+        audio = 0
+
+        for part in parts:
+            text_val = part.root.text
+            if text_val:
+                if isinstance(text_val, Text):
+                    characters += len(str(text_val.root)) if text_val.root else 0
+                else:
+                    characters += len(str(text_val))
+
+            media = part.root.media
+            if media:
+                if isinstance(media, Media):
+                    content_type = media.content_type or ''
+                    url = media.url or ''
+                elif isinstance(media, MediaModel) and hasattr(media.root, 'content_type'):
+                    content_type = getattr(media.root, 'content_type', '') or ''
+                    url = getattr(media.root, 'url', '') or ''
+                else:
+                    content_type = ''
+                    url = ''
+
+                if content_type.startswith('image') or url.startswith('data:image'):
+                    images += 1
+                elif content_type.startswith('video') or url.startswith('data:video'):
+                    videos += 1
+                elif content_type.startswith('audio') or url.startswith('data:audio'):
+                    audio += 1
+
+        return characters, images, videos, audio
+
+    in_chars, in_imgs, in_vids, in_audio = count_parts(request_parts)
+    out_chars, out_imgs, out_vids, out_audio = count_parts(response_parts)
+
+    return GenerationUsage(
+        input_characters=in_chars,
+        input_images=in_imgs,
+        input_videos=in_vids,
+        input_audio_files=in_audio,
+        output_characters=out_chars,
+        output_images=out_imgs,
+        output_videos=out_vids,
+        output_audio_files=out_audio,
+    )
+
+
+# Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
+ModelMiddlewareNext = Callable[[ModelRequest[Any], ActionRunContext], Awaitable[ModelResponse[Any]]]
+ModelMiddleware = Callable[
+    [ModelRequest[Any], ActionRunContext, ModelMiddlewareNext],
+    Awaitable[ModelResponse[Any]],
+]

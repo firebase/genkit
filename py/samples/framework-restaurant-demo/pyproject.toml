@@ -41,9 +41,7 @@ classifiers = [
 dependencies = [
   "rich>=13.0.0",
   "genkit",
-  "genkit-plugin-dev-local-vectorstore",
-  "genkit-plugin-firebase",
-  "genkit-plugin-google-cloud",
+      "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
@@ -69,7 +67,6 @@ packages = ["src"]
 
 [tool.uv.sources]
 genkit                              = { workspace = true }
-genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }

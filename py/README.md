@@ -41,13 +41,13 @@ and is loaded lazily by the `Registry`.
 
 ### Plugin Class Hierarchy
 
-All plugins inherit from `genkit.core.plugin.Plugin` and implement three
+All plugins inherit from `genkit._core.plugin.Plugin` and implement three
 abstract methods:
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
   │                  Plugin (Abstract Base Class)                       │
-  │                  genkit.core.plugin.Plugin                          │
+  │                  genkit._core.plugin.Plugin                          │
   ├─────────────────────────────────────────────────────────────────────┤
   │                                                                     │
   │  name: str                                                          │
@@ -182,9 +182,7 @@ registry uses a multi-step resolution algorithm:
 ### Writing a Custom Plugin
 
 ```python
-from genkit.core.plugin import Plugin
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.action.types import ActionKind
+from genkit.plugin_api import Plugin, Action, ActionMetadata, ActionKind
 
 
 class MyPlugin(Plugin):
@@ -377,7 +375,7 @@ print(response.text)
 | **Context Provider** | Middleware that runs *before* a flow is called via HTTP. It reads the request (headers, body) and either provides auth info to the flow or rejects the request. | `api_key()`, `create_flows_asgi_app()` |
 | **Flow Server** | A built-in HTTP server that wraps your flows as API endpoints so `curl` (or any client) can call them. It's Genkit's simple way to deploy flows without a web framework. | `create_flows_asgi_app()` |
 | **Registry** | The internal directory of all defined flows, tools, models, and prompts. The Dev UI and CLI read it to discover what's available. | `ai.registry` |
-| **Action** | The low-level building block behind flows, tools, models, and prompts. Everything you define becomes an "action" in the registry with input/output schemas and tracing. | `genkit.core.action` |
+| **Action** | The low-level building block behind flows, tools, models, and prompts. Everything you define becomes an "action" in the registry with input/output schemas and tracing. | `genkit.plugin_api` |
 | **Middleware** | Functions that wrap around model calls to add behavior — logging, caching, safety checks, or modifying requests/responses. Runs at the model level, not HTTP level. | `ai.define_model(use=[...])` |
 | **Embedder** | A model that turns text into numbers (vectors) for similarity search. Used with vector stores for RAG (Retrieval-Augmented Generation). | `ai.embed()` |
 | **Retriever** | A component that searches a vector store and returns relevant documents for a query. Used in RAG pipelines. | `ai.retrieve()` |

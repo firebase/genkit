@@ -30,7 +30,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit.core.action import ActionRunContext
+from genkit import Message, ModelRequest, ModelResponseChunk, Part, Role, TextPart, ToolRequest
+from genkit._core._action import ActionRunContext
 from genkit.plugins.amazon_bedrock import (
     AMAZON_BEDROCK_PLUGIN_NAME,
     AnthropicConfig,
@@ -68,7 +69,6 @@ from genkit.plugins.amazon_bedrock.typing import (
     StabilityMode,
     StabilityOutputFormat,
 )
-from genkit.types import GenerateRequest, GenerateResponseChunk, Message, Part, Role, TextPart, ToolRequest
 
 
 class TestBedrockNaming:
@@ -925,7 +925,7 @@ class TestStreamingToolUseParsing:
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -935,7 +935,7 @@ class TestStreamingToolUseParsing:
             tools=[],
         )
 
-        chunks: list[GenerateResponseChunk] = []
+        chunks: list[ModelResponseChunk] = []
         ctx = MagicMock(spec=ActionRunContext)
         ctx.send_chunk = MagicMock(side_effect=lambda c: chunks.append(c))
 
@@ -1020,7 +1020,7 @@ class TestStreamingToolUseParsing:
         }
 
         model = BedrockModel('anthropic.claude-sonnet-4-5-20250929-v1:0', mock_client)
-        request = GenerateRequest(
+        request = ModelRequest(
             messages=[
                 Message(
                     role=Role.USER,

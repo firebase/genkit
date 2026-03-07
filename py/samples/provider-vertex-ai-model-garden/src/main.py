@@ -62,19 +62,18 @@ See README.md for testing instructions.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, Output
-from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+from genkit import Genkit, Message, Part, Role, TextPart
+from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai.model_garden import ModelGardenPlugin, model_garden_name
-from genkit.types import Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RpgCharacter(BaseModel):
@@ -195,7 +194,7 @@ class ToolFlowInput(BaseModel):
 
 
 @ai.tool()
-def get_weather(input: WeatherInput) -> dict:
+async def get_weather(input: WeatherInput) -> dict:
     """Used to get current weather for a location."""
     return {
         'location': input.location,
@@ -205,13 +204,13 @@ def get_weather(input: WeatherInput) -> dict:
 
 
 @ai.tool()
-def celsius_to_fahrenheit(input: TemperatureInput) -> float:
+async def celsius_to_fahrenheit(input: TemperatureInput) -> float:
     """Converts Celsius to Fahrenheit."""
     return (input.celsius * 9) / 5 + 32
 
 
 @ai.tool(name='getWeather')
-def get_weather_tool(input_: WeatherInput) -> str:
+async def get_weather_tool(input_: WeatherInput) -> str:
     """Used to get current weather for a location."""
     return f'Weather in {input_.location}: Sunny, 21.5°C'
 
@@ -279,7 +278,7 @@ async def generate_character(input: CharacterInput) -> RpgCharacter:
     result = await ai.generate(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         prompt=f'generate an RPG character named {input.name}',
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
     )
     return result.output
 
@@ -437,7 +436,7 @@ async def streaming_structured_output(
 ) -> RpgCharacter:
     """Demonstrate streaming with structured output schemas.
 
-    Combines `generate_stream` with `Output(schema=...)` so the model
+    Combines `generate_stream` with `output_schema=...` so the model
     streams JSON tokens that are progressively parsed into the Pydantic
     model. Each chunk exposes a partial `.output` you can forward to
     clients for incremental rendering.
@@ -458,7 +457,7 @@ async def streaming_structured_output(
             'Include a creative backstory, 3-4 unique abilities, '
             'and skill ratings for strength, charisma, and endurance (0-100 each).'
         ),
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
     )
     async for chunk in stream:
         if ctx is not None:

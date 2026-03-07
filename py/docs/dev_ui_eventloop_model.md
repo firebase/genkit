@@ -72,7 +72,7 @@ Plugin code shape:
 
 ```python
 from collections.abc import Callable
-from genkit.core._loop_local import _loop_local_client
+from genkit._core._loop_cache import _loop_local_client
 
 
 self._get_client: Callable[[], AsyncOpenAI] = _loop_local_client(
@@ -145,11 +145,11 @@ Question: where should the loop-local helper live?
 Options:
 - Plugin namespace (`genkit.plugins.<x>.utils`) -> duplicates logic, inconsistent usage.
 - Public top-level API (`genkit.loop_local_client`) -> broad public contract, harder to evolve.
-- Core internal utility (`genkit.core._loop_local`) -> shared implementation without expanding user API.
+- Core internal utility (`genkit._core._loop_cache`) -> shared implementation without expanding user API.
 
 
 Recommendation:
-- Keep helper in **core internal** (`genkit.core._loop_local`) for now.
+- Keep helper in **core internal** (`genkit._core._loop_cache`) for now.
 - Use it across official plugins.
 - Revisit public export only if app-level demand is clear and stable.
 

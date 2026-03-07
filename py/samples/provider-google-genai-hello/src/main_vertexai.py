@@ -21,9 +21,8 @@ from enum import Enum
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit import Genkit, Media, MediaPart, Metadata, ModelConfig, Part, TextPart
 from genkit.plugins.google_genai import GeminiImageConfigSchema, VertexAI
-from genkit.types import GenerationCommonConfig, Media, MediaPart, Metadata, Part, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -239,7 +238,7 @@ async def imagen_image_generation() -> Media | None:
 
 
 @ai.tool(name='getWeather')
-def get_weather(location: str) -> dict:
+async def get_weather(location: str) -> dict:
     """Used to get current weather for a location."""
     return {
         'location': location,
@@ -255,7 +254,7 @@ class CelsiusInput(BaseModel):
 
 
 @ai.tool(name='celsiusToFahrenheit')
-def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
+async def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
     """Converts Celsius to Fahrenheit."""
     return (input_.celsius * 9) / 5 + 32
 
@@ -267,7 +266,7 @@ async def tool_calling(location: str = 'Paris, France') -> str:
         model='vertexai/gemini-2.5-flash',
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {location}? Convert the temperature to Fahrenheit.",
-        config=GenerationCommonConfig(temperature=1),
+        config=ModelConfig(temperature=1),
     )
     return response.text
 

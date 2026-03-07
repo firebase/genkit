@@ -27,26 +27,18 @@ See:
 import json
 from typing import Any
 
+import structlog
+
 from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
-from genkit.ai import ActionRunContext
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.core.logging import get_logger
-from genkit.plugins.anthropic.model_info import get_model_info
-from genkit.plugins.anthropic.utils import (
-    build_cache_usage,
-    get_cache_control,
-    maybe_strip_fences,
-    to_anthropic_media,
-)
-from genkit.types import (
+from genkit import (
     FinishReason,
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
     GenerationUsage,
     MediaPart,
     Message,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     Part,
     Role,
     TextPart,
@@ -54,8 +46,17 @@ from genkit.types import (
     ToolRequestPart,
     ToolResponsePart,
 )
+from genkit.model import get_basic_usage_stats
+from genkit.plugin_api import ActionRunContext
+from genkit.plugins.anthropic.model_info import get_model_info
+from genkit.plugins.anthropic.utils import (
+    build_cache_usage,
+    get_cache_control,
+    maybe_strip_fences,
+    to_anthropic_media,
+)
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 DEFAULT_MAX_OUTPUT_TOKENS = 4096
 
@@ -107,7 +108,7 @@ class AnthropicModel:
         self.model_name = model_info.versions[0] if model_info.versions else model_name
         self.client = client
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
         """Generate response from Anthropic.
 
         Args:
@@ -155,7 +156,7 @@ class AnthropicModel:
         # Build usage with cache-aware token counts.
         usage = self._build_usage(response, basic_usage)
 
-        return GenerateResponse(
+        return ModelResponse(
             message=response_message,
             usage=usage,
             finish_reason=finish_reason,
@@ -182,7 +183,7 @@ class AnthropicModel:
             cache_read_input_tokens=getattr(response.usage, 'cache_read_input_tokens', None) or 0,
         )
 
-    def _build_params(self, request: GenerateRequest) -> dict[str, Any]:
+    def _build_params(self, request: ModelRequest) -> dict[str, Any]:
         """Build Anthropic API parameters."""
         config = request.config
         params: dict[str, Any] = {}
@@ -285,7 +286,7 @@ class AnthropicModel:
         3. ``content_block_stop``
 
         We track in-progress tool calls and emit a
-        :class:`GenerateResponseChunk` containing the tool request when
+        :class:`ModelResponseChunk` containing the tool request when
         the block finishes.
         """
         # Track in-progress tool-use blocks by index.
@@ -308,7 +309,7 @@ class AnthropicModel:
                     delta = chunk.delta
                     if getattr(delta, 'type', None) == 'text_delta' and hasattr(delta, 'text'):
                         ctx.send_chunk(
-                            GenerateResponseChunk(
+                            ModelResponseChunk(
                                 role=Role.MODEL,
                                 index=0,
                                 content=[Part(root=TextPart(text=str(delta.text)))],
@@ -330,7 +331,7 @@ class AnthropicModel:
                             except (json.JSONDecodeError, TypeError):
                                 tool_input = tool_info['input_json']
                         ctx.send_chunk(
-                            GenerateResponseChunk(
+                            ModelResponseChunk(
                                 role=Role.MODEL,
                                 index=0,
                                 content=[

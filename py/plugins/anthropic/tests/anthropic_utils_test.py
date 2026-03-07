@@ -23,6 +23,13 @@ and cache-aware usage building.
 
 import base64
 
+from genkit import (
+    GenerationUsage,
+    Media,
+    MediaPart,
+    Metadata,
+    TextPart,
+)
 from genkit.plugins.anthropic.utils import (
     DOCUMENT_MIME_TYPES,
     PDF_MIME_TYPE,
@@ -32,13 +39,6 @@ from genkit.plugins.anthropic.utils import (
     to_anthropic_document,
     to_anthropic_image,
     to_anthropic_media,
-)
-from genkit.types import (
-    GenerationUsage,
-    Media,
-    MediaPart,
-    Metadata,
-    TextPart,
 )
 
 # ---------------------------------------------------------------------------

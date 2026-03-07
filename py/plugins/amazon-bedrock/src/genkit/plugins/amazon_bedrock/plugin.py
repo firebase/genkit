@@ -64,14 +64,13 @@ import os
 from typing import Any
 
 import aioboto3
+import structlog
 from botocore.config import Config
 
-from genkit.ai import Plugin
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.model import model_action_metadata
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.logging import get_logger
-from genkit.core.registry import ActionKind
+from genkit import Embedding, EmbedRequest, EmbedResponse
+from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.model import model_action_metadata
+from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 from genkit.plugins.amazon_bedrock.models.model import BedrockModel
 from genkit.plugins.amazon_bedrock.models.model_info import (
     SUPPORTED_BEDROCK_MODELS,
@@ -97,7 +96,6 @@ from genkit.plugins.amazon_bedrock.typing import (
     TitanConfig,
     WriterConfig,
 )
-from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 # Regional prefixes for inference profiles (must match model.py)
 _INFERENCE_PROFILE_PREFIXES = ('us.', 'eu.', 'apac.')
@@ -200,7 +198,7 @@ def get_config_schema_for_model(model_id: str) -> type:
 AMAZON_BEDROCK_PLUGIN_NAME = 'amazon-bedrock'
 
 # Logger for this module
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def bedrock_name(model_id: str) -> str:

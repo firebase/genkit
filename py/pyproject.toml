@@ -21,9 +21,7 @@ dependencies = [
   "genkit",
   "genkit-plugin-anthropic",
   "genkit-plugin-compat-oai",
-  "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-fastapi",
-  "genkit-plugin-firebase",
   "genkit-plugin-flask",
   "genkit-plugin-google-cloud",
   "genkit-plugin-google-genai",
@@ -116,6 +114,13 @@ addopts = [
   "--import-mode=importlib",
 ]
 asyncio_default_fixture_loop_scope = "session"
+filterwarnings = [
+    # Pydantic warns when a field named 'schema' shadows BaseModel.schema()
+    # We intentionally use 'schema' to match the JSON schema spec.
+    "ignore:Field name .schema. in .* shadows an attribute in parent .BaseModel.:UserWarning",
+    # dotpromptz uses the same pattern; not our code, suppress it too.
+    "ignore:Field name .schema. in .Prompt.*Config. shadows:UserWarning",
+]
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
 pythonpath = ["."] # For samples.shared imports
@@ -142,7 +147,6 @@ default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-dev-local-vectorstore-hello                = { workspace = true }
 framework-context-demo                     = { workspace = true }
 framework-custom-evaluators                = { workspace = true }
 framework-dynamic-tools-demo               = { workspace = true }
@@ -179,9 +183,7 @@ genkit = { workspace = true }
 genkit-plugin-amazon-bedrock        = { workspace = true }
 genkit-plugin-anthropic             = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
-genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-fastapi               = { workspace = true }
-genkit-plugin-firebase              = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
@@ -267,7 +269,14 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Auto-generated file from schema
 "packages/genkit/src/genkit/core/typing.py" = ["E501"]
-# Typing tests use reveal_type(), intentional unused vars, and don't need docstrings
+# Base model uses **kwargs: Any to match pydantic signatures
+"packages/genkit/src/genkit/_core/_base.py" = ["ANN401"]
+# HTTP client uses **httpx_kwargs: Any to forward arbitrary options
+"packages/genkit/src/genkit/_core/_http_client.py" = ["ANN401"]
+# Span wrapper uses __getattr__ -> Any for dynamic delegation
+"packages/genkit/src/genkit/_core/trace/_adjusting_exporter.py" = ["ANN401"]
+# Test files don't need docstrings; test method names are self-documenting
+"**/tests/**/*.py" = ["D", "ANN401"]
 "packages/genkit/tests/typing/*.py" = ["D", "F821", "F841", "B018", "ANN"]
 # Validation/provenance/safe-defaults test methods are self-documenting via names;
 # S108 false positives on Path('/tmp/x') used as dummy non-existent paths in tests.
@@ -305,13 +314,14 @@ skip-magic-trailing-comma  = false
 #collapse-root-models = true # Don't use; produces Any as types.
 #strict-types = ["str", "int", "float", "bool", "bytes"] # Don't use; produces StrictStr, StrictInt, etc.
 #use-subclass-enum        = true
+base-class               = "genkit._core._base.GenkitModel"
 capitalize-enum-members  = true
 disable-timestamp        = true
 enable-version-header    = true
 field-constraints        = true
 input                    = "../genkit-tools/genkit-schema.json"
 input-file-type          = "jsonschema"
-output                   = "packages/genkit/src/genkit/core/typing.py"
+output                   = "packages/genkit/src/genkit/_core/_typing.py"
 output-model-type        = "pydantic_v2.BaseModel"
 snake-case-field         = true
 strict-nullable          = true
@@ -388,8 +398,6 @@ root = [
   "plugins/anthropic/src",
   "plugins/amazon-bedrock/src",
   "plugins/compat-oai/src",
-  "plugins/dev-local-vectorstore/src",
-  "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",
@@ -426,9 +434,7 @@ extraPaths = [
   "plugins/amazon-bedrock/src",
   "plugins/anthropic/src",
   "plugins/compat-oai/src",
-  "plugins/dev-local-vectorstore/src",
   "plugins/fastapi/src",
-  "plugins/firebase/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
   "plugins/google-genai/src",

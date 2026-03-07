@@ -168,12 +168,12 @@ class CohereToolChoice(StrEnum):
 class GenkitCommonConfigMixin(BaseModel):
     """Genkit common configuration parameters mixin.
 
-    These parameters match the Genkit core GenerationCommonConfigSchema and are
+    These parameters match the Genkit core ModelConfigSchema and are
     expected by the Genkit DevUI for proper rendering of the config pane.
 
     Reference:
-        - JS Schema: js/ai/src/model-types.ts (GenerationCommonConfigSchema)
-        - Python Schema: genkit/core/typing.py (GenerationCommonConfig)
+        - JS Schema: js/ai/src/model-types.ts (ModelConfigSchema)
+        - Python Schema: genkit/core/typing.py (ModelConfig)
 
     When creating model configs, inherit from this mixin (via BedrockConfig)
     to ensure DevUI compatibility.

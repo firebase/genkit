@@ -1,3 +1,3 @@
 # Getting Started
 
-::: genkit.core.action.types.ActionKind
+::: genkit._core._action.ActionKind

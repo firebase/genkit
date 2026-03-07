@@ -22,10 +22,8 @@ from typing import Any
 
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
-from genkit.ai import FlowWrapper, Genkit
-from genkit.codec import dump_dict, dump_json
-from genkit.core.context import ContextProvider, RequestData
-from genkit.core.error import GenkitError, get_callable_json
+from genkit import Flow, Genkit, GenkitError
+from genkit.plugin_api import ContextProvider, RequestData, dump_dict, dump_json, get_callable_json
 
 
 class _FastAPIRequestData(RequestData):
@@ -41,7 +39,7 @@ class _FastAPIRequestData(RequestData):
 def genkit_fastapi_handler(
     ai: Genkit,
     context_provider: ContextProvider | None = None,
-) -> Callable[[Callable[[], FlowWrapper]], Callable[[Request], Awaitable[Response | dict[str, Any]]]]:
+) -> Callable[[Callable[[], Flow]], Callable[[Request], Awaitable[Response | dict[str, Any]]]]:
     """Decorator for serving Genkit flows via FastAPI.
 
     Example:
@@ -71,11 +69,11 @@ def genkit_fastapi_handler(
         context_provider: Optional function to extract context from the request.
 
     Returns:
-        A decorator that wraps a function returning a FlowWrapper.
+        A decorator that wraps a function returning a Flow.
     """
 
     def decorator(
-        fn: Callable[[], FlowWrapper],
+        fn: Callable[[], Flow],
     ) -> Callable[[Request], Awaitable[Response | dict[str, Any]]]:
         async def handler(request: Request) -> Response | dict[str, Any]:
             result = fn()
@@ -83,7 +81,7 @@ def genkit_fastapi_handler(
             if asyncio.iscoroutine(result):
                 result = await result
             flow = result
-            if not isinstance(flow, FlowWrapper):
+            if not isinstance(flow, Flow):
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message='genkit_fastapi_handler must wrap a function that returns a @flow',
@@ -132,7 +130,7 @@ def genkit_fastapi_handler(
                 return StreamingResponse(event_stream(), media_type='text/event-stream')
             else:
                 try:
-                    response = await flow._action.arun_raw(body.get('data'), context=action_context)
+                    response = await flow._action.run_raw(body.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e.cause if isinstance(e, GenkitError) else e

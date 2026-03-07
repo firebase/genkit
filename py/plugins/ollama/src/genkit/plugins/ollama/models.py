@@ -90,27 +90,26 @@ import structlog
 from pydantic import BaseModel
 
 import ollama as ollama_api
-from genkit.ai import ActionRunContext
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.core.http_client import get_cached_client
-from genkit.plugins.ollama.constants import (
-    OllamaAPITypes,
-)
-from genkit.types import (
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
+from genkit import (
     GenerationUsage,
     Media,
     MediaPart,
     Message,
+    ModelConfig,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     Part,
     Role,
     TextPart,
     ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
+)
+from genkit.model import get_basic_usage_stats
+from genkit.plugin_api import ActionRunContext, get_cached_client
+from genkit.plugins.ollama.constants import (
+    OllamaAPITypes,
 )
 
 logger = structlog.get_logger(__name__)
@@ -166,7 +165,7 @@ class OllamaModel:
         """
         return self._client_factory()
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
         """Generate a response from Ollama.
 
         Args:
@@ -221,7 +220,7 @@ class OllamaModel:
             response=response_message,
         )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=content,
@@ -233,7 +232,7 @@ class OllamaModel:
         )
 
     async def _chat_with_ollama(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
         """Chat with Ollama.
 
@@ -287,7 +286,7 @@ class OllamaModel:
                 role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=role,
                             index=idx,
                             content=self._build_multimodal_chat_response(chat_response=chunk),
@@ -310,7 +309,7 @@ class OllamaModel:
             return chat_response
 
     async def _generate_ollama_response(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.GenerateResponse | None:
         """Generate a response from Ollama.
 
@@ -338,7 +337,7 @@ class OllamaModel:
                 idx += 1
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=Role.MODEL,
                             index=idx,
                             content=[Part(root=TextPart(text=chunk.response))],
@@ -403,7 +402,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | ollama_api.Options | dict[str, object] | None,
+        config: ModelConfig | ollama_api.Options | dict[str, object] | None,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -415,7 +414,7 @@ class OllamaModel:
         """
         if config is None:
             return ollama_api.Options()
-        if isinstance(config, GenerationCommonConfig):
+        if isinstance(config, ModelConfig):
             config = dict(
                 top_k=config.top_k,
                 topP=config.top_p,
@@ -430,7 +429,7 @@ class OllamaModel:
         return config
 
     @staticmethod
-    def build_prompt(request: GenerateRequest) -> str:
+    def build_prompt(request: ModelRequest) -> str:
         """Build the prompt for the generate API.
 
         Args:
@@ -449,7 +448,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    async def build_chat_messages(cls, request: GenerateRequest) -> list[ollama_api.Message]:
+    async def build_chat_messages(cls, request: ModelRequest) -> list[ollama_api.Message]:
         """Build the messages for the chat API.
 
         Handles MediaPart by converting image URLs to the format expected

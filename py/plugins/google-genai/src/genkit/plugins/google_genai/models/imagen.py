@@ -30,21 +30,19 @@ from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from genkit.ai import ActionRunContext
-from genkit.codec import dump_dict, dump_json
-from genkit.core.tracing import tracer
-from genkit.types import (
-    GenerateRequest,
-    GenerateResponse,
+from genkit import (
     Media,
     MediaPart,
     Message,
     ModelInfo,
+    ModelRequest,
+    ModelResponse,
     Part,
     Role,
     Supports,
     TextPart,
 )
+from genkit.plugin_api import ActionRunContext, dump_dict, dump_json, tracer
 
 
 class ImagenVersion(StrEnum):
@@ -136,7 +134,7 @@ class ImagenModel:
         self._version = version
         self._client = client
 
-    def _build_prompt(self, request: GenerateRequest) -> str:
+    def _build_prompt(self, request: ModelRequest) -> str:
         """Build prompt request from Genkit request.
 
         Args:
@@ -154,7 +152,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, _: ActionRunContext) -> ModelResponse:
         """Handle a generation request.
 
         Args:
@@ -183,14 +181,14 @@ class ImagenModel:
 
         content = self._contents_from_response(response)
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,
             )
         )
 
-    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict | None:
+    def _get_config(self, request: ModelRequest) -> genai_types.GenerateImagesConfigOrDict | None:
         cfg = None
 
         if request.config:

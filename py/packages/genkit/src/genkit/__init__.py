@@ -14,65 +14,65 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit - Build AI-powered applications with ease.
+"""Genkit — Build AI-powered applications."""
 
-Genkit is an open-source Python toolkit designed to help you build
-AI-powered features in web and mobile apps.
-
-Basic usage:
-    from genkit import Genkit
-    from genkit.plugins.google_genai import GoogleAI
-
-    ai = Genkit(plugins=[GoogleAI()])
-
-    @ai.flow()
-    async def hello(name: str) -> str:
-        response = await ai.generate(model="gemini-2.0-flash", prompt=f"Hello {name}")
-        return response.text
-"""
-
-# Main class
-# Re-export everything from genkit.ai for backwards compatibility
-from genkit.ai import (
-    GENKIT_CLIENT_HEADER,
-    GENKIT_VERSION,
+from genkit._ai import (
     ActionKind,
     ActionRunContext,
     ExecutablePrompt,
-    FlowWrapper,
-    GenerateStreamResponse,
-    GenkitRegistry,
-    OutputOptions,
+    ModelStreamResponse,
     PromptGenerateOptions,
     ResumeOptions,
-    SimpleRetrieverOptions,
     ToolRunContext,
-    tool_response,
 )
-from genkit.ai._aio import Genkit, Output
-
-# Core types for convenience (also available from genkit.types)
-from genkit.blocks.document import Document
-from genkit.blocks.interfaces import Input
-
-# Response types
-from genkit.blocks.model import GenerateResponseWrapper
-
-# Setup plugin discovery (must be done before any plugin imports)
-from genkit.core._plugins import extend_plugin_namespace
-
-# Errors (user-facing)
-from genkit.core.error import GenkitError, UserFacingError
-
-# Plugin interface
-from genkit.core.plugin import Plugin
-from genkit.core.typing import (
+from genkit._ai._aio import Genkit
+from genkit._ai._document import Document
+from genkit._ai._tools import ToolInterruptError, tool_response
+from genkit._core._action import Action, StreamResponse
+from genkit._core._error import GenkitError, PublicError
+from genkit._core._plugin import Plugin
+from genkit._core._plugins import extend_plugin_namespace
+from genkit._core._typing import (
+    CustomPart,
+    DocumentPart,
     Media,
     MediaPart,
-    Message,
+    Metadata,
     Part,
+    ReasoningPart,
     Role,
     TextPart,
+    ToolChoice,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+)
+
+# Import embedder-related types from the embedder namespace
+from genkit.embedder import (
+    EmbedderOptions,
+    EmbedderRef,
+    Embedding,
+    EmbedRequest,
+    EmbedResponse,
+)
+
+# Import model-related types from the model namespace
+from genkit.model import (
+    Constrained,
+    FinishReason,
+    GenerationUsage,
+    Message,
+    ModelConfig,
+    ModelInfo,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
+    OutputConfig,
+    Stage,
+    Supports,
+    ToolDefinition,
 )
 
 extend_plugin_namespace()
@@ -80,37 +80,59 @@ extend_plugin_namespace()
 __all__ = [
     # Main class
     'Genkit',
-    'Input',
-    'Output',
     # Response types
-    'GenerateResponseWrapper',
-    'GenerateStreamResponse',
+    'Action',
+    'StreamResponse',
+    'EmbedRequest',
+    'EmbedResponse',
+    'EmbedderOptions',
+    'EmbedderRef',
+    'ModelResponseChunk',
+    'ModelConfig',
+    'ModelInfo',
+    'ModelResponse',
+    'ModelResponseChunk',
+    'ModelStreamResponse',
     # Errors
     'GenkitError',
-    'UserFacingError',
-    # Core types (convenience)
-    'Document',
+    'PublicError',
+    'ToolInterruptError',
+    # Content types
+    'Constrained',
+    'CustomPart',
+    'Embedding',
+    'Metadata',
+    'ReasoningPart',
+    'FinishReason',
+    'GenerationUsage',
     'Media',
     'MediaPart',
     'Message',
+    'ModelRequest',
     'Part',
     'Role',
+    'Stage',
+    'Supports',
     'TextPart',
+    'ToolChoice',
+    'OutputConfig',
+    'ToolDefinition',
+    'ToolRequest',
+    'ToolRequestPart',
+    'ToolResponse',
+    'ToolResponsePart',
+    # Domain types
+    'Document',
+    'DocumentPart',
+    'ModelConfig',
     # Plugin interface
     'Plugin',
-    # From genkit.ai
+    # AI runtime
     'ActionKind',
     'ActionRunContext',
     'ExecutablePrompt',
-    'FlowWrapper',
-    'GenkitRegistry',
-    'OutputOptions',
     'PromptGenerateOptions',
     'ResumeOptions',
-    'SimpleRetrieverOptions',
     'ToolRunContext',
     'tool_response',
-    # Version info
-    'GENKIT_CLIENT_HEADER',
-    'GENKIT_VERSION',
 ]

@@ -225,7 +225,7 @@ tools are executed using a thread-pool executor internally.
 ### Usage
 
 ```python
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(

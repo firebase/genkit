@@ -96,7 +96,7 @@ capabilities in code:
     ```python linenums="1"
     import asyncio
 
-    from genkit.ai import Genkit
+    from genkit import Genkit
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
@@ -160,7 +160,7 @@ capabilities in code:
 
     from pydantic import BaseModel
 
-    from genkit.ai import Genkit, Output
+    from genkit import Genkit
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
@@ -184,7 +184,7 @@ capabilities in code:
     async def main() -> None:
         response = await ai.generate(
             prompt="Create a brief profile for a character in a fantasy video game.",
-            output=Output(schema=CharacterProfile),
+            output_schema=CharacterProfile,
         )
         print(response.output)
 
@@ -230,7 +230,7 @@ capabilities in code:
 
     from pydantic import BaseModel, Field
 
-    from genkit.ai import Genkit
+    from genkit import Genkit
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
@@ -300,7 +300,7 @@ capabilities in code:
     ```python
     import asyncio
 
-    from genkit.ai import Genkit
+    from genkit import Genkit
     from genkit.plugins.google_genai import GoogleAI
 
     ai = Genkit(
@@ -409,7 +409,7 @@ capabilities in code:
     ```python
     import asyncio
 
-    from genkit.ai import Genkit
+    from genkit import Genkit
     from genkit.plugins.google_genai import GoogleAI
     from genkit.plugins.dev_local_vectorstore import DevLocalVectorstore
 

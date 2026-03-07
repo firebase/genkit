@@ -238,7 +238,7 @@ class NativeRunner:
     Starts the native executor once per plugin.  The executor initializes
     the plugin (``genkit.Init`` / ``genkit(...)``), then enters a read loop:
 
-    1. Reads one JSON line from **stdin** (a ``GenerateRequest``).
+    1. Reads one JSON line from **stdin** (a ``ModelRequest``).
     2. Calls ``generate()`` natively using the SDK.
     3. Writes one JSON line to **stdout** (a ``GenerateResponse``).
 

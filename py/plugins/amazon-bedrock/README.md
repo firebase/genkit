@@ -310,7 +310,7 @@ response = await ai.generate(
 Models like Claude, Nova, and Llama 4 support images:
 
 ```python
-from genkit.types import Media, MediaPart, Part, TextPart
+from genkit import Media, MediaPart, Part, TextPart
 
 response = await ai.generate(
     model=claude_sonnet_4_5,
@@ -389,7 +389,7 @@ async for chunk in ai.generate_stream(
 ## Tool Use (Function Calling)
 
 ```python
-from genkit.ai import tool
+from genkit import tool
 
 @tool()
 def get_weather(city: str) -> str:

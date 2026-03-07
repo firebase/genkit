@@ -78,9 +78,10 @@ Supported Models
 import asyncio
 import os
 
-from genkit.ai import Genkit
-from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+import structlog
+
+from genkit import Genkit, Media, MediaPart, Part, TextPart
+from genkit._core._action import ActionRunContext
 from genkit.plugins.amazon_bedrock import (
     AmazonBedrock,
     add_aws_telemetry,
@@ -91,7 +92,6 @@ from genkit.plugins.amazon_bedrock import (
     inference_profile,
     nova_pro,
 )
-from genkit.types import Media, MediaPart, Part, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,
@@ -128,7 +128,7 @@ setup_sample()
 if 'AWS_REGION' not in os.environ:
     os.environ['AWS_REGION'] = input('Please enter your AWS_REGION (e.g., us-east-1): ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Enable AWS X-Ray telemetry (traces exported to X-Ray console)
 # This provides distributed tracing for all Genkit flows and model calls

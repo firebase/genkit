@@ -24,6 +24,15 @@ from typing import Any, cast
 
 import pytest
 
+from genkit import (
+    GenerationUsage,
+    Message,
+    ModelConfig,
+    Part,
+    Role,
+    TextPart,
+    ToolRequestPart,
+)
 from genkit.plugins.ollama.converters import (
     build_prompt,
     build_request_options_dict,
@@ -31,15 +40,6 @@ from genkit.plugins.ollama.converters import (
     get_usage_info,
     strip_data_uri_prefix,
     to_ollama_role,
-)
-from genkit.types import (
-    GenerationCommonConfig,
-    GenerationUsage,
-    Message,
-    Part,
-    Role,
-    TextPart,
-    ToolRequestPart,
 )
 
 
@@ -93,7 +93,7 @@ class TestBuildRequestOptionsDict:
 
     def test_generation_common_config(self) -> None:
         """Test Generation common config."""
-        config = GenerationCommonConfig(temperature=0.7, max_output_tokens=100, top_p=0.9)
+        config = ModelConfig(temperature=0.7, max_output_tokens=100, top_p=0.9)
         got = build_request_options_dict(config)
         assert got.get('temperature') == 0.7
         assert got.get('num_predict') == 100

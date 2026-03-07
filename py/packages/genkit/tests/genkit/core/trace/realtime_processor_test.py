@@ -27,7 +27,7 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
-from genkit.core.trace.realtime_processor import RealtimeSpanProcessor
+from genkit._core.trace._realtime_processor import RealtimeSpanProcessor
 
 
 class MockSpanExporter(SpanExporter):

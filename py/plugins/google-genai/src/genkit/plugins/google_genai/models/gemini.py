@@ -150,30 +150,16 @@ from google.genai import types as genai_types
 from google.genai.errors import ClientError
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
-from genkit.ai import (
-    ActionRunContext,
-)
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.codec import dump_dict, dump_json
-from genkit.core.error import GenkitError, StatusName
-from genkit.core.tracing import tracer
-from genkit.core.typing import (
-    Candidate,
-    FinishReason,
-)
-from genkit.lang.deprecations import (
-    deprecated_enum_metafactory,
-)
-from genkit.plugins.google_genai.models.utils import PartConverter
-from genkit.types import (
+from genkit import (
     Constrained,
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
     GenerationUsage,
+    GenkitError,
     Message,
+    ModelConfig,
     ModelInfo,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
     Part,
     Role,
     Stage,
@@ -181,6 +167,18 @@ from genkit.types import (
     TextPart,
     ToolDefinition,
 )
+from genkit.model import Candidate, FinishReason, get_basic_usage_stats
+from genkit.plugin_api import (
+    ActionRunContext,
+    StatusName,
+    dump_dict,
+    dump_json,
+    tracer,
+)
+from genkit.plugins.google_genai.models._deprecations import (
+    deprecated_enum_metafactory,
+)
+from genkit.plugins.google_genai.models.utils import PartConverter
 
 
 class HarmCategory(StrEnum):
@@ -299,7 +297,7 @@ class VoiceConfigSchema(BaseModel):
     prebuilt_voice_config: PrebuiltVoiceConfig | None = Field(None, alias='prebuiltVoiceConfig')
 
 
-class GeminiConfigSchema(GenerationCommonConfig):
+class GeminiConfigSchema(ModelConfig):
     """Gemini Config Schema."""
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
@@ -419,7 +417,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
         None, description='Return grounding metadata from links included in the query', alias='urlContext'
     )
 
-    # inherited from GenerationCommonConfig:
+    # inherited from ModelConfig:
     # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
 
     temperature: Annotated[
@@ -1047,7 +1045,7 @@ class GeminiModel:
         self._version = version
         self._client = client
 
-    def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
+    def _get_tools(self, request: ModelRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
         Args:
@@ -1165,7 +1163,7 @@ class GeminiModel:
         return schema
 
     async def _retrieve_cached_content(
-        self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
+        self, request: ModelRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
 
@@ -1211,7 +1209,7 @@ class GeminiModel:
             )
         return cache
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Handle a generation request.
 
         Args:
@@ -1342,7 +1340,7 @@ class GeminiModel:
         request_cfg: genai_types.GenerateContentConfig | None,
         model_name: str,
         client: genai.Client | None = None,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Call google-genai generate.
 
         Args:
@@ -1447,7 +1445,7 @@ class GeminiModel:
                     )
                 )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,
@@ -1472,7 +1470,7 @@ class GeminiModel:
         ctx: ActionRunContext,
         model_name: str,
         client: genai.Client | None = None,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Call google-genai generate for streaming.
 
         Args:
@@ -1525,13 +1523,13 @@ class GeminiModel:
             if content:  # Only process if we have content
                 accumulated_content.extend(content)
                 ctx.send_chunk(
-                    chunk=GenerateResponseChunk(
+                    chunk=ModelResponseChunk(
                         content=content,
                         role=Role.MODEL,
                     )
                 )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=accumulated_content,
@@ -1558,7 +1556,7 @@ class GeminiModel:
         }
 
     async def _build_messages(
-        self, request: GenerateRequest, model_name: str
+        self, request: ModelRequest, model_name: str
     ) -> tuple[list[genai_types.Content], genai_types.CachedContent | None]:
         """Build google-genai request contents from Genkit request.
 
@@ -1618,8 +1616,8 @@ class GeminiModel:
         # Ensure we always return a list, even if empty
         return content if content else []
 
-    async def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
-        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig.
+    async def _genkit_to_googleai_cfg(self, request: ModelRequest) -> genai_types.GenerateContentConfig | None:
+        """Converts a Genkit ModelRequest to a Gemini GenerateContentConfig.
 
         The conversion follows a linear pipeline:
         1. Extract system instructions from messages
@@ -1696,13 +1694,13 @@ class GeminiModel:
 
     def _normalize_config_to_dict(
         self,
-        config: GeminiConfigSchema | GenerationCommonConfig | dict,
+        config: GeminiConfigSchema | ModelConfig | dict,
     ) -> dict[str, Any] | None:
         """Normalize any config type into a plain dict for uniform processing.
 
         Handles three input shapes:
         - GeminiConfigSchema (and subclasses like TTS/Image): model_dump
-        - GenerationCommonConfig: model_dump
+        - ModelConfig: model_dump
         - dict: route to the appropriate schema first, then model_dump
 
         Returns:
@@ -1711,7 +1709,7 @@ class GeminiModel:
         """
         if isinstance(config, GeminiConfigSchema):
             schema = config
-        elif isinstance(config, GenerationCommonConfig):
+        elif isinstance(config, ModelConfig):
             schema = config
         elif isinstance(config, dict):
             if 'image_config' in config:
@@ -1784,7 +1782,7 @@ class GeminiModel:
             if key in config and key not in genai_types.GenerateContentConfig.model_fields:
                 del config[key]
 
-    def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
+    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> GenerationUsage:
         """Create usage statistics.
 
         Args:

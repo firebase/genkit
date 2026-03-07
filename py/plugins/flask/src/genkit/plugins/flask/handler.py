@@ -17,15 +17,49 @@
 """Genkit Flask plugin."""
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
-from typing import Any, TypeAlias
+from asyncio import AbstractEventLoop
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable
+from typing import Any, TypeAlias, TypeVar
 
 from flask import Response, request
-from genkit.ai import FlowWrapper, Genkit
-from genkit.aio.loop import create_loop, iter_over_async
-from genkit.codec import dump_dict, dump_json
-from genkit.core.context import ContextProvider, RequestData
-from genkit.core.error import GenkitError, get_callable_json
+from genkit import Flow, Genkit, GenkitError
+from genkit.plugin_api import (
+    ContextProvider,
+    RequestData,
+    dump_dict,
+    dump_json,
+    get_callable_json,
+)
+
+T = TypeVar('T')
+
+
+def _create_loop() -> AbstractEventLoop:
+    """Creates a new asyncio event loop or returns the current one."""
+    try:
+        return asyncio.get_event_loop()
+    except Exception:
+        return asyncio.new_event_loop()
+
+
+def _iter_over_async(ait: AsyncIterable[T], loop: AbstractEventLoop) -> Iterable[T]:
+    """Synchronously iterates over an AsyncIterable using a specified event loop."""
+    ait_iter = ait.__aiter__()
+
+    async def get_next() -> tuple[bool, T | None]:
+        try:
+            obj = await ait_iter.__anext__()
+            return False, obj
+        except StopAsyncIteration:
+            return True, None
+
+    while True:
+        done, obj = loop.run_until_complete(get_next())
+        if done:
+            break
+        assert obj is not None
+        yield obj
+
 
 # Type alias for Flask-compatible route handler return type
 FlaskRouteReturn: TypeAlias = Response | dict[str, object] | Iterable[Any]
@@ -47,7 +81,7 @@ class _FlaskRequestData(RequestData):
 def genkit_flask_handler(
     ai: Genkit,
     context_provider: ContextProvider | None = None,
-) -> Callable[[FlowWrapper], Callable[..., Awaitable[FlaskRouteReturn]]]:
+) -> Callable[[Flow], Callable[..., Awaitable[FlaskRouteReturn]]]:
     """A decorator for serving Genkit flows via a flask sever.
 
     ```python
@@ -67,10 +101,10 @@ def genkit_flask_handler(
     ```
 
     """
-    loop = create_loop()
+    loop = _create_loop()
 
-    def decorator(flow: FlowWrapper) -> Callable[..., Awaitable[FlaskRouteReturn]]:
-        if not isinstance(flow, FlowWrapper):
+    def decorator(flow: Flow) -> Callable[..., Awaitable[FlaskRouteReturn]]:
+        if not isinstance(flow, Flow):
             raise GenkitError(status='INVALID_ARGUMENT', message='must apply @genkit_flask_handler on a @flow')
 
         async def handler() -> FlaskRouteReturn:
@@ -105,11 +139,11 @@ def genkit_flask_handler(
                             ex = ex.cause
                         yield f'error: {dump_json({"error": dump_dict(get_callable_json(ex))})}'
 
-                iter = iter_over_async(async_gen(), loop)
+                iter = _iter_over_async(async_gen(), loop)
                 return iter
             else:
                 try:
-                    response = await flow._action.arun_raw(input_data.get('data'), context=action_context)
+                    response = await flow._action.run_raw(input_data.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e

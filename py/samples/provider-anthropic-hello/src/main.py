@@ -73,13 +73,12 @@ Key Features
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+from genkit import Genkit, Media, MediaPart, Message, Metadata, Part, Role, TextPart
+from genkit._core._action import ActionRunContext
 from genkit.plugins.anthropic import Anthropic, anthropic_name
-from genkit.types import Media, MediaPart, Message, Metadata, Part, Role, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,
@@ -113,7 +112,7 @@ setup_sample()
 if 'ANTHROPIC_API_KEY' not in os.environ:
     os.environ['ANTHROPIC_API_KEY'] = input('Please enter your ANTHROPIC_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[Anthropic()],

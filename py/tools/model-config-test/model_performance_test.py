@@ -73,7 +73,7 @@ async def discover_models() -> dict[str, Any]:
     registry = ai.registry
 
     # Get all model actions via list_actions (which queries plugins)
-    from genkit.core.action import ActionKind
+    from genkit._core._action import ActionKind
 
     try:
         actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
@@ -216,7 +216,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
                     registry = ai.registry
 
                     # Get all model actions
-                    from genkit.core.action import ActionKind
+                    from genkit._core._action import ActionKind
 
                     try:
                         actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
