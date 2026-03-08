@@ -44,7 +44,7 @@ import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import {
   AnthropicConfigSchema,
   type AnthropicDocumentOptions,
-  type ClaudeRunnerParams,
+  type RunnerConstructorParams,
 } from '../types.js';
 import { removeUndefinedProperties } from '../utils.js';
 import { BaseRunner } from './base.js';
@@ -85,7 +85,7 @@ interface RunnerTypes extends BaseRunnerTypes {
 }
 
 export class Runner extends BaseRunner<RunnerTypes> {
-  constructor(params: ClaudeRunnerParams) {
+  constructor(params: RunnerConstructorParams) {
     super(params);
   }
 
@@ -237,12 +237,13 @@ export class Runner extends BaseRunner<RunnerTypes> {
     // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
     // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
     // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    // apiVersion and apiKey are extracted separately as they're not valid properties for the Anthropic API.
     const {
       topP,
       topK,
       apiVersion: _1,
       thinking: _2,
+      apiKey: _3,
       ...restConfig
     } = request.config ?? {};
 
@@ -288,12 +289,13 @@ export class Runner extends BaseRunner<RunnerTypes> {
     // Need to extract topP and topK from request.config to avoid duplicate properties being added to the body
     // This happens because topP and topK have different property names (top_p and top_k) in the Anthropic API.
     // Thinking is extracted separately to avoid type issues.
-    // ApiVersion is extracted separately as it's not a valid property for the Anthropic API.
+    // apiVersion and apiKey are extracted separately as they're not valid properties for the Anthropic API.
     const {
       topP,
       topK,
       apiVersion: _1,
       thinking: _2,
+      apiKey: _3,
       ...restConfig
     } = request.config ?? {};
 
