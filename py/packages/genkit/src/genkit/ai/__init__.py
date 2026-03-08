@@ -104,6 +104,7 @@ from genkit.core.plugin import Plugin
 
 from ._aio import Genkit, Output
 from ._registry import FlowWrapper, GenkitRegistry, SimpleRetrieverOptions
+from ._server import ServerSpec
 
 __all__ = [
     # Version info
@@ -135,4 +136,6 @@ __all__ = [
     'tool_response',
     # Plugin
     'Plugin',
+    # Server
+    'ServerSpec',
 ]
