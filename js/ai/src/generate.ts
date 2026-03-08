@@ -164,7 +164,7 @@ export interface GenerateOptions<
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
   maxTurns?: number;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
-  onChunk?: StreamingCallback<GenerateResponseChunk>;
+  onChunk?: StreamingCallback<GenerateResponseChunk<z.infer<O>>>;
   /**
    * When provided, models supporting streaming will call the provided callback with chunks as generation progresses.
    *
@@ -333,7 +333,10 @@ async function resourcesToActionRefs(
   return resources;
 }
 
-function messagesFromOptions(options: GenerateOptions): MessageData[] {
+function messagesFromOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodType,
+>(options: GenerateOptions<O, CustomOptions>): MessageData[] {
   const messages: MessageData[] = [];
   if (options.system) {
     messages.push({
@@ -633,7 +636,7 @@ export type GenerateStreamOptions<
 > = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 
 export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
-  get stream(): AsyncIterable<GenerateResponseChunk>;
+  get stream(): AsyncIterable<GenerateResponseChunk<O>>;
   get response(): Promise<GenerateResponse<O>>;
 }
 
@@ -646,7 +649,7 @@ export function generateStream<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): GenerateStreamResponse<O> {
-  const channel = new Channel<GenerateResponseChunk>();
+  const channel = new Channel<GenerateResponseChunk<O>>();
 
   const generated = Promise.resolve(options).then((resolvedOptions) =>
     generate<O, CustomOptions>(registry, {
