@@ -17,7 +17,7 @@
 
 """Tests for OpenAI compatible model implementation."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 import pytest
 
@@ -148,7 +148,7 @@ async def test__generate_stream(sample_request: ModelRequest) -> None:
 async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
     """Tests for generate."""
     ctx_mock = MagicMock(spec=ActionRunContext)
-    ctx_mock.is_streaming = stream
+    type(ctx_mock).is_streaming = PropertyMock(return_value=stream)
 
     mock_response = ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 

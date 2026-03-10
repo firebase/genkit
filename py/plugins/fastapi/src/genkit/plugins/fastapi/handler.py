@@ -17,13 +17,20 @@
 """Genkit FastAPI handler for serving flows as HTTP endpoints."""
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 from genkit import Action, Genkit, GenkitError
-from genkit.plugin_api import ContextProvider, RequestData, dump_dict, dump_json, get_callable_json
+from genkit.plugin_api import ContextProvider, RequestData, get_callable_json
+from pydantic import BaseModel
+
+
+def _to_dict(obj: Any) -> Any:
+    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
+    return obj.model_dump() if isinstance(obj, BaseModel) else obj
 
 
 class _FastAPIRequestData(RequestData):
@@ -95,7 +102,7 @@ def genkit_fastapi_handler(
                 )
                 return Response(
                     status_code=400,
-                    content=dump_json(get_callable_json(err)),
+                    content=json.dumps(get_callable_json(err), separators=(',', ':')),
                     media_type='application/json',
                 )
 
@@ -119,24 +126,24 @@ def genkit_fastapi_handler(
                     try:
                         stream_response = flow.stream(body.get('data'), context=action_context)
                         async for chunk in stream_response.stream:
-                            yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
+                            yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=(",", ":"))}\n\n'
 
                         result = await stream_response.response
-                        yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
+                        yield f'data: {json.dumps({"result": _to_dict(result.response)}, separators=(",", ":"))}\n\n'
                     except Exception as e:
                         ex = e.cause if isinstance(e, GenkitError) else e
-                        yield f'error: {dump_json({"error": dump_dict(get_callable_json(ex))})}'
+                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
 
                 return StreamingResponse(event_stream(), media_type='text/event-stream')
             else:
                 try:
                     response = await flow.run(body.get('data'), context=action_context)
-                    return {'result': dump_dict(response.response)}
+                    return {'result': _to_dict(response.response)}
                 except Exception as e:
                     ex = e.cause if isinstance(e, GenkitError) else e
                     return Response(
                         status_code=500,
-                        content=dump_json(get_callable_json(ex)),
+                        content=json.dumps(get_callable_json(ex), separators=(',', ':')),
                         media_type='application/json',
                     )
 

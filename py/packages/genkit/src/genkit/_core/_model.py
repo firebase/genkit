@@ -246,6 +246,8 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
     # Override the parent's message field with our wrapper type (intentional Liskov violation)
     # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
     message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    # Override request to accept ModelRequest (veneer) instead of GenerateRequest (wire)
+    request: ModelRequest | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""

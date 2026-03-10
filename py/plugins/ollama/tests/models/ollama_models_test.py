@@ -177,7 +177,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         """Test generate method with CHAT API type in streaming mode."""
         model_def = ModelDefinition(name='chat-model', api_type=OllamaAPITypes.CHAT)
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
-        streaming_ctx = ActionRunContext(on_chunk=MagicMock())
+        streaming_ctx = ActionRunContext(streaming_callback=MagicMock())
 
         # Mock internal methods
         mock_chat_response = ollama_api.ChatResponse(
@@ -225,7 +225,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             api_type=OllamaAPITypes.GENERATE,
         )
         ollama_model = OllamaModel(client=self.mock_client, model_definition=model_def)
-        streaming_ctx = ActionRunContext(on_chunk=MagicMock())
+        streaming_ctx = ActionRunContext(streaming_callback=MagicMock())
 
         # Mock internal methods
         mock_generate_response = ollama_api.GenerateResponse(
@@ -375,7 +375,9 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
     async def test_streaming_chat_success(self) -> None:
         """Test _chat_with_ollama in streaming mode with multiple chunks."""
         self.mock_is_streaming_request.return_value = True
-        self.ctx.is_streaming = True
+        # Create a streaming context with a callback
+        self.ctx = ActionRunContext(streaming_callback=MagicMock())
+        cast(Any, self.ctx).send_chunk = MagicMock()
 
         # Simulate an async iterator of chunks
         async def mock_streaming_chunks() -> AsyncIterator[ollama_api.ChatResponse]:

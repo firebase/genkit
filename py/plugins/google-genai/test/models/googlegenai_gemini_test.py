@@ -133,7 +133,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
     on_chunk_mock = mocker.MagicMock()
     gemini = GeminiModel(version, googleai_client_mock)
 
-    ctx = ActionRunContext(on_chunk=on_chunk_mock)
+    ctx = ActionRunContext(streaming_callback=on_chunk_mock)
     response = await gemini.generate(request, ctx)
 
     # Determine expected config based on model type

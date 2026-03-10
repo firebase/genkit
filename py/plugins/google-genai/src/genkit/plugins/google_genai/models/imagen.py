@@ -42,7 +42,16 @@ from genkit import (
     Supports,
     TextPart,
 )
-from genkit.plugin_api import ActionRunContext, dump_dict, dump_json, tracer
+import json
+from typing import Any
+
+from genkit.plugin_api import ActionRunContext, tracer
+from pydantic import BaseModel
+
+
+def _to_dict(obj: Any) -> Any:
+    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
+    return obj.model_dump() if isinstance(obj, BaseModel) else obj
 
 
 class ImagenVersion(StrEnum):
@@ -170,14 +179,14 @@ class ImagenModel:
         with tracer.start_as_current_span('generate_images') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json({
-                    'config': dump_dict(config),
+                json.dumps({
+                    'config': _to_dict(config),
                     'contents': prompt,
                     'model': self._version,
                 }),
             )
             response = await self._client.aio.models.generate_images(model=self._version, prompt=prompt, config=config)
-            span.set_attribute('genkit:output', dump_json(response))
+            span.set_attribute('genkit:output', json.dumps(_to_dict(response), default=str))
 
         content = self._contents_from_response(response)
 

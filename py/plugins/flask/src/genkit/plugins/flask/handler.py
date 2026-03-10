@@ -17,6 +17,7 @@
 """Genkit Flask plugin."""
 
 import asyncio
+import json
 from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable
 from typing import Any, TypeAlias, TypeVar
@@ -27,10 +28,15 @@ from genkit._core._action import Action
 from genkit.plugin_api import (
     ContextProvider,
     RequestData,
-    dump_dict,
-    dump_json,
     get_callable_json,
 )
+from pydantic import BaseModel
+
+
+def _to_dict(obj: Any) -> Any:
+    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
+    return obj.model_dump() if isinstance(obj, BaseModel) else obj
+
 
 T = TypeVar('T')
 
@@ -130,27 +136,27 @@ def genkit_flask_handler(
                     try:
                         stream_response = flow.stream(input_data.get('data'), context=action_context)
                         async for chunk in stream_response.stream:
-                            yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
+                            yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=(",", ":"))}\n\n'
 
                         result = await stream_response.response
-                        yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
+                        yield f'data: {json.dumps({"result": _to_dict(result.response)}, separators=(",", ":"))}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):
                             ex = ex.cause
-                        yield f'error: {dump_json({"error": dump_dict(get_callable_json(ex))})}'
+                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
 
                 iter = _iter_over_async(async_gen(), loop)
                 return iter
             else:
                 try:
                     response = await flow.run(input_data.get('data'), context=action_context)
-                    return {'result': dump_dict(response.response)}
+                    return {'result': _to_dict(response.response)}
                 except Exception as e:
                     ex = e
                     if isinstance(ex, GenkitError):
                         ex = ex.cause
-                    return Response(status=500, response=dump_json(get_callable_json(ex)))
+                    return Response(status=500, response=json.dumps(get_callable_json(ex), separators=(',', ':')))
 
         return handler
 

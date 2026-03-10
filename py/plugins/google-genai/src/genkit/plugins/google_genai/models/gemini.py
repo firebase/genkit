@@ -169,13 +169,21 @@ from genkit import (
 )
 from genkit._core._typing import GenerationCommonConfig
 from genkit.model import Candidate, FinishReason, get_basic_usage_stats
+import json
+from typing import Any as JsonAny
+
 from genkit.plugin_api import (
     ActionRunContext,
     StatusName,
-    dump_dict,
-    dump_json,
     tracer,
 )
+
+
+def _to_dict(obj: JsonAny) -> JsonAny:
+    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
+    return obj.model_dump() if isinstance(obj, BaseModel) else obj
+
+
 from genkit.plugins.google_genai.models._deprecations import (
     deprecated_enum_metafactory,
 )
@@ -1356,13 +1364,13 @@ class GeminiModel:
         with tracer.start_as_current_span('generate_content') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json(
+                json.dumps(
                     {
-                        'config': dump_dict(request_cfg),
-                        'contents': [dump_dict(c) for c in request_contents],
+                        'config': _to_dict(request_cfg),
+                        'contents': [_to_dict(c) for c in request_contents],
                         'model': model_name,
                     },
-                    fallback=lambda _: '[!! failed to serialize !!]',
+                    default=lambda _: '[!! failed to serialize !!]',
                 ),
             )
             client = client or self._client
@@ -1401,7 +1409,7 @@ class GeminiModel:
                     status='INTERNAL',
                     message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
                 ) from e
-            span.set_attribute('genkit:output', dump_json(response))
+            span.set_attribute('genkit:output', json.dumps(_to_dict(response), default=str))
 
         content = await self._contents_from_response(response)
 
@@ -1487,11 +1495,14 @@ class GeminiModel:
         with tracer.start_as_current_span('generate_content_stream') as span:
             span.set_attribute(
                 'genkit:input',
-                dump_json({
-                    'config': dump_dict(request_cfg),
-                    'contents': [dump_dict(c) for c in request_contents],
-                    'model': model_name,
-                }),
+                json.dumps(
+                    {
+                        'config': _to_dict(request_cfg),
+                        'contents': [_to_dict(c) for c in request_contents],
+                        'model': model_name,
+                    },
+                    default=str,
+                ),
             )
             client = client or self._client
             try:
