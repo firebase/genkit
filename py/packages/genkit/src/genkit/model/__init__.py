@@ -24,7 +24,6 @@ from genkit._ai._model import (
 from genkit._core._background import BackgroundAction
 from genkit._core._model import (
     Message,
-    ModelMiddlewareNext,
     ModelRef,
     ModelRequest,
     ModelResponse,
@@ -81,8 +80,6 @@ __all__ = [
     'ModelConfig',
     # Message
     'Message',
-    # Middleware
-    'ModelMiddlewareNext',
     # Usage
     'get_basic_usage_stats',
 ]

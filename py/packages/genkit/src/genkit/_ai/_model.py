@@ -21,13 +21,19 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext, get_func_description
+from genkit._core._action import (
+    Action,
+    ActionKind,
+    ActionMetadata,
+    ActionRunContext,
+    get_func_description,
+)
 from genkit._core._model import (
     Message,
+    ModelConfig,
     ModelMiddleware,
-    ModelMiddlewareNext,
     ModelRef,
     ModelRequest,
     ModelResponse,
@@ -38,16 +44,12 @@ from genkit._core._model import (
 )
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
-from genkit._core._typing import (
-    ModelConfig as CoreModelConfig,
-    ModelInfo,
-)
+from genkit._core._typing import ModelInfo
 
 # Re-export veneer types from core._internal._model for backward compatibility
 __all__ = [
     'Message',
     'ModelMiddleware',
-    'ModelMiddlewareNext',
     'ModelRef',
     'ModelRequest',
     'ModelResponse',
@@ -66,6 +68,7 @@ __all__ = [
 ]
 
 # Type alias for model functions (must be async)
+# Use ctx.send_chunk() for streaming
 ModelFn = Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse[Any]]]
 
 
@@ -150,16 +153,6 @@ def define_model(
 # =============================================================================
 # Model config types (from model_types.py)
 # =============================================================================
-
-
-class ModelConfig(CoreModelConfig):
-    """Common generation config with Python SDK runtime extensions."""
-
-    api_key: str | None = Field(
-        default=None,
-        alias='apiKey',
-        description='API Key to use for the model call, overrides API key provided in plugin config.',
-    )
 
 
 def get_request_api_key(config: Mapping[str, object] | ModelConfig | object | None) -> str | None:

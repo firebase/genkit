@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
 
@@ -34,7 +34,6 @@ from pydantic import BaseModel, ConfigDict
 
 from genkit._ai._document import Document
 from genkit._ai._generate import (
-    StreamingCallback as ModelStreamingCallback,
     generate_action,
     to_tool_definition,
 )
@@ -45,16 +44,18 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
-from genkit._core._action import Action, ActionKind, ActionRunContext, create_action_key
+from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
+
+ModelStreamingCallback = StreamingCallback
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._model import ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
     GenerateActionOptions,
     GenerateActionOutputConfig,
-    ModelConfig,
     OutputConfig,
     Part,
     Resume,
@@ -328,7 +329,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
 
         # Create a copy of opts with the streaming callback
-        stream_opts: PromptGenerateOptions = {**effective_opts, 'on_chunk': lambda c: channel.send(c)}
+        stream_opts: PromptGenerateOptions = {
+            **effective_opts,
+            'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
+        }
 
         resp = self.__call__(input=input, opts=stream_opts)
         response_future: asyncio.Future[ModelResponse[OutputT]] = asyncio.create_task(resp)
@@ -355,10 +359,9 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
                 if isinstance(self._config, BaseModel)
                 else (self._config or {})
             )
+            opt_config = opts.get('config')
             override = (
-                opts['config'].model_dump(exclude_none=True)
-                if isinstance(opts['config'], BaseModel)
-                else (opts['config'] or {})
+                opt_config.model_dump(exclude_none=True) if isinstance(opt_config, BaseModel) else (opt_config or {})
             )
             merged_config = {**base, **override} if base or override else None
         else:
@@ -686,18 +689,19 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
             message='at least one message is required in generate request',
         )
 
+    output_config = OutputConfig(
+        content_type=options.output.content_type if options.output else None,
+        format=options.output.format if options.output else None,
+        schema=options.output.json_schema if options.output else None,
+        constrained=options.output.constrained if options.output else None,
+    )
     return ModelRequest(
         messages=options.messages,
-        config=options.config if options.config is not None else {},
-        docs=options.docs,
+        config=options.config if options.config is not None else {},  # type: ignore[arg-type]
+        docs=options.docs if options.docs else None,
         tools=tool_defs,
         tool_choice=options.tool_choice,
-        output=OutputConfig(
-            content_type=options.output.content_type if options.output else None,
-            format=options.output.format if options.output else None,
-            schema=options.output.json_schema if options.output else None,
-            constrained=options.output.constrained if options.output else None,
-        ),
+        output=output_config,
     )
 
 

@@ -37,10 +37,7 @@ class ToolRunContext(ActionRunContext):
         ctx: ActionRunContext,
     ) -> None:
         """Initialize from parent ActionRunContext."""
-        super().__init__(
-            on_chunk=ctx._on_chunk if ctx.is_streaming else None,
-            context=ctx.context,
-        )
+        super().__init__(context=ctx.context)
 
     def interrupt(self, metadata: dict[str, Any] | None = None) -> NoReturn:
         """Raise ToolInterruptError to pause execution (e.g., for user input)."""

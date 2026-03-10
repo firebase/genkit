@@ -63,7 +63,7 @@ logger = get_logger(__name__)
 #     },
 # }
 # ```
-ActionStore = dict[ActionKind, dict[ActionName, Action]]
+ActionStore = dict[str, dict[ActionName, Action]]
 
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
@@ -168,8 +168,8 @@ class Registry:
         action_typed = cast(Action[InputT, OutputT, ChunkT], action)
         with self._lock:
             if kind not in self._entries:
-                self._entries[kind] = {}
-            self._entries[kind][name] = action
+                self._entries[kind] = {}  # pyright: ignore[reportArgumentType]
+            self._entries[kind][name] = action  # pyright: ignore[reportArgumentType]
         return action_typed
 
     def register_action_from_instance(self, action: Action) -> None:
@@ -183,8 +183,8 @@ class Registry:
         """
         with self._lock:
             if action.kind not in self._entries:
-                self._entries[action.kind] = {}
-            self._entries[action.kind][action.name] = action
+                self._entries[action.kind] = {}  # pyright: ignore[reportArgumentType]
+            self._entries[action.kind][action.name] = action  # pyright: ignore[reportArgumentType]
 
     async def resolve_actions_by_kind(self, kind: ActionKind) -> dict[str, Action]:
         """Returns all registered actions for a specific kind, triggering lazy loading.
@@ -199,7 +199,7 @@ class Registry:
             A dictionary mapping action names to Action instances with fully loaded metadata.
         """
         with self._lock:
-            actions = self._entries.get(kind, {}).copy()
+            actions = self._entries.get(kind, {}).copy()  # pyright: ignore[reportArgumentType]
         for action in actions.values():
             await self._trigger_lazy_loading(action)
         return actions
@@ -329,8 +329,8 @@ class Registry:
 
         with self._lock:
             if action.kind not in self._entries:
-                self._entries[action.kind] = {}
-            self._entries[action.kind][name] = action
+                self._entries[action.kind] = {}  # pyright: ignore[reportArgumentType]
+            self._entries[action.kind][name] = action  # pyright: ignore[reportArgumentType]
 
     async def _trigger_lazy_loading(self, action: Action | None) -> Action | None:
         """Trigger lazy loading for an action if needed.
@@ -380,8 +380,8 @@ class Registry:
         """
         # Cache hit
         with self._lock:
-            if kind in self._entries and name in self._entries[kind]:
-                return await self._trigger_lazy_loading(self._entries[kind][name])
+            if kind in self._entries and name in self._entries[kind]:  # pyright: ignore[reportArgumentType]
+                return await self._trigger_lazy_loading(self._entries[kind][name])  # pyright: ignore[reportArgumentType]
 
         action: Action | None = None
 
@@ -398,14 +398,14 @@ class Registry:
 
                 # Check cache again after init - init() might have registered this action
                 with self._lock:
-                    if kind in self._entries and target in self._entries[kind]:
-                        return await self._trigger_lazy_loading(self._entries[kind][target])
+                    if kind in self._entries and target in self._entries[kind]:  # pyright: ignore[reportArgumentType]
+                        return await self._trigger_lazy_loading(self._entries[kind][target])  # pyright: ignore[reportArgumentType]
 
-                action = await plugin.resolve(kind, target)
+                action = await plugin.resolve(kind, target)  # pyright: ignore[reportArgumentType]
                 if action is not None:
                     self.register_action_instance(action, namespace=plugin_name)
                     with self._lock:
-                        return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))
+                        return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(target))  # pyright: ignore[reportArgumentType]
         else:
             # Unprefixed request: try all plugins
             successes: list[tuple[str, Action]] = []
@@ -417,19 +417,19 @@ class Registry:
 
                 # Check cache first - init() might have registered this action
                 with self._lock:
-                    cached_action = self._entries.get(kind, {}).get(target)
+                    cached_action = self._entries.get(kind, {}).get(target)  # pyright: ignore[reportArgumentType]
                 if cached_action is not None:
                     successes.append((plugin_name, cached_action))
                     continue
 
-                action = await plugin.resolve(kind, target)
+                action = await plugin.resolve(kind, target)  # pyright: ignore[reportArgumentType]
                 if action is not None:
                     successes.append((plugin_name, action))
 
             if len(successes) > 1:
                 plugin_names = [p for p, _ in successes]
                 raise ValueError(
-                    f"Ambiguous {kind.value} action name '{name}'. "
+                    f"Ambiguous {kind} action name '{name}'. "
                     + f"Matches plugins: {plugin_names}. Use 'plugin/{name}'."
                 )
 
@@ -437,14 +437,14 @@ class Registry:
                 plugin_name, action = successes[0]
                 self.register_action_instance(action, namespace=plugin_name)
                 with self._lock:
-                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))
+                    return await self._trigger_lazy_loading(self._entries.get(kind, {}).get(f'{plugin_name}/{name}'))  # pyright: ignore[reportArgumentType]
 
         # Fallback: try dynamic action providers (for MCP, dynamic resources, etc.)
         # Skip if we're looking up a dynamic action provider itself to avoid recursion
         if kind != ActionKind.DYNAMIC_ACTION_PROVIDER:
             with self._lock:
-                if ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries:
-                    providers_dict = self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER]
+                if ActionKind.DYNAMIC_ACTION_PROVIDER in self._entries:  # pyright: ignore[reportArgumentType]
+                    providers_dict = self._entries[ActionKind.DYNAMIC_ACTION_PROVIDER]  # pyright: ignore[reportArgumentType]
                 else:
                     providers_dict = {}
                 providers = list(providers_dict.values())
@@ -482,7 +482,7 @@ class Registry:
         kind, name = parse_action_key(key)
         return await self.resolve_action(kind, name)
 
-    async def list_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
+    async def list_actions(self, allowed_kinds: list[str] | None = None) -> list[ActionMetadata]:
         """List all actions advertised by plugins.
 
         This method returns the advertised set of actions from all registered

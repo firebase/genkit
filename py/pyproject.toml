@@ -268,7 +268,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # Auto-generated file from schema
-"packages/genkit/src/genkit/core/typing.py" = ["E501"]
+"packages/genkit/src/genkit/_core/_typing.py" = ["E501"]
 # Base model uses **kwargs: Any to match pydantic signatures
 "packages/genkit/src/genkit/_core/_base.py" = ["ANN401"]
 # HTTP client uses **httpx_kwargs: Any to forward arbitrary options

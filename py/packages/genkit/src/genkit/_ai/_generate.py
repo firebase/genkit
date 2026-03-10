@@ -17,6 +17,7 @@
 """Generate action."""
 
 import copy
+import inspect
 import re
 from collections.abc import Callable
 from typing import Any, cast
@@ -53,8 +54,6 @@ from genkit._core._typing import (
     ToolResponsePart,
 )
 
-StreamingCallback = Callable[[ModelResponseChunk], None]
-
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
@@ -87,11 +86,15 @@ def _redact_data_uris(obj: Any) -> Any:  # noqa: ANN401
 def define_generate_action(registry: Registry) -> None:
     """Registers generate action in the provided registry."""
 
-    async def generate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> ModelResponse:
+    async def generate_action_fn(
+        input: GenerateActionOptions,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
+        on_chunk = cast(Callable[[ModelResponseChunk], None], ctx.streaming_callback) if ctx.is_streaming else None
         return await generate_action(
             registry=registry,
             raw_request=input,
-            on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+            on_chunk=on_chunk,
             context=ctx.context,
         )
 
@@ -105,7 +108,7 @@ def define_generate_action(registry: Registry) -> None:
 async def generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
-    on_chunk: StreamingCallback | None = None,
+    on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
     current_turn: int = 0,
     middleware: list[ModelMiddleware] | None = None,
@@ -197,31 +200,55 @@ async def generate_action(
     if raw_request.docs and not supports_context:
         middleware.append(augment_with_context())
 
-    async def dispatch(index: int, req: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def dispatch(
+        index: int,
+        req: ModelRequest,
+        ctx: ActionRunContext,
+        chunk_callback: Callable[[ModelResponseChunk], None] | None,
+    ) -> ModelResponse:
         """Dispatch request through middleware chain to the model."""
         if not middleware or index == len(middleware):
-            # end of the chain, call the original model action
+            # End of the chain, call the original model action
             return (
                 await model.run(
                     input=req,
                     context=ctx.context,
-                    on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+                    on_chunk=cast(Callable[[object], None], chunk_callback) if chunk_callback else None,
                 )
             ).response
 
         current_middleware = middleware[index]
+        n_params = len(inspect.signature(current_middleware).parameters)
 
-        async def next_fn(
-            modified_req: ModelRequest | None = None,
-            modified_ctx: ActionRunContext | None = None,
-        ) -> ModelResponse:
-            return await dispatch(
-                index + 1,
-                modified_req if modified_req else req,
-                modified_ctx if modified_ctx else ctx,
-            )
+        if n_params == 4:
+            # Streaming middleware: (req, ctx, on_chunk, next) -> response
+            async def next_fn_streaming(
+                modified_req: ModelRequest | None = None,
+                modified_ctx: ActionRunContext | None = None,
+                modified_on_chunk: Callable[[ModelResponseChunk], None] | None = None,
+            ) -> ModelResponse:
+                return await dispatch(
+                    index + 1,
+                    modified_req if modified_req else req,
+                    modified_ctx if modified_ctx else ctx,
+                    modified_on_chunk if modified_on_chunk is not None else chunk_callback,
+                )
 
-        return await current_middleware(req, ctx, next_fn)
+            return await current_middleware(req, ctx, chunk_callback, next_fn_streaming)  # type: ignore[call-arg]
+        else:
+            # Simple middleware: (req, ctx, next) -> response
+            async def next_fn_simple(
+                modified_req: ModelRequest | None = None,
+                modified_ctx: ActionRunContext | None = None,
+            ) -> ModelResponse:
+                return await dispatch(
+                    index + 1,
+                    modified_req if modified_req else req,
+                    modified_ctx if modified_ctx else ctx,
+                    chunk_callback,
+                )
+
+            return await current_middleware(req, ctx, next_fn_simple)  # type: ignore[call-arg]
 
     # if resolving the 'resume' option above generated a tool message, stream it.
     if resumed_tool_message and on_chunk:
@@ -235,10 +262,8 @@ async def generate_action(
     model_response = await dispatch(
         0,
         request,
-        ActionRunContext(
-            on_chunk=cast(Callable[[object], None], wrap_chunks()) if on_chunk else None,
-            context=context,
-        ),
+        ActionRunContext(context=context),
+        wrap_chunks() if on_chunk else None,
     )
 
     def message_parser(msg: Message) -> Any:  # noqa: ANN401
@@ -252,7 +277,8 @@ async def generate_action(
     # Plugin returns ModelResponse directly. Framework sets request and
     # any output format context (message_parser, schema_type) as private attrs.
     response = model_response
-    response.request = request
+    # ModelRequest.request is typed as Request (wrapper) but GenerateRequest works at runtime.
+    response.request = request  # type: ignore[assignment]
     if formatter:
         response._message_parser = message_parser
     if schema_type:
@@ -342,10 +368,11 @@ def apply_format(
 
     formatter = format_def(raw_request.output.json_schema if raw_request.output else None)
 
-    instructions = resolve_instructions(
-        formatter,
-        raw_request.output.instructions if raw_request.output else None,
-    )
+    # Extract instructions - handle bool | str | None type
+    # Schema allows: str (custom instructions), True (use defaults), False (disable), None (default behavior)
+    raw_instructions = raw_request.output.instructions if raw_request.output else None
+    str_instructions = raw_instructions if isinstance(raw_instructions, str) else None
+    instructions = resolve_instructions(formatter, str_instructions)
 
     should_inject = False
     if raw_request.output and raw_request.output.instructions is not None:
@@ -541,18 +568,19 @@ async def action_to_generate_request(
     # TODO(#4341): add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
+    output_config = OutputConfig(
+        content_type=options.output.content_type if options.output else None,
+        format=options.output.format if options.output else None,
+        schema=options.output.json_schema if options.output else None,
+        constrained=options.output.constrained if options.output else None,
+    )
     return ModelRequest(
         messages=options.messages,
-        config=options.config if options.config is not None else {},
-        docs=options.docs,
+        config=options.config if options.config is not None else {},  # type: ignore[arg-type]
+        docs=options.docs if options.docs else None,
         tools=tool_defs,
         tool_choice=options.tool_choice,
-        output=OutputConfig(
-            content_type=options.output.content_type if options.output else None,
-            format=options.output.format if options.output else None,
-            schema=options.output.json_schema if options.output else None,
-            constrained=options.output.constrained if options.output else None,
-        ),
+        output=output_config,
     )
 
 
@@ -630,7 +658,7 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
 async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
     """Execute a tool and return (response_part, interrupt_part)."""
     try:
-        tool_response = (await tool.run_raw(tool_request_part.tool_request.input)).response
+        tool_response = (await tool.run(tool_request_part.tool_request.input)).response
         # Part is a RootModel, so we pass content via 'root' parameter
         return (
             Part(

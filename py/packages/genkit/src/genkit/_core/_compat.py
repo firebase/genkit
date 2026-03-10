@@ -22,6 +22,15 @@ from typing import TypeVar
 
 T = TypeVar('T')
 
+# StrEnum - use strenum package for cross-version compatibility
+# Note: StrEnum was added to stdlib in Python 3.11, but we use strenum for 3.10 compat
+# override decorator - use typing_extensions for consistency across Python versions
+# Note: override was added to typing in Python 3.12, but typing_extensions has it for all versions
+from typing import overload as overload  # noqa: E402
+
+from strenum import StrEnum as StrEnum  # noqa: E402
+from typing_extensions import override as override  # noqa: E402
+
 # StrEnum - Added in Python 3.11
 # Used for string enums throughout the codebase
 if sys.version_info >= (3, 11):

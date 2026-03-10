@@ -33,7 +33,7 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from genkit._core._action import Action, ActionKind
@@ -81,8 +81,8 @@ class ActionRunner:
     async def execute(self) -> None:
         try:
             on_chunk = (lambda c: self.queue.put_nowait(f'{c.model_dump_json()}\n')) if self.stream else None
-            output = await self.action.run_raw(
-                raw_input=self.payload.get('input'),
+            output = await self.action.run(
+                input=self.payload.get('input'),
                 on_chunk=on_chunk,
                 context=self.payload.get('context', {}),
                 on_trace_start=self.on_trace_start,
@@ -130,11 +130,11 @@ async def _get_actions_payload(registry: Registry) -> dict[str, dict[str, Any]]:
 
     for kind in ActionKind.__members__.values():
         for name, action in (await registry.resolve_actions_by_kind(kind)).items():
-            key = f'/{kind.value}/{name}'
+            key = f'/{kind}/{name}'
             actions[key] = {
                 'key': key,
                 'name': action.name,
-                'type': action.kind.value,
+                'type': action.kind,
                 'description': action.description,
                 'inputSchema': action.input_schema,
                 'outputSchema': action.output_schema,
@@ -143,7 +143,7 @@ async def _get_actions_payload(registry: Registry) -> dict[str, dict[str, Any]]:
 
     for meta in await registry.list_actions() or []:
         try:
-            key = f'/{meta.kind.value}/{meta.name}'
+            key = f'/{meta.kind}/{meta.name}'
         except Exception as exc:
             logger.warning('Skipping invalid plugin metadata: %s', exc)
             continue
@@ -151,7 +151,7 @@ async def _get_actions_payload(registry: Registry) -> dict[str, dict[str, Any]]:
         advertised = {
             'key': key,
             'name': meta.name,
-            'type': meta.kind.value,
+            'type': meta.kind,
             'description': getattr(meta, 'description', None),
             'inputSchema': getattr(meta, 'input_json_schema', None),
             'outputSchema': getattr(meta, 'output_json_schema', None),
@@ -210,7 +210,7 @@ def create_reflection_asgi_app(
             return JSONResponse({'message': 'Cancelled'})
         return JSONResponse({'message': 'Not found'}, status_code=404)
 
-    async def run(req: Request) -> StreamingResponse:
+    async def run(req: Request) -> Response:
         payload = await req.json()
         action = await registry.resolve_action_by_key(payload['key'])
         if not action:

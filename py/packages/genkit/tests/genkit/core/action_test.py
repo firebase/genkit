@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import json
+from collections.abc import Callable
 from typing import cast
 
 import pytest
@@ -88,7 +89,7 @@ def test_sync_action_rejected() -> None:
         return 'syncFoo'
 
     with pytest.raises(TypeError, match='Action handlers must be async functions'):
-        Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)
+        Action(name='syncFoo', kind=ActionKind.CUSTOM, fn=sync_foo)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -137,7 +138,10 @@ async def test_define_async_action_with_input_and_context() -> None:
 async def test_streaming_action_with_callback() -> None:
     """Streaming action with on_chunk callback."""
 
-    async def foo(input: str, ctx: ActionRunContext) -> int:
+    async def foo(
+        input: str,
+        ctx: ActionRunContext,
+    ) -> int:
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3
@@ -155,7 +159,10 @@ async def test_streaming_action_with_callback() -> None:
 async def test_streaming_action_with_stream_method() -> None:
     """Streaming action using the stream() method."""
 
-    async def foo(input: str, ctx: ActionRunContext) -> int:
+    async def foo(
+        input: str,
+        ctx: ActionRunContext,
+    ) -> int:
         ctx.send_chunk('1')
         ctx.send_chunk('2')
         return 3
@@ -200,8 +207,8 @@ async def test_propagates_context_via_contextvar() -> None:
     first = baz_action.run(context={'foo': 'bar'})
     second = baz_action.run(context={'bar': 'baz'})
 
-    assert (await second).response == '{"bar":"baz"}'
-    assert (await first).response == '{"foo":"bar"}'
+    assert (await second).response == '{"bar": "baz"}'
+    assert (await first).response == '{"foo": "bar"}'
 
 
 @pytest.mark.asyncio
@@ -222,8 +229,8 @@ async def test_action_raises_errors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
-    """arun_raw raises GenkitError when input is None but the action requires it."""
+async def test_run_raises_on_none_input_when_input_required() -> None:
+    """run() raises GenkitError when input is None but the action requires it."""
 
     async def typed_fn(input: str) -> str:
         return f'got {input}'
@@ -231,30 +238,30 @@ async def test_arun_raw_raises_on_none_input_when_input_required() -> None:
     action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
 
     with pytest.raises(GenkitError, match=r'.*requires input but none was provided.*'):
-        await action.run_raw(raw_input=None)
+        await action.run(input=None)
 
 
 @pytest.mark.asyncio
-async def test_arun_raw_succeeds_with_valid_input() -> None:
-    """arun_raw succeeds when valid input is provided."""
+async def test_run_succeeds_with_valid_input() -> None:
+    """run() succeeds when valid input is provided."""
 
     async def typed_fn(input: str) -> str:
         return f'got {input}'
 
     action = Action(name='typedAction', kind=ActionKind.CUSTOM, fn=typed_fn)
 
-    result = await action.run_raw(raw_input='hello')
+    result = await action.run(input='hello')
     assert result.response == 'got hello'
 
 
 @pytest.mark.asyncio
-async def test_arun_raw_no_input_type_allows_none() -> None:
-    """arun_raw allows None input when action has no input type."""
+async def test_run_no_input_type_allows_none() -> None:
+    """run() allows None input when action has no input type."""
 
     async def no_input_fn() -> str:
         return 'no input needed'
 
     action = Action(name='noInputAction', kind=ActionKind.CUSTOM, fn=no_input_fn)
 
-    result = await action.run_raw(raw_input=None)
+    result = await action.run(input=None)
     assert result.response == 'no input needed'

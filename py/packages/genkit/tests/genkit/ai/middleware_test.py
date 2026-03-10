@@ -24,10 +24,10 @@ import pytest
 from genkit import Document, Message, ModelResponse
 from genkit._ai._middleware import augment_with_context
 from genkit._core._action import ActionRunContext
+from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     Metadata,
-    ModelRequest,
     Part,
     Role,
     TextPart,

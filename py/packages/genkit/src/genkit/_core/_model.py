@@ -23,28 +23,34 @@ properties and methods on top of the generated wire types.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
+from copy import deepcopy
 from functools import cached_property
 from typing import Any, Generic, cast
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from typing_extensions import TypeVar
 
 from genkit._core._action import ActionRunContext
 from genkit._core._extract import extract_json
 from genkit._core._typing import (
+    DocumentData,
     DocumentPart,
     GenerateResponse,
     GenerateResponseChunk,
+    GenerationCommonConfig,
     GenerationUsage,
     Media,
     MediaModel,
+    MediaPart,
     MessageData,
-    ModelConfig,
     ModelRequest as GeneratedModelRequest,
     Part,
     Text,
+    TextPart,
     ToolRequestPart,
 )
+
+ModelConfig = GenerationCommonConfig  # public name for GenerationCommonConfig
 
 # TypeVars for generic types
 OutputT = TypeVar('OutputT', default=object)
@@ -62,10 +68,12 @@ class ModelRef(BaseModel):
 
 
 class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
-    """Model request with strongly-typed config.
+    """Model request with strongly-typed config and veneer types.
 
-    This generic wrapper allows model implementations to specify their
-    config type for better type safety and IDE autocomplete.
+    This wrapper provides:
+    - Strongly-typed config via generics
+    - Messages as list[Message] (veneer) instead of list[MessageData] (wire)
+    - Docs as list[Document] (veneer) instead of list[DocumentData] (wire)
 
     Example:
         class GeminiConfig(ModelConfig):
@@ -74,9 +82,34 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
         def gemini_model(request: ModelRequest[GeminiConfig]) -> ModelResponse:
             temp = request.config.temperature  # inherited from ModelConfig
             safety = request.config.safety_settings  # provider-specific
+            for msg in request.messages:
+                print(msg.text)  # Message veneer property
+            for doc in request.docs or []:
+                print(doc.text())  # Document veneer method
     """
 
+    messages: list['Message']  # type: ignore[assignment]
+    docs: 'list[Document] | None' = None  # type: ignore[assignment]
     config: ConfigT | None = None  # type: ignore[assignment]
+
+    @field_validator('messages', mode='before')
+    @classmethod
+    def _wrap_messages(cls, v: list[MessageData]) -> list['Message']:
+        """Wrap MessageData in Message veneer for convenience methods."""
+        from genkit._core._model import Message
+
+        return [m if isinstance(m, Message) else Message(m) for m in v]
+
+    @field_validator('docs', mode='before')
+    @classmethod
+    def _wrap_docs(cls, v: list[DocumentData] | None) -> 'list[Document] | None':
+        """Wrap DocumentData in Document veneer for convenience methods."""
+        if v is None:
+            return None
+        # Import here to avoid forward reference issues
+        from genkit._core._model import Document
+
+        return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
 
 
 class Message(MessageData):
@@ -121,6 +154,83 @@ class Message(MessageData):
     def interrupts(self) -> list[ToolRequestPart]:
         """Tool requests marked as interrupted."""
         return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
+
+
+_TEXT_DATA_TYPE: str = 'text'
+
+
+class Document(DocumentData):
+    """Multi-part document that can be embedded, indexed, or retrieved."""
+
+    def __init__(
+        self,
+        content: list[DocumentPart],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize with content parts and optional metadata."""
+        doc_content = deepcopy(content)
+        doc_metadata = deepcopy(metadata)
+        super().__init__(content=doc_content, metadata=doc_metadata)
+
+    @staticmethod
+    def from_text(text: str, metadata: dict[str, Any] | None = None) -> 'Document':
+        """Create a document from a text string."""
+        return Document(content=[DocumentPart(root=TextPart(text=text))], metadata=metadata)
+
+    @staticmethod
+    def from_media(
+        url: str,
+        content_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> 'Document':
+        """Create a document from a media URL."""
+        return Document(
+            content=[DocumentPart(root=MediaPart(media=Media(url=url, content_type=content_type)))],
+            metadata=metadata,
+        )
+
+    @staticmethod
+    def from_data(
+        data: str,
+        data_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> 'Document':
+        """Create a document from data, inferring text vs media from data_type."""
+        if data_type == _TEXT_DATA_TYPE:
+            return Document.from_text(data, metadata)
+        return Document.from_media(data, data_type, metadata)
+
+    def text(self) -> str:
+        """Concatenate all text parts."""
+        texts = []
+        for p in self.content:
+            part = p.root if hasattr(p, 'root') else p
+            text_val = getattr(part, 'text', None)
+            if isinstance(text_val, str):
+                texts.append(text_val)
+        return ''.join(texts)
+
+    def media(self) -> list[Media]:
+        """Get all media parts."""
+        return [
+            part.root.media for part in self.content if isinstance(part.root, MediaPart) and part.root.media is not None
+        ]
+
+    def data(self) -> str:
+        """Primary data: text if available, otherwise first media URL."""
+        if self.text():
+            return self.text()
+        if self.media():
+            return self.media()[0].url
+        return ''
+
+    def data_type(self) -> str | None:
+        """Type of primary data: 'text' or first media's content type."""
+        if self.text():
+            return _TEXT_DATA_TYPE
+        if self.media() and self.media()[0].content_type:
+            return self.media()[0].content_type
+        return None
 
 
 class ModelResponse(GenerateResponse, Generic[OutputT]):
@@ -358,8 +468,8 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
 
 
 # Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
-ModelMiddlewareNext = Callable[[ModelRequest[Any], ActionRunContext], Awaitable[ModelResponse[Any]]]
-ModelMiddleware = Callable[
-    [ModelRequest[Any], ActionRunContext, ModelMiddlewareNext],
-    Awaitable[ModelResponse[Any]],
-]
+# Middleware can have two signatures:
+#   Simple (3 params): (req, ctx, next) -> response
+#   Streaming (4 params): (req, ctx, on_chunk, next) -> response
+# The framework detects which signature is used based on parameter count.
+ModelMiddleware = Callable[..., Awaitable[ModelResponse[Any]]]

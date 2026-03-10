@@ -6,6 +6,7 @@
 """Tests for the action module."""
 
 import json
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
@@ -23,6 +24,7 @@ from genkit import (
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import text_from_message
 from genkit._core._action import ActionKind, ActionRunContext
+from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     BaseDataPoint,
     Details,
@@ -33,7 +35,6 @@ from genkit._core._typing import (
     FinishReason,
     Metadata,
     ModelInfo,
-    ModelRequest,
     OutputConfig,
     Part,
     Role,
@@ -47,7 +48,6 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.model import ModelMiddlewareNext
 from genkit.testing import (
     EchoModel,
     ProgrammableModel,
@@ -75,15 +75,15 @@ async def test_generate_uses_default_model(setup_test: SetupFixture) -> None:
     """Test that the generate function uses the default model."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
 
     response = await ai.generate(prompt='hi', config={'temperature': 11})
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(prompt='hi', config={'temperature': 11})
+    stream_result = ai.generate_stream(prompt='hi', config={'temperature': 11})
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -125,11 +125,11 @@ async def test_generate_with_explicit_model(setup_test: SetupFixture) -> None:
 
     response = await ai.generate(model='echoModel', prompt='hi', config={'temperature': 11})
 
-    assert response.text == '[ECHO] user: "hi" {"temperature":11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature":11.0}'
 
-    _, response = ai.generate_stream(model='echoModel', prompt='hi', config={'temperature': 11})
+    stream_result = ai.generate_stream(model='echoModel', prompt='hi', config={'temperature': 11})
 
-    assert (await response).text == '[ECHO] user: "hi" {"temperature":11}'
+    assert (await stream_result.response).text == '[ECHO] user: "hi" {"temperature":11.0}'
 
 
 @pytest.mark.asyncio
@@ -139,7 +139,7 @@ async def test_generate_with_str_prompt(setup_test: SetupFixture) -> None:
 
     response = await ai.generate(prompt='hi', config={'temperature': 11})
 
-    assert response.text == '[ECHO] user: "hi" {"temperature":11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature":11.0}'
 
 
 @pytest.mark.asyncio
@@ -147,15 +147,15 @@ async def test_generate_with_part_prompt(setup_test: SetupFixture) -> None:
     """Test that the generate function with a part prompt works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
 
     response = await ai.generate(prompt=[Part(root=TextPart(text='hi'))], config={'temperature': 11})
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(prompt=[Part(root=TextPart(text='hi'))], config={'temperature': 11})
+    stream_result = ai.generate_stream(prompt=[Part(root=TextPart(text='hi'))], config={'temperature': 11})
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -163,7 +163,7 @@ async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
     """Test that the generate function with a list of parts prompt works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] user: "hello","world" {"temperature":11}'
+    want_txt = '[ECHO] user: "hello","world" {"temperature":11.0}'
 
     response = await ai.generate(
         prompt=[Part(root=TextPart(text='hello')), Part(root=TextPart(text='world'))],
@@ -172,12 +172,12 @@ async def test_generate_with_part_list_prompt(setup_test: SetupFixture) -> None:
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         prompt=[Part(root=TextPart(text='hello')), Part(root=TextPart(text='world'))],
         config={'temperature': 11},
     )
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -185,15 +185,15 @@ async def test_generate_with_str_system(setup_test: SetupFixture) -> None:
     """Test that the generate function with a string system works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature":11.0}'
 
     response = await ai.generate(system='talk like pirate', prompt='hi', config={'temperature': 11})
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(system='talk like pirate', prompt='hi', config={'temperature': 11})
+    stream_result = ai.generate_stream(system='talk like pirate', prompt='hi', config={'temperature': 11})
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -201,7 +201,7 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
     """Test that the generate function with a part system works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] system: "talk like pirate" user: "hi" {"temperature":11.0}'
 
     response = await ai.generate(
         system=[Part(root=TextPart(text='talk like pirate'))],
@@ -211,13 +211,13 @@ async def test_generate_with_part_system(setup_test: SetupFixture) -> None:
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         system=[Part(root=TextPart(text='talk like pirate'))],
         prompt='hi',
         config={'temperature': 11},
     )
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -225,7 +225,7 @@ async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
     """Test that the generate function with a list of parts system works."""
     ai, *_ = setup_test
 
-    want_txt = '[ECHO] system: "talk","like pirate" user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] system: "talk","like pirate" user: "hi" {"temperature":11.0}'
 
     response = await ai.generate(
         system=[Part(root=TextPart(text='talk')), Part(root=TextPart(text='like pirate'))],
@@ -235,13 +235,13 @@ async def test_generate_with_part_list_system(setup_test: SetupFixture) -> None:
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         system=[Part(root=TextPart(text='talk')), Part(root=TextPart(text='like pirate'))],
         prompt='hi',
         config={'temperature': 11},
     )
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -259,9 +259,9 @@ async def test_generate_with_messages(setup_test: SetupFixture) -> None:
         config={'temperature': 11},
     )
 
-    assert response.text == '[ECHO] user: "hi" {"temperature":11}'
+    assert response.text == '[ECHO] user: "hi" {"temperature":11.0}'
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         messages=[
             Message(
                 role=Role.USER,
@@ -271,7 +271,7 @@ async def test_generate_with_messages(setup_test: SetupFixture) -> None:
         config={'temperature': 11},
     )
 
-    assert (await response).text == '[ECHO] user: "hi" {"temperature":11}'
+    assert (await stream_result.response).text == '[ECHO] user: "hi" {"temperature":11.0}'
 
 
 @pytest.mark.asyncio
@@ -300,7 +300,7 @@ async def test_generate_with_system_prompt_messages(
 
     assert response.text == want_txt
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         system='talk like pirate',
         prompt='hi again',
         messages=[
@@ -315,7 +315,7 @@ async def test_generate_with_system_prompt_messages(
         ],
     )
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
 
 
 @pytest.mark.asyncio
@@ -364,14 +364,14 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     assert echo.last_request is not None
     assert echo.last_request.tools == want_request
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
         tools=['testTool'],
     )
 
-    assert (await response).text == want_txt
+    assert (await stream_result.response).text == want_txt
     assert echo.last_request is not None
     assert echo.last_request.tools == want_request
 
@@ -755,7 +755,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
         [ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='tool called'))])],
     ]
 
-    stream, aresponse = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
         tool_choice=ToolChoice.REQUIRED,
@@ -763,7 +763,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     )
 
     chunks = []
-    async for chunk in stream:
+    async for chunk in stream_result.stream:
         summary = ''
         if chunk.role:
             summary += f'{chunk.role} '
@@ -773,7 +773,7 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
                 summary += f' {p.root.text}'
         chunks.append(summary)
 
-    response = await aresponse
+    response = await stream_result.response
 
     assert response.text == 'tool called'
     assert response.request is not None
@@ -811,9 +811,9 @@ async def test_generate_stream_no_need_to_await_response(
         ],
     ]
 
-    stream, _ = ai.generate_stream(model='programmableModel', prompt='do it')
+    stream_result = ai.generate_stream(model='programmableModel', prompt='do it')
     chunks = ''
-    async for chunk in stream:
+    async for chunk in stream_result.stream:
         chunks += chunk.text
     assert chunks == 'hi'
 
@@ -831,7 +831,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
-        config={},
+        config={},  # type: ignore[arg-type]
         tools=[],
         output=OutputConfig(
             format='json',
@@ -870,7 +870,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
 
     assert response.request == want
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
@@ -880,7 +880,7 @@ async def test_generate_with_output(setup_test: SetupFixture) -> None:
         output_instructions='',
     )
 
-    assert (await response).request == want
+    assert (await stream_result.response).request == want
 
 
 @pytest.mark.asyncio
@@ -898,7 +898,7 @@ async def test_generate_defaults_to_json_format(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
-        config={},
+        config={},  # type: ignore[arg-type]
         tools=[],
         output=OutputConfig(
             format='json',
@@ -934,13 +934,13 @@ async def test_generate_defaults_to_json_format(
 
     assert response.request == want
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
     )
 
-    assert (await response).request == want
+    assert (await stream_result.response).request == want
 
 
 @pytest.mark.asyncio
@@ -958,7 +958,7 @@ async def test_generate_json_format_unconstrained(
         messages=[
             Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]),
         ],
-        config={},
+        config={},  # type: ignore[arg-type]
         tools=[],
         output=OutputConfig(
             format='json',
@@ -994,14 +994,14 @@ async def test_generate_json_format_unconstrained(
 
     assert response.request == want
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
         output_constrained=False,
     )
 
-    assert (await response).request == want
+    assert (await stream_result.response).request == want
 
 
 @pytest.mark.asyncio
@@ -1011,7 +1011,7 @@ async def test_generate_with_middleware(
     """When middleware is provided, applies it."""
     ai, *_ = setup_test
 
-    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
+    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1022,7 +1022,7 @@ async def test_generate_with_middleware(
             ctx,
         )
 
-    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
+    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)  # type: ignore[arg-type]
@@ -1037,9 +1037,9 @@ async def test_generate_with_middleware(
 
     assert response.text == want
 
-    _, response = ai.generate_stream(model='echoModel', prompt='hi', use=[pre_middle, post_middle])
+    stream_result = ai.generate_stream(model='echoModel', prompt='hi', use=[pre_middle, post_middle])
 
-    assert (await response).text == want
+    assert (await stream_result.response).text == want
 
 
 @pytest.mark.asyncio
@@ -1049,7 +1049,7 @@ async def test_generate_passes_through_current_action_context(
     """Test that generate uses current action context by default."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
+    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1079,7 +1079,7 @@ async def test_generate_uses_explicitly_passed_in_context(
     """Generate uses specific context instead of current action context."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: ModelMiddlewareNext) -> ModelResponse:
+    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1149,7 +1149,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
                 ],
             )
         ],
-        config={},
+        config={},  # type: ignore[arg-type]
         tools=[],
         output=OutputConfig(
             format='json',
@@ -1186,7 +1186,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
 
     assert response.request == want
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
         output_schema=TestSchema,
@@ -1194,7 +1194,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
         output_instructions=instructions_text,
     )
 
-    assert (await response).request == want
+    assert (await stream_result.response).request == want
 
 
 @pytest.mark.asyncio
@@ -1231,7 +1231,7 @@ async def test_generate_simulates_doc_grounding(
     assert response.request.messages is not None
     assert response.request.messages[0] == want_msg
 
-    _, response = ai.generate_stream(
+    stream_result = ai.generate_stream(
         messages=[
             Message(
                 role=Role.USER,
@@ -1241,7 +1241,7 @@ async def test_generate_simulates_doc_grounding(
         docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
     )
 
-    resp = await response
+    resp = await stream_result.response
     assert resp.request is not None
     assert resp.request.messages is not None
     assert resp.request.messages[0] == want_msg
@@ -1315,17 +1315,17 @@ async def test_define_format(setup_test: SetupFixture) -> None:
 
     chunks = []
 
-    stream, aresponse = ai.generate_stream(
+    stream_result = ai.generate_stream(
         model='programmableModel',
         prompt='hi',
         output_schema=TestSchema,
         output_format='banana',
     )
 
-    async for chunk in stream:
+    async for chunk in stream_result.stream:
         chunks.append(chunk.output)
 
-    response = await aresponse
+    response = await stream_result.response
 
     assert response.output == 'banana model says'
     assert chunks == ['banana chunk 1', 'banana chunk 2', 'banana chunk 3']
@@ -1351,7 +1351,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
                 ],
             ),
         ],
-        config={},
+        config={},  # type: ignore[arg-type]
         tools=[],
         output=OutputConfig(
             format='json',
@@ -1568,11 +1568,11 @@ async def test_define_sync_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    async def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
-        if ctx:
-            ctx.send_chunk(1)
-            ctx.send_chunk(2)
-            ctx.send_chunk(3)
+    async def my_flow(input: str, ctx: ActionRunContext) -> str:
+        # Use ctx.send_chunk() for streaming
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
         return input
 
     assert (await my_flow('banana')) == 'banana'
@@ -1593,11 +1593,11 @@ async def test_define_async_flow(setup_test: SetupFixture) -> None:
     ai, _, _, *_ = setup_test
 
     @ai.flow()
-    async def my_flow(input: str, ctx: ActionRunContext | None = None) -> str:
-        if ctx:
-            ctx.send_chunk(1)
-            ctx.send_chunk(2)
-            ctx.send_chunk(3)
+    async def my_flow(input: str, ctx: ActionRunContext) -> str:
+        # Use ctx.send_chunk() for streaming
+        ctx.send_chunk(1)
+        ctx.send_chunk(2)
+        ctx.send_chunk(3)
         return input
 
     assert (await my_flow('banana')) == 'banana'

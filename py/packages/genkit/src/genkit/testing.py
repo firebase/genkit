@@ -77,7 +77,11 @@ class ProgrammableModel:
         self.chunks = None
         self.last_request = None
 
-    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        self,
+        request: ModelRequest,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
         """Process a generation request and return a programmed response.
 
         This function returns pre-configured responses and streams
@@ -85,7 +89,7 @@ class ProgrammableModel:
 
         Args:
             request: The generation request to process.
-            ctx: The action run context for streaming chunks.
+            ctx: The action run context.
 
         Returns:
             The pre-configured response for the current request.
@@ -149,7 +153,10 @@ def define_programmable_model(
     """
     pm = ProgrammableModel()
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        request: ModelRequest,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
         return await pm.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -190,12 +197,16 @@ class EchoModel:
         self.last_request: ModelRequest | None = None
         self.stream_countdown: bool = stream_countdown
 
-    async def model_fn(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        self,
+        request: ModelRequest,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
         """Process a generation request and echo it back in the response.
 
         Args:
             request: The generation request to process.
-            ctx: The action run context for streaming.
+            ctx: The action run context.
 
         Returns:
             A response containing an echo of the input request details.
@@ -204,7 +215,8 @@ class EchoModel:
 
         # Build echo string from messages
         merged_txt = ''
-        for m in request.messages:
+        messages = request.messages.root if hasattr(request.messages, 'root') else request.messages
+        for m in messages:
             merged_txt += f' {m.role}: ' + ','.join(
                 json.dumps(p.root.text) if p.root.text is not None else '""' for p in m.content
             )
@@ -212,20 +224,29 @@ class EchoModel:
 
         # Add config, tools, and output info
         if request.config:
-            echo_resp += f' {request.config.model_dump_json()}'
-        if request.tools:
-            echo_resp += f' tools={",".join(t.name for t in request.tools)}'
+            if hasattr(request.config, 'model_dump_json'):
+                config_json = request.config.model_dump_json()
+            else:
+                config_json = json.dumps(request.config, separators=(',', ':'))
+        else:
+            config_json = '{}'
+        if request.config and config_json != '{}':
+            echo_resp += f' {config_json}'
+        tools_list = request.tools.root if hasattr(request.tools, 'root') else request.tools
+        if tools_list:
+            echo_resp += f' tools={",".join(t.name for t in tools_list)}'
         if request.tool_choice is not None:
             echo_resp += f' tool_choice={request.tool_choice}'
-        output_json = request.output.model_dump_json() if request.output else '{}'
-        if request.output and output_json != '{}':
+        output_val = request.output.root if hasattr(request.output, 'root') else request.output
+        output_json = output_val.model_dump_json() if output_val else '{}'
+        if output_val and output_json != '{}':
             echo_resp += f' output={output_json}'
 
         # Stream countdown chunks if enabled (matches JS behavior)
         if self.stream_countdown:
             for i, countdown in enumerate(['3', '2', '1']):
                 ctx.send_chunk(
-                    chunk=ModelResponseChunk(role=Role.MODEL, index=i, content=[Part(root=TextPart(text=countdown))])
+                    ModelResponseChunk(role=Role.MODEL, index=i, content=[Part(root=TextPart(text=countdown))])
                 )
 
         # NOTE: Part is a RootModel requiring root=TextPart(...) syntax.
@@ -262,7 +283,10 @@ def define_echo_model(
     """
     echo = EchoModel(stream_countdown=stream_countdown)
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        request: ModelRequest,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
         return await echo.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)
@@ -291,7 +315,11 @@ class StaticResponseModel:
         self.last_request: ModelRequest | None = None
         self.request_count: int = 0
 
-    async def model_fn(self, request: ModelRequest, _ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        self,
+        request: ModelRequest,
+        _ctx: ActionRunContext,
+    ) -> ModelResponse:
         """Return the static response.
 
         Args:
@@ -336,7 +364,10 @@ def define_static_response_model(
     """
     static = StaticResponseModel(message)
 
-    async def model_fn(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def model_fn(
+        request: ModelRequest,
+        ctx: ActionRunContext,
+    ) -> ModelResponse:
         return await static.model_fn(request, ctx)
 
     action = ai.define_model(name=name, fn=model_fn)

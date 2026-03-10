@@ -57,9 +57,8 @@ Test Coverage
 
 import pytest
 
-from genkit import Genkit, Message, ModelResponse, ModelResponseChunk
+from genkit import ActionRunContext, Genkit, Message, ModelConfig, ModelRequest, ModelResponse, ModelResponseChunk
 from genkit._core._typing import (
-    ModelRequest,
     Part,
     Role,
     TextPart,
@@ -78,15 +77,17 @@ from genkit.testing import (
 )
 
 
-class MockActionRunContext:
+class MockActionRunContext(ActionRunContext):
     """Mock context for testing model functions directly."""
 
     def __init__(self) -> None:
         """Initialize with empty chunks list."""
+        super().__init__()
         self.chunks: list[ModelResponseChunk] = []
 
-    def send_chunk(self, chunk: ModelResponseChunk) -> None:
+    def send_chunk(self, chunk: object) -> None:
         """Append a chunk to the chunks list."""
+        assert isinstance(chunk, ModelResponseChunk)
         self.chunks.append(chunk)
 
 
@@ -115,7 +116,7 @@ class TestEchoModel:
         )
 
         # pyright: ignore[reportArgumentType] - MockActionRunContext is compatible
-        response = await echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await echo.model_fn(request, ctx)
 
         assert response.message is not None
         text = response.message.content[0].root.text
@@ -137,10 +138,10 @@ class TestEchoModel:
                     content=[Part(root=TextPart(text='test'))],
                 ),
             ],
-            config={'temperature': 0.5},
+            config=ModelConfig(temperature=0.5),
         )
 
-        response = await echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await echo.model_fn(request, ctx)
 
         assert response.message is not None
         text = response.message.content[0].root.text
@@ -162,7 +163,8 @@ class TestEchoModel:
             ],
         )
 
-        await echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        # Model uses ctx.send_chunk() internally for streaming
+        await echo.model_fn(request, ctx)
 
         # Should have streamed 3, 2, 1
         assert len(ctx.chunks) == 3
@@ -185,7 +187,7 @@ class TestEchoModel:
             ],
         )
 
-        await echo.model_fn(request, ctx)  # type: ignore[arg-type]
+        await echo.model_fn(request, ctx)
 
         assert echo.last_request is not None
         assert echo.last_request.messages[0].content[0].root.text == 'test'
@@ -227,7 +229,7 @@ class TestProgrammableModel:
             ],
         )
 
-        response = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await pm.model_fn(request, ctx)
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Response 1'
@@ -262,8 +264,8 @@ class TestProgrammableModel:
             ],
         )
 
-        response1 = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
-        response2 = await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response1 = await pm.model_fn(request, ctx)
+        response2 = await pm.model_fn(request, ctx)
 
         assert response1.message is not None
         assert response2.message is not None
@@ -300,7 +302,8 @@ class TestProgrammableModel:
             ],
         )
 
-        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        # Model uses ctx.send_chunk() internally for streaming
+        await pm.model_fn(request, ctx)
 
         assert len(ctx.chunks) == 2
         assert ctx.chunks[0].content[0].root.text == 'Chunk 1'
@@ -329,7 +332,7 @@ class TestProgrammableModel:
             ],
         )
 
-        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        await pm.model_fn(request, ctx)
         assert pm.request_count == 1
         assert pm.last_request is not None
 
@@ -363,7 +366,7 @@ class TestProgrammableModel:
             ],
         )
 
-        await pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        await pm.model_fn(request, ctx)
 
         # Modify original request
         original_part = request.messages[0].content[0].root
@@ -418,7 +421,7 @@ class TestStaticResponseModel:
             ],
         )
 
-        response = await static.model_fn(request, ctx)  # type: ignore[arg-type]
+        response = await static.model_fn(request, ctx)
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Static response'
@@ -443,9 +446,9 @@ class TestStaticResponseModel:
             ],
         )
 
-        await static.model_fn(request, ctx)  # type: ignore[arg-type]
-        await static.model_fn(request, ctx)  # type: ignore[arg-type]
-        await static.model_fn(request, ctx)  # type: ignore[arg-type]
+        await static.model_fn(request, ctx)
+        await static.model_fn(request, ctx)
+        await static.model_fn(request, ctx)
 
         assert static.request_count == 3
 

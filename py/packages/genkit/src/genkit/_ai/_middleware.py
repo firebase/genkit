@@ -17,10 +17,11 @@
 """Middleware for the Genkit framework."""
 
 from genkit._ai._document import Document
+from collections.abc import Awaitable, Callable
+
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
-    ModelMiddlewareNext,
     ModelRequest,
     ModelResponse,
     text_from_content,
@@ -50,7 +51,7 @@ def augment_with_context() -> ModelMiddleware:
     async def middleware(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next_middleware: ModelMiddlewareNext,
+        next_middleware: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:  # type: ignore[return]
         if not req.docs:
             return await next_middleware(req, ctx)

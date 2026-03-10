@@ -20,20 +20,50 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import Any, overload
 
-from genkit._core._action import Action, ActionKind, get_func_description
+from typing_extensions import TypeVar
+
+from genkit._core._action import Action, ActionKind, ActionRunContext, get_func_description
 from genkit._core._registry import Registry
 
-T = TypeVar('T')
+InputT = TypeVar('InputT')
+OutputT = TypeVar('OutputT')
+
+
+@overload
+def define_flow(
+    registry: Registry,
+    func: Callable[[], Awaitable[OutputT]],
+    name: str | None = None,
+    description: str | None = None,
+) -> Action[None, OutputT]: ...
+
+
+@overload
+def define_flow(
+    registry: Registry,
+    func: Callable[[InputT], Awaitable[OutputT]],
+    name: str | None = None,
+    description: str | None = None,
+) -> Action[InputT, OutputT]: ...
+
+
+@overload
+def define_flow(
+    registry: Registry,
+    func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]],
+    name: str | None = None,
+    description: str | None = None,
+) -> Action[InputT, OutputT]: ...
 
 
 def define_flow(
     registry: Registry,
-    func: Callable[..., Awaitable[T]],
+    func: Callable[..., Awaitable[Any]],
     name: str | None = None,
     description: str | None = None,
-) -> Action:
+) -> Action[Any, Any]:
     """Register an async function as a flow action."""
     if not inspect.iscoroutinefunction(func):
         raise TypeError(f'Flow must be async: {func.__name__}')

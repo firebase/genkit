@@ -101,7 +101,7 @@ class DynamicActionProvider:
         if not actions:
             return []
 
-        metadata_list = [action.metadata or {} for action in actions]
+        metadata_list: list[ActionMetadataLike] = [action.metadata or {} for action in actions]
 
         if action_name == '*':
             return metadata_list

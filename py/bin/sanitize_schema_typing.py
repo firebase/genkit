@@ -62,13 +62,17 @@ class ClassTransformer(ast.NodeTransformer):
         # The veneer is the ONLY type — used by plugins and end users alike.
         # Wire types are NOT exposed.
         # DocumentData stays in _typing.py — it's the wire base used internally.
-        'Message',  # veneer: ai/messages.py -> Message
-        'RankedDocumentData',  # veneer: blocks/reranker.py -> RankedDocument
-        'ModelRequest',  # veneer: ai/model.py -> ModelRequest
-        'GenerateResponse',  # veneer: ai/model.py -> ModelResponse
-        'GenerateResponseChunk',  # veneer: ai/model.py -> ModelResponseChunk
-        'ModelResponse',  # veneer: ai/model.py -> ModelResponse
-        'ModelResponseChunk',  # veneer: ai/model.py -> ModelResponseChunk
+        # Reranker/retriever/indexer types removed from SDK entirely.
+        'RankedDocumentData',
+        'RankedDocumentMetadata',
+        'CommonRerankerOptions',
+        'RerankerRequest',
+        'RerankerResponse',
+        'CommonRetrieverOptions',
+        'RetrieverRequest',
+        'RetrieverResponse',
+        # Note: ModelRequest, ModelResponse, ModelResponseChunk are NOT excluded
+        # because _model.py imports them as base classes for veneer types.
     })
 
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
@@ -280,6 +284,13 @@ class ClassTransformer(ast.NodeTransformer):
         Returns:
             The transformed ClassDef node, or None to remove it.
         """
+        # Rename classes to their Python-convention wire type names.
+        renamed_classes: dict[str, str] = {
+            'Message': 'MessageData',  # schema "Message" becomes Python "MessageData" wire type
+        }
+        if node.name in renamed_classes:
+            node.name = renamed_classes[node.name]
+
         # Exclude classes that have hand-written veneer types.
         if node.name in self.EXCLUDED_CLASSES:
             return None
@@ -298,7 +309,7 @@ class ClassTransformer(ast.NodeTransformer):
             # Generate a more descriptive docstring based on class type
             if self.is_rootmodel_class(node):
                 docstring = f'Root model for {node.name.lower().replace("_", " ")}.'
-            elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
+            elif any(isinstance(base, ast.Name) and base.id == 'GenkitModel' for base in node.bases):
                 docstring = f'Model for {node.name.lower().replace("_", " ")} data.'
             elif any(isinstance(base, ast.Name) and base.id == 'Enum' for base in node.bases):
                 n = node.name.lower().replace('_', ' ')
@@ -347,8 +358,8 @@ class ClassTransformer(ast.NodeTransformer):
                     self.modified = True
                     continue
                 new_body.append(stmt)
-        elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
-            # Add or update model_config for BaseModel classes
+        elif any(isinstance(base, ast.Name) and base.id == 'GenkitModel' for base in node.bases):
+            # Add or update model_config for GenkitModel classes
             added_config = False
             frozen = node.name == 'PathMetadata'
             has_schema = self.has_schema_field(node)
@@ -425,6 +436,11 @@ class ClassTransformer(ast.NodeTransformer):
         # This stores the original Pydantic type for runtime validation
         if node.name == 'GenerateActionOutputConfig':
             self._inject_schema_type_field(new_body)
+
+        # PYTHON EXTENSION: Inline wrapper types in ModelRequest for better DX.
+        # Plugin authors see `messages: list[MessageData]` instead of `messages: Messages`.
+        if node.name == 'ModelRequest':
+            self._inline_model_request_types(new_body)
 
         node.body = cast(list[ast.stmt], new_body)
         return node
@@ -514,6 +530,66 @@ class ClassTransformer(ast.NodeTransformer):
             body.append(schema_type_field)
         self.modified = True
 
+    def _inline_model_request_types(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
+        """Inline wrapper types in ModelRequest for better developer experience.
+
+        Changes:
+        - messages: Messages -> messages: list[MessageData]
+        - tools: Tools | None -> tools: list[ToolDefinition] | None
+        - docs: Docs | None -> docs: list[DocumentData] | None
+        - output: OutputModel | None -> output: OutputConfig | None
+
+        This gives plugin authors a cleaner type signature in their IDE.
+        RootModel wrappers still exist for backward compatibility but ModelRequest
+        uses plain types directly.
+        """
+        # Mapping from wrapper type name to inlined type
+        type_mappings: dict[str, tuple[str, str | None]] = {
+            # field_name: (inner_type, list_item_type or None if not a list)
+            'messages': ('MessageData', 'list'),
+            'tools': ('ToolDefinition', 'list'),
+            'docs': ('DocumentData', 'list'),
+            'output': ('OutputConfig', None),
+        }
+
+        for stmt in body:
+            if not isinstance(stmt, ast.AnnAssign):
+                continue
+            if not isinstance(stmt.target, ast.Name):
+                continue
+
+            field_name = stmt.target.id
+            if field_name not in type_mappings:
+                continue
+
+            inner_type, container = type_mappings[field_name]
+
+            # Build the new type annotation
+            if container == 'list':
+                # list[InnerType]
+                new_type = ast.Subscript(
+                    value=ast.Name(id='list', ctx=ast.Load()),
+                    slice=ast.Name(id=inner_type, ctx=ast.Load()),
+                    ctx=ast.Load(),
+                )
+            else:
+                # Just the inner type
+                new_type = ast.Name(id=inner_type, ctx=ast.Load())
+
+            # Check if current annotation is Optional (X | None)
+            if isinstance(stmt.annotation, ast.BinOp) and isinstance(stmt.annotation.op, ast.BitOr):
+                # It's X | None, replace X with new_type
+                stmt.annotation = ast.BinOp(
+                    left=new_type,
+                    op=ast.BitOr(),
+                    right=ast.Constant(value=None),
+                )
+            else:
+                # Not optional, just replace
+                stmt.annotation = new_type
+
+            self.modified = True
+
 
 def fix_field_defaults(content: str) -> str:
     """Fix Field(None) and Field(None, ...) to use default=None for pyright compatibility.
@@ -594,20 +670,39 @@ actions, tools, and configuration options.
     future_import = 'from __future__ import annotations'
     compat_import_block = """
 import sys
+import warnings
+from strenum import StrEnum
 from typing import ClassVar
 
-from genkit._core._compat import StrEnum
 from pydantic.alias_generators import to_camel
+
+# Filter Pydantic warning about 'schema' field in OutputConfig shadowing BaseModel.schema().
+# This is intentional - the field name is required for wire protocol compatibility.
+warnings.filterwarnings(
+    'ignore',
+    message='Field name "schema" in "OutputConfig" shadows an attribute in parent',
+    category=UserWarning,
+)
 """
 
     header_text = header.format(year=datetime.now().year)
 
     # Remove existing future import and StrEnum import from content.
+    # These will be re-added in canonical form.
     lines = content.splitlines()
     filtered_lines = [
-        line for line in lines if line.strip() != future_import and line.strip() != 'from enum import StrEnum'
+        line
+        for line in lines
+        if line.strip() != future_import
+        and line.strip() not in ('from enum import StrEnum', 'from strenum import StrEnum')
     ]
     cleaned_content = '\n'.join(filtered_lines)
+
+    # Fix field type annotations: schema 'Message' was renamed to 'MessageData'
+    # but field references in other classes still say 'Message'.
+    import re
+
+    cleaned_content = re.sub(r'\bMessage\b(?!Data)', 'MessageData', cleaned_content)
 
     final_output = header_text + future_import + '\n' + compat_import_block + '\n\n' + cleaned_content
     if not final_output.endswith('\n'):
@@ -742,14 +837,15 @@ def main() -> None:
     if len(sys.argv) != 2:
         sys.exit(1)
 
-    typing_file = Path(sys.argv[1])
+    typing_file = Path(sys.argv[1]).resolve()
 
     # Derive genkit-schema.json path relative to the _typing.py file
     # _typing.py is at: py/packages/genkit/src/genkit/_core/_typing.py
     # schema is at: genkit-tools/genkit-schema.json
-    # So we go up 6 directories from _typing.py to reach repo root, then into genkit-tools/
+    # Go up 6 directories from _typing.py to reach repo root (genkit-cleanup/), then into genkit-tools/
+    # _core(1) -> genkit(2) -> src(3) -> genkit(4) -> packages(5) -> py(6) -> genkit-cleanup
     schema_path = typing_file.parent
-    for _ in range(6):  # Go up: _core -> genkit -> src -> genkit -> packages -> py -> (repo root)
+    for _ in range(6):
         schema_path = schema_path.parent
     schema_path = schema_path / 'genkit-tools' / 'genkit-schema.json'
 

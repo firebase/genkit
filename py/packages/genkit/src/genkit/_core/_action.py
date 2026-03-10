@@ -258,6 +258,8 @@ InputT = TypeVar('InputT', default=Any)
 OutputT = TypeVar('OutputT', default=Any)
 ChunkT = TypeVar('ChunkT', default=Never)
 
+# Generic streaming callback - use Callable[[ChunkT], None] for typed chunks
+# This untyped version is for internal use where chunk type is unknown
 StreamingCallback = Callable[[object], None]
 
 _action_context: ContextVar[dict[str, object] | None] = ContextVar('context')
@@ -265,28 +267,45 @@ _ = _action_context.set(None)
 
 
 class ActionRunContext:
-    """Execution context for an action with streaming support."""
+    """Execution context for an action.
+
+    Provides read-only access to action context (auth, metadata) and streaming support.
+    """
 
     def __init__(
         self,
-        on_chunk: StreamingCallback | None = None,
         context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str, str], None] | None = None,
+        streaming_callback: StreamingCallback | None = None,
     ) -> None:
-        self._on_chunk: StreamingCallback = on_chunk if on_chunk is not None else noop_streaming_callback
         self._context: dict[str, object] = context if context is not None else {}
-        self._on_trace_start: Callable[[str, str], None] = on_trace_start if on_trace_start else lambda _t, _s: None
+        self._streaming_callback = streaming_callback
 
     @property
     def context(self) -> dict[str, object]:
         return self._context
 
-    @cached_property
+    @property
     def is_streaming(self) -> bool:
-        return self._on_chunk != noop_streaming_callback
+        """Returns True if a streaming callback is registered."""
+        return self._streaming_callback is not None
+
+    @property
+    def streaming_callback(self) -> StreamingCallback | None:
+        """Returns the streaming callback, if any.
+
+        Use this when you need to pass the callback to another action.
+        For sending chunks directly, use send_chunk() instead.
+        """
+        return self._streaming_callback
 
     def send_chunk(self, chunk: object) -> None:
-        self._on_chunk(chunk)
+        """Send a streaming chunk to the client.
+
+        Args:
+            chunk: The chunk data to stream.
+        """
+        if self._streaming_callback is not None:
+            self._streaming_callback(chunk)
 
     @staticmethod
     def _current_context() -> dict[str, object] | None:
@@ -372,48 +391,59 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     async def run(
         self,
         input: InputT | None = None,
-        on_chunk: StreamingCallback | None = None,
-        context: dict[str, object] | None = None,
-        on_trace_start: Callable[[str, str], None] | None = None,
-        _telemetry_labels: dict[str, object] | None = None,
-    ) -> ActionResponse[OutputT]:
-        # TODO(#4348): handle telemetry_labels
-
-        if context:
-            _ = _action_context.set(context)
-
-        return await self._fn(
-            input,
-            ActionRunContext(on_chunk=on_chunk, context=_action_context.get(None), on_trace_start=on_trace_start),
-        )
-
-    async def run_raw(
-        self,
-        raw_input: InputT | None = None,
-        on_chunk: StreamingCallback | None = None,
+        on_chunk: Callable[[ChunkT], None] | None = None,
         context: dict[str, object] | None = None,
         on_trace_start: Callable[[str, str], None] | None = None,
         telemetry_labels: dict[str, object] | None = None,
     ) -> ActionResponse[OutputT]:
-        """Execute with raw input, validating via Pydantic first."""
-        input_action: InputT | None = None
-        if self._input_type is not None:
-            if raw_input is None:
-                raise GenkitError(
-                    message=(
-                        f"Action '{self.name}' requires input but none was provided. "
-                        'Please supply a valid input payload.'
-                    ),
-                    status='INVALID_ARGUMENT',
-                )
-            input_action = self._input_type.validate_python(raw_input)
+        """Execute the action with optional input validation.
 
-        return await self.run(
-            input=input_action,
-            on_chunk=on_chunk,
-            context=context,
-            on_trace_start=on_trace_start,
-            _telemetry_labels=telemetry_labels,
+        Args:
+            input: The input to the action. Will be validated against the input schema.
+            on_chunk: Optional streaming callback for chunked responses.
+            context: Optional context dict for the action.
+            on_trace_start: Optional callback invoked when trace starts.
+            telemetry_labels: Custom labels to set as direct span attributes.
+
+        Returns:
+            ActionResponse containing the result and trace metadata.
+
+        Raises:
+            GenkitError: If input validation fails (INVALID_ARGUMENT status).
+        """
+        # Validate input if we have a schema
+        if self._input_type is not None:
+            try:
+                input = self._input_type.validate_python(input)
+            except ValidationError as e:
+                if input is None:
+                    raise GenkitError(
+                        message=(
+                            f"Action '{self.name}' requires input but none was provided. "
+                            'Please supply a valid input payload.'
+                        ),
+                        status='INVALID_ARGUMENT',
+                    ) from e
+                raise GenkitError(
+                    message=f"Invalid input for action '{self.name}': {e}",
+                    status='INVALID_ARGUMENT',
+                    cause=e,
+                ) from e
+
+        if context:
+            _ = _action_context.set(context)
+
+        streaming_cb = cast(StreamingCallback, on_chunk) if on_chunk else None
+
+        return await self._fn(
+            input,
+            ActionRunContext(
+                context=_action_context.get(None),
+                streaming_callback=streaming_cb,
+            ),
+            streaming_cb,
+            on_trace_start,
+            telemetry_labels,
         )
 
     def stream(
@@ -426,13 +456,13 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         """Execute and return a StreamResponse with .stream and .response properties."""
         channel: Channel[ChunkT, ActionResponse[OutputT]] = Channel(timeout=timeout)
 
-        def send_chunk(c: object) -> None:
-            channel.send(cast(ChunkT, c))
+        def send_chunk(c: ChunkT) -> None:
+            channel.send(c)
 
         resp = self.run(
             input=input,
             context=context,
-            _telemetry_labels=telemetry_labels,
+            telemetry_labels=telemetry_labels,
             on_chunk=send_chunk,
         )
         channel.set_close_future(asyncio.create_task(resp))
@@ -449,8 +479,9 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         annotations: dict[str, Any],
         _input_spec: inspect.FullArgSpec,
     ) -> None:
+        # Allow up to 2 args: (input, ctx) - use ctx.send_chunk() for streaming
         if len(action_args) > 2:
-            raise TypeError(f'can only have up to 2 arg: {action_args}')
+            raise TypeError(f'can only have up to 2 args: {action_args}')
 
         if len(action_args) > 0:
             type_adapter = TypeAdapter(arg_types[0])
@@ -485,16 +516,22 @@ class ActionMetadata(BaseModel):
     metadata: dict[str, object] | None = None
 
 
-_TracingWrapper = Callable[[object | None, ActionRunContext], Awaitable[ActionResponse[Any]]]
-
-
 def _make_tracing_wrapper(
     name: str,
-    kind: ActionKind,
+    kind: str,
     span_metadata: dict[str, SpanAttributeValue],
     n_action_args: int,
-    fn: Callable[..., object],
-) -> _TracingWrapper:
+    fn: Callable[..., Awaitable[Any]],
+) -> Callable[
+    [
+        object | None,
+        ActionRunContext,
+        StreamingCallback | None,
+        Callable[[str, str], None] | None,
+        dict[str, object] | None,
+    ],
+    Awaitable[ActionResponse[Any]],
+]:
     """Create a tracing wrapper for an async action function."""
 
     def _record_latency(output: object, start_time: float) -> object:
@@ -508,7 +545,13 @@ def _make_tracing_wrapper(
                     output = cast(Any, output).model_copy(update={'latency_ms': latency_ms})
         return output
 
-    async def tracing_wrapper(input: object | None, ctx: ActionRunContext) -> ActionResponse[Any]:
+    async def tracing_wrapper(
+        input: object | None,
+        ctx: ActionRunContext,
+        on_chunk: StreamingCallback | None,
+        on_trace_start: Callable[[str, str], None] | None,
+        telemetry_labels: dict[str, object] | None,
+    ) -> ActionResponse[Any]:
         start_time = time.perf_counter()
 
         with _save_parent_path():
@@ -516,7 +559,14 @@ def _make_tracing_wrapper(
                 # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
                 trace_id = format(span.get_span_context().trace_id, '032x')
                 span_id = format(span.get_span_context().span_id, '016x')
-                ctx._on_trace_start(trace_id, span_id)  # pyright: ignore[reportPrivateUsage]
+                if on_trace_start:
+                    on_trace_start(trace_id, span_id)
+
+                # Set telemetry labels as direct span attributes (matches JS/Go behavior)
+                if telemetry_labels:
+                    for key, value in telemetry_labels.items():
+                        span.set_attribute(key, str(value))
+
                 _record_input_metadata(
                     span=span,
                     kind=kind,
@@ -534,7 +584,7 @@ def _make_tracing_wrapper(
                         case 2:
                             output = await fn(input, ctx)
                         case _:
-                            raise ValueError('action fn must have 0-2 args...')
+                            raise ValueError('action fn must have 0-2 args')
                 except Exception as e:
                     # Re-raise existing GenkitError instances to avoid double-wrapping
                     if isinstance(e, GenkitError):

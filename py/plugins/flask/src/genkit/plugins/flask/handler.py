@@ -22,7 +22,8 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, I
 from typing import Any, TypeAlias, TypeVar
 
 from flask import Response, request
-from genkit import Flow, Genkit, GenkitError
+from genkit import Genkit, GenkitError
+from genkit._core._action import Action
 from genkit.plugin_api import (
     ContextProvider,
     RequestData,
@@ -81,7 +82,7 @@ class _FlaskRequestData(RequestData):
 def genkit_flask_handler(
     ai: Genkit,
     context_provider: ContextProvider | None = None,
-) -> Callable[[Flow], Callable[..., Awaitable[FlaskRouteReturn]]]:
+) -> Callable[[Action], Callable[..., Awaitable[FlaskRouteReturn]]]:
     """A decorator for serving Genkit flows via a flask sever.
 
     ```python
@@ -103,8 +104,8 @@ def genkit_flask_handler(
     """
     loop = _create_loop()
 
-    def decorator(flow: Flow) -> Callable[..., Awaitable[FlaskRouteReturn]]:
-        if not isinstance(flow, Flow):
+    def decorator(flow: Action) -> Callable[..., Awaitable[FlaskRouteReturn]]:
+        if not isinstance(flow, Action):
             raise GenkitError(status='INVALID_ARGUMENT', message='must apply @genkit_flask_handler on a @flow')
 
         async def handler() -> FlaskRouteReturn:
@@ -127,11 +128,11 @@ def genkit_flask_handler(
 
                 async def async_gen() -> AsyncIterator[str]:
                     try:
-                        stream, response = flow._action.stream(input_data.get('data'), context=action_context)
-                        async for chunk in stream:
+                        stream_response = flow.stream(input_data.get('data'), context=action_context)
+                        async for chunk in stream_response.stream:
                             yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
-                        result = await response
+                        result = await stream_response.response
                         yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
                     except Exception as e:
                         ex = e
@@ -143,7 +144,7 @@ def genkit_flask_handler(
                 return iter
             else:
                 try:
-                    response = await flow._action.run_raw(input_data.get('data'), context=action_context)
+                    response = await flow.run(input_data.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e

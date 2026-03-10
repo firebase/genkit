@@ -28,9 +28,9 @@ from pydantic import BaseModel, Field
 from genkit import Genkit, Message, ModelResponse
 from genkit._ai._prompt import load_prompt_folder, lookup_prompt, prompt
 from genkit._core._action import ActionKind
+from genkit._core._model import ModelConfig
 from genkit._core._typing import (
     GenerateActionOptions,
-    ModelConfig,
     ModelRequest,
     Part,
     Role,
@@ -60,7 +60,7 @@ async def test_simple_prompt() -> None:
     """Test simple prompt rendering."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature":11}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'temperature': 11})
 
@@ -83,7 +83,7 @@ async def test_simple_prompt_with_override_config() -> None:
     ai, *_ = setup_test()
 
     # Config is MERGED: prompt config (banana: true) + opts config (temperature: 12)
-    want_txt = '[ECHO] user: "hi" {"banana":true,"temperature":12}'
+    want_txt = '[ECHO] user: "hi" {"temperature":12.0,"banana":true}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
@@ -181,7 +181,7 @@ test_cases_parse_partial_json = [
         ModelConfig.model_validate({'temperature': 11}),
         {},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] system: "hello foo (bar)" {"banana":"ripe","temperature":11.0}""",
+        """[ECHO] system: "hello foo (bar)" {"temperature":11.0,"banana":"ripe"}""",
     ),
     (
         'renders user prompt',
@@ -201,7 +201,7 @@ test_cases_parse_partial_json = [
         ModelConfig.model_validate({'temperature': 11}),
         {},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] user: "hello foo (bar_system)" {"banana":"ripe","temperature":11.0}""",
+        """[ECHO] user: "hello foo (bar_system)" {"temperature":11.0,"banana":"ripe"}""",
     ),
     (
         'renders user prompt with context',
@@ -221,7 +221,7 @@ test_cases_parse_partial_json = [
         ModelConfig.model_validate({'temperature': 11}),
         {'auth': {'email': 'a@b.c'}},
         # Config is MERGED: prompt config (banana: ripe) + opts config (temperature: 11)
-        """[ECHO] user: "hello foo (bar, a@b.c)" {"banana":"ripe","temperature":11.0}""",
+        """[ECHO] user: "hello foo (bar, a@b.c)" {"temperature":11.0,"banana":"ripe"}""",
     ),
 ]
 
@@ -740,7 +740,7 @@ async def test_automatic_prompt_loading_default_none() -> None:
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_mock() -> None:
     """Test that Genkit defaults to ./prompts when prompt_dir is not specified and dir exists."""
-    with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
+    with patch('genkit._ai._aio.load_prompt_folder') as mock_load, patch('genkit._ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts existing
         mock_path_instance = MagicMock()
         mock_path_instance.is_dir.return_value = True
@@ -753,7 +753,7 @@ async def test_automatic_prompt_loading_defaults_mock() -> None:
 @pytest.mark.asyncio
 async def test_automatic_prompt_loading_defaults_missing() -> None:
     """Test that Genkit skips loading when ./prompts is missing."""
-    with patch('genkit.ai._aio.load_prompt_folder') as mock_load, patch('genkit.ai._aio.Path') as mock_path:
+    with patch('genkit._ai._aio.load_prompt_folder') as mock_load, patch('genkit._ai._aio.Path') as mock_path:
         # Setup mock to simulate ./prompts missing
         mock_path_instance = MagicMock()
         mock_path_instance.is_dir.return_value = False

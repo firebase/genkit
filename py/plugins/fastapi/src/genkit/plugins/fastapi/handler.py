@@ -22,7 +22,7 @@ from typing import Any
 
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
-from genkit import Flow, Genkit, GenkitError
+from genkit import Action, Genkit, GenkitError
 from genkit.plugin_api import ContextProvider, RequestData, dump_dict, dump_json, get_callable_json
 
 
@@ -39,7 +39,7 @@ class _FastAPIRequestData(RequestData):
 def genkit_fastapi_handler(
     ai: Genkit,
     context_provider: ContextProvider | None = None,
-) -> Callable[[Callable[[], Flow]], Callable[[Request], Awaitable[Response | dict[str, Any]]]]:
+) -> Callable[[Callable[[], Action]], Callable[[Request], Awaitable[Response | dict[str, Any]]]]:
     """Decorator for serving Genkit flows via FastAPI.
 
     Example:
@@ -69,11 +69,11 @@ def genkit_fastapi_handler(
         context_provider: Optional function to extract context from the request.
 
     Returns:
-        A decorator that wraps a function returning a Flow.
+        A decorator that wraps a function returning a Action.
     """
 
     def decorator(
-        fn: Callable[[], Flow],
+        fn: Callable[[], Action],
     ) -> Callable[[Request], Awaitable[Response | dict[str, Any]]]:
         async def handler(request: Request) -> Response | dict[str, Any]:
             result = fn()
@@ -81,7 +81,7 @@ def genkit_fastapi_handler(
             if asyncio.iscoroutine(result):
                 result = await result
             flow = result
-            if not isinstance(flow, Flow):
+            if not isinstance(flow, Action):
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
                     message='genkit_fastapi_handler must wrap a function that returns a @flow',
@@ -91,7 +91,7 @@ def genkit_fastapi_handler(
             if 'data' not in body:
                 err = GenkitError(
                     status='INVALID_ARGUMENT',
-                    message='Flow request must be wrapped in {"data": ...} object',
+                    message='Action request must be wrapped in {"data": ...} object',
                 )
                 return Response(
                     status_code=400,
@@ -117,11 +117,11 @@ def genkit_fastapi_handler(
 
                 async def event_stream() -> AsyncIterator[str]:
                     try:
-                        stream_iter, response_future = flow._action.stream(body.get('data'), context=action_context)
-                        async for chunk in stream_iter:
+                        stream_response = flow.stream(body.get('data'), context=action_context)
+                        async for chunk in stream_response.stream:
                             yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
-                        result = await response_future
+                        result = await stream_response.response
                         yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
                     except Exception as e:
                         ex = e.cause if isinstance(e, GenkitError) else e
@@ -130,7 +130,7 @@ def genkit_fastapi_handler(
                 return StreamingResponse(event_stream(), media_type='text/event-stream')
             else:
                 try:
-                    response = await flow._action.run_raw(body.get('data'), context=action_context)
+                    response = await flow.run(body.get('data'), context=action_context)
                     return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e.cause if isinstance(e, GenkitError) else e

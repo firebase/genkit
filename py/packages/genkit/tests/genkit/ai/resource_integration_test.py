@@ -77,7 +77,7 @@ async def test_dynamic_action_provider_resource() -> None:
     registry = Registry()
 
     # Register a dynamic provider that handles any "dynamic://*" uri
-    def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> object:
+    async def provider_fn(input: dict[str, object], ctx: ActionRunContext) -> object:
         kind = cast(ActionKind, input['kind'])
         name = cast(str, input['name'])
         if kind == ActionKind.RESOURCE and name.startswith('dynamic://'):

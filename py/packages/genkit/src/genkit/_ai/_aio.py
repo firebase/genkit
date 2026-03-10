@@ -26,7 +26,8 @@ import threading
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar, overload
+from typing import Any, Generic, ParamSpec, TypeVar, cast, overload
+
 
 import anyio
 import uvicorn
@@ -57,6 +58,7 @@ from genkit._ai._model import (
 )
 from genkit._ai._prompt import (
     ExecutablePrompt,
+    ModelStreamResponse,
     PromptConfig,
     define_helper,
     define_partial,
@@ -115,9 +117,68 @@ logger = get_logger(__name__)
 # TypeVars for generic input/output typing
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
+ChunkT = TypeVar('ChunkT')
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')
+
+
+class _FlowDecorator:
+    """Decorator class for flow registration with proper type inference."""
+
+    def __init__(self, registry: Registry, name: str | None, description: str | None) -> None:
+        self._registry = registry
+        self._name = name
+        self._description = description
+
+    @overload
+    def __call__(
+        self, func: Callable[[], Awaitable[OutputT]]
+    ) -> Action[None, OutputT]: ...
+
+    @overload
+    def __call__(
+        self, func: Callable[[InputT], Awaitable[OutputT]]
+    ) -> Action[InputT, OutputT]: ...
+
+    @overload
+    def __call__(
+        self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]
+    ) -> Action[InputT, OutputT]: ...
+
+    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any]:
+        return define_flow(self._registry, func, self._name, self._description)
+
+
+class _FlowDecoratorWithChunk(Generic[ChunkT]):
+    """Decorator class for streaming flow registration with chunk type inference."""
+
+    def __init__(
+        self, registry: Registry, name: str | None, description: str | None, chunk_type: type[ChunkT]
+    ) -> None:
+        self._registry = registry
+        self._name = name
+        self._description = description
+        self._chunk_type = chunk_type
+
+    @overload
+    def __call__(
+        self, func: Callable[[], Awaitable[OutputT]]
+    ) -> Action[None, OutputT, ChunkT]: ...
+
+    @overload
+    def __call__(
+        self, func: Callable[[InputT], Awaitable[OutputT]]
+    ) -> Action[InputT, OutputT, ChunkT]: ...
+
+    @overload
+    def __call__(
+        self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]
+    ) -> Action[InputT, OutputT, ChunkT]: ...
+
+    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any, ChunkT]:
+        # Cast is safe: chunk_type is purely for static typing, runtime behavior is identical
+        return cast(Action[Any, Any, ChunkT], define_flow(self._registry, func, self._name, self._description))
 
 
 def _model_supports_long_running(model_action: Action) -> bool:
@@ -172,15 +233,50 @@ class Genkit:
     # Registry methods
     # -------------------------------------------------------------------------
 
+    @overload
     def flow(
-        self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[..., Awaitable[T]]], Action]:
-        """Decorator to register an async function as a flow."""
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        chunk_type: None = None,
+    ) -> _FlowDecorator: ...
 
-        def wrapper(func: Callable[..., Awaitable[T]]) -> Action:
-            return define_flow(self.registry, func, name, description)
+    @overload
+    def flow(
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        *,
+        chunk_type: type[ChunkT],
+    ) -> _FlowDecoratorWithChunk[ChunkT]: ...
 
-        return wrapper
+    def flow(
+        self,
+        name: str | None = None,
+        description: str | None = None,
+        chunk_type: type[Any] | None = None,
+    ) -> _FlowDecorator | _FlowDecoratorWithChunk[Any]:
+        """Decorator to register an async function as a flow.
+
+        Args:
+            name: Optional name for the flow. Defaults to the function name.
+            description: Optional description for the flow.
+            chunk_type: Optional type for streaming chunks. When provided,
+                the returned Action will be typed as Action[InputT, OutputT, ChunkT].
+
+        Example:
+            @ai.flow()
+            async def my_flow(x: str) -> int: ...  # Action[str, int]
+
+            @ai.flow(chunk_type=str)
+            async def streaming_flow(x: int, ctx: ActionRunContext) -> str:
+                ctx.send_chunk("progress")
+                return "done"
+            # Action[int, str, str]
+        """
+        if chunk_type is not None:
+            return _FlowDecoratorWithChunk(self.registry, name, description, chunk_type)
+        return _FlowDecorator(self.registry, name, description)
 
     def define_helper(self, name: str, fn: Callable[..., Any]) -> None:
         """Register a Handlebars helper function."""
@@ -671,6 +767,56 @@ class Genkit:
         else:
             raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
+    # Overload: output_schema=type[T] -> ModelResponse[T]
+    @overload
+    async def generate(
+        self,
+        *,
+        model: str | None = None,
+        prompt: str | list[Part] | None = None,
+        system: str | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_schema: type[OutputT],
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: str | None = None,
+        output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[Document] | None = None,
+    ) -> ModelResponse[OutputT]: ...
+
+    # Overload: no output_schema, dict, or union -> ModelResponse[Any]
+    @overload
+    async def generate(
+        self,
+        *,
+        model: str | None = None,
+        prompt: str | list[Part] | None = None,
+        system: str | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        tool_responses: list[Part] | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_schema: type | dict | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: str | None = None,
+        output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[Document] | None = None,
+    ) -> ModelResponse[Any]: ...
+
     async def generate(
         self,
         *,
@@ -721,6 +867,33 @@ class Genkit:
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
 
+    # Overload: output_schema=type[T] -> ModelStreamResponse[T]
+    @overload
+    def generate_stream(
+        self,
+        *,
+        model: str | None = None,
+        prompt: str | list[Part] | None = None,
+        system: str | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_schema: type[OutputT],
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: str | None = None,
+        output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[Document] | None = None,
+        timeout: float | None = None,
+    ) -> ModelStreamResponse[OutputT]: ...
+
+    # Overload: no output_schema, dict, or union -> ModelStreamResponse[Any]
+    @overload
     def generate_stream(
         self,
         *,
@@ -742,12 +915,32 @@ class Genkit:
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
-    ) -> tuple[
-        AsyncIterator[ModelResponseChunk],
-        asyncio.Future[ModelResponse[Any]],
-    ]:
-        """Stream generated text, returning (chunk_iterator, response_future)."""
-        stream: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
+    ) -> ModelStreamResponse[Any]: ...
+
+    def generate_stream(
+        self,
+        *,
+        model: str | None = None,
+        prompt: str | list[Part] | None = None,
+        system: str | list[Part] | None = None,
+        messages: list[Message] | None = None,
+        tools: list[str] | None = None,
+        return_tool_requests: bool | None = None,
+        tool_choice: ToolChoice | None = None,
+        config: dict[str, object] | ModelConfig | None = None,
+        max_turns: int | None = None,
+        context: dict[str, object] | None = None,
+        output_schema: type | dict | None = None,
+        output_format: str | None = None,
+        output_content_type: str | None = None,
+        output_instructions: str | None = None,
+        output_constrained: bool | None = None,
+        use: list[ModelMiddleware] | None = None,
+        docs: list[Document] | None = None,
+        timeout: float | None = None,
+    ) -> ModelStreamResponse[Any]:
+        """Stream generated text, returning a ModelStreamResponse with .stream and .response."""
+        channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
         async def _run_generate() -> ModelResponse[Any]:
             return await generate_action(
@@ -772,14 +965,15 @@ class Genkit:
                         docs=docs,  # type: ignore[arg-type]
                     ),
                 ),
-                on_chunk=lambda c: stream.send(c),
+                on_chunk=lambda c: channel.send(c),
                 middleware=use,
                 context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
             )
 
-        stream.set_close_future(asyncio.create_task(_run_generate()))
+        response_future: asyncio.Future[ModelResponse[Any]] = asyncio.create_task(_run_generate())
+        channel.set_close_future(response_future)
 
-        return stream, stream.closed
+        return ModelStreamResponse[Any](channel=channel, response_future=response_future)
 
     async def embed(
         self,
@@ -909,7 +1103,7 @@ class Genkit:
         return Action(
             kind=ActionKind.TOOL,
             name=name,
-            fn=fn,
+            fn=fn,  # type: ignore[arg-type]  # dynamic tools may be sync
             description=description,
             metadata=tool_meta,
         )

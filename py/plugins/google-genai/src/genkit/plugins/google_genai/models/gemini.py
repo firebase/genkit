@@ -167,6 +167,7 @@ from genkit import (
     TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import GenerationCommonConfig
 from genkit.model import Candidate, FinishReason, get_basic_usage_stats
 from genkit.plugin_api import (
     ActionRunContext,
@@ -1709,7 +1710,7 @@ class GeminiModel:
         """
         if isinstance(config, GeminiConfigSchema):
             schema = config
-        elif isinstance(config, ModelConfig):
+        elif isinstance(config, (ModelConfig, GenerationCommonConfig)):
             schema = config
         elif isinstance(config, dict):
             if 'image_config' in config:
@@ -1721,7 +1722,7 @@ class GeminiModel:
         else:
             return None
 
-        dumped = schema.model_dump(exclude_none=True)
+        dumped = schema.model_dump(exclude_none=True, by_alias=False)
         return dumped or None
 
     def _extract_tools_from_config(

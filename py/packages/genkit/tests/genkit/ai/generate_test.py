@@ -7,7 +7,7 @@
 
 import json
 import pathlib
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, cast
 
 import pytest
@@ -18,17 +18,16 @@ from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelRe
 from genkit._ai._generate import generate_action
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._core._action import ActionRunContext
+from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
     Metadata,
-    ModelRequest,
     Part,
     Role,
     TextPart,
 )
-from genkit.model import ModelMiddlewareNext
 from genkit.testing import (
     ProgrammableModel,
     define_echo_model,
@@ -154,7 +153,7 @@ async def test_generate_applies_middleware(
     async def pre_middle(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
@@ -169,7 +168,7 @@ async def test_generate_applies_middleware(
     async def post_middle(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
@@ -207,7 +206,7 @@ async def test_generate_middleware_next_fn_args_optional(
     async def post_middle(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
@@ -245,14 +244,14 @@ async def test_generate_middleware_can_modify_context(
     async def add_context(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         return await next(req, ActionRunContext(context={**ctx.context, 'banana': True}))
 
     async def inject_context(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
@@ -309,31 +308,35 @@ async def test_generate_middleware_can_modify_stream(
     async def modify_stream(
         req: ModelRequest,
         ctx: ActionRunContext,
-        next: ModelMiddlewareNext,
+        on_chunk: Callable[[ModelResponseChunk], None] | None,
+        next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        ctx.send_chunk(
-            ModelResponseChunk(
-                role=Role.MODEL,
-                content=[Part(root=TextPart(text='something extra before'))],
-            )
-        )
-
-        def chunk_handler(chunk: object) -> None:
-            assert isinstance(chunk, ModelResponseChunk)
-            ctx.send_chunk(
+        # 4-param streaming middleware signature
+        if on_chunk:
+            on_chunk(
                 ModelResponseChunk(
                     role=Role.MODEL,
-                    content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
+                    content=[Part(root=TextPart(text='something extra before'))],
                 )
             )
 
-        resp = await next(req, ActionRunContext(context=ctx.context, on_chunk=chunk_handler))
-        ctx.send_chunk(
-            ModelResponseChunk(
-                role=Role.MODEL,
-                content=[Part(root=TextPart(text='something extra after'))],
+        def chunk_handler(chunk: ModelResponseChunk) -> None:
+            if on_chunk:
+                on_chunk(
+                    ModelResponseChunk(
+                        role=Role.MODEL,
+                        content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
+                    )
+                )
+
+        resp = await next(req, ctx, chunk_handler)
+        if on_chunk:
+            on_chunk(
+                ModelResponseChunk(
+                    role=Role.MODEL,
+                    content=[Part(root=TextPart(text='something extra after'))],
+                )
             )
-        )
         return resp
 
     got_chunks = []
