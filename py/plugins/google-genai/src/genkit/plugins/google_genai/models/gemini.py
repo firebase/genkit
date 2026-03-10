@@ -142,8 +142,9 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
+import json
 from functools import cached_property
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Any as JsonAny, cast
 
 from google import genai
 from google.genai import types as genai_types
@@ -169,9 +170,6 @@ from genkit import (
 )
 from genkit._core._typing import GenerationCommonConfig
 from genkit.model import Candidate, FinishReason, get_basic_usage_stats
-import json
-from typing import Any as JsonAny
-
 from genkit.plugin_api import (
     ActionRunContext,
     StatusName,
@@ -179,15 +177,15 @@ from genkit.plugin_api import (
 )
 
 
-def _to_dict(obj: JsonAny) -> JsonAny:
+def _to_dict(obj: JsonAny) -> JsonAny:  # noqa: ANN401
     """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
     return obj.model_dump() if isinstance(obj, BaseModel) else obj
 
 
-from genkit.plugins.google_genai.models._deprecations import (
+from genkit.plugins.google_genai.models._deprecations import (  # noqa: E402
     deprecated_enum_metafactory,
 )
-from genkit.plugins.google_genai.models.utils import PartConverter
+from genkit.plugins.google_genai.models.utils import PartConverter  # noqa: E402
 
 
 class HarmCategory(StrEnum):

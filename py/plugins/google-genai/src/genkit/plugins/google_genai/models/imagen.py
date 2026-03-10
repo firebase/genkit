@@ -24,7 +24,9 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
+import json
 from functools import cached_property
+from typing import Any
 
 from google import genai
 from google.genai import types as genai_types
@@ -42,14 +44,10 @@ from genkit import (
     Supports,
     TextPart,
 )
-import json
-from typing import Any
-
 from genkit.plugin_api import ActionRunContext, tracer
-from pydantic import BaseModel
 
 
-def _to_dict(obj: Any) -> Any:
+def _to_dict(obj: Any) -> Any:  # noqa: ANN401
     """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
     return obj.model_dump() if isinstance(obj, BaseModel) else obj
 

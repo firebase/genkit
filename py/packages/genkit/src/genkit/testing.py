@@ -214,7 +214,7 @@ class EchoModel:
         self.last_request = request
 
         # Build echo string from messages
-        # ty/pyright ignores below: hasattr checks handle both wire and veneer types at runtime,
+        # hasattr checks handle both wire and veneer types at runtime,
         # but type checkers can't narrow union types through hasattr() properly
         merged_txt = ''
         messages = request.messages.root if hasattr(request.messages, 'root') else request.messages  # pyright: ignore[reportAttributeAccessIssue]

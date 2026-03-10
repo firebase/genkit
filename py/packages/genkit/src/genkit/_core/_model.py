@@ -99,7 +99,8 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
         """Wrap MessageData in Message veneer for convenience methods."""
         from genkit._core._model import Message
 
-        return [m if isinstance(m, Message) else Message(m) for m in v]  # pyrefly: ignore[bad-return]
+        # pyrefly: ignore[bad-return]
+        return [m if isinstance(m, Message) else Message(m) for m in v]
 
     @field_validator('docs', mode='before')
     @classmethod
@@ -251,7 +252,7 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
     message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
     # Override request to accept ModelRequest (veneer) instead of GenerateRequest (wire)
     # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
-    request: ModelRequest[Any] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    request: ModelRequest | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""

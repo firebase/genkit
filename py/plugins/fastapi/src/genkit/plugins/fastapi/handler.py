@@ -21,14 +21,15 @@ import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+from pydantic import BaseModel
+
 from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 from genkit import Action, Genkit, GenkitError
 from genkit.plugin_api import ContextProvider, RequestData, get_callable_json
-from pydantic import BaseModel
 
 
-def _to_dict(obj: Any) -> Any:
+def _to_dict(obj: Any) -> Any:  # noqa: ANN401
     """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
     return obj.model_dump() if isinstance(obj, BaseModel) else obj
 

@@ -277,7 +277,6 @@ async def generate_action(
     # Plugin returns ModelResponse directly. Framework sets request and
     # any output format context (message_parser, schema_type) as private attrs.
     response = model_response
-    # ModelRequest.request is typed as Request (wrapper) but GenerateRequest works at runtime.
     response.request = request
     if formatter:
         response._message_parser = message_parser

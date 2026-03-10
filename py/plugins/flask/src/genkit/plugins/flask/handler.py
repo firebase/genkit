@@ -22,6 +22,8 @@ from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable
 from typing import Any, TypeAlias, TypeVar
 
+from pydantic import BaseModel
+
 from flask import Response, request
 from genkit import Genkit, GenkitError
 from genkit._core._action import Action
@@ -30,10 +32,9 @@ from genkit.plugin_api import (
     RequestData,
     get_callable_json,
 )
-from pydantic import BaseModel
 
 
-def _to_dict(obj: Any) -> Any:
+def _to_dict(obj: Any) -> Any:  # noqa: ANN401
     """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
     return obj.model_dump() if isinstance(obj, BaseModel) else obj
 

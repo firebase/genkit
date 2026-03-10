@@ -158,7 +158,7 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
 
                     template = opts.get('template')
                     # p_metadata is guaranteed to be dict here due to isinstance checks above
-                    # (lines 149-157), but type checkers can't narrow the union type properly.
+                    # (lines 148-155), but type checkers can't narrow the union type properly.
                     # Using ignores instead of runtime assertions to avoid overhead.
                     # pyrefly: ignore[unsupported-operation,not-iterable]
                     if 'resource' in p_metadata:  # ty: ignore[unsupported-operator]  # fmt: skip
