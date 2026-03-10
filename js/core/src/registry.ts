@@ -226,7 +226,7 @@ export class Registry {
     // plugin initializers below. Actions registered by plugins during init would
     // be missing from actionsById until listActions() (which calls initializeAllPlugins)
     // runs. So ensure plugins are initialized before the final lookup.
-    if (!parsedKey?.pluginName && !parsedKey?.dynamicActionHost) {
+    if (parsedKey && !parsedKey.pluginName && !parsedKey.dynamicActionHost) {
       await this.initializeAllPlugins();
     }
 
