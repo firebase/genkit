@@ -278,7 +278,7 @@ async def generate_action(
     # any output format context (message_parser, schema_type) as private attrs.
     response = model_response
     # ModelRequest.request is typed as Request (wrapper) but GenerateRequest works at runtime.
-    response.request = request  # type: ignore[assignment]
+    response.request = request
     if formatter:
         response._message_parser = message_parser
     if schema_type:

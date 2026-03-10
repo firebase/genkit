@@ -398,9 +398,13 @@ class Genkit:
         """Register a custom output format."""
         self.registry.register_value('format', format.name, format)
 
+    # NOTE: The 3 overloads below have input_schema/output_schema in different positions to enable
+    # proper generic type inference for each usage pattern. pyrefly flags this as "inconsistent-overload"
+    # but it's intentional - pyright and ty accept this pattern.
+
     # Overload 1: Both input_schema and output_schema typed -> ExecutablePrompt[InputT, OutputT]
     @overload
-    def define_prompt(
+    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
         self,
         name: str | None = None,
         variant: str | None = None,
@@ -428,7 +432,7 @@ class Genkit:
 
     # Overload 2: Only input_schema typed -> ExecutablePrompt[InputT, Any]
     @overload
-    def define_prompt(
+    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
         self,
         name: str | None = None,
         variant: str | None = None,
@@ -456,7 +460,7 @@ class Genkit:
 
     # Overload 3: Only output_schema typed -> ExecutablePrompt[Any, OutputT]
     @overload
-    def define_prompt(
+    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
         self,
         name: str | None = None,
         variant: str | None = None,
@@ -509,6 +513,7 @@ class Genkit:
         docs: list[Document] | None = None,
     ) -> ExecutablePrompt[Any, Any]: ...
 
+    # pyrefly:ignore[inconsistent-overload]
     def define_prompt(  # pyright: ignore[reportInconsistentOverload]
         self,
         name: str | None = None,

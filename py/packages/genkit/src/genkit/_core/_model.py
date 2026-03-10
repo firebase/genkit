@@ -87,9 +87,11 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
                 print(doc.text)  # Document veneer property
     """
 
-    messages: list[Message]  # type: ignore[assignment]
-    docs: list[Document] | None = None  # type: ignore[assignment]
-    config: ConfigT | None = None  # type: ignore[assignment]
+    # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
+    # (MessageData, DocumentData) to provide convenience methods like .text
+    messages: list[Message]  # pyrefly: ignore[bad-override]
+    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]
+    config: ConfigT | None = None  # pyrefly: ignore[bad-override]
 
     @field_validator('messages', mode='before')
     @classmethod
@@ -97,7 +99,7 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
         """Wrap MessageData in Message veneer for convenience methods."""
         from genkit._core._model import Message
 
-        return [m if isinstance(m, Message) else Message(m) for m in v]
+        return [m if isinstance(m, Message) else Message(m) for m in v]  # pyrefly: ignore[bad-return]
 
     @field_validator('docs', mode='before')
     @classmethod
@@ -108,6 +110,7 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
         # Import here to avoid forward reference issues
         from genkit._core._model import Document
 
+        # pyrefly: ignore[bad-return]
         return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
 
 
@@ -247,7 +250,8 @@ class ModelResponse(GenerateResponse, Generic[OutputT]):
     # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
     message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
     # Override request to accept ModelRequest (veneer) instead of GenerateRequest (wire)
-    request: ModelRequest | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
+    request: ModelRequest[Any] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""

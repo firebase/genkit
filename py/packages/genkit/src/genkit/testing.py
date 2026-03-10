@@ -214,9 +214,11 @@ class EchoModel:
         self.last_request = request
 
         # Build echo string from messages
+        # ty/pyright ignores below: hasattr checks handle both wire and veneer types at runtime,
+        # but type checkers can't narrow union types through hasattr() properly
         merged_txt = ''
-        messages = request.messages.root if hasattr(request.messages, 'root') else request.messages
-        for m in messages:
+        messages = request.messages.root if hasattr(request.messages, 'root') else request.messages  # pyright: ignore[reportAttributeAccessIssue]
+        for m in messages:  # ty: ignore[not-iterable]
             merged_txt += f' {m.role}: ' + ','.join(
                 json.dumps(p.root.text) if p.root.text is not None else '""' for p in m.content
             )
@@ -232,13 +234,13 @@ class EchoModel:
             config_json = '{}'
         if request.config and config_json != '{}':
             echo_resp += f' {config_json}'
-        tools_list = request.tools.root if hasattr(request.tools, 'root') else request.tools
+        tools_list = request.tools.root if hasattr(request.tools, 'root') else request.tools  # pyright: ignore[reportAttributeAccessIssue,reportOptionalMemberAccess]
         if tools_list:
-            echo_resp += f' tools={",".join(t.name for t in tools_list)}'
+            echo_resp += f' tools={",".join(t.name for t in tools_list)}'  # ty: ignore[not-iterable]
         if request.tool_choice is not None:
             echo_resp += f' tool_choice={request.tool_choice}'
-        output_val = request.output.root if hasattr(request.output, 'root') else request.output
-        output_json = output_val.model_dump_json() if output_val else '{}'
+        output_val = request.output.root if hasattr(request.output, 'root') else request.output  # pyright: ignore[reportAttributeAccessIssue,reportOptionalMemberAccess]
+        output_json = output_val.model_dump_json() if output_val else '{}'  # ty: ignore[unresolved-attribute]
         if output_val and output_json != '{}':
             echo_resp += f' output={output_json}'
 

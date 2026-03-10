@@ -31,6 +31,9 @@ from genkit._core._compat import override
 class RedactedSpan(ReadableSpan):
     """A span wrapper that overrides attributes while delegating everything else."""
 
+    # pyrefly:ignore[bad-override]
+    _attributes: dict[str, Any]
+
     def __init__(self, span: ReadableSpan, attributes: dict[str, Any]) -> None:
         self._span = span
         self._attributes = attributes

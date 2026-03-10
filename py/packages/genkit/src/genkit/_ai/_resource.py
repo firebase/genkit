@@ -88,7 +88,7 @@ def define_resource(registry: Registry, opts: ResourceOptions, fn: ResourceFn) -
     """Register a resource action for a specific URI or template."""
     action = dynamic_resource(opts, fn)
 
-    action.matches = create_matcher(opts.get('uri'), opts.get('template'))  # type: ignore[attr-defined]
+    action.matches = create_matcher(opts.get('uri'), opts.get('template'))
 
     # Mark as not dynamic since it's being registered
     action.metadata['dynamic'] = False
@@ -144,26 +144,37 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                     if p.metadata is None:
                         # Different Part types have different metadata types (Metadata or dict)
                         # dict works for both types at runtime
-                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
+                        # pyrefly:ignore[bad-assignment]
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]  # ty: ignore[invalid-assignment]
                     if isinstance(p.metadata, Metadata):
                         p_metadata = p.metadata.root
                     elif isinstance(p.metadata, dict):
                         p_metadata = p.metadata
                     else:
                         # dict works for both Part types at runtime
-                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
+                        # pyrefly:ignore[bad-assignment]
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]  # ty: ignore[invalid-assignment]
                         p_metadata = p.metadata
 
                     template = opts.get('template')
-                    if 'resource' in p_metadata:
-                        if 'parent' not in p_metadata['resource']:
-                            p_metadata['resource']['parent'] = {'uri': input_data.uri}
+                    # p_metadata is guaranteed to be dict here due to isinstance checks above
+                    # (lines 149-157), but type checkers can't narrow the union type properly.
+                    # Using ignores instead of runtime assertions to avoid overhead.
+                    # pyrefly: ignore[unsupported-operation,not-iterable]
+                    if 'resource' in p_metadata:  # ty: ignore[unsupported-operator]  # fmt: skip
+                        # pyrefly: ignore[bad-index,unsupported-operation]
+                        if 'parent' not in p_metadata['resource']:  # ty: ignore[not-subscriptable]  # fmt: skip
+                            # pyrefly: ignore[bad-index,unsupported-operation]
+                            p_metadata['resource']['parent'] = {'uri': input_data.uri}  # ty: ignore[not-subscriptable]  # fmt: skip
                             if template:
-                                p_metadata['resource']['parent']['template'] = template
+                                # pyrefly: ignore[bad-index,unsupported-operation]
+                                p_metadata['resource']['parent']['template'] = template  # ty: ignore[not-subscriptable]  # fmt: skip
                     else:
-                        p_metadata['resource'] = {'uri': input_data.uri}
+                        # pyrefly: ignore[unsupported-operation]
+                        p_metadata['resource'] = {'uri': input_data.uri}  # ty: ignore[invalid-assignment]  # fmt: skip
                         if template:
-                            p_metadata['resource']['template'] = template
+                            # pyrefly: ignore[bad-index,unsupported-operation]
+                            p_metadata['resource']['template'] = template  # ty: ignore[not-subscriptable]  # fmt: skip
                 elif isinstance(p, dict):
                     if 'metadata' not in p or p['metadata'] is None:
                         p['metadata'] = {}
@@ -254,9 +265,7 @@ async def find_matching_resource(
     """Find a matching resource action from dynamic resources or registry."""
     if dynamic_resources:
         for action in dynamic_resources:
-            if (
-                hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data)  # type: ignore[attr-defined]
-            ):
+            if hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data):
                 return action
 
     # Try exact match in registry
@@ -269,9 +278,7 @@ async def find_matching_resource(
     resources = await registry.resolve_actions_by_kind(ActionKind.RESOURCE)
 
     for action in resources.values():
-        if (
-            hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data)  # type: ignore[attr-defined]
-        ):
+        if hasattr(action, 'matches') and callable(action.matches) and action.matches(input_data):
             return action
 
     return None

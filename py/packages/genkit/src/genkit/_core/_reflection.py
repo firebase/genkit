@@ -166,7 +166,8 @@ async def _get_actions_payload(registry: Registry) -> dict[str, dict[str, Any]]:
                 if not existing.get(f) and advertised.get(f):
                     existing[f] = advertised[f]
             if isinstance(existing.get('metadata'), dict) and isinstance(advertised.get('metadata'), dict):
-                existing['metadata'] = {**advertised['metadata'], **existing['metadata']}
+                # isinstance checks above guarantee both are dicts, but ty can't narrow .get() results
+                existing['metadata'] = {**advertised['metadata'], **existing['metadata']}  # ty: ignore[invalid-argument-type]
 
     return actions
 

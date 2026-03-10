@@ -113,7 +113,8 @@ def define_tool(
         TypeError: If func is not an async function.
     """
     if not inspect.iscoroutinefunction(func):
-        raise TypeError(f'Tool function must be async. Got sync function: {func.__name__}')
+        # All Python functions have __name__, but ty is strict about Callable protocol
+        raise TypeError(f'Tool function must be async. Got sync function: {func.__name__}')  # ty: ignore[unresolved-attribute]
 
     tool_name = name if name is not None else getattr(func, '__name__', 'unnamed_tool')
     tool_description = _get_func_description(func, description)
