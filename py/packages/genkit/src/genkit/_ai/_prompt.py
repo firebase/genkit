@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable, Iterator
+from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
 
@@ -45,8 +45,6 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
-
-ModelStreamingCallback = StreamingCallback
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -65,6 +63,8 @@ from genkit._core._typing import (
     ToolRequestPart,
     ToolResponsePart,
 )
+
+ModelStreamingCallback = StreamingCallback
 
 logger = get_logger(__name__)
 
@@ -347,7 +347,8 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     ) -> GenerateActionOptions:
         """Render the prompt template without executing, returning GenerateActionOptions."""
         await self._ensure_resolved()
-        opts = opts or {}
+        if opts is None:
+            opts = cast(PromptGenerateOptions, {})
         output_opts = opts.get('output') or {}
         context = opts.get('context')
 
@@ -696,9 +697,10 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         constrained=options.output.constrained if options.output else None,
     )
     return ModelRequest(
-        messages=options.messages,
+        # Field validators auto-wrap MessageData -> Message and DocumentData -> Document
+        messages=options.messages,  # type: ignore[arg-type]
         config=options.config if options.config is not None else {},  # type: ignore[arg-type]
-        docs=options.docs if options.docs else None,
+        docs=options.docs if options.docs else None,  # type: ignore[arg-type]
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output=output_config,
@@ -835,7 +837,7 @@ async def render_message_prompt(
             data=DataArgument[dict[str, Any]](
                 input=flattened_data,
                 context=context,
-                messages=messages_,  # pyright: ignore[reportArgumentType]
+                messages=messages_,  # type: ignore[arg-type]
             ),
             options=PromptMetadata(
                 input=PromptInputConfig(

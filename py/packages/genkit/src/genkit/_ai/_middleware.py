@@ -16,9 +16,9 @@
 
 """Middleware for the Genkit framework."""
 
-from genkit._ai._document import Document
 from collections.abc import Awaitable, Callable
 
+from genkit._ai._document import Document
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
@@ -52,11 +52,11 @@ def augment_with_context() -> ModelMiddleware:
         req: ModelRequest,
         ctx: ActionRunContext,
         next_middleware: Callable[..., Awaitable[ModelResponse]],
-    ) -> ModelResponse:  # type: ignore[return]
+    ) -> ModelResponse:
         if not req.docs:
             return await next_middleware(req, ctx)
 
-        user_message = last_user_message(req.messages)  # type: ignore[arg-type]
+        user_message = last_user_message(req.messages)
         if not user_message:
             return await next_middleware(req, ctx)
 

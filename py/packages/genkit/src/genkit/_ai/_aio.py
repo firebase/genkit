@@ -24,10 +24,9 @@ import signal
 import socket
 import threading
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from pathlib import Path
 from typing import Any, Generic, ParamSpec, TypeVar, cast, overload
-
 
 import anyio
 import uvicorn
@@ -132,19 +131,13 @@ class _FlowDecorator:
         self._description = description
 
     @overload
-    def __call__(
-        self, func: Callable[[], Awaitable[OutputT]]
-    ) -> Action[None, OutputT]: ...
+    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Action[None, OutputT]: ...
 
     @overload
-    def __call__(
-        self, func: Callable[[InputT], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT]: ...
+    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Action[InputT, OutputT]: ...
 
     @overload
-    def __call__(
-        self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT]: ...
+    def __call__(self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]) -> Action[InputT, OutputT]: ...
 
     def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any]:
         return define_flow(self._registry, func, self._name, self._description)
@@ -153,23 +146,17 @@ class _FlowDecorator:
 class _FlowDecoratorWithChunk(Generic[ChunkT]):
     """Decorator class for streaming flow registration with chunk type inference."""
 
-    def __init__(
-        self, registry: Registry, name: str | None, description: str | None, chunk_type: type[ChunkT]
-    ) -> None:
+    def __init__(self, registry: Registry, name: str | None, description: str | None, chunk_type: type[ChunkT]) -> None:
         self._registry = registry
         self._name = name
         self._description = description
         self._chunk_type = chunk_type
 
     @overload
-    def __call__(
-        self, func: Callable[[], Awaitable[OutputT]]
-    ) -> Action[None, OutputT, ChunkT]: ...
+    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Action[None, OutputT, ChunkT]: ...
 
     @overload
-    def __call__(
-        self, func: Callable[[InputT], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT, ChunkT]: ...
+    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Action[InputT, OutputT, ChunkT]: ...
 
     @overload
     def __call__(
@@ -190,9 +177,10 @@ def _model_supports_long_running(model_action: Action) -> bool:
     if hasattr(model_info, 'supports'):
         supports = getattr(model_info, 'supports', None)
         return bool(getattr(supports, 'long_running', False)) if supports else False
-    # Handle dict
+    # Handle dict (cast needed because isinstance narrows too much for type checkers)
     if isinstance(model_info, dict):
-        supports = model_info.get('supports')
+        model_dict = cast(dict[str, Any], model_info)
+        supports = model_dict.get('supports')
         return bool(supports.get('longRunning', False)) if isinstance(supports, dict) else False
     return False
 
@@ -860,7 +848,7 @@ class Genkit:
                     output_instructions=output_instructions,
                     output_schema=output_schema,
                     output_constrained=output_constrained,
-                    docs=docs,  # type: ignore[arg-type]
+                    docs=docs,
                 ),
             ),
             middleware=use,
@@ -962,7 +950,7 @@ class Genkit:
                         output_instructions=output_instructions,
                         output_schema=output_schema,
                         output_constrained=output_constrained,
-                        docs=docs,  # type: ignore[arg-type]
+                        docs=docs,
                     ),
                 ),
                 on_chunk=lambda c: channel.send(c),

@@ -234,7 +234,7 @@ async def generate_action(
                     modified_on_chunk if modified_on_chunk is not None else chunk_callback,
                 )
 
-            return await current_middleware(req, ctx, chunk_callback, next_fn_streaming)  # type: ignore[call-arg]
+            return await current_middleware(req, ctx, chunk_callback, next_fn_streaming)
         else:
             # Simple middleware: (req, ctx, next) -> response
             async def next_fn_simple(
@@ -248,7 +248,7 @@ async def generate_action(
                     chunk_callback,
                 )
 
-            return await current_middleware(req, ctx, next_fn_simple)  # type: ignore[call-arg]
+            return await current_middleware(req, ctx, next_fn_simple)
 
     # if resolving the 'resume' option above generated a tool message, stream it.
     if resumed_tool_message and on_chunk:
@@ -575,9 +575,10 @@ async def action_to_generate_request(
         constrained=options.output.constrained if options.output else None,
     )
     return ModelRequest(
-        messages=options.messages,
+        # Field validators auto-wrap MessageData -> Message and DocumentData -> Document
+        messages=options.messages,  # type: ignore[arg-type]
         config=options.config if options.config is not None else {},  # type: ignore[arg-type]
-        docs=options.docs if options.docs else None,
+        docs=options.docs if options.docs else None,  # type: ignore[arg-type]
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output=output_config,

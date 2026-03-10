@@ -30,7 +30,6 @@ from typing import Any, Generic, cast
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from typing_extensions import TypeVar
 
-from genkit._core._action import ActionRunContext
 from genkit._core._extract import extract_json
 from genkit._core._typing import (
     DocumentData,
@@ -88,13 +87,13 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
                 print(doc.text)  # Document veneer property
     """
 
-    messages: list['Message']  # type: ignore[assignment]
-    docs: 'list[Document] | None' = None  # type: ignore[assignment]
+    messages: list[Message]  # type: ignore[assignment]
+    docs: list[Document] | None = None  # type: ignore[assignment]
     config: ConfigT | None = None  # type: ignore[assignment]
 
     @field_validator('messages', mode='before')
     @classmethod
-    def _wrap_messages(cls, v: list[MessageData]) -> list['Message']:
+    def _wrap_messages(cls, v: list[MessageData]) -> list[Message]:
         """Wrap MessageData in Message veneer for convenience methods."""
         from genkit._core._model import Message
 
@@ -102,7 +101,7 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
 
     @field_validator('docs', mode='before')
     @classmethod
-    def _wrap_docs(cls, v: list[DocumentData] | None) -> 'list[Document] | None':
+    def _wrap_docs(cls, v: list[DocumentData] | None) -> list[Document] | None:
         """Wrap DocumentData in Document veneer for convenience methods."""
         if v is None:
             return None
@@ -173,7 +172,7 @@ class Document(DocumentData):
         super().__init__(content=doc_content, metadata=doc_metadata)
 
     @staticmethod
-    def from_text(text: str, metadata: dict[str, Any] | None = None) -> 'Document':
+    def from_text(text: str, metadata: dict[str, Any] | None = None) -> Document:
         """Create a document from a text string."""
         return Document(content=[DocumentPart(root=TextPart(text=text))], metadata=metadata)
 
@@ -182,7 +181,7 @@ class Document(DocumentData):
         url: str,
         content_type: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> 'Document':
+    ) -> Document:
         """Create a document from a media URL."""
         return Document(
             content=[DocumentPart(root=MediaPart(media=Media(url=url, content_type=content_type)))],
@@ -194,7 +193,7 @@ class Document(DocumentData):
         data: str,
         data_type: str | None = None,
         metadata: dict[str, Any] | None = None,
-    ) -> 'Document':
+    ) -> Document:
         """Create a document from data, inferring text vs media from data_type."""
         if data_type == _TEXT_DATA_TYPE:
             return Document.from_text(data, metadata)

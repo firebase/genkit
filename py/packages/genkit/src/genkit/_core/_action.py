@@ -23,7 +23,6 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
-from functools import cached_property
 from typing import Any, ClassVar, Generic, cast, get_type_hints
 
 from opentelemetry.trace import Span
