@@ -1011,7 +1011,9 @@ async def test_generate_with_middleware(
     """When middleware is provided, applies it."""
     ai, *_ = setup_test
 
-    async def pre_middle(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
+    async def pre_middle(
+        req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1022,7 +1024,9 @@ async def test_generate_with_middleware(
             ctx,
         )
 
-    async def post_middle(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
+    async def post_middle(
+        req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
         txt = text_from_message(resp.message)  # type: ignore[arg-type]
@@ -1049,7 +1053,9 @@ async def test_generate_passes_through_current_action_context(
     """Test that generate uses current action context by default."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
+    async def inject_context(
+        req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(
@@ -1079,7 +1085,9 @@ async def test_generate_uses_explicitly_passed_in_context(
     """Generate uses specific context instead of current action context."""
     ai, *_ = setup_test
 
-    async def inject_context(req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]) -> ModelResponse:
+    async def inject_context(
+        req: ModelRequest, ctx: ActionRunContext, next: Callable[..., Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
         return await next(
             ModelRequest(

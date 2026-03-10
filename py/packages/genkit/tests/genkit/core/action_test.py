@@ -6,7 +6,6 @@
 """Tests for the action module."""
 
 import json
-from collections.abc import Callable
 from typing import cast
 
 import pytest
