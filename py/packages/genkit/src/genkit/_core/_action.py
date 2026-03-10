@@ -518,7 +518,7 @@ class ActionMetadata(BaseModel):
 
 def _make_tracing_wrapper(
     name: str,
-    kind: str,
+    kind: ActionKind,
     span_metadata: dict[str, SpanAttributeValue],
     n_action_args: int,
     fn: Callable[..., Awaitable[Any]],

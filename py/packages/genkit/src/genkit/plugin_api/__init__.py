@@ -18,7 +18,6 @@
 
 # Base class and framework primitives
 from genkit._core._action import Action, ActionKind, ActionMetadata, ActionRunContext
-from genkit._core._base import dump_dict, dump_json
 from genkit._core._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
 from genkit._core._context import ContextProvider, RequestData
 from genkit._core._environment import is_dev_environment
@@ -93,8 +92,6 @@ __all__ = [
     'evaluator_action_metadata',
     'evaluator_ref',
     'EvaluatorRef',
-    'dump_dict',
-    'dump_json',
     'ContextProvider',
     'RequestData',
 ]

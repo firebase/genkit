@@ -85,7 +85,7 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
             for msg in request.messages:
                 print(msg.text)  # Message veneer property
             for doc in request.docs or []:
-                print(doc.text())  # Document veneer method
+                print(doc.text)  # Document veneer property
     """
 
     messages: list['Message']  # type: ignore[assignment]
@@ -200,6 +200,7 @@ class Document(DocumentData):
             return Document.from_text(data, metadata)
         return Document.from_media(data, data_type, metadata)
 
+    @cached_property
     def text(self) -> str:
         """Concatenate all text parts."""
         texts = []
@@ -210,26 +211,29 @@ class Document(DocumentData):
                 texts.append(text_val)
         return ''.join(texts)
 
+    @cached_property
     def media(self) -> list[Media]:
         """Get all media parts."""
         return [
             part.root.media for part in self.content if isinstance(part.root, MediaPart) and part.root.media is not None
         ]
 
+    @cached_property
     def data(self) -> str:
         """Primary data: text if available, otherwise first media URL."""
-        if self.text():
-            return self.text()
-        if self.media():
-            return self.media()[0].url
+        if self.text:
+            return self.text
+        if self.media:
+            return self.media[0].url
         return ''
 
+    @cached_property
     def data_type(self) -> str | None:
         """Type of primary data: 'text' or first media's content type."""
-        if self.text():
+        if self.text:
             return _TEXT_DATA_TYPE
-        if self.media() and self.media()[0].content_type:
-            return self.media()[0].content_type
+        if self.media and self.media[0].content_type:
+            return self.media[0].content_type
         return None
 
 

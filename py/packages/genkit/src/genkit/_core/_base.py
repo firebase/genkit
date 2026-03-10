@@ -63,35 +63,3 @@ class GenkitModel(BaseModel):
         kwargs.setdefault('exclude_none', True)
         kwargs.setdefault('fallback', _default_serializer)
         return super().model_dump_json(**kwargs)
-
-
-def dump_dict(obj: object) -> dict[str, object]:
-    """Serialize a GenkitModel (or any Pydantic model) to a camelCase dict.
-
-    Convenience wrapper around model_dump with Genkit defaults.
-    Plain dicts are returned as-is.
-    """
-    if isinstance(obj, dict):
-        return obj  # type: ignore[return-value]
-    if isinstance(obj, GenkitModel):
-        return obj.model_dump()
-    if hasattr(obj, 'model_dump'):
-        return obj.model_dump(by_alias=True, exclude_none=True)  # type: ignore[union-attr]
-    return obj  # type: ignore[return-value]  # primitives passed through as-is
-
-
-def dump_json(obj: object, fallback: object = None) -> str:
-    """Serialize a GenkitModel, Pydantic model, or dict to a JSON string.
-
-    Convenience wrapper around model_dump_json with Genkit defaults.
-    fallback: unused, kept for API compatibility.
-    """
-    import json
-
-    if isinstance(obj, dict):
-        return json.dumps(obj, separators=(',', ':'))
-    if isinstance(obj, GenkitModel):
-        return obj.model_dump_json()
-    if hasattr(obj, 'model_dump_json'):
-        return obj.model_dump_json(by_alias=True, exclude_none=True)  # type: ignore[union-attr]
-    return json.dumps(obj, separators=(',', ':'))

@@ -46,14 +46,14 @@ def test_simple_text_document() -> None:
     """Test creating a simple text Document."""
     doc = Document.from_text('sample text')
 
-    assert doc.text() == 'sample text'
+    assert doc.text == 'sample text'
 
 
 def test_media_document() -> None:
     """Test creating a media Document."""
     doc = Document.from_media(url='data:one')
 
-    assert doc.media() == [
+    assert doc.media == [
         Media(url='data:one'),
     ]
 
@@ -65,9 +65,9 @@ def test_from_data_text_document() -> None:
     metadata = {'embedMetadata': {'embeddingType': 'text'}}
     doc = Document.from_data(data, data_type, metadata)
 
-    assert doc.text() == data
+    assert doc.text == data
     assert doc.metadata == metadata
-    assert doc.data_type() == data_type
+    assert doc.data_type == data_type
 
 
 def test_from_data_media_document() -> None:
@@ -77,58 +77,58 @@ def test_from_data_media_document() -> None:
     metadata = {'embedMetadata': {'embeddingType': 'image'}}
     doc = Document.from_data(data, data_type, metadata)
 
-    assert doc.media() == [
+    assert doc.media == [
         Media(url=data, content_type=data_type),
     ]
     assert doc.metadata == metadata
-    assert doc.data_type() == data_type
+    assert doc.data_type == data_type
 
 
 def test_concatenates_text() -> None:
-    """Test that text() concatenates multiple text parts."""
+    """Test that text concatenates multiple text parts."""
     content = [DocumentPart(root=TextPart(text='hello')), DocumentPart(root=TextPart(text='world'))]
     doc = Document(content=content)
 
-    assert doc.text() == 'helloworld'
+    assert doc.text == 'helloworld'
 
 
 def test_multiple_media_document() -> None:
-    """Test that media() returns all media parts."""
+    """Test that media returns all media parts."""
     content = [
         DocumentPart(root=MediaPart(media=Media(url='data:one'))),
         DocumentPart(root=MediaPart(media=Media(url='data:two'))),
     ]
     doc = Document(content=content)
 
-    assert doc.media() == [
+    assert doc.media == [
         Media(url='data:one'),
         Media(url='data:two'),
     ]
 
 
 def test_data_with_text() -> None:
-    """Test data() with a text document."""
+    """Test data with a text document."""
     doc = Document.from_text('hello')
 
-    assert doc.data() == 'hello'
+    assert doc.data == 'hello'
 
 
 def test_data_with_media() -> None:
-    """Test data() with a media document."""
+    """Test data with a media document."""
     doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
-    assert doc.data() == 'gs://somebucket/someimage.png'
+    assert doc.data == 'gs://somebucket/someimage.png'
 
 
 def test_data_type_with_text() -> None:
-    """Test data_type() with a text document."""
+    """Test data_type with a text document."""
     doc = Document.from_text('hello')
 
-    assert doc.data_type() == 'text'
+    assert doc.data_type == 'text'
 
 
 def test_data_type_with_media() -> None:
-    """Test data_type() with a media document."""
+    """Test data_type with a media document."""
     doc = Document.from_media(url='gs://somebucket/someimage.png', content_type='image/png')
 
-    assert doc.data_type() == 'image/png'
+    assert doc.data_type == 'image/png'
