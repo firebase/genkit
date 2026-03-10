@@ -222,6 +222,14 @@ export class Registry {
     R extends Action<I, O>,
   >(key: string): Promise<R> {
     const parsedKey = parseRegistryKey(key);
+    // For keys without a plugin segment (e.g. /flow/orchestrator), we never run
+    // plugin initializers below. Actions registered by plugins during init would
+    // be missing from actionsById until listActions() (which calls initializeAllPlugins)
+    // runs. So ensure plugins are initialized before the final lookup.
+    if (!parsedKey?.pluginName && !parsedKey?.dynamicActionHost) {
+      await this.initializeAllPlugins();
+    }
+
     if (
       parsedKey?.dynamicActionHost &&
       this.actionsById[
