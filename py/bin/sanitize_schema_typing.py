@@ -668,14 +668,19 @@ actions, tools, and configuration options.
     # Ensure there's exactly one newline between header and content
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
-    compat_import_block = """
+
+    # Header imports - these go first after the future import
+    header_imports = """
 import sys
 import warnings
 from strenum import StrEnum
 from typing import ClassVar
 
 from pydantic.alias_generators import to_camel
+"""
 
+    # Warnings filter - this goes AFTER all imports to avoid E402
+    warnings_filter = """
 # Filter Pydantic warning about 'schema' field in OutputConfig shadowing BaseModel.schema().
 # This is intentional - the field name is required for wire protocol compatibility.
 warnings.filterwarnings(
@@ -687,15 +692,66 @@ warnings.filterwarnings(
 
     header_text = header.format(year=datetime.now().year)
 
-    # Remove existing future import and StrEnum import from content.
-    # These will be re-added in canonical form.
+    # Lines that are already in the header template and should not be duplicated.
+    lines_in_header = {
+        future_import,
+        'from enum import StrEnum',
+        'from strenum import StrEnum',
+        'import sys',
+        'import warnings',
+        'from typing import ClassVar',
+        'from pydantic.alias_generators import to_camel',
+    }
+
     lines = content.splitlines()
-    filtered_lines = [
-        line
-        for line in lines
-        if line.strip() != future_import
-        and line.strip() not in ('from enum import StrEnum', 'from strenum import StrEnum')
-    ]
+    content_imports: list[str] = []  # imports from content that need to go before warnings.filterwarnings()
+    filtered_lines: list[str] = []
+    in_docstring = False
+    skip_warnings_filterwarnings = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip lines that are already in the header template
+        if stripped in lines_in_header:
+            continue
+
+        # Skip the module docstring (will be re-added by header)
+        if stripped.startswith('"""Schema types module') or stripped.startswith("'''Schema types module"):
+            in_docstring = True
+            continue
+        if in_docstring:
+            if stripped.endswith('"""') or stripped.endswith("'''"):
+                in_docstring = False
+            continue
+
+        # Skip standalone docstring lines that are just the closing quotes
+        if stripped in ('"""', "'''"):
+            continue
+
+        # Skip the string literal form of the docstring (from ast.unparse)
+        # This happens when ast.unparse converts a module docstring to a string expression
+        if stripped.startswith("'Schema types module") or stripped.startswith('"Schema types module'):
+            continue
+
+        # Skip warnings.filterwarnings call (may span multiple lines)
+        if stripped.startswith('warnings.filterwarnings('):
+            if not stripped.endswith(')'):
+                skip_warnings_filterwarnings = True
+            continue
+        if skip_warnings_filterwarnings:
+            if stripped.endswith(')'):
+                skip_warnings_filterwarnings = False
+            continue
+
+        # Collect imports separately - they need to go before warnings.filterwarnings()
+        # to avoid E402 "module level import not at top of file"
+        if stripped.startswith('from ') or stripped.startswith('import '):
+            content_imports.append(line)
+            continue
+
+        filtered_lines.append(line)
+
     cleaned_content = '\n'.join(filtered_lines)
 
     # Fix field type annotations: schema 'Message' was renamed to 'MessageData'
@@ -704,7 +760,19 @@ warnings.filterwarnings(
 
     cleaned_content = re.sub(r'\bMessage\b(?!Data)', 'MessageData', cleaned_content)
 
-    final_output = header_text + future_import + '\n' + compat_import_block + '\n\n' + cleaned_content
+    # Assemble final output with imports BEFORE warnings.filterwarnings() to avoid E402.
+    # Order: header -> future import -> header imports -> content imports -> warnings filter -> content
+    content_imports_block = '\n'.join(content_imports) + '\n' if content_imports else ''
+    final_output = (
+        header_text
+        + future_import
+        + '\n'
+        + header_imports
+        + content_imports_block
+        + warnings_filter
+        + '\n'
+        + cleaned_content
+    )
     if not final_output.endswith('\n'):
         final_output += '\n'
     return final_output
