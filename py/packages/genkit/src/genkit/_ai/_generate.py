@@ -643,7 +643,9 @@ async def resolve_tool_requests(
 
                 runner = run_next
 
-            tool_response_part, interrupt_part = await runner(ToolHookParams(tool_request_part=tool_req_root, tool=tool))
+            tool_response_part, interrupt_part = await runner(
+                ToolHookParams(tool_request_part=tool_req_root, tool=tool)
+            )
         else:
             tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 
