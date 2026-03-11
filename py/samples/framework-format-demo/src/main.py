@@ -62,7 +62,6 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit import Genkit
-from genkit._core._typing import OutputConfig
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -151,13 +150,11 @@ async def classify_sentiment_enum(input: ClassifySentimentInput) -> str:
     """
     response = await ai.generate(
         prompt=f'Classify the sentiment of this review: "{input.review}"',
-        output=OutputConfig(
-            format='enum',
-            schema={
-                'type': 'string',
-                'enum': ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
-            },
-        ),
+        output_format='enum',
+        output_schema={
+            'type': 'string',
+            'enum': ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
+        },
     )
     return cast(str, response.output)
 
@@ -183,13 +180,11 @@ async def create_story_characters_jsonl(input: CreateStoryCharactersInput) -> li
     """
     response = await ai.generate(
         prompt=f'Generate 5 characters for a {input.theme} story',
-        output=OutputConfig(
-            format='jsonl',
-            schema={
-                'type': 'array',
-                'items': Character.model_json_schema(),
-            },
-        ),
+        output_format='jsonl',
+        output_schema={
+            'type': 'array',
+            'items': Character.model_json_schema(),
+        },
     )
     return cast(list[Any], response.output)
 
@@ -208,7 +203,7 @@ async def generate_haiku_text(input: HaikuInput) -> str:
     """
     response = await ai.generate(
         prompt=f'Write a haiku about {input.topic}',
-        output=OutputConfig(format='text'),
+        output_format='text',
     )
     return response.text
 
@@ -226,7 +221,8 @@ async def get_country_info_json(input: CountryInfoInput) -> dict[str, Any]:
     """
     response = await ai.generate(
         prompt=f'Give me information about {input.country}',
-        output=OutputConfig(format='json', schema=CountryInfo.model_json_schema()),
+        output_format='json',
+        output_schema=CountryInfo.model_json_schema(),
     )
     return cast(dict[str, Any], response.output)
 
@@ -248,13 +244,11 @@ async def recommend_books_array(input: RecommendBooksInput) -> list[dict[str, ob
     """
     response = await ai.generate(
         prompt=f'List 3 famous {input.genre} books',
-        output=OutputConfig(
-            format='array',
-            schema={
-                'type': 'array',
-                'items': Book.model_json_schema(),
-            },
-        ),
+        output_format='array',
+        output_schema={
+            'type': 'array',
+            'items': Book.model_json_schema(),
+        },
     )
     return cast(list[Any], response.output)
 

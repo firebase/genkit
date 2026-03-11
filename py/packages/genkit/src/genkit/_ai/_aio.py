@@ -104,7 +104,6 @@ from genkit._core._typing import (
     EvalResponse,
     ModelInfo,
     Operation,
-    OutputConfig,
     Part,
     SpanMetadata,
     ToolChoice,
@@ -784,7 +783,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelResponse[OutputT]: ...
 
     # Overload: no output_schema, dict, or union -> ModelResponse[Any]
@@ -810,7 +808,6 @@ class Genkit:
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelResponse[Any]: ...
 
     async def generate(
@@ -834,19 +831,8 @@ class Genkit:
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelResponse[Any]:
         """Generate text or structured data using a language model."""
-        if output is not None:
-            if isinstance(output, OutputConfig):
-                output_format = output_format or output.format
-                output_schema = output_schema or output.schema
-                output_content_type = output_content_type or output.content_type
-                output_constrained = output.constrained if output_constrained is None else output_constrained
-            elif isinstance(output, dict) and 'schema' in output:
-                out_schema = output.get('schema')
-                output_schema = output_schema or (out_schema if isinstance(out_schema, (type, dict)) else None)
-                output_format = output_format or (output.get('format') if isinstance(output.get('format'), str) else None)
         return await generate_action(
             self.registry,
             await to_generate_action_options(
@@ -897,7 +883,6 @@ class Genkit:
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelStreamResponse[OutputT]: ...
 
     # Overload: no output_schema, dict, or union -> ModelStreamResponse[Any]
@@ -923,7 +908,6 @@ class Genkit:
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelStreamResponse[Any]: ...
 
     def generate_stream(
@@ -947,19 +931,8 @@ class Genkit:
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
-        output: OutputConfig | dict[str, Any] | None = None,
     ) -> ModelStreamResponse[Any]:
         """Stream generated text, returning a ModelStreamResponse with .stream and .response."""
-        if output is not None:
-            if isinstance(output, OutputConfig):
-                output_format = output_format or output.format
-                output_schema = output_schema or output.schema
-                output_content_type = output_content_type or output.content_type
-                output_constrained = output.constrained if output_constrained is None else output_constrained
-            elif isinstance(output, dict) and 'schema' in output:
-                out_schema = output.get('schema')
-                output_schema = output_schema or (out_schema if isinstance(out_schema, (type, dict)) else None)
-                output_format = output_format or (output.get('format') if isinstance(output.get('format'), str) else None)
         channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
         async def _run_generate() -> ModelResponse[Any]:

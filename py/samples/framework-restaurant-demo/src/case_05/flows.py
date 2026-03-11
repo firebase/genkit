@@ -67,7 +67,10 @@ async def s05_text_menu_question_flow(
         >>> await s05_text_menu_question_flow(TextMenuQuestionInputSchema(menu_text='Burger: $10', question='Price?'))
         AnswerOutputSchema(answer="It costs $10")
     """
-    response = await s05_text_menu_prompt({'menuText': my_input.menu_text, 'question': my_input.question})  # pyrefly: ignore[bad-argument-type]
+    response = await s05_text_menu_prompt({
+        'menuText': my_input.menu_text,
+        'question': my_input.question,
+    })  # pyrefly: ignore[bad-argument-type]
     return AnswerOutputSchema(
         answer=response.text,
     )

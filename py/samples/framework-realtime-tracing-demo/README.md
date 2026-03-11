@@ -79,9 +79,9 @@ provider.add_span_processor(processor)
 | API | Description |
 |-----|-------------|
 | `RealtimeSpanProcessor` | SpanProcessor that exports on start AND end |
-| `is_realtime_telemetry_enabled()` | Check if realtime mode is enabled |
 | `create_span_processor(exporter)` | Auto-selects processor based on env |
-| `GENKIT_ENABLE_REALTIME_TELEMETRY` | Environment variable to enable |
+
+Realtime telemetry is enabled by default; spans appear in DevUI immediately.
 
 ## When to Use
 

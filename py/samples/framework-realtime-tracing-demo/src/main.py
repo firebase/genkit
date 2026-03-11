@@ -129,7 +129,6 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit import Genkit
-from genkit._core.trace import is_realtime_telemetry_enabled
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -320,23 +319,16 @@ async def llm_chain_flow(input: LlmChainInput) -> dict[str, object]:
 
 @ai.flow(name='check_realtime_status')
 async def check_realtime_status() -> dict[str, object]:
-    """Check if realtime tracing is enabled.
+    """Check realtime tracing status (always enabled).
 
     Returns:
         Status information about realtime tracing.
     """
-    enabled = is_realtime_telemetry_enabled()
     telemetry_server = os.environ.get('GENKIT_TELEMETRY_SERVER', 'Not set')
-
     return {
-        'realtime_enabled': enabled,
+        'realtime_enabled': True,
         'telemetry_server': telemetry_server,
-        'env_var': os.environ.get('GENKIT_ENABLE_REALTIME_TELEMETRY', 'Not set'),
-        'message': (
-            'Realtime tracing is ENABLED! Spans appear immediately in DevUI.'
-            if enabled
-            else 'Realtime tracing is DISABLED. Set GENKIT_ENABLE_REALTIME_TELEMETRY=true to enable.'
-        ),
+        'message': 'Realtime tracing is ENABLED! Spans appear immediately in DevUI.',
     }
 
 
@@ -358,12 +350,7 @@ async def slow_operation(description: str, delay: float = 1.0) -> str:
 
 async def main() -> None:
     """Main entry point - keeps the server running for DevUI."""
-    enabled = is_realtime_telemetry_enabled()
-    if enabled:
-        await logger.ainfo('Realtime tracing ENABLED. Spans appear in DevUI immediately.')
-    else:
-        await logger.ainfo('Realtime tracing DISABLED. Set GENKIT_ENABLE_REALTIME_TELEMETRY=true.')
-
+    await logger.ainfo('Realtime tracing ENABLED. Spans appear in DevUI immediately.')
     await logger.ainfo('Realtime Tracing Demo running. Press Ctrl+C to stop.')
     # Keep the process alive for Dev UI
     await asyncio.Event().wait()

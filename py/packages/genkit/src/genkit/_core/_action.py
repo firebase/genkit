@@ -167,11 +167,6 @@ class StreamResponse(Generic[ChunkT_co, OutputT_co]):
     def response(self) -> Awaitable[ActionResponse[OutputT_co]]:
         return self._response
 
-    def __iter__(self) -> Generator[object, None, None]:
-        """Allow unpacking: stream, response = action.stream(...)."""
-        yield self._stream
-        yield self._response
-
 
 class ActionMetadataKey(StrEnum):
     """Keys for action metadata."""

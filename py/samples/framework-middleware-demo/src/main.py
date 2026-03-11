@@ -88,9 +88,10 @@ import os
 import structlog
 from pydantic import BaseModel, Field
 
+from collections.abc import Awaitable, Callable
+
 from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
 from genkit._core._action import ActionRunContext
-from genkit.model import ModelMiddlewareNext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -128,7 +129,7 @@ class ChainedInput(BaseModel):
 async def logging_middleware(
     req: ModelRequest,
     ctx: ActionRunContext,
-    next_handler: ModelMiddlewareNext,
+    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
 ) -> ModelResponse:
     """Middleware that logs request and response metadata.
 
@@ -159,7 +160,7 @@ async def logging_middleware(
 async def system_instruction_middleware(
     req: ModelRequest,
     ctx: ActionRunContext,
-    next_handler: ModelMiddlewareNext,
+    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
 ) -> ModelResponse:
     """Middleware that prepends a system instruction to every request.
 
