@@ -504,7 +504,7 @@ ai.defineFlow('nano-banana-2', async (_) => {
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
-    model: googleAI.model('imagen-3.0-generate-002'),
+    model: googleAI.model('imagen-4.0-generate-001'),
     prompt: `generate an image of a banana riding a bicycle`,
   });
 
