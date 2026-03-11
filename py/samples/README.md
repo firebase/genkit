@@ -105,7 +105,7 @@ cd py/samples/<sample-name>
 | **framework-dynamic-tools-demo** | Tools | Dynamic tool registration at runtime |
 | **framework-evaluator-demo** | Evaluation | Custom evaluators and RAGAS |
 | **framework-format-demo** | Formats | Output formatting and schemas |
-| **framework-middleware-demo** | Middleware | Custom retry and logging middleware |
+| **framework-middleware-demo** | Middleware | Built-in retry, fallback, and custom middleware |
 | **framework-prompt-demo** | Prompts | Dotprompt: Picoschema, roles, media, tools, variants, helpers, partials, `{{#each}}` |
 | **framework-realtime-tracing-demo** | Telemetry | Real-time tracing visualization |
 | **framework-restaurant-demo** | Tools, RAG | Restaurant menu ordering with tools |

@@ -22,7 +22,7 @@ properties and methods on top of the generated wire types.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
 from typing import Any, Generic, cast
@@ -89,9 +89,9 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
 
     # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
     # (MessageData, DocumentData) to provide convenience methods like .text
-    messages: list[Message]  # pyrefly: ignore[bad-override]
-    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]
-    config: ConfigT | None = None  # pyrefly: ignore[bad-override]
+    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore
+    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore
+    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore
 
     @field_validator('messages', mode='before')
     @classmethod
@@ -408,7 +408,7 @@ class ModelResponseChunk(GenerateResponseChunk, Generic[OutputT]):
         return cast(OutputT, extract_json(self.accumulated_text))
 
 
-def text_from_message(msg: Message) -> str:
+def text_from_message(msg: MessageData) -> str:
     """Concatenate text from all parts of a message."""
     return text_from_content(msg.content)
 
@@ -475,11 +475,3 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
         output_videos=out_vids,
         output_audio_files=out_audio,
     )
-
-
-# Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
-# Middleware can have two signatures:
-#   Simple (3 params): (req, ctx, next) -> response
-#   Streaming (4 params): (req, ctx, on_chunk, next) -> response
-# The framework detects which signature is used based on parameter count.
-ModelMiddleware = Callable[..., Awaitable[ModelResponse[Any]]]

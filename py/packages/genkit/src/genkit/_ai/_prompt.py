@@ -39,7 +39,6 @@ from genkit._ai._generate import (
 )
 from genkit._ai._model import (
     Message,
-    ModelMiddleware,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
@@ -48,6 +47,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._model import ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
@@ -107,7 +107,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
-    use: list[ModelMiddleware] | None
+    use: list[BaseMiddleware] | None
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
@@ -185,7 +185,7 @@ class PromptConfig(BaseModel):
     metadata: dict[str, Any] | None = None
     tools: list[str] | None = None
     tool_choice: ToolChoice | None = None
-    use: list[ModelMiddleware] | None = None
+    use: list[BaseMiddleware] | None = None
     docs: list[Document] | None = None
     tool_responses: list[Part] | None = None
     resources: list[str] | None = None
@@ -215,7 +215,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         metadata: dict[str, Any] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         resources: list[str] | None = None,
         name: str | None = None,

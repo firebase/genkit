@@ -14,55 +14,57 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware for the Genkit framework."""
+"""augment_with_context middleware."""
 
 from collections.abc import Awaitable, Callable
 
 from genkit._ai._document import Document
-from genkit._ai._model import (
-    Message,
-    ModelMiddleware,
-    ModelRequest,
-    ModelResponse,
-    text_from_content,
-)
-from genkit._core._action import ActionRunContext
-from genkit._core._typing import (
-    Metadata,
-    Part,
-    TextPart,
-)
+from genkit._core._model import ModelResponse
+from genkit._core._typing import Metadata, Part, TextPart
 
-CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
+from ._base import BaseMiddleware, ModelHookParams
+from ._utils import _CONTEXT_PREFACE, _context_item_template, _last_user_message
 
 
-def context_item_template(d: Document, index: int) -> str:
-    """Render a document as a citation line for context injection."""
-    out = '- '
-    ref = (d.metadata and (d.metadata.get('ref') or d.metadata.get('id'))) or index
-    out += f'[{ref}]: '
-    out += text_from_content(d.content) + '\n'
-    return out
-
-
-def augment_with_context() -> ModelMiddleware:
+def augment_with_context(
+    preface: str | None = _CONTEXT_PREFACE,
+    item_template: Callable[[Document, int], str] | None = None,
+    citation_key: str | None = None,
+) -> BaseMiddleware:
     """Middleware that injects document context into the last user message."""
+    return _AugmentWithContextMiddleware(
+        preface=preface,
+        item_template=item_template or _context_item_template,
+        citation_key=citation_key,
+    )
 
-    async def middleware(
-        req: ModelRequest,
-        ctx: ActionRunContext,
-        next_middleware: Callable[..., Awaitable[ModelResponse]],
+
+class _AugmentWithContextMiddleware(BaseMiddleware):
+    def __init__(
+        self,
+        preface: str | None = _CONTEXT_PREFACE,
+        item_template: Callable[[Document, int], str] | None = None,
+        citation_key: str | None = None,
+    ) -> None:
+        self._preface = preface
+        self._item_template = item_template or _context_item_template
+        self._citation_key = citation_key
+
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
+        req = params.request
         if not req.docs:
-            return await next_middleware(req, ctx)
+            return await next_fn(params)
 
-        user_message = last_user_message(req.messages)
+        user_message = _last_user_message(req.messages)  # type: ignore[arg-type]
         if not user_message:
-            return await next_middleware(req, ctx)
+            return await next_fn(params)
 
         context_part_index = -1
         for i, part in enumerate(user_message.content):
-            # Access metadata safely through RootModel
             part_metadata = part.root.metadata
             if isinstance(part_metadata, Metadata) and part_metadata.root.get('purpose') == 'context':
                 context_part_index = i
@@ -73,15 +75,18 @@ def augment_with_context() -> ModelMiddleware:
         if context_part:
             metadata = context_part.root.metadata
             if not (isinstance(metadata, Metadata) and metadata.root.get('pending')):
-                return await next_middleware(req, ctx)
+                return await next_fn(params)
 
-        out = CONTEXT_PREFACE
+        out = self._preface or ''
         for i, doc_data in enumerate(req.docs):
             doc = Document(content=doc_data.content, metadata=doc_data.metadata)
-            out += context_item_template(doc, i)
+            if self._citation_key and doc.metadata:
+                doc.metadata['ref'] = doc.metadata.get(self._citation_key, i)
+            out += self._item_template(doc, i)
         out += '\n'
 
         text_part = Part(root=TextPart(text=out, metadata=Metadata(root={'purpose': 'context'})))
+
         if context_part_index >= 0:
             user_message.content[context_part_index] = text_part
         else:
@@ -89,14 +94,4 @@ def augment_with_context() -> ModelMiddleware:
                 user_message.content = []
             user_message.content.append(text_part)
 
-        return await next_middleware(req, ctx)
-
-    return middleware
-
-
-def last_user_message(messages: list[Message]) -> Message | None:
-    """Find the last user message in a list."""
-    for i in range(len(messages) - 1, -1, -1):
-        if messages[i].role == 'user':
-            return messages[i]
-    return None
+        return await next_fn(params)
