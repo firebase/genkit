@@ -20,8 +20,9 @@ Run: GEMINI_API_KEY=... uv run python src/main.py
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 
-from genkit import Genkit, fallback, retry
+from genkit import ActionRunContext, Genkit, ModelRequest, ModelResponse, fallback, retry
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(model='googleai/gemini-2.0-flash')
@@ -80,7 +81,11 @@ async def combined_example() -> None:
 # -----------------------------------------------------------------------------
 # Example 4: Custom middleware (for reference)
 # -----------------------------------------------------------------------------
-async def custom_middleware(req: object, ctx: object, next_fn: object) -> object:
+async def custom_middleware(
+    req: ModelRequest,
+    ctx: ActionRunContext,
+    next_fn: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
+) -> ModelResponse:
     """Custom middleware - add timing."""
     import time
 
