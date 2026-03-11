@@ -485,7 +485,7 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         if len(action_args) > 0:
             type_adapter = TypeAdapter(arg_types[0])
             self._input_schema: dict[str, object] = type_adapter.json_schema()
-            self._input_type: TypeAdapter[Any] | None = type_adapter
+            self._input_type: TypeAdapter[InputT] | None = cast(TypeAdapter[InputT], type_adapter)
             self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
         else:
             self._input_schema = TypeAdapter(object).json_schema()

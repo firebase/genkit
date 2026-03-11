@@ -21,6 +21,7 @@ from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+from typing_extensions import Never
 
 from genkit._ai._document import Document
 from genkit._core._action import Action, ActionKind, ActionMetadata, get_func_description
@@ -62,10 +63,10 @@ class EmbedderRef(BaseModel):
 class Embedder:
     """Runtime embedder wrapper around an embedder Action."""
 
-    def __init__(self, name: str, action: Action) -> None:
+    def __init__(self, name: str, action: Action[EmbedRequest, EmbedResponse, Never]) -> None:
         """Initialize with embedder name and backing action."""
         self.name: str = name
-        self._action: Action = action
+        self._action: Action[EmbedRequest, EmbedResponse, Never] = action
 
     async def embed(
         self,
@@ -73,6 +74,7 @@ class Embedder:
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
         """Generate embeddings for a list of documents."""
+        # Document veneer is compatible with DocumentData at runtime
         return (
             await self._action.run(EmbedRequest(input=documents, options=options))  # type: ignore[arg-type]
         ).response
