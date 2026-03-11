@@ -35,7 +35,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
     text_from_content,
 )
-from genkit._core._action import Action, ActionRunContext
+from genkit._core._action import Action
 from genkit._core._error import GenkitError, StatusName
 from genkit._core._registry import HasRegistry, Registry
 from genkit._core._typing import (
@@ -681,8 +681,6 @@ class _FallbackMiddleware(BaseMiddleware):
                     self._on_error(e)
 
                 last_error: Exception = e
-                ActionRunContext(context=params.context)
-
                 for model_name in self._models:
                     try:
                         model = await self._registry.resolve_model(model_name)
