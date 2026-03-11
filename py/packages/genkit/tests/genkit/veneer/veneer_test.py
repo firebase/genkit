@@ -23,6 +23,12 @@ from genkit import (
 )
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import text_from_message
+from genkit._ai._testing import (
+    EchoModel,
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
+)
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
@@ -47,12 +53,6 @@ from genkit._core._typing import (
     ToolRequestPart,
     ToolResponse,
     ToolResponsePart,
-)
-from genkit.testing import (
-    EchoModel,
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
 )
 
 # type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]

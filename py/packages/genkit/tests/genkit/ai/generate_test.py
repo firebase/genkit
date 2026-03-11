@@ -17,6 +17,11 @@ from pydantic import BaseModel, TypeAdapter
 from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
 from genkit._ai._generate import generate_action
 from genkit._ai._model import text_from_content, text_from_message
+from genkit._ai._testing import (
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
+)
 from genkit._core._action import ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
@@ -27,11 +32,6 @@ from genkit._core._typing import (
     Part,
     Role,
     TextPart,
-)
-from genkit.testing import (
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
 )
 
 

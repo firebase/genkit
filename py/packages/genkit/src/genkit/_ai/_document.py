@@ -20,5 +20,3 @@ Re-exports Document from _core._model for backward compatibility.
 """
 
 from genkit._core._model import Document
-
-__all__ = ['Document']

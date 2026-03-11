@@ -27,6 +27,12 @@ from pydantic import BaseModel, Field
 
 from genkit import Genkit, Message, ModelResponse
 from genkit._ai._prompt import load_prompt_folder, lookup_prompt, prompt
+from genkit._ai._testing import (
+    EchoModel,
+    ProgrammableModel,
+    define_echo_model,
+    define_programmable_model,
+)
 from genkit._core._action import ActionKind
 from genkit._core._model import ModelConfig
 from genkit._core._typing import (
@@ -36,12 +42,6 @@ from genkit._core._typing import (
     Role,
     TextPart,
     ToolChoice,
-)
-from genkit.testing import (
-    EchoModel,
-    ProgrammableModel,
-    define_echo_model,
-    define_programmable_model,
 )
 
 

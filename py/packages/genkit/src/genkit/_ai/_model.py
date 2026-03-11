@@ -46,27 +46,6 @@ from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import ModelInfo
 
-# Re-export veneer types from core._internal._model for backward compatibility
-__all__ = [
-    'Message',
-    'ModelMiddleware',
-    'ModelRef',
-    'ModelRequest',
-    'ModelResponse',
-    'ModelResponseChunk',
-    'get_basic_usage_stats',
-    'text_from_content',
-    'text_from_message',
-    # Types defined in this module
-    'ModelConfig',
-    'ModelFn',
-    'define_model',
-    'model_ref',
-    'model_action_metadata',
-    'get_request_api_key',
-    'get_effective_api_key',
-]
-
 # Type alias for model functions (must be async)
 # Use ctx.send_chunk() for streaming
 ModelFn = Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse[Any]]]
