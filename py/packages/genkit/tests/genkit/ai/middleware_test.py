@@ -23,14 +23,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from genkit import Document, Message, ModelResponse, Supports
-from genkit._ai._middleware import (
+from genkit.middleware import (
     augment_with_context,
     download_request_media,
-    fallback,
     retry,
     simulate_system_prompt,
     validate_support,
 )
+from genkit._core._middleware import _fallback_for_registry as fallback
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, StatusName
 from genkit._core._typing import (
@@ -515,9 +515,9 @@ async def test_fallback_success_no_fallback() -> None:
     """Test that successful calls don't trigger fallback."""
     fallback_model = MockAction()
     mock_registry = MockRegistry({'fallback-model': fallback_model})
-    mock_ai = MockGenkit(mock_registry)
+    MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_registry, models=['fallback-model'])
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -535,9 +535,9 @@ async def test_fallback_uses_fallback_on_error() -> None:
     """Test that fallback is used when primary fails."""
     fallback_model = MockAction(should_fail=False)
     mock_registry = MockRegistry({'fallback-model': fallback_model})
-    mock_ai = MockGenkit(mock_registry)
+    MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_registry, models=['fallback-model'])
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -556,9 +556,9 @@ async def test_fallback_tries_multiple_models() -> None:
     fallback1 = MockAction(should_fail=True, fail_status='UNAVAILABLE')
     fallback2 = MockAction(should_fail=False)
     mock_registry = MockRegistry({'fallback1': fallback1, 'fallback2': fallback2})
-    mock_ai = MockGenkit(mock_registry)
+    MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_registry, models=['fallback1', 'fallback2'])
+    fallback_mw = fallback(mock_registry, models=['fallback1', 'fallback2'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -577,9 +577,9 @@ async def test_fallback_no_fallback_on_non_fallbackable_error() -> None:
     """Test that non-fallbackable errors don't trigger fallback."""
     fallback_model = MockAction()
     mock_registry = MockRegistry({'fallback-model': fallback_model})
-    mock_ai = MockGenkit(mock_registry)
+    MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_registry, models=['fallback-model'])
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:

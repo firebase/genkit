@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware for the Genkit framework."""
+"""Built-in middleware implementations."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from genkit._ai._model import (
 )
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, StatusName
-from genkit._core._registry import Registry
+from genkit._core._registry import HasRegistry, Registry
 from genkit._core._typing import (
     Media,
     MediaPart,
@@ -45,13 +45,13 @@ from genkit._core._typing import (
     TextPart,
 )
 
-# =============================================================================
-# Constants
-# =============================================================================
+# -----------------------------------------------------------------------------
+# Internal constants (not exported)
+# -----------------------------------------------------------------------------
 
-CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
+_CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 
-DEFAULT_RETRY_STATUSES: list[StatusName] = [
+_DEFAULT_RETRY_STATUSES: list[StatusName] = [
     'UNAVAILABLE',
     'DEADLINE_EXCEEDED',
     'RESOURCE_EXHAUSTED',
@@ -59,7 +59,7 @@ DEFAULT_RETRY_STATUSES: list[StatusName] = [
     'INTERNAL',
 ]
 
-DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
+_DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
     'UNAVAILABLE',
     'DEADLINE_EXCEEDED',
     'RESOURCE_EXHAUSTED',
@@ -70,12 +70,12 @@ DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
 ]
 
 
-# =============================================================================
-# Helper Functions
-# =============================================================================
+# -----------------------------------------------------------------------------
+# Internal helpers (not exported)
+# -----------------------------------------------------------------------------
 
 
-def last_user_message(messages: list[Message]) -> Message | None:
+def _last_user_message(messages: list[Message]) -> Message | None:
     """Find the last user message in a list."""
     for i in range(len(messages) - 1, -1, -1):
         if messages[i].role == 'user':
@@ -83,7 +83,7 @@ def last_user_message(messages: list[Message]) -> Message | None:
     return None
 
 
-def context_item_template(d: Document, index: int) -> str:
+def _context_item_template(d: Document, index: int) -> str:
     """Render a document as a citation line for context injection."""
     out = '- '
     ref = (d.metadata and (d.metadata.get('ref') or d.metadata.get('id'))) or index
@@ -92,9 +92,9 @@ def context_item_template(d: Document, index: int) -> str:
     return out
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # validate_support()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def validate_support(
@@ -167,9 +167,9 @@ def validate_support(
     return middleware
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # download_request_media()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def download_request_media(
@@ -269,9 +269,9 @@ def download_request_media(
     return middleware
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # simulate_system_prompt()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def simulate_system_prompt(
@@ -328,28 +328,28 @@ def simulate_system_prompt(
     return middleware
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # augment_with_context()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def augment_with_context(
-    preface: str | None = CONTEXT_PREFACE,
+    preface: str | None = _CONTEXT_PREFACE,
     item_template: Callable[[Document, int], str] | None = None,
     citation_key: str | None = None,
 ) -> ModelMiddleware:
     """Middleware that injects document context into the last user message.
 
     Args:
-        preface: Text to prepend before context (default: CONTEXT_PREFACE).
+        preface: Text to prepend before context (default: newline-separated instruction block).
             Pass None to omit preface.
-        item_template: Function to render each document (default: context_item_template).
+        item_template: Function to render each document (default: citation format).
         citation_key: Metadata key to use for citations (default: uses 'ref', 'id', or index).
 
     Returns:
         A middleware function that injects context.
     """
-    template_fn = item_template or context_item_template
+    template_fn = item_template or _context_item_template
 
     async def middleware(
         req: ModelRequest,
@@ -359,7 +359,7 @@ def augment_with_context(
         if not req.docs:
             return await next_middleware(req, ctx)
 
-        user_message = last_user_message(req.messages)  # type: ignore[arg-type]
+        user_message = _last_user_message(req.messages)  # type: ignore[arg-type]
         if not user_message:
             return await next_middleware(req, ctx)
 
@@ -405,9 +405,9 @@ def augment_with_context(
     return middleware
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # retry()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def retry(
@@ -434,7 +434,7 @@ def retry(
     Returns:
         A middleware function that implements retry logic.
     """
-    retry_statuses = statuses or DEFAULT_RETRY_STATUSES
+    retry_statuses = statuses or _DEFAULT_RETRY_STATUSES
 
     async def middleware(
         req: ModelRequest,
@@ -488,21 +488,21 @@ def retry(
     return middleware
 
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # fallback()
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 
 def fallback(
-    registry: Registry,
+    ai: HasRegistry,
     models: list[str],
     statuses: list[StatusName] | None = None,
-    on_error: Callable[[Exception], None] | None = None,
+    on_error: Callable[[GenkitError], None] | None = None,
 ) -> ModelMiddleware:
     """Middleware that falls back to alternative models on failure.
 
     Args:
-        registry: The registry to resolve model references (internal; use fallback(ai, ...) from genkit.middleware).
+        ai: Object with a registry (e.g. Genkit instance) for resolving fallback models.
         models: Ordered list of fallback model names to try.
         statuses: List of status codes that trigger fallback (default: UNAVAILABLE,
             DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED, INTERNAL, NOT_FOUND,
@@ -512,7 +512,17 @@ def fallback(
     Returns:
         A middleware function that implements fallback logic.
     """
-    fallback_statuses = statuses or DEFAULT_FALLBACK_STATUSES
+    return _fallback_for_registry(ai.registry, models, statuses, on_error)
+
+
+def _fallback_for_registry(
+    registry: Registry,
+    models: list[str],
+    statuses: list[StatusName] | None = None,
+    on_error: Callable[[GenkitError], None] | None = None,
+) -> ModelMiddleware:
+    """Internal: fallback middleware that takes a Registry (for testing)."""
+    fallback_statuses = statuses or _DEFAULT_FALLBACK_STATUSES
 
     async def middleware(
         req: ModelRequest,
@@ -522,61 +532,34 @@ def fallback(
         try:
             return await next_middleware(req, ctx)
         except Exception as e:
-            # Check if this error should trigger fallback
             if isinstance(e, GenkitError) and e.status in fallback_statuses:
                 if on_error:
                     on_error(e)
 
                 last_error: Exception = e
 
-                # Try each fallback model
                 for model_name in models:
                     try:
-                        # Resolve and call the fallback model
                         model = await registry.resolve_model(model_name)
                         if model is None:
                             raise GenkitError(
                                 status='NOT_FOUND',
                                 message=f"Fallback model '{model_name}' not found.",
                             )
-
                         result = await model.run(
                             input=req,
                             context=ctx.context,
                             on_chunk=ctx.send_chunk if ctx.is_streaming else None,
                         )
                         return result.response
-
                     except Exception as e2:
                         last_error = e2
                         if isinstance(e2, GenkitError) and e2.status in fallback_statuses:
                             if on_error:
                                 on_error(e2)
                             continue
-                        # Non-fallbackable error, re-raise
                         raise
-
-                # All fallbacks failed
                 raise last_error from None
-
-            # Not a fallbackable error, re-raise
             raise
 
     return middleware
-
-
-# =============================================================================
-# Exports
-# =============================================================================
-
-__all__ = [
-    'CONTEXT_PREFACE',
-    'DEFAULT_FALLBACK_STATUSES',
-    'DEFAULT_RETRY_STATUSES',
-    'augment_with_context',
-    'download_request_media',
-    'fallback',
-    'retry',
-    'simulate_system_prompt',
-    'validate_support',
-]

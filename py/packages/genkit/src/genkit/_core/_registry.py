@@ -19,7 +19,7 @@
 import asyncio
 import threading
 from collections.abc import Awaitable, Callable
-from typing import cast
+from typing import Protocol, cast
 
 from dotpromptz.dotprompt import Dotprompt
 from pydantic import BaseModel
@@ -74,6 +74,13 @@ ActionFn = (
     | Callable[[InputT], OutputT | Awaitable[OutputT]]
     | Callable[[InputT, ActionRunContext], OutputT | Awaitable[OutputT]]
 )
+
+
+class HasRegistry(Protocol):
+    """Protocol for objects with a model registry (e.g. Genkit)."""
+
+    @property
+    def registry(self) -> 'Registry': ...
 
 
 class Registry:

@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from genkit._ai._formats._types import FormatDef, Formatter
 from genkit._ai._messages import inject_instructions
-from genkit._ai._middleware import augment_with_context
+from genkit._core._middleware import augment_with_context
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
