@@ -58,6 +58,16 @@ from genkit.embedder import (
     EmbedResponse,
 )
 
+# Import middleware functions for convenience
+from genkit.middleware import (
+    augment_with_context,
+    download_request_media,
+    fallback,
+    retry,
+    simulate_system_prompt,
+    validate_support,
+)
+
 # Import model-related types from the model namespace
 from genkit.model import (
     Constrained,
@@ -73,16 +83,6 @@ from genkit.model import (
     Stage,
     Supports,
     ToolDefinition,
-)
-
-# Import middleware functions for convenience
-from genkit.middleware import (
-    augment_with_context,
-    download_request_media,
-    fallback,
-    retry,
-    simulate_system_prompt,
-    validate_support,
 )
 
 # Flow is an alias for Action (used in samples for flow type hints)

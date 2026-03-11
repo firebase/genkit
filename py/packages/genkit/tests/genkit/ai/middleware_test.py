@@ -23,16 +23,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from genkit import Document, Message, ModelResponse, Supports
-from genkit.middleware import (
-    augment_with_context,
-    download_request_media,
-    retry,
-    simulate_system_prompt,
-    validate_support,
-)
-from genkit._core._middleware import _fallback_for_registry as fallback
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, StatusName
+from genkit._core._middleware import _fallback_for_registry as fallback
 from genkit._core._typing import (
     DocumentPart,
     Media,
@@ -43,6 +36,13 @@ from genkit._core._typing import (
     Role,
     TextPart,
     ToolDefinition,
+)
+from genkit.middleware import (
+    augment_with_context,
+    download_request_media,
+    retry,
+    simulate_system_prompt,
+    validate_support,
 )
 
 
