@@ -20,6 +20,9 @@ This module provides middleware functions that can be used to modify
 model requests and responses, add retry logic, implement fallback
 behavior, and more.
 
+Chain ordering: middleware is applied first-in, outermost. The first
+middleware in the list wraps around the rest; calls flow in → out.
+
 Example usage:
     from genkit import Genkit
     from genkit.middleware import retry, fallback
@@ -37,6 +40,10 @@ Example usage:
 """
 
 from genkit._core._middleware import (
+    BaseMiddleware,
+    GenerateParams,
+    ModelParams,
+    ToolParams,
     augment_with_context,
     download_request_media,
     fallback,
@@ -46,6 +53,10 @@ from genkit._core._middleware import (
 )
 
 __all__ = [
+    'BaseMiddleware',
+    'GenerateParams',
+    'ModelParams',
+    'ToolParams',
     'augment_with_context',
     'download_request_media',
     'fallback',

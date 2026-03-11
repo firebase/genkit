@@ -20,9 +20,10 @@ Run: GEMINI_API_KEY=... uv run python src/main.py
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable
+import time
 
-from genkit import ActionRunContext, Genkit, ModelRequest, ModelResponse, fallback, retry
+from genkit import Genkit, ModelResponse, fallback, retry
+from genkit.middleware import BaseMiddleware, ModelParams
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(model='googleai/gemini-2.0-flash')
@@ -81,25 +82,21 @@ async def combined_example() -> None:
 # -----------------------------------------------------------------------------
 # Example 4: Custom middleware (for reference)
 # -----------------------------------------------------------------------------
-async def custom_middleware(
-    req: ModelRequest,
-    ctx: ActionRunContext,
-    next_fn: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
-) -> ModelResponse:
+class TimingMiddleware(BaseMiddleware):
     """Custom middleware - add timing."""
-    import time
 
-    start = time.time()
-    response = await next_fn(req, ctx)
-    print(f'Request took {time.time() - start:.2f}s')  # noqa: T201
-    return response
+    async def wrap_model(self, params: ModelParams, next_fn) -> ModelResponse:
+        start = time.time()
+        response = await next_fn(params)
+        print(f'Request took {time.time() - start:.2f}s')  # noqa: T201
+        return response
 
 
 async def custom_example() -> None:
     """Use custom middleware alongside built-ins."""
     response = await ai.generate(
         prompt='Say hello',
-        use=[custom_middleware, retry(max_retries=2)],
+        use=[TimingMiddleware(), retry(max_retries=2)],
     )
     print(f'Custom example: {response.text}')  # noqa: T201
 

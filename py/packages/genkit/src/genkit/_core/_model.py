@@ -477,9 +477,3 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
     )
 
 
-# Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
-# Middleware can have two signatures:
-#   Simple (3 params): (req, ctx, next) -> response
-#   Streaming (4 params): (req, ctx, on_chunk, next) -> response
-# The framework detects which signature is used based on parameter count.
-ModelMiddleware = Callable[..., Awaitable[ModelResponse[Any]]]
