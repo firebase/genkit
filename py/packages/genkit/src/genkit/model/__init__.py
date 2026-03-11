@@ -22,6 +22,10 @@ from genkit._ai._model import (
     model_ref,
 )
 from genkit._core._background import BackgroundAction
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from genkit._core._action import ActionRunContext
 from genkit._core._model import (
     Message,
     ModelRef,
@@ -46,6 +50,9 @@ from genkit._core._typing import (
     ToolRequest,
     ToolResponse,
 )
+
+# Type alias for the next() handler passed to model middleware
+ModelMiddlewareNext = Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse[Any]]]
 
 __all__ = [
     # Request/Response types
@@ -80,6 +87,8 @@ __all__ = [
     'ModelConfig',
     # Message
     'Message',
+    # Middleware
+    'ModelMiddlewareNext',
     # Usage
     'get_basic_usage_stats',
 ]

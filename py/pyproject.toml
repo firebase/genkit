@@ -518,3 +518,24 @@ python_version         = "3.10"
 [tool.pyrefly.errors]
 deprecated     = "error"
 redundant-cast = "error"
+
+# Ty analysis: suppress unresolved-import for plugins (PEP 420 namespace packages).
+[tool.ty.analysis]
+allowed-unresolved-imports = ["genkit.plugins.**"]
+
+# Downgrade unused-type-ignore to avoid noise from comments that pyright needed but ty doesn't.
+[tool.ty.rules]
+unused-type-ignore-comment = "ignore"
+
+# Relax invalid-argument-type in tests: config=dict is common, ModelRequest validates at runtime.
+[[tool.ty.overrides]]
+include = ["**/tests/**", "**/*_test.py", "samples/**", "tools/**"]
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+no-matching-overload = "ignore"
+
+# Vertex AI model_garden has relative imports ty struggles to resolve (PEP 420 / namespace).
+[[tool.ty.overrides]]
+include = ["plugins/vertex-ai/**"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"

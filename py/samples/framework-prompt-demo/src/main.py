@@ -250,9 +250,9 @@ async def main() -> None:
     # Tell Story Flow (Streaming)
     await logger.ainfo('--- Running Tell Story Flow ---')
     # To demonstrate streaming, we'll iterate over the streamer if calling directly like a flow would be consumed.
-    story_stream, _ = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
+    story_stream_response = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
 
-    async for _chunk in story_stream:
+    async for _chunk in story_stream_response.stream:
         pass
 
     await logger.ainfo('Tell Story Flow Completed')

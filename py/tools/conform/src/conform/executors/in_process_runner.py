@@ -134,7 +134,8 @@ class InProcessRunner:
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit._core._typing import Message, OutputConfig, Part
+        from genkit._core._typing import OutputConfig, Part
+        from genkit.model import Message
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -172,7 +173,7 @@ class InProcessRunner:
 
         if stream:
             # Use generate_stream for streaming tests.
-            stream_iter, response_future = self._ai.generate_stream(
+            stream_response = self._ai.generate_stream(
                 model=model_name,
                 system=system_parts,
                 messages=non_system_messages,
@@ -182,9 +183,9 @@ class InProcessRunner:
                 return_tool_requests=True,
             )
             # Consume the stream to collect chunks.
-            async for chunk in stream_iter:
+            async for chunk in stream_response.stream:
                 chunks.append(cast(dict[str, Any], chunk.model_dump()))
-            result = await response_future
+            result = await stream_response.response
         else:
             result = await self._ai.generate(
                 model=model_name,

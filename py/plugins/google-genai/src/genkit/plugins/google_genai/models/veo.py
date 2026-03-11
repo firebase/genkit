@@ -397,11 +397,9 @@ class VeoModel:
         return _from_veo_operation(op_dict)
 
     def _get_config(self, request: ModelRequest) -> genai_types.GenerateVideosConfigOrDict | None:
-        cfg = None
-        if request.config:
-            # Simple cast/validate
-            cfg = request.config
-        return cfg
+        if not request.config:
+            return None
+        return cast(genai_types.GenerateVideosConfigOrDict, request.config)
 
     def _contents_from_response(self, response: genai_types.GenerateVideosResponse) -> list[Part]:
         content = []

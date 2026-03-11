@@ -335,13 +335,13 @@ async def say_hi_stream(
     Returns:
         The response from the model.
     """
-    stream, _ = ai.generate_stream(
+    stream_response = ai.generate_stream(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         config={'temperature': 1},
         prompt=f'hi {input.name}',
     )
     result = ''
-    async for data in stream:
+    async for data in stream_response.stream:
         if ctx is not None:
             ctx.send_chunk(data.text)
         result += data.text
@@ -450,7 +450,7 @@ async def streaming_structured_output(
     Returns:
         The fully-parsed RPG character once streaming completes.
     """
-    stream, result = ai.generate_stream(
+    stream_response = ai.generate_stream(
         model=model_garden_name('anthropic/claude-3-5-sonnet-v2@20241022'),
         prompt=(
             f'Generate an RPG character named {input.name}. '
@@ -459,11 +459,11 @@ async def streaming_structured_output(
         ),
         output_schema=RpgCharacter,
     )
-    async for chunk in stream:
+    async for chunk in stream_response.stream:
         if ctx is not None:
             ctx.send_chunk(chunk.output)
 
-    return (await result).output
+    return (await stream_response.response).output
 
 
 async def main() -> None:

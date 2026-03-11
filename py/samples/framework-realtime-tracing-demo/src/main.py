@@ -196,21 +196,21 @@ async def slow_multi_step_flow(input: MultiStepInput) -> dict[str, object]:
     Returns:
         A dict with results from each step.
     """
-    results = {}
+    results: dict[str, object] = {}
 
     # Step 1: Research (appears immediately in DevUI)
     logger.info('Starting Step 1: Research', topic=input.topic)
     research = await ai.run(
-        'research',
-        lambda: slow_operation(f'Researching {input.topic}', delay=2.0),
+        name='research',
+        fn=lambda: slow_operation(f'Researching {input.topic}', delay=2.0),
     )
     results['research'] = research
 
     # Step 2: Analysis (appears as soon as Step 1 completes)
     logger.info('Starting Step 2: Analysis')
     analysis = await ai.run(
-        'analysis',
-        lambda: slow_operation('Analyzing research findings', delay=1.5),
+        name='analysis',
+        fn=lambda: slow_operation('Analyzing research findings', delay=1.5),
     )
     results['analysis'] = analysis
 
@@ -244,8 +244,8 @@ async def nested_operations_flow(input: NestedInput) -> str:
             return 'Done!'
 
         return await ai.run(
-            f'level_{level}',
-            lambda: nested_step(level - 1),
+            name=f'level_{level}',
+            fn=lambda: nested_step(level - 1),
         )
 
     result = await nested_step(input.depth)
@@ -274,7 +274,7 @@ async def parallel_tasks_flow(input: ParallelInput) -> list[str]:
             await asyncio.sleep(task_delay)
             return f'Task {task_id} completed after {task_delay}s'
 
-        tasks.append(ai.run(f'parallel_task_{i}', task_fn))
+        tasks.append(ai.run(name=f'parallel_task_{i}', fn=task_fn))
 
     results = await asyncio.gather(*tasks)
     return list(results)

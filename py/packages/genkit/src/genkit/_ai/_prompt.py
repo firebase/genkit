@@ -22,7 +22,7 @@ import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
 from pathlib import Path
-from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
+from typing import Any, ClassVar, Generic, Iterator, TypedDict, TypeVar, cast
 
 from dotpromptz.typing import (
     DataArgument,
@@ -137,6 +137,11 @@ class ModelStreamResponse(Generic[OutputT]):
             - Additional metadata from the model
         """
         return self._channel
+
+    def __iter__(self) -> Iterator[object]:
+        """Allow unpacking: stream, response = ai.generate_stream(...)."""
+        yield self._channel
+        yield self._response_future
 
     @property
     def response(self) -> Awaitable[ModelResponse[OutputT]]:

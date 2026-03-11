@@ -153,16 +153,16 @@ async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
     mock_response = ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 
     model = OpenAIModel(model='gpt-4', client=MagicMock())
-    model._generate_stream = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
-    model._generate = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
-    model.normalize_config = MagicMock(return_value={})  # type: ignore[method-assign]
+    model._generate_stream = AsyncMock(return_value=mock_response)
+    model._generate = AsyncMock(return_value=mock_response)
+    model.normalize_config = MagicMock(return_value={})
     response = await model.generate(sample_request, ctx_mock)
 
     assert response == mock_response
     if stream:
-        model._generate_stream.assert_called_once()  # type: ignore[union-attr]
+        model._generate_stream.assert_called_once()
     else:
-        model._generate.assert_called_once()  # type: ignore[union-attr]
+        model._generate.assert_called_once()
 
 
 @pytest.mark.parametrize(

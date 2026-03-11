@@ -29,6 +29,9 @@ from genkit._ai._aio import Genkit
 from genkit._ai._document import Document
 from genkit._ai._tools import ToolInterruptError, tool_response
 from genkit._core._action import Action, StreamResponse
+
+# Flow is an alias for Action (used in samples for flow type hints)
+Flow = Action
 from genkit._core._error import GenkitError, PublicError
 from genkit._core._plugin import Plugin
 from genkit._core._plugins import extend_plugin_namespace
@@ -80,6 +83,7 @@ extend_plugin_namespace()
 __all__ = [
     # Main class
     'Genkit',
+    'Flow',
     # Response types
     'Action',
     'StreamResponse',

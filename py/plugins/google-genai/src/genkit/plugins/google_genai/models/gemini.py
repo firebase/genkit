@@ -772,7 +772,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
 Deprecations = deprecated_enum_metafactory({})
 
 
-class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
+class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore[invalid-inheritance]
     """VertexAIGemini models.
 
     Model Support:
@@ -832,7 +832,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
-class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
+class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore[invalid-inheritance]
     """GoogleAI Gemini models.
 
     Model Support:

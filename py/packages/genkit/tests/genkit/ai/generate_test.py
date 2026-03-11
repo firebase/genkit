@@ -155,7 +155,7 @@ async def test_generate_applies_middleware(
         ctx: ActionRunContext,
         next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             ModelRequest(
                 messages=[
@@ -172,7 +172,7 @@ async def test_generate_applies_middleware(
     ) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
-        txt = text_from_message(resp.message)  # type: ignore[arg-type]
+        txt = text_from_message(resp.message)
         return ModelResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
@@ -210,7 +210,7 @@ async def test_generate_middleware_next_fn_args_optional(
     ) -> ModelResponse:
         resp: ModelResponse = await next(req, ctx)
         assert resp.message is not None
-        txt = text_from_message(resp.message)  # type: ignore[arg-type]
+        txt = text_from_message(resp.message)
         return ModelResponse(
             finish_reason=resp.finish_reason,
             message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
@@ -253,7 +253,7 @@ async def test_generate_middleware_can_modify_context(
         ctx: ActionRunContext,
         next: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        txt = ''.join(text_from_message(m) for m in req.messages)  # type: ignore[arg-type]
+        txt = ''.join(text_from_message(m) for m in req.messages)
         return await next(
             ModelRequest(
                 messages=[

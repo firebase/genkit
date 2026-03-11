@@ -60,11 +60,11 @@ async def deliciousness_score(
     deliciousness_prompt = ai.prompt('deliciousness')
     rendered = await deliciousness_prompt.render(input={'output': str(datapoint.output)})
 
-    response = await ai.generate(
+    response = await ai.generate(  # pyrefly: ignore[no-matching-overload]
         model=judge,
         messages=rendered.messages,
         config=judge_config,
-        output={'schema': DeliciousnessResponse},
+        output_schema=DeliciousnessResponse,
     )
 
     if not response.output:

@@ -17,7 +17,7 @@
 import inspect
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel
 
@@ -157,24 +157,19 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                         p_metadata = p.metadata
 
                     template = opts.get('template')
-                    # p_metadata is guaranteed to be dict here due to isinstance checks above
-                    # (lines 148-155), but type checkers can't narrow the union type properly.
-                    # Using ignores instead of runtime assertions to avoid overhead.
-                    # pyrefly: ignore[unsupported-operation,not-iterable]
-                    if 'resource' in p_metadata:  # ty: ignore[unsupported-operator]  # fmt: skip
-                        # pyrefly: ignore[bad-index,unsupported-operation]
-                        if 'parent' not in p_metadata['resource']:  # ty: ignore[not-subscriptable]  # fmt: skip
-                            # pyrefly: ignore[bad-index,unsupported-operation]
-                            p_metadata['resource']['parent'] = {'uri': input_data.uri}  # ty: ignore[not-subscriptable]  # fmt: skip
+                    # p_metadata is guaranteed to be dict here due to isinstance checks above,
+                    # but type checkers can't narrow the union type. Use cast to inform them.
+                    p_metadata = cast(dict[str, Any], p_metadata)
+
+                    if 'resource' in p_metadata:
+                        if 'parent' not in p_metadata['resource']:
+                            p_metadata['resource']['parent'] = {'uri': input_data.uri}
                             if template:
-                                # pyrefly: ignore[bad-index,unsupported-operation]
-                                p_metadata['resource']['parent']['template'] = template  # ty: ignore[not-subscriptable]  # fmt: skip
+                                p_metadata['resource']['parent']['template'] = template
                     else:
-                        # pyrefly: ignore[unsupported-operation]
-                        p_metadata['resource'] = {'uri': input_data.uri}  # ty: ignore[invalid-assignment]  # fmt: skip
+                        p_metadata['resource'] = {'uri': input_data.uri}
                         if template:
-                            # pyrefly: ignore[bad-index,unsupported-operation]
-                            p_metadata['resource']['template'] = template  # ty: ignore[not-subscriptable]  # fmt: skip
+                            p_metadata['resource']['template'] = template
                 elif isinstance(p, dict):
                     if 'metadata' not in p or p['metadata'] is None:
                         p['metadata'] = {}

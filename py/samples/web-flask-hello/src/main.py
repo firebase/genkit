@@ -102,10 +102,10 @@ async def say_hi(
 ) -> ModelResponse:
     """Say hi to the user."""
     username = ctx.context.get('username') if ctx is not None else 'unknown'
-    stream, response = ai.generate_stream(
+    stream_response = ai.generate_stream(
         prompt=f'tell a medium sized joke about {input.name} for user {username}',
     )
-    async for chunk in stream:
+    async for chunk in stream_response.stream:
         if ctx is not None and chunk.text:
             ctx.send_chunk(chunk.text)
-    return await response
+    return await stream_response.response

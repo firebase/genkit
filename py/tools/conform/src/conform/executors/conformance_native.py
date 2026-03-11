@@ -174,7 +174,8 @@ async def handle_request(
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit._core._typing import Message, OutputConfig, Part
+        from genkit._core._typing import OutputConfig, Part
+        from genkit.model import Message
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -201,21 +202,29 @@ async def handle_request(
                 tool_names.append(t_name)
                 _register_ephemeral_tool(ai, t_name, tdef)
 
+        # Expand OutputConfig to individual params for generate/generate_stream
+        output_kwargs: dict[str, Any] = {}
+        if output_obj:
+            output_kwargs['output_format'] = output_obj.format
+            output_kwargs['output_schema'] = output_obj.schema
+            output_kwargs['output_content_type'] = output_obj.content_type
+            output_kwargs['output_constrained'] = output_obj.constrained
+
         chunks: list[dict[str, Any]] = []
 
         if stream:
-            stream_iter, response_future = ai.generate_stream(
+            stream_response = ai.generate_stream(
                 model=model_name,
                 system=system_parts,
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
-            async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], chunk.model_dump()))
-            result = await response_future
+            async for chunk in stream_response.stream:
+                chunks.append(chunk.model_dump())
+            result = await stream_response.response
         else:
             result = await ai.generate(
                 model=model_name,
@@ -223,11 +232,11 @@ async def handle_request(
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
 
-        response = cast(dict[str, Any], result.model_dump())
+        response = result.model_dump()
         return {'response': response, 'chunks': chunks}
 
     except Exception:

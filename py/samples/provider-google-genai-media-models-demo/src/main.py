@@ -116,15 +116,14 @@ from genkit._core._background import lookup_background_action
 from genkit._core._typing import (
     Error,
     FinishReason,
-    Message,
     ModelInfo,
-    ModelRequest,
     Operation,
     Part,
     Role,
     Supports,
     TextPart,
 )
+from genkit.model import Message, ModelRequest
 from samples.shared.logging import setup_sample
 
 setup_sample()

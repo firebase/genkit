@@ -46,7 +46,7 @@ class RedactedSpan(ReadableSpan):
     def attributes(self) -> dict[str, Any]:
         """Return the modified attributes."""
         # pyrefly: ignore[bad-return] - dict[str, Any] is compatible with Mapping at runtime
-        return self._attributes  # ty: ignore[invalid-return-type]
+        return self._attributes
 
 
 class AdjustingTraceExporter(SpanExporter):

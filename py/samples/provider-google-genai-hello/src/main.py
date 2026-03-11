@@ -716,7 +716,7 @@ async def streaming_structured_output(
     Returns:
         The fully-parsed RPG character once streaming completes.
     """
-    stream, result = ai.generate_stream(
+    stream_response = ai.generate_stream(
         prompt=(
             f'Generate an RPG character named {input.name}. '
             'Include a creative backstory, 3-4 unique abilities, '
@@ -724,11 +724,11 @@ async def streaming_structured_output(
         ),
         output_schema=RpgCharacter,
     )
-    async for chunk in stream:
+    async for chunk in stream_response.stream:
         if ctx is not None:
             ctx.send_chunk(chunk.output)
 
-    return (await result).output
+    return (await stream_response.response).output
 
 
 @ai.flow()

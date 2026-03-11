@@ -18,7 +18,7 @@
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 
 import enum
-from typing import Any, TypeAlias
+from typing import Any, Literal, TypeAlias, cast
 
 from openai import AsyncOpenAI
 from openai.types import Model
@@ -396,22 +396,41 @@ class OpenAI(Plugin):
                 )
                 texts.append(doc_text)
 
-            # Get optional parameters with proper types
-            dimensions = None
-            encoding_format = None
+            # Get optional parameters (omit when None; OpenAI create() uses Omit, not None)
+            dimensions: int | None = None
+            encoding_format: Literal['base64', 'float'] | None = None
             if request.options:
                 if dim_val := request.options.get('dimensions'):
                     dimensions = int(dim_val)
-                if enc_val := request.options.get('encodingFormat'):
-                    encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
+                enc_val = request.options.get('encodingFormat')
+                if enc_val in ('float', 'base64'):
+                    encoding_format = cast(Literal['base64', 'float'], enc_val)
 
-            # Create embeddings for each document
-            response = await self._runtime_client().embeddings.create(
-                model=clean_name,
-                input=texts,
-                dimensions=dimensions,  # type: ignore[arg-type]
-                encoding_format=encoding_format,  # type: ignore[arg-type]
-            )
+            # Call with only non-None optional params to satisfy strict typings
+            if dimensions is not None and encoding_format is not None:
+                response = await self._runtime_client().embeddings.create(
+                    model=clean_name,
+                    input=texts,
+                    dimensions=dimensions,
+                    encoding_format=encoding_format,
+                )
+            elif dimensions is not None:
+                response = await self._runtime_client().embeddings.create(
+                    model=clean_name,
+                    input=texts,
+                    dimensions=dimensions,
+                )
+            elif encoding_format is not None:
+                response = await self._runtime_client().embeddings.create(
+                    model=clean_name,
+                    input=texts,
+                    encoding_format=encoding_format,
+                )
+            else:
+                response = await self._runtime_client().embeddings.create(
+                    model=clean_name,
+                    input=texts,
+                )
 
             # Convert OpenAI response to Genkit format
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]

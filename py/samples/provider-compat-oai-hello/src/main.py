@@ -336,7 +336,7 @@ async def get_weather_flow_stream(input: WeatherFlowInput) -> WeatherResponse:
     Returns:
         The weather for the location.
     """
-    stream, response = ai.generate_stream(
+    stream_response = ai.generate_stream(
         model=openai_model('gpt-4o'),
         system=(
             'You are an assistant that provides current weather information in JSON format and calculates '
@@ -347,9 +347,9 @@ async def get_weather_flow_stream(input: WeatherFlowInput) -> WeatherResponse:
         tools=['get_weather_tool', 'gablorkenTool'],
         output_schema=WeatherResponse,
     )
-    async for _chunk in stream:
+    async for _chunk in stream_response.stream:
         pass
-    final = await response
+    final = await stream_response.response
     return WeatherResponse.model_validate(final.output)
 
 

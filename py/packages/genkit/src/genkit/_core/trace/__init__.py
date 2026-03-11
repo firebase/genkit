@@ -16,6 +16,8 @@
 
 """Trace module for OpenTelemetry span management."""
 
+import os
+
 from ._adjusting_exporter import AdjustingTraceExporter, RedactedSpan
 from ._default_exporter import (
     TraceServerExporter,
@@ -29,6 +31,12 @@ from ._path import (
 )
 from ._realtime_processor import RealtimeSpanProcessor
 
+
+def is_realtime_telemetry_enabled() -> bool:
+    """Return True if realtime telemetry (live span export) is enabled via env."""
+    return os.environ.get('GENKIT_ENABLE_REALTIME_TELEMETRY', '').lower() == 'true'
+
+
 __all__ = [
     'AdjustingTraceExporter',
     'RealtimeSpanProcessor',
@@ -38,5 +46,6 @@ __all__ = [
     'create_span_processor',
     'decorate_path_with_subtype',
     'init_telemetry_server_exporter',
+    'is_realtime_telemetry_enabled',
     'to_display_path',
 ]
