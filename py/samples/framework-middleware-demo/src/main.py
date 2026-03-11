@@ -1,4 +1,4 @@
-# Copyright 2026 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,248 +14,102 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware demo - Custom request/response interception in Genkit.
+"""Built-in middleware examples - retry, fallback, and more.
 
-This sample demonstrates Genkit's middleware system, which lets you intercept
-and modify requests before they reach the model, and inspect or modify
-responses before they're returned to the caller.
-
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Middleware           │ A function that sits between you and the model.    │
-    │                     │ Like a security guard checking bags at the door.   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ use= Parameter      │ How you attach middleware to a generate() call.    │
-    │                     │ ``ai.generate(prompt=..., use=[my_middleware])``    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ next()              │ Calls the next middleware or the model itself.      │
-    │                     │ You MUST call it to continue the chain.            │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Request Modification│ Change the prompt, add system messages, etc.       │
-    │                     │ before the model sees the request.                 │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Response Inspection │ Log, validate, or transform the model's response   │
-    │                     │ before returning it to your code.                  │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Chaining            │ Stack multiple middleware in order.                 │
-    │                     │ ``use=[log, modify, validate]`` runs all three.    │
-    └─────────────────────┴────────────────────────────────────────────────────┘
-
-Data Flow::
-
-    ┌─────────────────────────────────────────────────────────────────────────┐
-    │                     MIDDLEWARE PIPELINE                                  │
-    │                                                                         │
-    │   ai.generate(prompt=..., use=[log_mw, modify_mw])                      │
-    │        │                                                                │
-    │        ▼                                                                │
-    │   ┌──────────────┐                                                      │
-    │   │ log_mw       │  Logs request metadata                               │
-    │   │ (before)     │  Then calls next(req, ctx)                           │
-    │   └──────┬───────┘                                                      │
-    │          │                                                              │
-    │          ▼                                                              │
-    │   ┌──────────────┐                                                      │
-    │   │ modify_mw    │  Adds system instruction to request                  │
-    │   │ (before)     │  Then calls next(modified_req, ctx)                  │
-    │   └──────┬───────┘                                                      │
-    │          │                                                              │
-    │          ▼                                                              │
-    │   ┌──────────────┐                                                      │
-    │   │ Model        │  Actual API call                                     │
-    │   └──────┬───────┘                                                      │
-    │          │                                                              │
-    │          ▼                                                              │
-    │   modify_mw (after) ─── log_mw (after) ─── Response returned            │
-    └─────────────────────────────────────────────────────────────────────────┘
-
-Testing Instructions
-====================
-1. Set ``GEMINI_API_KEY`` environment variable.
-2. Run ``./run.sh`` from this sample directory.
-3. Open the DevUI at http://localhost:4000.
-4. Run each flow and check the server logs for middleware output.
-
-See README.md for more details.
+Run: GEMINI_API_KEY=... uv run python src/main.py
 """
 
 import asyncio
-import os
-from collections.abc import Awaitable, Callable
 
-import structlog
-from pydantic import BaseModel, Field
-
-from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
-from genkit._core._action import ActionRunContext
+from genkit import Genkit, fallback, retry
 from genkit.plugins.google_genai import GoogleAI
-from samples.shared.logging import setup_sample
 
-setup_sample()
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
-
-logger = structlog.get_logger(__name__)
-
-ai = Genkit(
-    plugins=[GoogleAI()],
-    model='googleai/gemini-2.5-flash',
-)
+ai = Genkit(model='googleai/gemini-2.0-flash')
 
 
-class LoggingInput(BaseModel):
-    """Input for logging middleware demo."""
-
-    prompt: str = Field(default='Tell me a joke about programming', description='Prompt to send through middleware')
-
-
-class ModifierInput(BaseModel):
-    """Input for request modifier middleware demo."""
-
-    prompt: str = Field(default='Write a haiku', description='Prompt to send (middleware will add style instructions)')
-
-
-class ChainedInput(BaseModel):
-    """Input for chained middleware demo."""
-
-    prompt: str = Field(default='Explain recursion', description='Prompt to send through multiple middleware')
-
-
-async def logging_middleware(
-    req: ModelRequest,
-    ctx: ActionRunContext,
-    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
-) -> ModelResponse:
-    """Middleware that logs request and response metadata.
-
-    This is a pass-through middleware that doesn't modify the request
-    or response -- it only observes and logs. Useful for debugging
-    and monitoring.
-
-    Args:
-        req: The generation request about to be sent.
-        ctx: The action execution context.
-        next_handler: Calls the next middleware or the model.
-
-    Returns:
-        The generation response (unmodified).
-    """
-    await logger.ainfo(
-        'logging_middleware: request intercepted',
-        message_count=len(req.messages),
+# -----------------------------------------------------------------------------
+# Example 1: Retry with exponential backoff
+# -----------------------------------------------------------------------------
+async def retry_example() -> None:
+    """Retry failed requests automatically."""
+    response = await ai.generate(
+        prompt='Say hello',
+        use=[
+            retry(
+                max_retries=3,
+                initial_delay_ms=1000,
+                backoff_factor=2.0,
+            )
+        ],
     )
-    response = await next_handler(req, ctx)
-    await logger.ainfo(
-        'logging_middleware: response received',
-        finish_reason=response.finish_reason,
+    print(f'Retry example: {response.text}')  # noqa: T201
+
+
+# -----------------------------------------------------------------------------
+# Example 2: Fallback to another model
+# -----------------------------------------------------------------------------
+async def fallback_example() -> None:
+    """Fall back to a different model if primary fails."""
+    response = await ai.generate(
+        prompt='Say hello',
+        use=[
+            fallback(
+                ai,
+                models=['googleai/gemini-2.0-flash'],  # fallback model(s)
+            )
+        ],
     )
+    print(f'Fallback example: {response.text}')  # noqa: T201
+
+
+# -----------------------------------------------------------------------------
+# Example 3: Combine retry + fallback
+# -----------------------------------------------------------------------------
+async def combined_example() -> None:
+    """Retry first, then fallback if all retries fail."""
+    response = await ai.generate(
+        prompt='Say hello',
+        use=[
+            retry(max_retries=2, initial_delay_ms=500),
+            fallback(ai, models=['googleai/gemini-2.0-flash']),
+        ],
+    )
+    print(f'Combined example: {response.text}')  # noqa: T201
+
+
+# -----------------------------------------------------------------------------
+# Example 4: Custom middleware (for reference)
+# -----------------------------------------------------------------------------
+async def custom_middleware(req: object, ctx: object, next_fn: object) -> object:
+    """Custom middleware - add timing."""
+    import time
+
+    start = time.time()
+    response = await next_fn(req, ctx)
+    print(f'Request took {time.time() - start:.2f}s')  # noqa: T201
     return response
 
 
-async def system_instruction_middleware(
-    req: ModelRequest,
-    ctx: ActionRunContext,
-    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
-) -> ModelResponse:
-    """Middleware that prepends a system instruction to every request.
-
-    Demonstrates modifying the request before it reaches the model.
-    This pattern is useful for enforcing style guidelines, adding
-    safety instructions, or injecting context.
-
-    Args:
-        req: The generation request about to be sent.
-        ctx: The action execution context.
-        next_handler: Calls the next middleware or the model.
-
-    Returns:
-        The generation response.
-    """
-    system_message = Message(
-        role=Role.SYSTEM,
-        content=[
-            Part(root=TextPart(text='Always respond in a concise, professional tone. Keep answers under 100 words.'))
-        ],
-    )
-    modified_messages = [system_message, *req.messages]
-    modified_req = req.model_copy(update={'messages': modified_messages})
-
-    await logger.ainfo('system_instruction_middleware: injected system message')
-    return await next_handler(modified_req, ctx)
-
-
-@ai.flow()
-async def logging_demo(input: LoggingInput) -> str:
-    """Demonstrate a simple logging middleware.
-
-    Check the server logs to see the middleware output. The middleware
-    logs request metadata before the model call and response metadata after.
-
-    Args:
-        input: Input with prompt text.
-
-    Returns:
-        The model's response text.
-    """
+async def custom_example() -> None:
+    """Use custom middleware alongside built-ins."""
     response = await ai.generate(
-        prompt=input.prompt,
-        use=[logging_middleware],
+        prompt='Say hello',
+        use=[custom_middleware, retry(max_retries=2)],
     )
-    return response.text
+    print(f'Custom example: {response.text}')  # noqa: T201
 
 
-@ai.flow()
-async def request_modifier_demo(input: ModifierInput) -> str:
-    """Demonstrate a middleware that modifies the request.
-
-    The middleware injects a system instruction that tells the model to
-    be concise and professional. Compare this with running the same
-    prompt without middleware to see the difference.
-
-    Args:
-        input: Input with prompt text.
-
-    Returns:
-        The model's response text (influenced by injected system message).
-    """
-    response = await ai.generate(
-        prompt=input.prompt,
-        use=[system_instruction_middleware],
-    )
-    return response.text
-
-
-@ai.flow()
-async def chained_middleware_demo(input: ChainedInput) -> str:
-    """Demonstrate multiple middleware chained together.
-
-    The pipeline runs: logging -> system instruction -> model.
-    Both middleware functions execute in order, and the logging middleware
-    sees the request both before and after the system instruction is added.
-
-    Args:
-        input: Input with prompt text.
-
-    Returns:
-        The model's response text.
-    """
-    response = await ai.generate(
-        prompt=input.prompt,
-        use=[logging_middleware, system_instruction_middleware],
-    )
-    return response.text
-
-
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
 async def main() -> None:
-    """Main function -- keep alive for Dev UI."""
-    await logger.ainfo('Middleware demo started. Open http://localhost:4000 to test flows.')
-    while True:
-        await asyncio.sleep(3600)
+    """Run all middleware examples."""
+    await retry_example()
+    await fallback_example()
+    await combined_example()
+    await custom_example()
 
 
 if __name__ == '__main__':
-    ai.run_main(main())
+    ai.registry.register_plugin(GoogleAI())
+    asyncio.run(main())

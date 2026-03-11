@@ -22,7 +22,6 @@ import asyncio
 import base64
 import random
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -36,6 +35,7 @@ from genkit._ai._model import (
 )
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError, StatusName
+from genkit._core._registry import Registry
 from genkit._core._typing import (
     Media,
     MediaPart,
@@ -44,9 +44,6 @@ from genkit._core._typing import (
     Supports,
     TextPart,
 )
-
-if TYPE_CHECKING:
-    from genkit._ai._aio import Genkit
 
 # =============================================================================
 # Constants
@@ -445,9 +442,9 @@ def retry(
         next_middleware: Callable[..., Awaitable[ModelResponse]],
     ) -> ModelResponse:
         last_error: Exception | None = None
-        current_delay = initial_delay_ms
+        current_delay_ms: float = float(initial_delay_ms)
 
-        for attempt in range(max_retries + 1):
+        for attempt in range(int(max_retries) + 1):
             try:
                 return await next_middleware(req, ctx)
             except Exception as e:
@@ -468,7 +465,7 @@ def retry(
                             on_error(e, attempt + 1)
 
                         # Calculate delay with optional jitter
-                        delay = current_delay
+                        delay = current_delay_ms
                         if jitter:
                             # Add jitter: delay + random(0, 2^attempt * 1000)
                             delay = delay + random.random() * (2**attempt) * 1000
@@ -477,7 +474,7 @@ def retry(
                         await asyncio.sleep(delay / 1000.0)
 
                         # Update delay for next attempt
-                        current_delay = min(current_delay * backoff_factor, max_delay_ms)
+                        current_delay_ms = min(current_delay_ms * backoff_factor, float(max_delay_ms))
                         continue
 
                 # Don't retry - re-raise the error
@@ -497,7 +494,7 @@ def retry(
 
 
 def fallback(
-    ai: Genkit,
+    registry: Registry,
     models: list[str],
     statuses: list[StatusName] | None = None,
     on_error: Callable[[Exception], None] | None = None,
@@ -505,7 +502,7 @@ def fallback(
     """Middleware that falls back to alternative models on failure.
 
     Args:
-        ai: The Genkit instance (needed to resolve model references).
+        registry: The registry to resolve model references (internal; use fallback(ai, ...) from genkit.middleware).
         models: Ordered list of fallback model names to try.
         statuses: List of status codes that trigger fallback (default: UNAVAILABLE,
             DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED, INTERNAL, NOT_FOUND,
@@ -536,7 +533,7 @@ def fallback(
                 for model_name in models:
                     try:
                         # Resolve and call the fallback model
-                        model = await ai.registry.resolve_model(model_name)
+                        model = await registry.resolve_model(model_name)
                         if model is None:
                             raise GenkitError(
                                 status='NOT_FOUND',

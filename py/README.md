@@ -443,7 +443,7 @@ examples of any feature:
 | `framework-prompt-demo` | Prompt, Dotprompt | Advanced prompt templates |
 | `framework-format-demo` | Structured Output | JSON/enum output formatting |
 | `framework-context-demo` | Context Provider, Flow | Auth context in flows |
-| `framework-middleware-demo` | Middleware | Model-level request/response hooks |
+| `framework-middleware-demo` | Middleware | Built-in retry, fallback, and custom middleware |
 | `framework-evaluator-demo` | Evaluator | Custom evaluation metrics |
 | `framework-restaurant-demo` | Flow, Tool, Prompt | Multi-step agent with tools |
 | `framework-dynamic-tools-demo` | Tool, Dynamic Action Provider | Runtime tool registration |

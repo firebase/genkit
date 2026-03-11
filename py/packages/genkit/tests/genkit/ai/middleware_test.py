@@ -25,15 +25,17 @@ import pytest
 from genkit import Document, Message, ModelResponse, Supports
 from genkit._ai._middleware import (
     augment_with_context,
+    download_request_media,
     fallback,
     retry,
     simulate_system_prompt,
     validate_support,
 )
 from genkit._core._action import ActionRunContext
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, StatusName
 from genkit._core._typing import (
     DocumentPart,
+    Media,
     MediaPart,
     Metadata,
     ModelRequest,
@@ -225,7 +227,7 @@ async def test_validate_support_rejects_media_when_not_supported() -> None:
         messages=[
             Message(
                 role=Role.USER,
-                content=[Part(root=MediaPart(media={'url': 'https://example.com/img.png'}))],
+                content=[Part(root=MediaPart(media=Media(url='https://example.com/img.png')))],
             )
         ],
     )
@@ -366,6 +368,7 @@ async def test_retry_success_no_retry() -> None:
     result = await retry_mw(req, ActionRunContext(), next_fn)
 
     assert call_count == 1
+    assert result.message is not None
     assert result.message.content[0].root.text == 'ok'
 
 
@@ -388,6 +391,7 @@ async def test_retry_retries_on_retryable_error() -> None:
     result = await retry_mw(req, ActionRunContext(), next_fn)
 
     assert call_count == 3
+    assert result.message is not None
     assert result.message.content[0].root.text == 'ok'
 
 
@@ -463,7 +467,7 @@ async def test_retry_calls_on_error_callback() -> None:
 # =============================================================================
 
 
-class MockActionResult:
+class MockActionResult:  # noqa: B903
     """Mock action result."""
 
     def __init__(self, response: ModelResponse) -> None:
@@ -473,7 +477,9 @@ class MockActionResult:
 class MockAction:
     """Mock action for fallback tests."""
 
-    def __init__(self, should_fail: bool = False, fail_status: str = 'UNAVAILABLE') -> None:
+    fail_status: StatusName
+
+    def __init__(self, should_fail: bool = False, fail_status: StatusName = 'UNAVAILABLE') -> None:
         self.should_fail = should_fail
         self.fail_status = fail_status
         self.call_count = 0
@@ -497,7 +503,7 @@ class MockRegistry:
         return self.models.get(name)
 
 
-class MockGenkit:
+class MockGenkit:  # noqa: B903
     """Mock Genkit instance for fallback tests."""
 
     def __init__(self, registry: MockRegistry) -> None:
@@ -511,7 +517,7 @@ async def test_fallback_success_no_fallback() -> None:
     mock_registry = MockRegistry({'fallback-model': fallback_model})
     mock_ai = MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_ai, models=['fallback-model'])  # type: ignore[arg-type]
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -519,6 +525,7 @@ async def test_fallback_success_no_fallback() -> None:
 
     result = await fallback_mw(req, ActionRunContext(), next_fn)
 
+    assert result.message is not None
     assert result.message.content[0].root.text == 'primary ok'
     assert fallback_model.call_count == 0
 
@@ -530,7 +537,7 @@ async def test_fallback_uses_fallback_on_error() -> None:
     mock_registry = MockRegistry({'fallback-model': fallback_model})
     mock_ai = MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_ai, models=['fallback-model'])  # type: ignore[arg-type]
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -538,6 +545,7 @@ async def test_fallback_uses_fallback_on_error() -> None:
 
     result = await fallback_mw(req, ActionRunContext(), next_fn)
 
+    assert result.message is not None
     assert result.message.content[0].root.text == 'fallback ok'
     assert fallback_model.call_count == 1
 
@@ -550,7 +558,7 @@ async def test_fallback_tries_multiple_models() -> None:
     mock_registry = MockRegistry({'fallback1': fallback1, 'fallback2': fallback2})
     mock_ai = MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_ai, models=['fallback1', 'fallback2'])  # type: ignore[arg-type]
+    fallback_mw = fallback(mock_registry, models=['fallback1', 'fallback2'])
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -558,6 +566,7 @@ async def test_fallback_tries_multiple_models() -> None:
 
     result = await fallback_mw(req, ActionRunContext(), next_fn)
 
+    assert result.message is not None
     assert result.message.content[0].root.text == 'fallback ok'
     assert fallback1.call_count == 1
     assert fallback2.call_count == 1
@@ -570,7 +579,7 @@ async def test_fallback_no_fallback_on_non_fallbackable_error() -> None:
     mock_registry = MockRegistry({'fallback-model': fallback_model})
     mock_ai = MockGenkit(mock_registry)
 
-    fallback_mw = fallback(mock_ai, models=['fallback-model'])  # type: ignore[arg-type]
+    fallback_mw = fallback(mock_registry, models=['fallback-model'])
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     async def next_fn(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
@@ -586,9 +595,6 @@ async def test_fallback_no_fallback_on_non_fallbackable_error() -> None:
 # =============================================================================
 # download_request_media tests
 # =============================================================================
-
-from genkit._ai._middleware import download_request_media
-from genkit._core._typing import Media
 
 
 class MockHttpResponse:

@@ -42,11 +42,25 @@ from genkit._ai._middleware import (
     DEFAULT_RETRY_STATUSES,
     augment_with_context,
     download_request_media,
-    fallback,
     retry,
     simulate_system_prompt,
     validate_support,
 )
+from collections.abc import Callable
+
+from genkit._ai._middleware import fallback as _fallback_impl
+from genkit._ai._model import ModelMiddleware
+from genkit._core._error import GenkitError, StatusName
+
+
+def fallback(
+    ai: object,
+    models: list[str],
+    statuses: list[StatusName] | None = None,
+    on_error: Callable[[GenkitError], None] | None = None,
+) -> ModelMiddleware:
+    """Middleware that falls back to alternative models on failure."""
+    return _fallback_impl(ai.registry, models, statuses, on_error)
 
 __all__ = [
     'CONTEXT_PREFACE',
