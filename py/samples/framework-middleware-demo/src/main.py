@@ -15,7 +15,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart, ToolResponse, ToolResponsePart
-from genkit.middleware import BaseMiddleware, GenerateParams, ToolParams, retry
+from genkit.middleware import BaseMiddleware, GenerateHookParams, ToolHookParams, retry
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(model='googleai/gemini-2.0-flash')
@@ -29,14 +29,14 @@ class BrevityNudge(BaseMiddleware):
 
     async def wrap_generate(
         self,
-        params: GenerateParams,
-        next_fn: Callable[[GenerateParams], Awaitable[ModelResponse]],
+        params: GenerateHookParams,
+        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         """Inject brevity nudge on follow-up turns."""
         if params.iteration >= 1:
             nudge = Message(role=Role.USER, content=[Part(TextPart(text='[Keep your answer to 1–2 sentences.]'))])
             req = ModelRequest(messages=[*params.request.messages, nudge])
-            return await next_fn(GenerateParams(options=params.options, request=req, iteration=params.iteration))
+            return await next_fn(GenerateHookParams(options=params.options, request=req, iteration=params.iteration))
         return await next_fn(params)
 
 
@@ -48,8 +48,8 @@ class ResilientTools(BaseMiddleware):
 
     async def wrap_tool(
         self,
-        params: ToolParams,
-        next_fn: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]],
+        params: ToolHookParams,
+        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
     ) -> tuple[Part | None, Part | None]:
         """Run tool, return fallback on error."""
         try:

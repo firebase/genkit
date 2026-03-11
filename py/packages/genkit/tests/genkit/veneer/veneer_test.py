@@ -54,7 +54,7 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.middleware import BaseMiddleware, ModelParams
+from genkit.middleware import BaseMiddleware, ModelHookParams
 
 # type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
@@ -1007,18 +1007,18 @@ async def test_generate_json_format_unconstrained(
 
 class PreMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))])],
         )
-        return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 class PostMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         resp: ModelResponse = await next_fn(params)
         assert resp.message is not None
@@ -1049,7 +1049,7 @@ async def test_generate_with_middleware(
 
 class InjectContextMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(
@@ -1057,7 +1057,7 @@ class InjectContextMiddleware(BaseMiddleware):
                 Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} {params.context}'))]),
             ],
         )
-        return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 @pytest.mark.asyncio

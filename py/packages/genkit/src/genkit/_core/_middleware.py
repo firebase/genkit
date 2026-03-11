@@ -64,30 +64,30 @@ class Middleware(Protocol):
 
     def wrap_generate(
         self,
-        params: GenerateParams,
-        next_fn: Callable[[GenerateParams], Awaitable[ModelResponse]],
+        params: GenerateHookParams,
+        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
     ) -> Awaitable[ModelResponse]:
         """Wrap each iteration of the tool loop (model call + optional tool resolution)."""
         ...
 
     def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> Awaitable[ModelResponse]:
         """Wrap each model API call."""
         ...
 
     def wrap_tool(
         self,
-        params: ToolParams,
-        next_fn: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]],
+        params: ToolHookParams,
+        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
     ) -> Awaitable[tuple[Part | None, Part | None]]:
         """Wrap each tool execution."""
         ...
 
 
-class GenerateParams(BaseModel):
+class GenerateHookParams(BaseModel):
     """Params for the wrap_generate hook."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
@@ -97,7 +97,7 @@ class GenerateParams(BaseModel):
     iteration: int
 
 
-class ModelParams(BaseModel):
+class ModelHookParams(BaseModel):
     """Params for the wrap_model hook."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
@@ -107,7 +107,7 @@ class ModelParams(BaseModel):
     context: dict[str, object] = Field(default_factory=dict)
 
 
-class ToolParams(BaseModel):
+class ToolHookParams(BaseModel):
     """Params for the wrap_tool hook."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
@@ -121,22 +121,22 @@ class BaseMiddleware:
 
     def wrap_generate(
         self,
-        params: GenerateParams,
-        next_fn: Callable[[GenerateParams], Awaitable[ModelResponse]],
+        params: GenerateHookParams,
+        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
     ) -> Awaitable[ModelResponse]:
         return next_fn(params)
 
     def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> Awaitable[ModelResponse]:
         return next_fn(params)
 
     def wrap_tool(
         self,
-        params: ToolParams,
-        next_fn: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]],
+        params: ToolHookParams,
+        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
     ) -> Awaitable[tuple[Part | None, Part | None]]:
         return next_fn(params)
 
@@ -242,8 +242,8 @@ class _ValidateSupportMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
         if self._supports is None:
@@ -333,8 +333,8 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
         async with httpx.AsyncClient() as client:
@@ -392,7 +392,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
                     new_messages.append(msg)
 
             new_req = req.model_copy(update={'messages': new_messages})
-            return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+            return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 # -----------------------------------------------------------------------------
@@ -425,8 +425,8 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
         new_messages: list[Message] = []
@@ -448,7 +448,7 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
                 new_messages.append(msg)
 
         new_req = req.model_copy(update={'messages': new_messages})
-        return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 # -----------------------------------------------------------------------------
@@ -492,8 +492,8 @@ class _AugmentWithContextMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
         if not req.docs:
@@ -598,8 +598,8 @@ class _RetryMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         last_error: Exception | None = None
         current_delay_ms: float = float(self._initial_delay_ms)
@@ -692,8 +692,8 @@ class _FallbackMiddleware(BaseMiddleware):
 
     async def wrap_model(
         self,
-        params: ModelParams,
-        next_fn: Callable[[ModelParams], Awaitable[ModelResponse]],
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         try:
             return await next_fn(params)

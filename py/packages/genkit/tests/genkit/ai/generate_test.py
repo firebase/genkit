@@ -37,7 +37,7 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
-from genkit.middleware import BaseMiddleware, GenerateParams, ModelParams, ToolParams
+from genkit.middleware import BaseMiddleware, GenerateHookParams, ModelHookParams, ToolHookParams
 
 
 def _to_dict(obj: object) -> object:
@@ -154,7 +154,7 @@ class WrapGenerateRecordMiddleware(BaseMiddleware):
         self.iterations_seen: list[int] = []
 
     async def wrap_generate(
-        self, params: GenerateParams, next_fn: Callable[[GenerateParams], Awaitable[ModelResponse]]
+        self, params: GenerateHookParams, next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         self.iterations_seen.append(params.iteration)
         return await next_fn(params)
@@ -164,7 +164,7 @@ class WrapGenerateMiddleware(BaseMiddleware):
     """User journey: wrap each generate iteration to observe/modify the flow."""
 
     async def wrap_generate(
-        self, params: GenerateParams, next_fn: Callable[[GenerateParams], Awaitable[ModelResponse]]
+        self, params: GenerateHookParams, next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         # Modify request so the response reflects that wrap_generate ran
         msgs = list(params.request.messages)
@@ -176,7 +176,7 @@ class WrapGenerateMiddleware(BaseMiddleware):
                 content=[Part(TextPart(text=f'{txt} [iter {params.iteration}]'))],
             )
             msgs[-1] = marked
-        new_params = GenerateParams(
+        new_params = GenerateHookParams(
             options=params.options,
             request=ModelRequest(messages=[Message(m) if not isinstance(m, Message) else m for m in msgs]),
             iteration=params.iteration,
@@ -189,8 +189,8 @@ class WrapToolMiddleware(BaseMiddleware):
 
     async def wrap_tool(
         self,
-        params: ToolParams,
-        next_fn: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]],
+        params: ToolHookParams,
+        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
     ) -> tuple[Part | None, Part | None]:
         resp_part, interrupt = await next_fn(params)
         if resp_part is None or not isinstance(resp_part.root, ToolResponsePart):
@@ -216,11 +216,11 @@ class OrderedMiddleware(BaseMiddleware):
         self.marker = marker
 
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'{self.marker}{txt}'))])])
-        resp = await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        resp = await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
         assert resp.message is not None
         out_txt = text_from_message(resp.message)
         return ModelResponse(
@@ -231,16 +231,16 @@ class OrderedMiddleware(BaseMiddleware):
 
 class PreMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'PRE {txt}'))])])
-        return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 class PostMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         resp: ModelResponse = await next_fn(params)
         assert resp.message is not None
@@ -432,21 +432,21 @@ async def test_generate_middleware_next_fn_args_optional(
 
 class AddContextMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         new_context = {**params.context, 'banana': True}
-        return await next_fn(ModelParams(request=params.request, on_chunk=params.on_chunk, context=new_context))
+        return await next_fn(ModelHookParams(request=params.request, on_chunk=params.on_chunk, context=new_context))
 
 
 class InjectContextMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'{txt} {params.context}'))])],
         )
-        return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
+        return await next_fn(ModelHookParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 @pytest.mark.asyncio
@@ -477,7 +477,7 @@ async def test_generate_middleware_can_modify_context(
 
 class ModifyStreamMiddleware(BaseMiddleware):
     async def wrap_model(
-        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+        self, params: ModelHookParams, next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         on_chunk = params.on_chunk
         if on_chunk:
@@ -497,7 +497,7 @@ class ModifyStreamMiddleware(BaseMiddleware):
                     )
                 )
 
-        resp = await next_fn(ModelParams(request=params.request, on_chunk=chunk_handler, context=params.context))
+        resp = await next_fn(ModelHookParams(request=params.request, on_chunk=chunk_handler, context=params.context))
         if on_chunk:
             on_chunk(
                 ModelResponseChunk(

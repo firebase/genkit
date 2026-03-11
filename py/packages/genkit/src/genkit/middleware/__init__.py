@@ -41,9 +41,9 @@ Example usage:
 
 from genkit._core._middleware import (
     BaseMiddleware,
-    GenerateParams,
-    ModelParams,
-    ToolParams,
+    GenerateHookParams,
+    ModelHookParams,
+    ToolHookParams,
     augment_with_context,
     download_request_media,
     fallback,
@@ -54,9 +54,9 @@ from genkit._core._middleware import (
 
 __all__ = [
     'BaseMiddleware',
-    'GenerateParams',
-    'ModelParams',
-    'ToolParams',
+    'GenerateHookParams',
+    'ModelHookParams',
+    'ToolHookParams',
     'augment_with_context',
     'download_request_media',
     'fallback',

@@ -34,13 +34,13 @@ from genkit._ai._model import (
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._core._error import GenkitError
+from genkit._core._error import GenkitError, StatusName
 from genkit._core._logger import get_logger
 from genkit._core._middleware import (
     BaseMiddleware,
-    GenerateParams,
-    ModelParams,
-    ToolParams,
+    GenerateHookParams,
+    ModelHookParams,
+    ToolHookParams,
     augment_with_context,
 )
 from genkit._core._registry import Registry
@@ -210,7 +210,7 @@ async def generate_action(
         req: ModelRequest,
         chunk_callback: Callable[[ModelResponseChunk], None] | None,
     ) -> ModelResponse:
-        async def run_model(params: ModelParams) -> ModelResponse:
+        async def run_model(params: ModelHookParams) -> ModelResponse:
             return (
                 await model.run(
                     input=params.request,
@@ -219,23 +219,23 @@ async def generate_action(
                 )
             ).response
 
-        runner: Callable[[ModelParams], Awaitable[ModelResponse]] = run_model
+        runner: Callable[[ModelHookParams], Awaitable[ModelResponse]] = run_model
         for mw in reversed(normalized_mw):
             # Capture in defaults to avoid closure over loop variable
             _mw = mw
             _inner = runner
 
             async def run_next(
-                params: ModelParams,
+                params: ModelHookParams,
                 *,
                 _mw: BaseMiddleware = _mw,
-                _inner: Callable[[ModelParams], Awaitable[ModelResponse]] = _inner,
+                _inner: Callable[[ModelHookParams], Awaitable[ModelResponse]] = _inner,
             ) -> ModelResponse:
                 return await _mw.wrap_model(params, _inner)
 
-            runner = cast(Callable[[ModelParams], Awaitable[ModelResponse]], run_next)
+            runner = cast(Callable[[ModelHookParams], Awaitable[ModelResponse]], run_next)
 
-        return await runner(ModelParams(request=req, on_chunk=chunk_callback, context=context or {}))
+        return await runner(ModelHookParams(request=req, on_chunk=chunk_callback, context=context or {}))
 
     # if resolving the 'resume' option above generated a tool message, stream it.
     if resumed_tool_message and on_chunk:
@@ -256,9 +256,9 @@ async def generate_action(
 
     max_iters = raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
 
-    generate_chain_ref: list[Callable[[GenerateParams], Awaitable[ModelResponse]]] = []
+    generate_chain_ref: list[Callable[[GenerateHookParams], Awaitable[ModelResponse]]] = []
 
-    async def run_one_iteration(params: GenerateParams) -> ModelResponse:
+    async def run_one_iteration(params: GenerateHookParams) -> ModelResponse:
         """Execute one turn: model call + tool resolution + optional recurse."""
         req = params.request
         options = params.options
@@ -330,19 +330,19 @@ async def generate_action(
 
         next_request = await action_to_generate_request(next_options, tools, model)
         return await generate_chain_ref[0](
-            GenerateParams(options=next_options, request=next_request, iteration=params.iteration + 1)
+            GenerateHookParams(options=next_options, request=next_request, iteration=params.iteration + 1)
         )
 
-    runner_gen: Callable[[GenerateParams], Awaitable[ModelResponse]] = run_one_iteration
+    runner_gen: Callable[[GenerateHookParams], Awaitable[ModelResponse]] = run_one_iteration
     for mw in reversed(normalized_mw):
         _mw = mw
         _inner = runner_gen
 
         async def run_next_gen(
-            params: GenerateParams,
+            params: GenerateHookParams,
             *,
             _mw: BaseMiddleware = _mw,
-            _inner: Callable[[GenerateParams], Awaitable[ModelResponse]] = _inner,
+            _inner: Callable[[GenerateHookParams], Awaitable[ModelResponse]] = _inner,
         ) -> ModelResponse:
             return await _mw.wrap_generate(params, _inner)
 
@@ -350,7 +350,7 @@ async def generate_action(
 
     generate_chain_ref.append(runner_gen)
 
-    return await runner_gen(GenerateParams(options=raw_request, request=request, iteration=current_turn))
+    return await runner_gen(GenerateHookParams(options=raw_request, request=request, iteration=current_turn))
 
 
 def apply_format(
@@ -625,25 +625,25 @@ async def resolve_tool_requests(
 
         if middleware:
 
-            async def run_tool_direct(params: ToolParams) -> tuple[Part | None, Part | None]:
+            async def run_tool_direct(params: ToolHookParams) -> tuple[Part | None, Part | None]:
                 return await _resolve_tool_request(params.tool, params.tool_request_part)
 
-            runner: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]] = run_tool_direct
+            runner: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = run_tool_direct
             for mw in reversed(middleware):
                 _mw_item = mw
                 _inner = runner
 
                 async def run_next(
-                    params: ToolParams,
+                    params: ToolHookParams,
                     *,
                     _mw_item: BaseMiddleware = _mw_item,
-                    _inner: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
+                    _inner: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
                 ) -> tuple[Part | None, Part | None]:
                     return await _mw_item.wrap_tool(params, _inner)
 
                 runner = run_next
 
-            tool_response_part, interrupt_part = await runner(ToolParams(tool_request_part=tool_req_root, tool=tool))
+            tool_response_part, interrupt_part = await runner(ToolHookParams(tool_request_part=tool_req_root, tool=tool))
         else:
             tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 
@@ -855,21 +855,16 @@ def _find_corresponding_tool_response(responses: list[ToolResponsePart], request
     return None
 
 
-# TODO(#4336): extend GenkitError
-class GenerationResponseError(Exception):
-    # TODO(#4337): use status enum
-    """Error raised when a generation request fails."""
+class GenerationResponseError(GenkitError):
+    """Error raised when a generation request fails (e.g. max tool iterations exceeded)."""
 
     def __init__(
         self,
         response: ModelResponse,
         message: str,
-        status: str,
+        status: StatusName,
         details: dict[str, Any],
     ) -> None:
         """Initialize with the failed response and error details."""
-        super().__init__(message)
         self.response: ModelResponse = response
-        self.message: str = message
-        self.status: str = status
-        self.details: dict[str, Any] = details
+        super().__init__(message=message, status=status, details=details)

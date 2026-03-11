@@ -37,7 +37,7 @@ from genkit._core._typing import (
 )
 from genkit.middleware import (
     BaseMiddleware,
-    ModelParams,
+    ModelHookParams,
     augment_with_context,
     download_request_media,
     retry,
@@ -57,11 +57,11 @@ async def _run_model_middleware(
     if response is None:
         response = ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
         return response
 
-    await mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    await mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
     return req_future.result()
 
 
@@ -352,7 +352,7 @@ async def test_retry_success_no_retry() -> None:
     """Test that successful calls don't retry."""
     call_count = 0
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         nonlocal call_count
         call_count += 1
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
@@ -360,7 +360,7 @@ async def test_retry_success_no_retry() -> None:
     retry_mw = retry(max_retries=3)
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    result = await retry_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    result = await retry_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert call_count == 1
     assert result.message is not None
@@ -372,7 +372,7 @@ async def test_retry_retries_on_retryable_error() -> None:
     """Test that retryable errors trigger retry."""
     call_count = 0
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         nonlocal call_count
         call_count += 1
         if call_count < 3:
@@ -382,7 +382,7 @@ async def test_retry_retries_on_retryable_error() -> None:
     retry_mw = retry(max_retries=3, initial_delay_ms=1, jitter=False)
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    result = await retry_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    result = await retry_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert call_count == 3
     assert result.message is not None
@@ -394,7 +394,7 @@ async def test_retry_throws_after_max_retries() -> None:
     """Test that error is raised after max retries exceeded."""
     call_count = 0
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         nonlocal call_count
         call_count += 1
         raise GenkitError(status='UNAVAILABLE', message='service unavailable')
@@ -403,7 +403,7 @@ async def test_retry_throws_after_max_retries() -> None:
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     with pytest.raises(GenkitError) as exc_info:
-        await retry_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await retry_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert call_count == 3  # initial + 2 retries
     assert exc_info.value.status == 'UNAVAILABLE'
@@ -414,7 +414,7 @@ async def test_retry_no_retry_on_non_retryable_error() -> None:
     """Test that non-retryable errors don't trigger retry."""
     call_count = 0
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         nonlocal call_count
         call_count += 1
         raise GenkitError(status='INVALID_ARGUMENT', message='bad request')
@@ -423,7 +423,7 @@ async def test_retry_no_retry_on_non_retryable_error() -> None:
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
     with pytest.raises(GenkitError) as exc_info:
-        await retry_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await retry_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert call_count == 1  # no retries
     assert exc_info.value.status == 'INVALID_ARGUMENT'
@@ -439,7 +439,7 @@ async def test_retry_calls_on_error_callback() -> None:
 
     call_count = 0
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         nonlocal call_count
         call_count += 1
         if call_count < 3:
@@ -449,7 +449,7 @@ async def test_retry_calls_on_error_callback() -> None:
     retry_mw = retry(max_retries=3, initial_delay_ms=1, jitter=False, on_error=on_error)
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    await retry_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    await retry_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert len(errors) == 2
     assert errors[0][1] == 1  # first retry attempt
@@ -514,10 +514,10 @@ async def test_fallback_success_no_fallback() -> None:
     fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='primary ok'))]))
 
-    result = await fallback_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    result = await fallback_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert result.message is not None
     assert result.message.content[0].root.text == 'primary ok'
@@ -534,10 +534,10 @@ async def test_fallback_uses_fallback_on_error() -> None:
     fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         raise GenkitError(status='UNAVAILABLE', message='primary failed')
 
-    result = await fallback_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    result = await fallback_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert result.message is not None
     assert result.message.content[0].root.text == 'fallback ok'
@@ -555,10 +555,10 @@ async def test_fallback_tries_multiple_models() -> None:
     fallback_mw = fallback(mock_registry, models=['fallback1', 'fallback2'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         raise GenkitError(status='UNAVAILABLE', message='primary failed')
 
-    result = await fallback_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+    result = await fallback_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert result.message is not None
     assert result.message.content[0].root.text == 'fallback ok'
@@ -576,11 +576,11 @@ async def test_fallback_no_fallback_on_non_fallbackable_error() -> None:
     fallback_mw = fallback(mock_registry, models=['fallback-model'])  # type: ignore[arg-type]
     req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))])])
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         raise GenkitError(status='INVALID_ARGUMENT', message='bad request')
 
     with pytest.raises(GenkitError) as exc_info:
-        await fallback_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await fallback_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     assert exc_info.value.status == 'INVALID_ARGUMENT'
     assert fallback_model.call_count == 0
@@ -620,7 +620,7 @@ async def test_download_request_media_converts_http_url() -> None:
     download_mw = download_request_media()
     req_future: asyncio.Future[ModelRequest] = asyncio.Future()
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
@@ -631,7 +631,7 @@ async def test_download_request_media_converts_http_url() -> None:
         mock_client.get.return_value = MockHttpResponse(b'fake image data', 'image/png')
         mock_client_class.return_value = mock_client
 
-        await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await download_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     result = req_future.result()
     # First part should still be text
@@ -660,7 +660,7 @@ async def test_download_request_media_skips_data_uris() -> None:
     download_mw = download_request_media()
     req_future: asyncio.Future[ModelRequest] = asyncio.Future()
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
@@ -670,7 +670,7 @@ async def test_download_request_media_skips_data_uris() -> None:
         mock_client.__aexit__.return_value = None
         mock_client_class.return_value = mock_client
 
-        await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await download_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     result = req_future.result()
     # Should still have the original data URI
@@ -696,7 +696,7 @@ async def test_download_request_media_respects_max_bytes() -> None:
     download_mw = download_request_media(max_bytes=10)
     req_future: asyncio.Future[ModelRequest] = asyncio.Future()
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
@@ -708,7 +708,7 @@ async def test_download_request_media_respects_max_bytes() -> None:
         mock_client.get.return_value = MockHttpResponse(b'a' * 100, 'image/png')
         mock_client_class.return_value = mock_client
 
-        await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await download_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     result = req_future.result()
     media_part = result.messages[0].content[0].root
@@ -747,7 +747,7 @@ async def test_download_request_media_with_filter() -> None:
     download_mw = download_request_media(filter_fn=filter_fn)
     req_future: asyncio.Future[ModelRequest] = asyncio.Future()
 
-    async def next_fn(params: ModelParams) -> ModelResponse:
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
         return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
@@ -758,7 +758,7 @@ async def test_download_request_media_with_filter() -> None:
         mock_client.get.return_value = MockHttpResponse(b'image', 'image/png')
         mock_client_class.return_value = mock_client
 
-        await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        await download_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
 
     result = req_future.result()
     # First part should still have HTTP URL (skipped)
@@ -790,11 +790,11 @@ async def test_download_request_media_rejects_ssrf_urls() -> None:
         )
         download_mw = download_request_media()
 
-        async def next_fn(params: ModelParams) -> ModelResponse:
+        async def next_fn(params: ModelHookParams) -> ModelResponse:
             return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
 
         with pytest.raises(GenkitError) as exc_info:
-            await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+            await download_mw.wrap_model(ModelHookParams(request=req, on_chunk=None, context={}), next_fn)
         assert exc_info.value.status == 'INVALID_ARGUMENT'
         msg = exc_info.value.original_message
         assert 'SSRF' in msg or 'not allowed' in msg.lower()
