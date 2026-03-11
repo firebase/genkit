@@ -24,7 +24,7 @@ import pytest
 
 from genkit import Document, Message, ModelRequest, ModelResponse, Supports
 from genkit._core._error import GenkitError, StatusName
-from genkit._core._middleware import _fallback_for_registry as fallback
+from genkit._core._middleware._fallback import _fallback_for_registry as fallback
 from genkit._core._typing import (
     DocumentPart,
     Media,

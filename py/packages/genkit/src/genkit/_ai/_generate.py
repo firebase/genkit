@@ -36,12 +36,12 @@ from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError, StatusName
 from genkit._core._logger import get_logger
-from genkit._core._middleware import (
+from genkit._core._middleware._augment_with_context import augment_with_context
+from genkit._core._middleware._base import (
     BaseMiddleware,
     GenerateHookParams,
     ModelHookParams,
     ToolHookParams,
-    augment_with_context,
 )
 from genkit._core._registry import Registry
 from genkit._core._typing import (

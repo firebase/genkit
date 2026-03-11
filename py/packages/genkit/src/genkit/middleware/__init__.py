@@ -39,18 +39,18 @@ Example usage:
     )
 """
 
-from genkit._core._middleware import (
+from genkit._core._middleware._augment_with_context import augment_with_context
+from genkit._core._middleware._base import (
     BaseMiddleware,
     GenerateHookParams,
     ModelHookParams,
     ToolHookParams,
-    augment_with_context,
-    download_request_media,
-    fallback,
-    retry,
-    simulate_system_prompt,
-    validate_support,
 )
+from genkit._core._middleware._download_request_media import download_request_media
+from genkit._core._middleware._fallback import fallback
+from genkit._core._middleware._retry import retry
+from genkit._core._middleware._simulate_system_prompt import simulate_system_prompt
+from genkit._core._middleware._validate_support import validate_support
 
 __all__ = [
     'BaseMiddleware',

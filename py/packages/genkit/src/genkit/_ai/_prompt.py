@@ -47,7 +47,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._middleware import BaseMiddleware
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._model import ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema

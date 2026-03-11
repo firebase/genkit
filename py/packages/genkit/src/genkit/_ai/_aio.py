@@ -91,7 +91,7 @@ from genkit._core._environment import is_dev_environment
 from genkit._core._error import GenkitError
 from genkit._core._flow import define_flow
 from genkit._core._logger import get_logger
-from genkit._core._middleware import BaseMiddleware
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._plugin import Plugin
 from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app
 from genkit._core._registry import Registry
