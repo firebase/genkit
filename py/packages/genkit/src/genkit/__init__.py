@@ -75,6 +75,16 @@ from genkit.model import (
     ToolDefinition,
 )
 
+# Import middleware functions for convenience
+from genkit.middleware import (
+    augment_with_context,
+    download_request_media,
+    fallback,
+    retry,
+    simulate_system_prompt,
+    validate_support,
+)
+
 # Flow is an alias for Action (used in samples for flow type hints)
 Flow = Action
 
@@ -139,4 +149,11 @@ __all__ = [
     'ResumeOptions',
     'ToolRunContext',
     'tool_response',
+    # Middleware
+    'augment_with_context',
+    'download_request_media',
+    'fallback',
+    'retry',
+    'simulate_system_prompt',
+    'validate_support',
 ]
