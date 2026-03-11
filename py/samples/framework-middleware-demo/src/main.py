@@ -84,11 +84,10 @@ See README.md for more details.
 
 import asyncio
 import os
+from collections.abc import Awaitable, Callable
 
 import structlog
 from pydantic import BaseModel, Field
-
-from collections.abc import Awaitable, Callable
 
 from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
 from genkit._core._action import ActionRunContext

@@ -10,7 +10,6 @@ If something looks wrong, check localhost:4000 to see what the model actually re
 """
 
 import asyncio
-from collections.abc import Awaitable
 from pathlib import Path
 from typing import Literal
 
