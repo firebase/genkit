@@ -22,7 +22,7 @@ properties and methods on top of the generated wire types.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
 from typing import Any, Generic, cast
@@ -89,9 +89,9 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
 
     # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
     # (MessageData, DocumentData) to provide convenience methods like .text
-    messages: list[Message]  # pyrefly: ignore[bad-override]
-    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]
-    config: ConfigT | None = None  # pyrefly: ignore[bad-override]
+    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore
+    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore
+    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore
 
     @field_validator('messages', mode='before')
     @classmethod

@@ -43,11 +43,11 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
-from genkit._core._middleware import BaseMiddleware
 from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._middleware import BaseMiddleware
 from genkit._core._model import ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema

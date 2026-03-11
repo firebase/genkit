@@ -22,7 +22,7 @@ import asyncio
 import base64
 import random
 from collections.abc import Awaitable, Callable
-from typing import Any, ClassVar, Protocol, cast
+from typing import ClassVar, Protocol, cast
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -243,7 +243,9 @@ class _ValidateSupportMiddleware(BaseMiddleware):
         if self._supports.multiturn is False and len(req.messages) > 1:
             raise GenkitError(
                 status='INVALID_ARGUMENT',
-                message=f"Model '{self._name}' does not support multiple messages, but {len(req.messages)} were provided.",
+                message=(
+                    f"Model '{self._name}' does not support multiple messages, but {len(req.messages)} were provided."
+                ),
             )
 
         if self._supports.system_role is False:
@@ -679,7 +681,7 @@ class _FallbackMiddleware(BaseMiddleware):
                     self._on_error(e)
 
                 last_error: Exception = e
-                ctx = ActionRunContext(context=params.context)
+                ActionRunContext(context=params.context)
 
                 for model_name in self._models:
                     try:

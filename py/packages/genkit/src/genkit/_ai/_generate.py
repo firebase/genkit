@@ -17,10 +17,9 @@
 """Generate action."""
 
 import copy
-import inspect
 import re
-from collections.abc import Callable
-from typing import Any, Awaitable, cast
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -631,13 +630,16 @@ async def resolve_tool_requests(
 
             runner: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]] = run_tool_direct
             for mw in reversed(middleware):
-                mw_item = mw
-                inner = runner
+                _mw_item = mw
+                _inner = runner
 
                 async def run_next(
                     params: ToolParams,
+                    *,
+                    _mw_item: BaseMiddleware = _mw_item,
+                    _inner: Callable[[ToolParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
                 ) -> tuple[Part | None, Part | None]:
-                    return await mw_item.wrap_tool(params, inner)
+                    return await _mw_item.wrap_tool(params, _inner)
 
                 runner = run_next
 
