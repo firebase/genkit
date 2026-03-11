@@ -178,7 +178,7 @@ class WrapGenerateMiddleware(BaseMiddleware):
             msgs[-1] = marked
         new_params = GenerateParams(
             options=params.options,
-            request=ModelRequest(messages=msgs),
+            request=ModelRequest(messages=[Message(m) if not isinstance(m, Message) else m for m in msgs]),
             iteration=params.iteration,
         )
         return await next_fn(new_params)
@@ -219,9 +219,7 @@ class OrderedMiddleware(BaseMiddleware):
         self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
     ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
-        new_req = ModelRequest(
-            messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'{self.marker}{txt}'))])]
-        )
+        new_req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'{self.marker}{txt}'))])])
         resp = await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
         assert resp.message is not None
         out_txt = text_from_message(resp.message)
@@ -232,14 +230,18 @@ class OrderedMiddleware(BaseMiddleware):
 
 
 class PreMiddleware(BaseMiddleware):
-    async def wrap_model(self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]) -> ModelResponse:
+    async def wrap_model(
+        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'PRE {txt}'))])])
         return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
 
 
 class PostMiddleware(BaseMiddleware):
-    async def wrap_model(self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]) -> ModelResponse:
+    async def wrap_model(
+        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         resp: ModelResponse = await next_fn(params)
         assert resp.message is not None
         txt = text_from_message(resp.message)
@@ -350,9 +352,7 @@ async def test_generate_wrap_tool_transforms_tool_output(
     assert response.request is not None and response.request.messages is not None
     tool_resp_msgs = [m for m in response.request.messages if m.role == Role.TOOL]
     assert len(tool_resp_msgs) >= 1
-    tool_part = next(
-        p.root for m in tool_resp_msgs for p in m.content if isinstance(p.root, ToolResponsePart)
-    )
+    tool_part = next(p.root for m in tool_resp_msgs for p in m.content if isinstance(p.root, ToolResponsePart))
     assert tool_part.tool_response.output == '[WRAPPED] tool called'
 
 
@@ -431,13 +431,17 @@ async def test_generate_middleware_next_fn_args_optional(
 
 
 class AddContextMiddleware(BaseMiddleware):
-    async def wrap_model(self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]) -> ModelResponse:
+    async def wrap_model(
+        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         new_context = {**params.context, 'banana': True}
         return await next_fn(ModelParams(request=params.request, on_chunk=params.on_chunk, context=new_context))
 
 
 class InjectContextMiddleware(BaseMiddleware):
-    async def wrap_model(self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]) -> ModelResponse:
+    async def wrap_model(
+        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         new_req = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(TextPart(text=f'{txt} {params.context}'))])],
@@ -472,7 +476,9 @@ async def test_generate_middleware_can_modify_context(
 
 
 class ModifyStreamMiddleware(BaseMiddleware):
-    async def wrap_model(self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]) -> ModelResponse:
+    async def wrap_model(
+        self, params: ModelParams, next_fn: Callable[[ModelParams], Awaitable[ModelResponse]]
+    ) -> ModelResponse:
         on_chunk = params.on_chunk
         if on_chunk:
             on_chunk(

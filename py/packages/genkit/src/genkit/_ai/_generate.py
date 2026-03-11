@@ -223,15 +223,18 @@ async def generate_action(
         runner: Callable[[ModelParams], Awaitable[ModelResponse]] = run_model
         for mw in reversed(normalized_mw):
             # Capture in defaults to avoid closure over loop variable
+            _mw = mw
+            _inner = runner
+
             async def run_next(
                 params: ModelParams,
                 *,
-                _mw: BaseMiddleware = mw,
-                _inner: Callable[[ModelParams], Awaitable[ModelResponse]] = runner,
+                _mw: BaseMiddleware = _mw,
+                _inner: Callable[[ModelParams], Awaitable[ModelResponse]] = _inner,
             ) -> ModelResponse:
                 return await _mw.wrap_model(params, _inner)
 
-            runner = run_next
+            runner = cast(Callable[[ModelParams], Awaitable[ModelResponse]], run_next)
 
         return await runner(ModelParams(request=req, on_chunk=chunk_callback, context=context or {}))
 
@@ -261,10 +264,10 @@ async def generate_action(
         req = params.request
         options = params.options
 
-        model_response = await dispatch_model(req, wrap_chunks() if on_chunk else None)
+        model_response = await dispatch_model(cast(ModelRequest, req), wrap_chunks() if on_chunk else None)
 
         response = model_response
-        response.request = req
+        response.request = cast(ModelRequest, req)
         if formatter:
             response._message_parser = message_parser
         if schema_type:
@@ -327,7 +330,9 @@ async def generate_action(
             next_options = apply_transfer_preamble(next_options, transfer_preamble)
 
         next_request = await action_to_generate_request(next_options, tools, model)
-        return await generate_chain_ref[0](GenerateParams(options=next_options, request=next_request, iteration=params.iteration + 1))
+        return await generate_chain_ref[0](
+            GenerateParams(options=next_options, request=next_request, iteration=params.iteration + 1)
+        )
 
     runner_gen: Callable[[GenerateParams], Awaitable[ModelResponse]] = run_one_iteration
     for mw in reversed(normalized_mw):
@@ -620,6 +625,7 @@ async def resolve_tool_requests(
         tool = tool_dict[tool_request.name]
 
         if middleware:
+
             async def run_tool_direct(params: ToolParams) -> tuple[Part | None, Part | None]:
                 return await _resolve_tool_request(params.tool, params.tool_request_part)
 
@@ -635,9 +641,7 @@ async def resolve_tool_requests(
 
                 runner = run_next
 
-            tool_response_part, interrupt_part = await runner(
-                ToolParams(tool_request_part=tool_req_root, tool=tool)
-            )
+            tool_response_part, interrupt_part = await runner(ToolParams(tool_request_part=tool_req_root, tool=tool))
         else:
             tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 

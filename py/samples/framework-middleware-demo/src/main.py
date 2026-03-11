@@ -1,117 +1,93 @@
 # Copyright 2025 Google LLC
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 # SPDX-License-Identifier: Apache-2.0
 
-"""Built-in middleware examples - retry, fallback, and more.
+"""Middleware demo: make your agent production-ready—turn limits, resilient tools, retries.
 
 Run: GEMINI_API_KEY=... uv run python src/main.py
 """
 
 import asyncio
-import time
+import random
+from datetime import datetime
 
-from genkit import Genkit, ModelResponse, fallback, retry
-from genkit.middleware import BaseMiddleware, ModelParams
+from genkit import Genkit
+from genkit.middleware import BaseMiddleware, GenerateParams, ModelParams, ToolParams, retry
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(model='googleai/gemini-2.0-flash')
 
 
 # -----------------------------------------------------------------------------
-# Example 1: Retry with exponential backoff
+# BrevityNudge: on follow-up turns, inject "be brief" to cut output tokens
 # -----------------------------------------------------------------------------
-async def retry_example() -> None:
-    """Retry failed requests automatically."""
-    response = await ai.generate(
-        prompt='Say hello',
-        use=[
-            retry(
-                max_retries=3,
-                initial_delay_ms=1000,
-                backoff_factor=2.0,
+class BrevityNudge(BaseMiddleware):
+    """On turn 1+, nudge the model to stay concise—saves tokens and latency."""
+
+    async def wrap_generate(self, params: GenerateParams, next_fn):
+        if params.iteration >= 1:
+            from genkit import Message, ModelRequest, Part, Role, TextPart
+
+            nudge = Message(role=Role.USER, content=[Part(TextPart(text='[Keep your answer to 1–2 sentences.]'))])
+            req = ModelRequest(messages=[*params.request.messages, nudge])
+            return await next_fn(GenerateParams(options=params.options, request=req, iteration=params.iteration))
+        return await next_fn(params)
+
+
+# -----------------------------------------------------------------------------
+# ResilientTools: catch failures, return fallback so the agent keeps going
+# -----------------------------------------------------------------------------
+class ResilientTools(BaseMiddleware):
+    """On tool error, return a fallback instead of failing the whole run."""
+
+    async def wrap_tool(self, params: ToolParams, next_fn):
+        try:
+            return await next_fn(params)
+        except Exception as e:
+            name = params.tool_request_part.tool_request.name
+            fallback = f'[{name} unavailable: {type(e).__name__}]'
+            from genkit import Part, ToolResponse, ToolResponsePart
+
+            return (
+                Part(ToolResponsePart(tool_response=ToolResponse(name=name, output=fallback))),
+                None,
             )
-        ],
+
+
+# -----------------------------------------------------------------------------
+# Tools: one reliable, one that simulates flakiness
+# -----------------------------------------------------------------------------
+@ai.tool()
+async def get_time() -> str:
+    """Return the current time."""
+    return datetime.now().strftime('%H:%M')
+
+
+@ai.tool()
+async def get_weather(city: str = 'NYC') -> str:
+    """Return weather for a city. Simulates occasional failure."""
+    if random.random() < 0.4:  # 40% chance to "fail"
+        raise ConnectionError('Weather API timeout')
+    return f'72°F, partly cloudy in {city}'
+
+
+async def demo() -> None:
+    """Agent with turn budget + resilient tools + retry. Stays cheap and reliable."""
+    ai.registry.register_plugin(GoogleAI())
+
+    optimizer = [BrevityNudge(), ResilientTools(), retry(max_retries=2)]
+
+    r = await ai.generate(
+        prompt='What time is it in NYC and how is the weather? Use tools. One sentence.',
+        tools=['get_time', 'get_weather'],
+        use=optimizer,
+        max_turns=2,
     )
-    print(f'Retry example: {response.text}')  # noqa: T201
 
-
-# -----------------------------------------------------------------------------
-# Example 2: Fallback to another model
-# -----------------------------------------------------------------------------
-async def fallback_example() -> None:
-    """Fall back to a different model if primary fails."""
-    response = await ai.generate(
-        prompt='Say hello',
-        use=[
-            fallback(
-                ai,
-                models=['googleai/gemini-2.0-flash'],  # fallback model(s)
-            )
-        ],
-    )
-    print(f'Fallback example: {response.text}')  # noqa: T201
-
-
-# -----------------------------------------------------------------------------
-# Example 3: Combine retry + fallback
-# -----------------------------------------------------------------------------
-async def combined_example() -> None:
-    """Retry first, then fallback if all retries fail."""
-    response = await ai.generate(
-        prompt='Say hello',
-        use=[
-            retry(max_retries=2, initial_delay_ms=500),
-            fallback(ai, models=['googleai/gemini-2.0-flash']),
-        ],
-    )
-    print(f'Combined example: {response.text}')  # noqa: T201
-
-
-# -----------------------------------------------------------------------------
-# Example 4: Custom middleware (for reference)
-# -----------------------------------------------------------------------------
-class TimingMiddleware(BaseMiddleware):
-    """Custom middleware - add timing."""
-
-    async def wrap_model(self, params: ModelParams, next_fn) -> ModelResponse:
-        start = time.time()
-        response = await next_fn(params)
-        print(f'Request took {time.time() - start:.2f}s')  # noqa: T201
-        return response
-
-
-async def custom_example() -> None:
-    """Use custom middleware alongside built-ins."""
-    response = await ai.generate(
-        prompt='Say hello',
-        use=[TimingMiddleware(), retry(max_retries=2)],
-    )
-    print(f'Custom example: {response.text}')  # noqa: T201
-
-
-# -----------------------------------------------------------------------------
-# Main
-# -----------------------------------------------------------------------------
-async def main() -> None:
-    """Run all middleware examples."""
-    await retry_example()
-    await fallback_example()
-    await combined_example()
-    await custom_example()
+    print('Optimized agent output:')
+    print(f'  {r.text}\n')
+    print('Middleware: BrevityNudge, ResilientTools, retry(2) | max_turns=2')
 
 
 if __name__ == '__main__':
-    ai.registry.register_plugin(GoogleAI())
-    asyncio.run(main())
+    asyncio.run(demo())

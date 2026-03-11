@@ -22,7 +22,7 @@ import asyncio
 import base64
 import random
 from collections.abc import Awaitable, Callable
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, cast
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -585,9 +585,9 @@ class _RetryMiddleware(BaseMiddleware):
                 last_error = e
 
                 if attempt < self._max_retries:
-                    should_retry = (
-                        isinstance(e, GenkitError) and e.status in self._statuses
-                    ) or not isinstance(e, GenkitError)
+                    should_retry = (isinstance(e, GenkitError) and e.status in self._statuses) or not isinstance(
+                        e, GenkitError
+                    )
 
                     if should_retry:
                         if self._on_error:
@@ -690,7 +690,7 @@ class _FallbackMiddleware(BaseMiddleware):
                                 message=f"Fallback model '{model_name}' not found.",
                             )
                         result = await model.run(
-                            input=params.request,
+                            input=cast(ModelRequest, params.request),
                             context=params.context,
                             on_chunk=params.on_chunk,
                         )

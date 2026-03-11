@@ -290,9 +290,7 @@ async def run_simulate_system_prompt(
     req: ModelRequest, preface: str = 'SYSTEM INSTRUCTIONS:\n', acknowledgement: str = 'Understood.'
 ) -> ModelRequest:
     """Helper to run the simulate_system_prompt middleware."""
-    return await _run_model_middleware(
-        simulate_system_prompt(preface=preface, acknowledgement=acknowledgement), req
-    )
+    return await _run_model_middleware(simulate_system_prompt(preface=preface, acknowledgement=acknowledgement), req)
 
 
 @pytest.mark.asyncio

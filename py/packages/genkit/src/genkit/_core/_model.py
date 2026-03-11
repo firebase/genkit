@@ -408,7 +408,7 @@ class ModelResponseChunk(GenerateResponseChunk, Generic[OutputT]):
         return cast(OutputT, extract_json(self.accumulated_text))
 
 
-def text_from_message(msg: Message) -> str:
+def text_from_message(msg: MessageData) -> str:
     """Concatenate text from all parts of a message."""
     return text_from_content(msg.content)
 
@@ -475,5 +475,3 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
         output_videos=out_vids,
         output_audio_files=out_audio,
     )
-
-
