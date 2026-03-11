@@ -212,6 +212,27 @@ export class Registry {
   }
 
   /**
+   * Ensures all plugins are initialized when the lookup key has no plugin
+   * segment, so that plugin-registered entries are visible. Called by
+   * lookupAction and lookupValue to match list* behavior.
+   */
+  private async ensurePluginsInitializedForLookup(
+    key: string,
+    kind: 'action' | 'value'
+  ): Promise<void> {
+    if (kind === 'action') {
+      const parsedKey = parseRegistryKey(key);
+      if (parsedKey && !parsedKey.pluginName && !parsedKey.dynamicActionHost) {
+        await this.initializeAllPlugins();
+      }
+    } else {
+      if (key && !parsePluginName(key)) {
+        await this.initializeAllPlugins();
+      }
+    }
+  }
+
+  /**
    * Looks up an action in the registry.
    * @param key The key of the action to lookup.
    * @returns The action.
@@ -222,13 +243,7 @@ export class Registry {
     R extends Action<I, O>,
   >(key: string): Promise<R> {
     const parsedKey = parseRegistryKey(key);
-    // For keys without a plugin segment (e.g. /flow/orchestrator), we never run
-    // plugin initializers below. Actions registered by plugins during init would
-    // be missing from actionsById until listActions() (which calls initializeAllPlugins)
-    // runs. So ensure plugins are initialized before the final lookup.
-    if (parsedKey && !parsedKey.pluginName && !parsedKey.dynamicActionHost) {
-      await this.initializeAllPlugins();
-    }
+    await this.ensurePluginsInitializedForLookup(key, 'action');
 
     if (
       parsedKey?.dynamicActionHost &&
@@ -541,6 +556,7 @@ export class Registry {
     type: string,
     key: string
   ): Promise<T | undefined> {
+    await this.ensurePluginsInitializedForLookup(key, 'value');
     const pluginName = parsePluginName(key);
     if (!this.valueByTypeAndName[type]?.[key] && pluginName) {
       await this.initializePlugin(pluginName);

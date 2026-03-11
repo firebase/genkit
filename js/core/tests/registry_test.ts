@@ -627,4 +627,42 @@ describe('registry class', () => {
       );
     });
   });
+
+  describe('lookupValue', () => {
+    it('returns value registered by plugin with key that has no plugin segment', async () => {
+      const testValue = { configured: true };
+      registry.registerPluginProvider('myPlugin', {
+        name: 'myPlugin',
+        async initializer() {
+          registry.registerValue('defaultModel', 'defaultModel', testValue);
+          return {};
+        },
+      });
+
+      const found = await registry.lookupValue('defaultModel', 'defaultModel');
+      assert.strictEqual(found, testValue);
+    });
+
+    it('returns directly registered value', async () => {
+      const value = { foo: 1 };
+      registry.registerValue('myType', 'myKey', value);
+      assert.strictEqual(await registry.lookupValue('myType', 'myKey'), value);
+    });
+
+    it('initializes plugin when key has plugin segment', async () => {
+      let inited = false;
+      // parsePluginName(key) returns the third segment; for 'a/b/c/d' that is 'c'
+      registry.registerPluginProvider('baz', {
+        name: 'baz',
+        async initializer() {
+          inited = true;
+          registry.registerValue('config', 'foo/bar/baz/qux', { ok: true });
+          return {};
+        },
+      });
+      const found = await registry.lookupValue('config', 'foo/bar/baz/qux');
+      assert.strictEqual(inited, true);
+      assert.deepStrictEqual(found, { ok: true });
+    });
+  });
 });
