@@ -263,10 +263,10 @@ async def generate_action(
         req = params.request
         options = params.options
 
-        model_response = await dispatch_model(cast(ModelRequest, req), wrap_chunks() if on_chunk else None)
+        model_response = await dispatch_model(req, wrap_chunks() if on_chunk else None)
 
         response = model_response
-        response.request = cast(ModelRequest, req)
+        response.request = req
         if formatter:
             response._message_parser = message_parser
         if schema_type:

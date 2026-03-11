@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import ipaddress
 import random
 from collections.abc import Awaitable, Callable
-from typing import ClassVar, Protocol, cast
+from typing import ClassVar, Protocol
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -43,7 +45,6 @@ from genkit._core._typing import (
     Media,
     MediaPart,
     Metadata,
-    ModelRequest as ModelRequestBase,
     Part,
     Supports,
     TextPart,
@@ -92,7 +93,7 @@ class GenerateParams(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     options: GenerateActionOptions
-    request: ModelRequestBase
+    request: ModelRequest
     iteration: int
 
 
@@ -101,7 +102,7 @@ class ModelParams(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
-    request: ModelRequestBase
+    request: ModelRequest
     on_chunk: Callable[[ModelResponseChunk], None] | None = None
     context: dict[str, object] = Field(default_factory=dict)
 
@@ -170,6 +171,29 @@ _DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
 # -----------------------------------------------------------------------------
 
 
+_SSRF_BLOCKED_HOSTNAMES: frozenset[str] = frozenset(('metadata.google.internal', 'metadata', '169.254.169.254'))
+
+
+def _is_safe_url(url: str) -> bool:
+    """Check if URL is safe for download (blocks SSRF: private IPs, loopback, cloud metadata)."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        host_lower = hostname.lower()
+        blocked = ('localhost', 'localhost.', 'ip6-localhost', 'ip6-loopback')
+        if host_lower in blocked or host_lower in _SSRF_BLOCKED_HOSTNAMES:
+            return False
+        try:
+            addr = ipaddress.ip_address(hostname)
+        except ValueError:
+            return True  # Hostname (e.g. example.com); caller can use filter_fn to restrict
+        return not (addr.is_private or addr.is_loopback or addr.is_link_local)
+    except Exception:
+        return False
+
+
 def _last_user_message(messages: list[Message]) -> Message | None:
     """Find the last user message in a list."""
     for i in range(len(messages) - 1, -1, -1):
@@ -228,7 +252,7 @@ class _ValidateSupportMiddleware(BaseMiddleware):
         if self._supports.media is False:
             for msg in req.messages:
                 for part in msg.content:
-                    if hasattr(part.root, 'media') and part.root.media is not None:
+                    if isinstance(part.root, MediaPart) and part.root.media is not None:
                         raise GenkitError(
                             status='INVALID_ARGUMENT',
                             message=f"Model '{self._name}' does not support media, but media was provided.",
@@ -322,6 +346,11 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
 
                 for part in msg.content:
                     if isinstance(part.root, MediaPart) and part.root.media.url.startswith('http'):
+                        if not _is_safe_url(part.root.media.url):
+                            raise GenkitError(
+                                status='INVALID_ARGUMENT',
+                                message=f"Media URL is not allowed (SSRF protection): '{part.root.media.url}'",
+                            )
                         if self._filter_fn is not None and not self._filter_fn(part):
                             new_content.append(part)
                             continue
@@ -359,10 +388,8 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
 
                 if content_changed:
                     new_messages.append(Message(role=msg.role, content=new_content, metadata=msg.metadata))
-                elif isinstance(msg, Message):
-                    new_messages.append(msg)
                 else:
-                    new_messages.append(Message(message=msg))
+                    new_messages.append(msg)
 
             new_req = req.model_copy(update={'messages': new_messages})
             return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
@@ -418,10 +445,7 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
                 )
                 system_found = True
             else:
-                if isinstance(msg, Message):
-                    new_messages.append(msg)
-                else:
-                    new_messages.append(Message(message=msg))
+                new_messages.append(msg)
 
         new_req = req.model_copy(update={'messages': new_messages})
         return await next_fn(ModelParams(request=new_req, on_chunk=params.on_chunk, context=params.context))
@@ -587,9 +611,7 @@ class _RetryMiddleware(BaseMiddleware):
                 last_error = e
 
                 if attempt < self._max_retries:
-                    should_retry = (isinstance(e, GenkitError) and e.status in self._statuses) or not isinstance(
-                        e, GenkitError
-                    )
+                    should_retry = isinstance(e, GenkitError) and e.status in self._statuses
 
                     if should_retry:
                         if self._on_error:
@@ -690,7 +712,7 @@ class _FallbackMiddleware(BaseMiddleware):
                                 message=f"Fallback model '{model_name}' not found.",
                             )
                         result = await model.run(
-                            input=cast(ModelRequest, params.request),
+                            input=params.request,
                             context=params.context,
                             on_chunk=params.on_chunk,
                         )

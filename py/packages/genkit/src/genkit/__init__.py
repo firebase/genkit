@@ -58,16 +58,6 @@ from genkit.embedder import (
     EmbedResponse,
 )
 
-# Import middleware functions for convenience
-from genkit.middleware import (
-    augment_with_context,
-    download_request_media,
-    fallback,
-    retry,
-    simulate_system_prompt,
-    validate_support,
-)
-
 # Import model-related types from the model namespace
 from genkit.model import (
     Constrained,
@@ -149,11 +139,4 @@ __all__ = [
     'ResumeOptions',
     'ToolRunContext',
     'tool_response',
-    # Middleware
-    'augment_with_context',
-    'download_request_media',
-    'fallback',
-    'retry',
-    'simulate_system_prompt',
-    'validate_support',
 ]

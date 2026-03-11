@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from genkit import Document, Message, ModelResponse, Supports
+from genkit import Document, Message, ModelRequest, ModelResponse, Supports
 from genkit._core._error import GenkitError, StatusName
 from genkit._core._middleware import _fallback_for_registry as fallback
 from genkit._core._typing import (
@@ -30,7 +30,6 @@ from genkit._core._typing import (
     Media,
     MediaPart,
     Metadata,
-    ModelRequest,
     Part,
     Role,
     TextPart,
@@ -770,3 +769,32 @@ async def test_download_request_media_with_filter() -> None:
     second_part = result.messages[0].content[1].root
     assert isinstance(second_part, MediaPart)
     assert second_part.media.url.startswith('data:image/png;base64,')
+
+
+@pytest.mark.asyncio
+async def test_download_request_media_rejects_ssrf_urls() -> None:
+    """Test that SSRF URLs (localhost, private IPs, cloud metadata) are rejected."""
+    for blocked_url in (
+        'http://localhost/image.png',
+        'http://127.0.0.1/secret',
+        'http://169.254.169.254/latest/meta-data/',
+        'http://metadata.google.internal/computeMetadata/v1/',
+    ):
+        req = ModelRequest(
+            messages=[
+                Message(
+                    role=Role.USER,
+                    content=[Part(root=MediaPart(media=Media(url=blocked_url)))],
+                )
+            ],
+        )
+        download_mw = download_request_media()
+
+        async def next_fn(params: ModelParams) -> ModelResponse:
+            return ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='ok'))]))
+
+        with pytest.raises(GenkitError) as exc_info:
+            await download_mw.wrap_model(ModelParams(request=req, on_chunk=None, context={}), next_fn)
+        assert exc_info.value.status == 'INVALID_ARGUMENT'
+        msg = exc_info.value.original_message
+        assert 'SSRF' in msg or 'not allowed' in msg.lower()
