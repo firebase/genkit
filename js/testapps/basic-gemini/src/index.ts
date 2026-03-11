@@ -17,6 +17,7 @@
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import {
+  Document,
   genkit,
   z,
   type MediaPart,
@@ -795,6 +796,44 @@ ai.defineFlow(
     return text;
   }
 );
+
+// Embed text
+ai.defineFlow('embed-text', async () => {
+  const embeddings = await ai.embed({
+    embedder: googleAI.embedder('gemini-embedding-001'),
+    content: 'Albert Einstein was a German-born theoretical physicist.',
+    options: {
+      outputDimensionality: 256,
+      taskType: 'RETRIEVAL_DOCUMENT',
+      title: 'Albert Einstein', // Valid when taskType is RETRIEVAL_DOCUMENT
+    },
+  });
+
+  return embeddings;
+});
+
+// Embed multimodal content
+ai.defineFlow('embed-multimodal', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const embeddings = await ai.embed({
+    embedder: googleAI.embedder('gemini-embedding-2-preview'),
+    content: Document.fromParts([
+      { text: 'A picture of Albert Einstein.' },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ]),
+    options: {
+      outputDimensionality: 256,
+    },
+  });
+
+  return embeddings;
+});
 
 // Deep research example
 ai.defineFlow('deep-research', async (_, { sendChunk }) => {
