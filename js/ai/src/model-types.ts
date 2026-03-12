@@ -17,10 +17,10 @@
 import { OperationSchema, z } from '@genkit-ai/core';
 import { DocumentDataSchema } from './document.js';
 import {
-  Part,
   PartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  type Part,
 } from './parts.js';
 
 export { Part, PartSchema };
