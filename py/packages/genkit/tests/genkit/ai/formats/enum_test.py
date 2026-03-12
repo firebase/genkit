@@ -21,7 +21,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['VALUE1', 'VALUE2']})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='VALUE1'))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text='VALUE1'))]))
         assert result == 'VALUE1'
 
     def test_trims_whitespace(self) -> None:
@@ -29,7 +29,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['VALUE1', 'VALUE2']})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='  VALUE2\n'))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text='  VALUE2\n'))]))
         assert result == 'VALUE2'
 
     def test_removes_double_quotes(self) -> None:
@@ -37,7 +37,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='"foo"'))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text='"foo"'))]))
         assert result == 'foo'
 
     def test_removes_single_quotes(self) -> None:
@@ -45,7 +45,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text="'bar'"))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text="'bar'"))]))
         assert result == 'bar'
 
     def test_handles_unquoted_value(self) -> None:
@@ -53,7 +53,7 @@ class TestEnumFormatMessage:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text='bar'))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text='bar'))]))
         assert result == 'bar'
 
 
@@ -65,8 +65,8 @@ class TestEnumFormatStreaming:
         enum_fmt = EnumFormat()
         fmt = enum_fmt.handle({'type': 'string', 'enum': ['foo', 'bar']})
 
-        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='"f'))])
-        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='oo"'))])
+        chunk1 = ModelResponseChunk(content=[Part(TextPart(text='"f'))])
+        chunk2 = ModelResponseChunk(content=[Part(TextPart(text='oo"'))])
 
         result = fmt.parse_chunk(
             ModelResponseChunk(

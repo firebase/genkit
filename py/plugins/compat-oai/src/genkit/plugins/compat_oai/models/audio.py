@@ -202,7 +202,7 @@ def _to_tts_params(
             params[key] = config.pop(key)
 
     # Strip standard GenAI config keys.
-    for key in ('temperature', 'maxOutputTokens', 'stopSequences', 'topK', 'topP'):
+    for key in ('temperature', 'max_output_tokens', 'stop_sequences', 'top_k', 'top_p'):
         config.pop(key, None)
 
     return {k: v for k, v in params.items() if v is not None}
@@ -295,7 +295,7 @@ def _to_stt_params(
     params['response_format'] = response_format or 'text'
 
     # Strip standard GenAI config keys.
-    for key in ('maxOutputTokens', 'stopSequences', 'topK', 'topP'):
+    for key in ('max_output_tokens', 'stop_sequences', 'top_k', 'top_p'):
         config.pop(key, None)
 
     return {k: v for k, v in params.items() if v is not None}

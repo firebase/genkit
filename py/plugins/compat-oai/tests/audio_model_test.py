@@ -135,11 +135,11 @@ class TestToTTSParams:
             messages=[
                 Message(role=Role.USER, content=[Part(root=TextPart(text='test'))]),
             ],
-            config={'temperature': 0.5, 'topK': 40},
+            config={'temperature': 0.5, 'top_k': 40},
         )
         got = _to_tts_params('tts-1', request)
         assert 'temperature' not in got
-        assert 'topK' not in got
+        assert 'top_k' not in got
 
 
 class TestToTTSResponse:

@@ -28,7 +28,7 @@ from genkit._ai._model import (
 )
 from genkit._core._compat import override
 from genkit._core._error import GenkitError
-from genkit._core._extract import extract_json
+from genkit._core._extract_json import extract_json
 
 
 class JsonlFormat(FormatDef):

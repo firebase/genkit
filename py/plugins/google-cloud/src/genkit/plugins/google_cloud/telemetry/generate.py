@@ -424,10 +424,10 @@ class GenerateTelemetry:
             metadata['threadName'] = thread_name
 
         config = input_data.get('config', {})
-        if config.get('maxOutputTokens'):
-            metadata['maxOutputTokens'] = config['maxOutputTokens']
-        if config.get('stopSequences'):
-            metadata['stopSequences'] = config['stopSequences']
+        if config.get('max_output_tokens'):
+            metadata['maxOutputTokens'] = config['max_output_tokens']
+        if config.get('stop_sequences'):
+            metadata['stopSequences'] = config['stop_sequences']
 
         gcp_logger.log_structured(f'Config[{path}, {model}]', metadata)
 

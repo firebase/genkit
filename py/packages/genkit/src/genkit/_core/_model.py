@@ -30,7 +30,7 @@ from typing import Any, Generic, cast
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from typing_extensions import TypeVar
 
-from genkit._core._extract import extract_json
+from genkit._core._extract_json import extract_json
 from genkit._core._typing import (
     DocumentData,
     DocumentPart,
@@ -355,7 +355,7 @@ class ModelResponseChunk(GenerateResponseChunk, Generic[OutputT]):
                 aggregated=chunk.aggregated,
             )
         else:
-            # Direct construction mode: role=..., content=... kwargs
+            # No source chunk — caller passes fields (role, content, etc.) as kwargs directly
             super().__init__(**kwargs)
         self.previous_chunks = previous_chunks or []
         self.chunk_parser = chunk_parser

@@ -18,7 +18,7 @@ class TestJsonFormatStreaming:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        chunk = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))])
+        chunk = ModelResponseChunk(content=[Part(TextPart(text='{"id": 1, "name": "test"}'))])
         result = fmt.parse_chunk(ModelResponseChunk(chunk, index=0, previous_chunks=[]))
         assert result == {'id': 1, 'name': 'test'}
 
@@ -28,12 +28,12 @@ class TestJsonFormatStreaming:
         fmt = json_fmt.handle({'type': 'object'})
 
         # Chunk 1: partial object
-        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1'))])
+        chunk1 = ModelResponseChunk(content=[Part(TextPart(text='{"id": 1'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 == {'id': 1}
 
         # Chunk 2: complete object
-        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text=', "name": "test"}'))])
+        chunk2 = ModelResponseChunk(content=[Part(TextPart(text=', "name": "test"}'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == {'id': 1, 'name': 'test'}
 
@@ -43,12 +43,12 @@ class TestJsonFormatStreaming:
         fmt = json_fmt.handle({'type': 'object'})
 
         # Chunk 1: preamble
-        chunk1 = ModelResponseChunk(content=[Part(root=TextPart(text='Here is the JSON:\n\n```json\n'))])
+        chunk1 = ModelResponseChunk(content=[Part(TextPart(text='Here is the JSON:\n\n```json\n'))])
         result1 = fmt.parse_chunk(ModelResponseChunk(chunk1, index=0, previous_chunks=[]))
         assert result1 is None
 
         # Chunk 2: actual data
-        chunk2 = ModelResponseChunk(content=[Part(root=TextPart(text='{"id": 1}\n```'))])
+        chunk2 = ModelResponseChunk(content=[Part(TextPart(text='{"id": 1}\n```'))])
         result2 = fmt.parse_chunk(ModelResponseChunk(chunk2, index=0, previous_chunks=[chunk1]))
         assert result2 == {'id': 1}
 
@@ -62,7 +62,7 @@ class TestJsonFormatMessage:
         fmt = json_fmt.handle({'type': 'object'})
 
         result = fmt.parse_message(
-            Message(Message(role='model', content=[Part(root=TextPart(text='{"id": 1, "name": "test"}'))]))
+            Message(role='model', content=[Part(TextPart(text='{"id": 1, "name": "test"}'))])
         )
         assert result == {'id': 1, 'name': 'test'}
 
@@ -71,7 +71,7 @@ class TestJsonFormatMessage:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        result = fmt.parse_message(Message(Message(role='model', content=[Part(root=TextPart(text=''))])))
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text=''))]))
         assert result is None
 
     def test_parses_json_with_preamble_and_code_fence(self) -> None:
@@ -81,9 +81,7 @@ class TestJsonFormatMessage:
 
         result = fmt.parse_message(
             Message(
-                Message(
-                    role='model', content=[Part(root=TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```'))]
-                )
+                role='model', content=[Part(TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```'))]
             )
         )
         assert result == {'id': 1}
@@ -93,7 +91,7 @@ class TestJsonFormatMessage:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        result = fmt.parse_message(Message(Message(role='user', content=[Part(root=TextPart(text='{"foo": "bar"'))])))
+        result = fmt.parse_message(Message(role='user', content=[Part(TextPart(text='{"foo": "bar"'))]))
         assert result == {'foo': 'bar'}
 
     def test_parses_complex_nested_json(self) -> None:
@@ -103,11 +101,11 @@ class TestJsonFormatMessage:
 
         result = fmt.parse_chunk(
             ModelResponseChunk(
-                ModelResponseChunk(content=[Part(root=TextPart(text='", "baz": [1,2'))]),
+                ModelResponseChunk(content=[Part(TextPart(text='", "baz": [1,2'))]),
                 index=0,
                 previous_chunks=[
-                    ModelResponseChunk(content=[Part(root=TextPart(text='{"bar":')), Part(root=TextPart(text='"ba'))]),
-                    ModelResponseChunk(content=[Part(root=TextPart(text='z'))]),
+                    ModelResponseChunk(content=[Part(TextPart(text='{"bar":')), Part(TextPart(text='"ba'))]),
+                    ModelResponseChunk(content=[Part(TextPart(text='z'))]),
                 ],
             )
         )

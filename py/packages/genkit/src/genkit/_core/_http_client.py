@@ -16,21 +16,16 @@
 
 """Shared HTTP client utilities for Genkit plugins."""
 
-import asyncio
-import threading
-import weakref
-from collections.abc import MutableMapping
 from typing import Any
 
 import httpx
 
 from genkit._core._logger import get_logger
+from genkit._core._loop_cache import _loop_local_client
 
 logger = get_logger(__name__)
 
-# event_loop -> (cache_key -> client)
-_loop_clients: MutableMapping[asyncio.AbstractEventLoop, dict[str, httpx.AsyncClient]] = weakref.WeakKeyDictionary()
-_cache_lock = threading.Lock()
+_get_store = _loop_local_client(dict)
 
 
 def get_cached_client(
@@ -40,51 +35,31 @@ def get_cached_client(
     **httpx_kwargs: Any,
 ) -> httpx.AsyncClient:
     """Get or create a cached httpx.AsyncClient for the current event loop."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as e:
-        raise RuntimeError('get_cached_client() must be called from an async context') from e
-
-    with _cache_lock:
-        loop_cache = _loop_clients.setdefault(loop, {})
-
-        if cache_key in loop_cache:
-            client = loop_cache[cache_key]
-            if not client.is_closed:
-                return client
-            del loop_cache[cache_key]
-
+    d = _get_store()
+    if cache_key not in d or d[cache_key].is_closed:
         if timeout is None:
             timeout = httpx.Timeout(60.0, connect=10.0)
         elif isinstance(timeout, (int, float)):
             timeout = httpx.Timeout(float(timeout))
-
-        client = httpx.AsyncClient(headers=headers or {}, timeout=timeout, **httpx_kwargs)
-        loop_cache[cache_key] = client
-        return client
+        d[cache_key] = httpx.AsyncClient(headers=headers or {}, timeout=timeout, **httpx_kwargs)
+    return d[cache_key]
 
 
 async def close_cached_clients(cache_key: str | None = None) -> None:
     """Close and remove cached clients for the current event loop."""
     try:
-        loop = asyncio.get_running_loop()
+        d = _get_store()
     except RuntimeError:
         return
 
     clients_to_close: dict[str, httpx.AsyncClient] = {}
 
-    with _cache_lock:
-        if loop not in _loop_clients:
-            return
-
-        loop_cache = _loop_clients[loop]
-
-        if cache_key is not None:
-            if cache_key in loop_cache:
-                clients_to_close[cache_key] = loop_cache.pop(cache_key)
-        else:
-            clients_to_close.update(loop_cache)
-            loop_cache.clear()
+    if cache_key is not None:
+        if cache_key in d:
+            clients_to_close[cache_key] = d.pop(cache_key)
+    else:
+        clients_to_close.update(d)
+        d.clear()
 
     for key, client in clients_to_close.items():
         try:
@@ -95,5 +70,8 @@ async def close_cached_clients(cache_key: str | None = None) -> None:
 
 def clear_client_cache() -> None:
     """Clear all cached clients (for testing). Does NOT close clients."""
-    with _cache_lock:
-        _loop_clients.clear()
+    try:
+        d = _get_store()
+        d.clear()
+    except RuntimeError:
+        pass

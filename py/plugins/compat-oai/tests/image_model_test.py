@@ -103,12 +103,12 @@ class TestToImageGenerateParams:
             messages=[
                 Message(role=Role.USER, content=[Part(root=TextPart(text='test'))]),
             ],
-            config={'temperature': 0.5, 'topK': 40, 'topP': 0.9},
+            config={'temperature': 0.5, 'top_k': 40, 'top_p': 0.9},
         )
         got = _to_image_generate_params('dall-e-3', request)
         assert 'temperature' not in got
-        assert 'topK' not in got
-        assert 'topP' not in got
+        assert 'top_k' not in got
+        assert 'top_p' not in got
 
     def test_version_override(self) -> None:
         """Verify model version override via config."""

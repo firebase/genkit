@@ -94,7 +94,7 @@ class ExtractItemsResult:
     cursor: int
 
 
-def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
+def extract_json_array_from_text(text: str, cursor: int = 0) -> ExtractItemsResult:
     """Extract complete JSON objects from the first array found in text."""
     items: list = []
     current_cursor = cursor

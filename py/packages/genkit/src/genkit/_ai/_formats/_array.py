@@ -26,7 +26,7 @@ from genkit._ai._model import (
 )
 from genkit._core._compat import override
 from genkit._core._error import GenkitError
-from genkit._core._extract import extract_items
+from genkit._core._extract_json import extract_json_array_from_text
 
 
 class ArrayFormat(FormatDef):
@@ -38,7 +38,7 @@ class ArrayFormat(FormatDef):
     The formatter automatically handles:
     1.  Validating that the schema is of type `array`.
     2.  Injecting instructions into the prompt to output a JSON array.
-    3.  Parsing the response (both full messages and streaming chunks) using `extract_items`
+    3.  Parsing the response (both full messages and streaming chunks) using `extract_json_array_from_text`
         to recover valid JSON objects from potentially incomplete or noisy output.
 
     Usage:
@@ -93,7 +93,7 @@ class ArrayFormat(FormatDef):
 
         def message_parser(msg: Message) -> list[object]:
             """Parses a complete message into a list of items."""
-            result = extract_items(msg.text, 0)
+            result = extract_json_array_from_text(msg.text, 0)
             return result.items
 
         def chunk_parser(chunk: ModelResponseChunk) -> list[object]:
@@ -104,9 +104,9 @@ class ArrayFormat(FormatDef):
             # Find cursor position from previous text
             cursor = 0
             if previous_text_len > 0:
-                cursor = extract_items(chunk.accumulated_text[:previous_text_len]).cursor
+                cursor = extract_json_array_from_text(chunk.accumulated_text[:previous_text_len]).cursor
 
-            result = extract_items(chunk.accumulated_text, cursor)
+            result = extract_json_array_from_text(chunk.accumulated_text, cursor)
             return result.items
 
         instructions = None

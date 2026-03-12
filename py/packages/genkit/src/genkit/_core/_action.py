@@ -35,7 +35,7 @@ from genkit._core._channel import Channel
 from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
 from genkit._core._tracing import tracer
-from genkit._core.trace._path import build_path
+from genkit._core._trace._path import build_path
 
 # =============================================================================
 # Span attribute types and tracing helpers
@@ -154,7 +154,7 @@ class StreamResponse(Generic[ChunkT_co, OutputT_co]):
     def __init__(
         self,
         stream: AsyncIterator[ChunkT_co],
-        response: Awaitable[ActionResponse[OutputT_co]],
+        response: Awaitable[OutputT_co],
     ) -> None:
         self._stream = stream
         self._response = response
@@ -164,7 +164,7 @@ class StreamResponse(Generic[ChunkT_co, OutputT_co]):
         return self._stream
 
     @property
-    def response(self) -> Awaitable[ActionResponse[OutputT_co]]:
+    def response(self) -> Awaitable[OutputT_co]:
         return self._response
 
 
@@ -466,8 +466,8 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         )
         channel.set_close_future(asyncio.create_task(resp))
 
-        result_future: asyncio.Future[ActionResponse[OutputT]] = asyncio.Future()
-        channel.closed.add_done_callback(lambda _: result_future.set_result(channel.closed.result()))
+        result_future: asyncio.Future[OutputT] = asyncio.Future()
+        channel.closed.add_done_callback(lambda _: result_future.set_result(channel.closed.result().response))
 
         return StreamResponse(stream=channel, response=result_future)
 

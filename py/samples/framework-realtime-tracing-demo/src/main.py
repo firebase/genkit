@@ -296,21 +296,21 @@ async def llm_chain_flow(input: LlmChainInput) -> dict[str, object]:
     # Step 1: Initial generation
     response1 = await ai.generate(
         prompt=input.initial_prompt,
-        config={'maxOutputTokens': 100},
+        config={'max_output_tokens': 100},
     )
     results['fact'] = response1.text
 
     # Step 2: Follow-up question
     response2 = await ai.generate(
         prompt=f'Based on this fact: "{response1.text[:100]}...", ask a follow-up question.',
-        config={'maxOutputTokens': 50},
+        config={'max_output_tokens': 50},
     )
     results['question'] = response2.text
 
     # Step 3: Answer the follow-up
     response3 = await ai.generate(
         prompt=f'Answer this question: {response2.text}',
-        config={'maxOutputTokens': 100},
+        config={'max_output_tokens': 100},
     )
     results['answer'] = response3.text
 

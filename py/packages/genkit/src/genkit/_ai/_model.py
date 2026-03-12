@@ -144,7 +144,7 @@ def get_request_api_key(config: Mapping[str, object] | ModelConfig | object | No
 
     if isinstance(config, Mapping):
         config_mapping = cast(Mapping[str, object], config)
-        api_key = config_mapping.get('api_key') or config_mapping.get('apiKey')
+        api_key = config_mapping.get('api_key')
         if isinstance(api_key, str) and api_key:
             return api_key
     else:

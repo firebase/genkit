@@ -415,11 +415,8 @@ class OpenAIModel:
 
         if isinstance(config, dict):
             config_dict = cast(dict[str, Any], config)
-            if config_dict.get('topK'):
-                del config_dict['topK']
-            if config_dict.get('topP'):
-                config_dict['top_p'] = config_dict['topP']
-                del config_dict['topP']
+            if config_dict.get('top_k'):
+                del config_dict['top_k']
             return OpenAIConfig(**config_dict)
 
         raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')

@@ -1264,9 +1264,9 @@ class GeminiModel:
 
         if request.config:
             if isinstance(request.config, dict):
-                api_version = request.config.get('api_version') or request.config.get('apiVersion')
-                api_key_override = request.config.get('api_key') or request.config.get('apiKey')
-                base_url_override = request.config.get('base_url') or request.config.get('baseUrl')
+                api_version = request.config.get('api_version')
+                api_key_override = request.config.get('api_key')
+                base_url_override = request.config.get('base_url')
             else:
                 api_version = getattr(request.config, 'api_version', None)
                 api_key_override = getattr(request.config, 'api_key', None)

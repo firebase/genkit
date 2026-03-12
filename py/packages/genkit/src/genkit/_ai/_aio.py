@@ -34,7 +34,7 @@ from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import BaseModel
 
-from genkit._ai._document import Document
+from genkit._core._model import Document
 from genkit._ai._embedding import EmbedderFn, EmbedderOptions, EmbedderRef, define_embedder
 from genkit._ai._evaluator import (
     BatchEvaluatorFn,
@@ -69,7 +69,7 @@ from genkit._ai._prompt import (
 from genkit._ai._resource import (
     ResourceFn,
     ResourceOptions,
-    define_resource as define_resource_block,
+    define_resource,
 )
 from genkit._ai._tools import define_tool
 from genkit._core._action import Action, ActionKind, ActionRunContext
@@ -78,8 +78,8 @@ from genkit._core._background import (
     CancelModelOpFn,
     CheckModelOpFn,
     StartModelOpFn,
-    check_operation as check_operation_impl,
-    define_background_model as define_background_model_block,
+    check_operation,
+    define_background_model,
     lookup_background_action,
 )
 from genkit._core._channel import Channel, run_loop
@@ -109,6 +109,7 @@ from genkit._core._typing import (
     ToolChoice,
 )
 
+from ._decorators import _FlowDecorator, _FlowDecoratorWithChunk
 from ._runtime import RuntimeManager
 
 logger = get_logger(__name__)
@@ -120,52 +121,6 @@ ChunkT = TypeVar('ChunkT')
 P = ParamSpec('P')
 R = TypeVar('R')
 T = TypeVar('T')
-
-
-class _FlowDecorator:
-    """Decorator class for flow registration with proper type inference."""
-
-    def __init__(self, registry: Registry, name: str | None, description: str | None) -> None:
-        self._registry = registry
-        self._name = name
-        self._description = description
-
-    @overload
-    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Action[None, OutputT]: ...
-
-    @overload
-    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Action[InputT, OutputT]: ...
-
-    @overload
-    def __call__(self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]) -> Action[InputT, OutputT]: ...
-
-    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any]:
-        return define_flow(self._registry, func, self._name, self._description)
-
-
-class _FlowDecoratorWithChunk(Generic[ChunkT]):
-    """Decorator class for streaming flow registration with chunk type inference."""
-
-    def __init__(self, registry: Registry, name: str | None, description: str | None, chunk_type: type[ChunkT]) -> None:
-        self._registry = registry
-        self._name = name
-        self._description = description
-        self._chunk_type = chunk_type
-
-    @overload
-    def __call__(self, func: Callable[[], Awaitable[OutputT]]) -> Action[None, OutputT, ChunkT]: ...
-
-    @overload
-    def __call__(self, func: Callable[[InputT], Awaitable[OutputT]]) -> Action[InputT, OutputT, ChunkT]: ...
-
-    @overload
-    def __call__(
-        self, func: Callable[[InputT, ActionRunContext], Awaitable[OutputT]]
-    ) -> Action[InputT, OutputT, ChunkT]: ...
-
-    def __call__(self, func: Callable[..., Awaitable[Any]]) -> Action[Any, Any, ChunkT]:
-        # Cast is safe: chunk_type is purely for static typing, runtime behavior is identical
-        return cast(Action[Any, Any, ChunkT], define_flow(self._registry, func, self._name, self._description))
 
 
 def _model_supports_long_running(model_action: Action) -> bool:
@@ -225,6 +180,7 @@ class Genkit:
     def flow(
         self,
         name: str | None = None,
+        *,
         description: str | None = None,
         chunk_type: None = None,
     ) -> _FlowDecorator: ...
@@ -233,14 +189,15 @@ class Genkit:
     def flow(
         self,
         name: str | None = None,
-        description: str | None = None,
         *,
+        description: str | None = None,
         chunk_type: type[ChunkT],
     ) -> _FlowDecoratorWithChunk[ChunkT]: ...
 
     def flow(
         self,
         name: str | None = None,
+        *,
         description: str | None = None,
         chunk_type: type[Any] | None = None,
     ) -> _FlowDecorator | _FlowDecoratorWithChunk[Any]:
@@ -315,6 +272,7 @@ class Genkit:
 
     def define_evaluator(
         self,
+        *,
         name: str,
         display_name: str,
         definition: str,
@@ -326,11 +284,20 @@ class Genkit:
     ) -> Action:
         """Register an evaluator action."""
         return define_evaluator(
-            self.registry, name, display_name, definition, fn, is_billed, config_schema, metadata, description
+            self.registry,
+            name=name,
+            display_name=display_name,
+            definition=definition,
+            fn=fn,
+            is_billed=is_billed,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
         )
 
     def define_batch_evaluator(
         self,
+        *,
         name: str,
         display_name: str,
         definition: str,
@@ -342,7 +309,15 @@ class Genkit:
     ) -> Action:
         """Register a batch evaluator action."""
         return define_batch_evaluator(
-            self.registry, name, display_name, definition, fn, is_billed, config_schema, metadata, description
+            self.registry,
+            name=name,
+            display_name=display_name,
+            definition=definition,
+            fn=fn,
+            is_billed=is_billed,
+            config_schema=config_schema,
+            metadata=metadata,
+            description=description,
         )
 
     def define_model(
@@ -370,7 +345,7 @@ class Genkit:
         description: str | None = None,
     ) -> BackgroundAction:
         """Register a background model for long-running AI operations."""
-        return define_background_model_block(
+        return define_background_model(
             registry=self.registry,
             name=name,
             start=start,
@@ -398,15 +373,12 @@ class Genkit:
         """Register a custom output format."""
         self.registry.register_value('format', format.name, format)
 
-    # NOTE: The 3 overloads below have input_schema/output_schema in different positions to enable
-    # proper generic type inference for each usage pattern. pyrefly flags this as "inconsistent-overload"
-    # but it's intentional - pyright and ty accept this pattern.
-
     # Overload 1: Both input_schema and output_schema typed -> ExecutablePrompt[InputT, OutputT]
     @overload
-    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
+    def define_prompt(
         self,
         name: str | None = None,
+        *,
         variant: str | None = None,
         model: str | None = None,
         config: dict[str, object] | ModelConfig | None = None,
@@ -425,16 +397,16 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        *,
         input_schema: type[InputT],
         output_schema: type[OutputT],
     ) -> ExecutablePrompt[InputT, OutputT]: ...
 
     # Overload 2: Only input_schema typed -> ExecutablePrompt[InputT, Any]
     @overload
-    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
+    def define_prompt(
         self,
         name: str | None = None,
+        *,
         variant: str | None = None,
         model: str | None = None,
         config: dict[str, object] | ModelConfig | None = None,
@@ -445,7 +417,6 @@ class Genkit:
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: str | None = None,
-        output_schema: dict[str, object] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
@@ -454,20 +425,20 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        *,
         input_schema: type[InputT],
+        output_schema: dict[str, object] | str | None = None,
     ) -> ExecutablePrompt[InputT, Any]: ...
 
     # Overload 3: Only output_schema typed -> ExecutablePrompt[Any, OutputT]
     @overload
-    def define_prompt(  # pyrefly:ignore[inconsistent-overload]
+    def define_prompt(
         self,
         name: str | None = None,
+        *,
         variant: str | None = None,
         model: str | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         description: str | None = None,
-        input_schema: dict[str, object] | str | None = None,
         system: str | list[Part] | None = None,
         prompt: str | list[Part] | None = None,
         messages: str | list[Message] | None = None,
@@ -482,7 +453,7 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
-        *,
+        input_schema: dict[str, object] | str | None = None,
         output_schema: type[OutputT],
     ) -> ExecutablePrompt[Any, OutputT]: ...
 
@@ -491,18 +462,17 @@ class Genkit:
     def define_prompt(
         self,
         name: str | None = None,
+        *,
         variant: str | None = None,
         model: str | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         description: str | None = None,
-        input_schema: dict[str, object] | str | None = None,
         system: str | list[Part] | None = None,
         prompt: str | list[Part] | None = None,
         messages: str | list[Message] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: str | None = None,
-        output_schema: dict[str, object] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
@@ -511,24 +481,24 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
+        input_schema: dict[str, object] | str | None = None,
+        output_schema: dict[str, object] | str | None = None,
     ) -> ExecutablePrompt[Any, Any]: ...
 
-    # pyrefly:ignore[inconsistent-overload]
-    def define_prompt(  # pyright: ignore[reportInconsistentOverload]
+    def define_prompt(
         self,
         name: str | None = None,
+        *,
         variant: str | None = None,
         model: str | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         description: str | None = None,
-        input_schema: type | dict[str, object] | str | None = None,
         system: str | list[Part] | None = None,
         prompt: str | list[Part] | None = None,
         messages: str | list[Message] | None = None,
         output_format: str | None = None,
         output_content_type: str | None = None,
         output_instructions: str | None = None,
-        output_schema: type | dict[str, object] | str | None = None,
         output_constrained: bool | None = None,
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
@@ -537,6 +507,8 @@ class Genkit:
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
+        input_schema: type | dict[str, object] | str | None = None,
+        output_schema: type | dict[str, object] | str | None = None,
     ) -> ExecutablePrompt[Any, Any]:
         """Register a prompt template."""
         executable_prompt = ExecutablePrompt(
@@ -572,8 +544,8 @@ class Genkit:
     def prompt(
         self,
         name: str,
-        variant: str | None = None,
         *,
+        variant: str | None = None,
         input_schema: None = None,
         output_schema: None = None,
     ) -> ExecutablePrompt[Any, Any]: ...
@@ -583,8 +555,8 @@ class Genkit:
     def prompt(
         self,
         name: str,
-        variant: str | None = None,
         *,
+        variant: str | None = None,
         input_schema: type[InputT],
         output_schema: None = None,
     ) -> ExecutablePrompt[InputT, Any]: ...
@@ -594,8 +566,8 @@ class Genkit:
     def prompt(
         self,
         name: str,
-        variant: str | None = None,
         *,
+        variant: str | None = None,
         input_schema: None = None,
         output_schema: type[OutputT],
     ) -> ExecutablePrompt[Any, OutputT]: ...
@@ -605,8 +577,8 @@ class Genkit:
     def prompt(
         self,
         name: str,
-        variant: str | None = None,
         *,
+        variant: str | None = None,
         input_schema: type[InputT],
         output_schema: type[OutputT],
     ) -> ExecutablePrompt[InputT, OutputT]: ...
@@ -614,8 +586,8 @@ class Genkit:
     def prompt(
         self,
         name: str,
-        variant: str | None = None,
         *,
+        variant: str | None = None,
         input_schema: type[InputT] | None = None,
         output_schema: type[OutputT] | None = None,
     ) -> ExecutablePrompt[InputT, OutputT] | ExecutablePrompt[Any, Any]:
@@ -651,7 +623,7 @@ class Genkit:
         if metadata:
             opts['metadata'] = metadata
 
-        return define_resource_block(self.registry, opts, fn)
+        return define_resource(self.registry, opts, fn)
 
     # -------------------------------------------------------------------------
     # Server infrastructure methods
@@ -1140,7 +1112,7 @@ class Genkit:
 
     async def check_operation(self, operation: Operation) -> Operation:
         """Check the status of a long-running background operation."""
-        return await check_operation_impl(self.registry, operation)
+        return await check_operation(self.registry, operation)
 
     async def cancel_operation(self, operation: Operation) -> Operation:
         """Cancel a long-running background operation."""

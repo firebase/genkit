@@ -18,7 +18,7 @@
 
 from collections.abc import Awaitable, Callable
 
-from genkit._ai._document import Document
+from genkit._core._model import Document
 from genkit._ai._model import (
     Message,
     ModelMiddleware,

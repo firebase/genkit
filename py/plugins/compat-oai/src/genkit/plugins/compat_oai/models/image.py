@@ -113,7 +113,7 @@ def _to_image_generate_params(
     }
 
     # Strip standard GenAI config keys that don't apply to image generation.
-    for key in ('temperature', 'maxOutputTokens', 'stopSequences', 'topK', 'topP'):
+    for key in ('temperature', 'max_output_tokens', 'stop_sequences', 'top_k', 'top_p'):
         config.pop(key, None)
 
     # Pass remaining config through (size, quality, style, n, etc.).

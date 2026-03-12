@@ -27,7 +27,7 @@ from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 
 def package_name() -> str:
     """Get the fully qualified package name."""
-    return 'genkit.ai._formats'
+    return 'genkit._ai._formats'
 
 
 built_in_formats = [

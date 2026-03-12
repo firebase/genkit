@@ -44,7 +44,7 @@ genkit start -- python src/main.py
 ```python
 from opentelemetry.sdk.trace import TracerProvider
 
-from genkit._core.trace import RealtimeSpanProcessor, TraceServerExporter
+from genkit._core._trace import RealtimeSpanProcessor, TraceServerExporter
 
 # Create exporter
 exporter = TraceServerExporter(

@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from typing_extensions import Never
 
-from genkit._ai._document import Document
+from genkit._core._model import Document
 from genkit._core._action import Action, ActionKind, ActionMetadata, get_func_description
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema

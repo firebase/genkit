@@ -32,13 +32,13 @@ from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
 
 from genkit._core._environment import GENKIT_ENV, GenkitEnvironment
-from genkit._core.trace._default_exporter import (
+from genkit._core._trace._default_exporter import (
     TraceServerExporter,
     create_span_processor,
     extract_span_data,
     init_telemetry_server_exporter,
 )
-from genkit._core.trace._realtime_processor import RealtimeSpanProcessor
+from genkit._core._trace._realtime_processor import RealtimeSpanProcessor
 
 # =============================================================================
 # Tests for create_span_processor
@@ -143,7 +143,7 @@ def test_telemetry_server_exporter_force_flush_ignores_timeout() -> None:
     assert result is True
 
 
-@patch('genkit._core.trace._default_exporter.httpx.Client')
+@patch('genkit._core._trace._default_exporter.httpx.Client')
 def test_telemetry_server_exporter_export_sends_http_post(mock_client_class: MagicMock) -> None:
     """Test that export sends HTTP POST requests for each span."""
     # Setup mock client
@@ -164,7 +164,7 @@ def test_telemetry_server_exporter_export_sends_http_post(mock_client_class: Mag
     mock_client.post.assert_called_once()
 
 
-@patch('genkit._core.trace._default_exporter.httpx.Client')
+@patch('genkit._core._trace._default_exporter.httpx.Client')
 def test_telemetry_server_exporter_export_multiple_spans(mock_client_class: MagicMock) -> None:
     """Test that export sends HTTP POST for each span in the sequence."""
     # Setup mock client

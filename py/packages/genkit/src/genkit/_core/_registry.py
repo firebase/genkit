@@ -482,7 +482,7 @@ class Registry:
         kind, name = parse_action_key(key)
         return await self.resolve_action(kind, name)
 
-    async def list_actions(self, allowed_kinds: list[str] | None = None) -> list[ActionMetadata]:
+    async def list_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
         """List all actions advertised by plugins.
 
         This method returns the advertised set of actions from all registered

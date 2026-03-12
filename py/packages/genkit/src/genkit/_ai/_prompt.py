@@ -18,6 +18,7 @@
 """Prompt management and templating."""
 
 import asyncio
+from dataclasses import dataclass
 import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
@@ -32,7 +33,7 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
-from genkit._ai._document import Document
+from genkit._core._model import Document
 from genkit._ai._generate import (
     generate_action,
     to_tool_definition,
@@ -154,6 +155,7 @@ class ModelStreamResponse(Generic[OutputT]):
         return self._response_future
 
 
+@dataclass
 class PromptCache:
     """Model for a prompt cache."""
 

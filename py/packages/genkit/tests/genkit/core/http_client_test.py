@@ -22,7 +22,6 @@ import httpx
 import pytest
 
 from genkit._core._http_client import (
-    _loop_clients,
     clear_client_cache,
     close_cached_clients,
     get_cached_client,
@@ -98,38 +97,42 @@ async def test_closed_client_gets_replaced() -> None:
 @pytest.mark.asyncio
 async def test_client_stored_in_cache() -> None:
     clear_client_cache()
-    _ = get_cached_client(cache_key='test')
-    loop = asyncio.get_running_loop()
-    assert loop in _loop_clients
-    assert 'test' in _loop_clients[loop]
+    client = get_cached_client(cache_key='test')
+    client2 = get_cached_client(cache_key='test')
+    assert client is client2
 
 
 def test_raises_without_running_event_loop() -> None:
-    with pytest.raises(RuntimeError, match='must be called from an async context'):
+    with pytest.raises(RuntimeError, match='no running event loop'):
         get_cached_client(cache_key='test')
 
 
 @pytest.mark.asyncio
 async def test_close_specific_client() -> None:
-    _ = get_cached_client(cache_key='to-close')
-    _ = get_cached_client(cache_key='keep')
+    client_to_close = get_cached_client(cache_key='to-close')
+    client_keep = get_cached_client(cache_key='keep')
 
     await close_cached_clients('to-close')
 
-    loop = asyncio.get_running_loop()
-    assert 'to-close' not in _loop_clients[loop]
-    assert 'keep' in _loop_clients[loop]
+    # 'to-close' should be gone; new fetch returns new client
+    client_after = get_cached_client(cache_key='to-close')
+    assert client_after is not client_to_close
+    # 'keep' should still be cached
+    assert get_cached_client(cache_key='keep') is client_keep
 
 
 @pytest.mark.asyncio
 async def test_close_all_clients_in_loop() -> None:
-    _ = get_cached_client(cache_key='client-a')
-    _ = get_cached_client(cache_key='client-b')
+    client_a = get_cached_client(cache_key='client-a')
+    client_b = get_cached_client(cache_key='client-b')
 
     await close_cached_clients()
 
-    loop = asyncio.get_running_loop()
-    assert loop not in _loop_clients or len(_loop_clients[loop]) == 0
+    # Cache should be empty; new fetches return new clients
+    new_a = get_cached_client(cache_key='client-a')
+    new_b = get_cached_client(cache_key='client-b')
+    assert new_a is not client_a
+    assert new_b is not client_b
 
 
 @pytest.mark.asyncio
@@ -145,10 +148,14 @@ async def test_close_when_no_clients_is_noop() -> None:
 
 @pytest.mark.asyncio
 async def test_clear_removes_all_cached_clients() -> None:
-    _ = get_cached_client(cache_key='client-a')
-    _ = get_cached_client(cache_key='client-b')
+    client_a = get_cached_client(cache_key='client-a')
+    client_b = get_cached_client(cache_key='client-b')
     clear_client_cache()
-    assert len(_loop_clients) == 0
+    # Cache cleared; new fetches return new clients
+    new_a = get_cached_client(cache_key='client-a')
+    new_b = get_cached_client(cache_key='client-b')
+    assert new_a is not client_a
+    assert new_b is not client_b
 
 
 def test_clear_when_empty_is_noop() -> None:
@@ -158,9 +165,9 @@ def test_clear_when_empty_is_noop() -> None:
 
 @pytest.mark.asyncio
 async def test_cache_uses_current_event_loop_as_key() -> None:
-    _ = get_cached_client(cache_key='test')
-    loop = asyncio.get_running_loop()
-    assert loop in _loop_clients
+    client1 = get_cached_client(cache_key='test')
+    client2 = get_cached_client(cache_key='test')
+    assert client1 is client2
 
 
 @pytest.mark.asyncio
@@ -169,8 +176,9 @@ async def test_multiple_cache_keys_same_loop() -> None:
     client_b = get_cached_client(cache_key='plugin-b')
     client_c = get_cached_client(cache_key='plugin-c')
 
-    loop = asyncio.get_running_loop()
-    assert len(_loop_clients[loop]) == 3
-    assert _loop_clients[loop]['plugin-a'] is client_a
-    assert _loop_clients[loop]['plugin-b'] is client_b
-    assert _loop_clients[loop]['plugin-c'] is client_c
+    assert client_a is not client_b
+    assert client_b is not client_c
+    assert client_a is not client_c
+    assert get_cached_client(cache_key='plugin-a') is client_a
+    assert get_cached_client(cache_key='plugin-b') is client_b
+    assert get_cached_client(cache_key='plugin-c') is client_c

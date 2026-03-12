@@ -26,7 +26,7 @@ from genkit._ai import (
     ToolRunContext,
 )
 from genkit._ai._aio import Genkit
-from genkit._ai._document import Document
+from genkit._core._model import Document
 from genkit._ai._tools import ToolInterruptError, tool_response
 from genkit._core._action import Action, StreamResponse
 from genkit._core._error import GenkitError, PublicError
@@ -62,7 +62,7 @@ from genkit.embedder import (
 from genkit.model import (
     Constrained,
     FinishReason,
-    GenerationUsage,
+    GenerationUsage as ModelUsage,
     Message,
     ModelConfig,
     ModelInfo,
@@ -95,7 +95,6 @@ __all__ = [
     'ModelConfig',
     'ModelInfo',
     'ModelResponse',
-    'ModelResponseChunk',
     'ModelStreamResponse',
     # Errors
     'GenkitError',
@@ -108,7 +107,7 @@ __all__ = [
     'Metadata',
     'ReasoningPart',
     'FinishReason',
-    'GenerationUsage',
+    'ModelUsage',
     'Media',
     'MediaPart',
     'Message',
@@ -128,7 +127,6 @@ __all__ = [
     # Domain types
     'Document',
     'DocumentPart',
-    'ModelConfig',
     # Plugin interface
     'Plugin',
     # AI runtime

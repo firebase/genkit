@@ -25,7 +25,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._core._compat import override
-from genkit._core._extract import extract_json
+from genkit._core._extract_json import extract_json
 
 
 class JsonFormat(FormatDef):

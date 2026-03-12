@@ -78,7 +78,7 @@ async def test_simple_text_generate_request(
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
+            message=Message(role=Role.MODEL, content=[Part(TextPart(text='bye'))]),
         )
     )
 
@@ -89,7 +89,7 @@ async def test_simple_text_generate_request(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -108,7 +108,7 @@ async def test_simulates_doc_grounding(
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
+            message=Message(role=Role.MODEL, content=[Part(TextPart(text='bye'))]),
         )
     )
 
@@ -119,10 +119,10 @@ async def test_simulates_doc_grounding(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            docs=[Document(content=[DocumentPart(root=TextPart(text='doc content 1'))])],
+            docs=[Document(content=[DocumentPart(TextPart(text='doc content 1'))])],
         ),
     )
 
@@ -131,7 +131,7 @@ async def test_simulates_doc_grounding(
     assert response.request.messages[0] == Message(
         role=Role.USER,
         content=[
-            Part(root=TextPart(text='hi')),
+            Part(TextPart(text='hi')),
             Part(
                 root=TextPart(
                     text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
@@ -159,7 +159,7 @@ async def test_generate_applies_middleware(
         return await next(
             ModelRequest(
                 messages=[
-                    Message(role=Role.USER, content=[Part(root=TextPart(text=f'PRE {txt}'))]),
+                    Message(role=Role.USER, content=[Part(TextPart(text=f'PRE {txt}'))]),
                 ],
             ),
             ctx,
@@ -175,7 +175,7 @@ async def test_generate_applies_middleware(
         txt = text_from_message(resp.message)
         return ModelResponse(
             finish_reason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
+            message=Message(role=Role.USER, content=[Part(TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -185,7 +185,7 @@ async def test_generate_applies_middleware(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -213,7 +213,7 @@ async def test_generate_middleware_next_fn_args_optional(
         txt = text_from_message(resp.message)
         return ModelResponse(
             finish_reason=resp.finish_reason,
-            message=Message(role=Role.USER, content=[Part(root=TextPart(text=f'{txt} POST'))]),
+            message=Message(role=Role.USER, content=[Part(TextPart(text=f'{txt} POST'))]),
         )
 
     response = await generate_action(
@@ -223,7 +223,7 @@ async def test_generate_middleware_next_fn_args_optional(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -259,7 +259,7 @@ async def test_generate_middleware_can_modify_context(
                 messages=[
                     Message(
                         role=Role.USER,
-                        content=[Part(root=TextPart(text=f'{txt} {ctx.context}'))],
+                        content=[Part(TextPart(text=f'{txt} {ctx.context}'))],
                     ),
                 ],
             ),
@@ -273,7 +273,7 @@ async def test_generate_middleware_can_modify_context(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
         ),
@@ -294,14 +294,14 @@ async def test_generate_middleware_can_modify_stream(
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='bye'))]),
+            message=Message(role=Role.MODEL, content=[Part(TextPart(text='bye'))]),
         )
     )
     pm.chunks = [
         [
-            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='1'))]),
-            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='2'))]),
-            ModelResponseChunk(role=Role.MODEL, content=[Part(root=TextPart(text='3'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='1'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='2'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='3'))]),
         ]
     ]
 
@@ -316,7 +316,7 @@ async def test_generate_middleware_can_modify_stream(
             on_chunk(
                 ModelResponseChunk(
                     role=Role.MODEL,
-                    content=[Part(root=TextPart(text='something extra before'))],
+                    content=[Part(TextPart(text='something extra before'))],
                 )
             )
 
@@ -325,7 +325,7 @@ async def test_generate_middleware_can_modify_stream(
                 on_chunk(
                     ModelResponseChunk(
                         role=Role.MODEL,
-                        content=[Part(root=TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
+                        content=[Part(TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
                     )
                 )
 
@@ -334,7 +334,7 @@ async def test_generate_middleware_can_modify_stream(
             on_chunk(
                 ModelResponseChunk(
                     role=Role.MODEL,
-                    content=[Part(root=TextPart(text='something extra after'))],
+                    content=[Part(TextPart(text='something extra after'))],
                 )
             )
         return resp
@@ -351,7 +351,7 @@ async def test_generate_middleware_can_modify_stream(
             messages=[
                 Message(
                     role=Role.USER,
-                    content=[Part(root=TextPart(text='hi'))],
+                    content=[Part(TextPart(text='hi'))],
                 ),
             ],
         ),
