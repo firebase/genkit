@@ -33,12 +33,12 @@ from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
 from genkit import (
     FinishReason,
-    ModelUsage,
     MediaPart,
     Message,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     TextPart,

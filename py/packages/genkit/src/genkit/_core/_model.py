@@ -90,9 +90,11 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
 
     # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
     # (MessageData, DocumentData) to provide convenience methods like .text
-    messages: list[Message]  # pyrefly: ignore[bad-override]
-    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]
-    config: ConfigT | None = None  # pyrefly: ignore[bad-override]
+    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]
+    # fmt: off
+    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
+    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
+    # fmt: on
 
     @field_validator('messages', mode='before')
     @classmethod

@@ -28,8 +28,8 @@ from opentelemetry.sdk.trace.export import SpanExporter
 
 from genkit._core._environment import is_dev_environment
 from genkit._core._logger import get_logger
-from genkit._core._typing import SpanMetadata
 from genkit._core._trace._default_exporter import create_span_processor, init_telemetry_server_exporter
+from genkit._core._typing import SpanMetadata
 
 logger = get_logger(__name__)
 

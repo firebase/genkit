@@ -16,7 +16,7 @@
 
 """Genkit AI module - core Genkit class and related utilities."""
 
-from genkit._core._model import Document
+from genkit._ai._aio import Action, ActionKind, ActionRunContext
 from genkit._ai._model import ModelResponse
 from genkit._ai._prompt import (
     ExecutablePrompt,
@@ -25,8 +25,8 @@ from genkit._ai._prompt import (
     ResumeOptions,
 )
 from genkit._ai._tools import ToolRunContext
-from genkit._ai._aio import Action, ActionKind, ActionRunContext
 from genkit._core._constants import GENKIT_CLIENT_HEADER, GENKIT_VERSION
+from genkit._core._model import Document
 from genkit._core._plugin import Plugin
 
 from ._aio import Genkit

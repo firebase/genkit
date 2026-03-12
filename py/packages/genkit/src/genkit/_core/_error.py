@@ -23,7 +23,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
-
 class StatusCodes(IntEnum):
     """gRPC-style status codes. See _STATUS_CODE_MAP for HTTP mappings."""
 

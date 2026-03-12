@@ -34,8 +34,8 @@ from typing_extensions import Never, TypeVar
 from genkit._core._channel import Channel
 from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
-from genkit._core._tracing import tracer
 from genkit._core._trace._path import build_path
+from genkit._core._tracing import tracer
 
 # =============================================================================
 # Span attribute types and tracing helpers

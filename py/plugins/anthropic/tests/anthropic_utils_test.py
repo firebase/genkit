@@ -24,10 +24,10 @@ and cache-aware usage building.
 import base64
 
 from genkit import (
-    ModelUsage,
     Media,
     MediaPart,
     Metadata,
+    ModelUsage,
     TextPart,
 )
 from genkit.plugins.anthropic.utils import (

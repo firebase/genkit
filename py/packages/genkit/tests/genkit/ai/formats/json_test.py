@@ -61,9 +61,7 @@ class TestJsonFormatMessage:
         json_fmt = JsonFormat()
         fmt = json_fmt.handle({'type': 'object'})
 
-        result = fmt.parse_message(
-            Message(role='model', content=[Part(TextPart(text='{"id": 1, "name": "test"}'))])
-        )
+        result = fmt.parse_message(Message(role='model', content=[Part(TextPart(text='{"id": 1, "name": "test"}'))]))
         assert result == {'id': 1, 'name': 'test'}
 
     def test_handles_empty_response(self) -> None:
@@ -80,9 +78,7 @@ class TestJsonFormatMessage:
         fmt = json_fmt.handle({'type': 'object'})
 
         result = fmt.parse_message(
-            Message(
-                role='model', content=[Part(TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```'))]
-            )
+            Message(role='model', content=[Part(TextPart(text='Here is the JSON:\n\n```json\n{"id": 1}\n```'))])
         )
         assert result == {'id': 1}
 

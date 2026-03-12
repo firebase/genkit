@@ -16,8 +16,6 @@
 
 """Tests for HTTP client caching."""
 
-import asyncio
-
 import httpx
 import pytest
 

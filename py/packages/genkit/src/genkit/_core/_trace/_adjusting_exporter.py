@@ -38,7 +38,7 @@ class RedactedSpan(ReadableSpan):
         self._span = span
         self._attributes = attributes
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401
         """Delegate all attribute access to the wrapped span."""
         return getattr(self._span, name)
 

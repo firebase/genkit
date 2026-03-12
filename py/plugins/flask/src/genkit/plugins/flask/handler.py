@@ -140,7 +140,7 @@ def genkit_flask_handler(
                             yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=(",", ":"))}\n\n'
 
                         result = await stream_response.response
-                        yield f'data: {json.dumps({"result": _to_dict(result.response)}, separators=(",", ":"))}\n\n'
+                        yield f'data: {json.dumps({"result": _to_dict(result)}, separators=(",", ":"))}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):

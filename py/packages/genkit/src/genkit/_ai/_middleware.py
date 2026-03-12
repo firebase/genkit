@@ -18,7 +18,6 @@
 
 from collections.abc import Awaitable, Callable
 
-from genkit._core._model import Document
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
@@ -27,6 +26,7 @@ from genkit._ai._model import (
     text_from_content,
 )
 from genkit._core._action import ActionRunContext
+from genkit._core._model import Document
 from genkit._core._typing import (
     Metadata,
     Part,

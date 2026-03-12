@@ -91,7 +91,6 @@ from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit import (
-    ModelUsage,
     Media,
     MediaPart,
     Message,
@@ -99,6 +98,7 @@ from genkit import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     TextPart,

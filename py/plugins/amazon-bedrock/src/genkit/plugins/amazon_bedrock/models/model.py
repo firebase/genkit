@@ -131,7 +131,6 @@ import structlog
 
 from genkit import (
     FinishReason,
-    ModelUsage,
     Media,
     MediaPart,
     Message,
@@ -139,6 +138,7 @@ from genkit import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     TextPart,

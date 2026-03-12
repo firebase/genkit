@@ -27,12 +27,12 @@ import pytest
 
 from genkit import (
     ActionRunContext,
-    ModelUsage,
     Media,
     MediaPart,
     Message,
     ModelRequest,
     ModelResponseChunk,
+    ModelUsage,
     OutputConfig,
     Part,
     Role,

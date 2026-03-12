@@ -18,10 +18,10 @@
 """Prompt management and templating."""
 
 import asyncio
-from dataclasses import dataclass
 import os
 import weakref
 from collections.abc import AsyncIterable, Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
 
@@ -33,7 +33,6 @@ from dotpromptz.typing import (
 )
 from pydantic import BaseModel, ConfigDict
 
-from genkit._core._model import Document
 from genkit._ai._generate import (
     generate_action,
     to_tool_definition,
@@ -49,7 +48,7 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._model import ModelConfig
+from genkit._core._model import Document, ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (

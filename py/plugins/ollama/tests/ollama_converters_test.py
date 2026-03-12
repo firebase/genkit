@@ -25,9 +25,9 @@ from typing import Any, cast
 import pytest
 
 from genkit import (
-    ModelUsage,
     Message,
     ModelConfig,
+    ModelUsage,
     Part,
     Role,
     TextPart,

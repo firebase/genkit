@@ -153,7 +153,6 @@ from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from genkit import (
     Constrained,
-    ModelUsage,
     GenkitError,
     Message,
     ModelConfig,
@@ -161,6 +160,7 @@ from genkit import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     Stage,
