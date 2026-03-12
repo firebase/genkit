@@ -1460,6 +1460,255 @@
       ],
       "additionalProperties": false
     },
+    "ActionMetadata": {
+      "type": "object",
+      "properties": {
+        "actionType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputSchema": {},
+        "inputJsonSchema": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false,
+              "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+        },
+        "outputSchema": {},
+        "outputJsonSchema": {
+          "$ref": "#/$defs/ActionMetadata/properties/inputJsonSchema",
+          "description": "A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object."
+        },
+        "streamSchema": {},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ActionMetadata/properties/metadata/additionalProperties/anyOf/0"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionCancelActionParams": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "traceId"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionCancelActionResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionConfigureParams": {
+      "type": "object",
+      "properties": {
+        "telemetryServerUrl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReflectionEndInputStreamParams": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionListActionsResponse": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ActionMetadata"
+      }
+    },
+    "ReflectionListValuesParams": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionListValuesResponse": {
+      "type": "object",
+      "additionalProperties": {}
+    },
+    "ReflectionRegisterParams": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        },
+        "genkitVersion": {
+          "type": "string"
+        },
+        "reflectionApiSpecVersion": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "pid"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionRunActionParams": {
+      "type": "object",
+      "properties": {
+        "runtimeId": {
+          "type": "string",
+          "description": "ID of the Genkit runtime to run the action on. Typically $pid-$port."
+        },
+        "key": {
+          "type": "string",
+          "description": "Action key that consists of the action type and ID."
+        },
+        "input": {
+          "description": "An input with the type that this action expects."
+        },
+        "context": {
+          "description": "Additional runtime context data (ex. auth context data)."
+        },
+        "telemetryLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Labels to be applied to telemetry data."
+        },
+        "stream": {
+          "type": "boolean"
+        },
+        "streamInput": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionRunActionStateParams": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "state": {
+          "type": "object",
+          "properties": {
+            "traceId": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionSendInputStreamChunkParams": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "chunk": {}
+      },
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
+    "ReflectionStreamChunkParams": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "chunk": {}
+      },
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
     "CommonRetrieverOptions": {
       "type": "object",
       "properties": {
