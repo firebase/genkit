@@ -917,6 +917,7 @@ class ActionMetadata(BaseModel):
     """Model for actionmetadata data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    key: str | None = None
     action_type: str | None = Field(default=None)
     name: str
     description: str | None = None
