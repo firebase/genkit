@@ -133,7 +133,7 @@ class EchoModel:
             output_dict['constrained'] = request.output_constrained
         if request.output_content_type:
             output_dict['contentType'] = request.output_content_type
-        output_json = json.dumps(output_dict) if output_dict else '{}'
+        output_json = json.dumps(output_dict, separators=(',', ':')) if output_dict else '{}'
         if output_dict and output_json != '{}':
             echo_resp += f' output={output_json}'
 
