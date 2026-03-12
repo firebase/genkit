@@ -27,7 +27,7 @@ import pytest
 
 from genkit import (
     ActionRunContext,
-    GenerationUsage,
+    ModelUsage,
     Media,
     MediaPart,
     Message,
@@ -54,7 +54,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(
+        return_value=ModelUsage(
             input_tokens=10,
             output_tokens=20,
             total_tokens=30,
@@ -86,7 +86,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
             return_value=[Part(root=TextPart(text='Parsed chat content'))],
         )
         cast(Any, ollama_model).get_usage_info = MagicMock(
-            return_value=GenerationUsage(
+            return_value=ModelUsage(
                 input_tokens=5,
                 output_tokens=10,
                 total_tokens=15,
@@ -111,12 +111,12 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(cast(Message, response.message).content), 1)
         self.assertEqual(cast(Message, response.message).content[0].root.text, 'Parsed chat content')
         self.assertIsNotNone(response.usage)
-        self.assertEqual(cast(GenerationUsage, response.usage).input_tokens, 5)
-        self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 10)
+        self.assertEqual(cast(ModelUsage, response.usage).input_tokens, 5)
+        self.assertEqual(cast(ModelUsage, response.usage).output_tokens, 10)
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(
+        return_value=ModelUsage(
             input_tokens=10,
             output_tokens=20,
             total_tokens=30,
@@ -143,7 +143,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         cast(Any, ollama_model)._chat_with_ollama = AsyncMock()
         cast(Any, ollama_model).is_streaming_request = MagicMock(return_value=False)
         cast(Any, ollama_model).get_usage_info = MagicMock(
-            return_value=GenerationUsage(
+            return_value=ModelUsage(
                 input_tokens=7,
                 output_tokens=14,
                 total_tokens=21,
@@ -166,12 +166,12 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(cast(Message, response.message).content), 1)
         self.assertEqual(cast(Message, response.message).content[0].root.text, 'Generated text')
         self.assertIsNotNone(response.usage)
-        self.assertEqual(cast(GenerationUsage, response.usage).input_tokens, 7)
-        self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, 14)
+        self.assertEqual(cast(ModelUsage, response.usage).input_tokens, 7)
+        self.assertEqual(cast(ModelUsage, response.usage).output_tokens, 14)
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(),
+        return_value=ModelUsage(),
     )
     async def test_generate_chat_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with CHAT API type in streaming mode."""
@@ -194,7 +194,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         )
         cast(Any, ollama_model).is_streaming_request = MagicMock(return_value=True)
         cast(Any, ollama_model).get_usage_info = MagicMock(
-            return_value=GenerationUsage(
+            return_value=ModelUsage(
                 input_tokens=0,
                 output_tokens=0,
                 total_tokens=0,
@@ -216,7 +216,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(),
+        return_value=ModelUsage(),
     )
     async def test_generate_generate_streaming(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method with GENERATE API type in streaming mode."""
@@ -236,7 +236,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         )
         cast(Any, ollama_model).is_streaming_request = MagicMock(return_value=True)
         cast(Any, ollama_model).get_usage_info = MagicMock(
-            return_value=GenerationUsage(
+            return_value=ModelUsage(
                 input_tokens=0,
                 output_tokens=0,
                 total_tokens=0,
@@ -258,7 +258,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(),
+        return_value=ModelUsage(),
     )
     async def test_generate_chat_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method when _chat_with_ollama returns None."""
@@ -268,7 +268,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         cast(Any, ollama_model)._chat_with_ollama = AsyncMock(return_value=None)
         cast(Any, ollama_model)._build_multimodal_chat_response = MagicMock()
         cast(Any, ollama_model).is_streaming_request = MagicMock(return_value=False)
-        cast(Any, ollama_model).get_usage_info = MagicMock(return_value=GenerationUsage())
+        cast(Any, ollama_model).get_usage_info = MagicMock(return_value=ModelUsage())
 
         response = await ollama_model.generate(self.request, self.ctx)
 
@@ -277,12 +277,12 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(response.message)
         self.assertEqual(cast(Message, response.message).content[0].root.text, 'Failed to get response from Ollama API')
         self.assertIsNotNone(response.usage)
-        self.assertEqual(cast(GenerationUsage, response.usage).input_tokens, None)
-        self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, None)
+        self.assertEqual(cast(ModelUsage, response.usage).input_tokens, None)
+        self.assertEqual(cast(ModelUsage, response.usage).output_tokens, None)
 
     @patch(
         'genkit.model.get_basic_usage_stats',
-        return_value=GenerationUsage(),
+        return_value=ModelUsage(),
     )
     async def test_generate_generate_api_response_none(self, mock_get_basic_usage_stats: MagicMock) -> None:
         """Test generate method when _generate_ollama_response returns None."""
@@ -291,7 +291,7 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
 
         cast(Any, ollama_model)._generate_ollama_response = AsyncMock(return_value=None)
         cast(Any, ollama_model).is_streaming_request = MagicMock(return_value=False)
-        cast(Any, ollama_model).get_usage_info = MagicMock(return_value=GenerationUsage())
+        cast(Any, ollama_model).get_usage_info = MagicMock(return_value=ModelUsage())
 
         response = await ollama_model.generate(self.request, self.ctx)
 
@@ -299,8 +299,8 @@ class TestOllamaModelGenerate(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(response.message)
         self.assertEqual(cast(Message, response.message).content[0].root.text, 'Failed to get response from Ollama API')
         self.assertIsNotNone(response.usage)
-        self.assertEqual(cast(GenerationUsage, response.usage).input_tokens, None)
-        self.assertEqual(cast(GenerationUsage, response.usage).output_tokens, None)
+        self.assertEqual(cast(ModelUsage, response.usage).input_tokens, None)
+        self.assertEqual(cast(ModelUsage, response.usage).output_tokens, None)
 
 
 class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):

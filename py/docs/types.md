@@ -68,9 +68,9 @@ This module provides all public types for Genkit applications.
 
 ::: genkit._core.typing.GenerateActionOptions
 
-::: genkit._core.typing.GenerationCommonConfig
+::: genkit._core._model.ModelConfig
 
-::: genkit._core.typing.GenerationUsage
+::: genkit._core._model.ModelUsage
 
 ::: genkit._core.typing.OutputConfig
 

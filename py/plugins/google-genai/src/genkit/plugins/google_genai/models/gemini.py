@@ -153,7 +153,7 @@ from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from genkit import (
     Constrained,
-    GenerationUsage,
+    ModelUsage,
     GenkitError,
     Message,
     ModelConfig,
@@ -1459,7 +1459,7 @@ class GeminiModel:
             ),
             finish_reason=finish_reason,
             candidates=candidates,
-            usage=GenerationUsage(
+            usage=ModelUsage(
                 input_tokens=float(response.usage_metadata.prompt_token_count or 0)
                 if response.usage_metadata
                 else None,
@@ -1792,7 +1792,7 @@ class GeminiModel:
             if key in config and key not in genai_types.GenerateContentConfig.model_fields:
                 del config[key]
 
-    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> GenerationUsage:
+    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> ModelUsage:
         """Create usage statistics.
 
         Args:
@@ -1803,7 +1803,7 @@ class GeminiModel:
             usage statistics
         """
         if not response.message:
-            usage = GenerationUsage()
+            usage = ModelUsage()
             usage.input_tokens = 0
             usage.output_tokens = 0
             usage.total_tokens = 0

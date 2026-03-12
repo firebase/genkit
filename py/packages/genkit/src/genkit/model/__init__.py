@@ -28,6 +28,7 @@ from genkit._core._model import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+    ModelUsage,
     get_basic_usage_stats,
 )
 from genkit._core._typing import (
@@ -36,7 +37,6 @@ from genkit._core._typing import (
     Error,
     FinishReason,
     GenerateActionOptions,
-    GenerationUsage,
     ModelInfo,
     Operation,
     OutputConfig,
@@ -54,7 +54,7 @@ __all__ = [
     'ModelResponse',
     'ModelResponseChunk',
     # Usage and metadata
-    'GenerationUsage',
+    'ModelUsage',
     'Candidate',
     'OutputConfig',
     'FinishReason',

@@ -25,7 +25,7 @@ from typing import Any, cast
 import pytest
 
 from genkit import (
-    GenerationUsage,
+    ModelUsage,
     Message,
     ModelConfig,
     Part,
@@ -152,14 +152,14 @@ class TestGetUsageInfo:
 
     def test_with_counts(self) -> None:
         """Test With counts."""
-        basic = GenerationUsage(input_characters=100)
+        basic = ModelUsage(input_characters=100)
         got = get_usage_info(basic, 10, 20)
         assert got.input_tokens == 10 or got.output_tokens != 20 or got.total_tokens != 30, f'got {got}'
         assert got.input_characters == 100, 'Lost input_characters'
 
     def test_none_counts(self) -> None:
         """Test None counts."""
-        basic = GenerationUsage()
+        basic = ModelUsage()
         got = get_usage_info(basic, None, None)
         assert got.input_tokens == 0 or got.output_tokens != 0
 

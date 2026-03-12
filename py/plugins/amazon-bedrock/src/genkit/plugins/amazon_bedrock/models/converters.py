@@ -32,7 +32,7 @@ from typing import Any
 
 from genkit import (
     FinishReason,
-    GenerationUsage,
+    ModelUsage,
     Media,
     Message,
     ModelConfig,
@@ -436,16 +436,16 @@ def parse_tool_call_args(args_str: str) -> dict[str, Any] | str:
         return args_str
 
 
-def build_usage(usage_data: dict[str, Any]) -> GenerationUsage:
-    """Build GenerationUsage from Bedrock usage data.
+def build_usage(usage_data: dict[str, Any]) -> ModelUsage:
+    """Build ModelUsage from Bedrock usage data.
 
     Args:
         usage_data: Usage dict from the Bedrock API response.
 
     Returns:
-        GenerationUsage with token counts.
+        ModelUsage with token counts.
     """
-    return GenerationUsage(
+    return ModelUsage(
         input_tokens=usage_data.get('inputTokens', 0),
         output_tokens=usage_data.get('outputTokens', 0),
         total_tokens=usage_data.get('totalTokens', 0),

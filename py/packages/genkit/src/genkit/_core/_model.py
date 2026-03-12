@@ -50,6 +50,7 @@ from genkit._core._typing import (
 )
 
 ModelConfig = GenerationCommonConfig  # public name for GenerationCommonConfig
+ModelUsage = GenerationUsage  # public name for GenerationUsage
 
 # TypeVars for generic types
 OutputT = TypeVar('OutputT', default=object)

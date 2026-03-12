@@ -12,7 +12,7 @@ from genkit._ai._model import text_from_content
 from genkit._core._action import ActionMetadata
 from genkit._core._typing import (
     DocumentPart,
-    GenerationUsage,
+    ModelUsage,
     Media,
     MediaPart,
     Metadata,
@@ -173,7 +173,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
         [
             [],
             Message(role='model', content=[]),
-            GenerationUsage(
+            ModelUsage(
                 input_images=0,
                 input_videos=0,
                 input_characters=0,
@@ -217,7 +217,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
                     Part(root=MediaPart(media=Media(url='data:video'))),
                 ],
             ),
-            GenerationUsage(
+            ModelUsage(
                 input_images=2,
                 input_videos=2,
                 input_characters=2,
@@ -233,7 +233,7 @@ def test_chunk_wrapper_output_uses_parser() -> None:
 def test_get_basic_usage_stats(
     test_input: list[Message],
     test_response: Message,
-    expected_output: GenerationUsage,
+    expected_output: ModelUsage,
 ) -> None:
     """Test get_basic_usage_stats utility."""
     assert get_basic_usage_stats(input_=test_input, response=test_response) == expected_output

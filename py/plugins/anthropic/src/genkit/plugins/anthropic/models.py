@@ -33,7 +33,7 @@ from anthropic import AsyncAnthropic
 from anthropic.types import Message as AnthropicMessage
 from genkit import (
     FinishReason,
-    GenerationUsage,
+    ModelUsage,
     MediaPart,
     Message,
     ModelRequest,
@@ -162,7 +162,7 @@ class AnthropicModel:
             finish_reason=finish_reason,
         )
 
-    def _build_usage(self, response: AnthropicMessage, basic_usage: GenerationUsage) -> GenerationUsage:
+    def _build_usage(self, response: AnthropicMessage, basic_usage: ModelUsage) -> ModelUsage:
         """Build usage stats including cache read/write token counts.
 
         Delegates to :func:`utils.build_cache_usage` for the actual
@@ -173,7 +173,7 @@ class AnthropicModel:
             basic_usage: Basic character/image usage from message content.
 
         Returns:
-            GenerationUsage with token and character counts.
+            ModelUsage with token and character counts.
         """
         return build_cache_usage(
             input_tokens=response.usage.input_tokens,

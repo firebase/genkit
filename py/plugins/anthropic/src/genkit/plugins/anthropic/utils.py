@@ -29,7 +29,7 @@ from typing import Any
 
 import structlog
 
-from genkit import GenerationUsage, MediaPart, ModelRequest, Part, TextPart
+from genkit import MediaPart, ModelRequest, ModelUsage, Part, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -235,11 +235,11 @@ def to_anthropic_media(media_part: MediaPart) -> dict[str, Any]:
 def build_cache_usage(
     input_tokens: int,
     output_tokens: int,
-    basic_usage: GenerationUsage,
+    basic_usage: ModelUsage,
     cache_creation_input_tokens: int = 0,
     cache_read_input_tokens: int = 0,
-) -> GenerationUsage:
-    """Build GenerationUsage with cache-aware token counts.
+) -> ModelUsage:
+    """Build ModelUsage with cache-aware token counts.
 
     Args:
         input_tokens: Number of input tokens from the API response.
@@ -249,7 +249,7 @@ def build_cache_usage(
         cache_read_input_tokens: Tokens read from existing cache entries.
 
     Returns:
-        GenerationUsage with token, character, and cache counts.
+        ModelUsage with token, character, and cache counts.
     """
     custom: dict[str, float] = {}
     if cache_creation_input_tokens:
@@ -257,7 +257,7 @@ def build_cache_usage(
     if cache_read_input_tokens:
         custom['cache_read_input_tokens'] = cache_read_input_tokens
 
-    return GenerationUsage(
+    return ModelUsage(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         total_tokens=input_tokens + output_tokens,

@@ -29,7 +29,7 @@ See: https://github.com/ollama/ollama/blob/main/docs/api.md
 from typing import Any, Literal, cast
 
 from genkit import (
-    GenerationUsage,
+    ModelUsage,
     Message,
     ModelConfig,
     Part,
@@ -165,10 +165,10 @@ def build_response_parts(
 
 
 def get_usage_info(
-    basic_usage: GenerationUsage,
+    basic_usage: ModelUsage,
     prompt_eval_count: int | None,
     eval_count: int | None,
-) -> GenerationUsage:
+) -> ModelUsage:
     """Update basic usage with token counts from Ollama API response.
 
     Args:
@@ -177,7 +177,7 @@ def get_usage_info(
         eval_count: Output token count from Ollama.
 
     Returns:
-        Updated GenerationUsage with token counts.
+        Updated ModelUsage with token counts.
     """
     basic_usage.input_tokens = prompt_eval_count or 0
     basic_usage.output_tokens = eval_count or 0

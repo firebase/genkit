@@ -91,7 +91,7 @@ from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit import (
-    GenerationUsage,
+    ModelUsage,
     Media,
     MediaPart,
     Message,
@@ -552,21 +552,21 @@ class OllamaModel:
 
     @staticmethod
     def get_usage_info(
-        basic_generation_usage: GenerationUsage,
+        basic_generation_usage: ModelUsage,
         api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse | None,
-    ) -> GenerationUsage:
+    ) -> ModelUsage:
         """Extracts and calculates token usage information from an Ollama API response.
 
         Updates a basic generation usage object with input, output, and total token counts
         based on the details provided in the Ollama API response.
 
         Args:
-            basic_generation_usage: An existing GenerationUsage object to update.
+            basic_generation_usage: An existing ModelUsage object to update.
             api_response: The response object received from the Ollama API,
                 containing token count details.
 
         Returns:
-            The updated GenerationUsage object with token counts populated.
+            The updated ModelUsage object with token counts populated.
         """
         if api_response:
             basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0

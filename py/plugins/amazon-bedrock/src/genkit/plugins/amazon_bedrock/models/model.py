@@ -131,7 +131,7 @@ import structlog
 
 from genkit import (
     FinishReason,
-    GenerationUsage,
+    ModelUsage,
     Media,
     MediaPart,
     Message,
@@ -318,7 +318,7 @@ class BedrockModel:
 
         # Build usage statistics
         usage_data = response.get('usage', {})
-        usage = GenerationUsage(
+        usage = ModelUsage(
             input_tokens=usage_data.get('inputTokens', 0),
             output_tokens=usage_data.get('outputTokens', 0),
             total_tokens=usage_data.get('totalTokens', 0),
@@ -363,7 +363,7 @@ class BedrockModel:
 
         accumulated_content: list[Part] = []
         accumulated_tool_uses: dict[str, dict[str, Any]] = {}
-        final_usage: GenerationUsage | None = None
+        final_usage: ModelUsage | None = None
         stop_reason: str = ''
 
         json_mode = bool(request.output and request.output.format == 'json')
@@ -420,7 +420,7 @@ class BedrockModel:
             if 'metadata' in event:
                 metadata = event['metadata']
                 usage_data = metadata.get('usage', {})
-                final_usage = GenerationUsage(
+                final_usage = ModelUsage(
                     input_tokens=usage_data.get('inputTokens', 0),
                     output_tokens=usage_data.get('outputTokens', 0),
                     total_tokens=usage_data.get('totalTokens', 0),
