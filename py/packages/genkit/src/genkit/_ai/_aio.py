@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import signal
 import socket
@@ -1086,9 +1087,7 @@ class Genkit:
         metadata: dict[str, Any] | None = None,
     ) -> T:
         """Run a function as a discrete traced step within a flow."""
-        import inspect as _inspect
-
-        if not _inspect.iscoroutinefunction(fn):
+        if not inspect.iscoroutinefunction(fn):
             raise TypeError('fn must be a coroutine function')
 
         span_metadata = SpanMetadata(name=name, metadata=metadata)

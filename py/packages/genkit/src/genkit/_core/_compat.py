@@ -31,20 +31,6 @@ from typing import overload as overload  # noqa: E402
 from strenum import StrEnum as StrEnum  # noqa: E402
 from typing_extensions import override as override  # noqa: E402
 
-# StrEnum - Added in Python 3.11
-# Used for string enums throughout the codebase
-if sys.version_info >= (3, 11):
-    pass
-else:
-    pass
-
-# override decorator - Added in Python 3.12
-# We use this throughout the codebase to mark methods that override parent methods
-if sys.version_info >= (3, 12):
-    pass
-else:
-    pass
-
 
 async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> T:
     """Python 3.10 compat: raises TimeoutError instead of asyncio.TimeoutError."""

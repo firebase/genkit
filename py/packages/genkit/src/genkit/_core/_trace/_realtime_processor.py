@@ -17,8 +17,8 @@
 """Realtime span processor for live trace visualization."""
 
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from genkit._core._compat import override
 from genkit._core._logger import get_logger
@@ -26,56 +26,14 @@ from genkit._core._logger import get_logger
 logger = get_logger(__name__)
 
 
-class RealtimeSpanProcessor(SpanProcessor):
-    """Exports spans both when they start and when they end.
-
-    This processor enables real-time trace visualization by exporting spans
-    immediately when they start (without endTime), then again when they
-    complete with full timing and status data.
-
-    Attributes:
-        exporter: The SpanExporter to use for exporting span data.
-
-    Example:
-        ```python
-        from opentelemetry.sdk.trace import TracerProvider
-        from genkit._core._trace._realtime_processor import RealtimeSpanProcessor
-        from genkit._core._trace._default_exporter import TraceServerExporter
-
-        exporter = TraceServerExporter(telemetry_server_url='http://localhost:4000')
-        processor = RealtimeSpanProcessor(exporter)
-
-        provider = TracerProvider()
-        provider.add_span_processor(processor)
-        ```
-    """
-
-    def __init__(self, exporter: SpanExporter) -> None:
-        """Initialize the RealtimeSpanProcessor.
-
-        Args:
-            exporter: The SpanExporter to use for exporting spans.
-        """
-        self._exporter: SpanExporter = exporter
+class RealtimeSpanProcessor(SimpleSpanProcessor):
+    """Exports spans on start (real-time) and on end, unlike SimpleSpanProcessor (end only)."""
 
     @override
     def on_start(self, span: Span, parent_context: Context | None = None) -> None:
-        """Called when a span is started.
-
-        Exports the span immediately for real-time updates. The span will
-        not have endTime set yet, allowing the DevUI to show it as in-progress.
-
-        Args:
-            span: The span that was just started.
-            parent_context: The parent context (unused).
-        """
-        # Export the span immediately (it won't have endTime yet).
-        # Catch all exceptions so a failing exporter (e.g. Jaeger not
-        # running) never propagates into the application call stack.
-        # Without this guard, a ConnectionError here bubbles through
-        # the OTel gRPC server interceptor and kills the actual RPC.
+        """Export span immediately so DevUI can show in-progress traces."""
         try:
-            self._exporter.export([span])
+            self.span_exporter.export([span])
         except ConnectionError:
             logger.debug(
                 'RealtimeSpanProcessor: export failed on_start (collector unreachable)',
@@ -86,44 +44,3 @@ class RealtimeSpanProcessor(SpanProcessor):
                 'RealtimeSpanProcessor: unexpected error during export on_start',
                 exc_info=True,
             )
-
-    @override
-    def on_end(self, span: ReadableSpan) -> None:
-        """Called when a span ends.
-
-        Exports the completed span with full timing and status data.
-
-        Args:
-            span: The span that just ended.
-        """
-        try:
-            self._exporter.export([span])
-        except ConnectionError:
-            logger.debug(
-                'RealtimeSpanProcessor: export failed on_end (collector unreachable)',
-                exc_info=True,
-            )
-        except Exception:  # noqa: BLE001 — must never crash the caller
-            logger.warning(
-                'RealtimeSpanProcessor: unexpected error during export on_end',
-                exc_info=True,
-            )
-
-    @override
-    def force_flush(self, timeout_millis: int = 30000) -> bool:
-        """Force the exporter to flush any buffered spans.
-
-        Args:
-            timeout_millis: Maximum time to wait for flush in milliseconds.
-
-        Returns:
-            True if flush succeeded, False otherwise.
-        """
-        if hasattr(self._exporter, 'force_flush'):
-            return self._exporter.force_flush(timeout_millis)
-        return True
-
-    @override
-    def shutdown(self) -> None:
-        """Shut down the processor and exporter."""
-        self._exporter.shutdown()

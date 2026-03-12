@@ -67,57 +67,6 @@ class ModelRef(BaseModel):
     config: dict[str, object] | None = None
 
 
-class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
-    """Model request with strongly-typed config and veneer types.
-
-    This wrapper provides:
-    - Strongly-typed config via generics
-    - Messages as list[Message] (veneer) instead of list[MessageData] (wire)
-    - Docs as list[Document] (veneer) instead of list[DocumentData] (wire)
-
-    Example:
-        class GeminiConfig(ModelConfig):
-            safety_settings: dict[str, str] | None = None
-
-        def gemini_model(request: ModelRequest[GeminiConfig]) -> ModelResponse:
-            temp = request.config.temperature  # inherited from ModelConfig
-            safety = request.config.safety_settings  # provider-specific
-            for msg in request.messages:
-                print(msg.text)  # Message veneer property
-            for doc in request.docs or []:
-                print(doc.text)  # Document veneer property
-    """
-
-    # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
-    # (MessageData, DocumentData) to provide convenience methods like .text
-    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]
-    # fmt: off
-    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
-    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
-    # fmt: on
-
-    @field_validator('messages', mode='before')
-    @classmethod
-    def _wrap_messages(cls, v: list[MessageData]) -> list[Message]:
-        """Wrap MessageData in Message veneer for convenience methods."""
-        from genkit._core._model import Message
-
-        # pyrefly: ignore[bad-return]
-        return [m if isinstance(m, Message) else Message(m) for m in v]
-
-    @field_validator('docs', mode='before')
-    @classmethod
-    def _wrap_docs(cls, v: list[DocumentData] | None) -> list[Document] | None:
-        """Wrap DocumentData in Document veneer for convenience methods."""
-        if v is None:
-            return None
-        # Import here to avoid forward reference issues
-        from genkit._core._model import Document
-
-        # pyrefly: ignore[bad-return]
-        return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
-
-
 class Message(MessageData):
     """Message wrapper with utility properties for text and tool requests."""
 
@@ -241,6 +190,52 @@ class Document(DocumentData):
         if self.media and self.media[0].content_type:
             return self.media[0].content_type
         return None
+
+
+class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
+    """Model request with strongly-typed config and veneer types.
+
+    This wrapper provides:
+    - Strongly-typed config via generics
+    - Messages as list[Message] (veneer) instead of list[MessageData] (wire)
+    - Docs as list[Document] (veneer) instead of list[DocumentData] (wire)
+
+    Example:
+        class GeminiConfig(ModelConfig):
+            safety_settings: dict[str, str] | None = None
+
+        def gemini_model(request: ModelRequest[GeminiConfig]) -> ModelResponse:
+            temp = request.config.temperature  # inherited from ModelConfig
+            safety = request.config.safety_settings  # provider-specific
+            for msg in request.messages:
+                print(msg.text)  # Message veneer property
+            for doc in request.docs or []:
+                print(doc.text)  # Document veneer property
+    """
+
+    # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
+    # (MessageData, DocumentData) to provide convenience methods like .text
+    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]
+    # fmt: off
+    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
+    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
+    # fmt: on
+
+    @field_validator('messages', mode='before')
+    @classmethod
+    def _wrap_messages(cls, v: list[MessageData]) -> list[Message]:
+        """Wrap MessageData in Message veneer for convenience methods."""
+        # pyrefly: ignore[bad-return]
+        return [m if isinstance(m, Message) else Message(m) for m in v]
+
+    @field_validator('docs', mode='before')
+    @classmethod
+    def _wrap_docs(cls, v: list[DocumentData] | None) -> list[Document] | None:
+        """Wrap DocumentData in Document veneer for convenience methods."""
+        if v is None:
+            return None
+        # pyrefly: ignore[bad-return]
+        return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
 
 
 class ModelResponse(GenerateResponse, Generic[OutputT]):

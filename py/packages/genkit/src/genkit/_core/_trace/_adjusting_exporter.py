@@ -28,6 +28,11 @@ from opentelemetry.trace import StatusCode
 from genkit._core._compat import override
 
 
+def _copy_attrs(span: ReadableSpan) -> dict[str, Any]:
+    """Return a mutable copy of span attributes."""
+    return dict(span.attributes) if span.attributes else {}
+
+
 class RedactedSpan(ReadableSpan):
     """A span wrapper that overrides attributes while delegating everything else."""
 
@@ -39,7 +44,6 @@ class RedactedSpan(ReadableSpan):
         self._attributes = attributes
 
     def __getattr__(self, name: str) -> Any:  # noqa: ANN401
-        """Delegate all attribute access to the wrapped span."""
         return getattr(self._span, name)
 
     @property
@@ -50,13 +54,7 @@ class RedactedSpan(ReadableSpan):
 
 
 class AdjustingTraceExporter(SpanExporter):
-    """Wraps a SpanExporter to redact PII and enhance spans before export.
-
-    Used by cloud plugins (GCP, AWS) to:
-    - Redact genkit:input/output for privacy
-    - Add GCP-specific error markers
-    - Normalize attribute labels
-    """
+    """Wraps a SpanExporter to redact PII and enhance spans for cloud plugins (GCP, AWS)."""
 
     REDACTED: ClassVar[str] = '<redacted>'
 
@@ -111,29 +109,25 @@ class AdjustingTraceExporter(SpanExporter):
         return span
 
     def _redact_pii(self, span: ReadableSpan) -> ReadableSpan:
-        """Redact genkit:input and genkit:output if not logging."""
         if self._log_input_and_output:
             return span
-        attrs = dict(span.attributes) if span.attributes else {}
-        if 'genkit:input' not in attrs and 'genkit:output' not in attrs:
+        attrs = _copy_attrs(span)
+        keys_to_redact = [k for k in ('genkit:input', 'genkit:output') if k in attrs]
+        if not keys_to_redact:
             return span
-        if 'genkit:input' in attrs:
-            attrs['genkit:input'] = self.REDACTED
-        if 'genkit:output' in attrs:
-            attrs['genkit:output'] = self.REDACTED
+        for key in keys_to_redact:
+            attrs[key] = self.REDACTED
         return RedactedSpan(span, attrs)
 
     def _mark_error(self, span: ReadableSpan) -> ReadableSpan:
-        """Mark error spans with HTTP 599 for GCP Trace display."""
         if not span.status or span.status.status_code != StatusCode.ERROR:
             return span
-        attrs = dict(span.attributes) if span.attributes else {}
+        attrs = _copy_attrs(span)
         attrs['/http/status_code'] = '599'
         return RedactedSpan(span, attrs)
 
     def _mark_failure_source(self, span: ReadableSpan) -> ReadableSpan:
-        """Mark spans that are the source of a failure."""
-        attrs = dict(span.attributes) if span.attributes else {}
+        attrs = _copy_attrs(span)
         if not attrs.get('genkit:isFailureSource'):
             return span
         attrs['genkit:failedSpan'] = attrs.get('genkit:name', '')
@@ -141,23 +135,20 @@ class AdjustingTraceExporter(SpanExporter):
         return RedactedSpan(span, attrs)
 
     def _mark_feature(self, span: ReadableSpan) -> ReadableSpan:
-        """Mark root spans with genkit:feature."""
-        attrs = dict(span.attributes) if span.attributes else {}
+        attrs = _copy_attrs(span)
         if not attrs.get('genkit:isRoot') or not attrs.get('genkit:name'):
             return span
         attrs['genkit:feature'] = attrs['genkit:name']
         return RedactedSpan(span, attrs)
 
     def _mark_model(self, span: ReadableSpan) -> ReadableSpan:
-        """Mark model spans with genkit:model."""
-        attrs = dict(span.attributes) if span.attributes else {}
+        attrs = _copy_attrs(span)
         if attrs.get('genkit:metadata:subtype') != 'model' or not attrs.get('genkit:name'):
             return span
         attrs['genkit:model'] = attrs['genkit:name']
         return RedactedSpan(span, attrs)
 
     def _normalize_labels(self, span: ReadableSpan) -> ReadableSpan:
-        """Replace : with / in attribute keys for GCP compatibility."""
-        attrs = dict(span.attributes) if span.attributes else {}
+        attrs = _copy_attrs(span)
         normalized = {k.replace(':', '/'): v for k, v in attrs.items()}
         return RedactedSpan(span, normalized)
