@@ -20,33 +20,6 @@ This plugin provides integration with Google Cloud's Vertex AI platform,
 including Model Garden for accessing third-party models and Vector Search
 for RAG applications.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Vertex AI           │ Google Cloud's AI platform. Like a shopping       │
-    │                     │ mall where you can access many AI services.       │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Model Garden        │ A catalog of AI models from different companies.  │
-    │                     │ Like an app store but for AI models.              │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Vector Search       │ Find similar items using math. Like asking        │
-    │                     │ "show me documents similar to this one."          │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ RAG                 │ Retrieval-Augmented Generation. Let AI search     │
-    │                     │ your documents before answering. Like giving      │
-    │                     │ AI a reference book to look things up.            │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ BigQuery            │ Google's data warehouse. Store and search         │
-    │                     │ huge amounts of data super fast.                  │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Firestore           │ Google's NoSQL database. Store documents          │
-    │                     │ as flexible JSON-like data.                       │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Embeddings          │ Turn text into numbers for comparison.            │
-    │                     │ Like converting words to GPS coordinates.         │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow (Vector Search)::
 

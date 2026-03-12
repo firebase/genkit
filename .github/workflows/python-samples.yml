@@ -53,23 +53,22 @@ jobs:
       matrix:
         sample:
           - provider-google-genai-hello
-          - provider-google-genai-code-execution
-          - provider-google-genai-context-caching
-          - provider-google-genai-media-models-demo
+          - gemini-code-execution
+          - gemini-context-caching
+          - google-genai-media
           - provider-google-genai-vertexai-hello
-          - provider-google-genai-vertexai-image
+          - vertexai-imagen
           - provider-anthropic-hello
           - provider-compat-oai-hello
           - provider-vertex-ai-model-garden
-          - framework-prompt-demo
-          - framework-format-demo
-          - framework-context-demo
-          - framework-middleware-demo
-          - framework-dynamic-tools-demo
-          - framework-tool-interrupts
-          - framework-restaurant-demo
-          - web-fastapi-bugbot
-          - web-flask-hello
+          - prompts
+          - output-formats
+          - context
+          - middleware
+          - dynamic-tools
+          - tool-interrupts
+          - fastapi-bugbot
+          - flask-hello
     steps:
       - uses: actions/checkout@v5
 

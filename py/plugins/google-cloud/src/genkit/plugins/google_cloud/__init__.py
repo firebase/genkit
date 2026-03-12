@@ -20,32 +20,6 @@
 This plugin provides Google Cloud observability integration for Genkit,
 enabling telemetry export to Cloud Trace and Cloud Monitoring.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Telemetry           │ Data about how your app is running. Like a        │
-    │                     │ fitness tracker for your code.                    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Cloud Trace         │ Shows the path requests take through your app.    │
-    │                     │ Like GPS tracking for your API calls.             │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Cloud Monitoring    │ Graphs and alerts for your app's health.          │
-    │                     │ Like a heart rate monitor dashboard.              │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Span                │ One step in a request's journey. Like one         │
-    │                     │ leg of a relay race.                              │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Trace               │ All spans for one request connected together.     │
-    │                     │ The complete story of one API call.               │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Metrics             │ Numbers that describe your app (requests/sec,     │
-    │                     │ error rate, latency). Like a report card.         │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ PII Redaction       │ Hiding sensitive data in traces. Like blurring    │
-    │                     │ faces in photos before sharing.                   │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 

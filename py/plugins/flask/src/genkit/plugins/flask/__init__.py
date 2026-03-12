@@ -20,29 +20,6 @@
 This plugin provides Flask integration for Genkit, enabling you to expose
 Genkit flows as HTTP endpoints in a Flask application.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Flask               │ A simple Python web framework. Like a waiter      │
-    │                     │ that takes HTTP requests and serves responses.    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ HTTP Endpoint       │ A URL that accepts requests. Like a phone number  │
-    │                     │ your app answers when called.                     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Flow                │ A Genkit function that does AI work. This plugin  │
-    │                     │ lets you call flows via HTTP requests.            │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Route               │ Maps a URL to a function. /api/chat → chat_flow   │
-    │                     │                                                    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Request Handler     │ Code that processes incoming requests.            │
-    │                     │ genkit_flask_handler does this for you.           │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ POST                │ HTTP method for sending data. Like mailing a      │
-    │                     │ letter with your prompt inside.                   │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 

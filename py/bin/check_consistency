@@ -283,15 +283,7 @@ if [ ! -f "packages/genkit/src/genkit/py.typed" ]; then
   pytyped_missing=$((pytyped_missing + 1))
 fi
 
-# Check plugins
-for d in plugins/*/src/genkit/plugins/*/; do
-  if [ -d "$d" ] && [ ! -f "$d/py.typed" ]; then
-    pkg_name=$(echo "$d" | sed 's|plugins/||' | sed 's|/src/genkit/plugins/.*||')
-    echo -e "  ${YELLOW}WARNING${NC}: plugins/$pkg_name/ is missing py.typed marker"
-    WARNINGS=$((WARNINGS + 1))
-    pytyped_missing=$((pytyped_missing + 1))
-  fi
-done
+# Plugins: py.typed not required (removed)
 
 if [ $pytyped_missing -eq 0 ]; then
   echo -e "  ${GREEN}✓${NC} All packages have py.typed markers"

@@ -54,7 +54,6 @@ genkit: {
     compat_oai
     deepseek
     huggingface
-    microsoft_foundry
     mistral
     xai
     observability

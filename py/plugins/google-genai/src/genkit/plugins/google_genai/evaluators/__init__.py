@@ -20,29 +20,6 @@ This module provides evaluation metrics using the Vertex AI Evaluation API.
 These evaluators assess model outputs for quality metrics like BLEU, ROUGE,
 fluency, safety, groundedness, and summarization quality.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Evaluator           │ A "grader" that scores your AI's answers.         │
-    │                     │ Like a teacher checking homework.                  │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ BLEU Score          │ Compares AI output to a "correct" answer.         │
-    │                     │ Higher = closer to the reference text.            │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ ROUGE Score         │ Measures how much key info is captured.           │
-    │                     │ Good for checking if summaries hit key points.    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Fluency             │ How natural and readable the text is.             │
-    │                     │ Does it sound like a human wrote it?              │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Safety              │ Is the content appropriate and safe?              │
-    │                     │ No harmful, biased, or inappropriate content.     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Groundedness        │ Does the answer stick to the facts given?         │
-    │                     │ No making things up (hallucinations).             │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 

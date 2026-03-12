@@ -1,6 +1,6 @@
 
 <h1 align="center">   Deploy Genkit to Google Cloud Compute Engine     </h1>
-A step-by-step guide to setting up a Google Cloud Platform VM, authenticating with GitHub, and running Genkit Python samples. This guide walks you through deploying Genkit on a Google Cloud Compute Engine instance to run the provider-google-genai-hello sample.
+A step-by-step guide to setting up a Google Cloud Platform VM, authenticating with GitHub, and running Genkit Python samples. This guide walks you through deploying Genkit on a Google Cloud Compute Engine instance to run the context sample.
 
 ## Create your VM Instance
 
@@ -68,34 +68,20 @@ gcloud compute ssh genkit --zone us-central1-a
 </Steps>
 
 ## Clone and Initialize Genkit
-Navigate to the Genkit repository and run the automated setup script for Python samples.
+Clone the repository and set up a sample:
 
 ```bash
 git clone git@github.com:firebase/genkit.git
-cd genkit/py/samples
-./setup.sh
+cd genkit/py/samples/context
 ```
 
-  <b>During setup:</b>
-
-- Enter your <b>Gemini API Key</b> when prompted.
-
-- Enter your <b>GCP Project ID</b>.
-
-- You can skip other optional prompts.
-
-## Run the Sample
-Follow these steps to launch the Google GenAI hello provider sample:
+Install dependencies (requires [uv](https://docs.astral.sh/uv/) and the [genkit CLI](https://firebase.google.com/docs/genkit)):
 
 ```bash
-# 1. Load your environment variables
-source ~/.environment
-
-# 2. Navigate to the specific sample
-cd provider-google-genai-hello
-
-# 3. Start the sample
-./run.sh
+export GEMINI_API_KEY=your-api-key
+export GOOGLE_CLOUD_PROJECT=your-project-id
+uv sync
+genkit start -- uv run src/main.py
 ```
 
 ## Access the Developer UI

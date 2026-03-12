@@ -21,32 +21,6 @@ This plugin provides integration with OpenAI and any OpenAI-compatible API
 endpoints (like Azure OpenAI, Together AI, Anyscale, etc.) for the Genkit
 framework. It uses the official OpenAI Python SDK.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ OpenAI              │ The company that made ChatGPT. This plugin        │
-    │                     │ talks to their API directly.                      │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ OpenAI-compatible   │ Many AI providers copy OpenAI's API format.       │
-    │                     │ This plugin works with ALL of them!               │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ GPT-4o              │ OpenAI's latest flagship model. The "o" means     │
-    │                     │ "omni" - it can see, hear, and chat.              │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ base_url            │ Where to send requests. Change this to use        │
-    │                     │ Together AI, Anyscale, or any compatible API.     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Chat Completions    │ The API endpoint for conversations. Send          │
-    │                     │ messages, get responses - like texting.           │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Streaming           │ Get the response word-by-word as it's generated.  │
-    │                     │ Feels faster, like watching someone type.         │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Function Calling    │ Let GPT use tools you define. Like giving it      │
-    │                     │ a calculator or database access.                  │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 

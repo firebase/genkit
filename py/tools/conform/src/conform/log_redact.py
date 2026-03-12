@@ -21,20 +21,6 @@ long and make debug logs unreadable when multimodal inputs are used.
 This module provides a structlog processor and a pure helper function
 to recursively truncate them.
 
-Key Concepts (ELI5)::
-
-    ┌──────────────────────┬──────────────────────────────────────────────┐
-    │ Concept              │ ELI5 Explanation                             │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Data URI             │ An image/audio file embedded directly in     │
-    │                      │ text as base64.  Can be 20,000+ characters.  │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Structlog processor  │ A function in a pipeline that transforms     │
-    │                      │ every log message before it is printed.      │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Truncation           │ Replacing the huge base64 payload with a     │
-    │                      │ short placeholder like ``...<19850 bytes>``. │
-    └──────────────────────┴──────────────────────────────────────────────┘
 
 Data Flow::
 
