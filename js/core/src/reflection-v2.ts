@@ -15,6 +15,7 @@
  */
 
 import WebSocket from 'ws';
+import z from 'zod';
 import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
@@ -217,7 +218,9 @@ export class ReflectionServerV2 {
   private async handleListActions(request: JsonRpcRequest) {
     if (!request.id) return; // Should be a request
     const actions = await this.registry.listResolvableActions();
-    const convertedActions: Record<string, any> = {};
+    const convertedActions: z.infer<
+      typeof ReflectionListActionsResponseSchema
+    > = {};
 
     Object.keys(actions).forEach((key) => {
       const action = actions[key];

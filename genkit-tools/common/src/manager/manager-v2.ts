@@ -408,7 +408,19 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
           : 'No runtimes found. Make sure your app is running using the `start_runtime` MCP tool or the CLI: `genkit start -- ...`. See getting started documentation.'
       );
     }
-    return this.sendRequest(runtimeId, 'listActions');
+    const result: Record<string, Action> = {};
+    const response = ReflectionListActionsResponseSchema.parse(
+      await this.sendRequest(runtimeId, 'listActions')
+    );
+    // make sure key is set on the action metadata
+    for (const key of Object.keys(response)) {
+      const action = response[key];
+      if (!action.key) {
+        action.key = key;
+      }
+      result[key] = action as Action;
+    }
+    return result;
   }
 
   async listValues(

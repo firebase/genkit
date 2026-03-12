@@ -1463,6 +1463,9 @@
     "ActionMetadata": {
       "type": "object",
       "properties": {
+        "key": {
+          "type": "string"
+        },
         "actionType": {
           "type": "string"
         },
@@ -1515,7 +1518,7 @@
                   {
                     "type": "object",
                     "properties": {},
-                    "additionalProperties": false
+                    "additionalProperties": true
                   }
                 ]
               },
