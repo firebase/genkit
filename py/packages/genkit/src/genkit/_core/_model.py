@@ -31,8 +31,8 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 from pydantic.alias_generators import to_camel
 from typing_extensions import TypeVar
 
-from genkit._core._extract_json import extract_json
 from genkit._core._base import GenkitModel
+from genkit._core._extract_json import extract_json
 from genkit._core._typing import (
     Candidate,
     DocumentData,

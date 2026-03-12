@@ -1672,6 +1672,8 @@ class GeminiModel:
         # Tools from top-level field and config-level fields
         tools.extend(self._get_tools(request))
 
+        has_output = bool(request.output_format or request.output_schema)
+
         if cfg is not None or tools or system_instruction or request.output_format:
             if cfg is None:
                 cfg = genai_types.GenerateContentConfig()

@@ -704,7 +704,10 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         docs=options.docs if options.docs else None,  # type: ignore[arg-type]
         tools=tool_defs,
         tool_choice=options.tool_choice,
-        output=output_config,
+        output_format=output_config.format,
+        output_schema=output_config.schema,
+        output_constrained=output_config.constrained,
+        output_content_type=output_config.content_type,
     )
 
 

@@ -69,7 +69,7 @@ lint = [
   "litestar>=2.20.0",         # For web/typing.py type resolution
   "mypy>=1.14.0",
   "pip-audit>=2.7.0",
-  "pypdf>=6.6.2",
+  "pypdf>=6.7.5",
   "pyrefly>=0.15.0",
   "pyright>=1.1.392",
   "pysentry-rs>=0.3.14",
@@ -143,6 +143,7 @@ source = ["packages", "plugins"]
 # uv based package management.
 [tool.uv]
 default-groups = ["dev", "lint"]
+override-dependencies = ["werkzeug>=3.1.6"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
@@ -189,7 +190,6 @@ genkit-plugin-vertex-ai             = { workspace = true }
 # Internal tools (private, not published)
 conform                        = { workspace = true }
 genkit-tools-model-config-test = { workspace = true }
-genkit-tools-sample-flows      = { workspace = true }
 
 [tool.uv.workspace]
 exclude = ["*/shared", "testapps/*"]
@@ -399,7 +399,6 @@ root = [
   "packages/genkit/src",
   # Plugins
   "plugins/anthropic/src",
-  "plugins/amazon-bedrock/src",
   "plugins/compat-oai/src",
   "plugins/flask/src",
   "plugins/google-cloud/src",
@@ -430,8 +429,7 @@ exclude = [
 
 # Use the venv where packages are installed as editable installs.
 # extraPaths lists all source roots so pyright can resolve PEP 420
-# namespace packages (genkit.plugins.*) across the workspace without
-# relying solely on the venv's editable install paths.
+# namespace packages (genkit.plugins.*) across the workspace.
 extraPaths = [
   "packages/genkit/src",
   "plugins/anthropic/src",
@@ -443,10 +441,8 @@ extraPaths = [
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "samples/framework-custom-evaluators",
-  # Tools
   "tools/conform/src",
   "tools/model-config-test",
-  "tools/sample-flows",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -494,7 +490,6 @@ project_includes = [
   "samples/*/tests/**/*.py",
   # Tools
   "tools/conform/src/**/*.py",
-  "tools/sample-flows/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
@@ -507,7 +502,6 @@ search-path = [
   "samples/framework-restaurant-demo/src",
   # Tools
   "tools/conform/src",
-  "tools/sample-flows",
   "tools/model-config-test",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420

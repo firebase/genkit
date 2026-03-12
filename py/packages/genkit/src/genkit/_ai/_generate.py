@@ -44,7 +44,6 @@ from genkit._core._typing import (
     FinishReason,
     GenerateActionOptions,
     Metadata,
-    OutputConfig,
     Part,
     Role,
     ToolDefinition,

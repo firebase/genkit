@@ -132,4 +132,7 @@ __all__ = [
     'ResumeOptions',
     'ToolRunContext',
     'tool_response',
+    'ModelRequest',
+    'ModelResponse',
+    'ModelResponseChunk',
 ]
