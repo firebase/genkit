@@ -39,7 +39,8 @@ class RealtimeSpanProcessor(SpanProcessor):
     Example:
         ```python
         from opentelemetry.sdk.trace import TracerProvider
-        from genkit._core._trace import RealtimeSpanProcessor, TraceServerExporter
+        from genkit._core._trace._realtime_processor import RealtimeSpanProcessor
+        from genkit._core._trace._default_exporter import TraceServerExporter
 
         exporter = TraceServerExporter(telemetry_server_url='http://localhost:4000')
         processor = RealtimeSpanProcessor(exporter)
