@@ -49,7 +49,6 @@ genkit: {
     firebase
     ollama
     anthropic
-    amazon_bedrock
     cloudflare_workers_ai
     cohere
     compat_oai

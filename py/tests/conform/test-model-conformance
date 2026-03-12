@@ -51,7 +51,6 @@ get_env_vars() {
     deepseek)              echo "DEEPSEEK_API_KEY" ;;
     xai)                   echo "XAI_API_KEY" ;;
     cohere)                echo "COHERE_API_KEY" ;;
-    amazon-bedrock)        echo "AWS_REGION" ;;
     huggingface)           echo "HF_TOKEN" ;;
     microsoft-foundry)     echo "AZURE_OPENAI_API_KEY AZURE_OPENAI_ENDPOINT" ;;
     cloudflare-workers-ai) echo "CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN" ;;

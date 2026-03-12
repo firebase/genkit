@@ -90,13 +90,6 @@ def _init_ollama() -> Genkit:
     )
 
 
-def _init_amazon_bedrock() -> Genkit:
-    """Initialize the Amazon Bedrock plugin."""
-    from genkit.plugins.amazon_bedrock import AmazonBedrock
-
-    return Genkit(plugins=[AmazonBedrock()])
-
-
 def _init_compat_oai() -> Genkit:
     """Initialize the OpenAI compat plugin."""
     from genkit.plugins.compat_oai import OpenAI
@@ -109,7 +102,6 @@ PLUGIN_REGISTRY: dict[str, Any] = {
     'vertex-ai': _init_vertex_ai,
     'anthropic': _init_anthropic,
     'ollama': _init_ollama,
-    'amazon-bedrock': _init_amazon_bedrock,
     'compat-oai': _init_compat_oai,
 }
 

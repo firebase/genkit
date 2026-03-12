@@ -54,7 +54,6 @@ async def discover_models() -> dict[str, Any]:
         ('genkit.plugins.vertex_ai', 'VertexAI'),
         ('genkit.plugins.anthropic', 'Anthropic'),
         ('genkit.plugins.ollama', 'Ollama'),
-        ('genkit.plugins.amazon_bedrock', 'AmazonBedrock'),
     ]
 
     for module_path, class_name in plugin_imports:

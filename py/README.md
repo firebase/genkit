@@ -303,7 +303,6 @@ and deciding whether to allow or reject it:
 py/
 ├── packages/genkit/          # Core Genkit framework package
 ├── plugins/                  # Official plugins
-│   ├── amazon-bedrock/       # Amazon Bedrock models + X-Ray telemetry (community)
 │   ├── anthropic/            # Claude models
 │   ├── azure/                # Azure AI telemetry (community)
 │   ├── cloudflare-workers-ai/# Cloudflare Workers AI + OTLP telemetry (community)
@@ -401,7 +400,6 @@ print(response.text)
 
 Some plugins are community-maintained and supported on a best-effort basis:
 
-- **amazon-bedrock** - Amazon Bedrock models + AWS X-Ray telemetry
 - **azure** - Azure Monitor / Application Insights telemetry
 - **cloudflare-workers-ai** - Cloudflare Workers AI models + OTLP telemetry
 - **cohere** - Cohere command models + reranking
@@ -425,7 +423,6 @@ examples of any feature:
 | `provider-xai-hello` | Model, Flow | Grok models |
 | `provider-mistral-hello` | Model, Flow | Mistral models |
 | `provider-huggingface-hello` | Model, Flow | HuggingFace Inference API |
-| `provider-amazon-bedrock-hello` | Model, Flow, Telemetry | AWS Bedrock + X-Ray tracing |
 | `provider-cloudflare-workers-ai-hello` | Model, Flow, Telemetry | Cloudflare Workers AI |
 | `provider-microsoft-foundry-hello` | Model, Flow | Azure AI Foundry |
 | **Google Cloud** | | |
@@ -468,7 +465,7 @@ uv run pytest .
 Run tests for a specific plugin:
 
 ```bash
-uv run pytest plugins/amazon-bedrock/
+uv run pytest plugins/anthropic/
 ```
 
 ## Development
