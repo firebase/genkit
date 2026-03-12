@@ -29,7 +29,6 @@ from genkit import (
     ModelConfig,
     ModelRequest,
     ModelResponseChunk,
-    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -383,7 +382,8 @@ class TestMaybeStripFences:
         """Strips markdown fences when JSON output is requested."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='json', schema={'type': 'object'}),
+            output_format='json',
+            output_schema={'type': 'object'},
         )
         parts = [Part(root=TextPart(text='```json\n{"a": 1}\n```'))]
         result = maybe_strip_fences(request, parts)
@@ -393,7 +393,7 @@ class TestMaybeStripFences:
         """Does not modify responses when output format is not json."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='text'),
+            output_format='text',
         )
         fenced = '```json\n{"a": 1}\n```'
         parts = [Part(root=TextPart(text=fenced))]
@@ -414,7 +414,8 @@ class TestMaybeStripFences:
         """Does not modify clean JSON responses."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='json', schema={'type': 'object'}),
+            output_format='json',
+            output_schema={'type': 'object'},
         )
         text = '{"name": "John"}'
         parts = [Part(root=TextPart(text=text))]
@@ -637,10 +638,8 @@ def test_structured_output_uses_native_output_config() -> None:
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
-        output=OutputConfig(
-            format='json',
-            schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
-        ),
+        output_format='json',
+        output_schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
     )
 
     params = model._build_params(request)
@@ -657,7 +656,7 @@ def test_structured_output_falls_back_to_system_prompt() -> None:
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate JSON'))])],
-        output=OutputConfig(format='json'),
+        output_format='json',
     )
 
     params = model._build_params(request)
@@ -675,10 +674,8 @@ def test_structured_output_falls_back_for_unsupported_models() -> None:
 
     request = ModelRequest(
         messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a cat'))])],
-        output=OutputConfig(
-            format='json',
-            schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
-        ),
+        output_format='json',
+        output_schema={'type': 'object', 'properties': {'name': {'type': 'string'}}},
     )
 
     params = model._build_params(request)

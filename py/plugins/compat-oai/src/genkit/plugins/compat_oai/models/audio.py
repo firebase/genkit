@@ -290,8 +290,8 @@ def _to_stt_params(
 
     # Determine response format: config override > output format > default.
     response_format = config.pop('response_format', None)
-    if not response_format and request.output and request.output.format in ('json', 'text'):
-        response_format = request.output.format
+    if not response_format and request.output_format and request.output_format in ('json', 'text'):
+        response_format = request.output_format
     params['response_format'] = response_format or 'text'
 
     # Strip standard GenAI config keys.

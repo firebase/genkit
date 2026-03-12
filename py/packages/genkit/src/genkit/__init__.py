@@ -58,7 +58,7 @@ from genkit.embedder import (
     EmbedResponse,
 )
 
-# Import model-related types from the model namespace
+# Import model-related types from the model namespace.
 from genkit.model import (
     Constrained,
     FinishReason,
@@ -69,7 +69,6 @@ from genkit.model import (
     ModelResponse,
     ModelResponseChunk,
     ModelUsage,
-    OutputConfig,
     Stage,
     Supports,
     ToolDefinition,
@@ -91,10 +90,8 @@ __all__ = [
     'EmbedResponse',
     'EmbedderOptions',
     'EmbedderRef',
-    'ModelResponseChunk',
     'ModelConfig',
     'ModelInfo',
-    'ModelResponse',
     'ModelStreamResponse',
     # Errors
     'GenkitError',
@@ -111,14 +108,12 @@ __all__ = [
     'Media',
     'MediaPart',
     'Message',
-    'ModelRequest',
     'Part',
     'Role',
     'Stage',
     'Supports',
     'TextPart',
     'ToolChoice',
-    'OutputConfig',
     'ToolDefinition',
     'ToolRequest',
     'ToolRequestPart',

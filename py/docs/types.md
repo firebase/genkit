@@ -72,8 +72,6 @@ This module provides all public types for Genkit applications.
 
 ::: genkit._core._model.ModelUsage
 
-::: genkit._core.typing.OutputConfig
-
 ::: genkit._core.typing.FinishReason
 
 ## Embedding Types

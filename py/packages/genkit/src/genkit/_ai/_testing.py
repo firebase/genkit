@@ -124,9 +124,17 @@ class EchoModel:
             echo_resp += f' tools={",".join(t.name for t in tools_list)}'  # ty: ignore[not-iterable]
         if request.tool_choice is not None:
             echo_resp += f' tool_choice={request.tool_choice}'
-        output_val = request.output.root if hasattr(request.output, 'root') else request.output  # pyright: ignore[reportAttributeAccessIssue,reportOptionalMemberAccess]
-        output_json = output_val.model_dump_json() if output_val else '{}'  # ty: ignore[unresolved-attribute]
-        if output_val and output_json != '{}':
+        output_dict: dict[str, object] = {}
+        if request.output_format:
+            output_dict['format'] = request.output_format
+        if request.output_schema:
+            output_dict['schema'] = request.output_schema
+        if request.output_constrained is not None:
+            output_dict['constrained'] = request.output_constrained
+        if request.output_content_type:
+            output_dict['contentType'] = request.output_content_type
+        output_json = json.dumps(output_dict) if output_dict else '{}'
+        if output_dict and output_json != '{}':
             echo_resp += f' output={output_json}'
 
         if self.stream_countdown:

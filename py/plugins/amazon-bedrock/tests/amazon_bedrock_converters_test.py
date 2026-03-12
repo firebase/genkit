@@ -31,7 +31,6 @@ from genkit import (
     Message,
     ModelConfig,
     ModelRequest,
-    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -490,13 +489,13 @@ class TestBuildJsonInstruction:
 
     def test_text_format_returns_none(self) -> None:
         """Test Text format returns none."""
-        request = ModelRequest(messages=[], output=OutputConfig(format='text'))
+        request = ModelRequest(messages=[], output_format='text')
         got = build_json_instruction(request)
         assert got is None, f'Expected None, got {got}'
 
     def test_json_format_without_schema(self) -> None:
         """Test Json format without schema."""
-        request = ModelRequest(messages=[], output=OutputConfig(format='json'))
+        request = ModelRequest(messages=[], output_format='json')
         got = build_json_instruction(request)
         assert got is not None, 'Expected non-None instruction'
         assert 'valid JSON' in got, f'Missing JSON instruction: {got}'
@@ -504,7 +503,7 @@ class TestBuildJsonInstruction:
     def test_json_format_with_schema(self) -> None:
         """Test Json format with schema."""
         schema = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
-        request = ModelRequest(messages=[], output=OutputConfig(format='json', schema=schema))
+        request = ModelRequest(messages=[], output_format='json', output_schema=schema)
         got = build_json_instruction(request)
         assert got is not None, 'Expected non-None instruction'
         assert 'name' in got, f'Schema not in instruction: {got}'
@@ -667,7 +666,8 @@ class TestMaybeStripFences:
         """Strips markdown fences when JSON output is requested."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='json', schema={'type': 'object'}),
+            output_format='json',
+            output_schema={'type': 'object'},
         )
         parts = [Part(root=TextPart(text='```json\n{"a": 1}\n```'))]
         result = maybe_strip_fences(request, parts)
@@ -677,7 +677,7 @@ class TestMaybeStripFences:
         """Does not modify responses when output format is not json."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='text'),
+            output_format='text',
         )
         fenced = '```json\n{"a": 1}\n```'
         parts = [Part(root=TextPart(text=fenced))]
@@ -688,7 +688,8 @@ class TestMaybeStripFences:
         """Does not modify clean JSON responses."""
         request = ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output=OutputConfig(format='json', schema={'type': 'object'}),
+            output_format='json',
+            output_schema={'type': 'object'},
         )
         text = '{"name": "John"}'
         parts = [Part(root=TextPart(text=text))]

@@ -47,7 +47,10 @@ def _to_dict(obj: object) -> object:
 
 
 def _to_json(obj: object, indent: int | None = None) -> str:
-    """Convert object to JSON string for test output."""
+    """Local test helper: serialize to JSON for assertion error messages.
+
+    Uses model_dump_json for BaseModel, json.dumps for dicts/other.
+    """
     if isinstance(obj, BaseModel):
         return obj.model_dump_json(indent=indent)
     return json.dumps(obj, indent=indent)

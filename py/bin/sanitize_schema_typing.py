@@ -71,8 +71,18 @@ class ClassTransformer(ast.NodeTransformer):
         'CommonRetrieverOptions',
         'RetrieverRequest',
         'RetrieverResponse',
-        # Note: ModelRequest, ModelResponse, ModelResponseChunk are NOT excluded
-        # because _model.py imports them as base classes for veneer types.
+        # ModelRequest is excluded — fully hand-written in _model.py with flat
+        # output fields (output_format, output_schema, etc.) instead of nested output.
+        'ModelRequest',
+        # GenerateRequest excluded — wire type not needed; ModelRequest is the veneer.
+        'GenerateRequest',
+        # OutputModel excluded — unused; OutputConfig is the type for model output.
+        'OutputModel',
+        # GenerateResponse, Request, ModelResponse (wire) excluded — hand-written in _model.py.
+        # No references to rewrite; these were only referenced by each other.
+        'GenerateResponse',
+        'Request',
+        'ModelResponse',
     })
 
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
@@ -291,7 +301,7 @@ class ClassTransformer(ast.NodeTransformer):
         if node.name in renamed_classes:
             node.name = renamed_classes[node.name]
 
-        # Exclude classes that have hand-written veneer types.
+        # Exclude classes that have hand-written veneer types or are unused.
         if node.name in self.EXCLUDED_CLASSES:
             return None
 
@@ -437,11 +447,6 @@ class ClassTransformer(ast.NodeTransformer):
         if node.name == 'GenerateActionOutputConfig':
             self._inject_schema_type_field(new_body)
 
-        # PYTHON EXTENSION: Inline wrapper types in ModelRequest for better DX.
-        # Plugin authors see `messages: list[MessageData]` instead of `messages: Messages`.
-        if node.name == 'ModelRequest':
-            self._inline_model_request_types(new_body)
-
         node.body = cast(list[ast.stmt], new_body)
         return node
 
@@ -529,66 +534,6 @@ class ClassTransformer(ast.NodeTransformer):
         else:
             body.append(schema_type_field)
         self.modified = True
-
-    def _inline_model_request_types(self, body: list[ast.stmt | ast.Constant | ast.Assign]) -> None:
-        """Inline wrapper types in ModelRequest for better developer experience.
-
-        Changes:
-        - messages: Messages -> messages: list[MessageData]
-        - tools: Tools | None -> tools: list[ToolDefinition] | None
-        - docs: Docs | None -> docs: list[DocumentData] | None
-        - output: OutputModel | None -> output: OutputConfig | None
-
-        This gives plugin authors a cleaner type signature in their IDE.
-        RootModel wrappers still exist for backward compatibility but ModelRequest
-        uses plain types directly.
-        """
-        # Mapping from wrapper type name to inlined type
-        type_mappings: dict[str, tuple[str, str | None]] = {
-            # field_name: (inner_type, list_item_type or None if not a list)
-            'messages': ('MessageData', 'list'),
-            'tools': ('ToolDefinition', 'list'),
-            'docs': ('DocumentData', 'list'),
-            'output': ('OutputConfig', None),
-        }
-
-        for stmt in body:
-            if not isinstance(stmt, ast.AnnAssign):
-                continue
-            if not isinstance(stmt.target, ast.Name):
-                continue
-
-            field_name = stmt.target.id
-            if field_name not in type_mappings:
-                continue
-
-            inner_type, container = type_mappings[field_name]
-
-            # Build the new type annotation
-            if container == 'list':
-                # list[InnerType]
-                new_type = ast.Subscript(
-                    value=ast.Name(id='list', ctx=ast.Load()),
-                    slice=ast.Name(id=inner_type, ctx=ast.Load()),
-                    ctx=ast.Load(),
-                )
-            else:
-                # Just the inner type
-                new_type = ast.Name(id=inner_type, ctx=ast.Load())
-
-            # Check if current annotation is Optional (X | None)
-            if isinstance(stmt.annotation, ast.BinOp) and isinstance(stmt.annotation.op, ast.BitOr):
-                # It's X | None, replace X with new_type
-                stmt.annotation = ast.BinOp(
-                    left=new_type,
-                    op=ast.BitOr(),
-                    right=ast.Constant(value=None),
-                )
-            else:
-                # Not optional, just replace
-                stmt.annotation = new_type
-
-            self.modified = True
 
 
 def fix_field_defaults(content: str) -> str:

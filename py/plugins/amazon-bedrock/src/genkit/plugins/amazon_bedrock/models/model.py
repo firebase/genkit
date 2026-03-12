@@ -366,7 +366,7 @@ class BedrockModel:
         final_usage: ModelUsage | None = None
         stop_reason: str = ''
 
-        json_mode = bool(request.output and request.output.format == 'json')
+        json_mode = bool(request.output_format == 'json')
         fence_stripper = StreamingFenceStripper(json_mode=json_mode)
 
         def _send_text(text: str) -> None:
@@ -600,11 +600,11 @@ class BedrockModel:
         Returns:
             JSON instruction string if JSON output is requested, None otherwise.
         """
-        if not request.output:
+        if not request.output_format and not request.output_schema:
             return None
 
-        output_format = request.output.format
-        schema = request.output.schema
+        output_format = request.output_format
+        schema = request.output_schema
 
         if output_format != 'json':
             return None

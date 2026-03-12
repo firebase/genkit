@@ -33,7 +33,6 @@ from genkit import (
     ModelRequest,
     ModelResponseChunk,
     ModelUsage,
-    OutputConfig,
     Part,
     Role,
     TextPart,
@@ -419,7 +418,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
 
     async def test_chat_with_output_format_string(self) -> None:
         """Test _chat_with_ollama with request.output.format string."""
-        self.request.output = OutputConfig(format='json')
+        self.request.output_format = 'json'
 
         expected_response = ollama_api.ChatResponse(
             message=ollama_api.Message(
@@ -438,7 +437,7 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
     async def test_chat_with_output_format_schema(self) -> None:
         """Test _chat_with_ollama with request.output.schema dictionary."""
         schema_dict = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
-        self.request.output = OutputConfig(schema=schema_dict)
+        self.request.output_schema = schema_dict
 
         expected_response = ollama_api.ChatResponse(
             message=ollama_api.Message(
@@ -456,7 +455,8 @@ class TestOllamaModelChatWithOllama(unittest.IsolatedAsyncioTestCase):
 
     async def test_chat_with_no_output_format(self) -> None:
         """Test _chat_with_ollama with no output format specified."""
-        self.request.output = OutputConfig(format=None, schema=None)
+        self.request.output_format = None
+        self.request.output_schema = None
 
         expected_response = ollama_api.ChatResponse(
             message=ollama_api.Message(

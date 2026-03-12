@@ -567,12 +567,7 @@ async def action_to_generate_request(
     # TODO(#4341): add warning when toolChoice is not supported in ModelInfo
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
-    output_config = OutputConfig(
-        content_type=options.output.content_type if options.output else None,
-        format=options.output.format if options.output else None,
-        schema=options.output.json_schema if options.output else None,
-        constrained=options.output.constrained if options.output else None,
-    )
+    output = options.output
     return ModelRequest(
         # Field validators auto-wrap MessageData -> Message and DocumentData -> Document
         messages=options.messages,  # type: ignore[arg-type]
@@ -580,7 +575,10 @@ async def action_to_generate_request(
         docs=options.docs if options.docs else None,  # type: ignore[arg-type]
         tools=tool_defs,
         tool_choice=options.tool_choice,
-        output=output_config,
+        output_format=output.format if output else None,
+        output_schema=output.json_schema if output else None,
+        output_constrained=output.constrained if output else None,
+        output_content_type=output.content_type if output else None,
     )
 
 

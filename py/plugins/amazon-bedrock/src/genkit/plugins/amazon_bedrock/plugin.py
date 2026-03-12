@@ -67,8 +67,14 @@ import aioboto3
 import structlog
 from botocore.config import Config
 
-from genkit import Embedding, EmbedRequest, EmbedResponse
-from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.embedder import (
+    EmbedderOptions,
+    EmbedderSupports,
+    Embedding,
+    EmbedRequest,
+    EmbedResponse,
+    embedder_action_metadata,
+)
 from genkit.model import model_action_metadata
 from genkit.plugin_api import Action, ActionKind, ActionMetadata, Plugin
 from genkit.plugins.amazon_bedrock.models.model import BedrockModel

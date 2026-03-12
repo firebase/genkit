@@ -1672,18 +1672,18 @@ class GeminiModel:
         # Tools from top-level field and config-level fields
         tools.extend(self._get_tools(request))
 
-        if cfg is not None or tools or system_instruction or request.output:
+        if cfg is not None or tools or system_instruction or request.output_format:
             if cfg is None:
                 cfg = genai_types.GenerateContentConfig()
 
-            if request.output:
+            if has_output:
                 response_mime_type = (
-                    'application/json' if request.output.format == 'json' and not request.tools else None
+                    'application/json' if request.output_format == 'json' and not request.tools else None
                 )
                 cfg.response_mime_type = response_mime_type
 
-                if request.output.schema and request.output.constrained:
-                    cfg.response_schema = self._convert_schema_property(request.output.schema)
+                if request.output_schema and request.output_constrained:
+                    cfg.response_schema = self._convert_schema_property(request.output_schema)
 
             if tools:
                 cfg.tools = cast(genai_types.ToolListUnion, tools)

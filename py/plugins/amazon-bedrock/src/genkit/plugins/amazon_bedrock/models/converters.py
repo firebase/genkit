@@ -309,7 +309,7 @@ def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     Returns:
         Parts with fences stripped from text if JSON was requested.
     """
-    if not request.output or request.output.format != 'json':
+    if request.output_format != 'json':
         return parts
 
     cleaned: list[Part] = []
@@ -509,10 +509,7 @@ def build_json_instruction(request: ModelRequest) -> str | None:
     Returns:
         JSON instruction string if JSON output is requested, None otherwise.
     """
-    if not request.output:
-        return None
-
-    if request.output.format != 'json':
+    if request.output_format != 'json':
         return None
 
     instruction_parts = [
@@ -521,8 +518,8 @@ def build_json_instruction(request: ModelRequest) -> str | None:
         'Do not wrap the JSON in markdown code blocks.',
     ]
 
-    if request.output.schema:
-        schema_str = json.dumps(request.output.schema, indent=2)
+    if request.output_schema:
+        schema_str = json.dumps(request.output_schema, indent=2)
         instruction_parts.append(f'Your response MUST conform to this JSON schema:\n{schema_str}')
 
     return '\n'.join(instruction_parts)

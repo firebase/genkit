@@ -22,7 +22,7 @@ from genkit._ai._formats._enum import EnumFormat
 from genkit._ai._formats._json import JsonFormat
 from genkit._ai._formats._jsonl import JsonlFormat
 from genkit._ai._formats._text import TextFormat
-from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
+from genkit._ai._formats._types import FormatDef, Formatter
 
 
 def package_name() -> str:

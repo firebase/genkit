@@ -25,16 +25,19 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, Generic, cast
+from typing import Any, ClassVar, Generic, cast
 
-from pydantic import BaseModel, Field, PrivateAttr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
+from pydantic.alias_generators import to_camel
 from typing_extensions import TypeVar
 
 from genkit._core._extract_json import extract_json
+from genkit._core._base import GenkitModel
 from genkit._core._typing import (
+    Candidate,
     DocumentData,
     DocumentPart,
-    GenerateResponse,
+    FinishReason,
     GenerateResponseChunk,
     GenerationCommonConfig,
     GenerationUsage,
@@ -42,10 +45,12 @@ from genkit._core._typing import (
     MediaModel,
     MediaPart,
     MessageData,
-    ModelRequest as GeneratedModelRequest,
+    Operation,
     Part,
     Text,
     TextPart,
+    ToolChoice,
+    ToolDefinition,
     ToolRequestPart,
 )
 
@@ -192,13 +197,12 @@ class Document(DocumentData):
         return None
 
 
-class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
-    """Model request with strongly-typed config and veneer types.
+class ModelRequest(GenkitModel, Generic[ConfigT]):
+    """Hand-written model request with flat output fields and veneer types.
 
-    This wrapper provides:
-    - Strongly-typed config via generics
-    - Messages as list[Message] (veneer) instead of list[MessageData] (wire)
-    - Docs as list[Document] (veneer) instead of list[DocumentData] (wire)
+    Output config is inlined as flat fields (output_format, output_schema, etc.)
+    instead of a nested OutputConfig object. Messages and docs use veneer types
+    (Message, Document) for convenience methods like .text.
 
     Example:
         class GeminiConfig(ModelConfig):
@@ -206,20 +210,24 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
 
         def gemini_model(request: ModelRequest[GeminiConfig]) -> ModelResponse:
             temp = request.config.temperature  # inherited from ModelConfig
-            safety = request.config.safety_settings  # provider-specific
             for msg in request.messages:
                 print(msg.text)  # Message veneer property
-            for doc in request.docs or []:
-                print(doc.text)  # Document veneer property
+            if request.output_format == 'json':
+                schema = request.output_schema
     """
 
-    # Intentional covariant overrides: veneer types (Message, Document) wrap wire types
-    # (MessageData, DocumentData) to provide convenience methods like .text
-    messages: list[Message]  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]
-    # fmt: off
-    docs: list[Document] | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
-    config: ConfigT | None = None  # pyrefly: ignore[bad-override]  # pyright: ignore[reportIncompatibleVariableOverride]  # noqa: E501
-    # fmt: on
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    # Veneer types for IDE/typing (validators wrap MessageData->Message, DocumentData->Document)
+    messages: list[Message]  # pyright: ignore[reportIncompatibleVariableOverride]
+    docs: list[Document] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    config: ConfigT | None = None
+    tools: list[ToolDefinition] | None = None
+    tool_choice: ToolChoice | None = Field(default=None)
+    # Flat output fields (no nested OutputConfig)
+    output_format: str | None = None
+    output_schema: dict[str, Any] | None = None
+    output_constrained: bool | None = None
+    output_content_type: str | None = None
 
     @field_validator('messages', mode='before')
     @classmethod
@@ -238,19 +246,24 @@ class ModelRequest(GeneratedModelRequest, Generic[ConfigT]):
         return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
 
 
-class ModelResponse(GenerateResponse, Generic[OutputT]):
+class ModelResponse(GenkitModel, Generic[OutputT]):
     """Model response with utilities for text extraction, output parsing, and validation."""
 
     # _message_parser and _schema_type are set by the framework after construction
     # when output format parsing or schema validation is needed.
     _message_parser: Callable[[Message], object] | None = PrivateAttr(None)
     _schema_type: type[BaseModel] | None = PrivateAttr(None)
-    # Override the parent's message field with our wrapper type (intentional Liskov violation)
-    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
-    message: Message | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
-    # Override request to accept ModelRequest (veneer) instead of GenerateRequest (wire)
-    # pyrefly: ignore[bad-override] - Intentional covariant override for wrapper functionality
-    request: ModelRequest | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
+    # Wire fields (must be declared for extra='forbid' to accept wire responses)
+    message: Message | None = None
+    finish_reason: FinishReason | None = None
+    finish_message: str | None = None
+    latency_ms: float | None = None
+    usage: GenerationUsage | None = None
+    custom: dict[str, Any] | None = None
+    raw: dict[str, Any] | None = None
+    request: ModelRequest | None = None
+    operation: Operation | None = None
+    candidates: list[Candidate] | None = None
 
     def model_post_init(self, __context: object) -> None:
         """Initialize default usage and custom dict if not provided."""

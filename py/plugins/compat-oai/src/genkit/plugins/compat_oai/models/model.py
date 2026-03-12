@@ -30,7 +30,6 @@ from genkit import (
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
-    OutputConfig,
     Part,
     ReasoningPart,
     Role,
@@ -120,7 +119,7 @@ class OpenAIModel:
             result.append(function_call)
         return result
 
-    def _needs_schema_in_prompt(self, output: OutputConfig) -> bool:
+    def _needs_schema_in_prompt(self, request: ModelRequest) -> bool:
         """Check whether the schema must be injected into the prompt.
 
         Models that only support ``json_object`` mode (e.g. DeepSeek) never
@@ -129,21 +128,21 @@ class OpenAIModel:
         knows what structure to produce.
 
         Args:
-            output: The output configuration.
+            request: The model request with output_format and output_schema.
 
         Returns:
             True when the schema should be injected into the messages.
         """
-        if output.format != 'json' or not output.schema:
+        if request.output_format != 'json' or not request.output_schema:
             return False
         # DeepSeek models use json_object mode — schema never reaches the API.
         return self._model.startswith('deepseek')
 
-    def _get_response_format(self, output: OutputConfig) -> dict | None:
+    def _get_response_format(self, request: ModelRequest) -> dict | None:
         """Determines the response format configuration based on the output settings.
 
         Args:
-            output: The output configuration specifying the desired format and optional schema.
+            request: The model request with output_format and output_schema.
 
         Returns:
             A dictionary representing the response format, which may include:
@@ -151,17 +150,19 @@ class OpenAIModel:
             - 'type': 'json_object' if the model supports JSON mode and no schema is provided.
             - 'type': 'text' as the default fallback.
         """
-        if output.format == 'json':
+        if request.output_format == 'json':
             # DeepSeek models: always use 'json_object' (schema is injected
             # into the prompt by _get_openai_request_config instead).
             if self._model.startswith('deepseek'):
                 return {'type': 'json_object'}
-            if output.schema:
+            if request.output_schema:
                 return {
                     'type': 'json_schema',
                     'json_schema': {
-                        'name': output.schema.get('title', 'Response'),
-                        'schema': _ensure_strict_json_schema(output.schema, path=(), root=output.schema),
+                        'name': request.output_schema.get('title', 'Response'),
+                        'schema': _ensure_strict_json_schema(
+                            request.output_schema, path=(), root=request.output_schema
+                        ),
                         'strict': True,
                     },
                 }
@@ -185,12 +186,7 @@ class OpenAIModel:
         Returns:
             The response with cleaned text parts, or the original response.
         """
-        if (
-            not request.output
-            or request.output.format != 'json'
-            or not self._model.startswith('deepseek')
-            or response.message is None
-        ):
+        if request.output_format != 'json' or not self._model.startswith('deepseek') or response.message is None:
             return response
 
         cleaned_parts: list[Part] = []
@@ -256,8 +252,8 @@ class OpenAIModel:
 
         # For models that only support json_object mode, inject the schema
         # into the messages so the model knows the expected output structure.
-        if request.output and self._needs_schema_in_prompt(request.output) and request.output.schema:
-            schema_msg = self._build_schema_instruction(request.output.schema)
+        if self._needs_schema_in_prompt(request) and request.output_schema:
+            schema_msg = self._build_schema_instruction(request.output_schema)
             messages = [schema_msg, *messages]
 
         openai_config: dict[str, Any] = {
@@ -271,8 +267,8 @@ class OpenAIModel:
             openai_config['tool_choice'] = 'none'
         elif request.tool_choice:
             openai_config['tool_choice'] = request.tool_choice
-        if request.output:
-            response_format = self._get_response_format(request.output)
+        if request.output_format:
+            response_format = self._get_response_format(request)
             if response_format:
                 # pyrefly: ignore[bad-typed-dict-key] - response_format dict is valid for OpenAI API
                 openai_config['response_format'] = response_format

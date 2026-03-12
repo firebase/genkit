@@ -26,9 +26,9 @@ from genkit._ai._generate import generate_action
 from genkit._ai._resource import ResourceInput, ResourceOutput, define_resource, resource
 from genkit._core._action import ActionRunContext
 from genkit._core._registry import ActionKind, Registry
+from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     GenerateActionOptions,
-    ModelRequest,
     Part,
     Resource1,
     ResourcePart,

@@ -246,12 +246,12 @@ class OllamaModel:
         messages = await self.build_chat_messages(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
-        if request.output:
+        if request.output_format or request.output_schema:
             # ollama api either accepts 'json' literal, or the JSON schema
-            if request.output.schema:
-                fmt = request.output.schema
-            elif request.output.format:
-                fmt = request.output.format
+            if request.output_schema:
+                fmt = request.output_schema
+            elif request.output_format:
+                fmt = request.output_format
             else:
                 fmt = ''
         else:

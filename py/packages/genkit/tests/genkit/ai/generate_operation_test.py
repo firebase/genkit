@@ -50,9 +50,9 @@ import pytest
 from genkit import Genkit, Message, ModelResponse
 from genkit._core._action import ActionRunContext
 from genkit._core._error import GenkitError
+from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     ModelInfo,
-    ModelRequest,
     Operation,
     Part,
     Role,

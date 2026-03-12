@@ -234,21 +234,21 @@ class AnthropicModel:
         system = self._extract_system(request.messages)
 
         # Handle JSON output constraint
-        if request.output and request.output.format == 'json':
+        if request.output_format == 'json':
             supports_json = 'json' in (self._model_info.supports.output or []) if self._model_info.supports else False
-            if request.output.schema and supports_json:
+            if request.output_schema and supports_json:
                 # Use native structured outputs via output_config.
                 params['output_config'] = {
                     'format': {
                         'type': 'json_schema',
-                        'schema': _to_anthropic_schema(request.output.schema),
+                        'schema': _to_anthropic_schema(request.output_schema),
                     }
                 }
             else:
                 # Fall back to system prompt instruction.
                 instruction = '\n\nOutput valid JSON. Do not wrap the JSON in markdown code fences.'
-                if request.output.schema:
-                    schema_str = json.dumps(request.output.schema, indent=2)
+                if request.output_schema:
+                    schema_str = json.dumps(request.output_schema, indent=2)
                     instruction += f'\n\nFollow this JSON schema:\n{schema_str}'
                 system = (system or '') + instruction
 

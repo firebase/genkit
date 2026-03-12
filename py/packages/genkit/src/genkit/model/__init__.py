@@ -39,7 +39,6 @@ from genkit._core._typing import (
     GenerateActionOptions,
     ModelInfo,
     Operation,
-    OutputConfig,
     Stage,
     Supports,
     ToolDefinition,
@@ -56,7 +55,6 @@ __all__ = [
     # Usage and metadata
     'ModelUsage',
     'Candidate',
-    'OutputConfig',
     'FinishReason',
     'GenerateActionOptions',
     # Error and operation

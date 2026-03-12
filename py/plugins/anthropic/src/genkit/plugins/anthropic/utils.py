@@ -87,7 +87,7 @@ def maybe_strip_fences(request: ModelRequest, parts: list[Part]) -> list[Part]:
     Returns:
         Parts with fences stripped from text if JSON was requested.
     """
-    if not request.output or request.output.format != 'json':
+    if request.output_format != 'json':
         return parts
 
     cleaned: list[Part] = []

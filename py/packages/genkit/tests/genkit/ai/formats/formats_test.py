@@ -10,7 +10,6 @@ from genkit._ai._formats import (
     EnumFormat,
     FormatDef,
     Formatter,
-    FormatterConfig,
     JsonFormat,
     JsonlFormat,
     TextFormat,
@@ -112,10 +111,6 @@ class TestModuleExports:
     def test_formatter_exported(self) -> None:
         """Test that Formatter class is exported."""
         assert Formatter is not None
-
-    def test_formatter_config_exported(self) -> None:
-        """Test that FormatterConfig class is exported."""
-        assert FormatterConfig is not None
 
     def test_all_format_classes_exported(self) -> None:
         """Test that all format classes are exported."""
