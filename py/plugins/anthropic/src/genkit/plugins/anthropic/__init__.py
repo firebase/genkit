@@ -20,32 +20,6 @@ This plugin provides integration with Anthropic's Claude models for the
 Genkit framework. It registers Claude models as Genkit actions, enabling
 text generation operations.
 
-Key Concepts (ELI5)::
-
-    ┌─────────────────────┬────────────────────────────────────────────────────┐
-    │ Concept             │ ELI5 Explanation                                   │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Claude              │ Anthropic's AI assistant. Like a helpful friend   │
-    │                     │ who's great at explaining things and writing.     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Sonnet              │ The "just right" Claude model. Good at most       │
-    │                     │ tasks without being too slow or expensive.        │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Haiku               │ The fast & cheap Claude model. Perfect for        │
-    │                     │ quick tasks like classification or summaries.     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Opus                │ The most capable Claude. For complex tasks        │
-    │                     │ like research, analysis, or creative writing.     │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ API Key             │ Your password to use Claude. Keep it secret!      │
-    │                     │ Set as ANTHROPIC_API_KEY environment variable.    │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ System Prompt       │ Instructions that shape Claude's personality.     │
-    │                     │ Like giving a new employee their job description. │
-    ├─────────────────────┼────────────────────────────────────────────────────┤
-    │ Tool Calling        │ Claude can use functions you define. Like         │
-    │                     │ giving it a calculator or search engine to use.   │
-    └─────────────────────┴────────────────────────────────────────────────────┘
 
 Data Flow::
 

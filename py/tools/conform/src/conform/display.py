@@ -19,24 +19,6 @@
 All shared types (:class:`Status`, :class:`PluginResult`) live in
 :mod:`conform.types` to avoid circular imports between this module
 and :mod:`conform.runner`.
-
-Key Concepts (ELI5)::
-
-    ┌──────────────────────┬──────────────────────────────────────────────┐
-    │ Concept              │ ELI5 Explanation                             │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Progress table       │ A live-updating table shown while tests run. │
-    │                      │ Each row is a plugin with an inline bar.     │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Summary table        │ A final table printed once all tests finish, │
-    │                      │ showing pass/fail/skip for every plugin.     │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Inline progress bar  │ A row of colored blocks: green = passed,     │
-    │                      │ red = failed, dim = remaining.               │
-    ├──────────────────────┼──────────────────────────────────────────────┤
-    │ Rust-style message   │ Error/warning output styled like the Rust    │
-    │                      │ compiler (``error[E0001]: ...``).            │
-    └──────────────────────┴──────────────────────────────────────────────┘
 """
 
 from __future__ import annotations

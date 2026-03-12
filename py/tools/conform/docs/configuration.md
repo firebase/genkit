@@ -120,7 +120,6 @@ deepseek              = ["DEEPSEEK_API_KEY"]
 xai                   = ["XAI_API_KEY"]
 cohere                = ["COHERE_API_KEY"]
 huggingface           = ["HF_TOKEN"]
-microsoft-foundry     = ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"]
 cloudflare-workers-ai = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
 vertex-ai             = ["GOOGLE_CLOUD_PROJECT"]
 ollama                = []                        # No credentials needed

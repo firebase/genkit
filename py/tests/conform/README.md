@@ -62,9 +62,6 @@ tests/conform/
 ├── huggingface/
 │   ├── conformance_entry.py
 │   └── model-conformance.yaml
-├── microsoft-foundry/
-│   ├── conformance_entry.py
-│   └── model-conformance.yaml
 ├── mistral/
 │   ├── conformance_entry.py
 │   └── model-conformance.yaml
@@ -91,7 +88,6 @@ tests/conform/
 | `xai` | `XAI_API_KEY` |
 | `cohere` | `COHERE_API_KEY` |
 | `huggingface` | `HF_TOKEN` |
-| `microsoft-foundry` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` |
 | `cloudflare-workers-ai` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` |
 | `vertex-ai` | `GOOGLE_CLOUD_PROJECT` + GCP credentials |
 | `ollama` | *(none — uses local server)* |
@@ -107,7 +103,6 @@ tests/conform/
 | **deepseek** | deepseek-chat, deepseek-reasoner | tool-request (chat only), structured-output, streaming |
 | **xai** | grok-4-fast-non-reasoning, grok-2-vision-1212 | tool-request, structured-output, vision, streaming |
 | **cohere** | command-a-03-2025 | tool-request, structured-output, multiturn |
-| **microsoft-foundry** | gpt-4o | tool-request, structured-output, vision, streaming |
 | **huggingface** | meta-llama/Llama-3.1-8B-Instruct | multiturn, system-role |
 | **cloudflare-workers-ai** | @cf/meta/llama-3.1-8b-instruct | tool-request, multiturn, streaming |
 | **vertex-ai** | anthropic/claude-sonnet-4 (via Model Garden) | tool-request, vision, multiturn, streaming |

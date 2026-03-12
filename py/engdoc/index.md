@@ -63,7 +63,6 @@ capabilities in code:
 
 | Plugins                | Python | JavaScript | Go |
 |------------------------|--------|------------|----|
-| Amazon Bedrock         | ✅     | —          | —  |
 | Anthropic              | ✅     | —          | —  |
 | Checks                 | ✅     | ✅         | —  |
 | Cloudflare Workers AI  | ✅     | —          | —  |
@@ -80,7 +79,6 @@ capabilities in code:
 | Google GenAI           | ✅     | ✅         | ✅ |
 | Hugging Face           | ✅     | —          | —  |
 | MCP                    | ✅     | —          | —  |
-| Microsoft Foundry      | ✅     | —          | —  |
 | Mistral                | ✅     | —          | —  |
 | Observability          | ✅     | —          | —  |
 | Ollama                 | ✅     | ✅         | —  |
