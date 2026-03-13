@@ -16,7 +16,7 @@
 
 """Genkit — Build AI-powered applications."""
 
-from genkit._ai._aio import Genkit, ActionKind, ActionRunContext
+from genkit._ai._aio import ActionKind, ActionRunContext, Genkit
 from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
