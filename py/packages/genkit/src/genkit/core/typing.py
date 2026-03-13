@@ -412,6 +412,104 @@ class RankedDocumentMetadata(BaseModel):
     score: float
 
 
+class ReflectionCancelActionParams(BaseModel):
+    """Model for reflectioncancelactionparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str = Field(...)
+
+
+class ReflectionCancelActionResponse(BaseModel):
+    """Model for reflectioncancelactionresponse data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    message: str
+
+
+class ReflectionConfigureParams(BaseModel):
+    """Model for reflectionconfigureparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    telemetry_server_url: str | None = Field(default=None)
+
+
+class ReflectionEndInputStreamParams(BaseModel):
+    """Model for reflectionendinputstreamparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+
+
+class ReflectionListValuesParams(BaseModel):
+    """Model for reflectionlistvaluesparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    type: str
+
+
+class ReflectionListValuesResponse(RootModel[dict[str, Any]]):
+    """Root model for reflectionlistvaluesresponse."""
+
+    root: dict[str, Any]
+
+
+class ReflectionRegisterParams(BaseModel):
+    """Model for reflectionregisterparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    id: str
+    pid: float
+    name: str | None = None
+    genkit_version: str | None = Field(default=None)
+    reflection_api_spec_version: float | None = Field(default=None)
+
+
+class ReflectionRunActionParams(BaseModel):
+    """Model for reflectionrunactionparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    runtime_id: str | None = Field(
+        default=None, description='ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+    )
+    key: str = Field(..., description='Action key that consists of the action type and ID.')
+    input: Any | None = Field(default=None, description='An input with the type that this action expects.')
+    context: Any | None = Field(default=None, description='Additional runtime context data (ex. auth context data).')
+    telemetry_labels: dict[str, str] | None = Field(default=None, description='Labels to be applied to telemetry data.')
+    stream: bool | None = None
+    stream_input: bool | None = Field(default=None)
+
+
+class State(BaseModel):
+    """Model for state data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str | None = Field(default=None)
+
+
+class ReflectionRunActionStateParams(BaseModel):
+    """Model for reflectionrunactionstateparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    state: State | None = None
+
+
+class ReflectionSendInputStreamChunkParams(BaseModel):
+    """Model for reflectionsendinputstreamchunkparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    chunk: Any | None = None
+
+
+class ReflectionStreamChunkParams(BaseModel):
+    """Model for reflectionstreamchunkparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    chunk: Any | None = None
+
+
 class CommonRetrieverOptions(BaseModel):
     """Model for commonretrieveroptions data."""
 
@@ -457,8 +555,8 @@ class SameProcessAsParentSpan(BaseModel):
     value: bool
 
 
-class State(StrEnum):
-    """State data type class."""
+class State1(StrEnum):
+    """State1 data type class."""
 
     SUCCESS = 'success'
     ERROR = 'error'
@@ -469,7 +567,7 @@ class SpanMetadata(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str
-    state: State | None = None
+    state: State1 | None = None
     input: Any | None = None
     output: Any | None = None
     is_root: bool | None = Field(default=None)
@@ -508,6 +606,20 @@ class TraceMetadata(BaseModel):
     feature_name: str | None = Field(default=None)
     paths: set[PathMetadata] | None = None
     timestamp: float
+
+
+class InputJsonSchema(RootModel[dict[str, Any] | None]):
+    """Root model for inputjsonschema."""
+
+    root: dict[str, Any] | None = Field(
+        ..., description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
+    )
+
+
+class Field0(RootModel[str | float | int | bool | dict[str, Any]]):
+    """Root model for field0."""
+
+    root: str | float | int | bool | dict[str, Any]
 
 
 class Context(RootModel[list[Any]]):
@@ -799,6 +911,32 @@ class ToolResponsePart(BaseModel):
     custom: Custom | None = None
     reasoning: Reasoning | None = None
     resource: Resource | None = None
+
+
+class ActionMetadata(BaseModel):
+    """Model for actionmetadata data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    key: str | None = None
+    action_type: str | None = Field(default=None)
+    name: str
+    description: str | None = None
+    input_schema: Any | None = Field(default=None)
+    input_json_schema: dict[str, Any] | None = Field(
+        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
+    )
+    output_schema: Any | None = Field(default=None)
+    output_json_schema: InputJsonSchema | None = Field(
+        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
+    )
+    stream_schema: Any | None = Field(default=None)
+    metadata: dict[str, str | float | int | bool | dict[str, Any] | list[Field0]] | None = None
+
+
+class ReflectionListActionsResponse(RootModel[dict[str, ActionMetadata]]):
+    """Root model for reflectionlistactionsresponse."""
+
+    root: dict[str, ActionMetadata]
 
 
 class Link(BaseModel):
