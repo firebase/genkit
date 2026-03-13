@@ -39,6 +39,13 @@ class Model(RootModel[Any]):
     root: Any
 
 
+class SnapshotEvent(StrEnum):
+    """SnapshotEvent data type class."""
+
+    TURN_END = 'turnEnd'
+    INVOCATION_END = 'invocationEnd'
+
+
 class Embedding(BaseModel):
     """Model for embedding data."""
 
@@ -883,6 +890,15 @@ class Content(RootModel[list[Part]]):
     root: list[Part]
 
 
+class Artifact(BaseModel):
+    """Model for artifact data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    name: str | None = None
+    parts: list[Part]
+    metadata: dict[str, Any] | None = None
+
+
 class DocumentData(BaseModel):
     """Model for documentdata data."""
 
@@ -974,6 +990,43 @@ class Messages(RootModel[list[Message]]):
     root: list[Message]
 
 
+class SessionFlowInput(BaseModel):
+    """Model for sessionflowinput data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    messages: list[Message] | None = None
+    tool_restarts: list[Part] | None = Field(default=None)
+
+
+class SessionFlowResult(BaseModel):
+    """Model for sessionflowresult data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    message: Message | None = None
+    artifacts: list[Artifact] | None = None
+
+
+class SessionFlowStreamChunk(BaseModel):
+    """Model for sessionflowstreamchunk data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_chunk: ModelResponseChunk | None = Field(default=None)
+    status: Any | None = None
+    artifact: Artifact | None = None
+    snapshot_id: str | None = Field(default=None)
+    end_turn: bool | None = Field(default=None)
+
+
+class SessionState(BaseModel):
+    """Model for sessionstate data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    messages: list[Message] | None = None
+    custom: Any | None = None
+    artifacts: list[Artifact] | None = None
+    input_variables: Any | None = Field(default=None)
+
+
 class Candidate(BaseModel):
     """Model for candidate data."""
 
@@ -1049,6 +1102,24 @@ class Request(RootModel[GenerateRequest]):
     """Root model for request."""
 
     root: GenerateRequest
+
+
+class SessionFlowInit(BaseModel):
+    """Model for sessionflowinit data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    snapshot_id: str | None = Field(default=None)
+    state: SessionState | None = None
+
+
+class SessionFlowOutput(BaseModel):
+    """Model for sessionflowoutput data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    snapshot_id: str | None = Field(default=None)
+    state: SessionState | None = None
+    message: Message | None = None
+    artifacts: list[Artifact] | None = None
 
 
 class ModelResponse(BaseModel):

@@ -70,7 +70,7 @@ func TestGoogleAILive(t *testing.T) {
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 
-	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
+	embedder := googlegenai.GoogleAIEmbedder(g, "gemini-embedding-001")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
