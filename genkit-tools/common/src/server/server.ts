@@ -50,12 +50,11 @@ export function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
-  // Allow all origins and expose trace ID header
+  // Allow all origins
   app.use(
     cors({
       origin: '*',
       allowedHeaders: ['Content-Type'],
-      exposedHeaders: ['X-Genkit-Trace-Id'],
     })
   );
 
@@ -67,36 +66,34 @@ export function startServer(manager: RuntimeManager, port: number) {
   });
   app.use(express.static(UI_ASSETS_SERVE_PATH));
 
-  // tRPC doesn't support simple streaming mutations (https://github.com/trpc/trpc/issues/4477).
-  // Don't want a separate WebSocket server for subscriptions - https://trpc.io/docs/subscriptions.
+  // tRPC doesn't support simple streaming mutations
+  // (https://github.com/trpc/trpc/issues/4477), and we don't want a separate
+  // WebSocket server for subscriptions (https://trpc.io/docs/subscriptions).
+  //
   // TODO: migrate to streamingMutation when it becomes available in tRPC.
   app.post(
     '/api/runAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      // Set headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
-      res.setHeader('Content-Type', 'application/json');
-      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
 
-      // When realtime telemetry is disabled, flush headers immediately.
-      // The trace ID will be available in the response body.
-      if (manager.disableRealtimeTelemetry) {
-        res.flushHeaders();
-      }
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
 
       try {
         const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
-              // Set trace ID header and flush - this fires before response body
-              res.setHeader('X-Genkit-Trace-Id', traceId);
-              // Force chunked encoding so we can flush headers early
-              res.setHeader('Transfer-Encoding', 'chunked');
-              res.flushHeaders();
+              // Send the initial trace ID, which will also flush headers and
+              // serve as a "keep alive" while we wait for the action to
+              // complete.
+              res.write(JSON.stringify({ telemetry: { traceId } }) + '\n');
             }
           : undefined;
 
         const result = await manager.runAction(
-          req.body,
+          { ...req.body, abortSignal: abortController.signal },
           undefined, // no streaming callback
           onTraceIdCallback
         );
@@ -105,11 +102,11 @@ export function startServer(manager: RuntimeManager, port: number) {
       } catch (err) {
         const error = err as GenkitToolsError;
 
-        // If headers not sent, we can send error status
+        // If headers haven't been sent (e.g., telemetry is disabled or the
+        // error occurred before a trace ID was available), we can still
+        // send a 500 status code.
         if (!res.headersSent) {
-          res.writeHead(500, {
-            'Content-Type': 'application/json',
-          });
+          res.status(500);
         }
         res.end(JSON.stringify({ error: error.data }));
       }
@@ -120,28 +117,24 @@ export function startServer(manager: RuntimeManager, port: number) {
     '/api/streamAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
-      // Set streaming headers but don't flush yet - wait for trace ID (if realtime telemetry enabled)
       res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Transfer-Encoding', 'chunked');
-      res.statusCode = 200;
 
-      // When realtime telemetry is disabled, flush headers immediately.
-      // The trace ID will be available in the response body.
-      if (manager.disableRealtimeTelemetry) {
-        res.flushHeaders();
-      }
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
 
       try {
         const onTraceIdCallback = !manager.disableRealtimeTelemetry
           ? (traceId: string) => {
-              // Set trace ID header and flush - this fires before first chunk
-              res.setHeader('X-Genkit-Trace-Id', traceId);
-              res.flushHeaders();
+              // Send the initial trace ID, which will also flush headers and
+              // serve as a "keep alive" while we wait for the action to stream.
+              res.write(JSON.stringify({ telemetry: { traceId } }) + '\n');
             }
           : undefined;
 
         const result = await manager.runAction(
-          req.body,
+          { ...req.body, abortSignal: abortController.signal },
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
           },
@@ -149,6 +142,12 @@ export function startServer(manager: RuntimeManager, port: number) {
         );
         res.write(JSON.stringify(result));
       } catch (err) {
+        // If headers haven't been sent (e.g., telemetry is disabled or the
+        // error occurred before a trace ID was available), we can still
+        // send a 500 status code.
+        if (!res.headersSent) {
+          res.status(500);
+        }
         res.write(JSON.stringify({ error: (err as GenkitToolsError).data }));
       }
       res.end();
@@ -166,25 +165,44 @@ export function startServer(manager: RuntimeManager, port: number) {
         return;
       }
 
-      // Set streaming headers immediately
+      // text/plain because we are sending various chunks that do not form
+      // a single json document.
       res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Transfer-Encoding', 'chunked');
-      res.setHeader('X-Genkit-Trace-Id', traceId);
-      res.statusCode = 200;
-      res.flushHeaders();
+
+      const abortController = new AbortController();
+      req.on('close', () => {
+        abortController.abort();
+      });
 
       try {
-        await manager.streamTrace({ traceId }, (chunk) => {
-          // Forward each chunk from telemetry server as chunked JSON
-          res.write(JSON.stringify(chunk) + '\n');
-        });
-        res.end();
+        // Send the initial trace ID, which will also flush headers and serve
+        // as a "keep alive" while we wait for the trace to stream.
+        res.write(JSON.stringify({ telemetry: { traceId } }) + '\n');
+
+        let lastChunk: any = null;
+        await manager.streamTrace(
+          { traceId, abortSignal: abortController.signal },
+          (chunk) => {
+            if (lastChunk !== null) {
+              res.write(JSON.stringify(lastChunk) + '\n');
+            }
+            lastChunk = chunk;
+          }
+        );
+        if (lastChunk !== null) {
+          res.write(JSON.stringify(lastChunk));
+        }
+        if (!res.writableEnded) {
+          res.end();
+        }
       } catch (err) {
         const error = err as GenkitToolsError;
+
+        // If headers haven't been sent (e.g., the error occurred before the
+        // initial trace ID chunk was written), we can still send a 500
+        // status code.
         if (!res.headersSent) {
-          res.writeHead(500, {
-            'Content-Type': 'application/json',
-          });
+          res.status(500);
         }
         res.write(
           JSON.stringify({ error: error.data || { message: error.message } })

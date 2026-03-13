@@ -70,6 +70,7 @@ export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
 export const StreamTraceRequestSchema = z.object({
   traceId: z.string().describe('ID of the trace to stream.'),
+  abortSignal: z.any().optional().describe('Optional AbortSignal to terminate the stream.'),
 });
 
 export type StreamTraceRequest = z.infer<typeof StreamTraceRequestSchema>;
@@ -124,7 +125,8 @@ export const RunActionRequestSchema = z.object({
   telemetryLabels: z
     .record(z.string(), z.string())
     .optional()
-    .describe('Labels to be applied to telemetry data.'),
+    .describe('Labels to be attached to telemetry data.'),
+  abortSignal: z.any().optional().describe('Optional AbortSignal to terminate the action.'),
 });
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
