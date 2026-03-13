@@ -24,8 +24,9 @@ tests:
         request:
           {
             messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+            output: {},
             tools: [],
-            config: { temperature: 11.0 },
+            config: { temperature: 11 },
           },
         usage: {},
       }
@@ -62,8 +63,9 @@ tests:
         request:
           {
             messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+            output: {},
             tools: [],
-            config: { temperature: 11.0 },
+            config: { temperature: 11 },
           },
         usage: {},
       }
@@ -123,6 +125,7 @@ tests:
                     ],
                 },
               ],
+            output: {},
             tools:
               [
                 {
@@ -134,7 +137,7 @@ tests:
                     { $schema: 'http://json-schema.org/draft-07/schema#' },
                 },
               ],
-            config: { temperature: 11.0 },
+            config: { temperature: 11 },
           },
         usage: {},
       }

@@ -27,7 +27,7 @@ from copy import deepcopy
 from functools import cached_property
 from typing import Any, ClassVar, Generic, cast
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_serializer
 from pydantic.alias_generators import to_camel
 from typing_extensions import TypeVar
 
@@ -244,6 +244,28 @@ class ModelRequest(GenkitModel, Generic[ConfigT]):
             return None
         # pyrefly: ignore[bad-return]
         return [d if isinstance(d, Document) else Document(d.content, d.metadata) for d in v]
+
+    @model_serializer(mode='wrap')
+    def _serialize_for_spec(self, serializer: Callable[..., dict[str, Any]]) -> dict[str, Any]:
+        """Serialize to spec wire format with nested output (matches JS/Go)."""
+        data = serializer(self)
+        # Build nested output from flat fields - spec expects output key always present
+        output: dict[str, Any] = {}
+        if self.output_format is not None:
+            output['format'] = self.output_format
+        if self.output_schema is not None:
+            output['schema'] = self.output_schema
+        if self.output_constrained is not None:
+            output['constrained'] = self.output_constrained
+        if self.output_content_type is not None:
+            output['contentType'] = self.output_content_type
+        # Remove flat fields, add nested output
+        data.pop('outputFormat', None)
+        data.pop('outputSchema', None)
+        data.pop('outputConstrained', None)
+        data.pop('outputContentType', None)
+        data['output'] = output
+        return data
 
 
 class ModelResponse(GenkitModel, Generic[OutputT]):
