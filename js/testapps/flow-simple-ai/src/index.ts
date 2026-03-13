@@ -945,13 +945,13 @@ ai.defineFlow('embedders-tester', async () => {
   console.log(
     await ai.embed({
       content: 'hello world',
-      embedder: googleAI.embedder('text-embedding-004'),
+      embedder: googleAI.embedder('gemini-embedding-001'),
     })
   );
   console.log(
     await ai.embed({
       content: 'hello world',
-      embedder: vertexAI.embedder('text-embedding-004'),
+      embedder: vertexAI.embedder('gemini-embedding-001'),
     })
   );
 });
