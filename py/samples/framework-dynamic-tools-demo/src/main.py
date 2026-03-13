@@ -52,13 +52,13 @@ Data Flow::
     │                                                                         │
     │   combined_demo(input)                                                  │
     │        │                                                                │
-    │        ├── ai.run("preprocess_step", input, preprocess)                 │
+    │        ├── ai.run(name="preprocess_step", fn=preprocess)                │
     │        │       └── Returns preprocessed string                          │
     │        │                                                                │
-    │        ├── ai.dynamic_tool("scaler", scale_fn)                          │
+    │        ├── ai.dynamic_tool(name="scaler", fn=scale_fn)                   │
     │        │       └── Creates tool (not globally registered)               │
     │        │                                                                │
-    │        ├── scaler.arun(7)                                               │
+    │        ├── scaler.run(7)                                               │
     │        │       └── Returns 7 * 10 = 70                                  │
     │        │                                                                │
     │        └── Returns {step_result, tool_result, tool_metadata}            │
@@ -81,10 +81,10 @@ See README.md for more details.
 import asyncio
 import os
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.core.logging import get_logger
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -93,7 +93,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -138,11 +138,11 @@ async def dynamic_tool_demo(input: DynamicToolInput) -> dict[str, object]:
         return x * 10
 
     dynamic_multiplier = ai.dynamic_tool(
-        'dynamic_multiplier',
-        multiplier_fn,
+        name='dynamic_multiplier',
+        fn=multiplier_fn,
         description='Multiplies input by 10',
     )
-    result = await dynamic_multiplier.arun(input.value)
+    result = await dynamic_multiplier.run(input.value)
 
     return {
         'input_value': input.value,
@@ -156,9 +156,8 @@ async def dynamic_tool_demo(input: DynamicToolInput) -> dict[str, object]:
 async def run_step_demo(input: RunStepInput) -> dict[str, str]:
     """Wrap a plain function as a traceable step using ai.run().
 
-    ``ai.run(name, input, fn)`` creates a named sub-span in the trace.
-    The step's input and output are recorded and visible in the Dev UI
-    trace viewer.
+    ``ai.run(name=..., fn=...)`` creates a named sub-span in the trace.
+    The step's output is recorded and visible in the Dev UI trace viewer.
 
     Args:
         input: Input with data to process.
@@ -167,14 +166,14 @@ async def run_step_demo(input: RunStepInput) -> dict[str, str]:
         A dict containing the original and processed data.
     """
 
-    def uppercase(data: str) -> str:
-        return data.upper()
+    async def uppercase() -> str:
+        return input.data.upper()
 
-    def reverse(data: str) -> str:
-        return data[::-1]
+    async def reverse() -> str:
+        return step1[::-1]
 
-    step1 = await ai.run('uppercase_step', input.data, uppercase)
-    step2 = await ai.run('reverse_step', step1, reverse)
+    step1 = await ai.run(name='uppercase_step', fn=uppercase)
+    step2 = await ai.run(name='reverse_step', fn=reverse)
 
     return {
         'original': input.data,
@@ -199,16 +198,16 @@ async def combined_demo(input: CombinedInput) -> dict[str, object]:
         A dict with results from both the step and the dynamic tool.
     """
 
-    def preprocess(data: str) -> str:
-        return f'processed: {data}'
+    async def preprocess() -> str:
+        return f'processed: {input.input_val}'
 
-    step_result = await ai.run('preprocess_step', input.input_val, preprocess)
+    step_result = await ai.run(name='preprocess_step', fn=preprocess)
 
-    def scale_fn(x: int) -> int:
+    async def scale_fn(x: int) -> int:
         return x * 10
 
-    scaler = ai.dynamic_tool('scaler', scale_fn, description='Scales input by 10')
-    tool_result = await scaler.arun(7)
+    scaler = ai.dynamic_tool(name='scaler', fn=scale_fn, description='Scales input by 10')
+    tool_result = await scaler.run(7)
 
     return {
         'step_result': step_result,

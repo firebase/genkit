@@ -10,7 +10,6 @@ If something looks wrong, check localhost:4000 to see what the model actually re
 """
 
 import asyncio
-from collections.abc import Awaitable
 from pathlib import Path
 from typing import Literal
 
@@ -20,8 +19,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing_extensions import Never
 
-from genkit import Genkit, Input, Output
-from genkit.ai import FlowWrapper
+from genkit import Flow, Genkit
 from genkit.plugins.fastapi import genkit_fastapi_handler
 from genkit.plugins.google_genai import GoogleAI
 
@@ -71,10 +69,10 @@ class DiffInput(BaseModel):
     context: str = ''
 
 
-security_prompt = ai.prompt('analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-bugs_prompt = ai.prompt('analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-style_prompt = ai.prompt('analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-diff_prompt = ai.prompt('analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis))
+security_prompt = ai.prompt('analyze_security', input_schema=CodeInput, output_schema=Analysis)
+bugs_prompt = ai.prompt('analyze_bugs', input_schema=CodeInput, output_schema=Analysis)
+style_prompt = ai.prompt('analyze_style', input_schema=CodeInput, output_schema=Analysis)
+diff_prompt = ai.prompt('analyze_diff', input_schema=DiffInput, output_schema=Analysis)
 
 
 @ai.flow()
@@ -139,14 +137,14 @@ async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
 
 @app.post('/flow/review', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_review() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_review() -> Flow[CodeInput, Analysis, Never]:
     """Expose review_code flow directly via {"data": {"code": "...", "language": "..."}}."""
     return review_code
 
 
 @app.post('/flow/security', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_security() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_security() -> Flow[CodeInput, Analysis, Never]:
     """Expose analyze_security flow directly."""
     return analyze_security
 

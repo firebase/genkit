@@ -54,8 +54,7 @@ from io import BytesIO
 
 from PIL import Image
 
-from genkit.ai import Genkit
-from genkit.blocks.model import GenerateResponseWrapper
+from genkit import Genkit, ModelResponse
 from genkit.plugins.google_genai import VertexAI
 from samples.shared.logging import setup_sample
 
@@ -73,7 +72,7 @@ ai = Genkit(plugins=[VertexAI()])
 
 
 @ai.flow()
-async def draw_image_with_imagen() -> GenerateResponseWrapper:
+async def draw_image_with_imagen() -> ModelResponse:
     """Draw an image using Imagen model.
 
     Returns:

@@ -38,16 +38,15 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, cast
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from genkit.core.action import ActionMetadata
-from genkit.core.action.types import ActionKind
-from genkit.core.reflection import create_reflection_asgi_app
-from genkit.core.registry import Registry
+from genkit._core._action import ActionKind, ActionMetadata
+from genkit._core._reflection import create_reflection_asgi_app
+from genkit._core._registry import Registry
 
 
 @pytest.fixture
@@ -142,7 +141,7 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
     mock_output.span_id = 'test_span_id'
 
     async def side_effect(
-        raw_input: object,
+        input: object = None,
         on_chunk: object | None = None,
         context: object | None = None,
         on_trace_start: Callable[[str, str], None] | None = None,
@@ -152,7 +151,7 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
             on_trace_start('test_trace_id', 'test_span_id')
         return mock_output
 
-    mock_action.arun_raw.side_effect = side_effect
+    mock_action.run.side_effect = side_effect
 
     async def mock_resolve_action_by_key(key: str) -> AsyncMock:
         return mock_action
@@ -169,7 +168,7 @@ async def test_run_action_standard(asgi_client: AsyncClient, mock_registry: Magi
     assert response_data['telemetry']['spanId'] == 'test_span_id'
     assert response.headers['X-Genkit-Trace-Id'] == 'test_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'test_span_id'
-    mock_action.arun_raw.assert_called_once_with(raw_input={'data': 'test'}, context={}, on_trace_start=ANY)
+    mock_action.run.assert_called_once_with(input={'data': 'test'}, context={}, on_trace_start=ANY, on_chunk=None)
 
 
 @pytest.mark.asyncio
@@ -180,7 +179,7 @@ async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: 
     mock_output.response = {'result': 'success'}
     mock_output.trace_id = 'test_trace_id'
     mock_output.span_id = 'test_span_id'
-    mock_action.arun_raw.return_value = mock_output
+    mock_action.run.return_value = mock_output
 
     async def mock_resolve_action_by_key(key: str) -> AsyncMock:
         return mock_action
@@ -197,26 +196,24 @@ async def test_run_action_with_context(asgi_client: AsyncClient, mock_registry: 
     )
 
     assert response.status_code == 200
-    mock_action.arun_raw.assert_called_once_with(
-        raw_input={'data': 'test'},
+    mock_action.run.assert_called_once_with(
+        input={'data': 'test'},
         context={'user': 'test_user'},
         on_trace_start=ANY,
+        on_chunk=None,
     )
 
 
 @pytest.mark.asyncio
-@patch('genkit.core.reflection.is_streaming_requested')
 async def test_run_action_streaming(
-    mock_is_streaming: MagicMock,
     asgi_client: AsyncClient,
     mock_registry: MagicMock,
 ) -> None:
     """Test that streaming actions work correctly."""
-    mock_is_streaming.return_value = True
     mock_action = AsyncMock()
 
     async def mock_streaming(
-        raw_input: object,
+        input: object = None,
         on_chunk: object | None = None,
         context: object | None = None,
         on_trace_start: Callable[[str, str], None] | None = None,
@@ -234,7 +231,7 @@ async def test_run_action_streaming(
         mock_output.span_id = 'stream_span_id'
         return mock_output
 
-    mock_action.arun_raw.side_effect = mock_streaming
+    mock_action.run.side_effect = mock_streaming
     mock_registry.resolve_action_by_key.return_value = mock_action
 
     response = await asgi_client.post(
@@ -245,4 +242,3 @@ async def test_run_action_streaming(
     assert response.status_code == 200
     assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
-    assert mock_is_streaming.called

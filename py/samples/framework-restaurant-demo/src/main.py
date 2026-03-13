@@ -67,10 +67,8 @@ from case_03 import (
     flows as case_03_flows,  # noqa: F401
     prompts as case_03_prompts,  # noqa: F401
 )
-from case_04 import (
-    flows as case_04_flows,  # noqa: F401
-    prompts as case_04_prompts,  # noqa: F401
-)
+
+# case_04 module does not exist - skipped
 from case_05 import (
     flows as case_05_flows,  # noqa: F401
     prompts as case_05_prompts,  # noqa: F401

@@ -21,8 +21,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from genkit.ai import Genkit
-from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit import Genkit
+from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
 
 
 class FunninessResponse(BaseModel):
@@ -60,11 +60,11 @@ async def funniness_score(
     funniness_prompt = ai.prompt('funniness')
     rendered = await funniness_prompt.render(input={'output': str(datapoint.output)})
 
-    response = await ai.generate(
+    response = await ai.generate(  # pyrefly: ignore[no-matching-overload]
         model=judge,
         messages=rendered.messages,
         config=judge_config,
-        output={'schema': FunninessResponse},
+        output_schema=FunninessResponse,
     )
 
     if not response.output:

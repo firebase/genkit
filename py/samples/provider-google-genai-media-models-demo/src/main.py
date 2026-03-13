@@ -103,16 +103,19 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
-from genkit.blocks.background_model import lookup_background_action
-from genkit.blocks.model import GenerateResponseWrapper
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit import (
+    Genkit,
+    Media,
+    MediaPart,
+    Metadata,
+    ModelConfig,
+    ModelResponse,
+)
+from genkit._core._action import ActionRunContext
+from genkit._core._background import lookup_background_action
+from genkit._core._typing import (
     Error,
     FinishReason,
-    GenerateRequest,
-    GenerateResponse,
-    Message,
     ModelInfo,
     Operation,
     Part,
@@ -120,12 +123,7 @@ from genkit.core.typing import (
     Supports,
     TextPart,
 )
-from genkit.types import (
-    GenerationCommonConfig,
-    Media,
-    MediaPart,
-    Metadata,
-)
+from genkit.model import Message, ModelRequest
 from samples.shared.logging import setup_sample
 
 setup_sample()
@@ -329,7 +327,7 @@ class SimulatedLyriaConfig(BaseModel):
     sample_count: int = Field(default=1, description='Number of audio samples')
 
 
-def _extract_prompt(request: GenerateRequest) -> str:
+def _extract_prompt(request: ModelRequest) -> str:
     """Extract text prompt from request."""
     if request.messages:
         for msg in request.messages:
@@ -341,9 +339,9 @@ def _extract_prompt(request: GenerateRequest) -> str:
 
 # --- Simulated TTS ---
 async def simulated_tts_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
-) -> GenerateResponse:
+) -> ModelResponse:
     """Simulate TTS audio generation."""
     _extract_prompt(request)
 
@@ -353,7 +351,7 @@ async def simulated_tts_generate(
     # Real TTS would return actual audio
     fake_audio = base64.b64encode(b'RIFF' + b'\x00' * 100).decode()
 
-    return GenerateResponse(
+    return ModelResponse(
         message=Message(
             role=Role.MODEL,
             content=[
@@ -371,9 +369,9 @@ async def simulated_tts_generate(
 
 # --- Simulated Image ---
 async def simulated_image_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
-) -> GenerateResponse:
+) -> ModelResponse:
     """Simulate image generation."""
     _extract_prompt(request)
 
@@ -384,7 +382,7 @@ async def simulated_image_generate(
         b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde'
     ).decode()
 
-    return GenerateResponse(
+    return ModelResponse(
         message=Message(
             role=Role.MODEL,
             content=[
@@ -402,9 +400,9 @@ async def simulated_image_generate(
 
 # --- Simulated Lyria ---
 async def simulated_lyria_generate(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
-) -> GenerateResponse:
+) -> ModelResponse:
     """Simulate audio generation."""
     _extract_prompt(request)
 
@@ -412,7 +410,7 @@ async def simulated_lyria_generate(
 
     fake_audio = base64.b64encode(b'RIFF' + b'\x00' * 200).decode()
 
-    return GenerateResponse(
+    return ModelResponse(
         message=Message(
             role=Role.MODEL,
             content=[
@@ -430,7 +428,7 @@ async def simulated_lyria_generate(
 
 # --- Simulated Veo (Background Model) ---
 async def simulated_veo_start(
-    request: GenerateRequest,
+    request: ModelRequest,
     ctx: ActionRunContext,
 ) -> Operation:
     """Start simulated video generation."""
@@ -916,7 +914,7 @@ async def veo_video_generator_flow(input: VideoInput | None = None) -> dict[str,
 
     # Start the operation
     operation = await video_model.start(
-        GenerateRequest(
+        ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=prompt))])],
             config=config,
         )
@@ -1017,7 +1015,7 @@ async def media_models_overview_flow() -> dict[str, Any]:
 
 
 @ai.tool(name='screenshot')
-def screenshot() -> dict:
+async def screenshot() -> dict:
     """Takes a screenshot of a room."""
     room_path = pathlib.Path(__file__).parent.parent / 'my_room.png'
     with pathlib.Path(room_path).open('rb') as f:
@@ -1075,7 +1073,7 @@ async def describe_image_with_gemini(input: DescribeImageInput | None = None) ->
 async def generate_images(
     input: GenerateImagesInput | None = None,
     ctx: ActionRunContext | None = None,
-) -> GenerateResponseWrapper:
+) -> ModelResponse:
     """Generate images for the given subject using multimodal prompting.
 
     Args:
@@ -1115,7 +1113,7 @@ async def multipart_tool_calling(input: ToolCallingInput | None = None) -> str:
     response = await ai.generate(
         model='googleai/gemini-3-pro-preview',
         tools=['screenshot'],
-        config=GenerationCommonConfig(temperature=1),
+        config=ModelConfig(temperature=1),
         prompt=input.prompt,
     )
     return response.text

@@ -44,8 +44,7 @@ from typing import Any, cast
 
 import structlog
 
-from genkit.ai import Genkit
-from genkit.codec import dump_dict
+from genkit import Genkit
 
 # ---------------------------------------------------------------------------
 # Plugin registry — maps conform plugin names to Genkit init functions.
@@ -91,13 +90,6 @@ def _init_ollama() -> Genkit:
     )
 
 
-def _init_amazon_bedrock() -> Genkit:
-    """Initialize the Amazon Bedrock plugin."""
-    from genkit.plugins.amazon_bedrock import AmazonBedrock
-
-    return Genkit(plugins=[AmazonBedrock()])
-
-
 def _init_compat_oai() -> Genkit:
     """Initialize the OpenAI compat plugin."""
     from genkit.plugins.compat_oai import OpenAI
@@ -110,7 +102,6 @@ PLUGIN_REGISTRY: dict[str, Any] = {
     'vertex-ai': _init_vertex_ai,
     'anthropic': _init_anthropic,
     'ollama': _init_ollama,
-    'amazon-bedrock': _init_amazon_bedrock,
     'compat-oai': _init_compat_oai,
 }
 
@@ -125,7 +116,7 @@ def _register_ephemeral_tool(
     tool_def: dict[str, Any],
 ) -> None:
     """Register a no-op tool so generate() can resolve its definition."""
-    from genkit.core.action.types import ActionKind
+    from genkit._core._action import ActionKind
 
     registry = ai.registry
     with registry._lock:  # pyright: ignore[reportPrivateUsage]
@@ -175,7 +166,8 @@ async def handle_request(
         config = input_data.get('config')
 
         # Convert raw message dicts to Message objects.
-        from genkit.core.typing import Message, OutputConfig, Part
+        from genkit._core._typing import OutputConfig, Part
+        from genkit.model import Message
 
         msg_objects = [Message.model_validate(m) for m in messages]
 
@@ -202,21 +194,29 @@ async def handle_request(
                 tool_names.append(t_name)
                 _register_ephemeral_tool(ai, t_name, tdef)
 
+        # Expand OutputConfig to individual params for generate/generate_stream
+        output_kwargs: dict[str, Any] = {}
+        if output_obj:
+            output_kwargs['output_format'] = output_obj.format
+            output_kwargs['output_schema'] = output_obj.schema
+            output_kwargs['output_content_type'] = output_obj.content_type
+            output_kwargs['output_constrained'] = output_obj.constrained
+
         chunks: list[dict[str, Any]] = []
 
         if stream:
-            stream_iter, response_future = ai.generate_stream(
+            stream_response = ai.generate_stream(
                 model=model_name,
                 system=system_parts,
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
-            async for chunk in stream_iter:
-                chunks.append(cast(dict[str, Any], dump_dict(chunk)))
-            result = await response_future
+            async for chunk in stream_response.stream:
+                chunks.append(chunk.model_dump())
+            result = await stream_response.response
         else:
             result = await ai.generate(
                 model=model_name,
@@ -224,11 +224,11 @@ async def handle_request(
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
 
-        response = cast(dict[str, Any], dump_dict(result))
+        response = result.model_dump()
         return {'response': response, 'chunks': chunks}
 
     except Exception:
@@ -247,7 +247,7 @@ async def handle_request(
 async def main() -> None:
     """Run the JSONL-over-stdio loop."""
     # CRITICAL: Redirect all logging to stderr BEFORE plugin initialization.
-    # Plugins use structlog (via genkit.core.logging) which defaults to stdout.
+    # Plugins use structlog (via genkit._core.logging) which defaults to stdout.
     # Since this executor uses JSONL-over-stdio, ANY non-JSON line on stdout
     # causes the conform runner to fail with "invalid JSON".
     logging.basicConfig(
