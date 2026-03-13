@@ -45,6 +45,7 @@ members = [
     "web-fastapi-bugbot",
     "web-flask-hello",
 ]
+overrides = [{ name = "werkzeug", specifier = ">=3.1.6" }]
 
 [[package]]
 name = "aiofiles"
@@ -1750,7 +1751,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flask" },
+    { name = "flask", specifier = ">=3.1.3" },
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -2035,7 +2036,7 @@ lint = [
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.41b0" },
     { name = "opentelemetry-instrumentation-grpc", specifier = ">=0.41b0" },
     { name = "pip-audit", specifier = ">=2.7.0" },
-    { name = "pypdf", specifier = ">=6.6.2" },
+    { name = "pypdf", specifier = ">=6.7.5" },
     { name = "pyrefly", specifier = ">=0.15.0" },
     { name = "pyright", specifier = ">=1.1.392" },
     { name = "pysentry-rs", specifier = ">=0.3.14" },

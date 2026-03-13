@@ -16,17 +16,14 @@
 
 """Genkit — Build AI-powered applications."""
 
-from genkit._ai import (
-    ActionKind,
-    ActionRunContext,
+from genkit._ai._aio import Genkit, ActionKind, ActionRunContext
+from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
     PromptGenerateOptions,
     ResumeOptions,
-    ToolRunContext,
 )
-from genkit._ai._aio import Genkit
-from genkit._ai._tools import ToolInterruptError, tool_response
+from genkit._ai._tools import ToolInterruptError, ToolRunContext, tool_response
 from genkit._core._action import Action, StreamResponse
 from genkit._core._error import GenkitError, PublicError
 from genkit._core._model import Document
