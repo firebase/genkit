@@ -1,3 +1,5 @@
+[![AgentAudit Security](https://agentaudit.dev/api/badge/genkit)](https://agentaudit.dev/packages/genkit)
+
 ![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
 ![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
 
