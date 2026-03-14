@@ -567,6 +567,25 @@ describe('registry class', () => {
       );
     });
 
+    it('returns action registered by plugin with 3-segment key (no plugin in path)', async () => {
+      // Keys like /flow/foo have no plugin segment; without initializing
+      // all plugins first, lookupAction would skip plugin init and miss the action.
+      const flowAction = action(
+        { name: 'foo', actionType: 'flow' },
+        async () => null
+      );
+      registry.registerPluginProvider('myPlugin', {
+        name: 'myPlugin',
+        async initializer() {
+          registry.registerAction('flow', flowAction);
+          return {};
+        },
+      });
+
+      const found = await registry.lookupAction('/flow/foo');
+      assert.strictEqual(found, flowAction);
+    });
+
     it('returns undefined for unknown action', async () => {
       assert.strictEqual(
         await registry.lookupAction('/model/foo/something'),
@@ -606,6 +625,44 @@ describe('registry class', () => {
         await childRegistry.lookupAction('/model/foo'),
         fooAction
       );
+    });
+  });
+
+  describe('lookupValue', () => {
+    it('returns value registered by plugin with key that has no plugin segment', async () => {
+      const testValue = { configured: true };
+      registry.registerPluginProvider('myPlugin', {
+        name: 'myPlugin',
+        async initializer() {
+          registry.registerValue('defaultModel', 'defaultModel', testValue);
+          return {};
+        },
+      });
+
+      const found = await registry.lookupValue('defaultModel', 'defaultModel');
+      assert.strictEqual(found, testValue);
+    });
+
+    it('returns directly registered value', async () => {
+      const value = { foo: 1 };
+      registry.registerValue('myType', 'myKey', value);
+      assert.strictEqual(await registry.lookupValue('myType', 'myKey'), value);
+    });
+
+    it('initializes plugin when key has plugin segment', async () => {
+      let inited = false;
+      // parsePluginName(key) returns the third segment; for 'a/b/c/d' that is 'c'
+      registry.registerPluginProvider('baz', {
+        name: 'baz',
+        async initializer() {
+          inited = true;
+          registry.registerValue('config', 'foo/bar/baz/qux', { ok: true });
+          return {};
+        },
+      });
+      const found = await registry.lookupValue('config', 'foo/bar/baz/qux');
+      assert.strictEqual(inited, true);
+      assert.deepStrictEqual(found, { ok: true });
     });
   });
 });

@@ -55,7 +55,7 @@ describe('vertexRerankersPlugin', () => {
 
   it('should not resolve other action types', async () => {
     const ai = genkit({
-      plugins: [vertexRerankers({})],
+      plugins: [vertexRerankers({ projectId: 'test-project' })],
     });
 
     const model = await ai.registry.lookupAction(
