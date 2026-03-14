@@ -15,7 +15,14 @@
  */
 
 import type { z } from 'zod';
-import { ActionFnArg, action, type Action } from './action.js';
+import {
+  ActionFnArg,
+  ActionRunOptions,
+  JSONSchema7,
+  action,
+  bidiAction,
+  type Action,
+} from './action.js';
 import { Registry, type HasRegistry } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -26,7 +33,8 @@ export interface Flow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-> extends Action<I, O, S> {}
+  Init extends z.ZodTypeAny = z.ZodTypeAny,
+> extends Action<I, O, S, ActionRunOptions<z.infer<S>, z.infer<I>>, Init> {}
 
 /**
  * Configuration for a streaming flow.
@@ -35,6 +43,7 @@ export interface FlowConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
+  Init extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   /** Name of the flow. */
   name: string;
@@ -46,6 +55,10 @@ export interface FlowConfig<
   streamSchema?: S;
   /** Metadata of the flow used by tooling. */
   metadata?: Record<string, any>;
+  /** Schema of the initialization data. */
+  initSchema?: Init;
+  /** JSON schema of the initialization data. */
+  initJsonSchema?: JSONSchema7;
 }
 
 /**
@@ -105,6 +118,50 @@ export function defineFlow<
 }
 
 /**
+ * Defines a bi-directional flow and registers the flow in the provided registry.
+ */
+export function defineBidiFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+  Init extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  config: FlowConfig<I, O, S, Init>,
+  fn: (
+    input: ActionFnArg<z.infer<S>, z.infer<I>, z.infer<Init>>
+  ) => AsyncGenerator<z.infer<S>, z.infer<O>, void>
+): Flow<I, O, S, Init> {
+  const flow = bidiFlow(config, fn);
+  registry.registerAction('flow', flow);
+  return flow;
+}
+
+/**
+ * Defines a bi-directional flow.
+ */
+export function bidiFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+  Init extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  config: FlowConfig<I, O, S, Init>,
+  fn: (
+    input: ActionFnArg<z.infer<S>, z.infer<I>, z.infer<Init>>
+  ) => AsyncGenerator<z.infer<S>, z.infer<O>, void>
+): Flow<I, O, S, Init> {
+  const f = bidiAction(
+    {
+      ...config,
+      actionType: 'flow',
+    },
+    fn
+  );
+  return f;
+}
+
+/**
  * Registers a flow as an action in the registry.
  */
 function flowAction<
@@ -137,12 +194,18 @@ function flowAction<
   );
 }
 
+/**
+ * A flow step that executes the provided function.
+ */
 export function run<T>(
   name: string,
   func: () => Promise<T>,
   _?: Registry
 ): Promise<T>;
 
+/**
+ * A flow step that executes the provided function with input.
+ */
 export function run<T>(
   name: string,
   input: any,
