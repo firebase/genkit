@@ -129,6 +129,7 @@ export interface PromptConfig<
   toolChoice?: ToolChoice;
   use?: ModelMiddleware[];
   context?: ActionContext;
+  overwrite?: boolean;
 }
 
 /**
@@ -238,7 +239,8 @@ export function definePrompt<
     registry,
     `${options.name}${options.variant ? `.${options.variant}` : ''}`,
     Promise.resolve(options),
-    options.metadata
+    options.metadata,
+    options.overwrite
   );
 }
 
@@ -250,7 +252,8 @@ function definePromptAsync<
   registry: Registry,
   name: string,
   optionsPromise: PromiseLike<PromptConfig<I, O, CustomOptions>>,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
+  overwrite?: boolean
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
   const promptCache = {} as PromptCache;
 
@@ -379,7 +382,8 @@ function definePromptAsync<
     (action) => {
       (action as PromptAction<I>).__executablePrompt =
         executablePrompt as never as ExecutablePrompt<z.infer<I>>;
-    }
+    },
+    { overwrite }
   ) as Promise<PromptAction<I>>;
 
   const executablePromptActionConfig = lazy(() =>
@@ -411,7 +415,8 @@ function definePromptAsync<
     (action) => {
       (action as ExecutablePromptAction<I>).__executablePrompt =
         executablePrompt as never as ExecutablePrompt<z.infer<I>>;
-    }
+    },
+    { overwrite }
   ) as Promise<ExecutablePromptAction<I>>;
 
   const executablePrompt = wrapInExecutablePrompt({

@@ -211,6 +211,7 @@ export type ActionParams<
   use?: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[];
   streamSchema?: S;
   actionType: ActionType;
+  overwrite?: boolean;
 };
 
 export type ActionAsyncParams<
@@ -509,7 +510,9 @@ export function defineAction<
     return await runInActionRuntimeContext(() => fn(i, options));
   });
   act.__action.actionType = config.actionType;
-  registry.registerAction(config.actionType, act);
+  registry.registerAction(config.actionType, act, {
+    overwrite: config.overwrite,
+  });
   return act;
 }
 
@@ -530,7 +533,8 @@ export function defineActionAsync<
         actionId: string;
       },
   config: PromiseLike<ActionAsyncParams<I, O, S>>,
-  onInit?: (action: Action<I, O, S>) => void
+  onInit?: (action: Action<I, O, S>) => void,
+  opts?: { overwrite?: boolean }
 ): PromiseLike<Action<I, O, S>> {
   const actionName =
     typeof name === 'string' ? name : `${name.pluginId}/${name.actionId}`;
@@ -550,7 +554,7 @@ export function defineActionAsync<
       return act;
     })
   );
-  registry.registerActionAsync(actionType, actionName, actionPromise);
+  registry.registerActionAsync(actionType, actionName, actionPromise, opts);
   return actionPromise;
 }
 

@@ -275,7 +275,7 @@ export class Registry {
   registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     action: Action<I, O>,
-    opts?: { namespace?: string }
+    opts?: { namespace?: string; overwrite?: boolean }
   ) {
     if (type !== action.__action.actionType) {
       throw new GenkitError({
@@ -291,7 +291,7 @@ export class Registry {
     }
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
-    if (this.actionsById.hasOwnProperty(key)) {
+    if (!opts?.overwrite && this.actionsById.hasOwnProperty(key)) {
       logger.error(
         `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
@@ -310,14 +310,14 @@ export class Registry {
     type: ActionType,
     name: string,
     action: PromiseLike<Action<I, O>>,
-    opts?: { namespace?: string }
+    opts?: { namespace?: string; overwrite?: boolean }
   ) {
     if (opts?.namespace && !name.startsWith(`${opts.namespace}/`)) {
       name = `${opts.namespace}/${name}`;
     }
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
-    if (this.actionsById.hasOwnProperty(key)) {
+    if (!opts?.overwrite && this.actionsById.hasOwnProperty(key)) {
       logger.error(
         `ERROR: ${key} already has an entry in the registry. Overwriting.`
       );
