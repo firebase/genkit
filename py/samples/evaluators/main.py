@@ -9,56 +9,76 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 # SPDX-License-Identifier: Apache-2.0
 
-"""Custom evaluators - regex and LLM-based. Use genkit eval:run with datasets. See README.md."""
+"""Custom evaluators sample: regex-based and LLM-as-judge patterns."""
 
 import os
-from pathlib import Path
+import re
+from typing import Literal
 
-import structlog
+from pydantic import BaseModel
 
 from genkit import Genkit
+from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
 from genkit.plugins.google_genai import GoogleAI
-from src.constants import PERMISSIVE_SAFETY_SETTINGS, URL_REGEX, US_PHONE_REGEX
-from src.deliciousness_evaluator import register_deliciousness_evaluator
-from src.funniness_evaluator import register_funniness_evaluator
-from src.pii_evaluator import register_pii_evaluator
-from src.regex_evaluator import regex_matcher, register_regex_evaluators
 
-logger = structlog.get_logger(__name__)
+JUDGE = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.0-flash')
+ai = Genkit(plugins=[GoogleAI()], model=JUDGE)
 
-# Get prompts directory path
-current_dir = Path(__file__).resolve().parent
-prompts_path = current_dir / 'prompts'
+# --- Regex evaluator (no LLM) ---
 
-# Register all evaluators
-JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-3-pro-preview')
+def _regex_eval(pattern: re.Pattern[str]):
+    async def fn(datapoint: BaseDataPoint, _options=None) -> EvalFnResponse:
+        if not datapoint.output or not isinstance(datapoint.output, str):
+            raise ValueError('String output required')
+        matched = bool(pattern.search(datapoint.output))
+        return EvalFnResponse(
+            test_case_id=datapoint.test_case_id or '',
+            evaluation=Score(
+                score=matched,
+                details=Details(reasoning=f'{"Matched" if matched else "No match"}: {pattern.pattern}'),
+            ),
+        )
+    return fn
 
-# Initialize Genkit with Google AI plugin, default model, and load prompts
-ai = Genkit(plugins=[GoogleAI()], model=JUDGE_MODEL, prompt_dir=prompts_path)
-
-# Regex evaluators (non-LLM)
-register_regex_evaluators(
-    ai,
-    [
-        regex_matcher('url', URL_REGEX),
-        regex_matcher('us_phone', US_PHONE_REGEX),
-    ],
+ai.define_evaluator(
+    name='byo/url',
+    display_name='URL Presence',
+    definition='Checks whether the output contains a URL.',
+    is_billed=False,
+    fn=_regex_eval(re.compile(r'https?://[^\s]+')),
 )
 
-# LLM-based evaluators
-register_pii_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
-register_funniness_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
-register_deliciousness_evaluator(ai, JUDGE_MODEL, PERMISSIVE_SAFETY_SETTINGS)
+# --- LLM-as-judge evaluator ---
 
+class DeliciousnessScore(BaseModel):
+    verdict: Literal['yes', 'no', 'maybe']
+    reason: str
+
+async def _deliciousness_eval(datapoint: BaseDataPoint, _options=None) -> EvalFnResponse:
+    if not datapoint.output:
+        raise ValueError('Output required')
+    response = await ai.generate(
+        model=JUDGE,
+        prompt=f'Is the following output delicious? Answer yes/no/maybe and a reason.\n\nOutput: {datapoint.output}',
+        output_schema=DeliciousnessScore,
+    )
+    parsed = DeliciousnessScore.model_validate(response.output)
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id or '',
+        evaluation=Score(score=parsed.verdict, details=Details(reasoning=parsed.reason)),
+    )
+
+ai.define_evaluator(
+    name='byo/deliciousness',
+    display_name='Deliciousness',
+    definition='Determines if the output sounds delicious.',
+    fn=_deliciousness_eval,
+)
 
 async def main() -> None:
     pass
-
 
 if __name__ == '__main__':
     ai.run_main(main())

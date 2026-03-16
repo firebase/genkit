@@ -1,20 +1,13 @@
-# Evaluators
+# Evaluators Sample
 
-Custom evaluators (regex, LLM) for `genkit eval:run`.
+Demonstrates two custom evaluator patterns:
 
-```bash
-export GEMINI_API_KEY=your-api-key
-uv sync
-genkit start -- uv run main.py
-```
+- **Regex** (`byo/url`) — checks output for a URL pattern, no LLM required
+- **LLM-as-judge** (`byo/deliciousness`) — uses a model to score output
 
-Then:
+## Run
 
 ```bash
-genkit eval:run datasets/regex_dataset.json --evaluators=byo/regex_match_url,byo/regex_match_us_phone
-genkit eval:run datasets/pii_detection_dataset.json --evaluators=byo/pii_detection
-genkit eval:run datasets/funniness_dataset.json --evaluators=byo/funniness
-genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousness
+export GOOGLE_API_KEY=your_key
+genkit eval:run
 ```
-
-Results at http://localhost:4000.
