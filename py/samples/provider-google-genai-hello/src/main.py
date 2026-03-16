@@ -129,26 +129,24 @@ else:
 
 import pathlib
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit import (
-    Genkit,
-    Media,
-    MediaPart,
-    Message,
-    ModelConfig,
-    Part,
-    Role,
-    TextPart,
-    ToolRunContext,
-    tool_response,
-)
-from genkit._core._action import ActionRunContext
+from genkit.ai import Genkit, Output, ToolRunContext, tool_response
+from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GoogleAI,
+)
+from genkit.types import (
+    GenerationCommonConfig,
+    Media,
+    MediaPart,
+    Message,
+    Part,
+    Role,
+    TextPart,
 )
 from samples.shared import (
     CharacterInput,
@@ -178,7 +176,7 @@ from samples.shared import (
 
 setup_sample()
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 if 'GEMINI_API_KEY' not in os.environ:
@@ -247,7 +245,7 @@ class ScreenshotInput(BaseModel):
 
 
 @ai.tool(name='gablorkenTool')
-async def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
+def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
     """Calculate a gablorken.
 
     Returns:
@@ -257,19 +255,19 @@ async def gablorken_tool(input_: GablorkenInput) -> dict[str, int]:
 
 
 @ai.tool(name='gablorkenTool2')
-async def gablorken_tool2(_input: GablorkenInput, ctx: ToolRunContext) -> None:
+def gablorken_tool2(_input: GablorkenInput, ctx: ToolRunContext) -> None:
     """The user-defined tool function."""
     pass
 
 
 @ai.tool(name='screenShot')
-async def take_screenshot(input_: ScreenshotInput) -> dict:
+def take_screenshot(input_: ScreenshotInput) -> dict:
     """Take a screenshot of a given URL."""
     return {'url': input_.url, 'screenshot_path': '/tmp/screenshot.png'}  # noqa: S108 - sample code
 
 
 @ai.tool(name='getWeather')
-async def get_weather_detailed(input_: WeatherInput) -> dict:
+def get_weather_detailed(input_: WeatherInput) -> dict:
     """Used to get current weather for a location."""
     return {
         'location': input_.location,
@@ -285,13 +283,13 @@ class CelsiusInput(BaseModel):
 
 
 @ai.tool(name='celsiusToFahrenheit')
-async def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
+def celsius_to_fahrenheit(input_: CelsiusInput) -> float:
     """Converts Celsius to Fahrenheit."""
     return (input_.celsius * 9) / 5 + 32
 
 
 @ai.tool()
-async def get_user_data() -> str:
+def get_user_data() -> str:
     """Fetch user data based on context."""
     context = Genkit.current_context()
     raw_user = context.get('user') if context else {}
@@ -430,8 +428,9 @@ async def generate_character_instructions(
     """
     result = await ai.generate(
         prompt=f'generate an RPG character named {input.name}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
         output_constrained=False,
+        output_instructions=True,
     )
     return result.output
 
@@ -690,7 +689,7 @@ async def tool_calling(input: ToolCallingInput) -> str:
     response = await ai.generate(
         tools=['getWeather', 'celsiusToFahrenheit'],
         prompt=f"What's the weather in {input.location}? Convert the temperature to Fahrenheit.",
-        config=ModelConfig(temperature=1),
+        config=GenerationCommonConfig(temperature=1),
     )
     return response.text
 
@@ -702,7 +701,7 @@ async def streaming_structured_output(
 ) -> RpgCharacter:
     """Demonstrate streaming with structured output schemas.
 
-    Combines `generate_stream` with `output_schema=...` so the model
+    Combines `generate_stream` with `Output(schema=...)` so the model
     streams JSON tokens that are progressively parsed into the Pydantic
     model. Each chunk exposes a partial `.output` you can forward to
     clients for incremental rendering.
@@ -716,19 +715,19 @@ async def streaming_structured_output(
     Returns:
         The fully-parsed RPG character once streaming completes.
     """
-    stream_response = ai.generate_stream(
+    stream, result = ai.generate_stream(
         prompt=(
             f'Generate an RPG character named {input.name}. '
             'Include a creative backstory, 3-4 unique abilities, '
             'and skill ratings for strength, charisma, and endurance (0-100 each).'
         ),
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
-    async for chunk in stream_response.stream:
+    async for chunk in stream:
         if ctx is not None:
             ctx.send_chunk(chunk.output)
 
-    return (await stream_response.response).output
+    return (await result).output
 
 
 @ai.flow()

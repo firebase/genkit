@@ -54,11 +54,12 @@ See README.md for testing instructions.
 
 import os
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, Message
-from genkit._core._typing import CustomPart, TextPart
+from genkit.ai import Genkit
+from genkit.blocks.model import MessageWrapper
+from genkit.core.logging import get_logger
+from genkit.core.typing import CustomPart, Message, TextPart
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
 from genkit.plugins.google_genai.models.utils import PartConverter
 from samples.shared.logging import setup_sample
@@ -68,7 +69,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -86,7 +87,7 @@ class CodeExecutionInput(BaseModel):
 
 
 @ai.flow()
-async def execute_code(input: CodeExecutionInput) -> Message:
+async def execute_code(input: CodeExecutionInput) -> MessageWrapper:
     """Execute code for the given task.
 
     Args:

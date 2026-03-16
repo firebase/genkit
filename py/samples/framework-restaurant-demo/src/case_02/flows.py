@@ -39,7 +39,7 @@ async def s02_menu_question_flow(
         >>> await s02_menu_question_flow(MenuQuestionInputSchema(question='What is the special?'))
         AnswerOutputSchema(answer="Today's special is...")
     """
-    text = await s02_data_menu_prompt({'question': my_input.question})  # pyrefly: ignore[bad-argument-type]
+    text = await s02_data_menu_prompt({'question': my_input.question})
     return AnswerOutputSchema(
         answer=text.text,
     )

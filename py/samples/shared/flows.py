@@ -21,14 +21,14 @@ provider samples can delegate to them from thin ``@ai.flow()`` wrappers.
 Provider-specific flow logic stays in each sample's main.py.
 """
 
-import structlog
-
-from genkit import Genkit, Media, MediaPart, Message, Part, Role, TextPart
-from genkit._core._action import ActionRunContext
+from genkit.ai import Genkit, Output
+from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
+from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
 
 from .types import CalculatorInput, CurrencyExchangeInput, RpgCharacter, WeatherInput
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 async def calculation_logic(ai: Genkit, input: CalculatorInput, model: str | None = None) -> str:
@@ -123,7 +123,7 @@ async def generate_character_logic(ai: Genkit, name: str) -> RpgCharacter:
     """
     result = await ai.generate(
         prompt=f'Generate a RPG character named {name}.\n{schema_hint}',
-        output_schema=RpgCharacter,
+        output=Output(schema=RpgCharacter),
     )
     return result.output
 
@@ -207,12 +207,14 @@ async def generate_streaming_story_logic(ai: Genkit, name: str, ctx: ActionRunCo
     Returns:
         Complete story text.
     """
-    stream_response = ai.generate_stream(prompt=f'Tell me a short story about {name}')
-    async for chunk in stream_response.stream:
+    stream, response = ai.generate_stream(
+        prompt=f'Tell me a short story about {name}',
+    )
+    async for chunk in stream:
         if chunk.text:
             if ctx is not None:
                 ctx.send_chunk(chunk.text)
-    return (await stream_response.response).text
+    return (await response).text
 
 
 async def generate_streaming_with_tools_logic(
@@ -232,16 +234,16 @@ async def generate_streaming_with_tools_logic(
     Returns:
         The complete generated text.
     """
-    stream_response = ai.generate_stream(
+    stream, response = ai.generate_stream(
         model=model,
         prompt=f'What is the weather in {location}? Describe it poetically.',
         tools=['get_weather'],
     )
-    async for chunk in stream_response.stream:
+    async for chunk in stream:
         if chunk.text:
             if ctx is not None:
                 ctx.send_chunk(chunk.text)
-    return (await stream_response.response).text
+    return (await response).text
 
 
 async def generate_weather_logic(ai: Genkit, input: WeatherInput, model: str | None = None) -> str:

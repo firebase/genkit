@@ -813,7 +813,7 @@ _configure_aws_auth() {
 
     echo ""
     echo -e "  ${BOLD}── AWS Authentication ──${NC}"
-    echo -e "  ${DIM}(No sample currently uses AWS)${NC}"
+    echo -e "  ${DIM}Used by: provider-amazon-bedrock-hello${NC}"
 
     # Check if already authenticated.
     if aws sts get-caller-identity &>/dev/null 2>&1; then
@@ -1225,7 +1225,7 @@ _configure_azure_keys() {
 _configure_aws_keys() {
     echo ""
     echo -e "  ${BOLD}── AWS Bedrock ──${NC}"
-    echo -e "  ${DIM}(No sample currently uses AWS)${NC}"
+    echo -e "  ${DIM}Used by: provider-amazon-bedrock-hello${NC}"
     echo -e "  ${DIM}Tip: If you ran 'aws configure' above, these are already set.${NC}"
 
     _prompt_key "AWS_REGION" \
@@ -1359,6 +1359,7 @@ if ! $CHECK_ONLY; then
     echo -e "${DIM}This saves credentials to the standard CLI config locations.${NC}"
 
     _configure_gcloud_auth
+    _configure_aws_auth
     _configure_az_auth
 
 fi
@@ -1386,6 +1387,7 @@ else
     _configure_huggingface_keys
     _configure_cohere_keys
     _configure_cloudflare_keys
+    _configure_aws_keys
     _configure_azure_keys
     _configure_gcp_keys
     _configure_observability_keys

@@ -19,7 +19,7 @@
 
 from pydantic import BaseModel, Field
 
-from genkit.model import Message
+from genkit.core.typing import Message
 
 
 class ChatSessionInputSchema(BaseModel):

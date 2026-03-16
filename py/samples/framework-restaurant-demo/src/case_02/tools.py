@@ -30,7 +30,7 @@ with pathlib.Path(menu_json_path).open() as f:
 
 
 @ai.tool(name='todaysMenu')
-async def todays_menu(input: object | None = None) -> MenuToolOutputSchema:
+def todays_menu(input: object | None = None) -> MenuToolOutputSchema:
     """Use this tool to retrieve all the items on today's menu.
 
     Args:

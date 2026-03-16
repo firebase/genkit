@@ -23,8 +23,7 @@ import pathlib
 
 from menu_ai import ai
 
-from genkit._core._typing import Part, Role, TextPart
-from genkit.model import Message
+from genkit.core.typing import Message, Part, Role, TextPart
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion as GeminiVersion
 
 from .chats import (

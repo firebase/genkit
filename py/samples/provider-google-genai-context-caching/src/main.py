@@ -98,11 +98,12 @@ import os
 import pathlib
 
 import httpx
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, Message, ModelConfig, Part, Role, TextPart
+from genkit.ai import Genkit
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
+from genkit.types import GenerationCommonConfig, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()
@@ -110,7 +111,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 ai = Genkit(
@@ -171,7 +172,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
                 },
             ),
         ],
-        config=ModelConfig(
+        config=GenerationCommonConfig(
             temperature=0.7,
             max_output_tokens=1000,
             top_k=50,
@@ -193,7 +194,7 @@ async def text_context_flow(_input: BookContextInputSchema) -> str:
             '*   **Key Concept:** Description...\n'
             'Keep it concise, use pirate slang, but maintain the helpful advice.'
         ),
-        config=ModelConfig(
+        config=GenerationCommonConfig(
             version='gemini-3-flash-preview',
             temperature=0.7,
             max_output_tokens=1000,

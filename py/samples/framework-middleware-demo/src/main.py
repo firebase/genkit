@@ -84,14 +84,15 @@ See README.md for more details.
 
 import asyncio
 import os
-from collections.abc import Awaitable, Callable
 
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
-from genkit._core._action import ActionRunContext
+from genkit.ai import Genkit
+from genkit.blocks.model import ModelMiddlewareNext
+from genkit.core.action import ActionRunContext
+from genkit.core.logging import get_logger
 from genkit.plugins.google_genai import GoogleAI
+from genkit.types import GenerateRequest, GenerateResponse, Message, Part, Role, TextPart
 from samples.shared.logging import setup_sample
 
 setup_sample()
@@ -99,7 +100,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
@@ -126,10 +127,10 @@ class ChainedInput(BaseModel):
 
 
 async def logging_middleware(
-    req: ModelRequest,
+    req: GenerateRequest,
     ctx: ActionRunContext,
-    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
-) -> ModelResponse:
+    next_handler: ModelMiddlewareNext,
+) -> GenerateResponse:
     """Middleware that logs request and response metadata.
 
     This is a pass-through middleware that doesn't modify the request
@@ -157,10 +158,10 @@ async def logging_middleware(
 
 
 async def system_instruction_middleware(
-    req: ModelRequest,
+    req: GenerateRequest,
     ctx: ActionRunContext,
-    next_handler: Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]],
-) -> ModelResponse:
+    next_handler: ModelMiddlewareNext,
+) -> GenerateResponse:
     """Middleware that prepends a system instruction to every request.
 
     Demonstrates modifying the request before it reaches the model.

@@ -20,8 +20,8 @@ from functools import partial
 
 from pydantic import BaseModel
 
-from genkit import Genkit
-from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit.ai import Genkit
+from genkit.core.typing import BaseDataPoint, Details, EvalFnResponse, Score
 
 
 class PiiDetectionResponse(BaseModel):
@@ -59,11 +59,11 @@ async def pii_detection_score(
     pii_prompt = ai.prompt('pii_detection')
     rendered = await pii_prompt.render(input={'output': str(datapoint.output)})
 
-    response = await ai.generate(  # pyrefly: ignore[no-matching-overload]
+    response = await ai.generate(
         model=judge,
         messages=rendered.messages,
         config=judge_config,
-        output_schema=PiiDetectionResponse,
+        output={'schema': PiiDetectionResponse},
     )
 
     if not response.output:

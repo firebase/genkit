@@ -90,7 +90,7 @@ import os
 
 from pydantic import BaseModel, Field
 
-from genkit import (
+from genkit.ai import (
     Genkit,
     ToolRunContext,
     tool_response,
@@ -115,7 +115,7 @@ class TriviaQuestions(BaseModel):
 
 
 @ai.tool()
-async def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
+def present_questions(questions: TriviaQuestions, ctx: ToolRunContext) -> None:
     """Presents questions to the user and responds with the selected answer."""
     ctx.interrupt(questions.model_dump())
 
