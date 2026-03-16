@@ -33,7 +33,7 @@ EXCLUDED = frozenset({
 RENAME = {'Message': 'MessageData'}
 PRIM = {'string': 'str', 'number': 'float', 'integer': 'int', 'boolean': 'bool'}
 # Emit early to avoid Pydantic forward-ref issues (Schema/ConfigSchema for OutputConfig; Metadata for MessageData etc.)
-PREFERRED_FIRST = ('Schema', 'ConfigSchema', 'Metadata')
+PREFERRED_FIRST = ('Schema', 'ConfigSchema', 'Metadata', 'Custom')
 # anyOf/oneOf defs emitted as RootModel (have .root) so Part(root=TextPart(...)) works
 ROOT_MODEL_UNIONS = frozenset({'Part', 'DocumentPart', 'TraceEvent'})
 HEADER = '''# Copyright {year} Google LLC
@@ -142,14 +142,23 @@ def _py_type(prop: dict, schema: dict, defs: dict, class_name: str, field_name: 
         if not target or (not target.get('type') and not target.get('properties') and 'enum' not in target):
             return 'Any'
         if 'enum' in target:
+            vals = target.get('enum', [])
+            if field_name in ('tool_choice', 'toolChoice') and set(vals) == {'auto', 'required', 'none'}:
+                return 'ToolChoice'
+            if field_name in ('constrained',) and set(vals) == {'none', 'all', 'no-tools'}:
+                return 'Constrained'
+            if field_name in ('stage',) and set(vals) == {'featured', 'stable', 'unstable', 'legacy', 'deprecated'}:
+                return 'Stage'
             return RENAME.get(ref_name, ref_name)
         if target.get('type') == 'array':
             inner = _py_type(target.get('items', {}), schema, defs, class_name, field_name) or 'Any'
             return f'list[{inner}]'
         if target.get('type') == 'object':
-            # Flexible metadata (additionalProperties) -> use Metadata so Metadata(root={...}) is accepted
+            # Flexible dict-like fields: Metadata and Custom (SDK uses .get(), [], etc.)
             if ref_name == 'metadata' and 'additionalProperties' in target:
                 return 'Metadata'
+            if ref_name == 'custom' and 'additionalProperties' in target:
+                return 'Custom'
             return 'dict[str, Any]'
         if target.get('type'):
             t = target['type']
@@ -162,19 +171,29 @@ def _py_type(prop: dict, schema: dict, defs: dict, class_name: str, field_name: 
             refs = [o.get('$ref', '').split('/')[-1] for o in opts if o.get('$ref')]
             if refs:
                 return ' | '.join(RENAME.get(r, r) for r in refs)
-            types = {_py_type(o, schema, defs, class_name, field_name) for o in opts} - {''}
+            types = sorted({_py_type(o, schema, defs, class_name, field_name) for o in opts} - {''})
             return ' | '.join(types) if types else 'Any'
     if prop.get('type') == 'array':
         return f'list[{_py_type(prop.get("items", {}), schema, defs, class_name, field_name) or "Any"}]'
     if prop.get('type') == 'object':
+        # Flexible custom field (additionalProperties) -> use Custom (type alias for dict)
+        if field_name in ('custom',) and prop.get('additionalProperties') is not None:
+            return 'Custom'
         if _pascal(field_name) in defs:
             return _pascal(field_name)
         return 'dict[str, Any]'
     if 'enum' in prop:
-        return 'Literal[' + ', '.join(repr(v) for v in prop['enum']) + ']'
+        vals = prop['enum']
+        if field_name in ('tool_choice', 'toolChoice') and set(vals) == {'auto', 'required', 'none'}:
+            return 'ToolChoice'
+        if field_name in ('constrained',) and set(vals) == {'none', 'all', 'no-tools'}:
+            return 'Constrained'
+        if field_name in ('stage',) and set(vals) == {'featured', 'stable', 'unstable', 'legacy', 'deprecated'}:
+            return 'Stage'
+        return 'Literal[' + ', '.join(repr(v) for v in vals) + ']'
     t = prop.get('type')
     if isinstance(t, list):
-        return ' | '.join(set(PRIM.get(x, 'Any') for x in t)) or 'Any'
+        return ' | '.join(sorted(set(PRIM.get(x, 'Any') for x in t))) or 'Any'
     return PRIM.get(t, 'Any') if t else 'Any'
 
 
@@ -201,17 +220,33 @@ def _emit_model(name: str, d: dict, schema: dict, defs: dict, allow: set[str]) -
         f'    model_config: ClassVar[ConfigDict] = {cfg}',
     ]
     for k, v in props.items():
-        field_name = 'schema' if _camel_to_snake(k) in ('schema_', 'schema') else _camel_to_snake(k)
+        # Use schema_ for OutputConfig.schema to avoid shadowing GenkitModel.schema
+        snake = _camel_to_snake(k)
+        if name == 'OutputConfig' and snake == 'schema':
+            field_name = 'schema_'
+            alias_extra = ", alias='schema'"
+        elif snake in ('schema_', 'schema'):
+            field_name = 'schema' if name != 'OutputConfig' else 'schema_'
+            alias_extra = ", alias='schema'" if name == 'OutputConfig' else ''
+        else:
+            field_name = snake
+            alias_extra = ''
         py_type_str = _py_type(v, schema, defs, name, k)
+        # OutputConfig.schema is free-form JSON schema object; use dict for direct use
+        if name == 'OutputConfig' and snake == 'schema':
+            py_type_str = 'dict[str, Any]'
         if name == 'MessageData' and k == 'role':
             py_type_str = 'Role | str'
+        # OutputConfig.schema is free-form JSON schema dict (not Schema model)
+        if name == 'OutputConfig' and snake == 'schema':
+            py_type_str = 'dict[str, Any]'
         desc = v.get('description')
         desc_extra = f', description={repr(desc)}' if desc else ''
         if k in req:
-            lines.append(f'    {field_name}: {py_type_str} = Field(...{desc_extra})')
+            lines.append(f'    {field_name}: {py_type_str} = Field(...{desc_extra}{alias_extra})')
         else:
             default_val = (
-                'Field(default=None' + desc_extra + ')' if '|' in py_type_str or py_type_str == 'Any' else 'None'
+                f'Field(default=None{desc_extra}{alias_extra})' if '|' in py_type_str or py_type_str == 'Any' else 'None'
             )
             lines.append(f'    {field_name}: {py_type_str} | None = {default_val}')
     if name == 'GenerateActionOptions' and 'resources' not in props:
@@ -248,11 +283,15 @@ def generate(schema_path: Path, _out: Path) -> str:
         if name in EXCLUDED or name in emitted or not isinstance(defn, dict) or defn.get('type') != 'object':
             continue
         class_name = RENAME.get(name, name)
-        # Metadata is flexible (additionalProperties only); SDK uses Metadata(root={...})
+        # Metadata and Custom: type aliases for dict (SDK uses .get(), [], passes dict)
         if name == 'Metadata':
             out.extend([
-                'class Metadata(RootModel[dict[str, Any]]):',
-                '    """Flexible metadata (arbitrary key-value dict)."""',
+                'Metadata = dict[str, Any]  # type alias for flexible metadata',
+                '',
+            ])
+        elif name == 'Custom':
+            out.extend([
+                'Custom = dict[str, Any]  # type alias for flexible custom data',
                 '',
             ])
         else:

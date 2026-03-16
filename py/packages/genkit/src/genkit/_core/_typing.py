@@ -76,6 +76,8 @@ class ConfigSchema(GenkitModel):
 
 Metadata = dict[str, Any]  # type alias for flexible metadata
 
+Custom = dict[str, Any]  # type alias for flexible custom data
+
 
 class DocumentData(GenkitModel):
     """Model for documentdata data."""
@@ -157,7 +159,7 @@ class Score(GenkitModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     id: str | None = None
-    score: bool | str | float | None = Field(default=None)
+    score: bool | float | str | None = Field(default=None)
     status: EvalStatusEnum | None = None
     error: str | None = None
     details: Details | None = None
@@ -249,7 +251,7 @@ class GenerateActionOutputConfig(GenkitModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     format: str | None = None
     content_type: str | None = None
-    instructions: str | bool | None = Field(default=None)
+    instructions: bool | str | None = Field(default=None)
     json_schema: Any | None = Field(default=None)
     constrained: bool | None = None
     # Store Pydantic type for runtime validation (excluded from JSON)
@@ -310,7 +312,7 @@ class MediaPart(GenkitModel):
     tool_response: Any | None = Field(default=None)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: Any | None = Field(default=None)
     resource: Any | None = Field(default=None)
 
@@ -330,8 +332,8 @@ class MiddlewareDesc(GenkitModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str = Field(...)
     description: str | None = None
-    config_schema: ConfigSchema | Any | None = Field(default=None)
-    metadata: Metadata | Any | None = Field(default=None)
+    config_schema: Any | ConfigSchema | None = Field(default=None)
+    metadata: Any | Metadata | None = Field(default=None)
 
 
 class MiddlewareRef(GenkitModel):
@@ -403,7 +405,7 @@ class OutputConfig(GenkitModel):
         alias_generator=to_camel, extra='forbid', populate_by_name=True, protected_namespaces=()
     )
     format: str | None = None
-    schema_: Schema | None = None
+    schema_: dict[str, Any] | None = None
     constrained: bool | None = None
     content_type: str | None = None
 
@@ -418,7 +420,7 @@ class ReasoningPart(GenkitModel):
     tool_response: Any | None = Field(default=None)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: str = Field(...)
     resource: Any | None = Field(default=None)
 
@@ -433,7 +435,7 @@ class ResourcePart(GenkitModel):
     tool_response: Any | None = Field(default=None)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: Any | None = Field(default=None)
     resource: Resource = Field(...)
 
@@ -448,7 +450,7 @@ class TextPart(GenkitModel):
     tool_response: Any | None = Field(default=None)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: Any | None = Field(default=None)
     resource: Any | None = Field(default=None)
 
@@ -478,7 +480,7 @@ class ToolRequestPart(GenkitModel):
     tool_response: Any | None = Field(default=None)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: Any | None = Field(default=None)
     resource: Any | None = Field(default=None)
 
@@ -493,7 +495,7 @@ class ToolResponsePart(GenkitModel):
     tool_response: ToolResponse = Field(...)
     data: Any | None = Field(default=None)
     metadata: Metadata | None = None
-    custom: dict[str, Any] | None = None
+    custom: Custom | None = None
     reasoning: Any | None = Field(default=None)
     resource: Any | None = Field(default=None)
 
@@ -682,12 +684,6 @@ class GenkitErrorDetails(GenkitModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     stack: str | None = None
     trace_id: str = Field(...)
-
-
-class Custom(GenkitModel):
-    """Model for custom data."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
 
 
 class Resume(GenkitModel):

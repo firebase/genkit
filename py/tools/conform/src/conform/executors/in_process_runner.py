@@ -153,6 +153,12 @@ class InProcessRunner:
         output_obj: OutputConfig | None = None
         if output_config:
             output_obj = OutputConfig.model_validate(output_config)
+        output_kwargs: dict[str, Any] = {}
+        if output_obj:
+            output_kwargs['output_format'] = output_obj.format
+            output_kwargs['output_schema'] = output_obj.schema_
+            output_kwargs['output_content_type'] = output_obj.content_type
+            output_kwargs['output_constrained'] = output_obj.constrained
 
         # For tool definitions: the test cases contain inline tool
         # definitions (with inputSchema), but ai.generate() resolves
@@ -179,8 +185,8 @@ class InProcessRunner:
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
             # Consume the stream to collect chunks.
             async for chunk in stream_response.stream:
@@ -193,8 +199,8 @@ class InProcessRunner:
                 messages=non_system_messages,
                 tools=tool_names,
                 config=config,
-                output=output_obj,
                 return_tool_requests=True,
+                **output_kwargs,
             )
 
         response = cast(dict[str, Any], result.model_dump())

@@ -567,6 +567,9 @@ async def action_to_generate_request(
 
     tool_defs = [to_tool_definition(tool) for tool in resolved_tools] if resolved_tools else []
     output = options.output
+    out_schema = output.json_schema if output else None
+    if out_schema is not None and hasattr(out_schema, 'model_dump'):
+        out_schema = out_schema.model_dump()
     return ModelRequest(
         # Field validators auto-wrap MessageData -> Message and DocumentData -> Document
         messages=options.messages,  # type: ignore[arg-type]
@@ -575,7 +578,7 @@ async def action_to_generate_request(
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output_format=output.format if output else None,
-        output_schema=output.json_schema if output else None,
+        output_schema=out_schema,
         output_constrained=output.constrained if output else None,
         output_content_type=output.content_type if output else None,
     )
@@ -641,13 +644,13 @@ async def resolve_tool_requests(
 
 def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -> Part:
     """Mark a tool request as pending with its response stored in metadata."""
-    metadata = request.metadata.root if request.metadata else {}
+    metadata = dict(request.metadata) if request.metadata else {}
     metadata['pendingOutput'] = response.tool_response.output
     # Part is a RootModel, so we pass content via 'root' parameter
     return Part(
         root=ToolRequestPart(
             tool_request=request.tool_request,
-            metadata=Metadata(root=metadata),
+            metadata=metadata,
         )
     )
 
@@ -673,21 +676,18 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         if e.cause and isinstance(e.cause, ToolInterruptError):
             interrupt_error = e.cause
             # Part is a RootModel, so we pass content via 'root' parameter
+            tool_meta = tool_request_part.metadata or {}
+            if not isinstance(tool_meta, dict):
+                tool_meta = dict(tool_meta)
             return (
                 None,
                 Part(
                     root=ToolRequestPart(
                         tool_request=tool_request_part.tool_request,
-                        metadata=Metadata(
-                            root={
-                                **(
-                                    tool_request_part.metadata.root
-                                    if isinstance(tool_request_part.metadata, Metadata)
-                                    else (tool_request_part.metadata or {})
-                                ),
-                                'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
-                            }
-                        ),
+                        metadata={
+                            **tool_meta,
+                            'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
+                        },
                     )
                 ),
             )
@@ -767,8 +767,8 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
 
     tool_req_root = tool_request_part.root
 
-    if tool_req_root.metadata and 'pendingOutput' in tool_req_root.metadata.root:
-        metadata = tool_req_root.metadata.root.copy()
+    if tool_req_root.metadata and 'pendingOutput' in tool_req_root.metadata:
+        metadata = dict(tool_req_root.metadata)
         pending_output = metadata['pendingOutput']
         del metadata['pendingOutput']
         metadata['source'] = 'pending'
@@ -782,7 +782,7 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
                         ref=tool_req_root.tool_request.ref,
                         output=pending_output.model_dump() if isinstance(pending_output, BaseModel) else pending_output,
                     ),
-                    metadata=Metadata(root=metadata),
+                    metadata=metadata,
                 )
             ),
         )
@@ -794,7 +794,7 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
     )
     if provided_response:
         # remove the 'interrupt' but leave a 'resolvedInterrupt'
-        metadata = tool_req_root.metadata.root if tool_req_root.metadata else {}
+        metadata = dict(tool_req_root.metadata) if tool_req_root.metadata else {}
         interrupt = metadata.get('interrupt')
         if interrupt:
             del metadata['interrupt']
@@ -807,7 +807,7 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
                         ref=tool_req_root.tool_request.ref,
                         input=tool_req_root.tool_request.input,
                     ),
-                    metadata=Metadata(root={**metadata, 'resolvedInterrupt': interrupt}),
+                    metadata={**metadata, 'resolvedInterrupt': interrupt},
                 )
             ),
             provided_response,

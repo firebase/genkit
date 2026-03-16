@@ -30,7 +30,7 @@ if [[ $CI_ENABLED == "true" ]] && [[ -f $TYPING_FILE ]]; then
   cp "$TYPING_FILE" "$BACKUP_FILE"
 fi
 
-python3 "$GENERATOR" "$SCHEMA_FILE" > "$TYPING_FILE"
+python3 "$GENERATOR" "$SCHEMA_FILE" "$TYPING_FILE"
 
 uv run --active --directory "${TOP_DIR}/py" ruff format "$TYPING_FILE"
 uv run --active --directory "${TOP_DIR}/py" ruff check --fix "$TYPING_FILE"

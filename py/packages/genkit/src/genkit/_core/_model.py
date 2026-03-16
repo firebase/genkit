@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, ClassVar, Generic, cast
+from typing import Any, ClassVar, Generic, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_serializer
 from pydantic.alias_generators import to_camel
@@ -113,7 +113,7 @@ class Message(MessageData):
     @cached_property
     def interrupts(self) -> list[ToolRequestPart]:
         """Tool requests marked as interrupted."""
-        return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
+        return [p for p in self.tool_requests if p.metadata and p.metadata.get('interrupt')]
 
 
 _TEXT_DATA_TYPE: str = 'text'

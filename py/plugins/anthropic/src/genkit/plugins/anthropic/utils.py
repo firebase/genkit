@@ -129,8 +129,8 @@ def get_cache_control(part: Any) -> dict[str, str] | None:  # noqa: ANN401
     if metadata is None:
         return None
 
-    # Metadata is a RootModel[dict[str, Any]] — unwrap the root dict.
-    meta_dict = metadata.root if hasattr(metadata, 'root') else metadata
+    # Metadata is dict[str, Any] (type alias).
+    meta_dict = metadata if isinstance(metadata, dict) else getattr(metadata, 'root', metadata)
     if not isinstance(meta_dict, dict):
         return None
 

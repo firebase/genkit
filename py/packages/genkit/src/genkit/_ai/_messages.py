@@ -28,11 +28,9 @@ from genkit._core._typing import (
 
 
 def _get_metadata_dict(metadata: Metadata | dict[str, Any] | None) -> dict[str, Any]:
-    """Extract dict from Metadata RootModel or return dict directly."""
+    """Extract dict from metadata (Metadata is dict[str, Any])."""
     if metadata is None:
         return {}
-    if isinstance(metadata, Metadata):
-        return metadata.root
     return metadata
 
 
@@ -57,7 +55,7 @@ def inject_instructions(messages: list[Message], instructions: str) -> list[Mess
     if any(any(_is_output_part(part, require_non_pending=True) for part in message.content) for message in messages):
         return messages
 
-    new_part = Part(TextPart(text=instructions, metadata=Metadata({'purpose': 'output'})))
+    new_part = Part(TextPart(text=instructions, metadata={'purpose': 'output'}))
 
     # find first message with purpose=output and pending=True
     target_index = next(

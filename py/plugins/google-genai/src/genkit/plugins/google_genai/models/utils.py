@@ -364,7 +364,7 @@ class PartConverter:
     @classmethod
     def _extract_thought_signature(cls, metadata: Metadata | None) -> bytes | None:
         """Extracts and decodes the thought signature from metadata."""
-        thought_sig = metadata.root.get('thoughtSignature') if metadata else None
+        thought_sig = metadata.get('thoughtSignature') if metadata else None
         if isinstance(thought_sig, str):
             return base64.b64decode(thought_sig)
         return None
@@ -373,7 +373,7 @@ class PartConverter:
     def _encode_thought_signature(cls, thought_signature: bytes | None) -> Metadata | None:
         """Encodes the thought signature into metadata format."""
         if thought_signature:
-            return Metadata(root={'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')})
+            return {'thoughtSignature': base64.b64encode(thought_signature).decode('utf-8')}
         return None
 
     # TODO(#4360): Replace with downloadRequestMedia middleware (JS parity).
