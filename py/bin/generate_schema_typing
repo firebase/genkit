@@ -2,7 +2,7 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Generates py/packages/genkit/src/genkit/core/typing.py from the JSON schema
+# Generates py/packages/genkit/src/genkit/_core/_typing.py from the JSON schema
 # using our custom generator (py/tools/schema_to_typing/schema_to_typing.py).
 #
 # Usage: ./py/bin/generate_schema_typing [--ci]
@@ -21,8 +21,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 TOP_DIR=$(git rev-parse --show-toplevel)
-SCHEMA_FILE="${TOP_DIR}/genkit-tools/common/src/types/schema.json"
-TYPING_FILE="${TOP_DIR}/py/packages/genkit/src/genkit/core/typing.py"
+SCHEMA_FILE="${TOP_DIR}/genkit-tools/genkit-schema.json"
+TYPING_FILE="${TOP_DIR}/py/packages/genkit/src/genkit/_core/_typing.py"
 GENERATOR="${TOP_DIR}/py/tools/schema_to_typing/schema_to_typing.py"
 
 if [[ $CI_ENABLED == "true" ]] && [[ -f $TYPING_FILE ]]; then
@@ -38,7 +38,7 @@ uv run --active --directory "${TOP_DIR}/py" ruff format "$TYPING_FILE"
 
 if [[ $CI_ENABLED == "true" ]] && [[ -f ${BACKUP_FILE:-} ]]; then
   if ! diff -q "$BACKUP_FILE" "$TYPING_FILE" >/dev/null; then
-    echo "Error: Generated typing.py differs from committed version."
+    echo "Error: Generated _typing.py differs from committed version."
     echo "Run './py/bin/generate_schema_typing' locally and commit the result."
     rm "$BACKUP_FILE"
     exit 1
