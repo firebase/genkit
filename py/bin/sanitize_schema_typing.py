@@ -54,37 +54,6 @@ from typing import cast
 class ClassTransformer(ast.NodeTransformer):
     """AST transformer that modifies class definitions."""
 
-    # Classes to exclude from the generated output because they have
-    # hand-written veneer types in the SDK. These wire types should not be
-    # exposed — the veneer types are the public API.
-    EXCLUDED_CLASSES: frozenset[str] = frozenset({
-        # These classes have hand-written veneer types in the SDK.
-        # The veneer is the ONLY type — used by plugins and end users alike.
-        # Wire types are NOT exposed.
-        # DocumentData stays in _typing.py — it's the wire base used internally.
-        # Reranker/retriever/indexer types removed from SDK entirely.
-        'RankedDocumentData',
-        'RankedDocumentMetadata',
-        'CommonRerankerOptions',
-        'RerankerRequest',
-        'RerankerResponse',
-        'CommonRetrieverOptions',
-        'RetrieverRequest',
-        'RetrieverResponse',
-        # ModelRequest is excluded — fully hand-written in _model.py with flat
-        # output fields (output_format, output_schema, etc.) instead of nested output.
-        'ModelRequest',
-        # GenerateRequest excluded — wire type not needed; ModelRequest is the veneer.
-        'GenerateRequest',
-        # OutputModel excluded — unused; OutputConfig is the type for model output.
-        'OutputModel',
-        # GenerateResponse, Request, ModelResponse (wire) excluded — hand-written in _model.py.
-        # No references to rewrite; these were only referenced by each other.
-        'GenerateResponse',
-        'Request',
-        'ModelResponse',
-    })
-
     def __init__(self, models_allowing_extra: set[str] | None = None) -> None:
         """Initialize the ClassTransformer.
 
@@ -292,19 +261,8 @@ class ClassTransformer(ast.NodeTransformer):
             node: The ClassDef AST node to transform.
 
         Returns:
-            The transformed ClassDef node, or None to remove it.
+            The transformed ClassDef node.
         """
-        # Rename classes to their Python-convention wire type names.
-        renamed_classes: dict[str, str] = {
-            'Message': 'MessageData',  # schema "Message" becomes Python "MessageData" wire type
-        }
-        if node.name in renamed_classes:
-            node.name = renamed_classes[node.name]
-
-        # Exclude classes that have hand-written veneer types or are unused.
-        if node.name in self.EXCLUDED_CLASSES:
-            return None
-
         # First apply base class transformations recursively
         node = cast(ast.ClassDef, super().generic_visit(node))
         new_body: list[ast.stmt | ast.Constant | ast.Assign] = []
@@ -319,7 +277,7 @@ class ClassTransformer(ast.NodeTransformer):
             # Generate a more descriptive docstring based on class type
             if self.is_rootmodel_class(node):
                 docstring = f'Root model for {node.name.lower().replace("_", " ")}.'
-            elif any(isinstance(base, ast.Name) and base.id == 'GenkitModel' for base in node.bases):
+            elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
                 docstring = f'Model for {node.name.lower().replace("_", " ")} data.'
             elif any(isinstance(base, ast.Name) and base.id == 'Enum' for base in node.bases):
                 n = node.name.lower().replace('_', ' ')
@@ -368,8 +326,8 @@ class ClassTransformer(ast.NodeTransformer):
                     self.modified = True
                     continue
                 new_body.append(stmt)
-        elif any(isinstance(base, ast.Name) and base.id == 'GenkitModel' for base in node.bases):
-            # Add or update model_config for GenkitModel classes
+        elif any(isinstance(base, ast.Name) and base.id == 'BaseModel' for base in node.bases):
+            # Add or update model_config for BaseModel classes
             added_config = False
             frozen = node.name == 'PathMetadata'
             has_schema = self.has_schema_field(node)
@@ -613,111 +571,24 @@ actions, tools, and configuration options.
     # Ensure there's exactly one newline between header and content
     # and future import is right after the header block's closing quotes.
     future_import = 'from __future__ import annotations'
-
-    # Header imports - these go first after the future import
-    header_imports = """
+    compat_import_block = """
 import sys
-import warnings
-from strenum import StrEnum
 from typing import ClassVar
 
+from genkit.core._compat import StrEnum
 from pydantic.alias_generators import to_camel
-"""
-
-    # Warnings filter - this goes AFTER all imports to avoid E402
-    warnings_filter = """
-# Filter Pydantic warning about 'schema' field in OutputConfig shadowing BaseModel.schema().
-# This is intentional - the field name is required for wire protocol compatibility.
-warnings.filterwarnings(
-    'ignore',
-    message='Field name "schema" in "OutputConfig" shadows an attribute in parent',
-    category=UserWarning,
-)
 """
 
     header_text = header.format(year=datetime.now().year)
 
-    # Lines that are already in the header template and should not be duplicated.
-    lines_in_header = {
-        future_import,
-        'from enum import StrEnum',
-        'from strenum import StrEnum',
-        'import sys',
-        'import warnings',
-        'from typing import ClassVar',
-        'from pydantic.alias_generators import to_camel',
-    }
-
+    # Remove existing future import and StrEnum import from content.
     lines = content.splitlines()
-    content_imports: list[str] = []  # imports from content that need to go before warnings.filterwarnings()
-    filtered_lines: list[str] = []
-    in_docstring = False
-    skip_warnings_filterwarnings = False
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Skip lines that are already in the header template
-        if stripped in lines_in_header:
-            continue
-
-        # Skip the module docstring (will be re-added by header)
-        if stripped.startswith('"""Schema types module') or stripped.startswith("'''Schema types module"):
-            in_docstring = True
-            continue
-        if in_docstring:
-            if stripped.endswith('"""') or stripped.endswith("'''"):
-                in_docstring = False
-            continue
-
-        # Skip standalone docstring lines that are just the closing quotes
-        if stripped in ('"""', "'''"):
-            continue
-
-        # Skip the string literal form of the docstring (from ast.unparse)
-        # This happens when ast.unparse converts a module docstring to a string expression
-        if stripped.startswith("'Schema types module") or stripped.startswith('"Schema types module'):
-            continue
-
-        # Skip warnings.filterwarnings call (may span multiple lines)
-        if stripped.startswith('warnings.filterwarnings('):
-            if not stripped.endswith(')'):
-                skip_warnings_filterwarnings = True
-            continue
-        if skip_warnings_filterwarnings:
-            if stripped.endswith(')'):
-                skip_warnings_filterwarnings = False
-            continue
-
-        # Collect imports separately - they need to go before warnings.filterwarnings()
-        # to avoid E402 "module level import not at top of file"
-        if stripped.startswith('from ') or stripped.startswith('import '):
-            content_imports.append(line)
-            continue
-
-        filtered_lines.append(line)
-
+    filtered_lines = [
+        line for line in lines if line.strip() != future_import and line.strip() != 'from enum import StrEnum'
+    ]
     cleaned_content = '\n'.join(filtered_lines)
 
-    # Fix field type annotations: schema 'Message' was renamed to 'MessageData'
-    # but field references in other classes still say 'Message'.
-    import re
-
-    cleaned_content = re.sub(r'\bMessage\b(?!Data)', 'MessageData', cleaned_content)
-
-    # Assemble final output with imports BEFORE warnings.filterwarnings() to avoid E402.
-    # Order: header -> future import -> header imports -> content imports -> warnings filter -> content
-    content_imports_block = '\n'.join(content_imports) + '\n' if content_imports else ''
-    final_output = (
-        header_text
-        + future_import
-        + '\n'
-        + header_imports
-        + content_imports_block
-        + warnings_filter
-        + '\n'
-        + cleaned_content
-    )
+    final_output = header_text + future_import + '\n' + compat_import_block + '\n\n' + cleaned_content
     if not final_output.endswith('\n'):
         final_output += '\n'
     return final_output
@@ -850,15 +721,14 @@ def main() -> None:
     if len(sys.argv) != 2:
         sys.exit(1)
 
-    typing_file = Path(sys.argv[1]).resolve()
+    typing_file = Path(sys.argv[1])
 
-    # Derive genkit-schema.json path relative to the _typing.py file
-    # _typing.py is at: py/packages/genkit/src/genkit/_core/_typing.py
+    # Derive genkit-schema.json path relative to the typing.py file
+    # typing.py is at: py/packages/genkit/src/genkit/core/typing.py
     # schema is at: genkit-tools/genkit-schema.json
-    # Go up 6 directories from _typing.py to reach repo root (genkit-cleanup/), then into genkit-tools/
-    # _core(1) -> genkit(2) -> src(3) -> genkit(4) -> packages(5) -> py(6) -> genkit-cleanup
+    # So we go up 6 directories from typing.py to reach repo root, then into genkit-tools/
     schema_path = typing_file.parent
-    for _ in range(6):
+    for _ in range(6):  # Go up: core -> genkit -> src -> genkit -> packages -> py -> (repo root)
         schema_path = schema_path.parent
     schema_path = schema_path / 'genkit-tools' / 'genkit-schema.json'
 
