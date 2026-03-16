@@ -19,9 +19,9 @@ from unittest import mock
 
 import httpx
 
-from genkit import Genkit
-from genkit._core._environment import GENKIT_ENV, GenkitEnvironment
-from genkit._core._reflection import ServerSpec
+from genkit.ai._aio import Genkit
+from genkit.ai._server import ServerSpec
+from genkit.core.environment import EnvVar, GenkitEnvironment
 
 
 def _find_free_port() -> int:
@@ -43,7 +43,7 @@ def test_server_starts_on_construction() -> None:
     No run_main(), no lifespan hooks — construction is sufficient.
     """
     port = _find_free_port()
-    with mock.patch.dict(os.environ, {GENKIT_ENV: GenkitEnvironment.DEV}):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
         resp = _wait_and_get(ai, '/api/__health')
     assert resp.status_code == 200
@@ -57,7 +57,7 @@ def test_flow_registered_after_construction_is_visible() -> None:
     See test_registry_reads_concurrent_with_writes for that.
     """
     port = _find_free_port()
-    with mock.patch.dict(os.environ, {GENKIT_ENV: GenkitEnvironment.DEV}):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
 
         @ai.flow()
@@ -81,7 +81,7 @@ def test_registry_reads_concurrent_with_writes() -> None:
     port = _find_free_port()
     errors: list[Exception] = []
 
-    with mock.patch.dict(os.environ, {GENKIT_ENV: GenkitEnvironment.DEV}):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port))
         assert ai._reflection_ready.wait(timeout=5)  # pyright: ignore[reportPrivateUsage]
 
@@ -118,7 +118,7 @@ def test_registry_reads_concurrent_with_writes() -> None:
 def test_two_instances_serve_concurrently() -> None:
     """Two Genkit() instances in the same process don't interfere with each other."""
     port1, port2 = _find_free_port(), _find_free_port()
-    with mock.patch.dict(os.environ, {GENKIT_ENV: GenkitEnvironment.DEV}):
+    with mock.patch.dict(os.environ, {EnvVar.GENKIT_ENV: GenkitEnvironment.DEV}):
         ai1 = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port1))
         ai2 = Genkit(reflection_server_spec=ServerSpec(scheme='http', host='127.0.0.1', port=port2))
 

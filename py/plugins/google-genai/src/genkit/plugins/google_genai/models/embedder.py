@@ -27,8 +27,8 @@ else:
 from google import genai
 from google.genai import types as genai_types
 
-from genkit import Embedding, EmbedRequest, EmbedResponse
 from genkit.plugins.google_genai.models.utils import PartConverter
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 class VertexEmbeddingModels(StrEnum):

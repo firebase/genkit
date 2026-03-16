@@ -78,6 +78,7 @@ requires-python = ">=3.10"
 version = "0.5.1"
 
 [project.optional-dependencies]
+dev-local-vectorstore = ["genkit-plugin-dev-local-vectorstore"]
 flask                 = ["genkit-plugin-flask"]
 google-cloud          = ["genkit-plugin-google-cloud"]
 google-genai          = ["genkit-plugin-google-genai"]
@@ -105,6 +106,7 @@ testpaths  = ["tests"]
 
 [tool.uv.sources]
 genkit-plugin-compat-oai            = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
 genkit-plugin-flask                 = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }

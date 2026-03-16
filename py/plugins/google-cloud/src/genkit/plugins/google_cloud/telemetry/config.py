@@ -36,7 +36,9 @@ from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resou
 from opentelemetry.sdk.trace.sampling import Sampler
 from opentelemetry.trace import get_current_span, span as trace_span
 
-from genkit.plugin_api import add_custom_exporter, is_dev_environment
+from genkit.core.environment import is_dev_environment
+from genkit.core.logging import get_logger
+from genkit.core.tracing import add_custom_exporter
 
 from .constants import (
     DEFAULT_METRIC_EXPORT_INTERVAL_MS,
@@ -48,7 +50,7 @@ from .exporters import handle_metric_error, handle_tracing_error
 from .metrics_exporter import GenkitMetricExporter
 from .trace_exporter import GcpAdjustingTraceExporter, GenkitGCPExporter
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def resolve_project_id(

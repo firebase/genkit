@@ -23,12 +23,14 @@ from typing import cast
 from anthropic import AsyncAnthropic, AsyncAnthropicVertex
 from pydantic import ConfigDict
 
-from genkit import ModelConfig, ModelInfo, ModelRequest, ModelResponse, Supports
-from genkit.plugin_api import ActionRunContext, loop_local_client
+from genkit.ai import ActionRunContext
+from genkit.core._loop_local import _loop_local_client
+from genkit.core.typing import Supports
 from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig, ModelInfo
 
 
-class AnthropicConfigSchema(ModelConfig):
+class AnthropicConfigSchema(GenerationCommonConfig):
     """Configuration for Anthropic models."""
 
     model_config = ConfigDict(extra='allow')
@@ -54,19 +56,19 @@ class AnthropicModelGarden:
                 model is deployed.
         """
         self.name = model
-        self._runtime_client = loop_local_client(lambda: AsyncAnthropicVertex(region=location, project_id=project_id))
+        self._runtime_client = _loop_local_client(lambda: AsyncAnthropicVertex(region=location, project_id=project_id))
         # Strip 'anthropic/' prefix for the model passed to Anthropic SDK
         clean_model_name = model.removeprefix('anthropic/')
         self._model_name = clean_model_name
 
-    def get_handler(self) -> Callable[[ModelRequest, ActionRunContext], Awaitable[ModelResponse]]:
+    def get_handler(self) -> Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]:
         """Returns the generate handler function for this model.
 
         Returns:
             The handler function that can be used as an Action's fn parameter.
         """
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             model = AnthropicModel(
                 model_name=self._model_name,
                 client=cast(AsyncAnthropic, self._runtime_client()),
@@ -93,6 +95,6 @@ class AnthropicModelGarden:
         )
 
     @staticmethod
-    def get_config_schema() -> type[ModelConfig]:
+    def get_config_schema() -> type[GenerationCommonConfig]:
         """Returns the config schema for this model type."""
         return AnthropicConfigSchema

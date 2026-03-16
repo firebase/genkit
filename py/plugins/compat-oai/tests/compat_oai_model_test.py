@@ -17,30 +17,31 @@
 
 """Tests for OpenAI compatible model implementation."""
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from genkit import (
+from genkit.core.action._action import ActionRunContext
+from genkit.plugins.compat_oai.models import OpenAIModel
+from genkit.plugins.compat_oai.models.utils import strip_markdown_fences
+from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationCommonConfig,
     Message,
-    ModelConfig,
-    ModelRequest,
-    ModelResponse,
-    ModelResponseChunk,
+    OutputConfig,
     Part,
     Role,
     TextPart,
 )
-from genkit.plugin_api import ActionRunContext
-from genkit.plugins.compat_oai.models import OpenAIModel
-from genkit.plugins.compat_oai.models.utils import strip_markdown_fences
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 
-def test_get_messages(sample_request: ModelRequest) -> None:
+def test_get_messages(sample_request: GenerateRequest) -> None:
     """Test _get_messages method.
 
-    Ensures the method correctly converts ModelRequest messages into OpenAI-compatible ChatMessage format.
+    Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
     """
     model = OpenAIModel(model='gpt-4', client=MagicMock())
     messages = model._get_messages(sample_request.messages)
@@ -53,7 +54,7 @@ def test_get_messages(sample_request: ModelRequest) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_openai_config(sample_request: ModelRequest) -> None:
+async def test_get_openai_config(sample_request: GenerateRequest) -> None:
     """Test _get_openai_request_config method.
 
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
@@ -68,8 +69,8 @@ async def test_get_openai_config(sample_request: ModelRequest) -> None:
 
 
 @pytest.mark.asyncio
-async def test__generate(sample_request: ModelRequest) -> None:
-    """Test generate method calls OpenAI API and returns ModelResponse."""
+async def test__generate(sample_request: GenerateRequest) -> None:
+    """Test generate method calls OpenAI API and returns GenerateResponse."""
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
     mock_message.role = 'model'
@@ -86,14 +87,14 @@ async def test__generate(sample_request: ModelRequest) -> None:
     response = await model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
-    assert isinstance(response, ModelResponse)
+    assert isinstance(response, GenerateResponse)
     assert response.message is not None
     assert response.message.role == Role.MODEL
     assert response.message.content[0].root.text == 'Hello, user!'
 
 
 @pytest.mark.asyncio
-async def test__generate_stream(sample_request: ModelRequest) -> None:
+async def test__generate_stream(sample_request: GenerateRequest) -> None:
     """Test generate_stream method ensures it processes streamed responses correctly."""
     mock_client = MagicMock()
 
@@ -128,7 +129,7 @@ async def test__generate_stream(sample_request: ModelRequest) -> None:
     model = OpenAIModel(model='gpt-4', client=mock_client)
     collected_chunks = []
 
-    def callback(chunk: ModelResponseChunk) -> None:
+    def callback(chunk: GenerateResponseChunk) -> None:
         collected_chunks.append(chunk.content[0].root.text)
 
     await model._generate_stream(sample_request, callback)
@@ -144,24 +145,24 @@ async def test__generate_stream(sample_request: ModelRequest) -> None:
     ],
 )
 @pytest.mark.asyncio
-async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
+async def test_generate(stream: bool, sample_request: GenerateRequest) -> None:
     """Tests for generate."""
     ctx_mock = MagicMock(spec=ActionRunContext)
-    type(ctx_mock).is_streaming = PropertyMock(return_value=stream)
+    ctx_mock.is_streaming = stream
 
-    mock_response = ModelResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
+    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='mocked'))]))
 
     model = OpenAIModel(model='gpt-4', client=MagicMock())
-    model._generate_stream = AsyncMock(return_value=mock_response)
-    model._generate = AsyncMock(return_value=mock_response)
-    model.normalize_config = MagicMock(return_value={})
+    model._generate_stream = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
+    model._generate = AsyncMock(return_value=mock_response)  # type: ignore[method-assign]
+    model.normalize_config = MagicMock(return_value={})  # type: ignore[method-assign]
     response = await model.generate(sample_request, ctx_mock)
 
     assert response == mock_response
     if stream:
-        model._generate_stream.assert_called_once()
+        model._generate_stream.assert_called_once()  # type: ignore[union-attr]
     else:
-        model._generate.assert_called_once()
+        model._generate.assert_called_once()  # type: ignore[union-attr]
 
 
 @pytest.mark.parametrize(
@@ -170,7 +171,7 @@ async def test_generate(stream: bool, sample_request: ModelRequest) -> None:
         (OpenAIConfig(model='test'), OpenAIConfig(model='test')),
         ({'model': 'test'}, OpenAIConfig(model='test')),
         (
-            ModelConfig(temperature=0.7),
+            GenerationCommonConfig(temperature=0.7),
             OpenAIConfig(temperature=0.7),
         ),
         (
@@ -206,32 +207,32 @@ class TestNeedsSchemaInPrompt:
     def test_true_for_deepseek_with_json_and_schema(self) -> None:
         """Returns True for DeepSeek model with json format and schema."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(messages=[], output_format='json', output_schema=_SAMPLE_SCHEMA)
-        assert model._needs_schema_in_prompt(request) is True
+        output = OutputConfig(format='json', schema=_SAMPLE_SCHEMA)
+        assert model._needs_schema_in_prompt(output) is True
 
     def test_false_for_gpt_with_json_and_schema(self) -> None:
         """Returns False for GPT models even with json format and schema."""
         model = OpenAIModel(model='gpt-4o', client=MagicMock())
-        request = ModelRequest(messages=[], output_format='json', output_schema=_SAMPLE_SCHEMA)
-        assert model._needs_schema_in_prompt(request) is False
+        output = OutputConfig(format='json', schema=_SAMPLE_SCHEMA)
+        assert model._needs_schema_in_prompt(output) is False
 
     def test_false_for_deepseek_without_schema(self) -> None:
         """Returns False for DeepSeek when no schema is provided."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(messages=[], output_format='json')
-        assert model._needs_schema_in_prompt(request) is False
+        output = OutputConfig(format='json')
+        assert model._needs_schema_in_prompt(output) is False
 
     def test_false_for_deepseek_with_text_format(self) -> None:
         """Returns False for DeepSeek when format is text."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(messages=[], output_format='text')
-        assert model._needs_schema_in_prompt(request) is False
+        output = OutputConfig(format='text')
+        assert model._needs_schema_in_prompt(output) is False
 
     def test_false_for_no_format(self) -> None:
         """Returns False when output has no format set."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(messages=[])
-        assert model._needs_schema_in_prompt(request) is False
+        output = OutputConfig()
+        assert model._needs_schema_in_prompt(output) is False
 
 
 class TestBuildSchemaInstruction:
@@ -263,12 +264,11 @@ class TestSchemaInjectionInConfig:
     async def test_deepseek_injects_schema_message(self) -> None:
         """DeepSeek request prepends a schema system message."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a character'))]),
             ],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         config = await model._get_openai_request_config(request)
 
@@ -284,12 +284,11 @@ class TestSchemaInjectionInConfig:
     async def test_gpt_does_not_inject_schema_message(self) -> None:
         """GPT request does not prepend a schema system message."""
         model = OpenAIModel(model='gpt-4o', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(role=Role.USER, content=[Part(root=TextPart(text='Generate a character'))]),
             ],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         config = await model._get_openai_request_config(request)
 
@@ -302,11 +301,11 @@ class TestSchemaInjectionInConfig:
     async def test_deepseek_without_schema_no_injection(self) -> None:
         """DeepSeek request without a schema does not inject anything."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),
             ],
-            output_format='json',
+            output=OutputConfig(format='json'),
         )
         config = await model._get_openai_request_config(request)
 
@@ -318,13 +317,12 @@ class TestSchemaInjectionInConfig:
     async def test_deepseek_preserves_existing_system_message(self) -> None:
         """Schema injection does not clobber an existing system message."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are helpful'))]),
                 Message(role=Role.USER, content=[Part(root=TextPart(text='Generate'))]),
             ],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         config = await model._get_openai_request_config(request)
 
@@ -379,12 +377,11 @@ class TestCleanJsonResponse:
     def test_cleans_deepseek_json_response(self) -> None:
         """Strips markdown fences from DeepSeek JSON response."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
-        response = ModelResponse(
+        response = GenerateResponse(
             request=request,
             message=Message(
                 role=Role.MODEL,
@@ -398,13 +395,12 @@ class TestCleanJsonResponse:
     def test_no_op_for_gpt_model(self) -> None:
         """Does not modify responses from non-DeepSeek models."""
         model = OpenAIModel(model='gpt-4o', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         fenced_text = '```json\n{"name": "John", "level": 5}\n```'
-        response = ModelResponse(
+        response = GenerateResponse(
             request=request,
             message=Message(
                 role=Role.MODEL,
@@ -418,12 +414,12 @@ class TestCleanJsonResponse:
     def test_no_op_for_text_output(self) -> None:
         """Does not modify responses when output format is not json."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output_format='text',
+            output=OutputConfig(format='text'),
         )
         text = '```json\n{"a": 1}\n```'
-        response = ModelResponse(
+        response = GenerateResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
@@ -434,11 +430,11 @@ class TestCleanJsonResponse:
     def test_no_op_for_no_output(self) -> None:
         """Does not modify responses when no output config is set."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
         )
         text = '```json\n{"a": 1}\n```'
-        response = ModelResponse(
+        response = GenerateResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )
@@ -449,13 +445,12 @@ class TestCleanJsonResponse:
     def test_no_op_when_no_fences(self) -> None:
         """Does not modify clean JSON responses."""
         model = OpenAIModel(model='deepseek-chat', client=MagicMock())
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='Hi'))])],
-            output_format='json',
-            output_schema=_SAMPLE_SCHEMA,
+            output=OutputConfig(format='json', schema=_SAMPLE_SCHEMA),
         )
         text = '{"name": "John", "level": 5}'
-        response = ModelResponse(
+        response = GenerateResponse(
             request=request,
             message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
         )

@@ -23,13 +23,6 @@ and cache-aware usage building.
 
 import base64
 
-from genkit import (
-    Media,
-    MediaPart,
-    Metadata,
-    ModelUsage,
-    TextPart,
-)
 from genkit.plugins.anthropic.utils import (
     DOCUMENT_MIME_TYPES,
     PDF_MIME_TYPE,
@@ -39,6 +32,13 @@ from genkit.plugins.anthropic.utils import (
     to_anthropic_document,
     to_anthropic_image,
     to_anthropic_media,
+)
+from genkit.types import (
+    GenerationUsage,
+    Media,
+    MediaPart,
+    Metadata,
+    TextPart,
 )
 
 # ---------------------------------------------------------------------------
@@ -232,7 +232,7 @@ class TestBuildCacheUsage:
 
     def test_basic_usage_without_cache(self) -> None:
         """Builds usage without cache tokens."""
-        basic = ModelUsage(input_characters=10, output_characters=20)
+        basic = GenerationUsage(input_characters=10, output_characters=20)
         result = build_cache_usage(
             input_tokens=100,
             output_tokens=50,
@@ -247,7 +247,7 @@ class TestBuildCacheUsage:
 
     def test_usage_with_cache_creation(self) -> None:
         """Includes cache_creation_input_tokens in custom."""
-        basic = ModelUsage()
+        basic = GenerationUsage()
         result = build_cache_usage(
             input_tokens=100,
             output_tokens=50,
@@ -260,7 +260,7 @@ class TestBuildCacheUsage:
 
     def test_usage_with_cache_read(self) -> None:
         """Includes cache_read_input_tokens in custom."""
-        basic = ModelUsage()
+        basic = GenerationUsage()
         result = build_cache_usage(
             input_tokens=100,
             output_tokens=50,
@@ -273,7 +273,7 @@ class TestBuildCacheUsage:
 
     def test_usage_with_both_cache_fields(self) -> None:
         """Includes both cache token fields when both are present."""
-        basic = ModelUsage()
+        basic = GenerationUsage()
         result = build_cache_usage(
             input_tokens=100,
             output_tokens=50,
@@ -287,7 +287,7 @@ class TestBuildCacheUsage:
 
     def test_zero_cache_tokens_are_excluded(self) -> None:
         """Zero cache tokens don't appear in custom field."""
-        basic = ModelUsage()
+        basic = GenerationUsage()
         result = build_cache_usage(
             input_tokens=100,
             output_tokens=50,

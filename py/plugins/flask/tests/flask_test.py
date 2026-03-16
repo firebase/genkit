@@ -21,8 +21,8 @@ from typing import Any
 
 from flask import Flask, Request
 
-from genkit import ActionRunContext, Genkit
-from genkit.plugin_api import RequestData
+from genkit.ai import ActionRunContext, Genkit
+from genkit.core.context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 
 

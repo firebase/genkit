@@ -11,20 +11,17 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 
-from genkit import Genkit, Plugin
-from genkit._core._action import Action, ActionKind, ActionMetadata
-from genkit._core._registry import Registry
-
-
-async def _identity(x: object) -> object:
-    return x
+from genkit.ai import Genkit, Plugin
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.registry import Registry
 
 
 @pytest.mark.asyncio
 async def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""
     registry = Registry()
-    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=_identity)
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
     got = await registry.resolve_action(ActionKind.CUSTOM, 'test_action')
 
     assert got == action
@@ -37,7 +34,7 @@ async def test_register_action_with_name_and_kind() -> None:
 async def test_resolve_action_by_key() -> None:
     """Ensure we can resolve an action by its key."""
     registry = Registry()
-    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=_identity)
+    action = registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=lambda x: x)
     got = await registry.resolve_action_by_key('/custom/test_action')
 
     assert got == action
@@ -69,7 +66,7 @@ async def test_resolve_action_from_plugin() -> None:
             nonlocal resolver_calls
             resolver_calls.append([action_type, name])
 
-            async def model_fn() -> None:
+            def model_fn() -> None:
                 pass
 
             return Action(name=name, fn=model_fn, kind=action_type)
@@ -122,13 +119,10 @@ async def test_trigger_lazy_loading_reentrant_guard() -> None:
         # _trigger_lazy_loading again.  Without the guard, infinite recursion.
         await registry.resolve_action(ActionKind.CUSTOM, 'self_ref')
 
-    async def noop() -> None:
-        pass
-
     action = registry.register_action(
         kind=ActionKind.CUSTOM,
         name='self_ref',
-        fn=noop,
+        fn=lambda: None,
         metadata={'lazy': True},
     )
     setattr(action, '_async_factory', self_resolving_factory)  # noqa: B010

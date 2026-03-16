@@ -38,9 +38,7 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-from pydantic import ConfigDict, Field
-
-from genkit.model import ModelConfig
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReasoningEffort(StrEnum):
@@ -114,7 +112,7 @@ class WebSearchContextSize(StrEnum):
     HIGH = 'high'
 
 
-class OpenAIConfig(ModelConfig):
+class OpenAIConfig(BaseModel):
     """OpenAI configuration for Genkit.
 
     This schema provides full control over OpenAI Chat Completions API parameters.

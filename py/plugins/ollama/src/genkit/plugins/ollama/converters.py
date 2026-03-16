@@ -28,10 +28,10 @@ See: https://github.com/ollama/ollama/blob/main/docs/api.md
 
 from typing import Any, Literal, cast
 
-from genkit import (
+from genkit.types import (
+    GenerationCommonConfig,
+    GenerationUsage,
     Message,
-    ModelConfig,
-    ModelUsage,
     Part,
     Role,
     TextPart,
@@ -94,11 +94,11 @@ def build_prompt(messages: list[Message]) -> str:
 
 
 def build_request_options_dict(
-    config: ModelConfig | dict[str, object] | None,
+    config: GenerationCommonConfig | dict[str, object] | None,
 ) -> dict[str, Any]:
     """Build options dict from config for the Ollama API.
 
-    Maps Genkit ``ModelConfig`` fields to Ollama option names.
+    Maps Genkit ``GenerationCommonConfig`` fields to Ollama option names.
 
     Args:
         config: Request configuration.
@@ -109,7 +109,7 @@ def build_request_options_dict(
     if config is None:
         return {}
 
-    if isinstance(config, ModelConfig):
+    if isinstance(config, GenerationCommonConfig):
         result: dict[str, Any] = {}
         if config.top_k is not None:
             result['top_k'] = config.top_k
@@ -165,10 +165,10 @@ def build_response_parts(
 
 
 def get_usage_info(
-    basic_usage: ModelUsage,
+    basic_usage: GenerationUsage,
     prompt_eval_count: int | None,
     eval_count: int | None,
-) -> ModelUsage:
+) -> GenerationUsage:
     """Update basic usage with token counts from Ollama API response.
 
     Args:
@@ -177,7 +177,7 @@ def get_usage_info(
         eval_count: Output token count from Ollama.
 
     Returns:
-        Updated ModelUsage with token counts.
+        Updated GenerationUsage with token counts.
     """
     basic_usage.input_tokens = prompt_eval_count or 0
     basic_usage.output_tokens = eval_count or 0

@@ -17,57 +17,15 @@
 """Genkit Flask plugin."""
 
 import asyncio
-import json
-from asyncio import AbstractEventLoop
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable
-from typing import Any, TypeAlias, TypeVar
-
-from pydantic import BaseModel
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
+from typing import Any, TypeAlias
 
 from flask import Response, request
-from genkit import Genkit, GenkitError
-from genkit._core._action import Action
-from genkit.plugin_api import (
-    ContextProvider,
-    RequestData,
-    get_callable_json,
-)
-
-
-def _to_dict(obj: Any) -> Any:  # noqa: ANN401
-    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
-    return obj.model_dump() if isinstance(obj, BaseModel) else obj
-
-
-T = TypeVar('T')
-
-
-def _create_loop() -> AbstractEventLoop:
-    """Creates a new asyncio event loop or returns the current one."""
-    try:
-        return asyncio.get_event_loop()
-    except Exception:
-        return asyncio.new_event_loop()
-
-
-def _iter_over_async(ait: AsyncIterable[T], loop: AbstractEventLoop) -> Iterable[T]:
-    """Synchronously iterates over an AsyncIterable using a specified event loop."""
-    ait_iter = ait.__aiter__()
-
-    async def get_next() -> tuple[bool, T | None]:
-        try:
-            obj = await ait_iter.__anext__()
-            return False, obj
-        except StopAsyncIteration:
-            return True, None
-
-    while True:
-        done, obj = loop.run_until_complete(get_next())
-        if done:
-            break
-        assert obj is not None
-        yield obj
-
+from genkit.ai import FlowWrapper, Genkit
+from genkit.aio.loop import create_loop, iter_over_async
+from genkit.codec import dump_dict, dump_json
+from genkit.core.context import ContextProvider, RequestData
+from genkit.core.error import GenkitError, get_callable_json
 
 # Type alias for Flask-compatible route handler return type
 FlaskRouteReturn: TypeAlias = Response | dict[str, object] | Iterable[Any]
@@ -89,7 +47,7 @@ class _FlaskRequestData(RequestData):
 def genkit_flask_handler(
     ai: Genkit,
     context_provider: ContextProvider | None = None,
-) -> Callable[[Action], Callable[..., Awaitable[FlaskRouteReturn]]]:
+) -> Callable[[FlowWrapper], Callable[..., Awaitable[FlaskRouteReturn]]]:
     """A decorator for serving Genkit flows via a flask sever.
 
     ```python
@@ -109,10 +67,10 @@ def genkit_flask_handler(
     ```
 
     """
-    loop = _create_loop()
+    loop = create_loop()
 
-    def decorator(flow: Action) -> Callable[..., Awaitable[FlaskRouteReturn]]:
-        if not isinstance(flow, Action):
+    def decorator(flow: FlowWrapper) -> Callable[..., Awaitable[FlaskRouteReturn]]:
+        if not isinstance(flow, FlowWrapper):
             raise GenkitError(status='INVALID_ARGUMENT', message='must apply @genkit_flask_handler on a @flow')
 
         async def handler() -> FlaskRouteReturn:
@@ -135,29 +93,29 @@ def genkit_flask_handler(
 
                 async def async_gen() -> AsyncIterator[str]:
                     try:
-                        stream_response = flow.stream(input_data.get('data'), context=action_context)
-                        async for chunk in stream_response.stream:
-                            yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=(",", ":"))}\n\n'
+                        stream, response = flow._action.stream(input_data.get('data'), context=action_context)
+                        async for chunk in stream:
+                            yield f'data: {dump_json({"message": dump_dict(chunk)})}\n\n'
 
-                        result = await stream_response.response
-                        yield f'data: {json.dumps({"result": _to_dict(result)}, separators=(",", ":"))}\n\n'
+                        result = await response
+                        yield f'data: {dump_json({"result": dump_dict(result.response)})}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):
                             ex = ex.cause
-                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
+                        yield f'error: {dump_json({"error": dump_dict(get_callable_json(ex))})}'
 
-                iter = _iter_over_async(async_gen(), loop)
+                iter = iter_over_async(async_gen(), loop)
                 return iter
             else:
                 try:
-                    response = await flow.run(input_data.get('data'), context=action_context)
-                    return {'result': _to_dict(response.response)}
+                    response = await flow._action.arun_raw(input_data.get('data'), context=action_context)
+                    return {'result': dump_dict(response.response)}
                 except Exception as e:
                     ex = e
                     if isinstance(ex, GenkitError):
                         ex = ex.cause
-                    return Response(status=500, response=json.dumps(get_callable_json(ex), separators=(',', ':')))
+                    return Response(status=500, response=dump_json(get_callable_json(ex)))
 
         return handler
 

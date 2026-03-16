@@ -22,7 +22,7 @@ supporting models like DALL-E 3 and GPT-Image-1.
 Data Flow::
 
     ┌─────────────────────────────────────────────────────────────────────┐
-    │  ModelRequest (text prompt)                                      │
+    │  GenerateRequest (text prompt)                                      │
     │         │                                                           │
     │         ▼                                                           │
     │  to_image_generate_params()  ──►  ImageGenerateParams               │
@@ -31,7 +31,7 @@ Data Flow::
     │  client.images.generate()                                           │
     │         │                                                           │
     │         ▼                                                           │
-    │  to_generate_response()  ──►  ModelResponse (media parts)        │
+    │  to_generate_response()  ──►  GenerateResponse (media parts)        │
     └─────────────────────────────────────────────────────────────────────┘
 """
 
@@ -42,20 +42,20 @@ from typing import Any
 from openai import AsyncOpenAI
 from openai.types.images_response import ImagesResponse
 
-from genkit import (
+from genkit.ai import ActionRunContext
+from genkit.core.typing import FinishReason
+from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
-    ModelRequest,
-    ModelResponse,
     Part,
     Role,
     Supports,
 )
-from genkit.model import FinishReason
-from genkit.plugin_api import ActionRunContext
-from genkit.plugins.compat_oai.models.utils import _extract_text, extract_config_dict
 
 # Supported image generation models with their metadata.
 SUPPORTED_IMAGE_MODELS: dict[str, ModelInfo] = {
@@ -88,9 +88,9 @@ _extract_prompt_text = _extract_text
 
 def _to_image_generate_params(
     model_name: str,
-    request: ModelRequest,
+    request: GenerateRequest,
 ) -> dict[str, Any]:
-    """Convert a ModelRequest into OpenAI image generation parameters.
+    """Convert a GenerateRequest into OpenAI image generation parameters.
 
     Extracts the text prompt and maps Genkit config options to OpenAI's
     image generation API parameters.
@@ -113,7 +113,7 @@ def _to_image_generate_params(
     }
 
     # Strip standard GenAI config keys that don't apply to image generation.
-    for key in ('temperature', 'max_output_tokens', 'stop_sequences', 'top_k', 'top_p'):
+    for key in ('temperature', 'maxOutputTokens', 'stopSequences', 'topK', 'topP'):
         config.pop(key, None)
 
     # Pass remaining config through (size, quality, style, n, etc.).
@@ -123,8 +123,8 @@ def _to_image_generate_params(
     return {k: v for k, v in params.items() if v is not None}
 
 
-def _to_generate_response(result: ImagesResponse) -> ModelResponse:
-    """Convert an OpenAI ImagesResponse to a Genkit ModelResponse.
+def _to_generate_response(result: ImagesResponse) -> GenerateResponse:
+    """Convert an OpenAI ImagesResponse to a Genkit GenerateResponse.
 
     Each generated image becomes a media part in the response message.
 
@@ -132,11 +132,11 @@ def _to_generate_response(result: ImagesResponse) -> ModelResponse:
         result: The OpenAI images.generate() response object.
 
     Returns:
-        A ModelResponse with media parts for each generated image.
+        A GenerateResponse with media parts for each generated image.
     """
     images = result.data
     if not images:
-        return ModelResponse(
+        return GenerateResponse(
             message=Message(role=Role.MODEL, content=[]),
             finish_reason=FinishReason.STOP,
         )
@@ -150,7 +150,7 @@ def _to_generate_response(result: ImagesResponse) -> ModelResponse:
         if url:
             content.append(Part(root=MediaPart(media=Media(content_type='image/png', url=url))))
 
-    return ModelResponse(
+    return GenerateResponse(
         message=Message(role=Role.MODEL, content=content),
         finish_reason=FinishReason.STOP,
     )
@@ -179,7 +179,7 @@ class OpenAIImageModel:
         """The name of the image model."""
         return self._model_name
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Generate images from the request.
 
         Args:
@@ -187,7 +187,7 @@ class OpenAIImageModel:
             ctx: The action run context.
 
         Returns:
-            A ModelResponse containing generated image media parts.
+            A GenerateResponse containing generated image media parts.
         """
         params = _to_image_generate_params(self._model_name, request)
         result = await self._client.images.generate(**params)

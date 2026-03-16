@@ -19,19 +19,15 @@
 from typing import Any, cast
 
 from anthropic import AsyncAnthropic
-from genkit import ModelConfig, ModelRequest, ModelResponse
-from genkit.model import model_action_metadata
-from genkit.plugin_api import (
-    Action,
-    ActionKind,
-    ActionMetadata,
-    ActionRunContext,
-    Plugin,
-    loop_local_client,
-    to_json_schema,
-)
+from genkit.ai import ActionRunContext, Plugin
+from genkit.blocks.model import model_action_metadata
+from genkit.core._loop_local import _loop_local_client
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.registry import ActionKind
+from genkit.core.schema import to_json_schema
 from genkit.plugins.anthropic.model_info import SUPPORTED_ANTHROPIC_MODELS, get_model_info
 from genkit.plugins.anthropic.models import AnthropicModel
+from genkit.types import GenerateRequest, GenerateResponse, GenerationCommonConfig
 
 ANTHROPIC_PLUGIN_NAME = 'anthropic'
 
@@ -71,7 +67,9 @@ class Anthropic(Plugin):
         """
         self.models = models or list(SUPPORTED_ANTHROPIC_MODELS.keys())
         self._anthropic_params = anthropic_params
-        self._runtime_client = loop_local_client(lambda: AsyncAnthropic(**cast(dict[str, Any], self._anthropic_params)))
+        self._runtime_client = _loop_local_client(
+            lambda: AsyncAnthropic(**cast(dict[str, Any], self._anthropic_params))
+        )
 
     async def init(self) -> list[Action]:
         """Initialize plugin.
@@ -110,7 +108,7 @@ class Anthropic(Plugin):
 
         model_info = get_model_info(clean_name)
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             model = AnthropicModel(model_name=clean_name, client=self._runtime_client())
             return await model.generate(request, ctx)
 
@@ -123,7 +121,7 @@ class Anthropic(Plugin):
                     'supports': (
                         model_info.supports.model_dump(by_alias=True, exclude_none=True) if model_info.supports else {}
                     ),
-                    'customOptions': to_json_schema(ModelConfig),
+                    'customOptions': to_json_schema(GenerationCommonConfig),
                 },
             },
         )
@@ -140,7 +138,7 @@ class Anthropic(Plugin):
                 model_action_metadata(
                     name=anthropic_name(model_name),
                     info=model_info.model_dump(by_alias=True, exclude_none=True),
-                    config_schema=ModelConfig,
+                    config_schema=GenerationCommonConfig,
                 )
             )
         return actions

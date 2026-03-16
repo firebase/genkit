@@ -39,7 +39,7 @@ def test_makes_deep_copy() -> None:
 
     assert doc.content[0].root.text == 'some text'
     assert doc.metadata is not None
-    assert doc.metadata['foo'] == 'bar'
+    assert doc.metadata.root['foo'] == 'bar'
 
 
 def test_simple_text_document() -> None:
@@ -66,7 +66,7 @@ def test_from_data_text_document() -> None:
     doc = Document.from_data(data, data_type, metadata)
 
     assert doc.text == data
-    assert doc.metadata == metadata
+    assert doc.metadata is not None and doc.metadata.root == metadata
     assert doc.data_type == data_type
 
 
@@ -80,7 +80,7 @@ def test_from_data_media_document() -> None:
     assert doc.media == [
         Media(url=data, content_type=data_type),
     ]
-    assert doc.metadata == metadata
+    assert doc.metadata is not None and doc.metadata.root == metadata
     assert doc.data_type == data_type
 
 

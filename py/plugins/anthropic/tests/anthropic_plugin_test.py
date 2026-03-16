@@ -23,20 +23,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from genkit import (
-    ActionKind,
-    Message,
-    ModelConfig,
-    ModelRequest,
-    Part,
-    Role,
-    TextPart,
-    ToolDefinition,
-)
+from genkit.core.registry import ActionKind
 from genkit.plugins.anthropic import Anthropic, anthropic_name
 from genkit.plugins.anthropic.model_info import (
     SUPPORTED_ANTHROPIC_MODELS as SUPPORTED_MODELS,
     get_model_info,
+)
+from genkit.types import (
+    GenerateRequest,
+    GenerationCommonConfig,
+    Message,
+    Part,
+    Role,
+    TextPart,
+    ToolDefinition,
 )
 
 
@@ -186,16 +186,16 @@ def test_get_model_info_unknown() -> None:
     assert info.supports.tools is True
 
 
-def _create_sample_request() -> ModelRequest:
+def _create_sample_request() -> GenerateRequest:
     """Create a sample generation request for testing."""
-    return ModelRequest(
+    return GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
                 content=[Part(root=TextPart(text='Hello, how are you?'))],
             )
         ],
-        config=ModelConfig(),
+        config=GenerationCommonConfig(),
         tools=[
             ToolDefinition(
                 name='get_weather',

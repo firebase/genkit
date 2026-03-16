@@ -32,19 +32,8 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 from pytest_mock import MockerFixture
 
-from genkit import (
-    ActionRunContext,
-    MediaPart,
-    Message,
-    ModelInfo,
-    ModelRequest,
-    ModelResponse,
-    Part,
-    Role,
-    TextPart,
-    ToolDefinition,
-)
-from genkit.plugin_api import to_json_schema
+from genkit.ai import ActionRunContext
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
     GeminiModel,
@@ -53,6 +42,17 @@ from genkit.plugins.google_genai.models.gemini import (
     google_model_info,
     is_image_model,
     is_tts_model,
+)
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
+    MediaPart,
+    Message,
+    ModelInfo,
+    Part,
+    Role,
+    TextPart,
+    ToolDefinition,
 )
 
 ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)
@@ -66,7 +66,7 @@ async def test_generate_text_response(mocker: MockerFixture, version: str) -> No
     response_text = 'request answer'
     request_text = 'response question'
 
-    request = ModelRequest(
+    request = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -102,7 +102,7 @@ async def test_generate_text_response(mocker: MockerFixture, version: str) -> No
             config=expected_config,
         )
     ])
-    assert isinstance(response, ModelResponse)
+    assert isinstance(response, GenerateResponse)
     assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
@@ -114,7 +114,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
     response_text = 'request answer'
     request_text = 'response question'
 
-    request = ModelRequest(
+    request = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -133,7 +133,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
     on_chunk_mock = mocker.MagicMock()
     gemini = GeminiModel(version, googleai_client_mock)
 
-    ctx = ActionRunContext(streaming_callback=on_chunk_mock)
+    ctx = ActionRunContext(on_chunk=on_chunk_mock)
     response = await gemini.generate(request, ctx)
 
     # Determine expected config based on model type
@@ -151,7 +151,7 @@ async def test_generate_stream_text_response(mocker: MockerFixture, version: str
             config=expected_config,
         )
     ])
-    assert isinstance(response, ModelResponse)
+    assert isinstance(response, GenerateResponse)
     assert response.message is not None
     assert response.message.content == []
 
@@ -165,7 +165,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
     response_mimetype = 'image/png'
     modalities = ['Text', 'Image']
 
-    request = ModelRequest(
+    request = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -201,7 +201,7 @@ async def test_generate_media_response(mocker: MockerFixture, version: str) -> N
             config=genai.types.GenerateContentConfig(response_modalities=modalities),
         )
     ])
-    assert isinstance(response, ModelResponse)
+    assert isinstance(response, GenerateResponse)
     assert response.message is not None
 
     content = response.message.content[0]
@@ -299,7 +299,7 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
     system_instruction = 'system instruction text'
     version = GoogleAIGeminiVersion.GEMINI_2_0_FLASH
 
-    request = ModelRequest(
+    request = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,
@@ -335,7 +335,7 @@ async def test_generate_with_system_instructions(mocker: MockerFixture) -> None:
             config=genai.types.GenerateContentConfig(system_instruction=expected_system_instruction),
         )
     ])
-    assert isinstance(response, ModelResponse)
+    assert isinstance(response, GenerateResponse)
     assert response.message is not None
     assert response.message.content[0].root.text == response_text
 
@@ -431,7 +431,7 @@ def test_gemini_model__get_tools(
         ),
     ]
 
-    request = ModelRequest(
+    request = GenerateRequest(
         tools=request_tools,
         messages=[
             Message(
@@ -756,7 +756,7 @@ async def test_gemini_model__retrieve_cached_content(
 
     gemini_model_instance._client = mock_client
 
-    request = ModelRequest(
+    request = GenerateRequest(
         messages=[
             Message(
                 role=Role.USER,

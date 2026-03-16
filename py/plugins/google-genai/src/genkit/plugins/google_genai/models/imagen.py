@@ -24,32 +24,27 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-import json
 from functools import cached_property
-from typing import Any
 
 from google import genai
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from genkit import (
+from genkit.ai import ActionRunContext
+from genkit.codec import dump_dict, dump_json
+from genkit.core.tracing import tracer
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
     Media,
     MediaPart,
     Message,
     ModelInfo,
-    ModelRequest,
-    ModelResponse,
     Part,
     Role,
     Supports,
     TextPart,
 )
-from genkit.plugin_api import ActionRunContext, tracer
-
-
-def _to_dict(obj: Any) -> Any:  # noqa: ANN401
-    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
-    return obj.model_dump() if isinstance(obj, BaseModel) else obj
 
 
 class ImagenVersion(StrEnum):
@@ -141,7 +136,7 @@ class ImagenModel:
         self._version = version
         self._client = client
 
-    def _build_prompt(self, request: ModelRequest) -> str:
+    def _build_prompt(self, request: GenerateRequest) -> str:
         """Build prompt request from Genkit request.
 
         Args:
@@ -159,7 +154,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def generate(self, request: ModelRequest, _: ActionRunContext) -> ModelResponse:
+    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:
@@ -177,25 +172,25 @@ class ImagenModel:
         with tracer.start_as_current_span('generate_images') as span:
             span.set_attribute(
                 'genkit:input',
-                json.dumps({
-                    'config': _to_dict(config),
+                dump_json({
+                    'config': dump_dict(config),
                     'contents': prompt,
                     'model': self._version,
                 }),
             )
             response = await self._client.aio.models.generate_images(model=self._version, prompt=prompt, config=config)
-            span.set_attribute('genkit:output', json.dumps(_to_dict(response), default=str))
+            span.set_attribute('genkit:output', dump_json(response))
 
         content = self._contents_from_response(response)
 
-        return ModelResponse(
+        return GenerateResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,
             )
         )
 
-    def _get_config(self, request: ModelRequest) -> genai_types.GenerateImagesConfigOrDict | None:
+    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict | None:
         cfg = None
 
         if request.config:

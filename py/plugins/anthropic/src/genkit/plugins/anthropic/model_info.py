@@ -16,7 +16,7 @@
 
 """Anthropic Models for Genkit."""
 
-from genkit import (
+from genkit.types import (
     Constrained,
     ModelInfo,
     Supports,

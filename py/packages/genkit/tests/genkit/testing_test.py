@@ -57,8 +57,17 @@ Test Coverage
 
 import pytest
 
-from genkit import ActionRunContext, Genkit, Message, ModelConfig, ModelRequest, ModelResponse, ModelResponseChunk
-from genkit._ai._testing import (
+from genkit.ai import Genkit
+from genkit.core.typing import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    Message,
+    Part,
+    Role,
+    TextPart,
+)
+from genkit.testing import (
     EchoModel,
     GablorkenInput,
     ProgrammableModel,
@@ -70,24 +79,17 @@ from genkit._ai._testing import (
     skip,
     test_models as run_model_tests,
 )
-from genkit._core._typing import (
-    Part,
-    Role,
-    TextPart,
-)
 
 
-class MockActionRunContext(ActionRunContext):
+class MockActionRunContext:
     """Mock context for testing model functions directly."""
 
     def __init__(self) -> None:
         """Initialize with empty chunks list."""
-        super().__init__()
-        self.chunks: list[ModelResponseChunk] = []
+        self.chunks: list[GenerateResponseChunk] = []
 
-    def send_chunk(self, chunk: object) -> None:
+    def send_chunk(self, chunk: GenerateResponseChunk) -> None:
         """Append a chunk to the chunks list."""
-        assert isinstance(chunk, ModelResponseChunk)
         self.chunks.append(chunk)
 
 
@@ -100,13 +102,12 @@ def ai() -> Genkit:
 class TestEchoModel:
     """Tests for EchoModel functionality."""
 
-    @pytest.mark.asyncio
-    async def test_echo_model_basic(self) -> None:
+    def test_echo_model_basic(self) -> None:
         """Test basic echo functionality."""
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -116,7 +117,7 @@ class TestEchoModel:
         )
 
         # pyright: ignore[reportArgumentType] - MockActionRunContext is compatible
-        response = await echo.model_fn(request, ctx)
+        response = echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         text = response.message.content[0].root.text
@@ -125,36 +126,34 @@ class TestEchoModel:
         assert 'user:' in text
         assert 'Hello world' in text
 
-    @pytest.mark.asyncio
-    async def test_echo_model_with_config(self) -> None:
+    def test_echo_model_with_config(self) -> None:
         """Test that echo includes config in response."""
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
                     content=[Part(root=TextPart(text='test'))],
                 ),
             ],
-            config=ModelConfig(temperature=0.5),
+            config={'temperature': 0.5},
         )
 
-        response = await echo.model_fn(request, ctx)
+        response = echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         text = response.message.content[0].root.text
         assert isinstance(text, str)
         assert 'temperature' in text
 
-    @pytest.mark.asyncio
-    async def test_echo_model_stream_countdown(self) -> None:
+    def test_echo_model_stream_countdown(self) -> None:
         """Test stream countdown functionality."""
         echo = EchoModel(stream_countdown=True)
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -163,8 +162,7 @@ class TestEchoModel:
             ],
         )
 
-        # Model uses ctx.send_chunk() internally for streaming
-        await echo.model_fn(request, ctx)
+        echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         # Should have streamed 3, 2, 1
         assert len(ctx.chunks) == 3
@@ -172,13 +170,12 @@ class TestEchoModel:
         assert ctx.chunks[1].content[0].root.text == '2'
         assert ctx.chunks[2].content[0].root.text == '1'
 
-    @pytest.mark.asyncio
-    async def test_echo_model_stores_request(self) -> None:
+    def test_echo_model_stores_request(self) -> None:
         """Test that echo stores the last request."""
         echo = EchoModel()
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -187,7 +184,7 @@ class TestEchoModel:
             ],
         )
 
-        await echo.model_fn(request, ctx)
+        echo.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert echo.last_request is not None
         assert echo.last_request.messages[0].content[0].root.text == 'test'
@@ -206,12 +203,11 @@ class TestEchoModel:
 class TestProgrammableModel:
     """Tests for ProgrammableModel functionality."""
 
-    @pytest.mark.asyncio
-    async def test_programmable_model_basic(self) -> None:
+    def test_programmable_model_basic(self) -> None:
         """Test basic programmable model functionality."""
         pm = ProgrammableModel()
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 1'))],
@@ -220,7 +216,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -229,24 +225,23 @@ class TestProgrammableModel:
             ],
         )
 
-        response = await pm.model_fn(request, ctx)
+        response = pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Response 1'
         assert pm.request_count == 1
 
-    @pytest.mark.asyncio
-    async def test_programmable_model_multiple_responses(self) -> None:
+    def test_programmable_model_multiple_responses(self) -> None:
         """Test multiple sequential responses."""
         pm = ProgrammableModel()
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 1'))],
                 ),
             ),
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response 2'))],
@@ -255,7 +250,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -264,8 +259,8 @@ class TestProgrammableModel:
             ],
         )
 
-        response1 = await pm.model_fn(request, ctx)
-        response2 = await pm.model_fn(request, ctx)
+        response1 = pm.model_fn(request, ctx)  # type: ignore[arg-type]
+        response2 = pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response1.message is not None
         assert response2.message is not None
@@ -273,12 +268,11 @@ class TestProgrammableModel:
         assert response2.message.content[0].root.text == 'Response 2'
         assert pm.request_count == 2
 
-    @pytest.mark.asyncio
-    async def test_programmable_model_chunks(self) -> None:
+    def test_programmable_model_chunks(self) -> None:
         """Test streaming programmed chunks."""
         pm = ProgrammableModel()
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Final'))],
@@ -287,13 +281,13 @@ class TestProgrammableModel:
         ]
         pm.chunks = [
             [
-                ModelResponseChunk(content=[Part(root=TextPart(text='Chunk 1'))]),
-                ModelResponseChunk(content=[Part(root=TextPart(text='Chunk 2'))]),
+                GenerateResponseChunk(content=[Part(root=TextPart(text='Chunk 1'))]),
+                GenerateResponseChunk(content=[Part(root=TextPart(text='Chunk 2'))]),
             ],
         ]
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -302,19 +296,17 @@ class TestProgrammableModel:
             ],
         )
 
-        # Model uses ctx.send_chunk() internally for streaming
-        await pm.model_fn(request, ctx)
+        pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert len(ctx.chunks) == 2
         assert ctx.chunks[0].content[0].root.text == 'Chunk 1'
         assert ctx.chunks[1].content[0].root.text == 'Chunk 2'
 
-    @pytest.mark.asyncio
-    async def test_programmable_model_reset(self) -> None:
+    def test_programmable_model_reset(self) -> None:
         """Test reset clears state."""
         pm = ProgrammableModel()
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response'))],
@@ -323,7 +315,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -332,7 +324,7 @@ class TestProgrammableModel:
             ],
         )
 
-        await pm.model_fn(request, ctx)
+        pm.model_fn(request, ctx)  # type: ignore[arg-type]
         assert pm.request_count == 1
         assert pm.last_request is not None
 
@@ -343,12 +335,11 @@ class TestProgrammableModel:
         assert pm.responses == []
         assert pm.chunks is None
 
-    @pytest.mark.asyncio
-    async def test_programmable_model_stores_deep_copy(self) -> None:
+    def test_programmable_model_stores_deep_copy(self) -> None:
         """Test that last_request is a deep copy."""
         pm = ProgrammableModel()
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Response'))],
@@ -357,7 +348,7 @@ class TestProgrammableModel:
         ]
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -366,7 +357,7 @@ class TestProgrammableModel:
             ],
         )
 
-        await pm.model_fn(request, ctx)
+        pm.model_fn(request, ctx)  # type: ignore[arg-type]
 
         # Modify original request
         original_part = request.messages[0].content[0].root
@@ -384,7 +375,7 @@ class TestProgrammableModel:
         """Test define_programmable_model helper function."""
         pm, _action = define_programmable_model(ai, name='testPM')
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Programmed response'))],
@@ -401,8 +392,7 @@ class TestProgrammableModel:
 class TestStaticResponseModel:
     """Tests for StaticResponseModel functionality."""
 
-    @pytest.mark.asyncio
-    async def test_static_model_basic(self) -> None:
+    def test_static_model_basic(self) -> None:
         """Test basic static response model functionality."""
         static = StaticResponseModel(
             message={
@@ -412,7 +402,7 @@ class TestStaticResponseModel:
         )
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -421,13 +411,12 @@ class TestStaticResponseModel:
             ],
         )
 
-        response = await static.model_fn(request, ctx)
+        response = static.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert response.message is not None
         assert response.message.content[0].root.text == 'Static response'
 
-    @pytest.mark.asyncio
-    async def test_static_model_request_count(self) -> None:
+    def test_static_model_request_count(self) -> None:
         """Test request counting."""
         static = StaticResponseModel(
             message={
@@ -437,7 +426,7 @@ class TestStaticResponseModel:
         )
         ctx = MockActionRunContext()
 
-        request = ModelRequest(
+        request = GenerateRequest(
             messages=[
                 Message(
                     role=Role.USER,
@@ -446,9 +435,9 @@ class TestStaticResponseModel:
             ],
         )
 
-        await static.model_fn(request, ctx)
-        await static.model_fn(request, ctx)
-        await static.model_fn(request, ctx)
+        static.model_fn(request, ctx)  # type: ignore[arg-type]
+        static.model_fn(request, ctx)  # type: ignore[arg-type]
+        static.model_fn(request, ctx)  # type: ignore[arg-type]
 
         assert static.request_count == 3
 
@@ -511,48 +500,48 @@ class TestTestModels:
         pm, _ = define_programmable_model(ai, name='testModel')
         pm.responses = [
             # For basic hi test
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
                 ),
             ),
             # For multimodal test (will skip since no media support)
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='plus'))],
                 ),
             ),
             # For history test
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Nice to meet you'))],
                 ),
             ),
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Your name is Glorb'))],
                 ),
             ),
             # For system prompt test
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Bye'))],
                 ),
             ),
             # For structured output test
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='{"name": "Jack", "occupation": "Lumberjack"}'))],
                 ),
             ),
             # For tool calling test (will skip since no tools support)
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='9.407'))],
@@ -580,7 +569,7 @@ class TestTestModels:
         """Test that report format matches JS implementation."""
         pm, _ = define_programmable_model(ai, name='formatTestModel')
         pm.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
@@ -608,7 +597,7 @@ class TestTestModels:
         """Test test_models with multiple models."""
         pm1, _ = define_programmable_model(ai, name='model1')
         pm1.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hi'))],
@@ -618,7 +607,7 @@ class TestTestModels:
 
         pm2, _ = define_programmable_model(ai, name='model2')
         pm2.responses = [
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Hello'))],
@@ -641,7 +630,7 @@ class TestTestModels:
         pm, _ = define_programmable_model(ai, name='failingModel')
         pm.responses = [
             # Return something that doesn't match expected pattern
-            ModelResponse(
+            GenerateResponse(
                 message=Message(
                     role=Role.MODEL,
                     content=[Part(root=TextPart(text='Goodbye'))],  # Should be "Hi"

@@ -18,23 +18,19 @@
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 
 import enum
-from typing import Any, Literal, TypeAlias, cast
+from typing import Any, TypeAlias
 
 from openai import AsyncOpenAI
 from openai.types import Model
 
-from genkit import Embedding, EmbedRequest, EmbedResponse, ModelInfo, ModelRequest, ModelResponse, Supports
-from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.model import ModelConfig, model_action_metadata
-from genkit.plugin_api import (
-    Action,
-    ActionKind,
-    ActionMetadata,
-    ActionRunContext,
-    Plugin,
-    loop_local_client,
-    to_json_schema,
-)
+from genkit.ai import ActionRunContext, Plugin
+from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
+from genkit.core._loop_local import _loop_local_client
+from genkit.core.action import Action, ActionMetadata
+from genkit.core.action.types import ActionKind
+from genkit.core.schema import to_json_schema
+from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_EMBEDDING_MODELS,
     SUPPORTED_IMAGE_MODELS,
@@ -50,6 +46,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.types import Embedding, EmbedRequest, EmbedResponse, GenerateRequest, GenerateResponse, ModelInfo, Supports
 
 
 def open_ai_name(name: str) -> str:
@@ -180,7 +177,7 @@ def _multimodal_action_metadata(
     """
     return model_action_metadata(
         name=open_ai_name(name),
-        config_schema=ModelConfig,
+        config_schema=GenerationCommonConfig,
         info=_get_multimodal_info_dict(name, model_type, supported_models),
     )
 
@@ -209,7 +206,7 @@ class OpenAI(Plugin):
                            other configuration settings required by OpenAI's API.
         """
         self._openai_params = openai_params
-        self._runtime_client = loop_local_client(lambda: AsyncOpenAI(**self._openai_params))
+        self._runtime_client = _loop_local_client(lambda: AsyncOpenAI(**self._openai_params))
         self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
@@ -316,7 +313,7 @@ class OpenAI(Plugin):
         # Create the model handler
         model_info = self.get_model_info(clean_name) or {}
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             openai_model = OpenAIModelHandler(OpenAIModel(clean_name, self._runtime_client()))
             return await openai_model.generate(request, ctx)
 
@@ -353,7 +350,7 @@ class OpenAI(Plugin):
         clean_name = name.replace('openai/', '') if name.startswith('openai/') else name
         info_dict = _get_multimodal_info_dict(clean_name, model_type, supported_models)
 
-        async def _generate(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+        async def _generate(request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
             model_instance = model_class(clean_name, self._runtime_client())
             return await model_instance.generate(request, ctx)
 
@@ -396,41 +393,22 @@ class OpenAI(Plugin):
                 )
                 texts.append(doc_text)
 
-            # Get optional parameters (omit when None; OpenAI create() uses Omit, not None)
-            dimensions: int | None = None
-            encoding_format: Literal['base64', 'float'] | None = None
+            # Get optional parameters with proper types
+            dimensions = None
+            encoding_format = None
             if request.options:
                 if dim_val := request.options.get('dimensions'):
                     dimensions = int(dim_val)
-                enc_val = request.options.get('encodingFormat')
-                if enc_val in ('float', 'base64'):
-                    encoding_format = cast(Literal['base64', 'float'], enc_val)
+                if enc_val := request.options.get('encodingFormat'):
+                    encoding_format = str(enc_val) if enc_val in ('float', 'base64') else None
 
-            # Call with only non-None optional params to satisfy strict typings
-            if dimensions is not None and encoding_format is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    dimensions=dimensions,
-                    encoding_format=encoding_format,
-                )
-            elif dimensions is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    dimensions=dimensions,
-                )
-            elif encoding_format is not None:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                    encoding_format=encoding_format,
-                )
-            else:
-                response = await self._runtime_client().embeddings.create(
-                    model=clean_name,
-                    input=texts,
-                )
+            # Create embeddings for each document
+            response = await self._runtime_client().embeddings.create(
+                model=clean_name,
+                input=texts,
+                dimensions=dimensions,  # type: ignore[arg-type]
+                encoding_format=encoding_format,  # type: ignore[arg-type]
+            )
 
             # Convert OpenAI response to Genkit format
             embeddings = [Embedding(embedding=item.embedding) for item in response.data]
@@ -485,7 +463,7 @@ class OpenAI(Plugin):
                 actions.append(
                     model_action_metadata(
                         name=open_ai_name(name),
-                        config_schema=ModelConfig,
+                        config_schema=GenerationCommonConfig,
                         info={
                             'label': f'OpenAI - {name}',
                             'supports': Supports(

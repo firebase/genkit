@@ -80,7 +80,7 @@ Built-in evaluators for assessing model output quality. Evaluators are automatic
 
 ```python
 from genkit import Genkit
-from genkit._core.typing import BaseDataPoint
+from genkit.core.typing import BaseDataPoint
 from genkit.plugins.google_genai import VertexAI
 
 ai = Genkit(plugins=[VertexAI(project='my-project')])

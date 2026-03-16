@@ -90,26 +90,27 @@ import structlog
 from pydantic import BaseModel
 
 import ollama as ollama_api
-from genkit import (
+from genkit.ai import ActionRunContext
+from genkit.blocks.model import get_basic_usage_stats
+from genkit.core.http_client import get_cached_client
+from genkit.plugins.ollama.constants import (
+    OllamaAPITypes,
+)
+from genkit.types import (
+    GenerateRequest,
+    GenerateResponse,
+    GenerateResponseChunk,
+    GenerationCommonConfig,
+    GenerationUsage,
     Media,
     MediaPart,
     Message,
-    ModelConfig,
-    ModelRequest,
-    ModelResponse,
-    ModelResponseChunk,
-    ModelUsage,
     Part,
     Role,
     TextPart,
     ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
-)
-from genkit.model import get_basic_usage_stats
-from genkit.plugin_api import ActionRunContext, get_cached_client
-from genkit.plugins.ollama.constants import (
-    OllamaAPITypes,
 )
 
 logger = structlog.get_logger(__name__)
@@ -165,7 +166,7 @@ class OllamaModel:
         """
         return self._client_factory()
 
-    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
+    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
         """Generate a response from Ollama.
 
         Args:
@@ -220,7 +221,7 @@ class OllamaModel:
             response=response_message,
         )
 
-        return ModelResponse(
+        return GenerateResponse(
             message=Message(
                 role=Role.MODEL,
                 content=content,
@@ -232,7 +233,7 @@ class OllamaModel:
         )
 
     async def _chat_with_ollama(
-        self, request: ModelRequest, ctx: ActionRunContext | None = None
+        self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
         """Chat with Ollama.
 
@@ -246,12 +247,12 @@ class OllamaModel:
         messages = await self.build_chat_messages(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
-        if request.output_format or request.output_schema:
+        if request.output:
             # ollama api either accepts 'json' literal, or the JSON schema
-            if request.output_schema:
-                fmt = request.output_schema
-            elif request.output_format:
-                fmt = request.output_format
+            if request.output.schema:
+                fmt = request.output.schema
+            elif request.output.format:
+                fmt = request.output.format
             else:
                 fmt = ''
         else:
@@ -286,7 +287,7 @@ class OllamaModel:
                 role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
                 if ctx:
                     ctx.send_chunk(
-                        chunk=ModelResponseChunk(
+                        chunk=GenerateResponseChunk(
                             role=role,
                             index=idx,
                             content=self._build_multimodal_chat_response(chat_response=chunk),
@@ -309,7 +310,7 @@ class OllamaModel:
             return chat_response
 
     async def _generate_ollama_response(
-        self, request: ModelRequest, ctx: ActionRunContext | None = None
+        self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.GenerateResponse | None:
         """Generate a response from Ollama.
 
@@ -337,7 +338,7 @@ class OllamaModel:
                 idx += 1
                 if ctx:
                     ctx.send_chunk(
-                        chunk=ModelResponseChunk(
+                        chunk=GenerateResponseChunk(
                             role=Role.MODEL,
                             index=idx,
                             content=[Part(root=TextPart(text=chunk.response))],
@@ -402,7 +403,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: ModelConfig | ollama_api.Options | dict[str, object] | None,
+        config: GenerationCommonConfig | ollama_api.Options | dict[str, object] | None,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -414,7 +415,7 @@ class OllamaModel:
         """
         if config is None:
             return ollama_api.Options()
-        if isinstance(config, ModelConfig):
+        if isinstance(config, GenerationCommonConfig):
             config = dict(
                 top_k=config.top_k,
                 topP=config.top_p,
@@ -429,7 +430,7 @@ class OllamaModel:
         return config
 
     @staticmethod
-    def build_prompt(request: ModelRequest) -> str:
+    def build_prompt(request: GenerateRequest) -> str:
         """Build the prompt for the generate API.
 
         Args:
@@ -448,7 +449,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    async def build_chat_messages(cls, request: ModelRequest) -> list[ollama_api.Message]:
+    async def build_chat_messages(cls, request: GenerateRequest) -> list[ollama_api.Message]:
         """Build the messages for the chat API.
 
         Handles MediaPart by converting image URLs to the format expected
@@ -552,21 +553,21 @@ class OllamaModel:
 
     @staticmethod
     def get_usage_info(
-        basic_generation_usage: ModelUsage,
+        basic_generation_usage: GenerationUsage,
         api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse | None,
-    ) -> ModelUsage:
+    ) -> GenerationUsage:
         """Extracts and calculates token usage information from an Ollama API response.
 
         Updates a basic generation usage object with input, output, and total token counts
         based on the details provided in the Ollama API response.
 
         Args:
-            basic_generation_usage: An existing ModelUsage object to update.
+            basic_generation_usage: An existing GenerationUsage object to update.
             api_response: The response object received from the Ollama API,
                 containing token count details.
 
         Returns:
-            The updated ModelUsage object with token counts populated.
+            The updated GenerationUsage object with token counts populated.
         """
         if api_response:
             basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0
