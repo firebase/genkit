@@ -16,27 +16,17 @@
 
 """Utilities for working with messages."""
 
-from typing import Any
-
 from genkit._ai._model import Message
 from genkit._core._typing import (
-    Metadata,
     Part,
     Role,
     TextPart,
 )
 
 
-def _get_metadata_dict(metadata: Metadata | dict[str, Any] | None) -> dict[str, Any]:
-    """Extract dict from metadata (Metadata is dict[str, Any])."""
-    if metadata is None:
-        return {}
-    return metadata
-
-
 def _is_output_part(part: Part, require_pending: bool = False, require_non_pending: bool = False) -> bool:
     """Check if a part has purpose='output' metadata, optionally filtering by pending state."""
-    metadata_dict = _get_metadata_dict(part.root.metadata)
+    metadata_dict = part.root.metadata or {}
     if metadata_dict.get('purpose') != 'output':
         return False
     if require_pending:
