@@ -346,30 +346,8 @@ func listModels(provider string) (map[string]ai.ModelOptions, error) {
 
 	models := make(map[string]ai.ModelOptions, len(names))
 	for _, n := range names {
-		mt := ClassifyModel(n)
-		var m ai.ModelOptions
-		var ok bool
-
-		switch mt {
-		case ModelTypeImagen:
-			m, ok = supportedImagenModels[n]
-		case ModelTypeVeo:
-			m, ok = supportedVideoModels[n]
-		default:
-			m, ok = supportedGeminiModels[n]
-		}
-		if !ok {
-			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
-		}
-		models[n] = GetModelOptions(n, provider)
-		// Preserve original fields that GetModelOptions doesn't copy
-		models[n] = ai.ModelOptions{
-			Label:        models[n].Label,
-			Versions:     m.Versions,
-			Supports:     m.Supports,
-			ConfigSchema: m.ConfigSchema,
-			Stage:        m.Stage,
-		}
+		opts := GetModelOptions(n, provider)
+		models[n] = opts
 	}
 
 	return models, nil
@@ -413,9 +391,10 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
-		// Assume unknown models support generate content
-		// and let the backend error if not.
-		models.gemini = append(models.gemini, name)
+		// Only include models with known generative prefixes.
+		if strings.HasPrefix(name, "gemini") || strings.HasPrefix(name, "gemma") {
+			models.gemini = append(models.gemini, name)
+		}
 	}
 
 	return models, nil

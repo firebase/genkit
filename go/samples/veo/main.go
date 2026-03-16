@@ -52,18 +52,18 @@ func main() {
 			}),
 		)
 		if err != nil {
-			log.Fatalf("Failed to start video generation: %v", err)
+			return "", fmt.Errorf("failed to start video generation: %w", err)
 		}
 		printStatus(operation)
 
 		operation, err = waitForCompletion(ctx, g, operation)
 		if err != nil {
-			log.Fatalf("Operation failed: %v", err)
+			return "", fmt.Errorf("operation failed: %w", err)
 		}
 		log.Println("Video generation completed successfully!")
 
 		if err := downloadGeneratedVideo(ctx, operation); err != nil {
-			log.Fatalf("Failed to download video: %v", err)
+			return "", fmt.Errorf("failed to download video: %w", err)
 		}
 
 		// Return the video URI for chaining
@@ -77,7 +77,7 @@ func main() {
 	genkit.DefineFlow(g, "image-to-video", func(ctx context.Context, input any) (string, error) {
 		imgb64, err := fetchImgAsBase64()
 		if err != nil {
-			log.Fatalf("unable to download image: %v", err)
+			return "", fmt.Errorf("unable to download image: %w", err)
 		}
 		operation, err := genkit.GenerateOperation(ctx, g,
 			ai.WithModelName("googleai/veo-3.1-generate-preview"),
@@ -91,18 +91,18 @@ func main() {
 			}),
 		)
 		if err != nil {
-			log.Fatalf("Failed to start video generation: %v", err)
+			return "", fmt.Errorf("failed to start video generation: %w", err)
 		}
 		printStatus(operation)
 
 		operation, err = waitForCompletion(ctx, g, operation)
 		if err != nil {
-			log.Fatalf("Operation failed: %v", err)
+			return "", fmt.Errorf("operation failed: %w", err)
 		}
 		log.Println("Video generation completed successfully!")
 
 		if err := downloadGeneratedVideo(ctx, operation); err != nil {
-			log.Fatalf("Failed to download video: %v", err)
+			return "", fmt.Errorf("failed to download video: %w", err)
 		}
 
 		return "Video successfully downloaded to veo3_video.mp4", nil
@@ -118,7 +118,7 @@ func main() {
 		operation, err := genkit.GenerateOperation(ctx, g,
 			ai.WithModelName("googleai/veo-3.1-generate-preview"),
 			ai.WithMessages(ai.NewUserMessage(
-				ai.NewTextPart("Edit the original video backround to be a rainforest, also change the video style to be a cartoon from 1950, make the transition smooth. You must keep the characters from the original video"),
+				ai.NewTextPart("Edit the original video background to be a rainforest, also change the video style to be a cartoon from 1950, make the transition smooth. You must keep the characters from the original video"),
 				ai.NewMediaPart("video/mp4", inputURI),
 			)),
 			ai.WithConfig(&genai.GenerateVideosConfig{
@@ -128,18 +128,18 @@ func main() {
 			}),
 		)
 		if err != nil {
-			log.Fatalf("Failed to start video generation: %v", err)
+			return "", fmt.Errorf("failed to start video generation: %w", err)
 		}
 		printStatus(operation)
 
 		operation, err = waitForCompletion(ctx, g, operation)
 		if err != nil {
-			log.Fatalf("Operation failed: %v", err)
+			return "", fmt.Errorf("operation failed: %w", err)
 		}
 		log.Println("Video extension completed successfully!")
 
 		if err := downloadGeneratedVideo(ctx, operation); err != nil {
-			log.Fatalf("Failed to download video: %v", err)
+			return "", fmt.Errorf("failed to download video: %w", err)
 		}
 
 		return "Video successfully downloaded to veo3_video.mp4", nil
@@ -284,7 +284,7 @@ func fetchImgAsBase64() (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", err
+		return "", fmt.Errorf("failed to download image: HTTP %d", resp.StatusCode)
 	}
 
 	imageBytes, err := io.ReadAll(resp.Body)
