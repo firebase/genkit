@@ -28,7 +28,6 @@ from genkit._ai._model import (
 from genkit._core._action import ActionRunContext
 from genkit._core._model import Document
 from genkit._core._typing import (
-    Metadata,
     Part,
     TextPart,
 )

@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import Any, ClassVar, Generic, Literal, cast
+from typing import Any, ClassVar, Generic, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_serializer
 from pydantic.alias_generators import to_camel

@@ -39,7 +39,6 @@ from genkit._core._typing import (
     EvalRequest,
     EvalResponse,
     FinishReason,
-    Metadata,
     ModelInfo,
     Part,
     Role,

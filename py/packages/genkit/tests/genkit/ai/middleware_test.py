@@ -27,7 +27,6 @@ from genkit._core._action import ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     DocumentPart,
-    Metadata,
     Part,
     Role,
     TextPart,

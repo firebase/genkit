@@ -28,7 +28,6 @@ from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
-    Metadata,
     Part,
     Role,
     TextPart,

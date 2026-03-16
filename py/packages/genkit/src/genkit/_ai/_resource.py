@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part
+from genkit._core._typing import Part
 
 
 class ResourceOptions(TypedDict, total=False):

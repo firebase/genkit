@@ -14,7 +14,6 @@ from genkit._core._typing import (
     DocumentPart,
     Media,
     MediaPart,
-    Metadata,
     Part,
     TextPart,
     ToolRequest,

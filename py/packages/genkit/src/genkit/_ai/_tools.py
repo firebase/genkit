@@ -23,7 +23,7 @@ from typing import Any, NoReturn, ParamSpec, TypeVar, cast
 
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 P = ParamSpec('P')
 T = TypeVar('T')

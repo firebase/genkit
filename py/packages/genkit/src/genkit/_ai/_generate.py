@@ -43,7 +43,6 @@ from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
     GenerateActionOptions,
-    Metadata,
     Part,
     Role,
     ToolDefinition,

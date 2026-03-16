@@ -35,7 +35,7 @@ from genkit._ai._resource import (
 )
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part, TextPart
+from genkit._core._typing import Part, TextPart
 
 
 @pytest.mark.asyncio
