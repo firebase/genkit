@@ -15,9 +15,10 @@
 """Output formats - text, enum, JSON object, array, and JSONL."""
 
 import os
-from typing import Any, cast
+from enum import Enum
+from typing import cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
@@ -38,6 +39,14 @@ class ReviewInput(BaseModel):
     """Input for enum output."""
 
     review: str = Field(default='This product broke after one day.', description='Review to classify')
+
+
+class Sentiment(str, Enum):
+    """Allowed sentiment labels."""
+
+    POSITIVE = 'POSITIVE'
+    NEGATIVE = 'NEGATIVE'
+    NEUTRAL = 'NEUTRAL'
 
 
 class CountryInfo(BaseModel):
@@ -61,6 +70,10 @@ class Book(BaseModel):
     author: str
 
 
+class BookList(RootModel[list[Book]]):
+    """Array output as a Pydantic model."""
+
+
 class GenreInput(BaseModel):
     """Input for array output."""
 
@@ -72,6 +85,10 @@ class Character(BaseModel):
 
     name: str
     role: str
+
+
+class CharacterList(RootModel[list[Character]]):
+    """JSONL output as a Pydantic model."""
 
 
 class ThemeInput(BaseModel):
@@ -95,45 +112,45 @@ async def classify_sentiment_enum(input: ReviewInput) -> str:
     response = await ai.generate(
         prompt=f'Classify this review: {input.review}',
         output_format='enum',
-        output_schema={'type': 'string', 'enum': ['POSITIVE', 'NEGATIVE', 'NEUTRAL']},
+        output_schema=Sentiment,
     )
     return cast(str, response.output)
 
 
 @ai.flow()
-async def get_country_info_json(input: CountryInput) -> dict[str, Any]:
+async def get_country_info_json(input: CountryInput) -> CountryInfo:
     """Return one JSON object."""
 
     response = await ai.generate(
         prompt=f'Give quick facts about {input.country}.',
         output_format='json',
-        output_schema=CountryInfo.model_json_schema(),
+        output_schema=CountryInfo,
     )
-    return cast(dict[str, Any], response.output)
+    return response.output
 
 
 @ai.flow()
-async def recommend_books_array(input: GenreInput) -> list[dict[str, object]]:
+async def recommend_books_array(input: GenreInput) -> list[Book]:
     """Return an array of objects."""
 
     response = await ai.generate(
         prompt=f'List 3 famous {input.genre} books.',
         output_format='array',
-        output_schema={'type': 'array', 'items': Book.model_json_schema()},
+        output_schema=BookList,
     )
-    return cast(list[Any], response.output)
+    return response.output.root
 
 
 @ai.flow()
-async def create_story_characters_jsonl(input: ThemeInput) -> list[dict[str, object]]:
+async def create_story_characters_jsonl(input: ThemeInput) -> list[Character]:
     """Return newline-delimited JSON objects."""
 
     response = await ai.generate(
         prompt=f'Generate 3 characters for a {input.theme} story.',
         output_format='jsonl',
-        output_schema={'type': 'array', 'items': Character.model_json_schema()},
+        output_schema=CharacterList,
     )
-    return cast(list[Any], response.output)
+    return response.output.root
 
 
 async def main() -> None:

@@ -32,7 +32,7 @@ from genkit.plugins.google_genai import GoogleAI
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-ai = Genkit(plugins=[GoogleAI()])
+    ai = Genkit(plugins=[GoogleAI()])
 
 
 class SpeechInput(BaseModel):
@@ -134,10 +134,10 @@ async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
     video_url = None
     if isinstance(operation.output, dict):
         message = operation.output.get('message', {})
-        content = message.get('content', [])
-        if content:
-            media = content[0].get('media', {})
-            video_url = media.get('url')
+            content = message.get('content', [])
+            if content:
+                media = content[0].get('media', {})
+                video_url = media.get('url')
 
     return {
         'model': 'googleai/veo-2.0-generate-001',
