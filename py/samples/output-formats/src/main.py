@@ -16,12 +16,11 @@
 
 import os
 from enum import Enum
-from typing import cast
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, TypeAdapter
 
 from genkit import Genkit
-from genkit.plugins.google_genai import GoogleAI
+from genkit.plugins.google_genai import GoogleAI  # pyright: ignore[reportMissingImports]
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
@@ -70,10 +69,6 @@ class Book(BaseModel):
     author: str
 
 
-class BookList(RootModel[list[Book]]):
-    """Array output as a Pydantic model."""
-
-
 class GenreInput(BaseModel):
     """Input for array output."""
 
@@ -87,14 +82,14 @@ class Character(BaseModel):
     role: str
 
 
-class CharacterList(RootModel[list[Character]]):
-    """JSONL output as a Pydantic model."""
-
-
 class ThemeInput(BaseModel):
     """Input for JSONL output."""
 
     theme: str = Field(default='space opera', description='Story theme')
+
+
+BOOK_LIST_SCHEMA = TypeAdapter(list[Book]).json_schema()
+CHARACTER_LIST_SCHEMA = TypeAdapter(list[Character]).json_schema()
 
 
 @ai.flow()
@@ -106,7 +101,7 @@ async def generate_haiku_text(input: HaikuInput) -> str:
 
 
 @ai.flow()
-async def classify_sentiment_enum(input: ReviewInput) -> str:
+async def classify_sentiment_enum(input: ReviewInput) -> Sentiment:
     """Return one value from a fixed set."""
 
     response = await ai.generate(
@@ -114,7 +109,7 @@ async def classify_sentiment_enum(input: ReviewInput) -> str:
         output_format='enum',
         output_schema=Sentiment,
     )
-    return cast(str, response.output)
+    return response.output
 
 
 @ai.flow()
@@ -130,27 +125,27 @@ async def get_country_info_json(input: CountryInput) -> CountryInfo:
 
 
 @ai.flow()
-async def recommend_books_array(input: GenreInput) -> list[Book]:
+async def recommend_books_array(input: GenreInput):
     """Return an array of objects."""
 
     response = await ai.generate(
         prompt=f'List 3 famous {input.genre} books.',
         output_format='array',
-        output_schema=BookList,
+        output_schema=BOOK_LIST_SCHEMA,
     )
-    return response.output.root
+    return response.output
 
 
 @ai.flow()
-async def create_story_characters_jsonl(input: ThemeInput) -> list[Character]:
+async def create_story_characters_jsonl(input: ThemeInput):
     """Return newline-delimited JSON objects."""
 
     response = await ai.generate(
         prompt=f'Generate 3 characters for a {input.theme} story.',
         output_format='jsonl',
-        output_schema=CharacterList,
+        output_schema=CHARACTER_LIST_SCHEMA,
     )
-    return response.output.root
+    return response.output
 
 
 async def main() -> None:
