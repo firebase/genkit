@@ -69,11 +69,11 @@ See README.md for more details.
 import os
 from pathlib import Path
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionKind, Genkit
-from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
+from genkit import ActionKind, Genkit
+from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
 from samples.shared.logging import setup_sample
 
@@ -82,7 +82,7 @@ setup_sample()
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 current_dir = Path(__file__).resolve().parent
@@ -250,9 +250,9 @@ async def main() -> None:
     # Tell Story Flow (Streaming)
     await logger.ainfo('--- Running Tell Story Flow ---')
     # To demonstrate streaming, we'll iterate over the streamer if calling directly like a flow would be consumed.
-    story_stream, _ = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
+    story_stream_response = tell_story.stream(StoryInput(subject='a brave little toaster', personality='courageous'))
 
-    async for _chunk in story_stream:
+    async for _chunk in story_stream_response.stream:
         pass
 
     await logger.ainfo('Tell Story Flow Completed')

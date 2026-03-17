@@ -52,12 +52,8 @@ async def discover_models() -> dict[str, Any]:
     plugin_imports = [
         ('genkit.plugins.google_genai', 'GoogleAI'),
         ('genkit.plugins.vertex_ai', 'VertexAI'),
-        ('genkit.plugins.deepseek', 'DeepSeek'),
         ('genkit.plugins.anthropic', 'Anthropic'),
-        ('genkit.plugins.xai', 'XAI'),
         ('genkit.plugins.ollama', 'Ollama'),
-        ('genkit.plugins.mistral', 'Mistral'),
-        ('genkit.plugins.amazon_bedrock', 'AmazonBedrock'),
     ]
 
     for module_path, class_name in plugin_imports:
@@ -76,7 +72,7 @@ async def discover_models() -> dict[str, Any]:
     registry = ai.registry
 
     # Get all model actions via list_actions (which queries plugins)
-    from genkit.core.action import ActionKind
+    from genkit._core._action import ActionKind
 
     try:
         actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])
@@ -219,7 +215,7 @@ async def discover_models_for_sample(sample_name: str) -> dict[str, Any]:
                     registry = ai.registry
 
                     # Get all model actions
-                    from genkit.core.action import ActionKind
+                    from genkit._core._action import ActionKind
 
                     try:
                         actions = await registry.list_actions(allowed_kinds=[ActionKind.MODEL])

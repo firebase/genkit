@@ -49,7 +49,6 @@ additional-model-plugins = ["google-genai", "vertex-ai", "ollama"]
 # Required environment variables per plugin.  An empty list means no
 # credentials are needed (e.g. ollama uses a local server).
 [conform.env]
-amazon-bedrock        = ["AWS_REGION"]
 anthropic             = ["ANTHROPIC_API_KEY"]
 cloudflare-workers-ai = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
 cohere                = ["COHERE_API_KEY"]

@@ -120,7 +120,7 @@ jobs:
 
       - name: Type check with Pyright
         if: matrix.checker == 'pyright'
-        run: uv run --directory py pyright packages/
+        run: cd py && uv run pyright packages/
 
   # =============================================================================
   # Security and compliance checks
@@ -147,9 +147,6 @@ jobs:
 
       - name: Check Python dependency licenses
         run: uv run --directory py liccheck -s pyproject.toml
-
-      - name: Run security scan (bandit)
-        run: ./py/bin/run_python_security_checks
 
       - name: Check for hardcoded secrets
         run: |

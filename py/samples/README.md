@@ -16,8 +16,8 @@ This directory contains sample applications demonstrating various Genkit feature
 │   │ provider-google-genai-vertexai-  │      │ framework-dynamic-tools-demo     │        │
 │   │   hello                          │      │ framework-evaluator-demo         │        │
 │   │ provider-anthropic-hello         │      │ framework-format-demo            │        │
-│   │ provider-amazon-bedrock-hello    │      │ framework-middleware-demo        │        │
-│   │ provider-microsoft-foundry-hello │      │ framework-prompt-demo            │        │
+│   │ provider-microsoft-foundry-hello │      │ framework-middleware-demo        │        │
+│   │ provider-ollama-hello            │      │ framework-prompt-demo            │        │
 │   │ provider-ollama-hello            │      │ framework-realtime-tracing-demo  │        │
 │   │ provider-compat-oai-hello        │      │ framework-restaurant-demo        │        │
 │   │ provider-deepseek-hello          │      │ framework-tool-interrupts        │        │
@@ -136,7 +136,6 @@ This is a living document — update it as new flows are added to samples.
 
 | Sample | Basic | Stream | Tools | Struct | Vision | Embed | Code | Reasoning | TTS | Cache | PDF |
 |--------|:-----:|:------:|:-----:|:------:|:------:|:-----:|:----:|:---------:|:---:|:-----:|:---:|
-| **provider-amazon-bedrock-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | **provider-anthropic-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ✅ | ✅ |
 | **provider-cloudflare-workers-ai-hello** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
 | **provider-cohere-hello** | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | — | — | — |
@@ -165,9 +164,6 @@ Most samples require environment variables for API keys. Configure these before 
 |----------|--------|----------|-------------|-----------------|
 | `GEMINI_API_KEY` | provider-google-genai-hello | Yes | Google AI Studio API key | [Google AI Studio](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | provider-anthropic-hello | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | provider-amazon-bedrock-hello | Yes | AWS region (e.g., `us-east-1`) | [AWS Bedrock Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | provider-amazon-bedrock-hello | Yes* | AWS access key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | provider-amazon-bedrock-hello | Yes* | AWS secret key | [AWS IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
 | `AZURE_AI_FOUNDRY_ENDPOINT` | provider-microsoft-foundry-hello | Yes | Azure AI Foundry endpoint | [Azure AI Foundry](https://ai.azure.com/) |
 | `AZURE_AI_FOUNDRY_API_KEY` | provider-microsoft-foundry-hello | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | provider-compat-oai-hello | Yes | OpenAI API key | [OpenAI Platform](https://platform.openai.com/api-keys) |

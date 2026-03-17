@@ -28,7 +28,7 @@ Env:
 
 import asyncio
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.ollama import Ollama
 from genkit.plugins.ollama.models import ModelDefinition
 

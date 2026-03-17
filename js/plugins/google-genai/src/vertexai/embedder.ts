@@ -108,6 +108,11 @@ export const KNOWN_MODELS = {
     supports: { input: ['text'] },
   }),
 } as const;
+export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
+export type EmbedderModelName = `${string}embedding${string}`;
+export function isEmbedderName(value: string): value is EmbedderModelName {
+  return value.includes('embedding');
+}
 
 export function model(
   version: string,

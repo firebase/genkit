@@ -21,8 +21,7 @@ import json
 
 import structlog
 
-from genkit.core.error import GenkitError
-from genkit.core.typing import GenerateRequest
+from genkit import GenkitError, ModelRequest
 from genkit.plugins.google_genai.models.context_caching.constants import (
     CONTEXT_CACHE_SUPPORTED_MODELS,
     INVALID_ARGUMENT_MESSAGES,
@@ -31,11 +30,11 @@ from genkit.plugins.google_genai.models.context_caching.constants import (
 logger = structlog.getLogger(__name__)
 
 
-def generate_cache_key(request: GenerateRequest) -> str:
+def generate_cache_key(request: ModelRequest) -> str:
     """Generates context cache key by hashing the given request instance.
 
     Args:
-        request: `GenerateRequest` instance to hash
+        request: `ModelRequest` instance to hash
 
     Returns:
         Generated cache key string
@@ -43,11 +42,11 @@ def generate_cache_key(request: GenerateRequest) -> str:
     return hashlib.sha256(json.dumps(request.model_dump(), sort_keys=True).encode()).hexdigest()
 
 
-def validate_context_cache_request(request: GenerateRequest, model_name: str) -> bool:
+def validate_context_cache_request(request: ModelRequest, model_name: str) -> bool:
     """Verifies that the context cache request could be processed for the request.
 
     Args:
-        request: `GenerateRequest` instance to check
+        request: `ModelRequest` instance to check
         model_name: Name of the generation model to check
 
     Returns:

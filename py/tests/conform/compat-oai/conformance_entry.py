@@ -25,7 +25,7 @@ Env:
 
 import asyncio
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.compat_oai import OpenAI
 
 ai = Genkit(plugins=[OpenAI()])

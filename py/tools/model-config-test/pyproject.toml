@@ -8,13 +8,8 @@ dependencies = [
   "genkit-plugin-google-genai",
   "genkit-plugin-vertex-ai",
   "genkit-plugin-google-cloud",
-  "genkit-plugin-amazon-bedrock",
   "genkit-plugin-anthropic",
-  "genkit-plugin-deepseek",
-  "genkit-plugin-xai",
   "genkit-plugin-ollama",
-  "genkit-plugin-mistral",
-  "genkit-plugin-evaluators",
   "fastapi",
   "uvicorn",
   "datamodel-code-generator",
@@ -51,13 +46,8 @@ packages = ["model_performance_test.py", "run_single_model_test.py"]
 
 [tool.uv.sources]
 genkit                       = { workspace = true }
-genkit-plugin-amazon-bedrock = { workspace = true }
 genkit-plugin-anthropic      = { workspace = true }
-genkit-plugin-deepseek       = { workspace = true }
-genkit-plugin-evaluators     = { workspace = true }
 genkit-plugin-google-cloud   = { workspace = true }
 genkit-plugin-google-genai   = { workspace = true }
-genkit-plugin-mistral        = { workspace = true }
 genkit-plugin-ollama         = { workspace = true }
 genkit-plugin-vertex-ai      = { workspace = true }
-genkit-plugin-xai            = { workspace = true }

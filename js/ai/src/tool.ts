@@ -301,6 +301,7 @@ export type MultipartToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
 ) => Promise<{
   output?: z.infer<O>;
   content?: Part[];
+  metadata?: Record<string, any>;
 }>;
 
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(

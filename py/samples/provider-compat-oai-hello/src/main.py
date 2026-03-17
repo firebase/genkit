@@ -75,12 +75,11 @@ import asyncio
 import os
 
 import httpx
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import ActionRunContext, Genkit, Output
-from genkit.core.logging import get_logger
+from genkit import ActionRunContext, Genkit, Media, MediaPart, Message, Part, Role, TextPart
 from genkit.plugins.compat_oai import OpenAI, openai_model
-from genkit.types import Media, MediaPart, Message, Part, Role, TextPart
 from samples.shared import (
     CharacterInput,
     CodeInput,
@@ -113,7 +112,7 @@ setup_sample()
 if 'OPENAI_API_KEY' not in os.environ:
     os.environ['OPENAI_API_KEY'] = input('Please enter your OPENAI_API_KEY: ')
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4o'))
 
@@ -228,7 +227,7 @@ class RoundTripInput(BaseModel):
 
 
 @ai.tool(description='calculates a gablorken', name='gablorkenTool')
-def gablorken_tool(input_: GablorkenInput) -> int:
+async def gablorken_tool(input_: GablorkenInput) -> int:
     """Calculate a gablorken.
 
     Args:
@@ -241,7 +240,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.tool(description='Get current temperature for provided coordinates in celsius')
-def get_weather_tool(coordinates: WeatherRequest) -> float:
+async def get_weather_tool(coordinates: WeatherRequest) -> float:
     """Get the current temperature for provided coordinates in celsius.
 
     Args:
@@ -269,7 +268,7 @@ async def calculate_gablorken(input: GablorkenFlowInput) -> str:
         input: Input with value for gablorken calculation.
 
     Returns:
-        A GenerateRequest object with the evaluation output
+        A ModelRequest object with the evaluation output
     """
     response = await ai.generate(
         prompt=f'what is the gablorken of {input.value}',
@@ -322,7 +321,7 @@ async def get_weather_flow(input: WeatherFlowInput) -> WeatherResponse:
         config={'model': 'gpt-4o-mini-2024-07-18', 'temperature': 1},
         prompt=f"What's the weather like in {input.location} today?",
         tools=['get_weather_tool'],
-        output=Output(schema=WeatherResponse),
+        output_schema=WeatherResponse,
     )
     return WeatherResponse.model_validate(response.output)
 
@@ -337,7 +336,7 @@ async def get_weather_flow_stream(input: WeatherFlowInput) -> WeatherResponse:
     Returns:
         The weather for the location.
     """
-    stream, response = ai.generate_stream(
+    stream_response = ai.generate_stream(
         model=openai_model('gpt-4o'),
         system=(
             'You are an assistant that provides current weather information in JSON format and calculates '
@@ -346,11 +345,11 @@ async def get_weather_flow_stream(input: WeatherFlowInput) -> WeatherResponse:
         config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {input.location} today?",
         tools=['get_weather_tool', 'gablorkenTool'],
-        output=Output(schema=WeatherResponse),
+        output_schema=WeatherResponse,
     )
-    async for _chunk in stream:
+    async for _chunk in stream_response.stream:
         pass
-    final = await response
+    final = await stream_response.response
     return WeatherResponse.model_validate(final.output)
 
 
@@ -422,7 +421,7 @@ async def structured_menu_suggestion(input: MenuSuggestionInput) -> MenuSuggesti
     """
     response = await ai.generate(
         prompt=f'Suggest a menu item for a {input.theme}-themed restaurant.',
-        output=Output(schema=MenuSuggestion),
+        output_schema=MenuSuggestion,
     )
     return response.output
 

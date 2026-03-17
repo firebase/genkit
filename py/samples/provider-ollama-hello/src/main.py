@@ -81,13 +81,12 @@ Key Features
 
 from math import sqrt
 
+import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit, Output
-from genkit.blocks.model import GenerateResponseWrapper
-from genkit.core.action import ActionRunContext
-from genkit.core.logging import get_logger
-from genkit.core.typing import Media, MediaPart, Part, TextPart
+from genkit import Genkit, ModelResponse
+from genkit._core._action import ActionRunContext
+from genkit._core._typing import Media, MediaPart, Part, TextPart
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
@@ -120,7 +119,7 @@ from samples.shared import (
 
 setup_sample()
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Pull models with: ollama pull <model>
 GEMMA_MODEL = 'gemma3:latest'
@@ -223,7 +222,7 @@ class PokemonFlowInput(BaseModel):
 
 
 @ai.tool()
-def gablorken_tool(input: GablorkenInput) -> int:
+async def gablorken_tool(input: GablorkenInput) -> int:
     """Calculate a gablorken."""
     return input.value * 3 - 5
 
@@ -296,7 +295,7 @@ async def structured_menu_suggestion(input: MenuSuggestionInput) -> MenuSuggesti
     """
     response = await ai.generate(
         prompt=f'Suggest a menu item for a {input.theme}-themed restaurant.',
-        output=Output(schema=MenuSuggestion),
+        output_schema=MenuSuggestion,
     )
     return response.output
 
@@ -564,7 +563,7 @@ def find_nearest_pokemons(input_embedding: list[float], top_n: int = 3) -> list[
     return [pokemon for _distance, pokemon in pokemon_distances[:top_n]]
 
 
-async def generate_rag_response(question: str) -> GenerateResponseWrapper:
+async def generate_rag_response(question: str) -> ModelResponse:
     """Generate a RAG response: embed the question, find context, generate.
 
     Args:

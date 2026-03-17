@@ -59,7 +59,8 @@ async def run_model_test(
 
     try:
         from genkit import Genkit
-        from genkit.core.typing import Message, TextPart
+        from genkit._core._typing import TextPart
+        from genkit.model import Message
 
         plugins = []
         try:
@@ -75,21 +76,9 @@ async def run_model_test(
         except Exception:  # noqa: S110
             pass
         try:
-            from genkit.plugins.deepseek import DeepSeek
-
-            plugins.append(DeepSeek())
-        except Exception:  # noqa: S110
-            pass
-        try:
             from genkit.plugins.anthropic import Anthropic
 
             plugins.append(Anthropic())
-        except Exception:  # noqa: S110
-            pass
-        try:
-            from genkit.plugins.xai import XAI
-
-            plugins.append(XAI())
         except Exception:  # noqa: S110
             pass
         try:
@@ -98,19 +87,6 @@ async def run_model_test(
             plugins.append(Ollama())
         except Exception:  # noqa: S110
             pass
-        try:
-            from genkit.plugins.mistral import Mistral
-
-            plugins.append(Mistral())
-        except Exception:  # noqa: S110
-            pass
-        try:
-            from genkit.plugins.amazon_bedrock import AmazonBedrock
-
-            plugins.append(AmazonBedrock())
-        except Exception:  # noqa: S110
-            pass
-
         # Initialize Genkit
         ai = Genkit(plugins=plugins)
 

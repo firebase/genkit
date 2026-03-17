@@ -319,19 +319,37 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
       aspectRatio: z
         .enum([
           '1:1',
+          '1:4',
+          '1:8',
           '2:3',
           '3:2',
           '3:4',
+          '4:1',
           '4:3',
           '4:5',
           '5:4',
+          '8:1',
           '9:16',
           '16:9',
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['0.5K', '1K', '2K', '4K']).optional(),
     })
+    .passthrough()
+    .optional(),
+  google_search: z
+    .object({
+      searchTypes: z
+        .object({
+          webSearch: z.object({}).optional(),
+          imageSearch: z.object({}).optional(),
+        })
+        .optional(),
+    })
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
     .passthrough()
     .optional(),
 }).passthrough();
@@ -418,12 +436,15 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-pro-latest': commonRef('gemini-pro-latest'),
+  'gemini-flash-latest': commonRef('gemini-flash-latest'),
+  'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
+  'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
   'gemini-3.1-pro-preview-customtools': commonRef(
     'gemini-3.1-pro-preview-customtools'
   ),
   'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
-  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
@@ -457,6 +478,11 @@ export function isTTSModelName(value: string): value is TTSModelName {
 }
 
 const KNOWN_IMAGE_MODELS = {
+  'gemini-3.1-flash-image-preview': commonRef(
+    'gemini-3.1-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
   'gemini-3-pro-image-preview': commonRef(
     'gemini-3-pro-image-preview',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -658,6 +684,7 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        google_search,
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
@@ -679,6 +706,12 @@ export function defineModel(
         tools.push({
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
+
+      if (google_search) {
+        tools.push({
+          google_search: google_search,
         } as GoogleSearchRetrievalTool);
       }
 

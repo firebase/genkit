@@ -681,7 +681,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: googleAI.model('gemini-2.5-flash'), // default model
+   *   model: googleAI.model('gemini-flash-latest'), // default model
    * })
    *
    * const { text } = await ai.generate('hi');
@@ -697,7 +697,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: googleAI.model('gemini-2.5-flash'), // default model
+   *   model: googleAI.model('gemini-flash-latest'), // default model
    * })
    *
    * const { text } = await ai.generate([
@@ -731,7 +731,7 @@ export class Genkit implements HasRegistry {
    *   ],
    *   messages: conversationHistory,
    *   tools: [ userInfoLookup ],
-   *   model: googleAI.model('gemini-2.5-flash'),
+   *   model: googleAI.model('gemini-flash-latest'),
    * });
    * ```
    */
@@ -773,7 +773,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: googleAI.model('gemini-2.5-flash'), // default model
+   *   model: googleAI.model('gemini-flash-latest'), // default model
    * })
    *
    * const { response, stream } = ai.generateStream('hi');
@@ -793,7 +793,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: googleAI.model('gemini-2.5-flash'), // default model
+   *   model: googleAI.model('gemini-flash-latest'), // default model
    * })
    *
    * const { response, stream } = ai.generateStream([
@@ -831,7 +831,7 @@ export class Genkit implements HasRegistry {
    *   ],
    *   messages: conversationHistory,
    *   tools: [ userInfoLookup ],
-   *   model: googleAI.model('gemini-2.5-flash'),
+   *   model: googleAI.model('gemini-flash-latest'),
    * });
    * for await (const chunk of stream) {
    *   console.log(chunk.text);

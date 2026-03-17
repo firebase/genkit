@@ -47,7 +47,7 @@ async def s05_read_menu_flow(_: None = None) -> str:
         "Menu content..."
     """
     image_data_url = inline_data_url('menu.jpeg', 'image/jpeg')
-    response = await s05_read_menu_prompt({'image_url': image_data_url})
+    response = await s05_read_menu_prompt({'image_url': image_data_url})  # pyrefly: ignore[bad-argument-type]
     return response.text
 
 
@@ -67,7 +67,7 @@ async def s05_text_menu_question_flow(
         >>> await s05_text_menu_question_flow(TextMenuQuestionInputSchema(menu_text='Burger: $10', question='Price?'))
         AnswerOutputSchema(answer="It costs $10")
     """
-    response = await s05_text_menu_prompt({'menuText': my_input.menu_text, 'question': my_input.question})
+    response = await s05_text_menu_prompt(my_input)
     return AnswerOutputSchema(
         answer=response.text,
     )

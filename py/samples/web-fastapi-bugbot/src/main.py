@@ -10,7 +10,6 @@ If something looks wrong, check localhost:4000 to see what the model actually re
 """
 
 import asyncio
-from collections.abc import Awaitable
 from pathlib import Path
 from typing import Literal
 
@@ -18,24 +17,21 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
-from starlette.types import ASGIApp, Lifespan
 from typing_extensions import Never
 
-from genkit import Genkit, Input, Output
-from genkit.ai import FlowWrapper
-from genkit.plugins.fastapi import genkit_fastapi_handler, genkit_lifespan
+from genkit import Flow, Genkit
+from genkit.plugins.fastapi import genkit_fastapi_handler
 from genkit.plugins.google_genai import GoogleAI
 
 _ = load_dotenv()
 
+# The Dev UI reflection server starts automatically in a background thread
+# when GENKIT_ENV=dev is set — no lifespan wiring needed.
 ai = Genkit(
     plugins=[GoogleAI()],
     model='googleai/gemini-2.0-flash',
     prompt_dir=Path(__file__).parent.parent / 'prompts',
 )
-
-# Dev UI lifespan - registers with Genkit Dev UI when GENKIT_ENV=dev
-lifespan: Lifespan[ASGIApp] = genkit_lifespan(ai)
 
 
 Severity = Literal['critical', 'warning', 'info']
@@ -73,10 +69,10 @@ class DiffInput(BaseModel):
     context: str = ''
 
 
-security_prompt = ai.prompt('analyze_security', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-bugs_prompt = ai.prompt('analyze_bugs', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-style_prompt = ai.prompt('analyze_style', input=Input(schema=CodeInput), output=Output(schema=Analysis))
-diff_prompt = ai.prompt('analyze_diff', input=Input(schema=DiffInput), output=Output(schema=Analysis))
+security_prompt = ai.prompt('analyze_security', input_schema=CodeInput, output_schema=Analysis)
+bugs_prompt = ai.prompt('analyze_bugs', input_schema=CodeInput, output_schema=Analysis)
+style_prompt = ai.prompt('analyze_style', input_schema=CodeInput, output_schema=Analysis)
+diff_prompt = ai.prompt('analyze_diff', input_schema=DiffInput, output_schema=Analysis)
 
 
 @ai.flow()
@@ -118,7 +114,7 @@ async def review_diff(input: DiffInput) -> Analysis:
     return response.output
 
 
-app = FastAPI(title='BugBot', description='AI-powered code review API', lifespan=lifespan)
+app = FastAPI(title='BugBot', description='AI-powered code review API')
 
 
 @app.post('/review')
@@ -141,14 +137,14 @@ async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
 
 @app.post('/flow/review', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_review() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_review() -> Flow[CodeInput, Analysis, Never]:
     """Expose review_code flow directly via {"data": {"code": "...", "language": "..."}}."""
     return review_code
 
 
 @app.post('/flow/security', response_model=None)
 @genkit_fastapi_handler(ai)
-def flow_security() -> FlowWrapper[..., Awaitable[Analysis], Analysis, Never]:
+def flow_security() -> Flow[CodeInput, Analysis, Never]:
     """Expose analyze_security flow directly."""
     return analyze_security
 

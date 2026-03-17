@@ -25,7 +25,7 @@ Env:
 
 import asyncio
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.anthropic import Anthropic
 
 ai = Genkit(plugins=[Anthropic()])

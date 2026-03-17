@@ -26,7 +26,7 @@ Env:
 
 import asyncio
 
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.vertex_ai import ModelGardenPlugin
 
 ai = Genkit(plugins=[ModelGardenPlugin()])

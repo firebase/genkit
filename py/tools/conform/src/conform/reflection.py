@@ -101,7 +101,7 @@ class ReflectionClient:
 
         Args:
             key: The action key (e.g. ``/model/googleai/gemini-2.5-flash``).
-            input_data: The ``GenerateRequest`` payload.
+            input_data: The ``ModelRequest`` payload.
             stream: Whether to request streaming.
 
         Returns:
