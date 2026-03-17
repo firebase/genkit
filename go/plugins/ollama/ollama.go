@@ -226,9 +226,8 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 	return []api.Action{}
 }
 
-// Generate makes a request to the Ollama API and processes the response.
-func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
-	stream := cb != nil
+// buildPayload creates the request payload for Ollama API.
+func (g *generator) buildPayload(input *ai.ModelRequest, stream bool) (any, error) {
 	var payload any
 	isChatModel := g.model.Type == "chat"
 
@@ -246,7 +245,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	}
 
 	if !isChatModel {
-		payload = ollamaModelRequest{
+		payload = &ollamaModelRequest{
 			Model:  g.model.Name,
 			Prompt: concatMessages(input, []ai.Role{ai.RoleUser, ai.RoleModel, ai.RoleTool}),
 			System: concatMessages(input, []ai.Role{ai.RoleSystem}),
@@ -263,7 +262,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 			}
 			messages = append(messages, message)
 		}
-		chatReq := ollamaChatRequest{
+		chatReq := &ollamaChatRequest{
 			Messages: messages,
 			Model:    g.model.Name,
 			Stream:   stream,
@@ -278,6 +277,41 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		}
 		payload = chatReq
 	}
+
+	// Handle structured output via Ollama's format parameter.
+	if input.Output != nil {
+		var format string
+		if input.Output.Schema != nil && len(input.Output.Schema) > 0 {
+			schemaJSON, err := json.Marshal(input.Output.Schema)
+			if err != nil {
+				return nil, fmt.Errorf("failed to serialize output schema: %v", err)
+			}
+			format = string(schemaJSON)
+		} else if input.Output.Format == "json" {
+			format = "json"
+		}
+
+		if format != "" {
+			switch p := payload.(type) {
+            case *ollamaChatRequest:
+                p.Format = format
+            case *ollamaModelRequest:
+                p.Format = format
+            }
+		}
+	}
+
+	return payload, nil
+}
+
+// Generate makes a request to the Ollama API and processes the response.
+func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+	stream := cb != nil
+	payload, err := g.buildPayload(input, stream)
+	if err != nil {
+		return nil, err
+	}
+	isChatModel := g.model.Type == "chat"
 
 	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
