@@ -1132,7 +1132,7 @@ ai.defineFlow('googleSearchRetrieval', async (thing) => {
 
 ai.defineFlow('googleai-imagen', async (thing) => {
   const { message } = await ai.generate({
-    model: googleAI.model('imagen-3.0-generate-002'),
+    model: googleAI.model('imagen-4.0-generate-001'),
     prompt:
       thing ??
       `Dark but cozy room. A programmer happily programming an AI library.`,
