@@ -23,7 +23,7 @@ from typing import Any, NoReturn, ParamSpec, TypeVar, cast
 
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 P = ParamSpec('P')
 T = TypeVar('T')
@@ -63,9 +63,9 @@ def tool_response(
     # TODO(#4347): validate against tool schema
     tool_request = interrupt.root.tool_request if isinstance(interrupt, Part) else interrupt.tool_request
 
-    interrupt_metadata = True
-    if isinstance(metadata, Metadata):
-        interrupt_metadata = metadata.root
+    interrupt_metadata: dict[str, Any] | bool = True
+    if isinstance(metadata, dict):
+        interrupt_metadata = metadata
     elif metadata:
         interrupt_metadata = metadata
 
@@ -77,11 +77,7 @@ def tool_response(
                 ref=tr.ref,
                 output=response_data,
             ),
-            metadata=Metadata(
-                root={
-                    'interruptResponse': interrupt_metadata,
-                }
-            ),
+            metadata={'interruptResponse': interrupt_metadata},
         )
     )
 

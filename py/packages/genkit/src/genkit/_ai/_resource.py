@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part
+from genkit._core._typing import Part
 
 
 class ResourceOptions(TypedDict, total=False):
@@ -145,15 +145,15 @@ def dynamic_resource(opts: ResourceOptions, fn: ResourceFn) -> Action:
                         # Different Part types have different metadata types (Metadata or dict)
                         # dict works for both types at runtime
                         # pyrefly:ignore[bad-assignment]
-                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]  # ty: ignore[invalid-assignment]
-                    if isinstance(p.metadata, Metadata):
-                        p_metadata = p.metadata.root
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
+                    if isinstance(p.metadata, dict):
+                        p_metadata = p.metadata
                     elif isinstance(p.metadata, dict):
                         p_metadata = p.metadata
                     else:
                         # dict works for both Part types at runtime
                         # pyrefly:ignore[bad-assignment]
-                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]  # ty: ignore[invalid-assignment]
+                        p.metadata = {}  # pyright: ignore[reportAttributeAccessIssue]
                         p_metadata = p.metadata
 
                     template = opts.get('template')

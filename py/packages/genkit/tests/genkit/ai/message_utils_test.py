@@ -8,7 +8,6 @@
 from genkit import Message
 from genkit._ai._messages import inject_instructions
 from genkit._core._typing import (
-    Metadata,
     Part,
     Role,
     TextPart,
@@ -36,7 +35,7 @@ def test_inject_instructions_user_message() -> None:
                 Part(
                     root=TextPart(
                         text='injected',
-                        metadata=Metadata(root={'purpose': 'output'}),
+                        metadata={'purpose': 'output'},
                     )
                 ),
             ],
@@ -70,7 +69,7 @@ def test_inject_instructions_system_message() -> None:
                 Part(
                     root=TextPart(
                         text='injected',
-                        metadata=Metadata(root={'purpose': 'output'}),
+                        metadata={'purpose': 'output'},
                     )
                 ),
             ],
@@ -101,7 +100,7 @@ def test_inject_instructions_purpose() -> None:
                     Part(
                         root=TextPart(
                             text='will be overridden',
-                            metadata=Metadata(root={'purpose': 'output', 'pending': True}),
+                            metadata={'purpose': 'output', 'pending': True},
                         )
                     ),
                     Part(root=TextPart(text='world')),
@@ -126,7 +125,7 @@ def test_inject_instructions_purpose() -> None:
                 Part(
                     root=TextPart(
                         text='injected',
-                        metadata=Metadata(root={'purpose': 'output'}),
+                        metadata={'purpose': 'output'},
                     )
                 ),
                 Part(root=TextPart(text='world')),
@@ -150,7 +149,7 @@ def test_inject_instructions_short_circuit() -> None:
                     Part(
                         root=TextPart(
                             text='previously injected',
-                            metadata=Metadata(root={'purpose': 'output'}),
+                            metadata={'purpose': 'output'},
                         )
                     ),
                     Part(root=TextPart(text='world')),
@@ -175,7 +174,7 @@ def test_inject_instructions_short_circuit() -> None:
                 Part(
                     root=TextPart(
                         text='previously injected',
-                        metadata=Metadata(root={'purpose': 'output'}),
+                        metadata={'purpose': 'output'},
                     )
                 ),
                 Part(root=TextPart(text='world')),

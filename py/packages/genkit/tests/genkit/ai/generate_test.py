@@ -28,7 +28,6 @@ from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptions,
-    Metadata,
     Part,
     Role,
     TextPart,
@@ -138,7 +137,7 @@ async def test_simulates_doc_grounding(
             Part(
                 root=TextPart(
                     text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
-                    metadata=Metadata(root={'purpose': 'context'}),
+                    metadata={'purpose': 'context'},
                 )
             ),
         ],

@@ -14,7 +14,6 @@ from genkit._core._typing import (
     DocumentPart,
     Media,
     MediaPart,
-    Metadata,
     Part,
     TextPart,
     ToolRequest,
@@ -305,7 +304,7 @@ def test_response_wrapper_interrupts() -> None:
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
-                        metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
+                        metadata={'interrupt': {'banana': 'yes'}},
                     )
                 ),
                 Part(root=TextPart(text='bar')),
@@ -324,7 +323,7 @@ def test_response_wrapper_interrupts() -> None:
     assert wrapper.interrupts == [
         ToolRequestPart(
             tool_request=ToolRequest(name='tool2', input={'bcd': 4}),
-            metadata=Metadata(root={'interrupt': {'banana': 'yes'}}),
+            metadata={'interrupt': {'banana': 'yes'}},
         )
     ]
 
