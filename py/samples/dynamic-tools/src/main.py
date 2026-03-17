@@ -16,7 +16,6 @@
 
 """Dynamic tools - create tools at runtime and trace plain functions."""
 
-import asyncio
 import os
 
 from pydantic import BaseModel, Field
@@ -70,9 +69,10 @@ async def run_step_demo(input: RunStepInput) -> dict[str, int | str]:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
+    """Run both dynamic tool demos once."""
 
-    await asyncio.Event().wait()
+    print(await dynamic_tool_demo(DynamicToolInput()))  # noqa: T201
+    print(await run_step_demo(RunStepInput()))  # noqa: T201
 
 
 if __name__ == '__main__':

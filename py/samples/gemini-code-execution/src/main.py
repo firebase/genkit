@@ -16,7 +16,6 @@
 
 """Code execution - let Gemini write and run Python for a task."""
 
-import asyncio
 import os
 
 from pydantic import BaseModel, Field
@@ -50,9 +49,12 @@ async def execute_code(input: CodeExecutionInput) -> Message:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the code execution sample once."""
+    try:
+        message = await execute_code(CodeExecutionInput())
+        print(message.model_dump_json(indent=2))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

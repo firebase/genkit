@@ -16,7 +16,6 @@
 
 """Middleware - inspect or modify requests before they reach the model."""
 
-import asyncio
 import os
 from collections.abc import Awaitable, Callable
 
@@ -84,9 +83,12 @@ async def request_modifier_demo(input: PromptInput) -> str:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run both middleware demos once."""
+    try:
+        print(await logging_demo(PromptInput()))  # noqa: T201
+        print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

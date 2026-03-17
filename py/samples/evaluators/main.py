@@ -13,7 +13,6 @@
 
 """Custom evaluators sample: one regex evaluator and one LLM judge."""
 
-import asyncio
 import os
 import re
 from typing import Literal
@@ -25,7 +24,7 @@ from genkit._core._typing import BaseDataPoint, Details, EvalFnResponse, Score
 from genkit.plugins.google_genai import GoogleAI
 
 JUDGE = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.0-flash')
-ai = Genkit(plugins=[GoogleAI()], model=JUDGE)
+ai = Genkit(plugins=[GoogleAI()], model=JUDGE) if os.getenv('GEMINI_API_KEY') else Genkit()
 
 # --- Regex evaluator (no LLM) ---
 
@@ -63,6 +62,8 @@ class DeliciousnessScore(BaseModel):
 
 
 async def _deliciousness_eval(datapoint: BaseDataPoint, _options=None) -> EvalFnResponse:
+    if not os.getenv('GEMINI_API_KEY'):
+        raise ValueError('Set GEMINI_API_KEY to run the LLM-as-judge evaluator.')
     if not datapoint.output:
         raise ValueError('Output required')
     response = await ai.generate(
@@ -86,9 +87,15 @@ ai.define_evaluator(
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
+    """Run the regex evaluator once with a demo datapoint."""
 
-    await asyncio.Event().wait()
+    datapoint = BaseDataPoint(
+        input='Check whether the output contains a URL.',
+        output='Visit https://firebase.google.com for details.',
+        test_case_id='demo',
+    )
+    result = await _regex_eval(re.compile(r'https?://[^\s]+'))(datapoint)
+    print(result.model_dump_json(indent=2))  # noqa: T201
 
 
 if __name__ == '__main__':

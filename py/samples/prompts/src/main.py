@@ -16,7 +16,6 @@
 
 """Prompts - load `.prompt` files, helpers, variants, and streaming."""
 
-import asyncio
 import os
 from pathlib import Path
 
@@ -71,7 +70,7 @@ class ChefInput(BaseModel):
     food: str = Field(default='banana bread', description='The food to create a recipe for')
 
 
-@ai.flow(name='chef_flow')
+@ai.flow(name='generate_recipe')
 async def chef_flow(input: ChefInput) -> Recipe:
     """Call the default `recipe.prompt` template."""
 
@@ -81,7 +80,7 @@ async def chef_flow(input: ChefInput) -> Recipe:
     return Recipe.model_validate(response.output)
 
 
-@ai.flow(name='robot_chef_flow')
+@ai.flow(name='generate_robot_recipe')
 async def robot_chef_flow(input: ChefInput) -> Recipe:
     """Call the `robot` variant of the same prompt."""
 
@@ -112,9 +111,12 @@ async def tell_story(input: StoryInput, ctx: ActionRunContext) -> str:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the prompt demos once."""
+    try:
+        print(await chef_flow(ChefInput()))  # noqa: T201
+        print(await robot_chef_flow(ChefInput()))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

@@ -14,7 +14,6 @@
 
 """Output formats - text, enum, JSON object, array, and JSONL."""
 
-import asyncio
 import os
 from typing import Any, cast
 
@@ -138,9 +137,15 @@ async def create_story_characters_jsonl(input: ThemeInput) -> list[dict[str, obj
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run each output-format example once."""
+    try:
+        print(await generate_haiku_text(HaikuInput()))  # noqa: T201
+        print(await classify_sentiment_enum(ReviewInput()))  # noqa: T201
+        print(await get_country_info_json(CountryInput()))  # noqa: T201
+        print(await recommend_books_array(GenreInput()))  # noqa: T201
+        print(await create_story_characters_jsonl(ThemeInput()))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

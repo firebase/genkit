@@ -16,7 +16,6 @@
 
 """Vertex AI Imagen - generate an image from a prompt."""
 
-import asyncio
 import os
 
 from genkit import Genkit, ModelResponse
@@ -55,9 +54,13 @@ async def draw_image_with_imagen() -> ModelResponse:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the Imagen sample once."""
+    try:
+        response = await draw_image_with_imagen()
+        print(response.model_dump_json(indent=2))  # noqa: T201
+    except Exception as error:
+        message = 'Set GOOGLE_CLOUD_PROJECT and Application Default Credentials before running this sample directly.'
+        print(f'{message}\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

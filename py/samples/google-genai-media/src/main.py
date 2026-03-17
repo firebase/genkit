@@ -72,7 +72,7 @@ def _first_media_url(response: Any) -> str | None:
     return None
 
 
-@ai.flow(name='tts_speech_generator')
+@ai.flow(name='generate_speech')
 async def tts_speech_generator(input: SpeechInput) -> dict[str, str | None]:
     """Turn text into speech with one TTS call."""
 
@@ -84,7 +84,7 @@ async def tts_speech_generator(input: SpeechInput) -> dict[str, str | None]:
     return {'model': 'googleai/gemini-2.5-flash-preview-tts', 'audio_url': _first_media_url(response)}
 
 
-@ai.flow(name='imagen_image_generator')
+@ai.flow(name='generate_image')
 async def imagen_image_generator(input: ImageInput) -> dict[str, str | None]:
     """Generate one image with Imagen."""
 
@@ -112,7 +112,7 @@ async def _poll_video(operation: Operation) -> Operation:
     return operation
 
 
-@ai.flow(name='veo_video_generator')
+@ai.flow(name='generate_video')
 async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
     """Generate one video by starting and polling a background model."""
 
@@ -147,9 +147,12 @@ async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the fast media demos once."""
+    try:
+        print(await tts_speech_generator(SpeechInput()))  # noqa: T201
+        print(await imagen_image_generator(ImageInput()))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

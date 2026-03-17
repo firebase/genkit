@@ -2,6 +2,16 @@
 
 These samples are intentionally small and beginner-oriented. Each one tries to show one idea clearly instead of packing in every possible feature.
 
+To run the default example once:
+
+```bash
+cd py/samples/<sample-name>
+uv sync
+uv run src/main.py
+```
+
+To open the Dev UI and run flows interactively:
+
 ```bash
 cd py/samples/<sample-name>
 uv sync

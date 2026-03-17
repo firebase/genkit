@@ -1,11 +1,15 @@
 # Output Formats
 
-Constrain model output: text, JSON, arrays, enums, JSONL. Use `ai.generate(..., output=Format(...))`.
+Constrain model output to text, enums, JSON objects, arrays, or JSONL.
 
 ```bash
 export GEMINI_API_KEY=your-api-key
 uv sync
-genkit start -- uv run src/main.py
+uv run src/main.py
 ```
 
-Dev UI at http://localhost:4000.
+To inspect the flows in Dev UI instead:
+
+```bash
+genkit start -- uv run src/main.py
+```

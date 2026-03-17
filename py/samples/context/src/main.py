@@ -16,7 +16,6 @@
 
 """Context - pass request data through `generate()`, flows, and tools."""
 
-import asyncio
 import os
 
 from pydantic import BaseModel, Field
@@ -112,9 +111,12 @@ async def context_propagation_chain(input: ContextInput) -> str:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the context demos once."""
+    try:
+        print(await context_in_generate(ContextInput()))  # noqa: T201
+        print(await context_propagation_chain(ContextInput()))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

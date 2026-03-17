@@ -70,3 +70,7 @@ async def say_hi(
         if ctx is not None and chunk.text:
             ctx.send_chunk(chunk.text)
     return await stream_response.response
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)  # noqa: S104

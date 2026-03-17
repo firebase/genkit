@@ -5,7 +5,11 @@ Gemini runs Python server-side to solve problems (math, data analysis, etc.).
 ```bash
 export GEMINI_API_KEY=your-api-key
 uv sync
-genkit start -- uv run src/main.py
+uv run src/main.py
 ```
 
-Dev UI at http://localhost:4000.
+To run it from Dev UI instead:
+
+```bash
+genkit start -- uv run src/main.py
+```

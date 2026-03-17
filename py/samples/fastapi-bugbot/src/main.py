@@ -118,21 +118,21 @@ app = FastAPI(title='BugBot', description='AI-powered code review API')
 
 
 @app.post('/review')
-async def review(code: str, language: str = 'python') -> Analysis:
+async def review(input: CodeInput) -> Analysis:
     """Review code for security, bugs, and style issues."""
-    return await review_code(CodeInput(code=code, language=language))
+    return await review_code(input)
 
 
 @app.post('/review/security')
-async def review_security_endpoint(code: str, language: str = 'python') -> Analysis:
+async def review_security_endpoint(input: CodeInput) -> Analysis:
     """Review code for security issues only."""
-    return await analyze_security(CodeInput(code=code, language=language))
+    return await analyze_security(input)
 
 
 @app.post('/review/diff')
-async def review_diff_endpoint(diff: str, context: str = '') -> Analysis:
+async def review_diff_endpoint(input: DiffInput) -> Analysis:
     """Review a code diff."""
-    return await review_diff(DiffInput(diff=diff, context=context))
+    return await review_diff(input)
 
 
 @app.post('/flow/review', response_model=None)

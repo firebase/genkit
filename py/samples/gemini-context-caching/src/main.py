@@ -16,7 +16,6 @@
 
 """Context caching - reuse a large source document across follow-up prompts."""
 
-import asyncio
 import os
 import pathlib
 
@@ -55,7 +54,7 @@ async def _load_text(path: str) -> str:
     return pathlib.Path(path).read_text(encoding='utf-8')
 
 
-@ai.flow(name='text_context_flow')
+@ai.flow(name='ask_about_cached_document')
 async def text_context_flow(input: CachedTextInput) -> str:
     """Cache a large text once, then ask a follow-up question against the same history."""
 
@@ -76,9 +75,11 @@ async def text_context_flow(input: CachedTextInput) -> str:
 
 
 async def main() -> None:
-    """Keep the sample process alive for Dev UI."""
-
-    await asyncio.Event().wait()
+    """Run the context caching sample once."""
+    try:
+        print(await text_context_flow(CachedTextInput()))  # noqa: T201
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':

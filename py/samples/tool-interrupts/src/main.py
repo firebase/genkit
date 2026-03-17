@@ -84,40 +84,34 @@ async def main() -> None:
     """Dev mode: return immediately; run_main keeps Dev UI alive. Standalone: interactive trivia CLI."""
     if os.environ.get('GENKIT_ENV') == 'dev':
         return
-
-    response = await ai.generate(
-        prompt='You are a trivia game host. Cheerfully greet the user when they '
-        + 'first join and ank them to for the theme of the trivia game, suggest '
-        + "a few theme options, they don't have to use your suggestion, feel free "
-        + 'to be silly. When they user us ready, call '
-        + '`present_questions` tool with questions and the tools will present '
-        + 'the questions in a nice UI. The user will pick an answer and then you '
-        + 'tell them if they were right or wrong. Be dramatic (but terse)! It is a '
-        + 'show!\n\n[user joined the game]',
-    )
-    messages = response.messages
-    while True:
+    try:
         response = await ai.generate(
-            messages=messages,
-            prompt=input('Say: '),
-            tools=['present_questions'],
+            prompt='You are a trivia game host. Cheerfully greet the user when they '
+            + 'first join and ask them for the theme of the trivia game. Suggest '
+            + "a few theme options, but they do not have to use them. When the user is ready, call "
+            + '`present_questions` so the UI can show the question and answers. '
+            + 'After the user answers, tell them if they were right or wrong. Be dramatic but brief.\n\n'
+            + '[user joined the game]',
         )
         messages = response.messages
-        if len(response.interrupts) > 0:
-            request = response.interrupts[0]
-            input_data = request.tool_request.input
-            if input_data:
-                i = 1
-                for _question in input_data.get('answers', []):
-                    i += 1
-
-            tr = tool_response(request, input('Your answer (number): '))
+        while True:
             response = await ai.generate(
                 messages=messages,
-                tool_responses=[tr],
+                prompt=input('Say: '),
                 tools=['present_questions'],
             )
             messages = response.messages
+            if len(response.interrupts) > 0:
+                request = response.interrupts[0]
+                tr = tool_response(request, input('Your answer (number): '))
+                response = await ai.generate(
+                    messages=messages,
+                    tool_responses=[tr],
+                    tools=['present_questions'],
+                )
+                messages = response.messages
+    except Exception as error:
+        print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 
 
 if __name__ == '__main__':
