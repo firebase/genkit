@@ -26,9 +26,8 @@ if not os.environ.get('GEMINI_API_KEY'):
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.0-flash')
 
 
-@ai.flow(name='trace_steps_live')
-async def realtime_demo(topic: str = 'Python') -> str:
-    """Multi-step flow: watch spans appear in DevUI as each step starts."""
+async def _run_realtime_demo(topic: str) -> str:
+    """Shared tracing demo implementation for the flow and direct CLI run."""
 
     async def research() -> str:
         await asyncio.sleep(2)
@@ -44,10 +43,17 @@ async def realtime_demo(topic: str = 'Python') -> str:
     return f'{step1} → {step2} → {response.text}'
 
 
+@ai.flow(name='trace_steps_live')
+async def realtime_demo(topic: str = 'Python') -> str:
+    """Multi-step flow: watch spans appear in DevUI as each step starts."""
+
+    return await _run_realtime_demo(topic)
+
+
 async def main() -> None:
     """Run the tracing demo once."""
     try:
-        print(await realtime_demo('Python'))  # noqa: T201
+        print(await _run_realtime_demo('Python'))  # noqa: T201
     except Exception as error:
         print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
 

@@ -123,9 +123,10 @@ async def veo_video_generator(input: VideoInput) -> dict[str, str | int | None]:
     operation = await action.start(
         ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=input.prompt))])],
-            config=ModelConfig.model_validate(
-                {'aspect_ratio': input.aspect_ratio, 'duration_seconds': input.duration_seconds}
-            ),
+            config=ModelConfig.model_validate({
+                'aspect_ratio': input.aspect_ratio,
+                'duration_seconds': input.duration_seconds,
+            }),
         )
     )
     operation = await _poll_video(operation)

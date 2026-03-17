@@ -88,7 +88,7 @@ async def main() -> None:
         response = await ai.generate(
             prompt='You are a trivia game host. Cheerfully greet the user when they '
             + 'first join and ask them for the theme of the trivia game. Suggest '
-            + "a few theme options, but they do not have to use them. When the user is ready, call "
+            + 'a few theme options, but they do not have to use them. When the user is ready, call '
             + '`present_questions` so the UI can show the question and answers. '
             + 'After the user answers, tell them if they were right or wrong. Be dramatic but brief.\n\n'
             + '[user joined the game]',

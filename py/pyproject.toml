@@ -482,32 +482,6 @@ project_excludes = [
   "testapps",
   "tools/model-config-test/**/*.py",
 ]
-project_includes = [
-  # Core package (source and tests)
-  "packages/genkit/src/**/*.py",
-  "packages/genkit/tests/**/*.py",
-  # Plugins (source and tests)
-  "plugins/*/src/**/*.py",
-  "plugins/*/tests/**/*.py",
-  # Samples
-  "samples/context/src/**/*.py",
-  "samples/dynamic-tools/src/**/*.py",
-  "samples/evaluators/**/*.py",
-  "samples/fastapi-bugbot/src/**/*.py",
-  "samples/flask-hello/src/**/*.py",
-  "samples/gemini-code-execution/src/**/*.py",
-  "samples/gemini-context-caching/src/**/*.py",
-  "samples/google-genai-media/src/**/*.py",
-  "samples/middleware/src/**/*.py",
-  "samples/output-formats/src/**/*.py",
-  "samples/prompts/src/**/*.py",
-  "samples/tool-interrupts/src/**/*.py",
-  "samples/tracing/src/**/*.py",
-  "samples/vertexai-imagen/src/**/*.py",
-  # Tools
-  "tools/conform/src/**/*.py",
-]
-
 # Search path for first-party code import resolution.
 # The project root "." covers all packages. Additional paths are needed for:
 # - tools/model-config-test: has `model_performance_test` module for imports
