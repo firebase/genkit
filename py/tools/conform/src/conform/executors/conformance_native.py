@@ -180,11 +180,6 @@ async def handle_request(
             else:
                 non_system_messages.append(msg)
 
-        # Build output config.
-        output_obj: OutputConfig | None = None
-        if output_config:
-            output_obj = OutputConfig.model_validate(output_config)
-
         # Register ephemeral tools.
         tool_names: list[str] | None = None
         if tools_defs:
@@ -195,10 +190,13 @@ async def handle_request(
                 _register_ephemeral_tool(ai, t_name, tdef)
 
         # Expand OutputConfig to individual params for generate/generate_stream
+        output_obj: OutputConfig | None = None
+        if output_config:
+            output_obj = OutputConfig.model_validate(output_config)
         output_kwargs: dict[str, Any] = {}
         if output_obj:
             output_kwargs['output_format'] = output_obj.format
-            output_kwargs['output_schema'] = output_obj.schema
+            output_kwargs['output_schema'] = output_obj.schema_
             output_kwargs['output_content_type'] = output_obj.content_type
             output_kwargs['output_constrained'] = output_obj.constrained
 

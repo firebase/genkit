@@ -113,7 +113,7 @@ class Message(MessageData):
     @cached_property
     def interrupts(self) -> list[ToolRequestPart]:
         """Tool requests marked as interrupted."""
-        return [p for p in self.tool_requests if p.metadata and p.metadata.root.get('interrupt')]
+        return [p for p in self.tool_requests if p.metadata and p.metadata.get('interrupt')]
 
 
 _TEXT_DATA_TYPE: str = 'text'

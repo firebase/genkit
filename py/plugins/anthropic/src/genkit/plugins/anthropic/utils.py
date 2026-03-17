@@ -112,9 +112,6 @@ def get_cache_control(part: Any) -> dict[str, str] | None:  # noqa: ANN401
     ``metadata.cache_control``, it is passed through to the
     Anthropic API as cache control configuration.
 
-    ``Metadata`` is a Pydantic ``RootModel[dict[str, Any]]``, so the
-    underlying dict is accessed via ``.root``.
-
     Supported format::
 
         Part(root=TextPart(text='...', metadata={'cache_control': {'type': 'ephemeral'}}))
@@ -126,15 +123,10 @@ def get_cache_control(part: Any) -> dict[str, str] | None:  # noqa: ANN401
         Cache control dict (e.g. ``{'type': 'ephemeral'}``) or None.
     """
     metadata = getattr(part, 'metadata', None)
-    if metadata is None:
+    if not isinstance(metadata, dict):
         return None
 
-    # Metadata is a RootModel[dict[str, Any]] — unwrap the root dict.
-    meta_dict = metadata.root if hasattr(metadata, 'root') else metadata
-    if not isinstance(meta_dict, dict):
-        return None
-
-    cache_ctrl = meta_dict.get('cache_control')
+    cache_ctrl = metadata.get('cache_control')
     if cache_ctrl and isinstance(cache_ctrl, dict):
         return cache_ctrl
     return None

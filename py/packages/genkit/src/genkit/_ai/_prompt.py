@@ -694,7 +694,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     output_config = OutputConfig(
         content_type=options.output.content_type if options.output else None,
         format=options.output.format if options.output else None,
-        schema=options.output.json_schema if options.output else None,
+        schema_=options.output.json_schema if options.output else None,
         constrained=options.output.constrained if options.output else None,
     )
     return ModelRequest(
@@ -705,7 +705,7 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
         tools=tool_defs,
         tool_choice=options.tool_choice,
         output_format=output_config.format,
-        output_schema=output_config.schema,
+        output_schema=output_config.schema_,
         output_constrained=output_config.constrained,
         output_content_type=output_config.content_type,
     )

@@ -39,7 +39,6 @@ from genkit._core._typing import (
     EvalRequest,
     EvalResponse,
     FinishReason,
-    Metadata,
     ModelInfo,
     Part,
     Role,
@@ -472,13 +471,13 @@ async def test_generate_with_interrupting_tools(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                        metadata=Metadata(root={'interrupt': {'banana': 'yes please'}}),
+                        metadata={'interrupt': {'banana': 'yes please'}},
                     )
                 ),
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata=Metadata(root={'pendingOutput': 12}),
+                        metadata={'pendingOutput': 12},
                     )
                 ),
             ],
@@ -544,14 +543,14 @@ async def test_generate_with_interrupt_respond(
         Part(
             root=ToolRequestPart(
                 tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                metadata=Metadata(root={'interrupt': {'banana': 'yes please'}}),
-            )
+                metadata={'interrupt': {'banana': 'yes please'}},
+            ),
         ).root,
         Part(
             root=ToolRequestPart(
                 tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                metadata=Metadata(root={'pendingOutput': 12}),
-            )
+                metadata={'pendingOutput': 12},
+            ),
         ).root,
     ]
 
@@ -567,13 +566,13 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                        metadata=Metadata(root={'interrupt': {'banana': 'yes please'}}),
+                        metadata={'interrupt': {'banana': 'yes please'}},
                     )
                 ),
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata=Metadata(root={'pendingOutput': 12}),
+                        metadata={'pendingOutput': 12},
                     )
                 ),
             ],
@@ -601,13 +600,13 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
-                        metadata=Metadata(root={'resolvedInterrupt': {'banana': 'yes please'}}),
+                        metadata={'resolvedInterrupt': {'banana': 'yes please'}},
                     )
                 ),
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata=Metadata(root={'pendingOutput': 12}),
+                        metadata={'pendingOutput': 12},
                     )
                 ),
             ],
@@ -619,13 +618,13 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolResponsePart(
                         tool_response=ToolResponse(ref='123', name='test_interrupt', output={'bar': 2}),
-                        metadata=Metadata(root={'interruptResponse': True}),
+                        metadata={'interruptResponse': True},
                     )
                 ),
                 Part(
                     root=ToolResponsePart(
                         tool_response=ToolResponse(ref='234', name='test_tool', output=12),
-                        metadata=Metadata(root={'source': 'pending'}),
+                        metadata={'source': 'pending'},
                     )
                 ),
             ],
@@ -1146,7 +1145,7 @@ async def test_generate_json_format_unconstrained_with_instructions(
                     Part(
                         root=TextPart(
                             text=instructions_text,
-                            metadata=Metadata(root={'purpose': 'output'}),
+                            metadata={'purpose': 'output'},
                         )
                     ),
                 ],
@@ -1212,7 +1211,7 @@ async def test_generate_simulates_doc_grounding(
             Part(
                 root=TextPart(
                     text='\n\nUse the following information to complete your task:' + '\n\n- [0]: doc content 1\n\n',
-                    metadata=Metadata(root={'purpose': 'context'}),
+                    metadata={'purpose': 'context'},
                 )
             ),
         ],
@@ -1346,7 +1345,7 @@ async def test_define_format(setup_test: SetupFixture) -> None:
                                 '{"type": "null"}], "default": null, "description": "bar field", '
                                 '"title": "Bar"}}, "title": "TestSchema", "type": "object"}'
                             ),
-                            metadata=Metadata(root={'purpose': 'output'}),
+                            metadata={'purpose': 'output'},
                         )
                     ),
                 ],

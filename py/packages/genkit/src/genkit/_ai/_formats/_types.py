@@ -24,19 +24,19 @@ from genkit._ai._model import (
     Message,
     ModelResponseChunk,
 )
-from genkit._core._typing import (
-    OutputConfig,
-)
+from genkit._core._base import GenkitModel
 
 
-class FormatterConfig(OutputConfig):
-    """Defines configuration options specific to formatters.
+class FormatterConfig(GenkitModel):
+    """SDK configuration for output formatters (format, content_type, etc.).
 
-    Inherits common output configuration from OutputConfig and adds
-    formatter-specific settings like `default_instructions`.
+    Used by format definitions (json, array, enum, etc.) - not the schema type.
     """
 
-    default_instructions: bool | None = None
+    format: str | None = None
+    content_type: str | None = None
+    constrained: bool | None = None
+    default_instructions: bool | str | None = None
 
 
 OutputT = TypeVar('OutputT')

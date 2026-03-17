@@ -37,6 +37,6 @@
     "@types/wav": "^1.0.4",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3"
   }
 }
