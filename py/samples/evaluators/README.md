@@ -8,7 +8,7 @@ Demonstrates two custom evaluator patterns:
 Run the file once to see the regex evaluator shape:
 
 ```bash
-uv run main.py
+uv run src/main.py
 ```
 
 To run full Genkit evaluations:

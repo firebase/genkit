@@ -18,8 +18,6 @@ uv sync
 genkit start -- uv run src/main.py
 ```
 
-`evaluators` uses `main.py` at the sample root. The rest use `src/main.py`.
-
 Dev UI: http://localhost:4000. Most samples need `GEMINI_API_KEY`. See [plugins/README.md](../plugins/README.md) for provider setup.
 
 ## Samples
