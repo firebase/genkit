@@ -111,7 +111,26 @@ export {
   type GeminiVersionString,
 };
 
+function warnDeprecated() {
+  console.error(
+    `\n\x1b[41m\x1b[37m\x1b[1m  DEPRECATION WARNING  \x1b[0m\n` +
+      `\x1b[31mThe \x1b[1m@genkit-ai/vertexai\x1b[0m\x1b[31m plugin is deprecated and will be REMOVED in a future release.\x1b[0m\n` +
+      `\x1b[33m👉 Please migrate to \x1b[1m@genkit-ai/google-genai\x1b[0m\x1b[33m to avoid breaking changes.\x1b[0m\n` +
+      `\x1b[90mDocs: https://genkit.dev/docs/js/integrations/vertex-ai/ \x1b[0m\n`
+  );
+}
+
 async function initializer(ai: Genkit, options?: PluginOptions) {
+  warnDeprecated();
+  if (options?.location === 'global') {
+    // Not a breaking change, it already doesn't work.
+    throw new Error(
+      'The vertexAI plugin in the `@genkit-ai/vertexai` package is deprecated and does not support global models.\n' +
+        "Please switch to `import { vertexAI } from '@genkit-ai/google-genai';` for the latest models and features.\n" +
+        "Models can be specified as e.g. `vertexAI.model('gemini-3.1-pro-preview')`\n" +
+        'Note that the deprecation only applies to the vertexAI plugin. The other plugins in this package are still current.'
+    );
+  }
   const { projectId, location, vertexClientFactory, authClient } =
     await getDerivedParams(options);
 
@@ -165,7 +184,7 @@ async function resolver(
   actionName: string,
   options?: PluginOptions
 ) {
-  // TODO: also support other actions like 'embedder'
+  warnDeprecated();
   switch (actionType) {
     case 'model':
       await resolveModel(ai, actionName, options);
@@ -314,6 +333,7 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
   name: string,
   config?: any
 ): ModelReference<z.ZodTypeAny> => {
+  warnDeprecated();
   if (name.startsWith('imagen')) {
     return modelRef({
       name: `vertexai/${name}`,
@@ -331,6 +351,7 @@ vertexAI.embedder = (
   name: string,
   config?: VertexEmbeddingConfig
 ): EmbedderReference<typeof VertexEmbeddingConfigSchema> => {
+  warnDeprecated();
   return embedderRef({
     name: `vertexai/${name}`,
     config,
