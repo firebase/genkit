@@ -12,15 +12,13 @@ resolution-markers = [
 [manifest]
 members = [
     "conform",
-    "framework-context-demo",
-    "framework-custom-evaluators",
-    "framework-dynamic-tools-demo",
-    "framework-format-demo",
-    "framework-middleware-demo",
-    "framework-prompt-demo",
-    "framework-realtime-tracing-demo",
-    "framework-restaurant-demo",
-    "framework-tool-interrupts",
+    "context",
+    "dynamic-tools",
+    "evaluators",
+    "fastapi-bugbot",
+    "flask-hello",
+    "gemini-code-execution",
+    "gemini-context-caching",
     "genkit",
     "genkit-plugin-anthropic",
     "genkit-plugin-compat-oai",
@@ -32,18 +30,13 @@ members = [
     "genkit-plugin-vertex-ai",
     "genkit-tools-model-config-test",
     "genkit-workspace",
-    "provider-anthropic-hello",
-    "provider-compat-oai-hello",
-    "provider-google-genai-code-execution",
-    "provider-google-genai-context-caching",
-    "provider-google-genai-hello",
-    "provider-google-genai-media-models-demo",
-    "provider-google-genai-vertexai-hello",
-    "provider-google-genai-vertexai-image",
-    "provider-ollama-hello",
-    "provider-vertex-ai-model-garden",
-    "web-fastapi-bugbot",
-    "web-flask-hello",
+    "google-genai-media",
+    "middleware",
+    "output-formats",
+    "prompts",
+    "tool-interrupts",
+    "tracing",
+    "vertexai-imagen",
 ]
 overrides = [{ name = "werkzeug", specifier = ">=3.1.6" }]
 
@@ -699,6 +692,27 @@ requires-dist = [
 ]
 
 [[package]]
+name = "context"
+version = "0.2.0"
+source = { editable = "samples/context" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "coverage"
 version = "7.13.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1232,6 +1246,27 @@ wheels = [
 ]
 
 [[package]]
+name = "dynamic-tools"
+version = "0.2.0"
+source = { editable = "samples/dynamic-tools" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "email-validator"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1242,6 +1277,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
+]
+
+[[package]]
+name = "evaluators"
+version = "0.1.0"
+source = { editable = "samples/evaluators" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -1294,6 +1346,27 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi-bugbot"
+version = "0.2.0"
+source = { editable = "samples/fastapi-bugbot" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-fastapi" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "python-dotenv" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
+]
+
+[[package]]
 name = "fastjsonschema"
 version = "2.21.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1329,6 +1402,27 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-hello"
+version = "0.2.0"
+source = { editable = "samples/flask-hello" }
+dependencies = [
+    { name = "flask" },
+    { name = "genkit" },
+    { name = "genkit-plugin-flask" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "flask" },
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-flask", editable = "plugins/flask" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic" },
+]
+
+[[package]]
 name = "fqdn"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1338,51 +1432,15 @@ wheels = [
 ]
 
 [[package]]
-name = "framework-context-demo"
+name = "gemini-code-execution"
 version = "0.2.0"
-source = { editable = "samples/framework-context-demo" }
+source = { editable = "samples/gemini-code-execution" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
-    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-custom-evaluators"
-version = "0.1.0"
-source = { editable = "samples/framework-custom-evaluators" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
 ]
 
 [package.metadata]
@@ -1390,224 +1448,32 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
-name = "framework-dynamic-tools-demo"
+name = "gemini-context-caching"
 version = "0.2.0"
-source = { editable = "samples/framework-dynamic-tools-demo" }
+source = { editable = "samples/gemini-context-caching" }
 dependencies = [
     { name = "genkit" },
     { name = "genkit-plugin-google-genai" },
+    { name = "httpx" },
     { name = "pydantic" },
-    { name = "rich" },
     { name = "structlog" },
     { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-format-demo"
-version = "0.2.0"
-source = { editable = "samples/framework-format-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-middleware-demo"
-version = "0.2.0"
-source = { editable = "samples/framework-middleware-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-prompt-demo"
-version = "0.1.0"
-source = { editable = "samples/framework-prompt-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "httpx" },
     { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-realtime-tracing-demo"
-version = "0.2.0"
-source = { editable = "samples/framework-realtime-tracing-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-restaurant-demo"
-version = "0.2.0"
-source = { editable = "samples/framework-restaurant-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-ollama" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "framework-tool-interrupts"
-version = "0.2.0"
-source = { editable = "samples/framework-tool-interrupts" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "genkit"
@@ -2364,6 +2230,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/46/d7/07ec5dadd0741f09e89f3ff5f0ce051ce2aa3a76797699d661dc88def077/google_genai-1.63.0.tar.gz", hash = "sha256:dc76cab810932df33cbec6c7ef3ce1538db5bef27aaf78df62ac38666c476294", size = 491970, upload-time = "2026-02-11T23:46:28.472Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/82/c8/ba32159e553fab787708c612cf0c3a899dafe7aca81115d841766e3bfe69/google_genai-1.63.0-py3-none-any.whl", hash = "sha256:6206c13fc20f332703ca7375bea7c191c82f95d6781c29936c6982d86599b359", size = 724747, upload-time = "2026-02-11T23:46:26.697Z" },
+]
+
+[[package]]
+name = "google-genai-media"
+version = "0.2.0"
+source = { editable = "samples/google-genai-media" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic" },
 ]
 
 [[package]]
@@ -3661,6 +3544,27 @@ wheels = [
 ]
 
 [[package]]
+name = "middleware"
+version = "0.2.0"
+source = { editable = "samples/middleware" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "structlog", specifier = ">=24.0.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "mistune"
 version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4587,6 +4491,27 @@ wheels = [
 ]
 
 [[package]]
+name = "output-formats"
+version = "0.2.0"
+source = { editable = "samples/output-formats" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "overrides"
 version = "7.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4961,6 +4886,27 @@ wheels = [
 ]
 
 [[package]]
+name = "prompts"
+version = "0.1.0"
+source = { editable = "samples/prompts" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "proto-plus"
 version = "1.27.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4986,306 +4932,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/53/a9443aa3ca9ba8724fdfa02dd1887c1bcd8e89556b715cfbacca6b63dbec/protobuf-6.33.5-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:cbf16ba3350fb7b889fca858fb215967792dc125b35c7976ca4818bee3521cf0", size = 323465, upload-time = "2026-01-29T21:51:28.925Z" },
     { url = "https://files.pythonhosted.org/packages/57/bf/2086963c69bdac3d7cff1cc7ff79b8ce5ea0bec6797a017e1be338a46248/protobuf-6.33.5-py3-none-any.whl", hash = "sha256:69915a973dd0f60f31a08b8318b73eab2bd6a392c79184b3612226b0a3f8ec02", size = 170687, upload-time = "2026-01-29T21:51:32.557Z" },
 ]
-
-[[package]]
-name = "provider-anthropic-hello"
-version = "0.2.0"
-source = { editable = "samples/provider-anthropic-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-anthropic" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-anthropic", editable = "plugins/anthropic" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-compat-oai-hello"
-version = "0.2.0"
-source = { editable = "samples/provider-compat-oai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-compat-oai" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-code-execution"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-code-execution" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-context-caching"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-context-caching" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-hello"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-media-models-demo"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-media-models-demo" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "rich" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-vertexai-hello"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-vertexai-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-google-genai-vertexai-image"
-version = "0.2.0"
-source = { editable = "samples/provider-google-genai-vertexai-image" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pillow" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-ollama-hello"
-version = "0.2.0"
-source = { editable = "samples/provider-ollama-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-ollama" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "structlog", specifier = ">=25.2.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "provider-vertex-ai-model-garden"
-version = "0.2.0"
-source = { editable = "samples/provider-vertex-ai-model-garden" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "pydantic" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "psutil"
@@ -6740,6 +6386,27 @@ wheels = [
 ]
 
 [[package]]
+name = "tool-interrupts"
+version = "0.2.0"
+source = { editable = "samples/tool-interrupts" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+    { name = "uvloop" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+    { name = "uvloop", specifier = ">=0.21.0" },
+]
+
+[[package]]
 name = "tornado"
 version = "6.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -6805,6 +6472,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/09/a9/6ba95a270c6f1fbcd8dac228323f2777d886cb206987444e4bce66338dd4/tqdm-4.67.3.tar.gz", hash = "sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb", size = 169598, upload-time = "2026-02-03T17:35:53.048Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/16/e1/3079a9ff9b8e11b846c6ac5c8b5bfb7ff225eee721825310c91b3b50304f/tqdm-4.67.3-py3-none-any.whl", hash = "sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf", size = 78374, upload-time = "2026-02-03T17:35:50.982Z" },
+]
+
+[[package]]
+name = "tracing"
+version = "0.2.0"
+source = { editable = "samples/tracing" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
 ]
 
 [[package]]
@@ -7049,6 +6731,25 @@ wheels = [
 ]
 
 [[package]]
+name = "vertexai-imagen"
+version = "0.2.0"
+source = { editable = "samples/vertexai-imagen" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pillow" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pillow" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
 name = "virtualenv"
 version = "20.36.1"
 source = { registry = "https://pypi.org/simple" }
@@ -7206,64 +6907,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/35/a2/8e3becb46433538a3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/68/5a/199c59e0a824a3db2b89c5d2dade7ab5f9624dbf6448dc291b46d5ec94d3/wcwidth-0.6.0-py3-none-any.whl", hash = "sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad", size = 94189, upload-time = "2026-02-06T19:19:39.646Z" },
 ]
-
-[[package]]
-name = "web-fastapi-bugbot"
-version = "0.2.0"
-source = { editable = "samples/web-fastapi-bugbot" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-fastapi" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "python-dotenv" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-fastapi", editable = "plugins/fastapi" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "web-flask-hello"
-version = "0.2.0"
-source = { editable = "samples/web-flask-hello" }
-dependencies = [
-    { name = "flask" },
-    { name = "genkit" },
-    { name = "genkit-plugin-flask" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "rich" },
-    { name = "uvloop" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "watchdog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "flask" },
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-flask", editable = "plugins/flask" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
-    { name = "watchdog", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "webcolors"

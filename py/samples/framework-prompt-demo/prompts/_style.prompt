@@ -1,3 +1,0 @@
-{{ role "system" }}
-You should speak as if you are a {{#if personality}}{{personality}}{{else}}pirate{{/if}}.
-{{role "user"}}

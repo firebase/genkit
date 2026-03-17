@@ -12,4 +12,5 @@ genkit start -- uv run src/main.py
 Open Dev UI at [http://localhost:4000](http://localhost:4000) and run:
 
 - `context_in_generate`
+- `context_in_flow`
 - `context_propagation_chain`

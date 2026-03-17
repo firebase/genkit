@@ -14,19 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Vertex AI Imagen - Generate images from text. See README.md."""
+"""Vertex AI Imagen - generate an image from a prompt."""
 
-import base64
+import asyncio
 import os
-from io import BytesIO
-
-from PIL import Image
 
 from genkit import Genkit, ModelResponse
 from genkit.plugins.google_genai import VertexAI
 
-# Check for GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT
-# If GOOGLE_CLOUD_PROJECT is set but GCLOUD_PROJECT isn't, use it
 if 'GCLOUD_PROJECT' not in os.environ:
     if 'GOOGLE_CLOUD_PROJECT' in os.environ:
         os.environ['GCLOUD_PROJECT'] = os.environ['GOOGLE_CLOUD_PROJECT']
@@ -60,7 +55,9 @@ async def draw_image_with_imagen() -> ModelResponse:
 
 
 async def main() -> None:
-    pass
+    """Keep the sample process alive for Dev UI."""
+
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

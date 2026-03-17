@@ -14,126 +14,71 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Context caching - Cache large docs for faster, cheaper follow-up queries. See README.md."""
+"""Context caching - reuse a large source document across follow-up prompts."""
 
+import asyncio
 import os
 import pathlib
 
 import httpx
-import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, Message, ModelConfig, Part, Role, TextPart
+from genkit import Genkit, Message, Part, Role, TextPart
 from genkit.plugins.google_genai import GoogleAI
 
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-pro-preview')
 
-
-ai = Genkit(
-    plugins=[GoogleAI()],
-    model='googleai/gemini-3-pro-preview',
-)
-
-
-# Tom Sawyer is taken as a sample book here
 DEFAULT_TEXT_FILE = 'https://www.gutenberg.org/cache/epub/74/pg74.txt'
-DEFAULT_QUERY = "What are Huck Finn's views on society, and how do they contrast with Tom’s"
 
 
-class BookContextInputSchema(BaseModel):
-    """Input for book context flow."""
+class CachedTextInput(BaseModel):
+    """Input for the context caching flow."""
 
-    query: str = Field(default=DEFAULT_QUERY, description='A question about the supplied text file')
-    text_file_path: str = Field(
-        default=DEFAULT_TEXT_FILE, description='Incoming reference to the text file (local or web)'
+    query: str = Field(
+        default='What do Tom Sawyer and Huck Finn value differently?',
+        description='Question to ask about the cached text',
     )
+    text_file_path: str = Field(default=DEFAULT_TEXT_FILE, description='Local path or URL for the source text')
+
+
+async def _load_text(path: str) -> str:
+    """Load text from either a URL or a local file."""
+
+    if path.startswith('http'):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(path)
+            response.raise_for_status()
+            return response.text
+    return pathlib.Path(path).read_text(encoding='utf-8')
 
 
 @ai.flow(name='text_context_flow')
-async def text_context_flow(_input: BookContextInputSchema) -> str:
-    """Flow demonstrating context caching.
+async def text_context_flow(input: CachedTextInput) -> str:
+    """Cache a large text once, then ask a follow-up question against the same history."""
 
-    Args:
-        _input: The input schema.
-
-    Returns:
-        The generated response.
-    """
-    logger.info(f'Starting flow with file: {_input.text_file_path}')
-
-    if _input.text_file_path.startswith('http'):
-        async with httpx.AsyncClient() as client:
-            res = await client.get(_input.text_file_path)
-            res.raise_for_status()
-            content_part = Part(root=TextPart(text=res.text))
-    else:
-        # Fallback for local text files
-        with pathlib.Path(_input.text_file_path).open(encoding='utf-8') as text_file:
-            content_part = Part(root=TextPart(text=text_file.read()))
-
-    llm_response = await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[content_part],
-            ),
-            Message(
-                role=Role.MODEL,
-                content=[Part(root=TextPart(text='Here is some analysis based on the text provided.'))],
-                metadata={
-                    'cache': {
-                        'ttl_seconds': 300,
-                    }
-                },
-            ),
-        ],
-        config=ModelConfig(
-            temperature=0.7,
-            max_output_tokens=1000,
-            top_k=50,
-            top_p=0.9,
-            stop_sequences=['END'],
+    source_text = await _load_text(input.text_file_path)
+    cached_history = [
+        Message(role=Role.USER, content=[Part(root=TextPart(text=source_text))]),
+        Message(
+            role=Role.MODEL,
+            content=[Part(root=TextPart(text='Source document cached for follow-up questions.'))],
+            metadata={'cache': {'ttl_seconds': 300}},
         ),
-        prompt=_input.query,
-        return_tool_requests=False,
-    )
+    ]
 
-    messages_history = llm_response.messages
+    answer = await ai.generate(messages=cached_history, prompt=input.query)
+    short_answer = await ai.generate(messages=answer.messages, prompt='Now answer again in one sentence.')
 
-    llm_response2 = await ai.generate(
-        messages=messages_history,
-        prompt=(
-            'Rewrite the previous summary as if a pirate wrote it. '
-            'Structure it exactly like this:\n'
-            '### 1. Section Name\n'
-            '*   **Key Concept:** Description...\n'
-            'Keep it concise, use pirate slang, but maintain the helpful advice.'
-        ),
-        config=ModelConfig(
-            version='gemini-3-flash-preview',
-            temperature=0.7,
-            max_output_tokens=1000,
-            top_k=50,
-            top_p=0.9,
-            stop_sequences=['END'],
-        ),
-    )
-
-    separator = '-' * 80
-    return (
-        f'{separator}\n'
-        f'### Standard Analysis\n\n{llm_response.text}\n\n'
-        f'{separator}\n'
-        f'### Pirate Version\n\n{llm_response2.text}\n'
-        f'{separator}'
-    )
+    return f'Answer:\n{answer.text}\n\nOne sentence version:\n{short_answer.text}'
 
 
 async def main() -> None:
-    pass
+    """Keep the sample process alive for Dev UI."""
+
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

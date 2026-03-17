@@ -45,7 +45,9 @@ async def realtime_demo(topic: str = 'Python') -> str:
 
 
 async def main() -> None:
-    pass
+    """Keep the sample process alive for Dev UI."""
+
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

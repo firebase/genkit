@@ -14,11 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Dynamic tools demo - ai.dynamic_tool() and ai.run() for runtime tools and traced sub-spans."""
+"""Dynamic tools - create tools at runtime and trace plain functions."""
 
+import asyncio
 import os
 
-import structlog
 from pydantic import BaseModel, Field
 
 from genkit import Genkit
@@ -27,131 +27,52 @@ from genkit.plugins.google_genai import GoogleAI
 if 'GEMINI_API_KEY' not in os.environ:
     os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
-logger = structlog.get_logger(__name__)
-
-ai = Genkit(
-    plugins=[GoogleAI()],
-    model='googleai/gemini-2.5-flash',
-)
+ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 
 
 class DynamicToolInput(BaseModel):
-    """Input for dynamic tool demo."""
+    """Input for runtime tool creation."""
 
-    value: int = Field(default=5, description='Value to pass to the dynamic tool')
+    value: int = Field(default=5, description='Value to square with a runtime tool')
 
 
 class RunStepInput(BaseModel):
-    """Input for run step demo."""
+    """Input for traced step demo."""
 
-    data: str = Field(default='hello world', description='Data to process in the traced step')
-
-
-class CombinedInput(BaseModel):
-    """Input for combined demo."""
-
-    input_val: str = Field(default='Dynamic tools demo', description='Input value for demo')
+    text: str = Field(default='hello dynamic tools', description='Text to process with traced steps')
 
 
 @ai.flow()
-async def dynamic_tool_demo(input: DynamicToolInput) -> dict[str, object]:
-    """Create and invoke a tool at runtime using ai.dynamic_tool().
+async def dynamic_tool_demo(input: DynamicToolInput) -> str:
+    """Create a tool at runtime and call it immediately."""
 
-    Unlike ``@ai.tool()`` which globally registers a tool, dynamic tools
-    are created on-the-fly and exist only for the current scope. They
-    can be called directly or passed to ``ai.generate(tools=[...])``.
+    async def square(value: int) -> int:
+        return value * value
 
-    Args:
-        input: Input with a value to pass to the dynamic tool.
-
-    Returns:
-        A dict containing the tool result and metadata.
-    """
-
-    def multiplier_fn(x: int) -> int:
-        return x * 10
-
-    dynamic_multiplier = ai.dynamic_tool(
-        name='dynamic_multiplier',
-        fn=multiplier_fn,
-        description='Multiplies input by 10',
-    )
-    result = await dynamic_multiplier.run(input.value)
-
-    return {
-        'input_value': input.value,
-        'tool_result': result.response,
-        'tool_name': dynamic_multiplier.metadata.get('name', 'unknown'),
-        'tool_metadata': dynamic_multiplier.metadata,
-    }
+    tool = ai.dynamic_tool(name='square', description='Square a number', fn=square)
+    result = await tool.run(input.value)
+    return f'{input.value} squared is {result.response}'
 
 
 @ai.flow()
-async def run_step_demo(input: RunStepInput) -> dict[str, str]:
-    """Wrap a plain function as a traceable step using ai.run().
+async def run_step_demo(input: RunStepInput) -> dict[str, int | str]:
+    """Wrap plain async functions in traceable `ai.run()` steps."""
 
-    ``ai.run(name=..., fn=...)`` creates a named sub-span in the trace.
-    The step's output is recorded and visible in the Dev UI trace viewer.
+    async def normalize() -> str:
+        return input.text.strip().lower()
 
-    Args:
-        input: Input with data to process.
+    async def count_words() -> int:
+        return len(normalized.split())
 
-    Returns:
-        A dict containing the original and processed data.
-    """
-
-    async def uppercase() -> str:
-        return input.data.upper()
-
-    async def reverse() -> str:
-        return step1[::-1]
-
-    step1 = await ai.run(name='uppercase_step', fn=uppercase)
-    step2 = await ai.run(name='reverse_step', fn=reverse)
-
-    return {
-        'original': input.data,
-        'after_uppercase': step1,
-        'after_reverse': step2,
-    }
-
-
-@ai.flow()
-async def combined_demo(input: CombinedInput) -> dict[str, object]:
-    """Combine ai.run() sub-spans with ai.dynamic_tool() in one flow.
-
-    This flow demonstrates using both features together:
-    1. ``ai.run()`` wraps a preprocessing function as a trace span.
-    2. ``ai.dynamic_tool()`` creates a scaler tool at runtime.
-    3. Both appear in the trace as inspectable steps.
-
-    Args:
-        input: Input with a value string.
-
-    Returns:
-        A dict with results from both the step and the dynamic tool.
-    """
-
-    async def preprocess() -> str:
-        return f'processed: {input.input_val}'
-
-    step_result = await ai.run(name='preprocess_step', fn=preprocess)
-
-    async def scale_fn(x: int) -> int:
-        return x * 10
-
-    scaler = ai.dynamic_tool(name='scaler', fn=scale_fn, description='Scales input by 10')
-    tool_result = await scaler.run(7)
-
-    return {
-        'step_result': step_result,
-        'tool_result': tool_result.response,
-        'tool_metadata': scaler.metadata,
-    }
+    normalized = await ai.run(name='normalize_text', fn=normalize)
+    word_count = await ai.run(name='count_words', fn=count_words)
+    return {'normalized': normalized, 'word_count': word_count}
 
 
 async def main() -> None:
-    pass
+    """Keep the sample process alive for Dev UI."""
+
+    await asyncio.Event().wait()
 
 
 if __name__ == '__main__':

@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Custom evaluators sample: regex-based and LLM-as-judge patterns."""
+"""Custom evaluators sample: one regex evaluator and one LLM judge."""
 
+import asyncio
 import os
 import re
 from typing import Literal
@@ -28,6 +29,7 @@ ai = Genkit(plugins=[GoogleAI()], model=JUDGE)
 
 # --- Regex evaluator (no LLM) ---
 
+
 def _regex_eval(pattern: re.Pattern[str]):
     async def fn(datapoint: BaseDataPoint, _options=None) -> EvalFnResponse:
         if not datapoint.output or not isinstance(datapoint.output, str):
@@ -40,7 +42,9 @@ def _regex_eval(pattern: re.Pattern[str]):
                 details=Details(reasoning=f'{"Matched" if matched else "No match"}: {pattern.pattern}'),
             ),
         )
+
     return fn
+
 
 ai.define_evaluator(
     name='byo/url',
@@ -52,9 +56,11 @@ ai.define_evaluator(
 
 # --- LLM-as-judge evaluator ---
 
+
 class DeliciousnessScore(BaseModel):
     verdict: Literal['yes', 'no', 'maybe']
     reason: str
+
 
 async def _deliciousness_eval(datapoint: BaseDataPoint, _options=None) -> EvalFnResponse:
     if not datapoint.output:
@@ -70,6 +76,7 @@ async def _deliciousness_eval(datapoint: BaseDataPoint, _options=None) -> EvalFn
         evaluation=Score(score=parsed.verdict, details=Details(reasoning=parsed.reason)),
     )
 
+
 ai.define_evaluator(
     name='byo/deliciousness',
     display_name='Deliciousness',
@@ -77,8 +84,12 @@ ai.define_evaluator(
     fn=_deliciousness_eval,
 )
 
+
 async def main() -> None:
-    pass
+    """Keep the sample process alive for Dev UI."""
+
+    await asyncio.Event().wait()
+
 
 if __name__ == '__main__':
     ai.run_main(main())
