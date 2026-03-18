@@ -16,15 +16,10 @@
 
 """Code execution - let Gemini write and run Python for a task."""
 
-import os
-
 from pydantic import BaseModel, Field
 
 from genkit import Genkit, Message
 from genkit.plugins.google_genai import GeminiConfigSchema, GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-pro-preview')
 

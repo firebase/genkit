@@ -14,16 +14,12 @@
 
 """Output formats - text, enum, JSON object, array, and JSONL."""
 
-import os
 from enum import Enum
 
 from pydantic import BaseModel, Field, TypeAdapter
 
 from genkit import Genkit
-from genkit.plugins.google_genai import GoogleAI  # pyright: ignore[reportMissingImports]
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
+from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(plugins=[GoogleAI(api_version='v1alpha')], model='googleai/gemini-3-flash-preview')
 

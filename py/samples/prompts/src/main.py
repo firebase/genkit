@@ -16,7 +16,6 @@
 
 """Prompts - load `.prompt` files, helpers, variants, and streaming."""
 
-import os
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -24,9 +23,6 @@ from pydantic import BaseModel, Field
 from genkit import Genkit
 from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(
     plugins=[GoogleAI()],

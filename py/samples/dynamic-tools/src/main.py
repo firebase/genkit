@@ -16,15 +16,10 @@
 
 """Dynamic tools - create tools at runtime and trace plain functions."""
 
-import os
-
 from pydantic import BaseModel, Field
 
 from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 

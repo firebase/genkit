@@ -9,19 +9,9 @@
 """Realtime tracing demo - spans appear in DevUI as they start, not when they end. See README.md."""
 
 import asyncio
-import os
-import sys
 
 from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
-
-if not os.environ.get('GEMINI_API_KEY'):
-    try:
-        os.environ['GEMINI_API_KEY'] = input('Enter your Gemini API key: ').strip()
-    except (EOFError, KeyboardInterrupt):
-        sys.exit(1)
-    if not os.environ['GEMINI_API_KEY']:
-        sys.exit(1)
 
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.0-flash')
 

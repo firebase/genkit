@@ -16,7 +16,6 @@
 
 """Middleware - inspect or modify requests before they reach the model."""
 
-import os
 from collections.abc import Awaitable, Callable
 
 import structlog
@@ -25,9 +24,6 @@ from pydantic import BaseModel, Field
 from genkit import Genkit, Message, ModelRequest, ModelResponse, Part, Role, TextPart
 from genkit._core._action import ActionRunContext
 from genkit.plugins.google_genai import GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 logger = structlog.get_logger(__name__)
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')

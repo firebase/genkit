@@ -17,7 +17,6 @@
 """Google GenAI media - one simple example each for speech, image, and video."""
 
 import asyncio
-import os
 import time
 from typing import Any
 
@@ -28,9 +27,6 @@ from genkit._core._background import lookup_background_action
 from genkit._core._typing import Operation, Part, Role, TextPart
 from genkit.model import Message, ModelRequest
 from genkit.plugins.google_genai import GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()])
 

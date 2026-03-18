@@ -16,7 +16,6 @@
 
 """Context caching - reuse a large source document across follow-up prompts."""
 
-import os
 import pathlib
 
 import httpx
@@ -24,9 +23,6 @@ from pydantic import BaseModel, Field
 
 from genkit import Genkit, Message, Part, Role, TextPart
 from genkit.plugins.google_genai import GoogleAI
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-3-pro-preview')
 

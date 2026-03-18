@@ -16,7 +16,6 @@
 
 """Flask + Genkit - Serve flows as HTTP endpoints. See README.md."""
 
-import os
 from typing import cast
 
 from flask import Flask
@@ -28,9 +27,6 @@ from genkit._core._context import RequestData
 from genkit.plugins.flask import genkit_flask_handler
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models.gemini import GoogleAIGeminiVersion
-
-if 'GEMINI_API_KEY' not in os.environ:
-    os.environ['GEMINI_API_KEY'] = input('Please enter your GEMINI_API_KEY: ')
 
 ai = Genkit(
     plugins=[GoogleAI()],
