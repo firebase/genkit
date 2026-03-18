@@ -40,21 +40,13 @@ jobs:
       - name: Pull latest & fetch tags
         run: git pull origin main && git fetch --tags
 
-      - name: Determine next RC version
-        id: rc
+      - name: Validate target version
         run: |
           TARGET="${{ inputs.target_version }}"
           if ! [[ "$TARGET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Error: target_version must be X.Y.Z (e.g., 0.6.0)"
             exit 1
           fi
-          EXISTING=$(git tag -l "py/v${TARGET}-rc.*" 2>/dev/null || true)
-          if [ -z "$EXISTING" ]; then RC_NUM=1; else
-            RC_NUM=$(($(echo "$EXISTING" | sed -n 's/.*-rc\.\([0-9]*\)$/\1/p' | sort -n | tail -1) + 1))
-          fi
-          CURRENT=$(grep '^version = ' py/packages/genkit/pyproject.toml | cut -d'"' -f2)
-          echo "new=${TARGET}-rc.${RC_NUM}" >> $GITHUB_OUTPUT
-          echo "cur=$CURRENT" >> $GITHUB_OUTPUT
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -62,17 +54,30 @@ jobs:
           python-version: "3.12"
           version: "0.6.6"
 
-      - name: Bump version & push
+      - name: Create release branch & bump version
+        id: rc
         run: |
           git config user.email "genkit-releaser@google.com" && git config user.name "genkit-releaser"
+          TARGET="${{ inputs.target_version }}"
+          BRANCH="release/py/${TARGET}"
+          if git show-ref --quiet "refs/remotes/origin/${BRANCH}"; then
+            git fetch origin "${BRANCH}" && git checkout -B "${BRANCH}" "origin/${BRANCH}"
+          else
+            git checkout -b "${BRANCH}"
+          fi
+          EXISTING=$(git tag -l "py/v${TARGET}-rc.*" 2>/dev/null || true)
+          if [ -z "$EXISTING" ]; then RC_NUM=1; else
+            RC_NUM=$(($(echo "$EXISTING" | sed -n 's/.*-rc\.\([0-9]*\)$/\1/p' | sort -n | tail -1) + 1))
+          fi
+          CUR=$(grep '^version = ' py/packages/genkit/pyproject.toml | cut -d'"' -f2)
+          NEW="${TARGET}-rc.${RC_NUM}"
+          echo "new=${NEW}" >> $GITHUB_OUTPUT
           cd py
-          CUR="${{ steps.rc.outputs.cur }}"
-          NEW="${{ steps.rc.outputs.new }}"
           for f in packages/genkit/pyproject.toml plugins/*/pyproject.toml; do
             [ -f "$f" ] && grep -q "version = \"$CUR\"" "$f" && sed -i "s/version = \"$CUR\"/version = \"$NEW\"/" "$f"
           done
           uv lock && cd ..
-          git add py/ && git commit -m "chore(py): bump version to $NEW" && git push origin main
+          git add py/ && git commit -m "chore(py): bump version to $NEW" && git push origin "${BRANCH}"
 
       - name: Create tag & GitHub release
         env:
