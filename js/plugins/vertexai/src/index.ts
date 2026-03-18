@@ -125,10 +125,10 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   if (options?.location === 'global') {
     // Not a breaking change, it already doesn't work.
     throw new Error(
-      'The vertexAI plugin in the `@genkit-ai/vertexai` package is deprecated and does not support global models.\n' +
-        "Please switch to `import { vertexAI } from '@genkit-ai/google-genai';` for the latest models and features.\n" +
-        "Models can be specified as e.g. `vertexAI.model('gemini-3.1-pro-preview')`\n" +
-        'Note that the deprecation only applies to the vertexAI plugin. The other plugins in this package are still current.'
+      'The vertexAI plugin in the @genkit-ai/vertexai package does not support global models.\n' +
+        'Support for global models is available in the new vertexAI plugin in the @genkit-ai/google-genai package.\n\n' +
+        'Please switch your import to use the latest features:\n' +
+        "  import { vertexAI } from '@genkit-ai/google-genai';\n\n"
     );
   }
   const { projectId, location, vertexClientFactory, authClient } =
