@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Release Python RC: Run workflow → enter target version (e.g. 0.5.2) → publishes 0.5.2-rc.1, 0.5.2-rc.2, etc.
+# Creates branch release/py/X.Y.Z-rc.N with bumped versions, pushes it, tags it. Publish workflow (tag-triggered) uses that branch.
 
 name: Release Python RC
 
@@ -32,22 +33,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Checkout main so we can branch from it. Token needed for push later.
       - uses: actions/checkout@v5
         with:
           token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           fetch-depth: 0
 
+      # Ensure we're on latest main and have tags (for RC numbering)
       - name: Pull latest & fetch tags
         run: git pull origin main && git fetch --tags
 
-      - name: Validate target version
-        run: |
-          TARGET="${{ inputs.target_version }}"
-          if ! [[ "$TARGET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: target_version must be X.Y.Z (e.g., 0.6.0)"
-            exit 1
-          fi
-
+      # uv used for uv lock after bump
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -57,29 +53,31 @@ jobs:
       - name: Create release branch & bump version
         id: rc
         run: |
-          git config user.email "genkit-releaser@google.com" && git config user.name "genkit-releaser"
+          set -e
           TARGET="${{ inputs.target_version }}"
-          BRANCH="release/py/${TARGET}"
-          if git show-ref --quiet "refs/remotes/origin/${BRANCH}"; then
-            git fetch origin "${BRANCH}" && git checkout -B "${BRANCH}" "origin/${BRANCH}"
-          else
-            git checkout -b "${BRANCH}"
-          fi
-          EXISTING=$(git tag -l "py/v${TARGET}-rc.*" 2>/dev/null || true)
-          if [ -z "$EXISTING" ]; then RC_NUM=1; else
-            RC_NUM=$(($(echo "$EXISTING" | sed -n 's/.*-rc\.\([0-9]*\)$/\1/p' | sort -n | tail -1) + 1))
-          fi
-          CUR=$(grep '^version = ' py/packages/genkit/pyproject.toml | cut -d'"' -f2)
+          [[ "$TARGET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Error: target_version must be X.Y.Z"; exit 1; }
+          # Next RC number: find highest existing py/v0.5.2-rc.N, add 1 (or 1 if none)
+          EXISTING=$(git tag -l "py/v${TARGET}-rc.*" 2>/dev/null | sed -n 's/.*-rc\.\([0-9]*\)$/\1/p' | sort -n | tail -1)
+          RC_NUM=$((${EXISTING:-0} + 1))
           NEW="${TARGET}-rc.${RC_NUM}"
+          BRANCH="release/py/${NEW}"
           echo "new=${NEW}" >> $GITHUB_OUTPUT
+          # Read current version from genkit; bump all packages that match
+          CUR=$(grep '^version = ' py/packages/genkit/pyproject.toml | cut -d'"' -f2)
+          git config user.email "genkit-releaser@google.com" && git config user.name "genkit-releaser"
+          git checkout -b "${BRANCH}"
           cd py
           for f in packages/genkit/pyproject.toml plugins/*/pyproject.toml; do
             [ -f "$f" ] && grep -q "version = \"$CUR\"" "$f" && sed -i "s/version = \"$CUR\"/version = \"$NEW\"/" "$f"
           done
           uv lock && cd ..
-          git add py/ && git commit -m "chore(py): bump version to $NEW" && git push origin "${BRANCH}"
+          git add py/
+          git diff --staged --quiet && { echo "::error::No version changes - $CUR may not match pyproject.toml files"; exit 1; }
+          git commit -m "chore(py): bump version to $NEW"
+          git push origin HEAD:"refs/heads/${BRANCH}"
 
+      # Tag points at our release branch so Publish Python (tag-triggered) checks out correct version
       - name: Create tag & GitHub release
         env:
           GH_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-        run: gh release create "py/v${{ steps.rc.outputs.new }}" --title "Genkit Python SDK v${{ steps.rc.outputs.new }}" --notes "Release candidate." --prerelease
+        run: gh release create "py/v${{ steps.rc.outputs.new }}" --target "release/py/${{ steps.rc.outputs.new }}" --title "Genkit Python SDK v${{ steps.rc.outputs.new }}" --notes "Release candidate." --prerelease
