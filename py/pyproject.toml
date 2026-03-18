@@ -28,7 +28,6 @@ dependencies = [
   "genkit-plugin-ollama",
   "genkit-plugin-vertex-ai",
   # Internal tools (private, not published)
-  "conform",
   "liccheck>=0.9.2",
   "setuptools>=75.0.0,<82",                   # Required by liccheck (provides pkg_resources, removed in setuptools 82+)
   "mcp>=1.25.0",
@@ -109,7 +108,6 @@ addopts = [
   "-ra",
   "-vv",
   "--ignore=testapps",
-  "--ignore=tools/conform/tests",
   "--import-mode=importlib",
 ]
 asyncio_default_fixture_loop_scope = "session"
@@ -187,14 +185,9 @@ genkit-plugin-google-cloud          = { workspace = true }
 genkit-plugin-google-genai          = { workspace = true }
 genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
-# Internal tools (private, not published)
-conform                        = { workspace = true }
-genkit-tools-model-config-test = { workspace = true }
-
 [tool.uv.workspace]
 exclude = ["*/shared", "testapps/*"]
-# tools/* would include schema_to_typing (script, no pyproject); list tools explicitly.
-members = ["packages/*", "plugins/*", "samples/*", "tools/conform", "tools/model-config-test"]
+members = ["packages/*", "plugins/*", "samples/*"]
 
 
 # Ruff checks and formatting.
@@ -412,8 +405,6 @@ root = [
   ".",                                     # For samples.shared imports
   "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
   "samples/framework-custom-evaluators",   # For custom evaluators sample imports
-  # Tools
-  "tools/conform/src",    # For conform package imports
 ]
 
 # Pyright type checking configuration.
@@ -440,8 +431,6 @@ extraPaths = [
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
   "samples/framework-custom-evaluators",
-  "tools/conform/src",
-  "tools/model-config-test",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -475,7 +464,6 @@ project_excludes = [
   "dist",
   "testapps",
   "testapps",
-  "tools/model-config-test/**/*.py",
 ]
 project_includes = [
   # Core package (source and tests)
@@ -487,21 +475,15 @@ project_includes = [
   # Samples
   "samples/*/src/**/*.py",
   "samples/*/tests/**/*.py",
-  # Tools
-  "tools/conform/src/**/*.py",
 ]
 
 # Search path for first-party code import resolution.
 # The project root "." covers all packages. Additional paths are needed for:
 # - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
-# - tools/model-config-test: has `model_performance_test` module for imports
 search-path = [
   ".",
   "samples/framework-custom-evaluators",
   "samples/framework-restaurant-demo/src",
-  # Tools
-  "tools/conform/src",
-  "tools/model-config-test",
 ]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime.
