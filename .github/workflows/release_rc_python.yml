@@ -44,6 +44,10 @@ jobs:
         id: rc
         run: |
           TARGET="${{ inputs.target_version }}"
+          if ! [[ "$TARGET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: target_version must be X.Y.Z (e.g., 0.6.0)"
+            exit 1
+          fi
           EXISTING=$(git tag -l "py/v${TARGET}-rc.*" 2>/dev/null || true)
           if [ -z "$EXISTING" ]; then RC_NUM=1; else
             RC_NUM=$(($(echo "$EXISTING" | sed -n 's/.*-rc\.\([0-9]*\)$/\1/p' | sort -n | tail -1) + 1))
