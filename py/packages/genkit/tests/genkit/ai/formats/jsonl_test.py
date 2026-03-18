@@ -6,6 +6,7 @@
 """Tests for the JSONL format."""
 
 import pytest
+from pydantic import BaseModel, TypeAdapter
 
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats._jsonl import JsonlFormat
@@ -145,3 +146,15 @@ class TestJsonlFormatInstructions:
         fmt = jsonl_fmt.handle(None)
 
         assert fmt.instructions is None
+
+    def test_accepts_ref_based_object_items_schema(self) -> None:
+        """Test that jsonl format accepts TypeAdapter schemas with $ref items."""
+
+        class Character(BaseModel):
+            name: str
+
+        jsonl_fmt = JsonlFormat()
+        fmt = jsonl_fmt.handle(TypeAdapter(list[Character]).json_schema())
+
+        assert fmt.instructions is not None
+        assert '"type": "object"' in fmt.instructions

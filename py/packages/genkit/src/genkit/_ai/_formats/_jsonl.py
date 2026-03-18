@@ -21,6 +21,7 @@ from typing import Any, cast
 
 import json5
 
+from genkit._ai._formats._schema import resolve_json_schema_refs
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import (
     Message,
@@ -82,9 +83,11 @@ class JsonlFormat(FormatDef):
         Raises:
             GenkitError: If the schema structure matches expectations for JSONL.
         """
-        if schema:
-            schema_type = schema.get('type')
-            items = schema.get('items')
+        resolved_schema = cast(dict[str, object], resolve_json_schema_refs(schema, schema)) if schema else None
+
+        if resolved_schema:
+            schema_type = resolved_schema.get('type')
+            items = resolved_schema.get('items')
             items_type: object | None = None
             if isinstance(items, dict):
                 items_dict = cast(dict[str, object], items)
@@ -138,12 +141,12 @@ class JsonlFormat(FormatDef):
             return results
 
         instructions = None
-        if schema and schema.get('items'):
+        if resolved_schema and resolved_schema.get('items'):
             instructions = (
                 'Output should be JSONL format, a sequence of JSON objects (one per line) '
                 'separated by a newline `\\n` character. Each line should be a JSON object '
                 'conforming to the following schema:\n\n'
-                f'```\n{json.dumps(schema["items"], indent=2)}\n```\n'
+                f'```\n{json.dumps(resolved_schema["items"], indent=2)}\n```\n'
             )
         return Formatter(
             chunk_parser=chunk_parser,

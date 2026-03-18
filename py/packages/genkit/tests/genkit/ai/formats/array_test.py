@@ -6,6 +6,7 @@
 """Tests for the Array format."""
 
 import pytest
+from pydantic import BaseModel, TypeAdapter
 
 from genkit import Message, ModelResponseChunk
 from genkit._ai._formats._array import ArrayFormat
@@ -136,3 +137,15 @@ class TestArrayFormatInstructions:
         fmt = array_fmt.handle(None)
 
         assert fmt.instructions is None
+
+    def test_accepts_ref_based_array_item_schema(self) -> None:
+        """Test that array format accepts TypeAdapter schemas with $ref items."""
+
+        class Book(BaseModel):
+            title: str
+
+        array_fmt = ArrayFormat()
+        fmt = array_fmt.handle(TypeAdapter(list[Book]).json_schema())
+
+        assert fmt.instructions is not None
+        assert '"type": "object"' in fmt.instructions

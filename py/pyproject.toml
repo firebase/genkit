@@ -120,7 +120,7 @@ filterwarnings = [
 ]
 norecursedirs = ["testapps", ".git", ".tox", ".nox", ".venv", "build", "dist"]
 python_files = ["*_test.py"]
-pythonpath = ["."] # For samples.shared imports
+pythonpath = ["."]
 testpaths = ["packages", "plugins", "samples", "tests", "tools"]
 #asyncio_mode = "auto"
 asyncio_mode = "strict"
@@ -145,34 +145,20 @@ override-dependencies = ["werkzeug>=3.1.6"]
 
 [tool.uv.sources]
 # Samples (alphabetical by package name from pyproject.toml)
-framework-context-demo                     = { workspace = true }
-framework-custom-evaluators                = { workspace = true }
-framework-dynamic-tools-demo               = { workspace = true }
-framework-format-demo                      = { workspace = true }
-framework-middleware-demo                  = { workspace = true }
-framework-prompt-demo                      = { workspace = true }
-framework-realtime-tracing-demo            = { workspace = true }
-framework-restaurant-demo                  = { workspace = true }
-framework-tool-interrupts                  = { workspace = true }
-provider-anthropic-hello                   = { workspace = true }
-provider-compat-oai-hello                  = { workspace = true }
-provider-firestore-retriever               = { workspace = true }
-provider-google-genai-code-execution       = { workspace = true }
-provider-google-genai-context-caching      = { workspace = true }
-provider-google-genai-hello                = { workspace = true }
-provider-google-genai-media-models-demo    = { workspace = true }
-provider-google-genai-vertexai-hello       = { workspace = true }
-provider-google-genai-vertexai-image       = { workspace = true }
-provider-ollama-hello                      = { workspace = true }
-provider-vertex-ai-model-garden            = { workspace = true }
-provider-vertex-ai-rerank-eval             = { workspace = true }
-provider-vertex-ai-vector-search-bigquery  = { workspace = true }
-provider-vertex-ai-vector-search-firestore = { workspace = true }
-web-fastapi-bugbot                         = { workspace = true }
-web-fastapi-minimal-devui                  = { workspace = true }
-web-flask-hello                            = { workspace = true }
-web-multi-server                           = { workspace = true }
-web-short-n-long                           = { workspace = true }
+context              = { workspace = true }
+dynamic-tools        = { workspace = true }
+evaluators           = { workspace = true }
+fastapi-bugbot       = { workspace = true }
+flask-hello          = { workspace = true }
+gemini-code-execution = { workspace = true }
+gemini-context-caching = { workspace = true }
+google-genai-media   = { workspace = true }
+middleware           = { workspace = true }
+output-formats       = { workspace = true }
+prompts              = { workspace = true }
+tool-interrupts      = { workspace = true }
+tracing              = { workspace = true }
+vertexai-imagen      = { workspace = true }
 
 # Core packages
 genkit = { workspace = true }
@@ -281,9 +267,9 @@ select = [
 # S108 false positives on Path('/tmp/x') used as dummy non-existent paths in tests.
 # Samples have install_rich_traceback() call after imports, before other code
 # Samples are demo code and can use blocking I/O for simplicity
-"samples/*/*.py"     = ["E402", "ASYNC"]
-"samples/*/**/*.py"  = ["E402", "ASYNC"]
-"samples/*/src/*.py" = ["E402", "ASYNC"]
+"samples/*/*.py"     = ["ANN", "D", "E402", "ASYNC"]
+"samples/*/**/*.py"  = ["ANN", "D", "E402", "ASYNC"]
+"samples/*/src/*.py" = ["ANN", "D", "E402", "ASYNC"]
 
 
 [tool.ruff.lint.isort]
@@ -387,7 +373,9 @@ pyasn1                = "0.6.2"    # BSD-2-Clause
 [tool.ty.src]
 # Auto-generated protobuf stubs use grpc.experimental implicit submodule
 # access that ty warns about. We can't modify generated code.
-exclude = ["**/generated"]
+exclude = [
+  "**/generated",
+]
 
 [tool.ty.environment]
 root = [
@@ -401,10 +389,7 @@ root = [
   "plugins/google-genai/src",
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
-  # Samples
-  ".",                                     # For samples.shared imports
-  "samples/framework-restaurant-demo/src", # For restaurant demo sample imports
-  "samples/framework-custom-evaluators",   # For custom evaluators sample imports
+  ".",  # For samples.shared and other root-level imports
 ]
 
 # Pyright type checking configuration.
@@ -430,7 +415,6 @@ extraPaths = [
   "plugins/google-genai/src",
   "plugins/ollama/src",
   "plugins/vertex-ai/src",
-  "samples/framework-custom-evaluators",
 ]
 pythonVersion = "3.10"
 reportMissingImports = true
@@ -478,13 +462,7 @@ project_includes = [
 ]
 
 # Search path for first-party code import resolution.
-# The project root "." covers all packages. Additional paths are needed for:
-# - samples/framework-restaurant-demo/src: has internal imports (menu_ai, menu_schemas)
-search-path = [
-  ".",
-  "samples/framework-custom-evaluators",
-  "samples/framework-restaurant-demo/src",
-]
+search-path = ["."]
 # Ignore missing imports for namespace packages - pyrefly can't resolve PEP 420
 # namespace packages but these imports work at runtime.
 # model_performance_test is local to sample-test (excluded from workspace).
@@ -516,3 +494,9 @@ no-matching-overload = "ignore"
 include = ["plugins/vertex-ai/**"]
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
+
+# genkit._ai._formats._schema: dict.get with str keys from JSON schema traversal.
+[[tool.ty.overrides]]
+include = ["packages/genkit/src/genkit/_ai/_formats/_schema.py"]
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
