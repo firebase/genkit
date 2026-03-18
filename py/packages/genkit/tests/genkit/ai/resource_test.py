@@ -35,7 +35,7 @@ from genkit._ai._resource import (
 )
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Metadata, Part, TextPart
+from genkit._core._typing import Part, TextPart
 
 
 @pytest.mark.asyncio
@@ -172,11 +172,7 @@ async def test_parent_metadata() -> None:
     registry = Registry()
 
     async def fn(input: ResourceInput, ctx: ActionRunContext) -> dict[str, object]:
-        return {
-            'content': [
-                Part(TextPart(text='sub1', metadata=Metadata(root={'resource': {'uri': f'{input.uri}/sub1.txt'}})))
-            ]
-        }
+        return {'content': [Part(TextPart(text='sub1', metadata={'resource': {'uri': f'{input.uri}/sub1.txt'}}))]}
 
     res = define_resource(registry, {'template': 'file://{id}'}, fn)
 

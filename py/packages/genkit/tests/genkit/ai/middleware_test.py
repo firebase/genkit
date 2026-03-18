@@ -27,7 +27,6 @@ from genkit._core._action import ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     DocumentPart,
-    Metadata,
     Part,
     Role,
     TextPart,
@@ -89,7 +88,7 @@ async def test_augment_with_context_adds_docs_as_context() -> None:
                             + 'your task:\n\n'
                             + '- [0]: doc content 1\n'
                             + '- [1]: doc content 2\n\n',
-                            metadata=Metadata(root={'purpose': 'context'}),
+                            metadata={'purpose': 'context'},
                         )
                     ),
                 ],
@@ -113,7 +112,7 @@ async def test_augment_with_context_should_not_modify_non_pending_part() -> None
                     Part(
                         root=TextPart(
                             text='this is already context',
-                            metadata=Metadata(root={'purpose': 'context'}),
+                            metadata={'purpose': 'context'},
                         )
                     ),
                     Part(root=TextPart(text='hi')),
@@ -141,7 +140,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
                     Part(
                         root=TextPart(
                             text='insert context here',
-                            metadata=Metadata(root={'purpose': 'context', 'pending': True}),
+                            metadata={'purpose': 'context', 'pending': True},
                         )
                     ),
                     Part(root=TextPart(text='hi')),
@@ -165,7 +164,7 @@ async def test_augment_with_context_with_purpose_part() -> None:
                             text='\n\nUse the following information to complete '
                             + 'your task:\n\n'
                             + '- [0]: doc content 1\n\n',
-                            metadata=Metadata(root={'purpose': 'context'}),
+                            metadata={'purpose': 'context'},
                         )
                     ),
                     Part(root=TextPart(text='hi')),

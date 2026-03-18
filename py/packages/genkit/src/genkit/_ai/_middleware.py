@@ -28,7 +28,6 @@ from genkit._ai._model import (
 from genkit._core._action import ActionRunContext
 from genkit._core._model import Document
 from genkit._core._typing import (
-    Metadata,
     Part,
     TextPart,
 )
@@ -62,9 +61,8 @@ def augment_with_context() -> ModelMiddleware:
 
         context_part_index = -1
         for i, part in enumerate(user_message.content):
-            # Access metadata safely through RootModel
             part_metadata = part.root.metadata
-            if isinstance(part_metadata, Metadata) and part_metadata.root.get('purpose') == 'context':
+            if isinstance(part_metadata, dict) and part_metadata.get('purpose') == 'context':
                 context_part_index = i
                 break
 
@@ -72,7 +70,7 @@ def augment_with_context() -> ModelMiddleware:
 
         if context_part:
             metadata = context_part.root.metadata
-            if not (isinstance(metadata, Metadata) and metadata.root.get('pending')):
+            if not (isinstance(metadata, dict) and metadata.get('pending')):
                 return await next_middleware(req, ctx)
 
         out = CONTEXT_PREFACE
@@ -81,7 +79,7 @@ def augment_with_context() -> ModelMiddleware:
             out += context_item_template(doc, i)
         out += '\n'
 
-        text_part = Part(root=TextPart(text=out, metadata=Metadata(root={'purpose': 'context'})))
+        text_part = Part(root=TextPart(text=out, metadata={'purpose': 'context'}))
         if context_part_index >= 0:
             user_message.content[context_part_index] = text_part
         else:

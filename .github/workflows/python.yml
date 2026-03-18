@@ -120,7 +120,7 @@ jobs:
 
       - name: Type check with Pyright
         if: matrix.checker == 'pyright'
-        run: uv run --directory py pyright packages/
+        run: cd py && uv run pyright packages/
 
   # =============================================================================
   # Security and compliance checks
