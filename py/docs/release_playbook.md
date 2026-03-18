@@ -7,9 +7,9 @@ Use the **Release Python RC** workflow in GitHub Actions:
 1. Go to Actions → Release Python RC
 2. Click "Run workflow"
 3. Enter target version (e.g., `0.5.2`)
-4. The workflow infers the next RC (`0.5.2rc1`, `0.5.2rc2`, …) and publishes it
+4. The workflow infers the next RC (`0.5.2-rc.1`, `0.5.2-rc.2`, …) and publishes it
 
-No PR required. The workflow bumps version, commits to main, creates the tag and GitHub release, and triggers publish to PyPI.
+No PR required. The workflow bumps version, commits to the release branch, creates the tag and GitHub release, and triggers publish to PyPI.
 
 ## Stable release steps
 
