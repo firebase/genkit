@@ -74,10 +74,10 @@ def test_get_http_status() -> None:
 
 
 def test_get_callable_json() -> None:
-    genkit_error = GenkitError(status='DATA_LOSS', message='Oops')
+    genkit_error = GenkitError(status='INVALID_ARGUMENT', message='Oops')
     json_data = get_callable_json(genkit_error)
     assert isinstance(json_data, dict)
-    assert json_data['status'] == 'DATA_LOSS'
+    assert json_data['status'] == 'INVALID_ARGUMENT'
     assert json_data['message'] == 'Oops'
     assert 'details' in json_data
 

@@ -19,6 +19,7 @@
 
 import json
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from genkit import ActionRunContext, Genkit
@@ -27,8 +28,6 @@ from genkit.plugins.fastapi import genkit_fastapi_handler
 
 def create_app():
     """Create a FastAPI application for testing."""
-    from fastapi import FastAPI
-
     ai = Genkit()
 
     app = FastAPI()
