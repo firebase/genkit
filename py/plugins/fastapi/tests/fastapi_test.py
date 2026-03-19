@@ -22,30 +22,23 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from genkit import Action, ActionRunContext, Genkit
+from genkit import ActionRunContext, Genkit
 from genkit.plugins.fastapi import genkit_fastapi_handler
 
 
 def create_app() -> FastAPI:
     """Create a FastAPI application for testing."""
     ai = Genkit()
-
     app = FastAPI()
 
     @app.post('/chat', response_model=None)
     @genkit_fastapi_handler(ai)
-    def chat() -> Action:
-        return say_hi
-
-    @app.post('/error_flow', response_model=None)
-    @genkit_fastapi_handler(ai)
-    def error_flow() -> Action:
-        return raise_error
-
     @ai.flow()
     async def say_hi(name: str, ctx: ActionRunContext) -> dict[str, str]:
         return {'greeting': f'Hi {name}'}
 
+    @app.post('/error_flow', response_model=None)
+    @genkit_fastapi_handler(ai)
     @ai.flow()
     async def raise_error(_: str) -> None:
         raise ValueError('Intentional test error')

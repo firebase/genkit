@@ -55,7 +55,7 @@ Running:
     ```
 """
 
-from .handler import genkit_fastapi_handler
+from .handler import genkit_fastapi_handler, genkit_fastapi_route
 
 
 def package_name() -> str:
@@ -63,4 +63,4 @@ def package_name() -> str:
     return 'genkit.plugins.fastapi'
 
 
-__all__ = ['package_name', 'genkit_fastapi_handler']
+__all__ = ['package_name', 'genkit_fastapi_handler', 'genkit_fastapi_route']
