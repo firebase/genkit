@@ -945,13 +945,13 @@ ai.defineFlow('embedders-tester', async () => {
   console.log(
     await ai.embed({
       content: 'hello world',
-      embedder: googleAI.embedder('text-embedding-004'),
+      embedder: googleAI.embedder('gemini-embedding-001'),
     })
   );
   console.log(
     await ai.embed({
       content: 'hello world',
-      embedder: vertexAI.embedder('text-embedding-004'),
+      embedder: vertexAI.embedder('gemini-embedding-001'),
     })
   );
 });
@@ -1132,7 +1132,7 @@ ai.defineFlow('googleSearchRetrieval', async (thing) => {
 
 ai.defineFlow('googleai-imagen', async (thing) => {
   const { message } = await ai.generate({
-    model: googleAI.model('imagen-3.0-generate-002'),
+    model: googleAI.model('imagen-4.0-generate-001'),
     prompt:
       thing ??
       `Dark but cozy room. A programmer happily programming an AI library.`,

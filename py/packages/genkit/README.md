@@ -18,7 +18,7 @@ pip install genkit-plugin-google-genai
 
 ```python
 from pydantic import BaseModel, Field
-from genkit.ai import Genkit, Output
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(
@@ -37,7 +37,7 @@ class RpgCharacter(BaseModel):
 async def generate_character(name: str) -> RpgCharacter:
     result = await ai.generate(
         prompt=f'generate an RPG character named {name}',
-        output=Output(schema=RpgCharacter),
+        output_schema=RpgCharacter,
     )
     return result.output
 
