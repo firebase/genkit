@@ -218,12 +218,9 @@ async def test_stream_cancellation_does_not_crash_callback() -> None:
     assert captured_task is not None
     captured_task.cancel()
 
-    # Give callbacks time to run
-    await asyncio.sleep(0.05)
-
     # Awaiting response should raise CancelledError, not crash in callback
     with pytest.raises(asyncio.CancelledError):
-        await result.response
+        await asyncio.wait_for(result.response, timeout=1.0)
 
 
 def test_parse_plugin_name_from_action_name() -> None:
