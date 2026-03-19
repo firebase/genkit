@@ -47,9 +47,12 @@ async def test_embedding(mocker: MockerFixture, version: GeminiEmbeddingModels) 
 
     response = await embedder.generate(request)
 
+    # text-embedding-004 is redirected to gemini-embedding-001 (deprecated Jan 2026, returns 404)
+    expected_model = 'gemini-embedding-001' if str(version) == 'text-embedding-004' else version
+
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.embed_content(
-            model=version,
+            model=expected_model,
             contents=[genai.types.Content(parts=[genai.types.Part.from_text(text=request_text)])],
             config=None,
         )

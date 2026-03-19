@@ -17,6 +17,7 @@
 """Google-Genai embedder model."""
 
 import sys
+import warnings
 from typing import Any, cast
 
 if sys.version_info < (3, 11):
@@ -65,7 +66,9 @@ class EmbeddingTaskType(StrEnum):
 
 def default_embedder_info(name: str) -> dict[str, Any]:
     """Returns default info for embedders given a name."""
-    return {'dimensions': 768, 'label': f'Google AI - {name}', 'supports': {'input': ['text']}}
+    # gemini-embedding-001 outputs 3072 dimensions; legacy models use 768
+    dimensions = 3072 if 'gemini-embedding' in name else 768
+    return {'dimensions': dimensions, 'label': f'Google AI - {name}', 'supports': {'input': ['text']}}
 
 
 class Embedder:
@@ -94,10 +97,21 @@ class Embedder:
         Returns:
             EmbedResponse
         """
+        # text-embedding-004 was deprecated Jan 2026 and returns 404. Redirect to
+        # gemini-embedding-001 (3072 dims vs 768). Existing vectors are incompatible.
+        model = self._version
+        if str(model) == 'text-embedding-004':
+            warnings.warn(
+                'text-embedding-004 is deprecated (removed Jan 2026). '
+                'Using gemini-embedding-001 instead. Note: different dimensions (3072 vs 768).',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            model = 'gemini-embedding-001'
         contents = await self._build_contents(request)
         config = self._genkit_to_googleai_cfg(request)
         response = await self._client.aio.models.embed_content(
-            model=self._version,
+            model=model,
             contents=cast(genai_types.ContentListUnion, contents),
             config=config,
         )

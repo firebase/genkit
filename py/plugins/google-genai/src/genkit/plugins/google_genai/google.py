@@ -102,6 +102,8 @@ from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
+from genkit._core._action import ActionRunContext
+from genkit._core._model import ModelRequest, ModelResponse
 from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
 from genkit.evaluator import EvalFnResponse, EvalRequest
 from genkit.model import BackgroundAction, model_action_metadata
@@ -401,6 +403,7 @@ class GoogleAI(Plugin):
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -575,7 +578,7 @@ class GoogleAI(Plugin):
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
 
-        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+        async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             else:
@@ -614,6 +617,8 @@ class GoogleAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
+        if self._list_actions_cache is not None:
+            return self._list_actions_cache
         genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions_list = []
 
@@ -657,6 +662,7 @@ class GoogleAI(Plugin):
                 )
             )
 
+        self._list_actions_cache = actions_list
         return actions_list
 
 
@@ -759,6 +765,7 @@ class VertexAI(Plugin):
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -899,7 +906,7 @@ class VertexAI(Plugin):
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
 
-        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+        async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             elif is_veo_model(clean_name):
@@ -940,6 +947,8 @@ class VertexAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
+        if self._list_actions_cache is not None:
+            return self._list_actions_cache
         genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions_list = []
 
@@ -996,6 +1005,7 @@ class VertexAI(Plugin):
                 )
             )
 
+        self._list_actions_cache = actions_list
         return actions_list
 
 
