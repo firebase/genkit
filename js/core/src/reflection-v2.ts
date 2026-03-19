@@ -40,7 +40,7 @@ interface JsonRpcRequest {
   jsonrpc: '2.0';
   method: string;
   params?: any;
-  id?: number | string;
+  id?: string;
 }
 
 interface JsonRpcResponse {
@@ -51,7 +51,7 @@ interface JsonRpcResponse {
     message: string;
     data?: any;
   };
-  id: number | string;
+  id: string;
 }
 
 type JsonRpcMessage = JsonRpcRequest | JsonRpcResponse;
@@ -128,7 +128,7 @@ export class ReflectionServerV2 {
     }
   }
 
-  private sendResponse(id: number | string, result: any) {
+  private sendResponse(id: string, result: any) {
     this.send({
       jsonrpc: '2.0',
       result,
@@ -136,12 +136,7 @@ export class ReflectionServerV2 {
     });
   }
 
-  private sendError(
-    id: number | string,
-    code: number,
-    message: string,
-    data?: any
-  ) {
+  private sendError(id: string, code: number, message: string, data?: any) {
     this.send({
       jsonrpc: '2.0',
       error: { code, message, data },

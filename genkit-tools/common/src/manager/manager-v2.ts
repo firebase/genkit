@@ -52,7 +52,7 @@ interface JsonRpcRequest {
   jsonrpc: '2.0';
   method: string;
   params?: any;
-  id?: number | string;
+  id?: string;
 }
 
 interface JsonRpcResponse {
@@ -63,7 +63,7 @@ interface JsonRpcResponse {
     message: string;
     data?: any;
   };
-  id: number | string;
+  id: string;
 }
 
 type JsonRpcMessage = JsonRpcRequest | JsonRpcResponse;
