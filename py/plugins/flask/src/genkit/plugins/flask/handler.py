@@ -145,7 +145,7 @@ def genkit_flask_handler(
                         ex = e
                         if isinstance(ex, GenkitError):
                             ex = ex.cause
-                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
+                        yield f'error: {json.dumps({"error": get_callable_json(ex)}, separators=(",", ":"))}'
 
                 iter = _iter_over_async(async_gen(), loop)
                 return iter
@@ -159,7 +159,7 @@ def genkit_flask_handler(
                         ex = ex.cause
                     return Response(
                         status=500,
-                        response=json.dumps(_to_dict(get_callable_json(ex)), separators=(',', ':')),
+                        response=json.dumps(get_callable_json(ex), separators=(',', ':')),
                     )
 
         return handler

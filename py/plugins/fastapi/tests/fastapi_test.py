@@ -61,14 +61,13 @@ def test_400_missing_data_returns_valid_json() -> None:
     assert response.status_code == 400
     parsed = json.loads(response.text)
     assert isinstance(parsed, dict)
-    assert 'message' in parsed or 'status' in parsed
+    assert 'message' in parsed and 'status' in parsed and 'details' in parsed
 
 
 def test_500_flow_exception_returns_valid_json() -> None:
     """500 (flow exception) must return valid JSON (not TypeError).
 
-    Before fix: json.dumps(get_callable_json(ex)) raised — HttpErrorWireFormat
-    is Pydantic. After fix: _to_dict(get_callable_json(ex)) — valid JSON.
+    get_callable_json now returns a dict, so json.dumps works directly.
 
     Uses real code snippet (SQL injection pattern) to exercise error path realistically.
     """

@@ -281,22 +281,24 @@ def get_reflection_json(error: object) -> ReflectionError:
     )
 
 
-def get_callable_json(error: object) -> HttpErrorWireFormat:
-    """Get the JSON representation of an error for callable responses.
+def get_callable_json(error: object) -> dict[str, Any]:
+    """Get the JSON-serializable representation of an error for callable responses.
 
     Args:
         error: The error to convert to JSON.
 
     Returns:
-        An HttpErrorWireFormat model instance.
+        A dict ready for json.dumps (message, status, details keys).
     """
     if isinstance(error, GenkitError):
-        return error.to_callable_serializable()
-    return HttpErrorWireFormat(
-        message=str(error),
-        status=StatusCodes.INTERNAL.name,
-        details={'stack': get_error_stack(error)},
-    )
+        wire = error.to_callable_serializable()
+    else:
+        wire = HttpErrorWireFormat(
+            message=str(error),
+            status=StatusCodes.INTERNAL.name,
+            details={'stack': get_error_stack(error)},
+        )
+    return wire.model_dump()
 
 
 def get_error_stack(error: object) -> str | None:

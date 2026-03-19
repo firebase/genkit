@@ -103,7 +103,7 @@ def genkit_fastapi_handler(
                 )
                 return Response(
                     status_code=400,
-                    content=json.dumps(_to_dict(get_callable_json(err)), separators=(',', ':')),
+                    content=json.dumps(get_callable_json(err), separators=(',', ':')),
                     media_type='application/json',
                 )
 
@@ -133,7 +133,7 @@ def genkit_fastapi_handler(
                         yield f'data: {json.dumps({"result": _to_dict(result)}, separators=(",", ":"))}\n\n'
                     except Exception as e:
                         ex = e.cause if isinstance(e, GenkitError) else e
-                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
+                        yield f'error: {json.dumps({"error": get_callable_json(ex)}, separators=(",", ":"))}'
 
                 return StreamingResponse(event_stream(), media_type='text/event-stream')
             else:
@@ -144,7 +144,7 @@ def genkit_fastapi_handler(
                     ex = e.cause if isinstance(e, GenkitError) else e
                     return Response(
                         status_code=500,
-                        content=json.dumps(_to_dict(get_callable_json(ex)), separators=(',', ':')),
+                        content=json.dumps(get_callable_json(ex), separators=(',', ':')),
                         media_type='application/json',
                     )
 

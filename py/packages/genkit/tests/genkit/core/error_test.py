@@ -18,7 +18,6 @@
 
 from genkit._core._error import (
     GenkitError,
-    HttpErrorWireFormat,
     PublicError,
     ReflectionError,
     get_callable_json,
@@ -77,15 +76,17 @@ def test_get_http_status() -> None:
 def test_get_callable_json() -> None:
     genkit_error = GenkitError(status='DATA_LOSS', message='Oops')
     json_data = get_callable_json(genkit_error)
-    assert isinstance(json_data, HttpErrorWireFormat)
-    assert json_data.status == 'DATA_LOSS'
-    assert json_data.message == 'Oops'
+    assert isinstance(json_data, dict)
+    assert json_data['status'] == 'DATA_LOSS'
+    assert json_data['message'] == 'Oops'
+    assert 'details' in json_data
 
     non_genkit_error = TypeError('Type error')
     json_data = get_callable_json(non_genkit_error)
-    assert isinstance(json_data, HttpErrorWireFormat)
-    assert json_data.status == 'INTERNAL'
-    assert json_data.message == 'Type error'
+    assert isinstance(json_data, dict)
+    assert json_data['status'] == 'INTERNAL'
+    assert json_data['message'] == 'Type error'
+    assert 'details' in json_data
 
 
 def test_get_error_stack() -> None:
