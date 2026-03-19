@@ -226,13 +226,12 @@ class DataPart(GenkitModel):
     resource: Any | None = Field(default=None)
 
 
-class GenerateActionOptions(GenkitModel):
-    """Model for generateactionoptions data."""
+class GenerateActionOptionsData(GenkitModel):
+    """Model for generateactionoptionsdata data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     model: str | None = None
     docs: list[DocumentData] | None = None
-    messages: list[MessageData] = Field(...)
     tools: list[str] | None = None
     resources: list[str] | None = None
     tool_choice: ToolChoice | None = None
