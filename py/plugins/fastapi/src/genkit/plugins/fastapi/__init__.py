@@ -32,6 +32,7 @@ Example:
     ai = Genkit(plugins=[GoogleAI()])
     app = FastAPI()
 
+
     @app.post('/chat', response_model=None)
     @genkit_fastapi_handler(ai)
     @ai.flow()

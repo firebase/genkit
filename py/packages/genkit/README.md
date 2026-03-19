@@ -26,12 +26,14 @@ ai = Genkit(
     model='googleai/gemini-2.0-flash',
 )
 
+
 class RpgCharacter(BaseModel):
     """An RPG game character."""
 
     name: str = Field(description='name of the character')
     back_story: str = Field(description='back story')
     abilities: list[str] = Field(description='list of abilities (3-4)')
+
 
 @ai.flow()
 async def generate_character(name: str) -> RpgCharacter:
@@ -46,6 +48,7 @@ async def main() -> None:
     """Main function."""
     character = await generate_character('Goblorb')
     print(character.model_dump_json(indent=2))
+
 
 if __name__ == '__main__':
     ai.run_main(main())

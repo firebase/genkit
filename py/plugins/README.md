@@ -521,12 +521,13 @@ from genkit.plugins.google_genai import GoogleAI
 # Initialize with your chosen plugin
 ai = Genkit(
     plugins=[GoogleAI()],
-    model="googleai/gemini-2.0-flash",
+    model='googleai/gemini-2.0-flash',
 )
+
 
 @ai.flow()
 async def hello(name: str) -> str:
-    response = await ai.generate(prompt=f"Say hello to {name}")
+    response = await ai.generate(prompt=f'Say hello to {name}')
     return response.text
 ```
 

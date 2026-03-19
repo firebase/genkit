@@ -70,6 +70,7 @@ def genkit_fastapi_handler(
         async def chat():
             return my_flow
 
+
         @ai.flow()
         async def my_flow(prompt: str) -> str: ...
         ```
