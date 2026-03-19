@@ -78,4 +78,4 @@ def test_500_flow_exception_returns_valid_json() -> None:
     assert response.status_code == 500
     parsed = json.loads(response.text)
     assert isinstance(parsed, dict)
-    assert 'message' in parsed or 'status' in parsed
+    assert 'message' in parsed and 'status' in parsed and 'details' in parsed
