@@ -22,11 +22,11 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from genkit import ActionRunContext, Genkit
+from genkit import Action, ActionRunContext, Genkit
 from genkit.plugins.fastapi import genkit_fastapi_handler
 
 
-def create_app():
+def create_app() -> FastAPI:
     """Create a FastAPI application for testing."""
     ai = Genkit()
 
@@ -34,12 +34,12 @@ def create_app():
 
     @app.post('/chat', response_model=None)
     @genkit_fastapi_handler(ai)
-    def chat():
+    def chat() -> Action:
         return say_hi
 
     @app.post('/error_flow', response_model=None)
     @genkit_fastapi_handler(ai)
-    def error_flow():
+    def error_flow() -> Action:
         return raise_error
 
     @ai.flow()
