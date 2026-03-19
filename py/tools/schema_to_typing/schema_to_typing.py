@@ -46,7 +46,13 @@ def _output_name(name: str) -> str:
     if name not in TRANSFORMATIONS:
         return name
     cfg = TRANSFORMATIONS[name]
-    return cfg.get('output_name') or (name + cfg.get('suffix', ''))
+    out = cfg.get('output_name')
+    if isinstance(out, str):
+        return out
+    suf = cfg.get('suffix', '')
+    return name + (suf if isinstance(suf, str) else '')
+
+
 # Emit early to avoid Pydantic forward-ref issues (Schema/ConfigSchema for OutputConfig; Metadata for MessageData etc.)
 PREFERRED_FIRST = ('Schema', 'ConfigSchema', 'Metadata', 'Custom')
 # anyOf/oneOf defs emitted as RootModel (have .root) so Part(root=TextPart(...)) works
@@ -266,7 +272,9 @@ def _emit_model(
             lines.append(f'    {field_name}: {py_type_str} = Field(...{desc_extra}{alias_extra})')
         else:
             default_val = (
-                f'Field(default=None{desc_extra}{alias_extra})' if '|' in py_type_str or py_type_str == 'Any' else 'None'
+                f'Field(default=None{desc_extra}{alias_extra})'
+                if '|' in py_type_str or py_type_str == 'Any'
+                else 'None'
             )
             lines.append(f'    {field_name}: {py_type_str} | None = {default_val}')
     if name == 'GenerateActionOutputConfig':
