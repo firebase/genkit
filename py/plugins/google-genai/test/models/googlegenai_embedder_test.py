@@ -32,7 +32,7 @@ from genkit.plugins.google_genai.models.embedder import (
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('version', [x for x in GeminiEmbeddingModels])
+@pytest.mark.parametrize('version', list(GeminiEmbeddingModels))
 async def test_embedding(mocker: MockerFixture, version: GeminiEmbeddingModels) -> None:
     """Test the embedding method."""
     request_text = 'request text'
