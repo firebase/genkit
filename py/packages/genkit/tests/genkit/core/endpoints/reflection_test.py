@@ -36,11 +36,10 @@ each endpoint's behavior.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock
-
-import json
 
 import pytest
 import pytest_asyncio
