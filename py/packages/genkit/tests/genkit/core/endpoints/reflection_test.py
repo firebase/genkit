@@ -40,6 +40,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock
 
+import json
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -242,3 +244,51 @@ async def test_run_action_streaming(
     assert response.status_code == 200
     assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
+
+
+@pytest.mark.asyncio
+async def test_run_action_streaming_string(
+    asgi_client: AsyncClient,
+    mock_registry: MagicMock,
+) -> None:
+    """Test that streaming actions with string chunks work correctly."""
+    mock_action = AsyncMock()
+
+    async def mock_streaming(
+        input: object = None,
+        on_chunk: object | None = None,
+        context: object | None = None,
+        on_trace_start: Callable[[str, str], None] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> MagicMock:
+        if on_trace_start:
+            on_trace_start('stream_trace_id', 'stream_span_id')
+        if on_chunk:
+            on_chunk_fn = cast(Callable[[object], None], on_chunk)
+            on_chunk_fn('string chunk 1')
+            on_chunk_fn('string chunk 2')
+        mock_output = MagicMock()
+        mock_output.response = {'final': 'result'}
+        mock_output.trace_id = 'stream_trace_id'
+        mock_output.span_id = 'stream_span_id'
+        return mock_output
+
+    mock_action.run.side_effect = mock_streaming
+    mock_registry.resolve_action_by_key.return_value = mock_action
+
+    response = await asgi_client.post(
+        '/api/runAction?stream=true',
+        json={'key': 'test_action', 'input': {'data': 'test'}},
+    )
+
+    assert response.status_code == 200
+    assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
+    assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
+    
+    # Verify the output contains the JSON-encoded strings
+    lines = response.text.strip().split('\n')
+    assert lines[0] == '"string chunk 1"'
+    assert lines[1] == '"string chunk 2"'
+    # The last line should be the final result JSON
+    final_result = json.loads(lines[2])
+    assert final_result['result'] == {'final': 'result'}
