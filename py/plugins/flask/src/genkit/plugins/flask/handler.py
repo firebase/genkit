@@ -157,7 +157,10 @@ def genkit_flask_handler(
                     ex = e
                     if isinstance(ex, GenkitError):
                         ex = ex.cause
-                    return Response(status=500, response=json.dumps(get_callable_json(ex), separators=(',', ':')))
+                    return Response(
+                        status=500,
+                        response=json.dumps(_to_dict(get_callable_json(ex)), separators=(',', ':')),
+                    )
 
         return handler
 

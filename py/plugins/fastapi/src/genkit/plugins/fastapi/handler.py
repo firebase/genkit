@@ -103,7 +103,7 @@ def genkit_fastapi_handler(
                 )
                 return Response(
                     status_code=400,
-                    content=json.dumps(get_callable_json(err), separators=(',', ':')),
+                    content=json.dumps(_to_dict(get_callable_json(err)), separators=(',', ':')),
                     media_type='application/json',
                 )
 
@@ -144,7 +144,7 @@ def genkit_fastapi_handler(
                     ex = e.cause if isinstance(e, GenkitError) else e
                     return Response(
                         status_code=500,
-                        content=json.dumps(get_callable_json(ex), separators=(',', ':')),
+                        content=json.dumps(_to_dict(get_callable_json(ex)), separators=(',', ':')),
                         media_type='application/json',
                     )
 
