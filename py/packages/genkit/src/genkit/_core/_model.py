@@ -39,6 +39,7 @@ from genkit._core._typing import (
     DocumentPart,
     FinishReason,
     GenerateActionOptionsData,
+    GenerateActionOutputConfig,
     GenerateResponseChunk,
     GenerationCommonConfig,
     GenerationUsage,
@@ -46,8 +47,11 @@ from genkit._core._typing import (
     MediaModel,
     MediaPart,
     MessageData,
+    MiddlewareRef,
     Operation,
     Part,
+    Resume,
+    Role,
     Text,
     TextPart,
     ToolChoice,
@@ -532,8 +536,16 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
     )
 
 
-# Rebuild schema after all types (including Message) are fully defined
-GenerateActionOptions.model_rebuild()
+# Rebuild schema after all types (including Message) are fully defined.
+# _types_namespace provides forward-ref resolution for GenerateActionOptionsData fields.
+GenerateActionOptions.model_rebuild(
+    _types_namespace={
+        'GenerateActionOutputConfig': GenerateActionOutputConfig,
+        'MiddlewareRef': MiddlewareRef,
+        'Resume': Resume,
+        'Role': Role,
+    }
+)
 
 # Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
 # Middleware can have two signatures:
