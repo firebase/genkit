@@ -32,17 +32,12 @@ Example:
     ai = Genkit(plugins=[GoogleAI()])
     app = FastAPI()
 
-
+    @app.post('/chat', response_model=None)
+    @genkit_fastapi_handler(ai)
     @ai.flow()
     async def chat_flow(prompt: str) -> str:
         response = await ai.generate(prompt=prompt)
         return response.text
-
-
-    @app.post('/chat')
-    @genkit_fastapi_handler(ai)
-    async def chat():
-        return chat_flow
     ```
 
 Running:
@@ -55,7 +50,7 @@ Running:
     ```
 """
 
-from .handler import genkit_fastapi_handler, genkit_fastapi_route
+from .handler import genkit_fastapi_handler
 
 
 def package_name() -> str:
@@ -63,4 +58,4 @@ def package_name() -> str:
     return 'genkit.plugins.fastapi'
 
 
-__all__ = ['package_name', 'genkit_fastapi_handler', 'genkit_fastapi_route']
+__all__ = ['package_name', 'genkit_fastapi_handler']

@@ -152,25 +152,3 @@ def genkit_fastapi_handler(
         return handler
 
     return decorator
-
-
-def genkit_fastapi_route(
-    ai: Genkit,
-    action: Action,
-    *,
-    context_provider: ContextProvider | None = None,
-) -> Callable[[Request], Awaitable[Response | dict[str, Any]]]:
-    """Create a FastAPI route handler for an action directly (no wrapper function).
-
-    Use with app.add_api_route when flows are defined before routes:
-
-        @ai.flow()
-        async def chat_flow(prompt: str) -> str:
-            ...
-
-        app.add_api_route(
-            '/chat', genkit_fastapi_route(ai, chat_flow),
-            methods=['POST'], response_model=None
-        )
-    """
-    return genkit_fastapi_handler(ai, context_provider)(lambda: action)
