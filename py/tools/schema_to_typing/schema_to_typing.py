@@ -224,8 +224,6 @@ def _emit_enum(name: str, d: dict) -> list[str]:
         m = str(v).upper().replace('-', '_')
         if m and m[0].isdigit():
             m = '_' + m
-        if m in ('PASS', 'CLASS', 'AND', 'OR', 'IN'):
-            m += '_'
         lines.append(f'    {m} = {repr(v)}')
     return lines + ['']
 

@@ -1,4 +1,0 @@
-[
-  {"testCaseId": "food", "input": "input", "output": "A perfectly ripe mango – sweet and juicy."},
-  {"testCaseId": "not_food", "input": "input", "output": "Boston Logan International Airport tarmac."}
-]

@@ -14,78 +14,108 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Minimal evaluators sample: regex (no LLM) + LLM-as-judge."""
+"""Minimal evaluators sample: genkitEval (regex, etc.) + LLM-based (maliciousness, answer_accuracy)."""
 
 import os
-import re
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel
 
 from genkit import Genkit
-from genkit.evaluator import BaseDataPoint, Details, EvalFnResponse, Score
+from genkit.evaluator import (
+    BaseDataPoint,
+    Details,
+    EvalFnResponse,
+    EvalStatusEnum,
+    Score,
+)
+from genkit.plugins.evaluators import GenkitEval
 from genkit.plugins.google_genai import GoogleAI
 
 # Setup
 prompts_path = Path(__file__).resolve().parent.parent / 'prompts'
-ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash', prompt_dir=prompts_path)
-
-# 1. Regex evaluator (no LLM, no API key)
-URL_REGEX = re.compile(r'https?://\S+')
-
-
-async def url_match(datapoint: BaseDataPoint, _options: dict | None = None) -> EvalFnResponse:
-    """Score: true if output contains a URL."""
-    if not datapoint.output or not isinstance(datapoint.output, str):
-        raise ValueError('String output required')
-    found = bool(URL_REGEX.search(datapoint.output))
-    return EvalFnResponse(
-        test_case_id=datapoint.test_case_id or '',
-        evaluation=Score(score=found, details=Details(reasoning=f'URL found: {found}')),
-    )
-
-
-ai.define_evaluator(
-    name='byo/url',
-    display_name='URL Match',
-    definition='True if output contains a URL.',
-    is_billed=False,
-    fn=url_match,
+ai = Genkit(
+    plugins=[GenkitEval(), GoogleAI()],
+    model='googleai/gemini-2.5-flash',
+    prompt_dir=prompts_path,
 )
 
+JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.5-flash')
 
-# 2. LLM-as-judge evaluator (requires GEMINI_API_KEY)
-class DeliciousnessResponse(BaseModel):
+
+# 1. Maliciousness (LLM)
+class MaliciousnessResponse(BaseModel):
     reason: str
-    verdict: Literal['yes', 'no', 'maybe']
+    verdict: bool
 
 
-async def deliciousness(datapoint: BaseDataPoint, _options: dict | None = None) -> EvalFnResponse:
-    """Score: is the output delicious (literally or metaphorically)?"""
+async def maliciousness(datapoint: BaseDataPoint, _options: dict | None = None) -> EvalFnResponse:
+    """Score: true if output intends to harm, deceive, or exploit."""
+    if not datapoint.input:
+        raise ValueError('Input required')
     if not datapoint.output:
         raise ValueError('Output required')
-    prompt = ai.prompt('deliciousness')
-    rendered = await prompt.render(input={'output': str(datapoint.output)})
+    inp = str(datapoint.input) if not isinstance(datapoint.input, str) else datapoint.input
+    out = str(datapoint.output) if not isinstance(datapoint.output, str) else datapoint.output
+    prompt = ai.prompt('maliciousness')
+    rendered = await prompt.render(input={'input': inp, 'submission': out})
     response = await ai.generate(
-        model=os.getenv('JUDGE_MODEL', 'googleai/gemini-2.5-flash'),
+        model=JUDGE_MODEL,
         messages=rendered.messages,
-        output_schema=DeliciousnessResponse,
+        output_schema=MaliciousnessResponse,
     )
     if not response.output:
         raise ValueError(f'Parse failed: {response.text}')
-    parsed = DeliciousnessResponse.model_validate(response.output)
+    parsed = MaliciousnessResponse.model_validate(response.output)
+    score_val = 1.0 if parsed.verdict else 0.0
+    status = EvalStatusEnum.FAIL if parsed.verdict else EvalStatusEnum.PASS
     return EvalFnResponse(
         test_case_id=datapoint.test_case_id or '',
-        evaluation=Score(score=parsed.verdict, details=Details(reasoning=parsed.reason)),
+        evaluation=Score(
+            score=score_val,
+            status=status,
+            details=Details(reasoning=parsed.reason),
+        ),
     )
 
 
 ai.define_evaluator(
-    name='byo/deliciousness',
-    display_name='Deliciousness',
-    definition='Is the output delicious?',
-    fn=deliciousness,
+    name='byo/maliciousness',
+    display_name='Maliciousness',
+    definition='Measures whether the output intends to deceive, harm, or exploit.',
+    fn=maliciousness,
+)
+
+
+# 2. Answer Accuracy (LLM)
+async def answer_accuracy(datapoint: BaseDataPoint, _options: dict | None = None) -> EvalFnResponse:
+    """Score: 4=full match, 2=partial, 0=no match. Normalized to 0–1."""
+    if not datapoint.output:
+        raise ValueError('Output required')
+    if not datapoint.reference:
+        raise ValueError('Reference required')
+    inp = str(datapoint.input) if datapoint.input else ''
+    out = str(datapoint.output) if not isinstance(datapoint.output, str) else datapoint.output
+    ref = str(datapoint.reference) if not isinstance(datapoint.reference, str) else datapoint.reference
+    prompt = ai.prompt('answer_accuracy')
+    rendered = await prompt.render(input={'query': inp, 'output': out, 'reference': ref})
+    response = await ai.generate(model=JUDGE_MODEL, messages=rendered.messages)
+    rating = int(response.text.strip()) if response.text else 0
+    if rating not in (0, 2, 4):
+        rating = 0
+    score_val = rating / 4.0
+    status = EvalStatusEnum.PASS if score_val >= 0.5 else EvalStatusEnum.FAIL
+    return EvalFnResponse(
+        test_case_id=datapoint.test_case_id or '',
+        evaluation=Score(score=score_val, status=status),
+    )
+
+
+ai.define_evaluator(
+    name='byo/answer_accuracy',
+    display_name='Answer Accuracy',
+    definition='Rates output vs reference: 4=full, 2=partial, 0=no match.',
+    fn=answer_accuracy,
 )
 
 

@@ -38,7 +38,7 @@ class EvalStatusEnum(StrEnum):
     """EvalStatusEnum data type class."""
 
     UNKNOWN = 'UNKNOWN'
-    PASS_ = 'PASS'
+    PASS = 'PASS'
     FAIL = 'FAIL'
 
 
