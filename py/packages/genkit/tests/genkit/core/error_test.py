@@ -45,6 +45,7 @@ def test_genkit_error() -> None:
 
 
 def test_genkit_error_to_json() -> None:
+    # NOT_FOUND is a valid gRPC-style status (maps to HTTP 404).
     error = GenkitError(status='NOT_FOUND', message='Resource not found', details={'id': 123})
     serializable = error.to_serializable()
     assert isinstance(serializable, ReflectionError)

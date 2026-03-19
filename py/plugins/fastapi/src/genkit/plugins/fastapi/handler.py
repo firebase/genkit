@@ -63,11 +63,11 @@ def genkit_fastapi_handler(
             return response.text
         ```
 
-    Example (wrapper when flow is defined later):
+    Example (wrapper when flow is defined later; must be async):
         ```python
         @app.post('/chat', response_model=None)
         @genkit_fastapi_handler(ai)
-        def chat():
+        async def chat():
             return my_flow
 
         @ai.flow()
@@ -86,10 +86,16 @@ def genkit_fastapi_handler(
         fn: Callable[[], Action] | Action,
     ) -> Callable[[Request], Awaitable[Response | dict[str, Any]]]:
         async def handler(request: Request) -> Response | dict[str, Any]:
-            result = fn if isinstance(fn, Action) else fn()
-            if asyncio.iscoroutine(result):
-                result = await result
-            flow = result
+            if isinstance(fn, Action):
+                flow = fn
+            else:
+                result = fn()
+                if not asyncio.iscoroutine(result):
+                    raise GenkitError(
+                        status='INVALID_ARGUMENT',
+                        message='genkit_fastapi_handler wrapper must be async when flow is defined elsewhere',
+                    )
+                flow = await result
             if not isinstance(flow, Action):
                 raise GenkitError(
                     status='INVALID_ARGUMENT',
