@@ -120,6 +120,8 @@ ai.define_evaluator(
 
 
 async def main() -> None:
+    # Use a genkit eval:run in the CLI to evaluate a dataset against one of these evaluators.
+    # Example: genkit eval:run datasets/maliciousness_dataset.json --evaluators=byo/maliciousness
     pass
 
 
