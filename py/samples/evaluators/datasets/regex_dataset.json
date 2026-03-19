@@ -1,0 +1,4 @@
+[
+  {"testCaseId": "has_url", "input": "input", "output": "Check out https://example.com for more."},
+  {"testCaseId": "no_url", "input": "input", "output": "Just plain text here."}
+]

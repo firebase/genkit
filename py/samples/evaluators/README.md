@@ -1,19 +1,24 @@
 # Evaluators Sample
 
-Demonstrates two custom evaluator patterns:
+Two minimal evaluators:
 
-- **Regex** (`byo/url`) — checks output for a URL pattern, no LLM required
-- **LLM-as-judge** (`byo/deliciousness`) — uses a model to score output
-
-Run the file once to see the regex evaluator shape:
-
-```bash
-uv run src/main.py
-```
-
-To run full Genkit evaluations:
+- **`byo/url`** — Regex match (no LLM)
+- **`byo/deliciousness`** — LLM-as-judge
 
 ```bash
 export GEMINI_API_KEY=your-api-key
-genkit eval:run
+uv sync
+uv run src/main.py
+```
+
+**Regex** (no API calls):
+
+```bash
+genkit eval:run datasets/regex_dataset.json --evaluators=byo/url
+```
+
+**LLM evaluator**:
+
+```bash
+genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousness
 ```
