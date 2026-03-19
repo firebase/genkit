@@ -283,7 +283,7 @@ def _create_embedder_action(
         Action object for the embedder.
     """
     clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
-    label = f"{PLUGIN_DISPLAY_NAME[plugin_name]} - {clean_name}"
+    label = f'{PLUGIN_DISPLAY_NAME[plugin_name]} - {clean_name}'
     action_metadata = embedder_action_metadata(
         name=name,
         options=EmbedderOptions(
@@ -655,7 +655,7 @@ class GoogleAI(Plugin):
                 embedder_action_metadata(
                     name=googleai_name(name),
                     options=EmbedderOptions(
-                        label=f"{PLUGIN_DISPLAY_NAME[GOOGLEAI_PLUGIN_NAME]} - {name}",
+                        label=f'{PLUGIN_DISPLAY_NAME[GOOGLEAI_PLUGIN_NAME]} - {name}',
                         supports=EmbedderSupports(input=['text']),
                         dimensions=EMBEDDER_DIMENSIONS.get(name),
                     ),
@@ -985,7 +985,7 @@ class VertexAI(Plugin):
                 embedder_action_metadata(
                     name=vertexai_name(name),
                     options=EmbedderOptions(
-                        label=f"{PLUGIN_DISPLAY_NAME[VERTEXAI_PLUGIN_NAME]} - {name}",
+                        label=f'{PLUGIN_DISPLAY_NAME[VERTEXAI_PLUGIN_NAME]} - {name}',
                         supports=EmbedderSupports(input=['text']),
                         dimensions=dims,
                     ),
