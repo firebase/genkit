@@ -34,14 +34,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
 	"google.golang.org/genai"
 )
 
@@ -52,7 +55,10 @@ func main() {
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	g := genkit.Init(ctx, genkit.WithPlugins(
+		&googlegenai.GoogleAI{},
+		&modelgarden.Anthropic{},
+	))
 
 	// Define a non-streaming flow that generates jokes about a given topic.
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
@@ -93,6 +99,42 @@ func main() {
 			return resp.Text(), nil
 		},
 	)
+
+	// Vertex Model Garden - Claude Sonnet 4.6.
+	genkit.DefineFlow(g, "claudeSonnet46VertexModelGardenFlow", func(ctx context.Context, input string) (string, error) {
+		if input == "" {
+			input = "airplane food"
+		}
+		m := modelgarden.AnthropicModel(g, "claude-sonnet-4-6")
+		if m == nil {
+			return "", errors.New("claudeSonnet46VertexModelGardenFlow: failed to find model")
+		}
+		return genkit.GenerateText(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				MaxTokens: 1024,
+			}),
+			ai.WithPrompt("Share a joke about %s.", input),
+		)
+	})
+
+	// Vertex Model Garden - Claude Opus 4.6.
+	genkit.DefineFlow(g, "claudeOpus46VertexModelGardenFlow", func(ctx context.Context, input string) (string, error) {
+		if input == "" {
+			input = "airplane food"
+		}
+		m := modelgarden.AnthropicModel(g, "claude-opus-4-6")
+		if m == nil {
+			return "", errors.New("claudeOpus46VertexModelGardenFlow: failed to find model")
+		}
+		return genkit.GenerateText(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				MaxTokens: 1024,
+			}),
+			ai.WithPrompt("Share a joke about %s.", input),
+		)
+	})
 
 	// Optionally, start a web server to make the flow callable via HTTP.
 	mux := http.NewServeMux()
