@@ -36,6 +36,7 @@ each endpoint's behavior.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, cast
 from unittest.mock import ANY, AsyncMock, MagicMock
@@ -242,3 +243,62 @@ async def test_run_action_streaming(
     assert response.status_code == 200
     assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
+
+
+@pytest.mark.parametrize(
+    'chunks, expected_lines',
+    [
+        (['string chunk 1', 'string chunk 2'], ['"string chunk 1"', '"string chunk 2"']),
+        ([123, 456], ['123', '456']),
+        ([12.3, 45.6], ['12.3', '45.6']),
+        ([True, False], ['true', 'false']),
+        ([None], ['null']),
+        ([{'key': 'value'}], ['{"key": "value"}']),
+    ],
+)
+@pytest.mark.asyncio
+async def test_run_action_streaming_primitive_types(
+    asgi_client: AsyncClient,
+    mock_registry: MagicMock,
+    chunks: list[Any],
+    expected_lines: list[str],
+) -> None:
+    """Test that streaming actions with primitive type chunks work correctly."""
+    mock_action = AsyncMock()
+
+    async def mock_streaming(
+        input: object = None,
+        on_chunk: object | None = None,
+        context: object | None = None,
+        on_trace_start: Callable[[str, str], None] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> MagicMock:
+        if on_trace_start:
+            on_trace_start('stream_trace_id', 'stream_span_id')
+        if on_chunk:
+            on_chunk_fn = cast(Callable[[object], None], on_chunk)
+            for chunk in chunks:
+                on_chunk_fn(chunk)
+        mock_output = MagicMock()
+        mock_output.response = {'final': 'result'}
+        mock_output.trace_id = 'stream_trace_id'
+        mock_output.span_id = 'stream_span_id'
+        return mock_output
+
+    mock_action.run.side_effect = mock_streaming
+    mock_registry.resolve_action_by_key.return_value = mock_action
+
+    response = await asgi_client.post(
+        '/api/runAction?stream=true',
+        json={'key': 'test_action', 'input': {'data': 'test'}},
+    )
+
+    assert response.status_code == 200
+    assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
+    assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
+
+    lines = response.text.strip().split('\n')
+    assert lines[:-1] == expected_lines
+
+    final_result = json.loads(lines[-1])
+    assert final_result['result'] == {'final': 'result'}
