@@ -580,6 +580,7 @@ class ReflectionListActionsResponse(GenkitModel):
     """Model for reflectionlistactionsresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    actions: Actions = Field(...)
 
 
 class ReflectionListValuesParams(GenkitModel):
@@ -838,6 +839,12 @@ class Resource(GenkitModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     uri: str = Field(...)
+
+
+class Actions(GenkitModel):
+    """Model for actions data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
 
 
 class TelemetryLabels(GenkitModel):

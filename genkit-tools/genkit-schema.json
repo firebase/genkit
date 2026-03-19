@@ -1584,9 +1584,18 @@
     },
     "ReflectionListActionsResponse": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/ActionMetadata"
-      }
+      "properties": {
+        "actions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ActionMetadata"
+          }
+        }
+      },
+      "required": [
+        "actions"
+      ],
+      "additionalProperties": false
     },
     "ReflectionListValuesParams": {
       "type": "object",

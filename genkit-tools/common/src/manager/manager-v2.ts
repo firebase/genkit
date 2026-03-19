@@ -413,8 +413,8 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       await this.sendRequest(runtimeId, 'listActions')
     );
     // make sure key is set on the action metadata
-    for (const key of Object.keys(response)) {
-      const action = response[key];
+    for (const key of Object.keys(response.actions)) {
+      const action = response.actions[key];
       if (!action.key) {
         action.key = key;
       }

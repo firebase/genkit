@@ -102,10 +102,9 @@ export const ReflectionEndInputStreamParamsSchema = z.object({
 /**
  * ReflectionListActionsResponseSchema is the result for the 'listActions' method.
  */
-export const ReflectionListActionsResponseSchema = z.record(
-  z.string(),
-  ActionMetadataSchema
-);
+export const ReflectionListActionsResponseSchema = z.object({
+  actions: z.record(z.string(), ActionMetadataSchema),
+});
 
 /**
  * ReflectionListValuesResponseSchema is the result for the 'listValues' method.

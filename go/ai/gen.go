@@ -456,7 +456,9 @@ type ReflectionEndInputStreamParams struct {
 	RequestID string `json:"requestId,omitempty"`
 }
 
-type ReflectionListActionsResponse map[string]*ActionMetadata
+type ReflectionListActionsResponse struct {
+	Actions map[string]*ActionMetadata `json:"actions,omitempty"`
+}
 
 type ReflectionListValuesParams struct {
 	Type string `json:"type,omitempty"`

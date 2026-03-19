@@ -213,9 +213,7 @@ export class ReflectionServerV2 {
   private async handleListActions(request: JsonRpcRequest) {
     if (!request.id) return; // Should be a request
     const actions = await this.registry.listResolvableActions();
-    const convertedActions: z.infer<
-      typeof ReflectionListActionsResponseSchema
-    > = {};
+    const convertedActions: Record<string, any> = {};
 
     Object.keys(actions).forEach((key) => {
       const action = actions[key];
@@ -241,7 +239,7 @@ export class ReflectionServerV2 {
 
     this.sendResponse(
       request.id,
-      ReflectionListActionsResponseSchema.parse(convertedActions)
+      ReflectionListActionsResponseSchema.parse({ actions: convertedActions })
     );
   }
 
