@@ -245,12 +245,25 @@ async def test_run_action_streaming(
     assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
 
 
+@pytest.mark.parametrize(
+    'chunks, expected_lines',
+    [
+        (['string chunk 1', 'string chunk 2'], ['"string chunk 1"', '"string chunk 2"']),
+        ([123, 456], ['123', '456']),
+        ([12.3, 45.6], ['12.3', '45.6']),
+        ([True, False], ['true', 'false']),
+        ([None], ['null']),
+        ([{'key': 'value'}], ['{"key": "value"}']),
+    ],
+)
 @pytest.mark.asyncio
-async def test_run_action_streaming_string(
+async def test_run_action_streaming_primitive_types(
     asgi_client: AsyncClient,
     mock_registry: MagicMock,
+    chunks: list[Any],
+    expected_lines: list[str],
 ) -> None:
-    """Test that streaming actions with string chunks work correctly."""
+    """Test that streaming actions with primitive type chunks work correctly."""
     mock_action = AsyncMock()
 
     async def mock_streaming(
@@ -264,8 +277,8 @@ async def test_run_action_streaming_string(
             on_trace_start('stream_trace_id', 'stream_span_id')
         if on_chunk:
             on_chunk_fn = cast(Callable[[object], None], on_chunk)
-            on_chunk_fn('string chunk 1')
-            on_chunk_fn('string chunk 2')
+            for chunk in chunks:
+                on_chunk_fn(chunk)
         mock_output = MagicMock()
         mock_output.response = {'final': 'result'}
         mock_output.trace_id = 'stream_trace_id'
@@ -283,11 +296,9 @@ async def test_run_action_streaming_string(
     assert response.status_code == 200
     assert response.headers['X-Genkit-Trace-Id'] == 'stream_trace_id'
     assert response.headers['X-Genkit-Span-Id'] == 'stream_span_id'
-    
-    # Verify the output contains the JSON-encoded strings
+
     lines = response.text.strip().split('\n')
-    assert lines[0] == '"string chunk 1"'
-    assert lines[1] == '"string chunk 2"'
-    # The last line should be the final result JSON
-    final_result = json.loads(lines[2])
+    assert lines[:-1] == expected_lines
+
+    final_result = json.loads(lines[-1])
     assert final_result['result'] == {'final': 'result'}
