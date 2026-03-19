@@ -54,6 +54,7 @@ ai.define_evaluator(
     fn=url_match,
 )
 
+
 # 2. LLM-as-judge evaluator (requires GEMINI_API_KEY)
 class DeliciousnessResponse(BaseModel):
     reason: str

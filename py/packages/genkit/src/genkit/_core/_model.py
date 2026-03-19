@@ -82,11 +82,21 @@ class Message(MessageData):
     ) -> None:
         """Initialize from MessageData or keyword arguments."""
         if message is not None:
-            super().__init__(
-                role=message.role,
-                content=message.content,
-                metadata=message.metadata,
-            )
+            if isinstance(message, dict):
+                role = message.get('role')
+                if role is None:
+                    raise ValueError('Message role is required')
+                super().__init__(
+                    role=role,
+                    content=message.get('content', []),
+                    metadata=message.get('metadata'),
+                )
+            else:
+                super().__init__(
+                    role=message.role,
+                    content=message.content,
+                    metadata=message.metadata,
+                )
         else:
             super().__init__(**kwargs)  # type: ignore[arg-type]
 
