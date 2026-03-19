@@ -592,22 +592,36 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 			}
 		}
 		fc := genai.NewPartFromFunctionCall(toolReq.Name, input)
-		// Restore ThoughtSignature if present in metadata
+		// Restore ThoughtSignature if present in metadata.
 		if p.Metadata != nil {
-			if sig, ok := p.Metadata["signature"].([]byte); ok {
-				fc.ThoughtSignature = sig
-			}
+			fc.ThoughtSignature = metadataSignature(p.Metadata)
 		}
 		return fc, nil
 	default:
 		return nil, fmt.Errorf("unknown part in the request: %q", p.Kind)
 	}
 
+	// Restore ThoughtSignature if present in metadata.
 	if p.Metadata != nil {
-		if sig, ok := p.Metadata["signature"].([]byte); ok {
-			gp.ThoughtSignature = sig
-		}
+		gp.ThoughtSignature = metadataSignature(p.Metadata)
 	}
 
 	return gp, nil
+}
+
+// metadataSignature extracts the thought signature from part metadata.
+// It handles both []byte (original value) and string (base64-encoded
+// after a JSON clone roundtrip).
+func metadataSignature(metadata map[string]any) []byte {
+	switch sig := metadata["signature"].(type) {
+	case []byte:
+		return sig
+	case string:
+		decoded, err := base64.StdEncoding.DecodeString(sig)
+		if err != nil {
+			return nil
+		}
+		return decoded
+	}
+	return nil
 }
