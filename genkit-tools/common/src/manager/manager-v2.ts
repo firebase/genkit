@@ -16,6 +16,7 @@
 
 import EventEmitter from 'events';
 import getPort, { makeRange } from 'get-port';
+import path from 'path';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   Action,
@@ -190,7 +191,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       reflectionApiSpecVersion: params.reflectionApiSpecVersion,
       reflectionServerUrl: `ws://localhost:${this.port}`, // Virtual URL for compatibility
       timestamp: new Date().toISOString(),
-      projectName: params.name || 'Unknown', // Or derive from other means if needed
+      projectName: path.basename(this.projectRoot), // Or derive from other means if needed
     };
 
     this.runtimes.set(runtimeInfo.id, { ws, info: runtimeInfo });
