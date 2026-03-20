@@ -33,6 +33,9 @@ from genkit.plugin_api import (
     get_callable_json,
 )
 
+# Compact JSON (no spaces) for smaller wire payload.
+_JSON_SEPARATORS = (',', ':')
+
 
 def _to_dict(obj: Any) -> Any:  # noqa: ANN401
     """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
@@ -137,15 +140,15 @@ def genkit_flask_handler(
                     try:
                         stream_response = flow.stream(input_data.get('data'), context=action_context)
                         async for chunk in stream_response.stream:
-                            yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=(",", ":"))}\n\n'
+                            yield f'data: {json.dumps({"message": _to_dict(chunk)}, separators=_JSON_SEPARATORS)}\n\n'
 
                         result = await stream_response.response
-                        yield f'data: {json.dumps({"result": _to_dict(result)}, separators=(",", ":"))}\n\n'
+                        yield f'data: {json.dumps({"result": _to_dict(result)}, separators=_JSON_SEPARATORS)}\n\n'
                     except Exception as e:
                         ex = e
                         if isinstance(ex, GenkitError):
                             ex = ex.cause
-                        yield f'error: {json.dumps({"error": _to_dict(get_callable_json(ex))}, separators=(",", ":"))}'
+                        yield f'error: {json.dumps({"error": get_callable_json(ex)}, separators=_JSON_SEPARATORS)}'
 
                 iter = _iter_over_async(async_gen(), loop)
                 return iter
@@ -157,7 +160,10 @@ def genkit_flask_handler(
                     ex = e
                     if isinstance(ex, GenkitError):
                         ex = ex.cause
-                    return Response(status=500, response=json.dumps(get_callable_json(ex), separators=(',', ':')))
+                    return Response(
+                        status=500,
+                        response=json.dumps(get_callable_json(ex), separators=_JSON_SEPARATORS),
+                    )
 
         return handler
 

@@ -275,7 +275,7 @@ export class ReflectionServer {
               response.write(JSON.stringify(chunk) + '\n');
             };
             const result = await action.run(input, {
-              context,
+              context: context || {},
               onChunk: callback,
               telemetryLabels,
               onTraceStart: onTraceStartCallback,
@@ -316,7 +316,7 @@ export class ReflectionServer {
         } else {
           // Non-streaming: send JSON response
           const result = await action.run(input, {
-            context,
+            context: context || {},
             telemetryLabels,
             onTraceStart: onTraceStartCallback,
             abortSignal: abortController.signal,

@@ -205,6 +205,7 @@ class MyPlugin(Plugin):
             ActionMetadata(kind=ActionKind.MODEL, name='myplugin/my-model'),
         ]
 
+
 # Usage:
 ai = Genkit(plugins=[MyPlugin(api_key='...')])
 response = await ai.generate(model='myplugin/my-model', prompt='Hello!')
@@ -357,7 +358,7 @@ ai = Genkit(
     model=gemini_2_0_flash,
 )
 
-response = await ai.generate(prompt="Tell me a joke")
+response = await ai.generate(prompt='Tell me a joke')
 print(response.text)
 ```
 
