@@ -71,6 +71,13 @@ describe('ReflectionServerV2', () => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
             assert.strictEqual(msg.params.name, 'test-app');
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
             clearTimeout(timer);
             resolve();
           }
@@ -109,6 +116,13 @@ describe('ReflectionServerV2', () => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
             // After registration, request listActions
             ws.send(
               JSON.stringify({
@@ -150,6 +164,13 @@ describe('ReflectionServerV2', () => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
             ws.send(
               JSON.stringify({
                 jsonrpc: '2.0',
@@ -197,6 +218,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   jsonrpc: '2.0',
@@ -261,6 +289,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               ws.send(
                 JSON.stringify({
                   jsonrpc: '2.0',
@@ -339,6 +374,13 @@ describe('ReflectionServerV2', () => {
           try {
             const msg = JSON.parse(data.toString());
             if (msg.method === 'register') {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               // Start action
               ws.send(
                 JSON.stringify({
@@ -408,6 +450,13 @@ describe('ReflectionServerV2', () => {
             if (connectionCount === 1) {
               ws.terminate(); // Simulate server drop
             } else if (connectionCount === 2) {
+              ws.send(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {},
+                  id: msg.id,
+                })
+              );
               clearTimeout(timeout);
               resolve();
             }

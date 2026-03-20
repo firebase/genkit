@@ -79,6 +79,14 @@ export class ReflectionServerV2 {
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private baseDelayMs = 500;
   private maxDelayMs = 5000;
+  private pendingRequests = new Map<
+    string,
+    {
+      resolve: (value: any) => void;
+      reject: (reason?: any) => void;
+    }
+  >();
+  private requestIdCounter = 0;
 
   constructor(registry: Registry, options: ReflectionServerV2Options) {
     this.registry = registry;
@@ -103,17 +111,19 @@ export class ReflectionServerV2 {
     const ws = new WebSocket(this.url);
     this.ws = ws;
 
-    this.ws.on('open', () => {
+    this.ws.on('open', async () => {
       logger.debug('Connected to Reflection V2 server.');
       this.reconnectCount = 0;
-      this.register();
+      await this.register();
     });
 
     this.ws.on('message', async (data) => {
       try {
-        const message = JSON.parse(data.toString()) as JsonRpcMessage;
+        const message = JSON.parse(data.toString()) as any;
         if ('method' in message) {
-          await this.handleRequest(message as JsonRpcRequest);
+          await this.handleRequest(message);
+        } else if ('id' in message) {
+          this.handleResponse(message);
         }
       } catch (error) {
         logger.error(`Failed to parse message: ${error}`);
@@ -128,6 +138,13 @@ export class ReflectionServerV2 {
       logger.debug(
         `Reflection V2 WebSocket closed. Code: ${code}, Reason: ${reason}`
       );
+      for (const [id, resolver] of this.pendingRequests.entries()) {
+        resolver.reject(
+          new Error(`Connection closed before response was received (id: ${id})`)
+        );
+      }
+      this.pendingRequests.clear();
+
       if (!this.isStopped) {
         this.scheduleReconnect();
       }
@@ -195,7 +212,20 @@ export class ReflectionServerV2 {
     });
   }
 
-  private register() {
+  private sendRequest(method: string, params: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const id = (++this.requestIdCounter).toString();
+      this.pendingRequests.set(id, { resolve, reject });
+      this.send({
+        jsonrpc: '2.0',
+        id,
+        method,
+        params,
+      });
+    });
+  }
+
+  private async register() {
     const params: ReflectionRegisterParams = {
       id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
       pid: process.pid,
@@ -204,11 +234,37 @@ export class ReflectionServerV2 {
       reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
       envs: this.options.configuredEnvs,
     };
-    this.sendNotification('register', params);
+    try {
+      const response = await this.sendRequest('register', params);
+      if (response && response.telemetryServerUrl) {
+        if (!process.env.GENKIT_TELEMETRY_SERVER) {
+          setTelemetryServerUrl(response.telemetryServerUrl);
+          logger.debug(
+            `Connected to telemetry server on ${response.telemetryServerUrl} via handshake`
+          );
+        }
+      }
+    } catch (err) {
+      logger.error(`Failed to register with CLI: ${err}`);
+    }
   }
 
   get runtimeId() {
     return `${process.pid}${this.index ? `-${this.index}` : ''}`;
+  }
+
+  private handleResponse(response: any) {
+    const resolver = this.pendingRequests.get(response.id);
+    if (!resolver) {
+      logger.error(`Unknown response ID: ${response.id}`);
+      return;
+    }
+    this.pendingRequests.delete(response.id);
+    if ('error' in response) {
+      resolver.reject(response.error);
+    } else {
+      resolver.resolve(response.result);
+    }
   }
 
   private async handleRequest(request: JsonRpcRequest) {

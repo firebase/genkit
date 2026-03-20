@@ -201,14 +201,13 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       ws.send(
         JSON.stringify({
           jsonrpc: '2.0',
-          result: null,
+          result: {
+            telemetryServerUrl: this.telemetryServerUrl,
+          },
           id: request.id,
         })
       );
     }
-
-    // Configure the runtime immediately
-    this.notifyRuntime(runtimeInfo.id);
   }
 
   private handleStreamChunk(notification: JsonRpcRequest) {
@@ -353,12 +352,6 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       params,
     };
     runtime.ws.send(JSON.stringify(message));
-  }
-
-  private notifyRuntime(runtimeId: string) {
-    this.sendNotification(runtimeId, 'configure', {
-      telemetryServerUrl: this.telemetryServerUrl,
-    });
   }
 
   listRuntimes(): RuntimeInfo[] {
