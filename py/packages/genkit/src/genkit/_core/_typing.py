@@ -528,6 +528,124 @@ class ToolResponse(GenkitModel):
     content: list[Any] | None = None
 
 
+class ActionMetadata(GenkitModel):
+    """Model for actionmetadata data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    key: str | None = None
+    action_type: str | None = None
+    name: str = Field(...)
+    description: str | None = None
+    input_schema: Any | None = Field(default=None)
+    input_json_schema: Any | dict[str, Any] | None = Field(
+        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
+    )
+    output_schema: Any | None = Field(default=None)
+    output_json_schema: Any | None = Field(
+        default=None, description='A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
+    )
+    stream_schema: Any | None = Field(default=None)
+    metadata: Metadata | None = None
+
+
+class ReflectionCancelActionParams(GenkitModel):
+    """Model for reflectioncancelactionparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str = Field(...)
+
+
+class ReflectionCancelActionResponse(GenkitModel):
+    """Model for reflectioncancelactionresponse data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    message: str = Field(...)
+
+
+class ReflectionConfigureParams(GenkitModel):
+    """Model for reflectionconfigureparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    telemetry_server_url: str | None = None
+
+
+class ReflectionEndInputStreamParams(GenkitModel):
+    """Model for reflectionendinputstreamparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+
+
+class ReflectionListActionsResponse(GenkitModel):
+    """Model for reflectionlistactionsresponse data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    actions: Actions = Field(...)
+
+
+class ReflectionListValuesParams(GenkitModel):
+    """Model for reflectionlistvaluesparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    type: str = Field(...)
+
+
+class ReflectionListValuesResponse(GenkitModel):
+    """Model for reflectionlistvaluesresponse data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    values: Values = Field(...)
+
+
+class ReflectionRegisterParams(GenkitModel):
+    """Model for reflectionregisterparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    id: str = Field(...)
+    pid: float = Field(...)
+    name: str | None = None
+    genkit_version: str | None = None
+    reflection_api_spec_version: float | None = None
+    envs: list[str] | None = None
+
+
+class ReflectionRunActionParams(GenkitModel):
+    """Model for reflectionrunactionparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    runtime_id: str | None = None
+    key: str = Field(..., description='Action key that consists of the action type and ID.')
+    input: Any | None = Field(default=None, description='An input with the type that this action expects.')
+    context: Any | None = Field(default=None, description='Additional runtime context data (ex. auth context data).')
+    telemetry_labels: TelemetryLabels | None = None
+    stream: bool | None = None
+    stream_input: bool | None = None
+
+
+class ReflectionRunActionStateParams(GenkitModel):
+    """Model for reflectionrunactionstateparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    state: State | None = None
+
+
+class ReflectionSendInputStreamChunkParams(GenkitModel):
+    """Model for reflectionsendinputstreamchunkparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    chunk: Any | None = Field(default=None)
+
+
+class ReflectionStreamChunkParams(GenkitModel):
+    """Model for reflectionstreamchunkparams data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    request_id: str = Field(...)
+    chunk: Any | None = Field(default=None)
+
+
 class InstrumentationLibrary(GenkitModel):
     """Model for instrumentationlibrary data."""
 
@@ -723,6 +841,31 @@ class Resource(GenkitModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     uri: str = Field(...)
+
+
+class Actions(GenkitModel):
+    """Model for actions data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+
+
+class Values(GenkitModel):
+    """Model for values data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+
+
+class TelemetryLabels(GenkitModel):
+    """Model for telemetrylabels data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+
+
+class State(GenkitModel):
+    """Model for state data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    trace_id: str | None = None
 
 
 class Attributes(GenkitModel):

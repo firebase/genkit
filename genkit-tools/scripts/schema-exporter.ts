@@ -29,6 +29,7 @@ const EXPORTED_TYPE_MODULES = [
   '../common/src/types/model.ts',
   '../common/src/types/parts.ts',
   '../common/src/types/reranker.ts',
+  '../common/src/types/reflection.ts',
   '../common/src/types/retriever.ts',
   '../common/src/types/trace.ts',
 ];
