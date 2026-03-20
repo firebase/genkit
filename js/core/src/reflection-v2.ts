@@ -140,7 +140,9 @@ export class ReflectionServerV2 {
       );
       for (const [id, resolver] of this.pendingRequests.entries()) {
         resolver.reject(
-          new Error(`Connection closed before response was received (id: ${id})`)
+          new Error(
+            `Connection closed before response was received (id: ${id})`
+          )
         );
       }
       this.pendingRequests.clear();
