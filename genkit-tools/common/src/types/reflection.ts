@@ -29,7 +29,12 @@ export const ReflectionRegisterParamsSchema = z.object({
   name: z.string().optional(),
   genkitVersion: z.string().optional(),
   reflectionApiSpecVersion: z.number().optional(),
+  envs: z.array(z.string()).optional(),
 });
+
+export type ReflectionRegisterParams = z.infer<
+  typeof ReflectionRegisterParamsSchema
+>;
 
 /**
  * ReflectionStreamChunkSchema is the payload for the 'streamChunk' method.
@@ -38,6 +43,10 @@ export const ReflectionStreamChunkParamsSchema = z.object({
   requestId: z.string(),
   chunk: z.any(),
 });
+
+export type ReflectionStreamChunkParams = z.infer<
+  typeof ReflectionStreamChunkParamsSchema
+>;
 
 /**
  * ReflectionRunActionStateSchema is the payload for the 'runActionState' method.
@@ -51,6 +60,10 @@ export const ReflectionRunActionStateParamsSchema = z.object({
     .optional(),
 });
 
+export type ReflectionRunActionStateParams = z.infer<
+  typeof ReflectionRunActionStateParamsSchema
+>;
+
 /**
  * ReflectionConfigureSchema is the payload for the 'configure' method.
  */
@@ -58,12 +71,20 @@ export const ReflectionConfigureParamsSchema = z.object({
   telemetryServerUrl: z.string().optional(),
 });
 
+export type ReflectionConfigureParams = z.infer<
+  typeof ReflectionConfigureParamsSchema
+>;
+
 /**
  * ReflectionListValuesSchema is the payload for the 'listValues' method.
  */
 export const ReflectionListValuesParamsSchema = z.object({
   type: z.string(),
 });
+
+export type ReflectionListValuesParams = z.infer<
+  typeof ReflectionListValuesParamsSchema
+>;
 
 /**
  * ReflectionRunActionSchema is the payload for the 'runAction' method.
@@ -73,12 +94,20 @@ export const ReflectionRunActionParamsSchema = RunActionRequestSchema.extend({
   streamInput: z.boolean().optional(),
 });
 
+export type ReflectionRunActionParams = z.infer<
+  typeof ReflectionRunActionParamsSchema
+>;
+
 /**
  * ReflectionCancelActionSchema is the payload for the 'cancelAction' method.
  */
 export const ReflectionCancelActionParamsSchema = z.object({
   traceId: z.string(),
 });
+
+export type ReflectionCancelActionParams = z.infer<
+  typeof ReflectionCancelActionParamsSchema
+>;
 
 /**
  * ReflectionSendInputStreamChunkSchema is the payload for the 'sendInputStreamChunk' method.
@@ -88,12 +117,20 @@ export const ReflectionSendInputStreamChunkParamsSchema = z.object({
   chunk: z.any(),
 });
 
+export type ReflectionSendInputStreamChunkParams = z.infer<
+  typeof ReflectionSendInputStreamChunkParamsSchema
+>;
+
 /**
  * ReflectionEndInputStreamSchema is the payload for the 'endInputStream' method.
  */
 export const ReflectionEndInputStreamParamsSchema = z.object({
   requestId: z.string(),
 });
+
+export type ReflectionEndInputStreamParams = z.infer<
+  typeof ReflectionEndInputStreamParamsSchema
+>;
 
 /**
  * ReflectionListActionsResponseSchema is the result for the 'listActions' method.
@@ -102,10 +139,20 @@ export const ReflectionListActionsResponseSchema = z.object({
   actions: z.record(z.string(), ActionMetadataSchema),
 });
 
+export type ReflectionListActionsResponse = z.infer<
+  typeof ReflectionListActionsResponseSchema
+>;
+
 /**
  * ReflectionListValuesResponseSchema is the result for the 'listValues' method.
  */
-export const ReflectionListValuesResponseSchema = z.record(z.any());
+export const ReflectionListValuesResponseSchema = z.object({
+  values: z.record(z.any()),
+});
+
+export type ReflectionListValuesResponse = z.infer<
+  typeof ReflectionListValuesResponseSchema
+>;
 
 /**
  * ReflectionCancelActionResponseSchema is the result for the 'cancelAction' method.
@@ -113,3 +160,7 @@ export const ReflectionListValuesResponseSchema = z.record(z.any());
 export const ReflectionCancelActionResponseSchema = z.object({
   message: z.string(),
 });
+
+export type ReflectionCancelActionResponse = z.infer<
+  typeof ReflectionCancelActionResponseSchema
+>;

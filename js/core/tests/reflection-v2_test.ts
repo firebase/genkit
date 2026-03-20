@@ -159,8 +159,8 @@ describe('ReflectionServerV2', () => {
               })
             );
           } else if (msg.id === '124') {
-            assert.ok(msg.result['my-prompt']);
-            assert.strictEqual(msg.result['my-prompt'].template, 'foo');
+            assert.ok(msg.result.values['my-prompt']);
+            assert.strictEqual(msg.result.values['my-prompt'].template, 'foo');
             clearTimeout(timer);
             resolve();
           }

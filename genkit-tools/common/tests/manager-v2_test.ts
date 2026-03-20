@@ -180,7 +180,9 @@ describe('RuntimeManagerV2', () => {
         const response = {
           jsonrpc: '2.0',
           result: {
-            'my-prompt': { template: 'foo' },
+            values: {
+              'my-prompt': { template: 'foo' },
+            },
           },
           id: message.id,
         };

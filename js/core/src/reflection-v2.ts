@@ -21,10 +21,10 @@ import { logger } from './logging.js';
 import {
   ReflectionCancelActionParamsSchema,
   ReflectionConfigureParamsSchema,
-  ReflectionListActionsResponseSchema,
+  ReflectionListActionsResponse,
   ReflectionListValuesParamsSchema,
   ReflectionListValuesResponseSchema,
-  ReflectionRegisterParamsSchema,
+  ReflectionRegisterParams,
   ReflectionRunActionParamsSchema,
   ReflectionRunActionStateParamsSchema,
   ReflectionStreamChunkParamsSchema,
@@ -196,14 +196,14 @@ export class ReflectionServerV2 {
   }
 
   private register() {
-    const params = ReflectionRegisterParamsSchema.parse({
+    const params: ReflectionRegisterParams = {
       id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
       pid: process.pid,
       name: this.options.name || this.runtimeId,
       genkitVersion: GENKIT_VERSION,
       reflectionApiSpecVersion: GENKIT_REFLECTION_API_SPEC_VERSION,
       envs: this.options.configuredEnvs,
-    });
+    };
     this.sendNotification('register', params);
   }
 
@@ -280,10 +280,9 @@ export class ReflectionServerV2 {
       }
     });
 
-    this.sendResponse(
-      request.id,
-      ReflectionListActionsResponseSchema.parse({ actions: convertedActions })
-    );
+    this.sendResponse(request.id, <ReflectionListActionsResponse>{
+      actions: convertedActions,
+    });
   }
 
   private async handleListValues(request: JsonRpcRequest) {
@@ -292,7 +291,7 @@ export class ReflectionServerV2 {
     const values = await this.registry.listValues(type);
     this.sendResponse(
       request.id,
-      ReflectionListValuesResponseSchema.parse(values)
+      ReflectionListValuesResponseSchema.parse({ values })
     );
   }
 

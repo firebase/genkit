@@ -434,7 +434,10 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
           : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
-    return this.sendRequest(runtimeId, 'listValues', { type: input.type });
+    const response = await this.sendRequest(runtimeId, 'listValues', {
+      type: input.type,
+    });
+    return response.values;
   }
 
   async stop() {

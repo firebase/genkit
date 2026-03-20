@@ -171,7 +171,7 @@ JSON-RPC 2.0 does not natively support streaming. We extend it by using Notifica
 **Result:**
 | Type | Description |
 | :--- | :--- |
-| `Record<string, any>` | Map of value keys to value definitions. |
+| `{ values: Record<string, any> }` | Object with a `values` field containing a map of value keys to value definitions. |
 
 ### 5. Run Action
 **Direction:** Manager -> Runtime  
