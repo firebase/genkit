@@ -1611,7 +1611,16 @@
     },
     "ReflectionListValuesResponse": {
       "type": "object",
-      "additionalProperties": {}
+      "properties": {
+        "values": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false
     },
     "ReflectionRegisterParams": {
       "type": "object",
@@ -1630,6 +1639,12 @@
         },
         "reflectionApiSpecVersion": {
           "type": "number"
+        },
+        "envs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [

@@ -594,6 +594,7 @@ class ReflectionListValuesResponse(GenkitModel):
     """Model for reflectionlistvaluesresponse data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    values: Values = Field(...)
 
 
 class ReflectionRegisterParams(GenkitModel):
@@ -605,6 +606,7 @@ class ReflectionRegisterParams(GenkitModel):
     name: str | None = None
     genkit_version: str | None = None
     reflection_api_spec_version: float | None = None
+    envs: list[str] | None = None
 
 
 class ReflectionRunActionParams(GenkitModel):
@@ -843,6 +845,12 @@ class Resource(GenkitModel):
 
 class Actions(GenkitModel):
     """Model for actions data."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+
+
+class Values(GenkitModel):
+    """Model for values data."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
 

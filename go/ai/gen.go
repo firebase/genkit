@@ -464,14 +464,17 @@ type ReflectionListValuesParams struct {
 	Type string `json:"type,omitempty"`
 }
 
-type ReflectionListValuesResponse map[string]any
+type ReflectionListValuesResponse struct {
+	Values map[string]any `json:"values,omitempty"`
+}
 
 type ReflectionRegisterParams struct {
-	GenkitVersion            string  `json:"genkitVersion,omitempty"`
-	Id                       string  `json:"id,omitempty"`
-	Name                     string  `json:"name,omitempty"`
-	Pid                      float64 `json:"pid,omitempty"`
-	ReflectionApiSpecVersion float64 `json:"reflectionApiSpecVersion,omitempty"`
+	Envs                     []string `json:"envs,omitempty"`
+	GenkitVersion            string   `json:"genkitVersion,omitempty"`
+	Id                       string   `json:"id,omitempty"`
+	Name                     string   `json:"name,omitempty"`
+	Pid                      float64  `json:"pid,omitempty"`
+	ReflectionApiSpecVersion float64  `json:"reflectionApiSpecVersion,omitempty"`
 }
 
 type ReflectionRunActionParams struct {
