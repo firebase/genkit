@@ -15,7 +15,6 @@
  */
 
 import WebSocket from 'ws';
-import z from 'zod';
 import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
@@ -75,6 +74,11 @@ export class ReflectionServerV2 {
       startTime: Date;
     }
   >();
+  private reconnectCount = 0;
+  private isStopped = false;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private baseDelayMs = 500;
+  private maxDelayMs = 5000;
 
   constructor(registry: Registry, options: ReflectionServerV2Options) {
     this.registry = registry;
@@ -87,11 +91,21 @@ export class ReflectionServerV2 {
   }
 
   async start() {
+    this.isStopped = false;
+    this.reconnectCount = 0;
+    await this.connect();
+  }
+
+  private async connect() {
+    if (this.isStopped) return;
+
     logger.debug(`Connecting to Reflection V2 server at ${this.url}`);
-    this.ws = new WebSocket(this.url);
+    const ws = new WebSocket(this.url);
+    this.ws = ws;
 
     this.ws.on('open', () => {
       logger.debug('Connected to Reflection V2 server.');
+      this.reconnectCount = 0;
       this.register();
     });
 
@@ -110,12 +124,41 @@ export class ReflectionServerV2 {
       logger.error(`Reflection V2 WebSocket error: ${error}`);
     });
 
-    this.ws.on('close', () => {
-      logger.debug('Reflection V2 WebSocket closed.');
+    this.ws.on('close', (code, reason) => {
+      logger.debug(
+        `Reflection V2 WebSocket closed. Code: ${code}, Reason: ${reason}`
+      );
+      if (!this.isStopped) {
+        this.scheduleReconnect();
+      }
     });
   }
 
+  private scheduleReconnect() {
+    if (this.reconnectTimeout) return;
+
+    const delay = Math.min(
+      this.baseDelayMs * Math.pow(2, this.reconnectCount),
+      this.maxDelayMs
+    );
+    this.reconnectCount++;
+
+    logger.debug(
+      `Scheduling reconnection in ${delay}ms (attempt ${this.reconnectCount})`
+    );
+
+    this.reconnectTimeout = setTimeout(async () => {
+      this.reconnectTimeout = null;
+      await this.connect();
+    }, delay);
+  }
+
   async stop() {
+    this.isStopped = true;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;

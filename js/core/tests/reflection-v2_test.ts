@@ -16,7 +16,7 @@
 
 import * as assert from 'assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { action } from '../src/action.js';
 import { initNodeFeatures } from '../src/node.js';
@@ -30,7 +30,7 @@ describe('ReflectionServerV2', () => {
   let server: ReflectionServerV2;
   let registry: Registry;
   let port: number;
-  let serverWs: any;
+  let connections: WebSocket[] = [];
 
   beforeEach(() => {
     return new Promise<void>((resolve) => {
@@ -40,7 +40,7 @@ describe('ReflectionServerV2', () => {
         resolve();
       });
       wss.on('connection', (ws) => {
-        serverWs = ws;
+        connections.push(ws); // Track all connections
       });
       registry = new Registry();
     });
@@ -50,21 +50,28 @@ describe('ReflectionServerV2', () => {
     if (server) {
       await server.stop();
     }
-    if (serverWs) {
-      serverWs.terminate();
+    // Terminate all connections to let wss.close() proceed
+    for (const ws of connections) {
+      ws.terminate();
     }
+    connections = [];
     await new Promise<void>((resolve) => {
       wss.close(() => resolve());
     });
   });
 
   it('should connect to the server and register', async () => {
-    const connected = new Promise<void>((resolve) => {
+    const connected = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('connect timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
           if (msg.method === 'register') {
             assert.strictEqual(msg.params.name, 'test-app');
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -93,7 +100,11 @@ describe('ReflectionServerV2', () => {
     );
     registry.registerAction('custom', testAction);
 
-    const gotListActions = new Promise<void>((resolve) => {
+    const gotListActions = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listActions timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
@@ -107,11 +118,13 @@ describe('ReflectionServerV2', () => {
               })
             );
           } else if (msg.id === '123') {
-            assert.ok(msg.result['/custom/testAction']);
+            const actions = msg.result.actions;
+            assert.ok(actions['/custom/testAction']);
             assert.strictEqual(
-              msg.result['/custom/testAction'].name,
+              actions['/custom/testAction'].name,
               'testAction'
             );
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -128,7 +141,11 @@ describe('ReflectionServerV2', () => {
   it('should handle listValues', async () => {
     registry.registerValue('prompt', 'my-prompt', { template: 'foo' });
 
-    const gotListValues = new Promise<void>((resolve) => {
+    const gotListValues = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues timeout')),
+        2000
+      );
       wss.on('connection', (ws) => {
         ws.on('message', (data) => {
           const msg = JSON.parse(data.toString());
@@ -144,6 +161,7 @@ describe('ReflectionServerV2', () => {
           } else if (msg.id === '124') {
             assert.ok(msg.result['my-prompt']);
             assert.strictEqual(msg.result['my-prompt'].template, 'foo');
+            clearTimeout(timer);
             resolve();
           }
         });
@@ -373,5 +391,36 @@ describe('ReflectionServerV2', () => {
     });
     await server.start();
     await actionCancelled;
+  });
+
+  it('should reconnect when lost connection and register again', async () => {
+    let connectionCount = 0;
+    const reconnected = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('reconnect timeout')),
+        5000
+      );
+      wss.on('connection', (ws) => {
+        connectionCount++;
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            if (connectionCount === 1) {
+              ws.terminate(); // Simulate server drop
+            } else if (connectionCount === 2) {
+              clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    (server as any).baseDelayMs = 10; // Fast for testing
+    await server.start();
+    await reconnected;
   });
 });
