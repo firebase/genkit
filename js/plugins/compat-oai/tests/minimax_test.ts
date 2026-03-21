@@ -161,7 +161,7 @@ describe('MiniMax ModelRef', () => {
         tools: false,
         media: true,
         systemRole: true,
-        output: ['text'] as const,
+        output: ['text'],
       },
     };
     const ref = miniMaxModelRef({
@@ -458,6 +458,7 @@ describe('MiniMax Plugin Integration', () => {
       tools: [
         {
           name: 'get_weather',
+          description: 'Get the weather for a location',
           inputSchema: {
             type: 'object',
             properties: { location: { type: 'string' } },

@@ -57,7 +57,11 @@ export function miniMaxModelRef(params: {
 
 export const miniMaxRequestBuilder: ModelRequestBuilder = (req, params) => {
   // Clamp temperature to MiniMax's [0, 1] range
-  if (params.temperature !== undefined && params.temperature > 1) {
+  if (
+    params.temperature !== undefined &&
+    params.temperature !== null &&
+    params.temperature > 1
+  ) {
     params.temperature = 1;
   }
 };
