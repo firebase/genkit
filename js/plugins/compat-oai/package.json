@@ -60,6 +60,12 @@
       "import": "./lib/xai/index.mjs",
       "types": "./lib/xai/index.d.ts",
       "default": "./lib/xai/index.js"
+    },
+    "./novita": {
+      "require": "./lib/novita/index.js",
+      "import": "./lib/novita/index.mjs",
+      "types": "./lib/novita/index.d.ts",
+      "default": "./lib/novita/index.js"
     }
   },
   "typesVersions": {
@@ -72,6 +78,9 @@
       ],
       "xai": [
         "lib/xai"
+      ],
+      "novita": [
+        "lib/novita"
       ]
     }
   },
