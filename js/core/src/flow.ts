@@ -16,6 +16,7 @@
 
 import type { z } from 'zod';
 import { ActionFnArg, action, type Action } from './action.js';
+import type { ActionContext } from './context.js';
 import { Registry, type HasRegistry } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -53,22 +54,25 @@ export interface FlowConfig<
  * side-channel context data. The context itself is a function, a short-cut
  * for streaming callback.
  */
-export interface FlowSideChannel<S> extends ActionFnArg<S> {
+export interface FlowSideChannel<S, C extends object = object>
+  extends ActionFnArg<S, C> {
   (chunk: S): void;
 }
 
 /**
  * Function to be executed in the flow.
+ * @template C - Your app's context shape; ActionContext is merged in automatically in the callback's context.
  */
 export type FlowFn<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
+  C extends object = object,
 > = (
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback: FlowSideChannel<z.infer<S>>
+  streamingCallback: FlowSideChannel<z.infer<S>, C>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
@@ -78,7 +82,8 @@ export function flow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
->(config: FlowConfig<I, O, S> | string, fn: FlowFn<I, O, S>): Flow<I, O, S> {
+  C extends object = object,
+>(config: FlowConfig<I, O, S> | string, fn: FlowFn<I, O, S, C>): Flow<I, O, S> {
   const resolvedConfig: FlowConfig<I, O, S> =
     typeof config === 'string' ? { name: config } : config;
 
@@ -92,10 +97,11 @@ export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
+  C extends object = object,
 >(
   registry: Registry,
   config: FlowConfig<I, O, S> | string,
-  fn: FlowFn<I, O, S>
+  fn: FlowFn<I, O, S, C>
 ): Flow<I, O, S> {
   const f = flow(config, fn);
 
@@ -111,7 +117,8 @@ function flowAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
->(config: FlowConfig<I, O, S>, fn: FlowFn<I, O, S>): Flow<I, O, S> {
+  C extends object = object,
+>(config: FlowConfig<I, O, S>, fn: FlowFn<I, O, S, C>): Flow<I, O, S> {
   return action(
     {
       actionType: 'flow',
@@ -126,13 +133,14 @@ function flowAction<
       { sendChunk, context, trace, abortSignal, streamingRequested }
     ) => {
       const ctx = sendChunk;
-      (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
-      (ctx as FlowSideChannel<z.infer<S>>).context = context;
-      (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
-      (ctx as FlowSideChannel<z.infer<S>>).abortSignal = abortSignal;
-      (ctx as FlowSideChannel<z.infer<S>>).streamingRequested =
+      (ctx as FlowSideChannel<z.infer<S>, C>).sendChunk = sendChunk;
+      (ctx as FlowSideChannel<z.infer<S>, C>).context = context as C &
+        ActionContext;
+      (ctx as FlowSideChannel<z.infer<S>, C>).trace = trace;
+      (ctx as FlowSideChannel<z.infer<S>, C>).abortSignal = abortSignal;
+      (ctx as FlowSideChannel<z.infer<S>, C>).streamingRequested =
         streamingRequested;
-      return fn(input, ctx as FlowSideChannel<z.infer<S>>);
+      return fn(input, ctx as FlowSideChannel<z.infer<S>, C>);
     }
   );
 }
