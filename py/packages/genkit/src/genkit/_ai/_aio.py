@@ -50,11 +50,11 @@ from genkit._ai._model import (
     Message,
     ModelConfig,
     ModelFn,
-    ModelMiddleware,
     ModelResponse,
     ModelResponseChunk,
     define_model,
 )
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
@@ -395,7 +395,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         input_schema: type[InputT],
         output_schema: type[OutputT],
@@ -423,7 +423,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         input_schema: type[InputT],
         output_schema: dict[str, object] | str | None = None,
@@ -451,7 +451,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         input_schema: dict[str, object] | str | None = None,
         output_schema: type[OutputT],
@@ -479,7 +479,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         input_schema: dict[str, object] | str | None = None,
         output_schema: dict[str, object] | str | None = None,
@@ -505,7 +505,7 @@ class Genkit:
         metadata: dict[str, object] | None = None,
         tools: list[str] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         input_schema: type | dict[str, object] | str | None = None,
         output_schema: type | dict[str, object] | str | None = None,
@@ -753,7 +753,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
     ) -> ModelResponse[OutputT]: ...
 
@@ -778,7 +778,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
     ) -> ModelResponse[Any]: ...
 
@@ -801,7 +801,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
     ) -> ModelResponse[Any]:
         """Generate text or structured data using a language model."""
@@ -852,7 +852,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> ModelStreamResponse[OutputT]: ...
@@ -877,7 +877,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> ModelStreamResponse[Any]: ...
@@ -900,7 +900,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> ModelStreamResponse[Any]:
@@ -1141,7 +1141,7 @@ class Genkit:
         output_content_type: str | None = None,
         output_instructions: str | None = None,
         output_constrained: bool | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[BaseMiddleware] | None = None,
         docs: list[Document] | None = None,
     ) -> Operation:
         """Generate content using a long-running model, returning an Operation to poll."""
