@@ -20,12 +20,14 @@ import pytest
 
 from genkit import Genkit
 from genkit.evaluator import BaseDataPoint, EvalRequest
-from genkit.plugins.evaluators import GenkitEval
+from genkit.plugins.evaluators import register_genkit_evaluators
 
 
 @pytest.fixture
 def ai() -> Genkit:
-    return Genkit(plugins=[GenkitEval()])
+    ai = Genkit()
+    register_genkit_evaluators(ai)
+    return ai
 
 
 @pytest.mark.asyncio

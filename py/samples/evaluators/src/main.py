@@ -29,16 +29,17 @@ from genkit.evaluator import (
     EvalStatusEnum,
     Score,
 )
-from genkit.plugins.evaluators import GenkitEval
+from genkit.plugins.evaluators import register_genkit_evaluators
 from genkit.plugins.google_genai import GoogleAI
 
 # Setup
 prompts_path = Path(__file__).resolve().parent.parent / 'prompts'
 ai = Genkit(
-    plugins=[GenkitEval(), GoogleAI()],
+    plugins=[GoogleAI()],
     model='googleai/gemini-2.5-flash',
     prompt_dir=prompts_path,
 )
+register_genkit_evaluators(ai)
 
 JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.5-flash')
 

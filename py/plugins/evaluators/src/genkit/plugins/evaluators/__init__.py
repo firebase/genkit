@@ -14,8 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Genkit Evaluators plugin: regex, deep_equal, jsonata (matching Go/JS)."""
+"""Genkit built-in evaluators: regex, deep_equal, jsonata."""
 
-from genkit.plugins.evaluators.plugin import GenkitEval, genkit_eval_name
+from genkit.plugins.evaluators.plugin import genkit_eval_name, register_genkit_evaluators
 
-__all__ = ['GenkitEval', 'genkit_eval_name']
+__all__ = ['genkit_eval_name', 'register_genkit_evaluators']
