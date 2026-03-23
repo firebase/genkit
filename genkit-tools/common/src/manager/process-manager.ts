@@ -136,9 +136,7 @@ export class ProcessManager {
   }
 
   private cleanup() {
-    if (this.appProcess?.stdin) {
-      process.stdin.unpipe(this.appProcess.stdin);
-    }
+
 
     if (this.appProcess) {
       this.appProcess.stdout?.removeAllListeners();
