@@ -140,7 +140,8 @@ export async function startDevProcessManager(
     : await getDevEnvVars(projectRoot, options);
 
   const envVars = options?.envVars || calculatedEnvVars;
-  const reflectionV2Port = options?.reflectionV2Port || calculatedReflectionV2Port;
+  const reflectionV2Port =
+    options?.reflectionV2Port || calculatedReflectionV2Port;
   const telemetryServerUrl =
     options?.telemetryServerUrl || calculatedTelemetryServerUrl;
 

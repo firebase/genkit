@@ -17,11 +17,8 @@
 import { startServer } from '@genkit-ai/tools-common/server';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import fs from 'fs';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
-import os from 'os';
-import path from 'path';
 import { getDevEnvVars, startDevProcessManager } from '../utils/manager-utils';
 
 interface FlutterRunOptions {

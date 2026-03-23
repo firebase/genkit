@@ -69,6 +69,9 @@ export const start = new Command('start')
     }
 
     let envVars: Record<string, string> | undefined;
+    let telemetryServerUrl: string | undefined;
+    let reflectionV2Port: number | undefined;
+
     if (options.writeEnvFile) {
       const devEnv = await getDevEnvVars(projectRoot, {
         disableRealtimeTelemetry: options.disableRealtimeTelemetry,
@@ -76,6 +79,12 @@ export const start = new Command('start')
         experimentalReflectionV2: options.experimentalReflectionV2,
       });
       envVars = devEnv.envVars;
+      telemetryServerUrl = devEnv.telemetryServerUrl;
+      reflectionV2Port = devEnv.reflectionV2Port;
+
+      // Ensure subsequent calls to resolveTelemetryServer reuse this instance
+      process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
+
       const content = Object.entries(envVars)
         .map(([k, v]) => `${k}=${v}`)
         .join('\n');
@@ -96,6 +105,8 @@ export const start = new Command('start')
           corsOrigin: options.corsOrigin,
           experimentalReflectionV2: options.experimentalReflectionV2,
           envVars,
+          telemetryServerUrl,
+          reflectionV2Port,
         }
       );
       manager = result.manager;
