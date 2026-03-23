@@ -127,25 +127,17 @@ export async function startDevProcessManager(
   args: string[],
   options?: DevProcessManagerOptions
 ): Promise<{ manager: BaseRuntimeManager; processPromise: Promise<void> }> {
-  const {
-    envVars: calculatedEnvVars,
-    reflectionV2Port: calculatedReflectionV2Port,
-    telemetryServerUrl: calculatedTelemetryServerUrl,
-  } = options?.envVars &&
-  options?.telemetryServerUrl &&
-  (!options?.experimentalReflectionV2 || options?.reflectionV2Port)
-    ? {
-        envVars: options.envVars,
-        reflectionV2Port: options.reflectionV2Port,
-        telemetryServerUrl: options.telemetryServerUrl,
-      }
-    : await getDevEnvVars(projectRoot, options);
+  const { envVars, reflectionV2Port, telemetryServerUrl } =
+    options?.envVars &&
+    options?.telemetryServerUrl &&
+    (!options?.experimentalReflectionV2 || options?.reflectionV2Port)
+      ? {
+          envVars: options.envVars,
+          reflectionV2Port: options.reflectionV2Port,
+          telemetryServerUrl: options.telemetryServerUrl,
+        }
+      : await getDevEnvVars(projectRoot, options);
 
-  const envVars = options?.envVars || calculatedEnvVars;
-  const reflectionV2Port =
-    options?.reflectionV2Port || calculatedReflectionV2Port;
-  const telemetryServerUrl =
-    options?.telemetryServerUrl || calculatedTelemetryServerUrl;
 
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
   const experimentalReflectionV2 = options?.experimentalReflectionV2 ?? false;

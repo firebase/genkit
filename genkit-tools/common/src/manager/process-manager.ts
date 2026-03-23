@@ -34,7 +34,7 @@ export interface ProcessManagerStartOptions {
  */
 export class ProcessManager {
   private appProcess?: ChildProcess;
-  private originalStdIn?: NodeJS.ReadStream;
+
   private _status: ProcessStatus = 'stopped';
   private manualRestart = false;
 
@@ -139,7 +139,7 @@ export class ProcessManager {
     if (this.appProcess?.stdin) {
       process.stdin.unpipe(this.appProcess.stdin);
     }
-    this.originalStdIn = undefined;
+
     if (this.appProcess) {
       this.appProcess.stdout?.removeAllListeners();
       this.appProcess.stderr?.removeAllListeners();

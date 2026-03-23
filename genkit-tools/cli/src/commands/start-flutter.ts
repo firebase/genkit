@@ -25,6 +25,7 @@ interface FlutterRunOptions {
   port?: string;
   open?: boolean;
   corsOrigin?: string;
+  noui?: boolean;
 }
 
 /** Command to run a Flutter app in dev mode and/or the Dev UI. */
@@ -75,19 +76,21 @@ export const startFlutter = new Command('start:flutter')
       }
     );
 
-    let port: number;
-    if (options.port) {
-      port = Number(options.port);
-      if (isNaN(port) || port < 0) {
-        logger.error(`"${options.port}" is not a valid port number`);
-        return;
+    if (!options.noui) {
+      let port: number;
+      if (options.port) {
+        port = Number(options.port);
+        if (isNaN(port) || port < 0) {
+          logger.error(`"${options.port}" is not a valid port number`);
+          return;
+        }
+      } else {
+        port = await getPort({ port: makeRange(4000, 4099) });
       }
-    } else {
-      port = await getPort({ port: makeRange(4000, 4099) });
-    }
-    startServer(manager, port);
-    if (options.open) {
-      open(`http://localhost:${port}`);
+      startServer(manager, port);
+      if (options.open) {
+        open(`http://localhost:${port}`);
+      }
     }
 
     await processPromise;
