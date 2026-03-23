@@ -610,22 +610,12 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 
 	if len(genOpts.Use) > 0 {
 		for _, mw := range genOpts.Use {
-			name := mw.Name()
-			if LookupMiddleware(r, name) == nil {
-				if !r.IsChild() {
-					r = r.NewChild()
-				}
-				DefineMiddleware(r, "", mw)
-			}
-			configJSON, err := json.Marshal(mw)
+			ref, newR, err := middlewareToRef(r, mw)
 			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.Generate: failed to marshal middleware %q config: %v", name, err)
+				return nil, core.NewError(core.INTERNAL, "ai.Generate: %v", err)
 			}
-			var config any
-			if err := json.Unmarshal(configJSON, &config); err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.Generate: failed to unmarshal middleware %q config: %v", name, err)
-			}
-			actionOpts.Use = append(actionOpts.Use, &MiddlewareRef{Name: name, Config: config})
+			r = newR
+			actionOpts.Use = append(actionOpts.Use, ref)
 		}
 	}
 

@@ -605,8 +605,7 @@ func handleListValues(g *Genkit) func(w http.ResponseWriter, r *http.Request) er
 	return func(w http.ResponseWriter, r *http.Request) error {
 		valueType := r.URL.Query().Get("type")
 		if valueType == "" {
-			http.Error(w, `query parameter "type" is required`, http.StatusBadRequest)
-			return nil
+			return core.NewError(core.INVALID_ARGUMENT, `query parameter "type" is required`)
 		}
 		prefix := "/" + valueType + "/"
 		result := map[string]any{}

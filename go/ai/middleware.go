@@ -143,6 +143,28 @@ func LookupMiddleware(r api.Registry, name string) *MiddlewareDesc {
 	return d
 }
 
+// middlewareToRef registers a Middleware instance (if not already registered) and
+// returns a MiddlewareRef for the action layer. If registration requires a child
+// registry, the returned registry may differ from the input.
+func middlewareToRef(r api.Registry, mw Middleware) (*MiddlewareRef, api.Registry, error) {
+	name := mw.Name()
+	if LookupMiddleware(r, name) == nil {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		DefineMiddleware(r, "", mw)
+	}
+	configJSON, err := json.Marshal(mw)
+	if err != nil {
+		return nil, r, fmt.Errorf("failed to marshal middleware %q config: %w", name, err)
+	}
+	var config any
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return nil, r, fmt.Errorf("failed to unmarshal middleware %q config: %w", name, err)
+	}
+	return &MiddlewareRef{Name: name, Config: config}, r, nil
+}
+
 // MiddlewarePlugin is implemented by plugins that provide middleware.
 type MiddlewarePlugin interface {
 	ListMiddleware(ctx context.Context) ([]*MiddlewareDesc, error)
