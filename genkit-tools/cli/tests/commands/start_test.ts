@@ -47,6 +47,11 @@ describe('start command', () => {
   let startServerSpy: any;
 
   beforeEach(() => {
+    jest.spyOn(managerUtils, 'getDevEnvVars').mockResolvedValue({
+      envVars: {},
+      telemetryServerUrl: 'http://localhost:4033',
+      reflectionV2Port: 3200,
+    });
     startDevProcessManagerSpy = jest
       .spyOn(managerUtils, 'startDevProcessManager')
       .mockResolvedValue({
