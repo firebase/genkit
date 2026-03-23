@@ -136,8 +136,6 @@ export class ProcessManager {
   }
 
   private cleanup() {
-
-
     if (this.appProcess) {
       this.appProcess.stdout?.removeAllListeners();
       this.appProcess.stderr?.removeAllListeners();
