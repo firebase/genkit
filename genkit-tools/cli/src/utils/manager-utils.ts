@@ -62,6 +62,7 @@ export async function startManager(options: {
   manageHealth?: boolean;
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
+  reflectionV2Port?: number;
 }): Promise<BaseRuntimeManager> {
   const telemetryServerUrl = await resolveTelemetryServer(options);
   const manager = RuntimeManager.create({
@@ -69,6 +70,7 @@ export async function startManager(options: {
     manageHealth: options.manageHealth,
     projectRoot: options.projectRoot,
     experimentalReflectionV2: options.experimentalReflectionV2,
+    reflectionV2Port: options.reflectionV2Port,
   });
   return manager;
 }

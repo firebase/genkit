@@ -68,23 +68,17 @@ export const start = new Command('start')
       );
     }
 
-    let envVars: Record<string, string> | undefined;
-    let telemetryServerUrl: string | undefined;
-    let reflectionV2Port: number | undefined;
+    const devEnv = await getDevEnvVars(projectRoot, {
+      disableRealtimeTelemetry: options.disableRealtimeTelemetry,
+      corsOrigin: options.corsOrigin,
+      experimentalReflectionV2: options.experimentalReflectionV2,
+    });
+    const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
+
+    // Ensure subsequent calls to resolveTelemetryServer reuse this instance
+    process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
 
     if (options.writeEnvFile) {
-      const devEnv = await getDevEnvVars(projectRoot, {
-        disableRealtimeTelemetry: options.disableRealtimeTelemetry,
-        corsOrigin: options.corsOrigin,
-        experimentalReflectionV2: options.experimentalReflectionV2,
-      });
-      envVars = devEnv.envVars;
-      telemetryServerUrl = devEnv.telemetryServerUrl;
-      reflectionV2Port = devEnv.reflectionV2Port;
-
-      // Ensure subsequent calls to resolveTelemetryServer reuse this instance
-      process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
-
       const content = Object.entries(envVars)
         .map(([k, v]) => `${k}=${v}`)
         .join('\n');
@@ -117,6 +111,7 @@ export const start = new Command('start')
         manageHealth: true,
         corsOrigin: options.corsOrigin,
         experimentalReflectionV2: options.experimentalReflectionV2,
+        reflectionV2Port,
       });
       processPromise = new Promise(() => {});
     }
