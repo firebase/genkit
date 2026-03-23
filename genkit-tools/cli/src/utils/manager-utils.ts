@@ -138,7 +138,6 @@ export async function startDevProcessManager(
         }
       : await getDevEnvVars(projectRoot, options);
 
-
   const disableRealtimeTelemetry = options?.disableRealtimeTelemetry ?? false;
   const experimentalReflectionV2 = options?.experimentalReflectionV2 ?? false;
 
