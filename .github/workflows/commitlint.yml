@@ -36,7 +36,7 @@ jobs:
 
       - name: Install commitlint
         run: |
-          npm install --save-dev @commitlint/cli @commitlint/config-conventional
+          pnpm install --save-dev @commitlint/cli @commitlint/config-conventional
 
       - name: Validate PR title (used as squash commit message)
         env:
