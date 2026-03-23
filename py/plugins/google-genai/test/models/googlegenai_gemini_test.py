@@ -481,6 +481,39 @@ def test_gemini_model__create_tool(
     assert isinstance(gemini_tool, genai_types.Tool)
 
 
+def test_gemini_model__create_tool_wraps_scalar_input_schema(
+    gemini_model_instance: GeminiModel,
+) -> None:
+    """ACC-560: Scalar/array root input schemas are wrapped in object for Gemini.
+
+    Gemini rejects tool params with type=STRING etc. LLMs always send
+    {"key": value} — we wrap scalar schemas in {"value": <schema>}.
+    """
+    scalar_string_schema = genai_types.Schema(
+        type=genai_types.Type.STRING,
+        description='Echo input',
+    )
+    tool_defined = ToolDefinition(
+        name='echo',
+        description='Echo the input string',
+        input_schema={'type': 'string'},
+        output_schema=None,
+    )
+    with patch.object(
+        gemini_model_instance,
+        '_convert_schema_property',
+        return_value=scalar_string_schema,
+    ):
+        gemini_tool = gemini_model_instance._create_tool(tool_defined)
+
+    decl = gemini_tool.function_declarations[0]
+    params = decl.parameters
+    assert params.type == genai_types.Type.OBJECT
+    assert 'value' in params.properties
+    assert params.properties['value'].type == genai_types.Type.STRING
+    assert params.required == ['value']
+
+
 @pytest.mark.parametrize(
     'input_schema, defs, expected_schema',
     [

@@ -19,7 +19,6 @@ from genkit import (
     ModelResponse,
     ModelResponseChunk,
     ToolRunContext,
-    tool_response,
 )
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import text_from_message
@@ -317,6 +316,32 @@ async def test_generate_with_system_prompt_messages(
 
 
 @pytest.mark.asyncio
+async def test_generate_with_prompt_as_tool(setup_test: SetupFixture) -> None:
+    """Test that ai.generate(tools=[prompt.as_tool()]) works (ACC-557).
+
+    Previously, tools param only accepted list[str]; prompt.as_tool() returns Action,
+    causing Pydantic ValidationError. This test verifies Action is now accepted.
+    """
+    ai, echo, *_ = setup_test
+
+    sub_prompt = ai.define_prompt(name='subPrompt', prompt='Sub prompt')
+    prompt_action = await sub_prompt.as_tool()
+
+    # Should NOT raise ValidationError - Action in tools is now accepted
+    response = await ai.generate(
+        model='echoModel',
+        prompt='Use the sub prompt',
+        tools=[prompt_action],
+        tool_choice=ToolChoice.REQUIRED,
+    )
+
+    assert response.text is not None
+    assert echo.last_request is not None
+    assert len(echo.last_request.tools) == 1
+    assert echo.last_request.tools[0].name == 'subPrompt'
+
+
+@pytest.mark.asyncio
 async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     """Test that the generate function with tools works."""
     ai, echo, *_ = setup_test
@@ -582,7 +607,7 @@ async def test_generate_with_interrupt_respond(
     response = await ai.generate(
         model='programmableModel',
         messages=interrupted_response.messages,
-        tool_responses=[tool_response(interrupted_response.interrupts[0], {'bar': 2})],
+        tool_responses=[test_interrupt.respond(interrupted_response.interrupts[0], {'bar': 2})],
         tools=['test_tool', 'test_interrupt'],
     )
 

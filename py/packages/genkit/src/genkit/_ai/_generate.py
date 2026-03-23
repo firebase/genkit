@@ -35,8 +35,8 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
-from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._ai._tools import ToolInterruptError, _tool_original_input, _tool_resumed_metadata
+from genkit._core._action import Action, ActionKind, ActionRunContext, create_action_key
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._registry import Registry
@@ -55,6 +55,22 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+def tools_to_action_refs(tools: list[str | Action] | None) -> list[str] | None:
+    """Convert tools to action identifiers (strings) for GenerateActionOptions.
+
+    Actions become /<kind>/<name> keys; string names pass through.
+    """
+    if not tools:
+        return None
+    refs: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            refs.append(t)
+        else:
+            refs.append(create_action_key(t.kind, t.name))
+    return refs
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -541,10 +557,8 @@ async def resolve_parameters(
 
     tools: list[Action[Any, Any, Any]] = []
     if request.tools:
-        for tool_name in request.tools:
-            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
-            if tool_action is None:
-                raise Exception(f'Unable to resolve tool {tool_name}')
+        for tool_ref in request.tools:
+            tool_action = await resolve_tool(registry, tool_ref)
             tools.append(tool_action)
 
     format_def: FormatDef | None = None
@@ -601,8 +615,9 @@ async def resolve_tool_requests(
     # TODO(#4342): prompt transfer
     tool_dict: dict[str, Action] = {}
     if request.tools:
-        for tool_name in request.tools:
-            tool_dict[tool_name] = await resolve_tool(registry, tool_name)
+        for tool_ref in request.tools:
+            tool_action = await resolve_tool(registry, tool_ref)
+            tool_dict[tool_action.name] = tool_action
 
     revised_model_message = message.model_copy(deep=True)
 
@@ -654,51 +669,111 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
     )
 
 
+def _unwrap_scalar_tool_input(schema: dict[str, object] | None, input: object) -> object:
+    """Unwrap input when tool has scalar schema but provider wrapped in {"value": x}.
+
+    Gemini requires tool params to be object. Plugins wrap scalar schemas
+    in {"value": <schema>}. When the model returns {"value": x}, we unwrap to x.
+    """
+    if schema is None or not isinstance(input, dict) or set(input.keys()) != {'value'}:
+        return input
+    s = schema
+    if '$ref' in s:
+        defs = s.get('$defs') or {}
+        ref = s.get('$ref')
+        if isinstance(ref, str) and isinstance(defs, dict):
+            name = ref.split('/')[-1]
+            s = defs.get(name)
+            if not isinstance(s, dict):
+                return input
+    t = s.get('type')
+    if isinstance(t, list):
+        t = next((x for x in t if x != 'null'), t[0] if t else None)
+    if t not in ('string', 'number', 'integer', 'boolean', 'array'):
+        return input
+    props = s.get('properties')
+    if props is not None and isinstance(props, dict) and len(props) > 0:
+        return input
+    return input['value']
+
+
 async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
     """Execute a tool and return (response_part, interrupt_part)."""
+    raw_input = tool_request_part.tool_request.input
+    effective_input = _unwrap_scalar_tool_input(tool.input_schema, raw_input)
+
+    # Extract resumed metadata from tool request metadata
+    resumed_meta = None
+    original_input = None
+    if tool_request_part.metadata:
+        resumed_value = tool_request_part.metadata.get('resumed')
+        if isinstance(resumed_value, dict):
+            resumed_meta = resumed_value
+        elif resumed_value is True:
+            resumed_meta = {}
+        original_input = tool_request_part.metadata.get('replacedInput')
+
+    # Set context variables
+    token1 = _tool_resumed_metadata.set(resumed_meta)
+    token2 = _tool_original_input.set(original_input)
+
     try:
-        tool_response = (await tool.run(tool_request_part.tool_request.input)).response
-        # Part is a RootModel, so we pass content via 'root' parameter
-        return (
-            Part(
-                root=ToolResponsePart(
-                    tool_response=ToolResponse(
-                        name=tool_request_part.tool_request.name,
-                        ref=tool_request_part.tool_request.ref,
-                        output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
-                    )
-                )
-            ),
-            None,
-        )
-    except GenkitError as e:
-        if e.cause and isinstance(e.cause, ToolInterruptError):
-            interrupt_error = e.cause
+        try:
+            tool_response = (await tool.run(effective_input)).response
             # Part is a RootModel, so we pass content via 'root' parameter
-            tool_meta = tool_request_part.metadata or {}
-            if not isinstance(tool_meta, dict):
-                tool_meta = dict(tool_meta)
             return (
-                None,
                 Part(
-                    root=ToolRequestPart(
-                        tool_request=tool_request_part.tool_request,
-                        metadata={
-                            **tool_meta,
-                            'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
-                        },
+                    root=ToolResponsePart(
+                        tool_response=ToolResponse(
+                            name=tool_request_part.tool_request.name,
+                            ref=tool_request_part.tool_request.ref,
+                            output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
+                        )
                     )
                 ),
+                None,
             )
+        except GenkitError as e:
+            if e.cause and isinstance(e.cause, ToolInterruptError):
+                interrupt_error = e.cause
+                # Part is a RootModel, so we pass content via 'root' parameter
+                tool_meta = tool_request_part.metadata or {}
+                if not isinstance(tool_meta, dict):
+                    tool_meta = dict(tool_meta)
+                return (
+                    None,
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=tool_request_part.tool_request,
+                            metadata={
+                                **tool_meta,
+                                'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
+                            },
+                        )
+                    ),
+                )
 
-        raise e
+            raise e
+    finally:
+        _tool_resumed_metadata.reset(token1)
+        _tool_original_input.reset(token2)
 
 
-async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+async def resolve_tool(registry: Registry, tool_ref: str) -> Action:
+    """Resolve a tool by name or key (/<kind>/<name>) from the registry."""
+    # Try bare name / full key first
+    try:
+        tool = await registry.resolve_action_by_key(tool_ref)
+        if tool is not None:
+            return tool
+    except ValueError:
+        pass
+    # Fallback: try TOOL then PROMPT by name
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_ref)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        tool = await registry.resolve_action(kind=ActionKind.PROMPT, name=tool_ref)
+    if tool is None:
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
     return tool
 
 

@@ -77,16 +77,19 @@ class Message(MessageData):
 
     def __init__(
         self,
-        message: MessageData | None = None,
+        message: MessageData | dict[str, object] | None = None,
         **kwargs: object,
     ) -> None:
-        """Initialize from MessageData or keyword arguments."""
+        """Initialize from MessageData, raw dict, or keyword arguments."""
         if message is not None:
-            super().__init__(
-                role=message.role,
-                content=message.content,
-                metadata=message.metadata,
-            )
+            if isinstance(message, dict):
+                super().__init__(**message)  # type: ignore[arg-type]
+            else:
+                super().__init__(
+                    role=message.role,
+                    content=message.content,
+                    metadata=message.metadata,
+                )
         else:
             super().__init__(**kwargs)  # type: ignore[arg-type]
 
@@ -511,8 +514,9 @@ def get_basic_usage_stats(input_: list[Message], response: Message) -> Generatio
 
 
 # Type aliases for model middleware (Any is intentional - middleware is type-agnostic)
-# Middleware can have two signatures:
+# Middleware can have two signatures (used by both generate() and generate_stream()):
 #   Simple (3 params): (req, ctx, next) -> response
 #   Streaming (4 params): (req, ctx, on_chunk, next) -> response
 # The framework detects which signature is used based on parameter count.
+# Do not use (req, next) — ctx is required.
 ModelMiddleware = Callable[..., Awaitable[ModelResponse[Any]]]
