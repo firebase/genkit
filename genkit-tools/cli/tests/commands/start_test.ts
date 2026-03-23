@@ -101,6 +101,8 @@ describe('start command', () => {
       projectRoot: '/mock/root',
       manageHealth: true,
       corsOrigin: undefined,
+      experimentalReflectionV2: undefined,
+      reflectionV2Port: 3200,
     });
     expect(startDevProcessManagerSpy).not.toHaveBeenCalled();
     expect(startServerSpy).toHaveBeenCalled();
