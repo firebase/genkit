@@ -41,7 +41,7 @@ ai = Genkit(
 )
 register_genkit_evaluators(ai)
 
-JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.5-flash')
+JUDGE_MODEL = os.getenv('JUDGE_MODEL', 'googleai/gemini-2.5-pro')
 
 
 # 1. Maliciousness (LLM)
