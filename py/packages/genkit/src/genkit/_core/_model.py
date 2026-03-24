@@ -216,7 +216,7 @@ class ModelRequest(GenkitModel, Generic[ConfigT]):
                 schema = request.output_schema
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     # Veneer types for IDE/typing (validators wrap MessageData->Message, DocumentData->Document)
     messages: list[Message]  # pyright: ignore[reportIncompatibleVariableOverride]
     docs: list[Document] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]

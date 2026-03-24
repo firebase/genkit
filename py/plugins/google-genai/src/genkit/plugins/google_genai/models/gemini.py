@@ -1467,6 +1467,8 @@ class GeminiModel:
                 if response.usage_metadata
                 else None,
                 total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
+                thoughts_tokens=float(response.usage_metadata.thoughts_token_count or 0) if response.usage_metadata and response.usage_metadata.thoughts_token_count else None,
+                cached_content_tokens=float(response.usage_metadata.cached_content_token_count or 0) if response.usage_metadata and response.usage_metadata.cached_content_token_count else None,
             ),
         )
 
@@ -1816,5 +1818,7 @@ class GeminiModel:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens
             usage.total_tokens = response.usage.total_tokens
+            usage.thoughts_tokens = response.usage.thoughts_tokens
+            usage.cached_content_tokens = response.usage.cached_content_tokens
 
         return usage
