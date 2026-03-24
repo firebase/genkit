@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
 
+from typing_extensions import Unpack
+
 from dotpromptz.typing import (
     DataArgument,
     PromptFunction,
@@ -115,45 +117,25 @@ class PromptGenerateOptions(TypedDict, total=False):
     metadata: dict[str, Any] | None
 
 
-def _prompt_opts_from_kwargs(
-    *,
-    model: str | None = None,
-    config: dict[str, Any] | ModelConfig | None = None,
-    messages: list[Message] | None = None,
-    docs: list[Document] | None = None,
-    tools: list[str | Action] | None = None,
-    resources: list[str] | None = None,
-    tool_choice: ToolChoice | None = None,
-    output: OutputOptions | None = None,
-    resume: ResumeOptions | None = None,
-    return_tool_requests: bool | None = None,
-    max_turns: int | None = None,
-    on_chunk: ModelStreamingCallback | None = None,
-    use: list[ModelMiddleware] | None = None,
-    context: dict[str, Any] | None = None,
-    step_name: str | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> PromptGenerateOptions:
-    """Build effective opts from explicit kwargs."""
-    pairs: tuple[tuple[str, Any], ...] = (
-        ('model', model),
-        ('config', config),
-        ('messages', messages),
-        ('docs', docs),
-        ('tools', tools),
-        ('resources', resources),
-        ('tool_choice', tool_choice),
-        ('output', output),
-        ('resume', resume),
-        ('return_tool_requests', return_tool_requests),
-        ('max_turns', max_turns),
-        ('on_chunk', on_chunk),
-        ('use', use),
-        ('context', context),
-        ('step_name', step_name),
-        ('metadata', metadata),
-    )
-    return cast(PromptGenerateOptions, {k: v for k, v in pairs if v is not None})
+_PROMPT_GENERATE_OPTION_KEYS: frozenset[str] = frozenset(PromptGenerateOptions.__annotations__)
+
+
+def _coerce_prompt_opts(opts: PromptGenerateOptions) -> PromptGenerateOptions:
+    """Build effective opts from a kwargs mapping: drop keys whose value is None.
+
+    Rejects unknown keys at runtime (Unpack only enforces this for type checkers).
+    """
+    raw = cast(dict[str, Any], opts)
+    unknown = set(raw) - _PROMPT_GENERATE_OPTION_KEYS
+    if unknown:
+        if 'opts' in unknown:
+            raise TypeError(
+                "Passing a combined `opts` dict is not supported; use keyword arguments "
+                '(e.g. model=..., config=...) matching PromptGenerateOptions.'
+            )
+        sorted_unknown = ', '.join(sorted(unknown))
+        raise TypeError(f'Unexpected keyword arguments for prompt execution: {sorted_unknown}')
+    return cast(PromptGenerateOptions, {k: v for k, v in raw.items() if v is not None})
 
 
 class ModelStreamResponse(Generic[OutputT]):
@@ -341,47 +323,14 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     async def __call__(
         self,
         input: InputT | dict[str, Any] | None = None,
-        *,
-        model: str | None = None,
-        config: dict[str, Any] | ModelConfig | None = None,
-        messages: list[Message] | None = None,
-        docs: list[Document] | None = None,
-        tools: list[str | Action] | None = None,
-        resources: list[str] | None = None,
-        tool_choice: ToolChoice | None = None,
-        output: OutputOptions | None = None,
-        resume: ResumeOptions | None = None,
-        return_tool_requests: bool | None = None,
-        max_turns: int | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
-        use: list[ModelMiddleware] | None = None,
-        context: dict[str, Any] | None = None,
-        step_name: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
     ) -> ModelResponse[OutputT]:
         """Execute the prompt and return the response.
 
         Args:
             input: Template variables for rendering.
         """
-        effective_opts = _prompt_opts_from_kwargs(
-            model=model,
-            config=config,
-            messages=messages,
-            docs=docs,
-            tools=tools,
-            resources=resources,
-            tool_choice=tool_choice,
-            output=output,
-            resume=resume,
-            return_tool_requests=return_tool_requests,
-            max_turns=max_turns,
-            on_chunk=on_chunk,
-            use=use,
-            context=context,
-            step_name=step_name,
-            metadata=metadata,
-        )
+        effective_opts = _coerce_prompt_opts(cast(PromptGenerateOptions, opts))
         return await self._call_impl(input, effective_opts)
 
     async def _call_impl(
@@ -390,6 +339,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         opts: PromptGenerateOptions,
     ) -> ModelResponse[OutputT]:
         """Execute the prompt with resolved opts. Used by __call__ and stream."""
+        await self._ensure_resolved()
         on_chunk = opts.get('on_chunk')
         middleware = opts.get('use') or self._use
         context = opts.get('context')
@@ -544,40 +494,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         input: InputT | dict[str, Any] | None = None,
         *,
         timeout: float | None = None,
-        model: str | None = None,
-        config: dict[str, Any] | ModelConfig | None = None,
-        messages: list[Message] | None = None,
-        docs: list[Document] | None = None,
-        tools: list[str | Action] | None = None,
-        resources: list[str] | None = None,
-        tool_choice: ToolChoice | None = None,
-        output: OutputOptions | None = None,
-        resume: ResumeOptions | None = None,
-        return_tool_requests: bool | None = None,
-        max_turns: int | None = None,
-        use: list[ModelMiddleware] | None = None,
-        context: dict[str, Any] | None = None,
-        step_name: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
     ) -> ModelStreamResponse[OutputT]:
         """Stream the prompt execution, returning (stream, response_future)."""
-        effective_opts = _prompt_opts_from_kwargs(
-            model=model,
-            config=config,
-            messages=messages,
-            docs=docs,
-            tools=tools,
-            resources=resources,
-            tool_choice=tool_choice,
-            output=output,
-            resume=resume,
-            return_tool_requests=return_tool_requests,
-            max_turns=max_turns,
-            use=use,
-            context=context,
-            step_name=step_name,
-            metadata=metadata,
-        )
+        effective_opts = _coerce_prompt_opts(cast(PromptGenerateOptions, opts))
         channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
         stream_opts: PromptGenerateOptions = {
             **effective_opts,
@@ -592,48 +512,15 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     async def render(
         self,
         input: InputT | dict[str, Any] | None = None,
-        *,
-        model: str | None = None,
-        config: dict[str, Any] | ModelConfig | None = None,
-        messages: list[Message] | None = None,
-        docs: list[Document] | None = None,
-        tools: list[str | Action] | None = None,
-        resources: list[str] | None = None,
-        tool_choice: ToolChoice | None = None,
-        output: OutputOptions | None = None,
-        resume: ResumeOptions | None = None,
-        return_tool_requests: bool | None = None,
-        max_turns: int | None = None,
-        on_chunk: ModelStreamingCallback | None = None,
-        use: list[ModelMiddleware] | None = None,
-        context: dict[str, Any] | None = None,
-        step_name: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
     ) -> GenerateActionOptions:
         """Render the prompt template without executing, returning GenerateActionOptions.
 
-        Same signature as __call__: input (template vars), then options as explicit kwargs.
+        Same keyword options as :meth:`__call__` (see :class:`PromptGenerateOptions`).
         """
         await self._ensure_resolved()
-        opts = _prompt_opts_from_kwargs(
-            model=model,
-            config=config,
-            messages=messages,
-            docs=docs,
-            tools=tools,
-            resources=resources,
-            tool_choice=tool_choice,
-            output=output,
-            resume=resume,
-            return_tool_requests=return_tool_requests,
-            max_turns=max_turns,
-            on_chunk=on_chunk,
-            use=use,
-            context=context,
-            step_name=step_name,
-            metadata=metadata,
-        )
-        return await self._render_impl(input, opts)
+        coerced = _coerce_prompt_opts(cast(PromptGenerateOptions, opts))
+        return await self._render_impl(input, coerced)
 
     async def as_tool(self) -> Action:
         """Expose this prompt as a tool.

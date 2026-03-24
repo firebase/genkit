@@ -22,6 +22,8 @@ from contextvars import ContextVar
 from functools import wraps
 from typing import Any, NoReturn, ParamSpec, TypeVar, cast
 
+from pydantic import BaseModel
+
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._registry import Registry
 from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
@@ -135,6 +137,9 @@ def define_tool(
     func: Callable[P, T],
     name: str | None = None,
     description: str | None = None,
+    *,
+    input_schema: type[BaseModel] | dict[str, object] | None = None,
+    output_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> Callable[P, T]:
     """Register a function as a tool.
 
@@ -143,6 +148,8 @@ def define_tool(
         func: The async function to register as a tool. Must be a coroutine function.
         name: Optional name for the tool. Defaults to the function name.
         description: Optional description. Defaults to the function's docstring.
+        input_schema: Optional override for tool input JSON schema / validation (Pydantic model or dict).
+        output_schema: Optional override for tool output JSON schema (Pydantic model or dict).
 
     Raises:
         TypeError: If func is not an async function.
@@ -190,6 +197,8 @@ def define_tool(
         description=tool_description,
         fn=tool_fn_wrapper,
         metadata_fn=func,
+        input_schema=input_schema,
+        output_schema=output_schema,
     )
 
     @wraps(func)
@@ -219,7 +228,8 @@ def define_tool(
             raise ValueError(f"Interrupt is for tool '{tool_req.name}', not '{tool_name}'")
 
         # TODO(#4347): Get output schema from action and pass to tool_response for validation
-        return tool_response(interrupt, output_data, metadata)
+        interrupt_part = interrupt if isinstance(interrupt, Part) else Part(root=interrupt)
+        return tool_response(interrupt_part, output_data, metadata)
 
     def restart(
         interrupt: Part | ToolRequestPart,
@@ -284,6 +294,9 @@ def define_interrupt(
     name: str | None = None,
     description: str | None = None,
     request_metadata: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None,
+    *,
+    input_schema: type[BaseModel] | dict[str, object] | None = None,
+    output_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> Callable[P, T]:
     """Register a tool that always interrupts execution.
 
@@ -296,6 +309,8 @@ def define_interrupt(
         name: Tool name (defaults to function name)
         description: Tool description (defaults to function docstring)
         request_metadata: Static metadata dict or function(input) -> dict for the interrupt
+        input_schema: Optional input schema override (Pydantic model or JSON schema dict)
+        output_schema: Optional output schema override (Pydantic model or JSON schema dict)
 
     Returns:
         The registered tool function
@@ -335,4 +350,6 @@ def define_interrupt(
         interrupt_wrapper if func is None else func,
         name=name,
         description=description,
+        input_schema=input_schema,
+        output_schema=output_schema,
     )

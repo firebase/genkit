@@ -14,392 +14,311 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for tool interrupts API."""
+"""Scenario-style tests for tool interrupts (human-in-the-loop, respond / restart).
+
+These tests read like app flows: register tools, run a model, pause on interrupt,
+then resume. Low-level helpers are only covered where they encode a public contract.
+"""
 
 import pytest
+from pydantic import BaseModel, Field
 
-from genkit import Genkit
-from genkit._ai._tools import Interrupt, ToolRunContext, define_interrupt, define_tool
-from genkit._core._typing import Part, Resume, ToolRequestPart
+from genkit import (
+    FinishReason,
+    Genkit,
+    Message,
+    ModelResponse,
+    Part,
+    Resume,
+    Role,
+    TextPart,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+    ToolRunContext,
+)
+from genkit._ai._testing import define_programmable_model
+from genkit._ai._tools import Interrupt, ToolInterruptError, define_interrupt
+from genkit._core._typing import ToolRequest as TR
+
+# -----------------------------------------------------------------------------
+# Fixtures
+# -----------------------------------------------------------------------------
 
 
 @pytest.fixture
 def ai() -> Genkit:
-    """Create a Genkit instance for testing."""
+    """Minimal Genkit app (no programmable model)."""
     return Genkit()
 
 
-class TestInterruptException:
-    """Test the Interrupt exception class."""
-
-    def test_interrupt_creation(self) -> None:
-        """Test creating an Interrupt exception."""
-        interrupt = Interrupt({'reason': 'test'})
-        assert interrupt.data == {'reason': 'test'}
-
-    def test_interrupt_no_data(self) -> None:
-        """Test creating an Interrupt without data."""
-        interrupt = Interrupt()
-        assert interrupt.data == {}
-
-    def test_interrupt_raise(self) -> None:
-        """Test raising an Interrupt exception."""
-        with pytest.raises(Interrupt) as exc_info:
-            raise Interrupt({'reason': 'test'})
-        assert exc_info.value.data == {'reason': 'test'}
+@pytest.fixture
+def ai_programmable() -> tuple[Genkit, object]:
+    """App with a programmable model so we can script multi-turn turns."""
+    ai = Genkit(model='echoModel')
+    pm, _ = define_programmable_model(ai)
+    return ai, pm
 
 
-class TestToolRunContext:
-    """Test ToolRunContext enhancements."""
-
-    def test_is_resumed_false_by_default(self, ai: Genkit) -> None:
-        """Test is_resumed returns False when not resumed."""
-        from genkit._core._action import ActionRunContext
-
-        ctx = ToolRunContext(ActionRunContext())
-        assert not ctx.is_resumed()
-
-    def test_is_resumed_true_with_metadata(self, ai: Genkit) -> None:
-        """Test is_resumed returns True when resumed_metadata is set."""
-        from genkit._core._action import ActionRunContext
-
-        ctx = ToolRunContext(ActionRunContext(), resumed_metadata={'foo': 'bar'})
-        assert ctx.is_resumed()
-
-    def test_resumed_metadata_accessible(self, ai: Genkit) -> None:
-        """Test resumed_metadata is accessible."""
-        from genkit._core._action import ActionRunContext
-
-        meta = {'key': 'value'}
-        ctx = ToolRunContext(ActionRunContext(), resumed_metadata=meta)
-        assert ctx.resumed_metadata == meta
-
-    def test_original_input_accessible(self, ai: Genkit) -> None:
-        """Test original_input is accessible."""
-        from genkit._core._action import ActionRunContext
-
-        original = {'amount': 100}
-        ctx = ToolRunContext(ActionRunContext(), original_input=original)
-        assert ctx.original_input == original
+# -----------------------------------------------------------------------------
+# 1) Direct tool calls — how a developer exercises a tool outside generate()
+# -----------------------------------------------------------------------------
 
 
-class TestToolInterrupt:
-    """Test tool interrupts with raise Interrupt."""
+@pytest.mark.asyncio
+async def test_tool_returns_normally_when_no_interrupt(ai: Genkit) -> None:
+    """Calling a tool like a plain function returns data when nothing pauses."""
 
-    @pytest.mark.asyncio
-    async def test_tool_raises_interrupt(self, ai: Genkit) -> None:
-        """Test a tool that raises Interrupt."""
+    @ai.tool()
+    async def add_one(input: dict) -> dict:
+        return {'n': input['n'] + 1}
 
-        @ai.tool()
-        async def test_tool(input: dict, ctx: ToolRunContext) -> dict:
-            if input.get('should_interrupt'):
-                raise Interrupt({'reason': 'user_confirmation'})
-            return {'result': 'success'}
-
-        # Call without interrupt
-        result = await test_tool({'should_interrupt': False})
-        assert result == {'result': 'success'}
-
-        # Call with interrupt - should raise ToolInterruptError (wrapped by action)
-        from genkit._core._error import GenkitError
-
-        with pytest.raises(GenkitError) as exc_info:
-            await test_tool({'should_interrupt': True})
-
-        # The Interrupt should be wrapped in ToolInterruptError, which is the cause
-        from genkit._ai._tools import ToolInterruptError
-
-        assert isinstance(exc_info.value.cause, ToolInterruptError)
+    out = await add_one({'n': 1})
+    assert out == {'n': 2}
 
 
-class TestToolRespondRestart:
-    """Test tool.respond() and tool.restart() methods."""
+@pytest.mark.asyncio
+async def test_direct_tool_call_surfaces_interrupt_as_genkit_error(ai: Genkit) -> None:
+    """If the tool raises Interrupt, the action wraps it for the caller."""
 
-    def test_tool_respond_method_exists(self, ai: Genkit) -> None:
-        """Test that define_tool adds respond method."""
+    @ai.tool()
+    async def maybe_stop(input: dict, ctx: ToolRunContext) -> dict:
+        if input.get('pause'):
+            raise Interrupt({'reason': 'confirm'})
+        return {'ok': True}
 
-        @ai.tool()
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
+    from genkit._core._error import GenkitError
 
-        assert hasattr(test_tool, 'respond')
-        assert callable(test_tool.respond)
+    with pytest.raises(GenkitError) as exc:
+        await maybe_stop({'pause': True})
+    assert isinstance(exc.value.cause, ToolInterruptError)
 
-    def test_tool_restart_method_exists(self, ai: Genkit) -> None:
-        """Test that define_tool adds restart method."""
 
-        @ai.tool()
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
+# -----------------------------------------------------------------------------
+# 2) Full generate() flow — user-visible pause, then reply via tool.respond()
+# -----------------------------------------------------------------------------
 
-        assert hasattr(test_tool, 'restart')
-        assert callable(test_tool.restart)
 
-    def test_tool_respond_creates_response_part(self, ai: Genkit) -> None:
-        """Test tool.respond() creates a valid response Part."""
+@pytest.mark.asyncio
+async def test_conversation_pauses_on_interrupt_then_continues_after_user_responds(
+    ai_programmable: tuple[Genkit, object],
+) -> None:
+    """Model requests tools; interrupt fires; user sends a response part; model finishes."""
 
-        @ai.tool(name='my_tool')
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
+    ai, pm = ai_programmable
 
-        # Create a mock interrupt part
-        from genkit._core._typing import ToolRequest
+    class ToolInput(BaseModel):
+        value: int | None = Field(None, description='value field')
 
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
+    @ai.tool(name='do_math')
+    async def do_math(input: ToolInput) -> int:
+        """Regular tool."""
+        return (input.value or 0) + 7
+
+    @ai.tool(name='ask_user')
+    async def ask_user(input: ToolInput, ctx: ToolRunContext) -> None:
+        """Human-in-the-loop checkpoint."""
+        ctx.interrupt({'needs': 'approval'})
+
+    # Turn 1: model asks for both tools; runtime executes and stops at interrupt.
+    tool_request_msg = Message(
+        role=Role.MODEL,
+        content=[
+            Part(root=TextPart(text='call these tools')),
+            Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(input={'value': 5}, name='ask_user', ref='r-ask'),
+                )
+            ),
+            Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(input={'value': 5}, name='do_math', ref='r-math'),
+                )
+            ),
+        ],
+    )
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=tool_request_msg,
+        )
+    )
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='done'))]),
+        )
+    )
+
+    interrupted = await ai.generate(
+        model='programmableModel',
+        prompt='hi',
+        tools=['do_math', 'ask_user'],
+    )
+
+    assert interrupted.finish_reason == 'interrupted'
+    assert len(interrupted.interrupts) >= 1
+    assert interrupted.interrupts[0].tool_request.name == 'ask_user'
+
+    # Turn 2: user supplies the answer for the interrupt; model completes.
+    final = await ai.generate(
+        model='programmableModel',
+        messages=interrupted.messages,
+        tool_responses=[ask_user.respond(interrupted.interrupts[0], {'approved': True})],
+        tools=['do_math', 'ask_user'],
+    )
+
+    assert final.text == 'done'
+
+
+@pytest.mark.asyncio
+async def test_define_interrupt_is_a_checkpoint_tool(ai_programmable: tuple[Genkit, object]) -> None:
+    """ai.define_interrupt registers a tool that always pauses until the user responds."""
+
+    ai, pm = ai_programmable
+
+    class ToolInput(BaseModel):
+        value: int | None = Field(None, description='value')
+
+    checkpoint = ai.define_interrupt(
+        name='approval_gate',
+        input_schema=ToolInput,
+        description='Requires approval before continuing',
+    )
+
+    tool_request_msg = Message(
+        role=Role.MODEL,
+        content=[
+            Part(root=TextPart(text='need approval')),
+            Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(input={'value': 1}, name='approval_gate', ref='r-g'),
+                )
+            ),
+        ],
+    )
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=tool_request_msg,
+        )
+    )
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(root=TextPart(text='approved'))]),
+        )
+    )
+
+    interrupted = await ai.generate(
+        model='programmableModel',
+        prompt='run',
+        tools=['approval_gate'],
+    )
+
+    assert interrupted.finish_reason == 'interrupted'
+    assert interrupted.interrupts[0].tool_request.name == 'approval_gate'
+
+    final = await ai.generate(
+        model='programmableModel',
+        messages=interrupted.messages,
+        tool_responses=[checkpoint.respond(interrupted.interrupts[0], {'ok': True})],
+        tools=['approval_gate'],
+    )
+
+    assert final.text == 'approved'
+
+
+# -----------------------------------------------------------------------------
+# 3) Guardrails — wrong tool, restart shape (still user-visible)
+# -----------------------------------------------------------------------------
+
+
+def test_respond_rejects_interrupt_for_other_tool(ai: Genkit) -> None:
+    """tool.respond() must match the tool that produced the interrupt."""
+
+    @ai.tool(name='alpha')
+    async def alpha(input: dict) -> dict:
+        return {}
+
+    wrong = Part(
+        root=ToolRequestPart(
+            tool_request=TR(name='beta', ref='x', input={}),
+            metadata={'interrupt': True},
+        )
+    )
+
+    with pytest.raises(ValueError, match="Interrupt is for tool 'beta'"):
+        alpha.respond(wrong, {})
+
+
+def test_restart_carries_revised_input_for_next_execution(ai: Genkit) -> None:
+    """After restart, the new request carries the edited input and original in metadata."""
+
+    @ai.tool(name='edit_me')
+    async def edit_me(input: dict) -> dict:
+        return {}
+
+    interrupt = Part(
+        root=ToolRequestPart(
+            tool_request=TR(name='edit_me', ref='r1', input={'x': 1}),
+            metadata={'interrupt': True},
+        )
+    )
+
+    restarted = edit_me.restart(interrupt, replace_input={'x': 99})
+    assert restarted.root.tool_request.input == {'x': 99}
+    assert restarted.root.metadata.get('replacedInput') == {'x': 1}
+
+
+# -----------------------------------------------------------------------------
+# 4) Low-level registry helper (define_interrupt with metadata)
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_define_interrupt_helper_with_request_metadata(ai: Genkit) -> None:
+    """define_interrupt(registry, ...) still works for custom interrupt metadata."""
+
+    def meta_fn(input: dict) -> dict:
+        return {'item': input.get('item')}
+
+    tool = define_interrupt(
+        ai.registry,
+        None,
+        name='confirm',
+        description='Confirm',
+        request_metadata=meta_fn,
+    )
+
+    from genkit._core._error import GenkitError
+
+    with pytest.raises(GenkitError) as exc:
+        await tool({'item': 'delete'})
+
+    assert isinstance(exc.value.cause, ToolInterruptError)
+    assert exc.value.cause.metadata == {'item': 'delete'}
+
+
+# -----------------------------------------------------------------------------
+# 5) Public Resume type (re-exported for apps)
+# -----------------------------------------------------------------------------
+
+
+def test_resume_type_supports_respond_and_restart_lists() -> None:
+    """Resume bundles tool replies or restarts for a follow-up generate call."""
+    r = Resume(
+        respond=[
+            ToolResponsePart(
+                tool_response=ToolResponse(name='t', ref='1', output={'a': 1}),
             )
-        )
-
-        response_part = test_tool.respond(interrupt_part, {'result': 'done'})
-        assert isinstance(response_part, Part)
-        assert response_part.root.tool_response is not None
-        assert response_part.root.tool_response.name == 'my_tool'
-        assert response_part.root.tool_response.output == {'result': 'done'}
-
-    def test_tool_respond_validates_tool_name(self, ai: Genkit) -> None:
-        """Test tool.respond() validates the tool name matches."""
-
-        @ai.tool(name='my_tool')
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
-
-        # Create an interrupt for a different tool
-        from genkit._core._typing import ToolRequest
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='wrong_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
+        ],
+        restart=[
+            ToolRequestPart(
+                tool_request=ToolRequest(name='t', ref='1', input={'b': 2}),
             )
-        )
-
-        with pytest.raises(ValueError, match="Interrupt is for tool 'wrong_tool'"):
-            test_tool.respond(interrupt_part, {'result': 'done'})
-
-    def test_tool_restart_creates_request_part(self, ai: Genkit) -> None:
-        """Test tool.restart() creates a valid request Part."""
-
-        @ai.tool(name='my_tool')
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
-
-        from genkit._core._typing import ToolRequest
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
-            )
-        )
-
-        restart_part = test_tool.restart(interrupt_part)
-        assert isinstance(restart_part, Part)
-        assert restart_part.root.tool_request is not None
-        assert restart_part.root.tool_request.name == 'my_tool'
-        assert restart_part.root.metadata.get('resumed') is True
-        assert 'interrupt' not in restart_part.root.metadata
-
-    def test_tool_restart_replaces_input(self, ai: Genkit) -> None:
-        """Test tool.restart() with replace_input."""
-
-        @ai.tool(name='my_tool')
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
-
-        from genkit._core._typing import ToolRequest
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
-            )
-        )
-
-        restart_part = test_tool.restart(interrupt_part, replace_input={'x': 2})
-        assert restart_part.root.tool_request.input == {'x': 2}
-        assert restart_part.root.metadata.get('replacedInput') == {'x': 1}
-
-    def test_tool_restart_with_metadata(self, ai: Genkit) -> None:
-        """Test tool.restart() with custom resumed_metadata."""
-
-        @ai.tool(name='my_tool')
-        async def test_tool(input: dict) -> dict:
-            return {'result': 'ok'}
-
-        from genkit._core._typing import ToolRequest
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
-            )
-        )
-
-        restart_part = test_tool.restart(interrupt_part, resumed_metadata={'auth': 'token123'})
-        assert restart_part.root.metadata.get('resumed') == {'auth': 'token123'}
-
-
-class TestInterruptRespondRestart:
-    """Test tool.respond() and tool.restart() — respond/restart live on the tool, not the interrupt."""
-
-    @pytest.mark.asyncio
-    async def test_tool_respond_creates_response_part(self, ai: Genkit) -> None:
-        """Test tool.respond(interrupt_part, output) creates a ToolResponsePart."""
-        from genkit._core._typing import ToolRequest
-
-        @ai.tool(description="test tool")
-        async def my_tool(input: dict) -> dict:
-            raise Interrupt({"reason": "test"})
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool', ref='ref-1', input={'x': 1}),
-                metadata={'interrupt': True},
-            )
-        )
-
-        response = my_tool.respond(interrupt_part, {'result': 'done'})
-        assert isinstance(response, Part)
-        assert response.root.tool_response is not None
-        assert response.root.tool_response.output == {'result': 'done'}
-
-    @pytest.mark.asyncio
-    async def test_tool_restart_creates_request_part(self, ai: Genkit) -> None:
-        """Test tool.restart(interrupt_part) creates a ToolRequestPart for re-execution."""
-        from genkit._core._typing import ToolRequest
-
-        @ai.tool(description="test tool")
-        async def my_tool2(input: dict) -> dict:
-            raise Interrupt({"reason": "test"})
-
-        interrupt_part = Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(name='my_tool2', ref='ref-2', input={'x': 1}),
-                metadata={'interrupt': True},
-            )
-        )
-
-        restart = my_tool2.restart(interrupt_part, resumed_metadata={'approved': True})
-        assert isinstance(restart, Part)
-        assert restart.root.tool_request is not None
-
-
-class TestDefineInterrupt:
-    """Test define_interrupt function."""
-
-    @pytest.mark.asyncio
-    async def test_define_interrupt_always_interrupts(self, ai: Genkit) -> None:
-        """Test that define_interrupt creates a tool that always interrupts."""
-        interrupt_tool = define_interrupt(
-            ai.registry,
-            None,
-            name='confirm',
-            description='Confirm action',
-        )
-
-        # Should always raise on call
-        from genkit._core._error import GenkitError
-
-        with pytest.raises(GenkitError):
-            await interrupt_tool({'action': 'delete'})
-
-    @pytest.mark.asyncio
-    async def test_define_interrupt_with_custom_metadata(self, ai: Genkit) -> None:
-        """Test define_interrupt with custom metadata function."""
-
-        def get_meta(input: dict) -> dict:
-            return {'action': input.get('action'), 'critical': True}
-
-        interrupt_tool = define_interrupt(
-            ai.registry,
-            None,
-            name='confirm',
-            description='Confirm action',
-            request_metadata=get_meta,
-        )
-
-        from genkit._ai._tools import ToolInterruptError
-        from genkit._core._error import GenkitError
-
-        with pytest.raises(GenkitError) as exc_info:
-            await interrupt_tool({'action': 'delete_all'})
-
-        # Extract the ToolInterruptError from the cause
-        assert isinstance(exc_info.value.cause, ToolInterruptError)
-        assert exc_info.value.cause.metadata == {'action': 'delete_all', 'critical': True}
-
-    def test_ai_define_interrupt_method(self, ai: Genkit) -> None:
-        """Test ai.define_interrupt() method exists and works."""
-        interrupt_tool = ai.define_interrupt(
-            name='ask_user',
-            description='Ask user for input',
-        )
-
-        assert callable(interrupt_tool)
-        assert hasattr(interrupt_tool, 'respond')
-        assert hasattr(interrupt_tool, 'restart')
-
-
-class TestResumeRoundTrip:
-    """Test full interrupt-resume round trip."""
-
-    @pytest.mark.asyncio
-    async def test_resume_metadata_propagation(self, ai: Genkit) -> None:
-        """Test that resumed_metadata is accessible in tool context."""
-        resumed_value = None
-
-        @ai.tool(name='check_auth')
-        async def check_auth(input: dict, ctx: ToolRunContext) -> dict:
-            nonlocal resumed_value
-            if ctx.is_resumed():
-                resumed_value = ctx.resumed_metadata
-                return {'authenticated': True}
-            raise Interrupt({'reason': 'needs_auth'})
-
-        # This test verifies the API structure - actual resume flow requires generate()
-        # First call should interrupt
-        from genkit._core._error import GenkitError
-
-        with pytest.raises(GenkitError):
-            await check_auth({'user': 'alice'})
-
-    @pytest.mark.asyncio
-    async def test_original_input_accessible(self, ai: Genkit) -> None:
-        """Test that original_input is accessible when input is replaced."""
-        original_value = None
-
-        @ai.tool(name='transfer')
-        async def transfer(input: dict, ctx: ToolRunContext) -> dict:
-            nonlocal original_value
-            if ctx.is_resumed():
-                original_value = ctx.original_input
-                return {'status': 'transferred', 'amount': input['amount']}
-            if input['amount'] > 100:
-                raise Interrupt({'reason': 'confirm_large'})
-            return {'status': 'transferred', 'amount': input['amount']}
-
-        # Small amount - no interrupt
-        result = await transfer({'amount': 50})
-        assert result == {'status': 'transferred', 'amount': 50}
-
-
-class TestResumeParameter:
-    """Test the resume parameter on generate()."""
-
-    def test_resume_type_available(self) -> None:
-        """Test that Resume type is available from genkit."""
-        from genkit import Resume
-
-        assert Resume is not None
-
-    def test_resume_has_respond_field(self) -> None:
-        """Test that Resume has respond field."""
-        resume = Resume(respond=[])
-        assert resume.respond == []
-
-    def test_resume_has_restart_field(self) -> None:
-        """Test that Resume has restart field."""
-        resume = Resume(restart=[])
-        assert resume.restart == []
+        ],
+    )
+    assert r.respond is not None and r.respond[0].tool_response.name == 't'
+    assert r.restart is not None and r.restart[0].tool_request.name == 't'

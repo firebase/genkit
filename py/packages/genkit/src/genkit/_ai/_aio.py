@@ -71,7 +71,7 @@ from genkit._ai._resource import (
     ResourceOptions,
     define_resource,
 )
-from genkit._ai._tools import define_interrupt as define_interrupt_tool, define_tool
+from genkit._ai._tools import ToolRunContext, define_interrupt as define_interrupt_tool, define_tool
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._background import (
     BackgroundAction,
@@ -298,16 +298,17 @@ class Genkit:
             )
         """
 
-        # Create a dummy async function with the right signature
-        async def interrupt_fn(input: Any, ctx: Any) -> Any:  # noqa: ANN401
+        async def interrupt_fn(input: Any, ctx: ToolRunContext) -> Any:  # noqa: ANN401
             ctx.interrupt()
             raise AssertionError('Unreachable')  # type: ignore[unreachable]
 
         return define_interrupt_tool(
             self.registry,
-            None,
+            interrupt_fn,
             name=name,
             description=description,
+            input_schema=input_schema,
+            output_schema=output_schema,
         )
 
     def define_evaluator(
