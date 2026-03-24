@@ -30,16 +30,20 @@ from genkit.plugins.google_genai.models.context_caching.constants import (
 logger = structlog.getLogger(__name__)
 
 
-def generate_cache_key(request: ModelRequest) -> str:
-    """Generates context cache key by hashing the given request instance.
+def generate_cache_key(request: ModelRequest, model_name: str) -> str:
+    """Generates context cache key by hashing the given request and model name.
 
     Args:
         request: `ModelRequest` instance to hash
+        model_name: Name of the model — included in the key to prevent
+            cross-model cache collisions when multiple models are used
+            in the same session.
 
     Returns:
         Generated cache key string
     """
-    return hashlib.sha256(json.dumps(request.model_dump(), sort_keys=True).encode()).hexdigest()
+    payload = {'model': model_name, 'request': request.model_dump()}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 def validate_context_cache_request(request: ModelRequest, model_name: str) -> bool:

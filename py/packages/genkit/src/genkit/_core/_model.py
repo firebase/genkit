@@ -216,7 +216,7 @@ class ModelRequest(GenkitModel, Generic[ConfigT]):
                 schema = request.output_schema
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='allow', populate_by_name=True)
     # Veneer types for IDE/typing (validators wrap MessageData->Message, DocumentData->Document)
     messages: list[Message]  # pyright: ignore[reportIncompatibleVariableOverride]
     docs: list[Document] | None = None  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -353,6 +353,17 @@ class ModelResponse(GenkitModel, Generic[OutputT]):
         if self.message is None:
             return []
         return self.message.tool_requests
+
+    @cached_property
+    def media(self) -> list[Media]:
+        """All media parts in the response message."""
+        if self.message is None:
+            return []
+        return [
+            part.root.media
+            for part in self.message.content
+            if isinstance(part.root, MediaPart) and part.root.media is not None
+        ]
 
     @cached_property
     def interrupts(self) -> list[ToolRequestPart]:
