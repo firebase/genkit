@@ -632,7 +632,7 @@ describe('Vertex AI Converters', () => {
               },
               {
                 media: {
-                  url: 'data:video/webm:base64,VID2DATA',
+                  url: 'data:video/webm;base64,VID2DATA',
                   contentType: 'video/webm',
                 },
               },
