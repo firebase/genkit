@@ -968,13 +968,19 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		return tool.RunRawMultipart(ctx, toolReq.Input)
 	}
 
+	// Capture metadata from the raw tool response so it isn't lost through
+	// the ToolResponse conversion (ToolResponse has no Metadata field).
+	var toolMetadata map[string]any
+
 	inner := func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
 		resp, err := params.Tool.RunRawMultipart(ctx, params.Request.Input)
 		if err != nil {
 			return nil, err
 		}
+		toolMetadata = resp.Metadata
 		return &ToolResponse{
 			Name:    params.Request.Name,
+			Ref:     params.Request.Ref,
 			Output:  resp.Output,
 			Content: resp.Content,
 		}, nil
@@ -993,7 +999,7 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		return nil, err
 	}
 
-	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content}, nil
+	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content, Metadata: toolMetadata}, nil
 }
 
 // Text returns the contents of the first candidate in a

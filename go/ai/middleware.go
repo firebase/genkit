@@ -39,6 +39,8 @@ type Middleware interface {
 	// WrapModel wraps each model API call.
 	WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error)
 	// WrapTool wraps each tool execution.
+	// WrapTool may be called concurrently when multiple tools execute in parallel.
+	// Implementations must be safe for concurrent use.
 	WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error)
 	// Tools returns additional tools to make available during generation.
 	// These tools are dynamically registered when the middleware is used via [WithUse].
@@ -152,7 +154,22 @@ func middlewareToRef(r api.Registry, mw Middleware) (*MiddlewareRef, api.Registr
 		if !r.IsChild() {
 			r = r.NewChild()
 		}
-		DefineMiddleware(r, "", mw)
+		// Register directly instead of via DefineMiddleware to avoid generic
+		// type inference losing the concrete type (mw is typed as Middleware
+		// interface here, so InferSchemaMap would receive a nil interface).
+		desc := &MiddlewareDesc{
+			Name: name,
+			configFromJSON: func(configJSON []byte) (Middleware, error) {
+				inst := mw.New()
+				if len(configJSON) > 0 {
+					if err := json.Unmarshal(configJSON, inst); err != nil {
+						return nil, fmt.Errorf("middleware %q: %w", name, err)
+					}
+				}
+				return inst, nil
+			},
+		}
+		desc.Register(r)
 	}
 	configJSON, err := json.Marshal(mw)
 	if err != nil {

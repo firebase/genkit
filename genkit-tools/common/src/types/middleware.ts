@@ -24,7 +24,7 @@ export const MiddlewareDescSchema = z.object({
   /** JSON Schema for the middleware's configuration. */
   configSchema: z.record(z.any()).nullish(),
   /** User defined metadata for the middleware. */
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.any()).nullish(),
 });
 export type MiddlewareDesc = z.infer<typeof MiddlewareDescSchema>;
 

@@ -182,7 +182,7 @@ class MiddlewareDesc(GenkitModel):
     name: str = Field(...)
     description: str | None = None
     config_schema: Any | ConfigSchema | None = Field(default=None)
-    metadata: Metadata | None = None
+    metadata: Any | Metadata | None = Field(default=None)
 
 
 class MiddlewareRef(GenkitModel):
