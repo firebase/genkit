@@ -195,7 +195,13 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
     .describe('The modalities to be used in response.')
     .optional(),
-  googleSearchRetrieval: z
+  googleSearchRetrieval: z // some models use this, some use just googleSearch
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
+    .optional(),
+  googleSearch: z
     .union([z.boolean(), z.object({}).passthrough()])
     .describe(
       'Retrieve public web data for grounding, powered by Google Search.'
@@ -682,9 +688,11 @@ export function defineModel(
         safetySettings: safetySettingsFromConfig,
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
+        toolConfig: toolConfigConfig,
         functionCallingConfig,
         googleSearchRetrieval,
         google_search,
+        googleSearch,
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
@@ -709,10 +717,10 @@ export function defineModel(
         } as GoogleSearchRetrievalTool);
       }
 
-      if (google_search) {
+      if (googleSearch || google_search) {
         tools.push({
-          google_search: google_search,
-        } as GoogleSearchRetrievalTool);
+          google_search: google_search || googleSearch,
+        }) as GoogleSearchRetrievalTool;
       }
 
       if (fileSearch) {
@@ -740,6 +748,24 @@ export function defineModel(
           functionCallingConfig: {
             mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
+        };
+      }
+
+      if (toolConfigConfig) {
+        // We need it in snake case or it doesn't work
+        if (
+          Object.hasOwnProperty.call(
+            toolConfigConfig,
+            'includeServerSideToolInvocations'
+          )
+        ) {
+          toolConfigConfig['include_server_side_tool_invocations'] =
+            toolConfigConfig['includeServerSideToolInvocations'];
+          delete toolConfigConfig['includeServerSideToolInvocations'];
+        }
+        toolConfig = {
+          ...toolConfig,
+          ...toolConfigConfig,
         };
       }
 
