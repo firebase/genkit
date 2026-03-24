@@ -1,6 +1,6 @@
 # Tool Interrupts
 
-Human-in-the-loop: `ctx.interrupt()` and `tool_response()` let the model pause for user input, then continue.
+Human-in-the-loop: `ctx.interrupt()` pauses the tool; after `generate` returns, use **`your_tool.respond(interrupt, output)`** on the **decorated tool function** (and `response.interrupts`) to resume — not the low-level `tool_response` helper.
 
 ```bash
 export GEMINI_API_KEY=your-api-key

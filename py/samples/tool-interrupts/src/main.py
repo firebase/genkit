@@ -14,7 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tool interrupts - Human-in-the-loop with ctx.interrupt() and tool_response(). See README.md."""
+"""Tool interrupts — human-in-the-loop with ctx.interrupt() and tool.respond().
+
+After ``generate`` stops with ``finish_reason`` interrupted, read ``response.interrupts``,
+then resume by passing ``your_tool.respond(interrupt, user_output)`` in ``tool_responses``.
+See README.md.
+"""
 
 import os
 
@@ -23,7 +28,6 @@ from pydantic import BaseModel, Field
 from genkit import (
     Genkit,
     ToolRunContext,
-    tool_response,
 )
 from genkit.plugins.google_genai import GoogleAI
 from genkit.plugins.google_genai.models import gemini
@@ -62,13 +66,14 @@ async def play_trivia(theme: str = 'Science') -> str:
 
     # Check for interrupts and return the question to the user
     if len(response.interrupts):
-        request = response.interrupts[0]
-        question_data = request.tool_request.input
+        interrupt = response.interrupts[0]
+        question_data = interrupt.tool_request.input
         if question_data:
             # For a full interactive flow, you would typically:
             # 1. Prompt the user for their answer here (e.g., using input()).
-            # 2. Call tool_response(request, user_answer) to resume the AI conversation.
-            # 3. Regenerate with the tool_response.
+            # 2. Call present_questions.respond(interrupt, user_answer) and pass that part
+            #    in tool_responses= to generate() (see main() below).
+            # 3. Regenerate with messages + tool_responses.
 
             # Prepend the greeting/text response if available
             text_response = (response.text + '\n\n') if response.text else ''
@@ -102,11 +107,12 @@ async def main() -> None:
             )
             messages = response.messages
             if len(response.interrupts) > 0:
-                request = response.interrupts[0]
-                tr = tool_response(request, input('Your answer (number): '))
+                intr = response.interrupts[0]
+                # Use the decorated tool's .respond — not tool_response() or registry lookup by name.
+                response_part = present_questions.respond(intr, input('Your answer (number): '))
                 response = await ai.generate(
                     messages=messages,
-                    tool_responses=[tr],
+                    tool_responses=[response_part],
                     tools=['present_questions'],
                 )
                 messages = response.messages
