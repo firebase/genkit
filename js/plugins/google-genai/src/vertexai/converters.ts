@@ -454,7 +454,7 @@ export function fromVeoOperation(
           if (veoMedia.bytesBase64Encoded) {
             return {
               media: {
-                url: `data:${veoMedia.mimeType}:base64,${veoMedia.bytesBase64Encoded}`,
+                url: `data:${veoMedia.mimeType};base64,${veoMedia.bytesBase64Encoded}`,
                 contentType: veoMedia.mimeType,
               },
             };
