@@ -72,11 +72,7 @@ class _AugmentWithContextMiddleware(BaseMiddleware):
         context_part = user_message.content[context_part_index] if context_part_index >= 0 else None
 
         if context_part:
-            metadata = (
-                context_part.root.metadata
-                if hasattr(context_part.root, 'metadata')
-                else None
-            )
+            metadata = context_part.root.metadata if hasattr(context_part.root, 'metadata') else None
             if not (isinstance(metadata, dict) and metadata.get('pending')):
                 return await next_fn(params)
 

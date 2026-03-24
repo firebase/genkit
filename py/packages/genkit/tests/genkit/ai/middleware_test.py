@@ -40,11 +40,7 @@ async def run_augmenter(req: ModelRequest) -> ModelRequest:
 
     async def next_fn(params: ModelHookParams) -> ModelResponse:
         req_future.set_result(params.request)
-        return ModelResponse(
-            message=Message(
-                role=Role.USER, content=[Part(root=TextPart(text='hi'))]
-            )
-        )
+        return ModelResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 
     await augmenter.wrap_model(
         ModelHookParams(request=req, on_chunk=None, context={}),

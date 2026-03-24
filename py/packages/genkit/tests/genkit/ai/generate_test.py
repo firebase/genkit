@@ -325,13 +325,7 @@ async def test_generate_middleware_can_modify_stream(
                     params.on_chunk(
                         ModelResponseChunk(
                             role=Role.MODEL,
-                            content=[
-                                Part(
-                                    TextPart(
-                                        text=f'intercepted: {text_from_content(chunk.content)}'
-                                    )
-                                )
-                            ],
+                            content=[Part(TextPart(text=f'intercepted: {text_from_content(chunk.content)}'))],
                         )
                     )
 
@@ -424,13 +418,7 @@ async def test_wrap_generate_called_per_turn(
         ModelResponse(
             message=Message(
                 role=Role.MODEL,
-                content=[
-                    Part(
-                        root=ToolRequestPart(
-                            tool_request=ToolRequest(name='testTool', input={}, ref='r1')
-                        )
-                    )
-                ],
+                content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='testTool', input={}, ref='r1')))],
             ),
         )
     )
@@ -462,9 +450,7 @@ class TrackToolMiddleware(BaseMiddleware):
     async def wrap_tool(
         self,
         params: ToolHookParams,
-        next_fn: Callable[
-            [ToolHookParams], Awaitable[tuple['Part | None', 'Part | None']]
-        ],
+        next_fn: Callable[[ToolHookParams], Awaitable[tuple['Part | None', 'Part | None']]],
     ) -> tuple['Part | None', 'Part | None']:
         self.tool_names.append(params.tool_request_part.tool_request.name)
         return await next_fn(params)
@@ -485,13 +471,7 @@ async def test_wrap_tool_called_on_tool_execution(
         ModelResponse(
             message=Message(
                 role=Role.MODEL,
-                content=[
-                    Part(
-                        root=ToolRequestPart(
-                            tool_request=ToolRequest(name='myTool', input={}, ref='r1')
-                        )
-                    )
-                ],
+                content=[Part(root=ToolRequestPart(tool_request=ToolRequest(name='myTool', input={}, ref='r1')))],
             ),
         )
     )

@@ -1035,15 +1035,11 @@ async def test_generate_with_middleware(
 
     want = '[ECHO] user: "PRE hi" POST'
 
-    response = await ai.generate(
-        model='echoModel', prompt='hi', use=[PreMiddleware(), PostMiddleware()]
-    )
+    response = await ai.generate(model='echoModel', prompt='hi', use=[PreMiddleware(), PostMiddleware()])
 
     assert response.text == want
 
-    stream_result = ai.generate_stream(
-        model='echoModel', prompt='hi', use=[PreMiddleware(), PostMiddleware()]
-    )
+    stream_result = ai.generate_stream(model='echoModel', prompt='hi', use=[PreMiddleware(), PostMiddleware()])
 
     assert (await stream_result.response).text == want
 
@@ -1075,9 +1071,7 @@ async def test_generate_passes_through_current_action_context(
     ai, *_ = setup_test
 
     async def action_fn() -> ModelResponse:
-        return await ai.generate(
-            model='echoModel', prompt='hi', use=[InjectContextMiddleware()]
-        )
+        return await ai.generate(model='echoModel', prompt='hi', use=[InjectContextMiddleware()])
 
     action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
     action_response = await action.run(context={'foo': 'bar'})

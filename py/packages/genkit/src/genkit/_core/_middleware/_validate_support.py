@@ -61,10 +61,7 @@ class _ValidateSupportMiddleware(BaseMiddleware):
         if self._supports.media is False:
             for msg in req.messages:
                 for part in msg.content:
-                    if (
-                        isinstance(part.root, MediaPart)
-                        and part.root.media is not None
-                    ):
+                    if isinstance(part.root, MediaPart) and part.root.media is not None:
                         raise GenkitError(
                             status='INVALID_ARGUMENT',
                             message=f"Model '{self._name}' does not support media, but media was provided.",
@@ -92,11 +89,7 @@ class _ValidateSupportMiddleware(BaseMiddleware):
                         message=f"Model '{self._name}' does not support system role, but system role was provided.",
                     )
 
-        if (
-            self._supports.tool_choice is False
-            and req.tool_choice
-            and req.tool_choice != 'auto'
-        ):
+        if self._supports.tool_choice is False and req.tool_choice and req.tool_choice != 'auto':
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message=f"Model '{self._name}' does not support tool choice, but tool choice was provided.",

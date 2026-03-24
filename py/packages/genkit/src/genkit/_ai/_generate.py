@@ -64,14 +64,10 @@ logger = get_logger(__name__)
 async def _chain_tool_middleware(
     middleware: list[BaseMiddleware],
     params: ToolHookParams,
-    next_fn: Callable[
-        [ToolHookParams], Awaitable[tuple[Part | None, Part | None]]
-    ],
+    next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
 ) -> tuple[Part | None, Part | None]:
     """Run the tool middleware chain and return (response_part, interrupt_part)."""
-    runner: Callable[
-        [ToolHookParams], Awaitable[tuple[Part | None, Part | None]]
-    ] = next_fn
+    runner: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = next_fn
     for mw in reversed(middleware):
         _mw = mw
         _inner = runner
@@ -80,9 +76,7 @@ async def _chain_tool_middleware(
             p: ToolHookParams,
             *,
             _m: BaseMiddleware = _mw,
-            _i: Callable[
-                [ToolHookParams], Awaitable[tuple[Part | None, Part | None]]
-            ] = _inner,
+            _i: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
         ) -> tuple[Part | None, Part | None]:
             return await _m.wrap_tool(p, _i)
 
@@ -238,9 +232,7 @@ async def generate_action(
         next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         """Chain wrap_generate middleware and call next_fn."""
-        runner: Callable[
-            [GenerateHookParams], Awaitable[ModelResponse]
-        ] = next_fn
+        runner: Callable[[GenerateHookParams], Awaitable[ModelResponse]] = next_fn
         for mw in reversed(normalized_mw):
             _mw = mw
             _inner = runner
@@ -265,9 +257,7 @@ async def generate_action(
                 await model.run(
                     input=params.request,
                     context=params.context,
-                    on_chunk=cast(Callable[[object], None], params.on_chunk)
-                    if params.on_chunk
-                    else None,
+                    on_chunk=cast(Callable[[object], None], params.on_chunk) if params.on_chunk else None,
                 )
             ).response
 
@@ -280,15 +270,11 @@ async def generate_action(
                 params: ModelHookParams,
                 *,
                 _mw: BaseMiddleware = _mw,
-                _inner: Callable[
-                    [ModelHookParams], Awaitable[ModelResponse]
-                ] = _inner,
+                _inner: Callable[[ModelHookParams], Awaitable[ModelResponse]] = _inner,
             ) -> ModelResponse:
                 return await _mw.wrap_model(params, _inner)
 
-            runner = cast(
-                Callable[[ModelHookParams], Awaitable[ModelResponse]], run_next
-            )
+            runner = cast(Callable[[ModelHookParams], Awaitable[ModelResponse]], run_next)
 
         return await runner(
             ModelHookParams(
@@ -350,9 +336,7 @@ async def generate_action(
                 response.assert_valid_schema()
             return response
 
-        max_iters = (
-            raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
-        )
+        max_iters = raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
 
         if current_turn + 1 > max_iters:
             raise GenerationResponseError(
@@ -366,18 +350,14 @@ async def generate_action(
             revised_model_msg,
             tool_msg,
             transfer_preamble,
-        ) = await resolve_tool_requests(
-            registry, raw_request, generated_msg, middleware=normalized_mw
-        )
+        ) = await resolve_tool_requests(registry, raw_request, generated_msg, middleware=normalized_mw)
 
         # if an interrupt message is returned, stop the tool loop and return a
         # response.
         if revised_model_msg:
             interrupted_resp = response.model_copy(deep=False)
             interrupted_resp.finish_reason = FinishReason.INTERRUPTED
-            interrupted_resp.finish_message = (
-                'One or more tool calls resulted in interrupts.'
-            )
+            interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
             interrupted_resp.message = Message(revised_model_msg)
             return interrupted_resp
 
@@ -700,13 +680,9 @@ async def resolve_tool_requests(
             async def next_fn(p: ToolHookParams) -> tuple[Part | None, Part | None]:
                 return await _resolve_tool_request(p.tool, p.tool_request_part)
 
-            tool_response_part, interrupt_part = await _chain_tool_middleware(
-                mw_list, params, next_fn
-            )
+            tool_response_part, interrupt_part = await _chain_tool_middleware(mw_list, params, next_fn)
         else:
-            tool_response_part, interrupt_part = await _resolve_tool_request(
-                tool, tool_req_root
-            )
+            tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 
         if tool_response_part:
             # Extract the ToolResponsePart from the returned Part for _to_pending_response

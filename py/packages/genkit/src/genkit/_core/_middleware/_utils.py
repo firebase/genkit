@@ -43,9 +43,7 @@ _DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
     'UNIMPLEMENTED',
 ]
 
-_SSRF_BLOCKED_HOSTNAMES: frozenset[str] = frozenset(
-    ('metadata.google.internal', 'metadata', '169.254.169.254')
-)
+_SSRF_BLOCKED_HOSTNAMES: frozenset[str] = frozenset(('metadata.google.internal', 'metadata', '169.254.169.254'))
 
 
 def _is_safe_url(url: str) -> bool:

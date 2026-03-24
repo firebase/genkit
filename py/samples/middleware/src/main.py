@@ -46,9 +46,7 @@ class LoggingMiddleware(BaseMiddleware):
         params: ModelHookParams,
         next_fn: Callable[[ModelHookParams], Awaitable],
     ):
-        await logger.ainfo(
-            'middleware saw request', message_count=len(params.request.messages)
-        )
+        await logger.ainfo('middleware saw request', message_count=len(params.request.messages))
         response = await next_fn(params)
         await logger.ainfo(
             'middleware saw response',
@@ -69,9 +67,7 @@ class ConciseReplyMiddleware(BaseMiddleware):
             role=Role.SYSTEM,
             content=[Part(root=TextPart(text='Answer in one short paragraph.'))],
         )
-        new_req = params.request.model_copy(
-            update={'messages': [system_message, *params.request.messages]}
-        )
+        new_req = params.request.model_copy(update={'messages': [system_message, *params.request.messages]})
         return await next_fn(
             ModelHookParams(
                 request=new_req,
@@ -93,9 +89,7 @@ async def logging_demo(input: PromptInput) -> str:
 async def request_modifier_demo(input: PromptInput) -> str:
     """Run a prompt through a request-modifying middleware."""
 
-    response = await ai.generate(
-        prompt=input.prompt, use=[ConciseReplyMiddleware()]
-    )
+    response = await ai.generate(prompt=input.prompt, use=[ConciseReplyMiddleware()])
     return response.text
 
 
@@ -103,11 +97,7 @@ async def main() -> None:
     """Run both middleware demos once."""
     try:
         print(await logging_demo(PromptInput()))  # noqa: T201
-        print(
-            await request_modifier_demo(
-                PromptInput(prompt='Write a haiku about recursion.')
-            )
-        )  # noqa: T201
+        print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
     except Exception as error:
         print(
             f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}'  # noqa: T201

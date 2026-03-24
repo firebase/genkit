@@ -96,9 +96,7 @@ class _RetryMiddleware(BaseMiddleware):
                 last_error = e
 
                 if attempt < self._max_retries:
-                    should_retry = (
-                        isinstance(e, GenkitError) and e.status in self._statuses
-                    )
+                    should_retry = isinstance(e, GenkitError) and e.status in self._statuses
 
                     if should_retry:
                         if self._on_error:

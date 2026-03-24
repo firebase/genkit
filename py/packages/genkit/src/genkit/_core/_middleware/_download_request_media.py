@@ -61,9 +61,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
                 content_changed = False
 
                 for part in msg.content:
-                    if isinstance(part.root, MediaPart) and part.root.media.url.startswith(
-                        'http'
-                    ):
+                    if isinstance(part.root, MediaPart) and part.root.media.url.startswith('http'):
                         if not _is_safe_url(part.root.media.url):
                             raise GenkitError(
                                 status='INVALID_ARGUMENT',
@@ -105,9 +103,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
                         new_content.append(part)
 
                 if content_changed:
-                    new_messages.append(
-                        Message(role=msg.role, content=new_content, metadata=msg.metadata)
-                    )
+                    new_messages.append(Message(role=msg.role, content=new_content, metadata=msg.metadata))
                 else:
                     new_messages.append(msg)
 

@@ -40,9 +40,7 @@ def simulate_system_prompt(
     Returns:
         Middleware that transforms system messages.
     """
-    return _SimulateSystemPromptMiddleware(
-        preface=preface, acknowledgement=acknowledgement
-    )
+    return _SimulateSystemPromptMiddleware(preface=preface, acknowledgement=acknowledgement)
 
 
 class _SimulateSystemPromptMiddleware(BaseMiddleware):
@@ -65,17 +63,13 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
 
         for msg in req.messages:
             if msg.role == 'system' and not system_found:
-                user_content: list[Part] = [
-                    Part(root=TextPart(text=self._preface))
-                ]
+                user_content: list[Part] = [Part(root=TextPart(text=self._preface))]
                 user_content.extend(msg.content)
                 new_messages.append(Message(role='user', content=user_content))
                 new_messages.append(
                     Message(
                         role='model',
-                        content=[
-                            Part(root=TextPart(text=self._acknowledgement))
-                        ],
+                        content=[Part(root=TextPart(text=self._acknowledgement))],
                     )
                 )
                 system_found = True
