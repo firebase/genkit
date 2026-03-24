@@ -23,11 +23,10 @@ from genkit._ai._testing import (
     define_programmable_model,
 )
 from genkit._core._action import ActionRunContext
-from genkit._core._model import ModelRequest
+from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     FinishReason,
-    GenerateActionOptions,
     Part,
     Role,
     TextPart,
