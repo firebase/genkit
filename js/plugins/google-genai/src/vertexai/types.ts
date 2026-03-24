@@ -306,6 +306,7 @@ export declare interface VeoMedia {
   bytesBase64Encoded?: string;
   gcsUri?: string;
   mimeType?: string;
+  uri?: string;
 }
 
 export declare interface VeoReferenceImage {
