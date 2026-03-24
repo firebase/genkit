@@ -17,8 +17,9 @@
 """Implementation of Array output format."""
 
 import json
-from typing import Any
+from typing import Any, cast
 
+from genkit._ai._formats._schema import resolve_json_schema_refs
 from genkit._ai._formats._types import FormatDef, Formatter, FormatterConfig
 from genkit._ai._model import (
     Message,
@@ -85,7 +86,9 @@ class ArrayFormat(FormatDef):
         Raises:
             GenkitError: If the schema is missing or not of type 'array'.
         """
-        if schema and schema.get('type') != 'array':
+        resolved_schema = cast(dict[str, object], resolve_json_schema_refs(schema, schema)) if schema else None
+
+        if resolved_schema and resolved_schema.get('type') != 'array':
             raise GenkitError(
                 status='INVALID_ARGUMENT',
                 message="Must supply an 'array' schema type when using the 'items' parser format.",
@@ -110,11 +113,11 @@ class ArrayFormat(FormatDef):
             return result.items
 
         instructions = None
-        if schema:
+        if resolved_schema:
             instructions = f"""Output should be a JSON array conforming to the following schema:
 
 ```
-{json.dumps(schema, indent=2)}
+{json.dumps(resolved_schema, indent=2)}
 ```
 """
         return Formatter(

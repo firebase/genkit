@@ -48,11 +48,10 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._model import Document, ModelConfig
+from genkit._core._model import Document, GenerateActionOptions, ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
-    GenerateActionOptions,
     GenerateActionOutputConfig,
     OutputConfig,
     Part,
@@ -489,7 +488,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return GenerateActionOptions(
             model=model,
-            messages=resolved_msgs,  # type: ignore[arg-type]
+            messages=resolved_msgs,
             config=prompt_options.config,
             tools=prompt_options.tools,
             return_tool_requests=prompt_options.return_tool_requests,

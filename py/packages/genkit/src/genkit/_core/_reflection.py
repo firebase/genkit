@@ -80,14 +80,26 @@ class ActionRunner:
 
     async def execute(self) -> None:
         try:
-            on_chunk = (lambda c: self.queue.put_nowait(f'{c.model_dump_json()}\n')) if self.stream else None
+            on_chunk = (
+                (
+                    lambda c: self.queue.put_nowait(
+                        f'{c.model_dump_json() if isinstance(c, BaseModel) else json.dumps(c)}\n'
+                    )
+                )
+                if self.stream
+                else None
+            )
             output = await self.action.run(
                 input=self.payload.get('input'),
                 on_chunk=on_chunk,
                 context=self.payload.get('context', {}),
                 on_trace_start=self.on_trace_start,
             )
-            result = output.response.model_dump() if isinstance(output.response, BaseModel) else output.response
+            result = (
+                output.response.model_dump(by_alias=True, exclude_none=True)
+                if isinstance(output.response, BaseModel)
+                else output.response
+            )
             self.queue.put_nowait(
                 json.dumps({
                     'result': result,

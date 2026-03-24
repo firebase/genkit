@@ -205,6 +205,7 @@ class MyPlugin(Plugin):
             ActionMetadata(kind=ActionKind.MODEL, name='myplugin/my-model'),
         ]
 
+
 # Usage:
 ai = Genkit(plugins=[MyPlugin(api_key='...')])
 response = await ai.generate(model='myplugin/my-model', prompt='Hello!')
@@ -357,7 +358,7 @@ ai = Genkit(
     model=gemini_2_0_flash,
 )
 
-response = await ai.generate(prompt="Tell me a joke")
+response = await ai.generate(prompt='Tell me a joke')
 print(response.text)
 ```
 
@@ -408,49 +409,24 @@ Some plugins are community-maintained and supported on a best-effort basis:
 
 ## Sample Catalog
 
-Each sample demonstrates specific Genkit concepts. Use this table to find
-examples of any feature:
+The Python samples are intentionally short and beginner-friendly. Use this table to jump to the clearest example for each concept:
 
 | Sample | Key Concepts | Description |
 |--------|-------------|-------------|
-| **Model Providers** | | |
-| `provider-google-genai-hello` | Model, Flow | Basic Gemini model usage |
-| `provider-anthropic-hello` | Model, Flow | Claude model usage |
-| `provider-ollama-hello` | Model, Flow | Local Ollama models |
-| `provider-cohere-hello` | Model, Flow | Cohere models |
-| `provider-compat-oai-hello` | Model, Flow | OpenAI-compatible APIs |
-| `provider-deepseek-hello` | Model, Flow | DeepSeek models |
-| `provider-xai-hello` | Model, Flow | Grok models |
-| `provider-mistral-hello` | Model, Flow | Mistral models |
-| `provider-huggingface-hello` | Model, Flow | HuggingFace Inference API |
-| `provider-cloudflare-workers-ai-hello` | Model, Flow, Telemetry | Cloudflare Workers AI |
-| `provider-microsoft-foundry-hello` | Model, Flow | Azure AI Foundry |
-| **Google Cloud** | | |
-| `provider-google-genai-vertexai-hello` | Model, Flow | Vertex AI models |
-| `provider-google-genai-vertexai-image` | Model, Flow | Imagen image generation |
-| `provider-google-genai-media-models-demo` | Model, Flow | TTS, STT, Veo, Lyria |
-| `provider-google-genai-code-execution` | Model, Tool | Code execution sandbox |
-| `provider-google-genai-context-caching` | Model, Flow | Context caching for long prompts |
-| `provider-vertex-ai-model-garden` | Model, Flow | Model Garden access |
-| `provider-vertex-ai-rerank-eval` | Retriever, Evaluator | Reranking + evaluation |
-| `provider-vertex-ai-vector-search-*` | Embedder, Indexer, Retriever | Vector search |
-| `provider-firestore-retriever` | Retriever | Firestore document retrieval |
-| `provider-observability-hello` | Telemetry | Multi-backend tracing |
-| **Framework Patterns** | | |
-| `framework-prompt-demo` | Prompt, Dotprompt | Advanced prompt templates |
-| `framework-format-demo` | Structured Output | JSON/enum output formatting |
-| `framework-context-demo` | Context Provider, Flow | Auth context in flows |
-| `framework-middleware-demo` | Middleware | Model-level request/response hooks |
-| `framework-evaluator-demo` | Evaluator | Custom evaluation metrics |
-| `framework-restaurant-demo` | Flow, Tool, Prompt | Multi-step agent with tools |
-| `framework-dynamic-tools-demo` | Tool, Dynamic Action Provider | Runtime tool registration |
-| `framework-tool-interrupts` | Tool | Human-in-the-loop tool approval |
-| `framework-realtime-tracing-demo` | Tracing | Live trace streaming |
-| `dev-local-vectorstore-hello` | Embedder, Retriever, Indexer | Local dev vector store |
-| **Deployment** | | |
-| `web-short-n-long` | Flow Server, Context Provider | Built-in flows server + `api_key()` auth |
-| `web-flask-hello` | Flow, Plugin (Flask) | Flask framework integration |
-| `web-multi-server` | Flow Server, Reflection API | Multiple Genkit instances |
+| `context` | Context, Flow, Tool | Pass request context through `generate()`, flows, and tools |
+| `dynamic-tools` | Dynamic Tool, Tracing | Create a tool at runtime and trace plain functions with `ai.run()` |
+| `evaluators` | Evaluator | Run simple custom evaluators with `genkit eval:run` |
+| `fastapi-bugbot` | FastAPI, Prompt | Build a small code-review API with Genkit |
+| `flask-hello` | Flask, Flow | Serve Genkit flows through Flask |
+| `gemini-code-execution` | Gemini, Code Execution | Ask Gemini to write and run code for a task |
+| `gemini-context-caching` | Gemini, Context Caching | Cache a large document and ask follow-up questions |
+| `google-genai-media` | Gemini, Imagen, Veo | Simple speech, image, and video generation examples |
+| `middleware` | Middleware | Observe or modify model requests with `use=[...]` |
+| `output-formats` | Structured Output | Text, enum, JSON object, array, and JSONL outputs |
+| `prompts` | Prompt, Dotprompt | Use `.prompt` files, helpers, variants, and streaming |
+| `tool-interrupts` | Tool | Pause tool execution for human approval |
+| `tracing` | Tracing | Watch spans appear in the Dev UI as they start |
+| `vertexai-imagen` | Vertex AI, Image Generation | Generate an image with Vertex AI Imagen |
 
 See the [samples/README.md](samples/README.md) for running instructions.
 

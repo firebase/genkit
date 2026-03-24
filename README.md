@@ -140,17 +140,6 @@ Key features:
 
 <img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
 
-## Try Genkit in Firebase Studio
-
-Want to skip the local setup? Click below to try out Genkit using [Firebase Studio](https://firebase.studio), Google's AI-assisted workspace for full-stack app development in the cloud.
-
-<a href="https://studio.firebase.google.com/new/genkit">
-  <img
-    height="32"
-    alt="Open in Firebase Studio"
-    src="https://cdn.firebasestudio.dev/btn/open_bright_32.svg">
-</a>
-
 ## Connect with us
 
 - [**Join us on Discord**](https://discord.gg/qXt5zzQKpc) – Get help, share

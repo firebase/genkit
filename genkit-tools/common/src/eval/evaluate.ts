@@ -17,7 +17,7 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { getDatasetStore, getEvalStore } from '.';
-import type { RuntimeManager } from '../manager/manager';
+import type { BaseRuntimeManager } from '../manager/manager';
 import {
   GenerateActionOptions,
   GenerateResponseData,
@@ -70,7 +70,7 @@ const GENERATE_ACTION_UTIL = '/util/generate';
  * Starts a new evaluation run. Intended to be used via the reflection API.
  */
 export async function runNewEvaluation(
-  manager: RuntimeManager,
+  manager: BaseRuntimeManager,
   request: RunNewEvaluationRequest
 ): Promise<EvalRunKey> {
   const { dataSource, actionRef, evaluators } = request;
@@ -139,7 +139,7 @@ export async function runNewEvaluation(
 
 /** Handles the Inference part of Inference-Evaluation cycle */
 export async function runInference(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   inferenceDataset: Dataset;
   context?: string;
@@ -163,7 +163,7 @@ export async function runInference(params: {
 
 /** Handles the Evaluation part of Inference-Evaluation cycle */
 export async function runEvaluation(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   augments?: EvalKeyAugments;
@@ -219,7 +219,7 @@ export async function runEvaluation(params: {
 }
 
 export async function getAllEvaluatorActions(
-  manager: RuntimeManager
+  manager: BaseRuntimeManager
 ): Promise<Action[]> {
   const allActions = await manager.listActions();
   const allEvaluatorActions = [];
@@ -232,7 +232,7 @@ export async function getAllEvaluatorActions(
 }
 
 export async function getMatchingEvaluatorActions(
-  manager: RuntimeManager,
+  manager: BaseRuntimeManager,
   evaluators?: string[]
 ): Promise<Action[]> {
   if (!evaluators) {
@@ -251,7 +251,7 @@ export async function getMatchingEvaluatorActions(
 }
 
 async function bulkRunAction(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   inferenceDataset: Dataset;
   context?: string;
@@ -313,7 +313,7 @@ async function bulkRunAction(params: {
 }
 
 async function runFlowAction(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   sample: FullInferenceSample;
   context?: any;
@@ -345,7 +345,7 @@ async function runFlowAction(params: {
 }
 
 async function runModelAction(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   sample: FullInferenceSample;
   modelConfig?: any;
@@ -377,7 +377,7 @@ async function runModelAction(params: {
 }
 
 async function runPromptAction(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   sample: FullInferenceSample;
   context?: any;
@@ -464,7 +464,7 @@ async function runPromptAction(params: {
 }
 
 async function gatherEvalInput(params: {
-  manager: RuntimeManager;
+  manager: BaseRuntimeManager;
   actionRef: string;
   state: InferenceRunState;
 }): Promise<EvalInput> {

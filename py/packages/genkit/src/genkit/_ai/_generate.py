@@ -39,10 +39,10 @@ from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
-    GenerateActionOptions,
     Part,
     Role,
     ToolDefinition,

@@ -42,6 +42,23 @@ const ai = genkit({
   ],
 });
 
+ai.defineFlow('combine tools and builtins', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-flash-preview'),
+    prompt:
+      'What is the northernmost city in Canada? What is the weather like there today? Use the getWeather tool.',
+    config: {
+      tools: [{ googleSearch: {} }],
+      toolConfig: {
+        includeServerSideToolInvocations: true,
+      },
+    },
+    tools: [getWeather],
+  });
+
+  return text;
+});
+
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-flash-lite-latest'),
