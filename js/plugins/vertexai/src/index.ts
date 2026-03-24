@@ -125,8 +125,8 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   if (options?.location === 'global') {
     // Not a breaking change, it already doesn't work.
     throw new Error(
-      'The vertexAI plugin in the @genkit-ai/vertexai package does not support global models.\n' +
-        'Support for global models is available in the new vertexAI plugin in the @genkit-ai/google-genai package.\n\n' +
+      'The vertexAI plugin in the @genkit-ai/vertexai package does not support "global" location.\n' +
+        'Support for "global" location is available in the new vertexAI plugin in the @genkit-ai/google-genai package.\n\n' +
         'Please switch your import to use the latest features:\n' +
         "  import { vertexAI } from '@genkit-ai/google-genai';\n\n"
     );
