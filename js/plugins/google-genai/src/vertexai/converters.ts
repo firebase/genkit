@@ -462,7 +462,7 @@ export function fromVeoOperation(
 
           return {
             media: {
-              url: veoMedia.gcsUri ?? '',
+              url: veoMedia.gcsUri ?? veoMedia.uri ?? '',
               contentType: veoMedia.mimeType,
             },
           };
