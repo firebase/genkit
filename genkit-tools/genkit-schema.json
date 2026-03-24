@@ -291,15 +291,8 @@
           ]
         },
         "metadata": {
-          "anyOf": [
-            {
-              "type": "object",
-              "additionalProperties": {}
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "type": "object",
+          "additionalProperties": {}
         }
       },
       "required": [
