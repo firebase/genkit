@@ -203,7 +203,7 @@ func LookupModel(r api.Registry, name string) Model {
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
-func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
+func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mmws []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
 		if defaultModel, ok := r.LookupValue(api.DefaultModelKey).(string); ok && defaultModel != "" {
 			opts.Model = defaultModel
@@ -219,26 +219,23 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
 
-	resumeOutput, err := handleResumeOption(ctx, r, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if resumeOutput.interruptedResponse != nil {
-		return nil, core.NewError(core.FAILED_PRECONDITION,
-			"One or more tools triggered an interrupt during a restarted execution.")
-	}
-
-	opts = resumeOutput.revisedRequest
-
-	if resumeOutput.toolMessage != nil && cb != nil {
-		err := cb(ctx, &ModelResponseChunk{
-			Content: resumeOutput.toolMessage.Content,
-			Role:    RoleTool,
-			Index:   0,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
+	var mws []Middleware
+	if len(opts.Use) > 0 {
+		mws = make([]Middleware, 0, len(opts.Use))
+		for _, ref := range opts.Use {
+			desc := LookupMiddleware(r, ref.Name)
+			if desc == nil {
+				return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: middleware %q not found", ref.Name)
+			}
+			configJSON, err := json.Marshal(ref.Config)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, "ai.GenerateWithRequest: failed to marshal config for middleware %q: %v", ref.Name, err)
+			}
+			mw, err := desc.newFromJSON(configJSON)
+			if err != nil {
+				return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: failed to create middleware %q: %v", ref.Name, err)
+			}
+			mws = append(mws, mw)
 		}
 	}
 
@@ -315,26 +312,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	var middlewareHandlers []Middleware
-	if len(opts.Use) > 0 {
-		middlewareHandlers = make([]Middleware, 0, len(opts.Use))
-		for _, ref := range opts.Use {
-			desc := LookupMiddleware(r, ref.Name)
-			if desc == nil {
-				return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: middleware %q not found", ref.Name)
-			}
-			configJSON, err := json.Marshal(ref.Config)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.GenerateWithRequest: failed to marshal config for middleware %q: %v", ref.Name, err)
-			}
-			handler, err := desc.configFromJSON(configJSON)
-			if err != nil {
-				return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: failed to create middleware %q: %v", ref.Name, err)
-			}
-			middlewareHandlers = append(middlewareHandlers, handler)
-		}
-	}
-
 	var fn ModelFunc
 	if bm != nil {
 		if cb != nil {
@@ -345,11 +322,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		fn = m.Generate
 	}
 
-	if len(middlewareHandlers) > 0 {
+	if len(mws) > 0 {
 		modelHook := func(next ModelFunc) ModelFunc {
 			wrapped := next
-			for i := len(middlewareHandlers) - 1; i >= 0; i-- {
-				h := middlewareHandlers[i]
+			for i := len(mws) - 1; i >= 0; i-- {
+				h := mws[i]
 				inner := wrapped
 				wrapped = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 					return h.WrapModel(ctx, &ModelParams{Request: req, Callback: cb}, func(ctx context.Context, params *ModelParams) (*ModelResponse, error) {
@@ -359,14 +336,51 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			}
 			return wrapped
 		}
-		mw = append([]ModelMiddleware{modelHook}, mw...)
+		mmws = append([]ModelMiddleware{modelHook}, mmws...)
 	}
-	fn = core.ChainMiddleware(mw...)(fn)
+	fn = core.ChainMiddleware(mmws...)(fn)
 
 	// Inline recursive helper function that captures variables from parent scope.
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
 	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
+		// Handle resume on first iteration so restarted tool execution is
+		// wrapped by WrapGenerate (lifecycle: generate > tool > generate > model > tool).
+		if currentTurn == 0 && opts.Resume != nil && (len(opts.Resume.Respond) > 0 || len(opts.Resume.Restart) > 0) {
+			resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
+			if err != nil {
+				return nil, err
+			}
+
+			if resumeOutput.interruptedResponse != nil {
+				return nil, core.NewError(core.FAILED_PRECONDITION,
+					"One or more tools triggered an interrupt during a restarted execution.")
+			}
+
+			opts = resumeOutput.revisedRequest
+
+			if resumeOutput.toolMessage != nil && cb != nil {
+				err := cb(ctx, &ModelResponseChunk{
+					Content: resumeOutput.toolMessage.Content,
+					Role:    RoleTool,
+					Index:   messageIndex,
+				})
+				if err != nil {
+					return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
+				}
+			}
+
+			resumeReq := &ModelRequest{
+				Messages:   opts.Messages,
+				Config:     req.Config,
+				Docs:       req.Docs,
+				ToolChoice: req.ToolChoice,
+				Tools:      req.Tools,
+				Output:     req.Output,
+			}
+			return generate(ctx, resumeReq, currentTurn+1, messageIndex+1)
+		}
+
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -429,7 +443,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 			}
 
-			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex, middlewareHandlers)
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex, mws)
 			if err != nil {
 				return nil, err
 			}
@@ -448,14 +462,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	}
 
 	// Wrap generate with the Generate hook chain from middleware.
-	if len(middlewareHandlers) > 0 {
+	if len(mws) > 0 {
 		innerGenerate := generate
 		generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
 			innerFn := func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
 				return innerGenerate(ctx, params.Request, currentTurn, messageIndex)
 			}
-			for i := len(middlewareHandlers) - 1; i >= 0; i-- {
-				h := middlewareHandlers[i]
+			for i := len(mws) - 1; i >= 0; i-- {
+				h := mws[i]
 				next := innerFn
 				innerFn = func(ctx context.Context, params *GenerateParams) (*ModelResponse, error) {
 					return h.WrapGenerate(ctx, params, next)
@@ -1241,7 +1255,7 @@ func (m ModelRef) Config() any {
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
 // when generation is being resumed. It determines the outcome of the tool request based on
 // pending output, or explicit 'respond' or 'restart' directives in the resume options.
-func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
+func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part, middlewareHandlers []Middleware) (*resumedToolRequestOutput, error) {
 	if p == nil || !p.IsToolRequest() {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
 	}
@@ -1329,7 +1343,12 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
 				}
 
-				output, err := tool.RunRaw(resumedCtx, restartPart.ToolRequest.Input)
+				restartToolReq := &ToolRequest{
+					Name:  restartPart.ToolRequest.Name,
+					Ref:   restartPart.ToolRequest.Ref,
+					Input: restartPart.ToolRequest.Input,
+				}
+				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartToolReq, middlewareHandlers)
 				if err != nil {
 					var tie *toolInterruptError
 					if errors.As(err, &tie) {
@@ -1358,7 +1377,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 				newToolResp := NewToolResponsePart(&ToolResponse{
 					Name:   restartPart.ToolRequest.Name,
 					Ref:    restartPart.ToolRequest.Ref,
-					Output: output,
+					Output: multipartResp.Output,
 				})
 
 				return &resumedToolRequestOutput{
@@ -1378,7 +1397,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 
 // handleResumeOption amends message history to handle `resume` arguments.
 // It returns the amended history.
-func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
+func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, middlewareHandlers []Middleware) (*resumeOptionOutput, error) {
 	if genOpts.Resume == nil || (len(genOpts.Resume.Respond) == 0 && len(genOpts.Resume.Restart) == 0) {
 		return &resumeOptionOutput{revisedRequest: genOpts}, nil
 	}
@@ -1414,7 +1433,7 @@ func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateAc
 		toolReqCount++
 
 		go func(idx int, p *Part) {
-			output, err := handleResumedToolRequest(ctx, r, genOpts, p)
+			output, err := handleResumedToolRequest(ctx, r, genOpts, p, middlewareHandlers)
 			resultChan <- result[*resumedToolRequestOutput]{
 				index: idx,
 				value: output,

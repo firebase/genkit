@@ -25,8 +25,8 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 )
 
-// middlewareConfigFunc creates a Middleware instance from JSON config.
-type middlewareConfigFunc = func([]byte) (Middleware, error)
+// middlewareFactory creates a Middleware instance from JSON config.
+type middlewareFactory = func(configJSON []byte) (Middleware, error)
 
 // Middleware provides hooks for different stages of generation.
 type Middleware interface {
@@ -106,14 +106,14 @@ func (d *MiddlewareDesc) Register(r api.Registry) {
 }
 
 // NewMiddleware creates a middleware descriptor without registering it.
-// The prototype carries stable state; configFromJSON calls prototype.New()
+// The prototype carries stable state; newFromJSON calls prototype.New()
 // then unmarshals user config on top.
 func NewMiddleware[T Middleware](description string, prototype T) *MiddlewareDesc {
 	return &MiddlewareDesc{
 		Name:         prototype.Name(),
 		Description:  description,
 		ConfigSchema: core.InferSchemaMap(*new(T)),
-		configFromJSON: func(configJSON []byte) (Middleware, error) {
+		newFromJSON: func(configJSON []byte) (Middleware, error) {
 			inst := prototype.New()
 			if len(configJSON) > 0 {
 				if err := json.Unmarshal(configJSON, inst); err != nil {
@@ -159,7 +159,7 @@ func middlewareToRef(r api.Registry, mw Middleware) (*MiddlewareRef, api.Registr
 		// interface here, so InferSchemaMap would receive a nil interface).
 		desc := &MiddlewareDesc{
 			Name: name,
-			configFromJSON: func(configJSON []byte) (Middleware, error) {
+			newFromJSON: func(configJSON []byte) (Middleware, error) {
 				inst := mw.New()
 				if len(configJSON) > 0 {
 					if err := json.Unmarshal(configJSON, inst); err != nil {

@@ -52,7 +52,7 @@ func (m *testMiddleware) WrapTool(ctx context.Context, params *ToolParams, next 
 	return next(ctx, params)
 }
 
-func TestNewMiddleware(t *testing.T) {
+func TestNewMiddlewareDesc(t *testing.T) {
 	proto := &testMiddleware{Label: "original"}
 	desc := NewMiddleware("test middleware", proto)
 
@@ -90,9 +90,9 @@ func TestConfigFromJSON(t *testing.T) {
 	proto := &testMiddleware{Label: "stable"}
 	desc := NewMiddleware("test middleware", proto)
 
-	handler, err := desc.configFromJSON([]byte(`{"label": "custom"}`))
+	handler, err := desc.newFromJSON([]byte(`{"label": "custom"}`))
 	if err != nil {
-		t.Fatalf("configFromJSON failed: %v", err)
+		t.Fatalf("newFromJSON failed: %v", err)
 	}
 
 	tm, ok := handler.(*testMiddleware)
@@ -113,9 +113,9 @@ func TestConfigFromJSONPreservesStableState(t *testing.T) {
 	proto := &stableStateMiddleware{apiKey: "secret123"}
 	desc := NewMiddleware("middleware with stable state", proto)
 
-	handler, err := desc.configFromJSON([]byte(`{"sampleRate": 0.5}`))
+	handler, err := desc.newFromJSON([]byte(`{"sampleRate": 0.5}`))
 	if err != nil {
-		t.Fatalf("configFromJSON failed: %v", err)
+		t.Fatalf("newFromJSON failed: %v", err)
 	}
 
 	sm, ok := handler.(*stableStateMiddleware)
