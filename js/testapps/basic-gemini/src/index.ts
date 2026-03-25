@@ -42,11 +42,36 @@ const ai = genkit({
   ],
 });
 
+ai.defineFlow('maps-grounding', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-3.1-pro-preview'),
+    prompt: 'Describe some sights near me',
+    config: {
+      tools: [
+        {
+          googleMaps: { enableWidget: true },
+        },
+      ],
+      retrievalConfig: {
+        latLng: {
+          latitude: 43.0896,
+          longitude: -79.0849,
+        },
+      },
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
 ai.defineFlow('combine tools and builtins', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-3-flash-preview'),
     prompt:
-      'What is the northernmost city in Canada? What is the weather like there today? Use the getWeather tool.',
+      'What is the southernmost city in Canada? What is the weather like there today? Use the getWeather tool.',
     config: {
       tools: [{ googleSearch: {} }],
       toolConfig: {
