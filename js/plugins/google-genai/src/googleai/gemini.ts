@@ -232,6 +232,19 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .union([z.boolean(), z.object({}).passthrough()])
     .describe('Return grounding metadata from links included in the query')
     .optional(),
+  retrievalConfig: z
+    .object({
+      latLng: z
+        .object({
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+        })
+        .optional(),
+      languageCode: z.string().optional(),
+    })
+    .passthrough()
+    .describe('Configuration for retrieval tools.')
+    .optional(),
   temperature: z
     .number()
     .min(0)
@@ -696,6 +709,7 @@ export function defineModel(
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
+        retrievalConfig,
         ...restOfConfigOptions
       } = requestOptions;
 
@@ -766,6 +780,13 @@ export function defineModel(
         toolConfig = {
           ...toolConfig,
           ...toolConfigConfig,
+        };
+      }
+
+      if (retrievalConfig) {
+        toolConfig = {
+          ...toolConfig,
+          retrievalConfig,
         };
       }
 
