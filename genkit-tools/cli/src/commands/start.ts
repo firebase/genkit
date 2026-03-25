@@ -18,9 +18,14 @@ import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
+import fs from 'fs';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
-import { startDevProcessManager, startManager } from '../utils/manager-utils';
+import {
+  getDevEnvVars,
+  startDevProcessManager,
+  startManager,
+} from '../utils/manager-utils';
 
 interface RunOptions {
   noui?: boolean;
@@ -29,6 +34,7 @@ interface RunOptions {
   disableRealtimeTelemetry?: boolean;
   corsOrigin?: string;
   experimentalReflectionV2?: boolean;
+  writeEnvFile?: string;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -49,6 +55,10 @@ export const start = new Command('start')
     '--experimental-reflection-v2',
     'start the experimental reflection server (WebSocket)'
   )
+  .option(
+    '--write-env-file <file>',
+    'write environment variables in .env format to the provided file'
+  )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
@@ -57,6 +67,25 @@ export const start = new Command('start')
           'Please make sure that you current working directory is correct.'
       );
     }
+
+    const devEnv = await getDevEnvVars(projectRoot, {
+      disableRealtimeTelemetry: options.disableRealtimeTelemetry,
+      corsOrigin: options.corsOrigin,
+      experimentalReflectionV2: options.experimentalReflectionV2,
+    });
+    const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
+
+    // Ensure subsequent calls to resolveTelemetryServer reuse this instance
+    process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
+
+    if (options.writeEnvFile) {
+      const content = Object.entries(envVars)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n');
+      fs.writeFileSync(options.writeEnvFile, content);
+      logger.info(`Wrote environment variables to ${options.writeEnvFile}`);
+    }
+
     // Always start the manager.
     let manager: BaseRuntimeManager;
     let processPromise: Promise<void> | undefined;
@@ -69,6 +98,9 @@ export const start = new Command('start')
           disableRealtimeTelemetry: options.disableRealtimeTelemetry,
           corsOrigin: options.corsOrigin,
           experimentalReflectionV2: options.experimentalReflectionV2,
+          envVars,
+          telemetryServerUrl,
+          reflectionV2Port,
         }
       );
       manager = result.manager;
@@ -79,6 +111,7 @@ export const start = new Command('start')
         manageHealth: true,
         corsOrigin: options.corsOrigin,
         experimentalReflectionV2: options.experimentalReflectionV2,
+        reflectionV2Port,
       });
       processPromise = new Promise(() => {});
     }
