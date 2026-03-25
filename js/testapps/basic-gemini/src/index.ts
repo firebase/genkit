@@ -17,6 +17,7 @@
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import {
+  Document,
   genkit,
   z,
   type MediaPart,
@@ -43,7 +44,7 @@ const ai = genkit({
 
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-lite-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
   });
 
@@ -52,7 +53,7 @@ ai.defineFlow('basic-hi', async () => {
 
 ai.defineFlow('basic-hi-with-retry', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-pro'),
+    model: googleAI.model('gemini-pro-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       retry({
@@ -71,7 +72,7 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       fallback(ai, {
-        models: [googleAI.model('gemini-2.5-flash')],
+        models: [googleAI.model('gemini-flash-latest')],
         statuses: ['UNKNOWN'],
       }),
     ],
@@ -79,33 +80,6 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
 
   return text;
 });
-
-// Gemini 3.0 thinkingLevel config. Pro can have Low or High
-ai.defineFlow(
-  {
-    name: 'thinking-level-pro',
-    inputSchema: z.enum(['LOW', 'HIGH']),
-  },
-  async (level) => {
-    const { text } = await ai.generate({
-      model: googleAI.model('gemini-3-pro-preview'),
-      prompt:
-        'Alice, Bob, and Carol each live in a different house on the ' +
-        'same street: red, green, and blue. The person who lives in the red house ' +
-        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
-        'green house is to the left of the red house. Alice does not own a cat. ' +
-        'The person in the blue house owns a fish. ' +
-        'Who lives in each house, and what pet do they own? Provide your ' +
-        'step-by-step reasoning.',
-      config: {
-        thinkingConfig: {
-          thinkingLevel: level,
-        },
-      },
-    });
-    return text;
-  }
-);
 
 // Gemini 3 Flash can have minimal and medium thinking levels too.
 ai.defineFlow(
@@ -116,17 +90,19 @@ ai.defineFlow(
   async (level) => {
     const { text } = await ai.generate({
       model: googleAI.model('gemini-3-flash-preview'),
-      prompt:
-        'Alice, Bob, and Carol each live in a different house on the ' +
-        'same street: red, green, and blue. The person who lives in the red house ' +
-        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
-        'green house is to the left of the red house. Alice does not own a cat. ' +
-        'The person in the blue house owns a fish. ' +
-        'Who lives in each house, and what pet do they own? Provide your ' +
+      prompt: [
+        'Alice, Bob, and Carol each live in a different house on the ',
+        'same street: red, green, and blue. The person who lives in the red house ',
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ',
+        'green house is to the left of the red house. Alice does not own a cat. ',
+        'The person in the blue house owns a fish. ',
+        'Who lives in each house, and what pet do they own? Provide your ',
         'step-by-step reasoning.',
+      ].join(''),
       config: {
         thinkingConfig: {
           thinkingLevel: level,
+          includeThoughts: true,
         },
       },
     });
@@ -139,7 +115,7 @@ ai.defineFlow('multimodal-input', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: [
       { text: 'describe this photo' },
       {
@@ -157,7 +133,7 @@ ai.defineFlow('multimodal-input', async () => {
 // YouTube videos
 ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: [
       {
         text: 'transcribe this video',
@@ -177,7 +153,7 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: 'Write a poem about AI.',
   });
 
@@ -193,7 +169,7 @@ ai.defineFlow('streaming', async (_, { sendChunk }) => {
 // Search grounding
 ai.defineFlow('search-grounding', async () => {
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: 'Who is Albert Einstein?',
     config: {
       tools: [{ googleSearch: {} }],
@@ -209,7 +185,7 @@ ai.defineFlow('search-grounding', async () => {
 // Url context
 ai.defineFlow('url-context', async () => {
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt:
       'Compare the ingredients and cooking times from the recipes at ' +
       'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 ' +
@@ -234,7 +210,7 @@ ai.defineFlow('file-search', async () => {
 
   // Use the file search store in your generate request
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: googleAI.model('gemini-flash-latest'),
     prompt: "What is the character's name in the story?",
     config: {
       fileSearch: {
@@ -314,7 +290,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 1,
       },
@@ -339,7 +315,7 @@ ai.defineFlow(
   },
   async (_, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-3-pro-preview'),
+      model: googleAI.model('gemini-pro-latest'),
       config: {
         temperature: 1,
       },
@@ -370,7 +346,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 1,
       },
@@ -401,7 +377,7 @@ ai.defineFlow(
   },
   async (name, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: googleAI.model('gemini-flash-latest'),
       config: {
         temperature: 2, // we want creativity
       },
@@ -417,8 +393,8 @@ ai.defineFlow(
   }
 );
 
-// Gemini reasoning example.
-ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+// Gemini reasoning example (legacy thinkingBudget)
+ai.defineFlow('reasoning - thinkingBudget', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
     model: googleAI.model('gemini-2.5-pro'),
@@ -438,7 +414,7 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
 ai.defineFlow('gemini-media-resolution', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-3-pro-preview'),
+    model: googleAI.model('gemini-3.1-pro-preview'),
     prompt: [
       { text: 'What is in this picture?' },
       {
@@ -465,7 +441,7 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
 
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash-image-preview'),
+    model: googleAI.model('gemini-2.5-flash-image'),
     prompt: [
       { text: 'add the plant to my room' },
       { media: { url: `data:image/png;base64,${plant}` } },
@@ -499,10 +475,36 @@ ai.defineFlow('nano-banana-pro', async (_) => {
   return media;
 });
 
+// webSearch and imageSearch with Nano Banana 2
+ai.defineFlow('nano-banana-2', async (_) => {
+  const { media } = await ai.generate({
+    model: googleAI.model('gemini-3.1-flash-image-preview'),
+    prompt:
+      'Generate an accurate image of the CN Tower. Use webSearch to determine the date, weather and current time in Toronto. The weather and time should be reflected in the image (day, night, rainy, sunny, snowy etc). Also use words to show the date, time and weather on the image.',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '1:4',
+        imageSize: '0.5K',
+      },
+      google_search: {
+        searchTypes: { webSearch: {}, imageSearch: {} },
+      },
+      thinkingConfig: {
+        // Optional
+        thinkingLevel: 'HIGH',
+        includeThoughts: true,
+      },
+    },
+  });
+
+  return media;
+});
+
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
-    model: googleAI.model('imagen-3.0-generate-002'),
+    model: googleAI.model('imagen-4.0-generate-001'),
     prompt: `generate an image of a banana riding a bicycle`,
   });
 
@@ -580,7 +582,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.0-generate-001'),
+    model: googleAI.model('veo-3.1-fast-generate-preview'),
     prompt: [
       {
         text: 'make the subject in the photo move',
@@ -593,9 +595,11 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
       },
     ],
     config: {
+      resolution: '4k',
       durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
+      seed: 42,
     },
   });
 
@@ -745,3 +749,217 @@ async function downloadVideo(video: MediaPart, path: string) {
 
   Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
 }
+
+// Test external URL with Gemini 3.0 (should pass as fileUri)
+ai.defineFlow('external-url-gemini-3.0', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-flash-preview'),
+    prompt: [
+      { text: 'Describe this image.' },
+      {
+        media: {
+          url: 'https://storage.googleapis.com/generativeai-downloads/images/scones.jpg',
+          contentType: 'image/jpeg',
+        },
+      },
+    ],
+  });
+  return text;
+});
+
+// Gemini 3.1 thinkingLevel config
+ai.defineFlow(
+  {
+    name: 'thinking-level-3.1-pro',
+    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    outputSchema: z.any(),
+  },
+  async (level) => {
+    const { text } = await ai.generate({
+      model: googleAI.model('gemini-3.1-pro-preview'),
+      prompt: [
+        'Alice, Bob, and Carol each live in a different house on the ',
+        'same street: red, green, and blue. The person who lives in the red house ',
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ',
+        'green house is to the left of the red house. Alice does not own a cat. ',
+        'The person in the blue house owns a fish. ',
+        'Who lives in each house, and what pet do they own? Provide your ',
+        'step-by-step reasoning.',
+      ].join(''),
+      config: {
+        thinkingConfig: {
+          thinkingLevel: level,
+          includeThoughts: true,
+        },
+      },
+    });
+    return text;
+  }
+);
+
+// Embed text
+ai.defineFlow('embed-text', async () => {
+  const embeddings = await ai.embed({
+    embedder: googleAI.embedder('gemini-embedding-001'),
+    content: 'Albert Einstein was a German-born theoretical physicist.',
+    options: {
+      outputDimensionality: 256,
+      taskType: 'RETRIEVAL_DOCUMENT',
+      title: 'Albert Einstein', // Valid when taskType is RETRIEVAL_DOCUMENT
+    },
+  });
+
+  return embeddings;
+});
+
+// Embed multimodal content
+ai.defineFlow('embed-multimodal', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const embeddings = await ai.embed({
+    embedder: googleAI.embedder('gemini-embedding-2-preview'),
+    content: Document.fromParts([
+      { text: 'A picture of Albert Einstein.' },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ]),
+    options: {
+      outputDimensionality: 256,
+    },
+  });
+
+  return embeddings;
+});
+
+// Deep research example
+ai.defineFlow('deep-research', async (_, { sendChunk }) => {
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    prompt:
+      'Compare the differences between TCP and UDP protocols. Provide the answer in a markdown table focusing on reliability, connection type, and speed.',
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    sendChunk('check status of operation ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (operation.error) {
+    sendChunk('Error: ' + operation.error.message);
+    throw new Error('failed to deep research: ' + operation.error.message);
+  }
+
+  return operation.output?.message?.content.find((p) => !!p.text)?.text;
+});
+
+ai.defineFlow('deep-research-multi-turn', async (_, { sendChunk }) => {
+  // 1. First turn: Initial comparison with specific requirements
+  sendChunk('--- Turn 1: Initial Research ---');
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    messages: [
+      {
+        role: 'system',
+        content: [{ text: 'You are a technical research assistant.' }],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Compare TCP vs UDP.',
+          },
+        ],
+      },
+    ],
+    config: {
+      thinkingSummaries: 'AUTO',
+      responseModalities: ['TEXT'],
+      store: true,
+    },
+  });
+
+  if (!operation) throw new Error('No operation returned');
+
+  while (!operation.done) {
+    sendChunk('Turn 1 status: ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (operation.error) {
+    throw new Error('Turn 1 failed: ' + operation.error.message);
+  }
+
+  const response1 = operation.output?.message?.content.find(
+    (p) => !!p.text
+  )?.text;
+  sendChunk('Turn 1 Response: ' + response1);
+
+  // 2. Second turn: Follow up using the previous interaction ID
+  sendChunk('\n--- Turn 2: Follow up ---');
+  const interactionId = operation.id;
+
+  let { operation: op2 } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { text: 'Which one is better for video streaming? Explain why.' },
+        ],
+      },
+    ],
+    config: {
+      thinkingSummaries: 'AUTO',
+      responseModalities: ['TEXT'],
+      previousInteractionId: interactionId,
+    },
+  });
+
+  if (!op2) throw new Error('No operation returned for turn 2');
+
+  while (!op2.done) {
+    sendChunk('Turn 2 status: ' + op2.id);
+    op2 = await ai.checkOperation(op2);
+    await new Promise((resolve) => setTimeout(resolve, 30000));
+  }
+
+  if (op2.error) {
+    throw new Error('Turn 2 failed: ' + op2.error.message);
+  }
+
+  return op2.output?.message?.content.find((p) => !!p.text)?.text;
+});
+
+// Deep research cancel example
+ai.defineFlow('deep-research-cancel', async (_, { sendChunk }) => {
+  let { operation } = await ai.generate({
+    model: googleAI.model('deep-research-pro-preview-12-2025'),
+    prompt:
+      'Compare the differences between TCP and UDP protocols. Provide the answer in a markdown table focusing on reliability, connection type, and speed.',
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  sendChunk('Started operation: ' + operation.id);
+  // Wait a bit before cancelling
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  sendChunk('Cancelling operation: ' + operation.id);
+
+  const canceledOp = await ai.cancelOperation(operation);
+  sendChunk('Operation cancelled');
+
+  return JSON.stringify(canceledOp, null, 2);
+});

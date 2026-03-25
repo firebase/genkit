@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
@@ -27,6 +27,8 @@ interface RunOptions {
   port?: string;
   open?: boolean;
   disableRealtimeTelemetry?: boolean;
+  corsOrigin?: string;
+  experimentalReflectionV2?: boolean;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -39,6 +41,14 @@ export const start = new Command('start')
     '--disable-realtime-telemetry',
     'Disable real-time telemetry streaming'
   )
+  .option(
+    '--cors-origin <origin>',
+    'specify the allowed origin for CORS requests'
+  )
+  .option(
+    '--experimental-reflection-v2',
+    'start the experimental reflection server (WebSocket)'
+  )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
@@ -48,19 +58,28 @@ export const start = new Command('start')
       );
     }
     // Always start the manager.
-    let manager: RuntimeManager;
+    let manager: BaseRuntimeManager;
     let processPromise: Promise<void> | undefined;
     if (start.args.length > 0) {
       const result = await startDevProcessManager(
         projectRoot,
         start.args[0],
         start.args.slice(1),
-        { disableRealtimeTelemetry: options.disableRealtimeTelemetry }
+        {
+          disableRealtimeTelemetry: options.disableRealtimeTelemetry,
+          corsOrigin: options.corsOrigin,
+          experimentalReflectionV2: options.experimentalReflectionV2,
+        }
       );
       manager = result.manager;
       processPromise = result.processPromise;
     } else {
-      manager = await startManager(projectRoot, true);
+      manager = await startManager({
+        projectRoot,
+        manageHealth: true,
+        corsOrigin: options.corsOrigin,
+        experimentalReflectionV2: options.experimentalReflectionV2,
+      });
       processPromise = new Promise(() => {});
     }
     if (!options.noui) {

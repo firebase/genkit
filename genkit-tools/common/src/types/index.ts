@@ -26,6 +26,7 @@ export * from './evaluator';
 export * from './middleware';
 export * from './model';
 export * from './prompt';
+export * from './reflection';
 export * from './retriever';
 export * from './status';
 export * from './trace';

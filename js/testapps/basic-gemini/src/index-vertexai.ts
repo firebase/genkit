@@ -37,24 +37,25 @@ ai.defineFlow('basic-hi', async () => {
   return text;
 });
 
-// Gemini 3.0 thinkingLevel config
+// Gemini 3.1 thinkingLevel config
 ai.defineFlow(
   {
-    name: 'thinking-level-pro',
-    inputSchema: z.enum(['LOW', 'HIGH']),
+    name: 'thinking-level-3.1-pro',
+    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
     outputSchema: z.any(),
   },
   async (level) => {
     const { text } = await ai.generate({
-      model: vertexAI.model('gemini-3-pro-preview'),
-      prompt:
-        'Alice, Bob, and Carol each live in a different house on the ' +
-        'same street: red, green, and blue. The person who lives in the red house ' +
-        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
-        'green house is to the left of the red house. Alice does not own a cat. ' +
-        'The person in the blue house owns a fish. ' +
-        'Who lives in each house, and what pet do they own? Provide your ' +
+      model: vertexAI.model('gemini-3.1-pro-preview'),
+      prompt: [
+        'Alice, Bob, and Carol each live in a different house on the ',
+        'same street: red, green, and blue. The person who lives in the red house ',
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ',
+        'green house is to the left of the red house. Alice does not own a cat. ',
+        'The person in the blue house owns a fish. ',
+        'Who lives in each house, and what pet do they own? Provide your ',
         'step-by-step reasoning.',
+      ].join(''),
       config: {
         location: 'global',
         thinkingConfig: {
@@ -75,14 +76,15 @@ ai.defineFlow(
   async (level) => {
     const { text } = await ai.generate({
       model: vertexAI.model('gemini-3-flash-preview'),
-      prompt:
-        'Alice, Bob, and Carol each live in a different house on the ' +
-        'same street: red, green, and blue. The person who lives in the red house ' +
-        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
-        'green house is to the left of the red house. Alice does not own a cat. ' +
-        'The person in the blue house owns a fish. ' +
-        'Who lives in each house, and what pet do they own? Provide your ' +
+      prompt: [
+        'Alice, Bob, and Carol each live in a different house on the ',
+        'same street: red, green, and blue. The person who lives in the red house ',
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ',
+        'green house is to the left of the red house. Alice does not own a cat. ',
+        'The person in the blue house owns a fish. ',
+        'Who lives in each house, and what pet do they own? Provide your ',
         'step-by-step reasoning.',
+      ].join(''),
       config: {
         location: 'global',
         thinkingConfig: {
@@ -308,7 +310,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: vertexAI.model('gemini-3-pro-preview'),
+      model: vertexAI.model('gemini-3.1-pro-preview'),
       config: {
         temperature: 1,
         functionCallingConfig: {
@@ -410,7 +412,7 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
 ai.defineFlow('gemini-media-resolution', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const { text } = await ai.generate({
-    model: vertexAI.model('gemini-3-pro-preview'),
+    model: vertexAI.model('gemini-3.1-pro-preview'),
     prompt: [
       { text: 'What is in this picture?' },
       {
@@ -434,7 +436,7 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
 
   const { media } = await ai.generate({
-    model: vertexAI.model('gemini-2.5-flash-image-preview'),
+    model: vertexAI.model('gemini-2.5-flash-image'),
     prompt: [
       { text: 'add the plant to my room' },
       { media: { url: `data:image/png;base64,${plant}` } },
@@ -458,6 +460,23 @@ ai.defineFlow('nano-banana-pro', async (_) => {
       imageConfig: {
         aspectRatio: '21:9',
         imageSize: '4K',
+      },
+    },
+  });
+
+  return media;
+});
+
+ai.defineFlow('nano-banana-2', async (_) => {
+  const { media } = await ai.generate({
+    model: vertexAI.model('gemini-3.1-flash-image-preview'),
+    prompt:
+      'Generate an image of the CN Tower. Use words to show the current date, time and weather on the image.',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '3:4',
+        imageSize: '2K',
       },
     },
   });
@@ -507,7 +526,7 @@ ai.defineFlow('imagen-try-on', async (_) => {
   });
 
   const { media } = await ai.generate({
-    model: vertexAI.model('virtual-try-on-preview-08-04'),
+    model: vertexAI.model('virtual-try-on-001'),
     prompt: [
       {
         media: {
@@ -604,7 +623,7 @@ ai.defineFlow('veo-reference-images', async (_, { sendChunk }) => {
   const palmImage = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: vertexAI.model('veo-3.1-generate-preview'),
+    model: vertexAI.model('veo-3.1-generate-001'),
     config: { location: 'us-central1' },
     prompt: [
       {
@@ -670,6 +689,24 @@ ai.defineFlow('lyria-music-generation', async (_) => {
     media: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 2, 48000)),
   };
 });
+
+// Tuned model. Replace the 12345 with your ENDPOINT ID
+// from Google Cloud console -> Vertex AI -> Deploy and Use -> Endpoints
+ai.defineFlow(
+  {
+    name: 'tuned-model',
+    inputSchema: z.string().default('endpoints/12345'),
+    outputSchema: z.string(),
+  },
+  async (endpoint) => {
+    const { text } = await ai.generate({
+      model: vertexAI.model(endpoint),
+      config: { location: 'us-central1' },
+      prompt: 'hello tuned model',
+    });
+    return text;
+  }
+);
 
 async function toWav(
   pcmData: Buffer,

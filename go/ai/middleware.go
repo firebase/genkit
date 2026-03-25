@@ -25,8 +25,8 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 )
 
-// middlewareConfigFunc creates a Middleware instance from JSON config.
-type middlewareConfigFunc = func(configBytes []byte) (Middleware, error)
+// middlewareFactory creates a Middleware instance from JSON config.
+type middlewareFactory = func(configJSON []byte) (Middleware, error)
 
 // Middleware provides hooks for different stages of generation.
 type Middleware interface {
@@ -39,6 +39,8 @@ type Middleware interface {
 	// WrapModel wraps each model API call.
 	WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error)
 	// WrapTool wraps each tool execution.
+	// WrapTool may be called concurrently when multiple tools execute in parallel.
+	// Implementations must be safe for concurrent use.
 	WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error)
 	// Tools returns additional tools to make available during generation.
 	// These tools are dynamically registered when the middleware is used via [WithUse].
@@ -104,14 +106,14 @@ func (d *MiddlewareDesc) Register(r api.Registry) {
 }
 
 // NewMiddleware creates a middleware descriptor without registering it.
-// The prototype carries stable state; configFromJSON calls prototype.New()
+// The prototype carries stable state; newFromJSON calls prototype.New()
 // then unmarshals user config on top.
 func NewMiddleware[T Middleware](description string, prototype T) *MiddlewareDesc {
 	return &MiddlewareDesc{
 		Name:         prototype.Name(),
 		Description:  description,
-		ConfigSchema: core.InferSchemaMap(prototype),
-		configFromJSON: func(configJSON []byte) (Middleware, error) {
+		ConfigSchema: core.InferSchemaMap(*new(T)),
+		newFromJSON: func(configJSON []byte) (Middleware, error) {
 			inst := prototype.New()
 			if len(configJSON) > 0 {
 				if err := json.Unmarshal(configJSON, inst); err != nil {
@@ -141,6 +143,43 @@ func LookupMiddleware(r api.Registry, name string) *MiddlewareDesc {
 		return nil
 	}
 	return d
+}
+
+// middlewareToRef registers a Middleware instance (if not already registered) and
+// returns a MiddlewareRef for the action layer. If registration requires a child
+// registry, the returned registry may differ from the input.
+func middlewareToRef(r api.Registry, mw Middleware) (*MiddlewareRef, api.Registry, error) {
+	name := mw.Name()
+	if LookupMiddleware(r, name) == nil {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		// Register directly instead of via DefineMiddleware to avoid generic
+		// type inference losing the concrete type (mw is typed as Middleware
+		// interface here, so InferSchemaMap would receive a nil interface).
+		desc := &MiddlewareDesc{
+			Name: name,
+			newFromJSON: func(configJSON []byte) (Middleware, error) {
+				inst := mw.New()
+				if len(configJSON) > 0 {
+					if err := json.Unmarshal(configJSON, inst); err != nil {
+						return nil, fmt.Errorf("middleware %q: %w", name, err)
+					}
+				}
+				return inst, nil
+			},
+		}
+		desc.Register(r)
+	}
+	configJSON, err := json.Marshal(mw)
+	if err != nil {
+		return nil, r, fmt.Errorf("failed to marshal middleware %q config: %w", name, err)
+	}
+	var config any
+	if err := json.Unmarshal(configJSON, &config); err != nil {
+		return nil, r, fmt.Errorf("failed to unmarshal middleware %q config: %w", name, err)
+	}
+	return &MiddlewareRef{Name: name, Config: config}, r, nil
 }
 
 // MiddlewarePlugin is implemented by plugins that provide middleware.

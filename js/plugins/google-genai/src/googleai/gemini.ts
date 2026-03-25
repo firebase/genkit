@@ -65,6 +65,8 @@ import {
   removeClientOptionOverrides,
 } from './utils.js';
 
+const MAX_INLINE_MEDIA_BYTES = 1024 * 1024 * 100; // 100 MB
+
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
@@ -191,10 +193,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
-    .describe(
-      'The modalities to be used in response. Only supported for ' +
-        "'gemini-2.0-flash-exp' model at present."
-    )
+    .describe('The modalities to be used in response.')
     .optional(),
   googleSearchRetrieval: z
     .union([z.boolean(), z.object({}).passthrough()])
@@ -320,19 +319,37 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
       aspectRatio: z
         .enum([
           '1:1',
+          '1:4',
+          '1:8',
           '2:3',
           '3:2',
           '3:4',
+          '4:1',
           '4:3',
           '4:5',
           '5:4',
+          '8:1',
           '9:16',
           '16:9',
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['0.5K', '1K', '2K', '4K']).optional(),
     })
+    .passthrough()
+    .optional(),
+  google_search: z
+    .object({
+      searchTypes: z
+        .object({
+          webSearch: z.object({}).optional(),
+          imageSearch: z.object({}).optional(),
+        })
+        .optional(),
+    })
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
     .passthrough()
     .optional(),
 }).passthrough();
@@ -419,13 +436,18 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-pro-latest': commonRef('gemini-pro-latest'),
+  'gemini-flash-latest': commonRef('gemini-flash-latest'),
+  'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
+  'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
+  'gemini-3.1-pro-preview-customtools': commonRef(
+    'gemini-3.1-pro-preview-customtools'
+  ),
+  'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
-  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
-  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;
@@ -456,6 +478,11 @@ export function isTTSModelName(value: string): value is TTSModelName {
 }
 
 const KNOWN_IMAGE_MODELS = {
+  'gemini-3.1-flash-image-preview': commonRef(
+    'gemini-3.1-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
   'gemini-3-pro-image-preview': commonRef(
     'gemini-3-pro-image-preview',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -576,11 +603,15 @@ export function defineModel(
 
   const middleware: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
-    // the gemini api doesn't support downloading media from http(s)
+    // For Gemini 2.0, external URLs are not supported, so we must download.
+    // For newer models, we can pass the URL directly.
+    const supportsExternalUrls = !name.startsWith('gemini-2.0');
+
     middleware.push(
       downloadRequestMedia({
-        maxBytes: 1024 * 1024 * 10,
-        // don't downlaod files that have been uploaded using the Files API
+        maxBytes: MAX_INLINE_MEDIA_BYTES,
+        // don't download files that have been uploaded using the Files API
+        // or external URLs supported by the model
         filter: (part) => {
           try {
             const url = new URL(part.media.url);
@@ -594,6 +625,14 @@ export function defineModel(
               ].includes(url.hostname)
             )
               return false;
+
+            // If model supports external URLs, allow http/https URLs to pass through
+            if (
+              supportsExternalUrls &&
+              (url.protocol === 'https:' || url.protocol === 'http:')
+            ) {
+              return false;
+            }
           } catch {}
           return true;
         },
@@ -645,6 +684,7 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        google_search,
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
@@ -666,6 +706,12 @@ export function defineModel(
         tools.push({
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
+
+      if (google_search) {
+        tools.push({
+          google_search: google_search,
         } as GoogleSearchRetrievalTool);
       }
 

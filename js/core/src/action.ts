@@ -63,6 +63,7 @@ export interface ActionMetadata<
 }
 
 export const ActionMetadataSchema = z.object({
+  key: z.string().optional(),
   actionType: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),

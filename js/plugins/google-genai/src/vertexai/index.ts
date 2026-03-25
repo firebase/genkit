@@ -146,7 +146,7 @@ export type VertexAIPlugin = {
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 
   embedder(
-    name: string,
+    name: embedder.KnownModels | (embedder.EmbedderModelName & {}),
     config?: embedder.EmbeddingConfig
   ): EmbedderReference<embedder.EmbeddingConfigSchemaType>;
 };

@@ -632,6 +632,7 @@ describe('generate', () => {
         return {
           output: 'main output',
           content: [{ text: 'part 1' }],
+          metadata: { custom: 'data' },
         };
       }
     );
@@ -699,6 +700,7 @@ describe('generate', () => {
                 },
               ],
             },
+            metadata: { custom: 'data' },
           },
         ],
       },

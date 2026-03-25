@@ -422,15 +422,12 @@ const GENERIC_IMAGE_MODEL = commonRef(
 );
 
 export const KNOWN_GEMINI_MODELS = {
+  'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
+  'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
-  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
-  'gemini-2.0-flash-001': commonRef('gemini-2.0-flash-001'),
-  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
-  'gemini-2.0-flash-lite-001': commonRef('gemini-2.0-flash-lite-001'),
 } as const;
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;
@@ -443,6 +440,11 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
 }
 
 export const KNOWN_IMAGE_MODELS = {
+  'gemini-3.1-flash-image-preview': commonRef(
+    'gemini-3.1-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
   'gemini-3-pro-image-preview': commonRef(
     'gemini-3-pro-image-preview',
     { ...GENERIC_IMAGE_MODEL.info },

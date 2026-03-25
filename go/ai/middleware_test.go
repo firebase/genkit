@@ -52,7 +52,7 @@ func (m *testMiddleware) WrapTool(ctx context.Context, params *ToolParams, next 
 	return next(ctx, params)
 }
 
-func TestNewMiddleware(t *testing.T) {
+func TestNewMiddlewareDesc(t *testing.T) {
 	proto := &testMiddleware{Label: "original"}
 	desc := NewMiddleware("test middleware", proto)
 
@@ -90,9 +90,9 @@ func TestConfigFromJSON(t *testing.T) {
 	proto := &testMiddleware{Label: "stable"}
 	desc := NewMiddleware("test middleware", proto)
 
-	handler, err := desc.configFromJSON([]byte(`{"label": "custom"}`))
+	handler, err := desc.newFromJSON([]byte(`{"label": "custom"}`))
 	if err != nil {
-		t.Fatalf("configFromJSON failed: %v", err)
+		t.Fatalf("newFromJSON failed: %v", err)
 	}
 
 	tm, ok := handler.(*testMiddleware)
@@ -113,9 +113,9 @@ func TestConfigFromJSONPreservesStableState(t *testing.T) {
 	proto := &stableStateMiddleware{apiKey: "secret123"}
 	desc := NewMiddleware("middleware with stable state", proto)
 
-	handler, err := desc.configFromJSON([]byte(`{"sampleRate": 0.5}`))
+	handler, err := desc.newFromJSON([]byte(`{"sampleRate": 0.5}`))
 	if err != nil {
-		t.Fatalf("configFromJSON failed: %v", err)
+		t.Fatalf("newFromJSON failed: %v", err)
 	}
 
 	sm, ok := handler.(*stableStateMiddleware)
@@ -135,14 +135,22 @@ func TestMiddlewareModelHook(t *testing.T) {
 	m := defineFakeModel(t, r, fakeModelConfig{})
 	DefineMiddleware(r, "tracks calls", &testMiddleware{})
 
-	resp, err := Generate(ctx, r,
+	var modelHookCalled bool
+	mw := &hookTrackingMiddleware{
+		onModel: func() { modelHookCalled = true },
+	}
+
+	resp, err := Generate(testCtx, r,
 		WithModel(m),
 		WithPrompt("hello"),
-		WithUse(&testMiddleware{}),
+		WithUse(mw),
 	)
 	assertNoError(t, err)
 	if resp == nil {
 		t.Fatal("expected response, got nil")
+	}
+	if !modelHookCalled {
+		t.Error("expected model hook to be called")
 	}
 }
 
@@ -154,16 +162,22 @@ func TestMiddlewareToolHook(t *testing.T) {
 	})
 	defineFakeTool(t, r, "myTool", "A test tool")
 
-	mw := &testMiddleware{}
+	var toolHookCalled int32
+	mw := &hookTrackingMiddleware{
+		onTool: func() { atomic.AddInt32(&toolHookCalled, 1) },
+	}
 	DefineMiddleware(r, "tracks calls", mw)
 
-	_, err := Generate(ctx, r,
+	_, err := Generate(testCtx, r,
 		WithModelName("test/toolModel"),
 		WithPrompt("use the tool"),
 		WithTools(ToolName("myTool")),
-		WithUse(&testMiddleware{}),
+		WithUse(mw),
 	)
 	assertNoError(t, err)
+	if atomic.LoadInt32(&toolHookCalled) == 0 {
+		t.Error("expected tool hook to be called at least once")
+	}
 }
 
 func TestMiddlewareOrdering(t *testing.T) {
@@ -177,7 +191,7 @@ func TestMiddlewareOrdering(t *testing.T) {
 	DefineMiddleware(r, "middleware A", mwA)
 	DefineMiddleware(r, "middleware B", mwB)
 
-	_, err := Generate(ctx, r,
+	_, err := Generate(testCtx, r,
 		WithModel(m),
 		WithPrompt("hello"),
 		WithUse(
@@ -200,6 +214,41 @@ func TestMiddlewareOrdering(t *testing.T) {
 }
 
 // --- helper middleware types for tests ---
+
+// hookTrackingMiddleware uses callbacks to verify hooks are actually invoked.
+type hookTrackingMiddleware struct {
+	BaseMiddleware
+	onGenerate func()
+	onModel    func()
+	onTool     func()
+}
+
+func (m *hookTrackingMiddleware) Name() string { return "hookTracking" }
+
+func (m *hookTrackingMiddleware) New() Middleware {
+	return &hookTrackingMiddleware{onGenerate: m.onGenerate, onModel: m.onModel, onTool: m.onTool}
+}
+
+func (m *hookTrackingMiddleware) WrapGenerate(ctx context.Context, params *GenerateParams, next GenerateNext) (*ModelResponse, error) {
+	if m.onGenerate != nil {
+		m.onGenerate()
+	}
+	return next(ctx, params)
+}
+
+func (m *hookTrackingMiddleware) WrapModel(ctx context.Context, params *ModelParams, next ModelNext) (*ModelResponse, error) {
+	if m.onModel != nil {
+		m.onModel()
+	}
+	return next(ctx, params)
+}
+
+func (m *hookTrackingMiddleware) WrapTool(ctx context.Context, params *ToolParams, next ToolNext) (*ToolResponse, error) {
+	if m.onTool != nil {
+		m.onTool()
+	}
+	return next(ctx, params)
+}
 
 // stableStateMiddleware has unexported stable state preserved by New().
 type stableStateMiddleware struct {
@@ -234,4 +283,4 @@ func (m *orderMiddleware) WrapModel(ctx context.Context, params *ModelParams, ne
 	return resp, err
 }
 
-var ctx = context.Background()
+var testCtx = context.Background()

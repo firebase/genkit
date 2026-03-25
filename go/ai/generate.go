@@ -231,34 +231,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			if err != nil {
 				return nil, core.NewError(core.INTERNAL, "ai.GenerateWithRequest: failed to marshal config for middleware %q: %v", ref.Name, err)
 			}
-			mw, err := desc.configFromJSON(configJSON)
+			mw, err := desc.newFromJSON(configJSON)
 			if err != nil {
 				return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: failed to create middleware %q: %v", ref.Name, err)
 			}
 			mws = append(mws, mw)
-		}
-	}
-
-	resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
-	if err != nil {
-		return nil, err
-	}
-
-	if resumeOutput.interruptedResponse != nil {
-		return nil, core.NewError(core.FAILED_PRECONDITION,
-			"One or more tools triggered an interrupt during a restarted execution.")
-	}
-
-	opts = resumeOutput.revisedRequest
-
-	if resumeOutput.toolMessage != nil && cb != nil {
-		err := cb(ctx, &ModelResponseChunk{
-			Content: resumeOutput.toolMessage.Content,
-			Role:    RoleTool,
-			Index:   0,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
 		}
 	}
 
@@ -306,7 +283,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && outputCfg.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && outputCfg.Constrained && m != nil && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -335,12 +312,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	fn := m.Generate
+	var fn ModelFunc
 	if bm != nil {
 		if cb != nil {
 			logger.FromContext(ctx).Warn("background model does not support streaming", "model", bm.Name())
 		}
 		fn = backgroundModelToModelFn(bm.Start)
+	} else {
+		fn = m.Generate
 	}
 
 	if len(mws) > 0 {
@@ -365,6 +344,43 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
 	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
+		// Handle resume on first iteration so restarted tool execution is
+		// wrapped by WrapGenerate (lifecycle: generate > tool > generate > model > tool).
+		if currentTurn == 0 && opts.Resume != nil && (len(opts.Resume.Respond) > 0 || len(opts.Resume.Restart) > 0) {
+			resumeOutput, err := handleResumeOption(ctx, r, opts, mws)
+			if err != nil {
+				return nil, err
+			}
+
+			if resumeOutput.interruptedResponse != nil {
+				return nil, core.NewError(core.FAILED_PRECONDITION,
+					"One or more tools triggered an interrupt during a restarted execution.")
+			}
+
+			opts = resumeOutput.revisedRequest
+
+			if resumeOutput.toolMessage != nil && cb != nil {
+				err := cb(ctx, &ModelResponseChunk{
+					Content: resumeOutput.toolMessage.Content,
+					Role:    RoleTool,
+					Index:   messageIndex,
+				})
+				if err != nil {
+					return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
+				}
+			}
+
+			resumeReq := &ModelRequest{
+				Messages:   opts.Messages,
+				Config:     req.Config,
+				Docs:       req.Docs,
+				ToolChoice: req.ToolChoice,
+				Tools:      req.Tools,
+				Output:     req.Output,
+			}
+			return generate(ctx, resumeReq, currentTurn+1, messageIndex+1)
+		}
+
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -553,7 +569,9 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	}
 
 	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
-		genOpts.Config = modelRef.Config()
+		if cfg := modelRef.Config(); !base.IsNil(cfg) {
+			genOpts.Config = cfg
+		}
 	}
 
 	respondParts := []*toolResponsePart{}
@@ -606,22 +624,12 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 
 	if len(genOpts.Use) > 0 {
 		for _, mw := range genOpts.Use {
-			name := mw.Name()
-			if LookupMiddleware(r, name) == nil {
-				if !r.IsChild() {
-					r = r.NewChild()
-				}
-				DefineMiddleware(r, "", mw)
-			}
-			configJSON, err := json.Marshal(mw)
+			ref, newR, err := middlewareToRef(r, mw)
 			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.Generate: failed to marshal middleware %q config: %v", name, err)
+				return nil, core.NewError(core.INTERNAL, "ai.Generate: %v", err)
 			}
-			var config any
-			if err := json.Unmarshal(configJSON, &config); err != nil {
-				return nil, core.NewError(core.INTERNAL, "ai.Generate: failed to unmarshal middleware %q config: %v", name, err)
-			}
-			actionOpts.Use = append(actionOpts.Use, &MiddlewareRef{Name: name, Config: config})
+			r = newR
+			actionOpts.Use = append(actionOpts.Use, ref)
 		}
 	}
 
@@ -840,6 +848,25 @@ func ensureToolRequestRefs(msg *Message) {
 	}
 }
 
+// clone creates a deep copy of the provided object using JSON marshaling and unmarshaling.
+func clone[T any](obj *T) *T {
+	if obj == nil {
+		return nil
+	}
+
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		panic(fmt.Sprintf("clone: failed to marshal object: %v", err))
+	}
+
+	var newObj T
+	if err := json.Unmarshal(bytes, &newObj); err != nil {
+		panic(fmt.Sprintf("clone: failed to unmarshal object: %v", err))
+	}
+
+	return &newObj
+}
+
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
@@ -851,7 +878,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 
 	resultChan := make(chan result[*MultipartToolResponse])
 	toolMsg := &Message{Role: RoleTool}
-	revisedMsg := resp.Message.Clone()
+	revisedMsg := clone(resp.Message)
 
 	for i, part := range revisedMsg.Content {
 		if !part.IsToolRequest() {
@@ -872,7 +899,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				if errors.As(err, &tie) {
 					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, tie.Metadata)
 
-					newPart := p.Clone()
+					newPart := clone(p)
 					if newPart.Metadata == nil {
 						newPart.Metadata = make(map[string]any)
 					}
@@ -892,7 +919,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				return
 			}
 
-			newPart := p.Clone()
+			newPart := clone(p)
 			if newPart.Metadata == nil {
 				newPart.Metadata = make(map[string]any)
 			}
@@ -955,13 +982,19 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		return tool.RunRawMultipart(ctx, toolReq.Input)
 	}
 
+	// Capture metadata from the raw tool response so it isn't lost through
+	// the ToolResponse conversion (ToolResponse has no Metadata field).
+	var toolMetadata map[string]any
+
 	inner := func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
 		resp, err := params.Tool.RunRawMultipart(ctx, params.Request.Input)
 		if err != nil {
 			return nil, err
 		}
+		toolMetadata = resp.Metadata
 		return &ToolResponse{
 			Name:    params.Request.Name,
+			Ref:     params.Request.Ref,
 			Output:  resp.Output,
 			Content: resp.Content,
 		}, nil
@@ -980,7 +1013,7 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		return nil, err
 	}
 
-	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content}, nil
+	return &MultipartToolResponse{Output: toolResp.Output, Content: toolResp.Content, Metadata: toolMetadata}, nil
 }
 
 // Text returns the contents of the first candidate in a
@@ -1228,7 +1261,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 	}
 
 	if pendingOutputVal, ok := p.Metadata["pendingOutput"]; ok {
-		newReqPart := p.Clone()
+		newReqPart := clone(p)
 		delete(newReqPart.Metadata, "pendingOutput")
 
 		newRespPart := NewResponseForToolRequest(p, pendingOutputVal)
@@ -1247,7 +1280,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 			if respondPart.ToolResponse != nil &&
 				respondPart.ToolResponse.Name == toolReq.Name &&
 				respondPart.ToolResponse.Ref == toolReq.Ref {
-				newToolReq := p.Clone()
+				newToolReq := clone(p)
 				if interruptVal, ok := newToolReq.Metadata["interrupt"]; ok {
 					delete(newToolReq.Metadata, "interrupt")
 					newToolReq.Metadata["resolvedInterrupt"] = interruptVal
@@ -1310,13 +1343,18 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
 				}
 
-				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartPart.ToolRequest, middlewareHandlers)
+				restartToolReq := &ToolRequest{
+					Name:  restartPart.ToolRequest.Name,
+					Ref:   restartPart.ToolRequest.Ref,
+					Input: restartPart.ToolRequest.Input,
+				}
+				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartToolReq, middlewareHandlers)
 				if err != nil {
 					var tie *toolInterruptError
 					if errors.As(err, &tie) {
 						logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", restartPart.ToolRequest.Name, tie.Metadata)
 
-						interruptPart := p.Clone()
+						interruptPart := clone(p)
 						if interruptPart.Metadata == nil {
 							interruptPart.Metadata = make(map[string]any)
 						}
@@ -1330,7 +1368,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					return nil, core.NewError(core.INTERNAL, "tool %q failed: %v", restartPart.ToolRequest.Name, err)
 				}
 
-				newToolReq := p.Clone()
+				newToolReq := clone(p)
 				if interruptVal, ok := newToolReq.Metadata["interrupt"]; ok {
 					delete(newToolReq.Metadata, "interrupt")
 					newToolReq.Metadata["resolvedInterrupt"] = interruptVal

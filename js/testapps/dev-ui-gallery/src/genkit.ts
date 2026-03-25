@@ -81,12 +81,12 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 // a second instance, just for fun
 export const ai2 = genkit({
   name: 'Instance Two',
-  model: googleAI.model('gemini-2.5-flash'),
+  model: googleAI.model('gemini-flash-latest'),
   plugins: [googleAI()],
 });
 
 export const ai = genkit({
-  model: googleAI.model('gemini-2.5-flash'),
+  model: googleAI.model('gemini-flash-latest'),
   // load at least one plugin representing each action type
   plugins: [
     // model providers
@@ -142,21 +142,21 @@ export const ai = genkit({
     chroma([
       {
         collectionName: 'chroma-collection',
-        embedder: googleAI.embedder('text-embedding-004'),
+        embedder: googleAI.embedder('gemini-embedding-001'),
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
     devLocalVectorstore([
       {
         indexName: 'naive-index',
-        embedder: googleAI.embedder('text-embedding-004'),
+        embedder: googleAI.embedder('gemini-embedding-001'),
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
     pinecone([
       {
         indexId: 'pinecone-index',
-        embedder: googleAI.embedder('text-embedding-004'),
+        embedder: googleAI.embedder('gemini-embedding-001'),
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
@@ -165,7 +165,7 @@ export const ai = genkit({
     genkitEval({
       judge: googleAI.model('gemini-2.5-flash'),
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      embedder: googleAI.embedder('text-embedding-004'),
+      embedder: googleAI.embedder('gemini-embedding-001'),
       metrics: [
         GenkitMetric.ANSWER_RELEVANCY,
         GenkitMetric.FAITHFULNESS,

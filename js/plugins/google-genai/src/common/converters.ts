@@ -73,9 +73,13 @@ function toGeminiSchemaProperty(property?: ToolDefinition['inputSchema']) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
-      nestedProperties[key] = toGeminiSchemaProperty(property.properties[key]);
-    });
+    if (property.properties) {
+      Object.keys(property.properties).forEach((key) => {
+        nestedProperties[key] = toGeminiSchemaProperty(
+          property.properties[key]
+        );
+      });
+    }
     return {
       ...baseSchema,
       type: SchemaType.OBJECT,

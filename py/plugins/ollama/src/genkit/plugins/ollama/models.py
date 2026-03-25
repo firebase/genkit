@@ -90,27 +90,26 @@ import structlog
 from pydantic import BaseModel
 
 import ollama as ollama_api
-from genkit.ai import ActionRunContext
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.core.http_client import get_cached_client
-from genkit.plugins.ollama.constants import (
-    OllamaAPITypes,
-)
-from genkit.types import (
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
-    GenerationUsage,
+from genkit import (
     Media,
     MediaPart,
     Message,
+    ModelConfig,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     TextPart,
     ToolRequest,
     ToolRequestPart,
     ToolResponsePart,
+)
+from genkit.model import get_basic_usage_stats
+from genkit.plugin_api import ActionRunContext, get_cached_client
+from genkit.plugins.ollama.constants import (
+    OllamaAPITypes,
 )
 
 logger = structlog.get_logger(__name__)
@@ -166,7 +165,7 @@ class OllamaModel:
         """
         return self._client_factory()
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext | None = None) -> ModelResponse:
         """Generate a response from Ollama.
 
         Args:
@@ -178,15 +177,32 @@ class OllamaModel:
         """
         content = [Part(root=TextPart(text='Failed to get response from Ollama API'))]
 
+        logger.debug(
+            'Ollama generate request',
+            model=self.model_definition.name,
+            api_type=str(self.model_definition.api_type),
+            streaming=self.is_streaming_request(ctx=ctx),
+        )
+
         if self.model_definition.api_type == OllamaAPITypes.CHAT:
             api_response = await self._chat_with_ollama(request=request, ctx=ctx)
             if api_response:
+                logger.debug(
+                    'Ollama raw API response',
+                    model=self.model_definition.name,
+                    content=str(api_response.message.content)[:500] if api_response.message else None,
+                )
                 content = self._build_multimodal_chat_response(
                     chat_response=api_response,
                 )
         elif self.model_definition.api_type == OllamaAPITypes.GENERATE:
             api_response = await self._generate_ollama_response(request=request, ctx=ctx)
             if api_response:
+                logger.debug(
+                    'Ollama raw API response',
+                    model=self.model_definition.name,
+                    response=str(api_response.response)[:500],
+                )
                 content = [Part(root=TextPart(text=api_response.response))]
         else:
             raise ValueError(f'Unresolved API type: {self.model_definition.api_type}')
@@ -204,7 +220,7 @@ class OllamaModel:
             response=response_message,
         )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=content,
@@ -216,7 +232,7 @@ class OllamaModel:
         )
 
     async def _chat_with_ollama(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
         """Chat with Ollama.
 
@@ -230,12 +246,12 @@ class OllamaModel:
         messages = await self.build_chat_messages(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
-        if request.output:
+        if request.output_format or request.output_schema:
             # ollama api either accepts 'json' literal, or the JSON schema
-            if request.output.schema:
-                fmt = request.output.schema
-            elif request.output.format:
-                fmt = request.output.format
+            if request.output_schema:
+                fmt = request.output_schema
+            elif request.output_format:
+                fmt = request.output_format
             else:
                 fmt = ''
         else:
@@ -270,7 +286,7 @@ class OllamaModel:
                 role = Role.MODEL if chunk.message.role == 'assistant' else Role.TOOL
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=role,
                             index=idx,
                             content=self._build_multimodal_chat_response(chat_response=chunk),
@@ -293,7 +309,7 @@ class OllamaModel:
             return chat_response
 
     async def _generate_ollama_response(
-        self, request: GenerateRequest, ctx: ActionRunContext | None = None
+        self, request: ModelRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.GenerateResponse | None:
         """Generate a response from Ollama.
 
@@ -321,7 +337,7 @@ class OllamaModel:
                 idx += 1
                 if ctx:
                     ctx.send_chunk(
-                        chunk=GenerateResponseChunk(
+                        chunk=ModelResponseChunk(
                             role=Role.MODEL,
                             index=idx,
                             content=[Part(root=TextPart(text=chunk.response))],
@@ -386,7 +402,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | ollama_api.Options | dict[str, object] | None,
+        config: ModelConfig | ollama_api.Options | dict[str, object] | None,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -398,7 +414,7 @@ class OllamaModel:
         """
         if config is None:
             return ollama_api.Options()
-        if isinstance(config, GenerationCommonConfig):
+        if isinstance(config, ModelConfig):
             config = dict(
                 top_k=config.top_k,
                 topP=config.top_p,
@@ -413,7 +429,7 @@ class OllamaModel:
         return config
 
     @staticmethod
-    def build_prompt(request: GenerateRequest) -> str:
+    def build_prompt(request: ModelRequest) -> str:
         """Build the prompt for the generate API.
 
         Args:
@@ -432,7 +448,7 @@ class OllamaModel:
         return prompt
 
     @classmethod
-    async def build_chat_messages(cls, request: GenerateRequest) -> list[ollama_api.Message]:
+    async def build_chat_messages(cls, request: ModelRequest) -> list[ollama_api.Message]:
         """Build the messages for the chat API.
 
         Handles MediaPart by converting image URLs to the format expected
@@ -495,6 +511,7 @@ class OllamaModel:
             return url[comma_idx + 1 :]
 
         if url.startswith(('http://', 'https://')):
+            # TODO(#4360): Replace with downloadRequestMedia middleware (G15 parity).
             # Some servers (e.g., Wikipedia/Wikimedia) block requests
             # without a proper User-Agent, returning HTTP 403 Forbidden.
             client = get_cached_client(
@@ -503,6 +520,7 @@ class OllamaModel:
                 headers={
                     'User-Agent': 'Genkit/1.0 (https://github.com/firebase/genkit; genkit@google.com)',
                 },
+                follow_redirects=True,
             )
             response = await client.get(url)
             response.raise_for_status()
@@ -534,21 +552,21 @@ class OllamaModel:
 
     @staticmethod
     def get_usage_info(
-        basic_generation_usage: GenerationUsage,
+        basic_generation_usage: ModelUsage,
         api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse | None,
-    ) -> GenerationUsage:
+    ) -> ModelUsage:
         """Extracts and calculates token usage information from an Ollama API response.
 
         Updates a basic generation usage object with input, output, and total token counts
         based on the details provided in the Ollama API response.
 
         Args:
-            basic_generation_usage: An existing GenerationUsage object to update.
+            basic_generation_usage: An existing ModelUsage object to update.
             api_response: The response object received from the Ollama API,
                 containing token count details.
 
         Returns:
-            The updated GenerationUsage object with token counts populated.
+            The updated ModelUsage object with token counts populated.
         """
         if api_response:
             basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0

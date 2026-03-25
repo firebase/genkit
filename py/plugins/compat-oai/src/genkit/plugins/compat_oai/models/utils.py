@@ -19,13 +19,14 @@
 
 import base64
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
-from genkit.types import (
-    GenerateRequest,
+from genkit import (
     MediaPart,
     Message,
+    ModelRequest,
     Part,
     ReasoningPart,
     Role,
@@ -36,7 +37,28 @@ from genkit.types import (
 )
 
 
-def _find_text(request: GenerateRequest) -> str | None:
+def strip_markdown_fences(text: str) -> str:
+    r"""Strip markdown code fences from a JSON response.
+
+    Models sometimes wrap JSON output in markdown fences like
+    ``\`\`\`json ... \`\`\``` even when instructed to output raw
+    JSON.  This helper removes the fences.
+
+    Args:
+        text: The response text, possibly wrapped in fences.
+
+    Returns:
+        The text with markdown fences removed, or the original
+        text if no fences are found.
+    """
+    stripped = text.strip()
+    match = re.match(r'^```(?:json)?\s*\n?(.*?)\n?\s*```$', stripped, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text
+
+
+def _find_text(request: ModelRequest) -> str | None:
     """Find the first text content from the first message, if any.
 
     Args:
@@ -54,7 +76,7 @@ def _find_text(request: GenerateRequest) -> str | None:
     )
 
 
-def _extract_text(request: GenerateRequest) -> str:
+def _extract_text(request: ModelRequest) -> str:
     """Extract text content from the first message.
 
     Args:
@@ -138,8 +160,8 @@ def decode_data_uri_bytes(url: str) -> bytes:
         raise ValueError('Invalid base64 data provided in media URL') from e
 
 
-def extract_config_dict(request: GenerateRequest) -> dict[str, Any]:
-    """Extract the config from a GenerateRequest as a mutable dictionary.
+def extract_config_dict(request: ModelRequest) -> dict[str, Any]:
+    """Extract the config from a ModelRequest as a mutable dictionary.
 
     Handles both dict configs and Pydantic model configs uniformly.
 
@@ -158,7 +180,7 @@ def extract_config_dict(request: GenerateRequest) -> dict[str, Any]:
     return {}
 
 
-def _extract_media(request: GenerateRequest) -> tuple[str, str]:
+def _extract_media(request: ModelRequest) -> tuple[str, str]:
     """Extract media content from the first message.
 
     Finds the first part with a MediaPart root and returns its URL and
@@ -315,6 +337,9 @@ class MessageConverter:
         """Convert a Role to its OpenAI string representation."""
         if isinstance(role, Role):
             return cls._openai_role_map.get(role, role.value)
+
+        if role == 'model':
+            return 'assistant'
         return str(role)
 
     @classmethod
@@ -341,6 +366,13 @@ class MessageConverter:
 
         for part in message.content:
             root = part.root
+
+            # Skip ReasoningPart — reasoning_content must not be sent back
+            # in multi-turn context. DeepSeek's API rejects it, and the JS
+            # canonical implementation naturally excludes it by using msg.text
+            # (which only returns text parts) for assistant messages.
+            if isinstance(root, ReasoningPart):
+                continue
 
             if isinstance(root, TextPart):
                 content_parts.append({'type': 'text', 'text': root.text})
