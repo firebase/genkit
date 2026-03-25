@@ -1303,7 +1303,7 @@ const transferMoney = ai.defineTool(
   },
   async (input, opts) => {
     const { interrupt, resumed, context } = opts;
-    const resumedStatus = (resumed as any)?.status;
+    const resumedStatus = (resumed as Record<string, any>)?.status;
     // if the user rejected the transaction
     if (resumedStatus === 'REJECTED') {
       return {
