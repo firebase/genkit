@@ -52,6 +52,7 @@ export interface ActionMetadata<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   actionType?: ActionType;
+  key?: string;
   name: string;
   description?: string;
   inputSchema?: I;
@@ -350,6 +351,7 @@ export function action<
     });
     let traceId;
     let spanId;
+    const genkitKey = actionFn.__action.key;
     let output = await runInNewSpan(
       {
         metadata: {
@@ -358,6 +360,7 @@ export function action<
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
           'genkit:metadata:subtype': config.actionType,
+          ...(genkitKey ? { 'genkit:key': genkitKey } : {}),
           ...options?.telemetryLabels,
         },
       },
