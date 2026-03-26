@@ -35,7 +35,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import Interrupt, run_tool_after_restart
+from genkit._ai._tools import Interrupt, run_tool_after_restart, unwrap_wrapped_scalar_tool_input_if_needed
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -694,7 +694,11 @@ async def _resolve_tool_request(
     Returns ``(ToolResponsePart, None)`` on success or ``(None, ToolRequestPart)`` when interrupted.
     """
     try:
-        tool_response = (await tool.run(tool_request_part.tool_request.input)).response
+        tool_in = unwrap_wrapped_scalar_tool_input_if_needed(
+            tool_request_part.tool_request.input,
+            tool.input_schema,
+        )
+        tool_response = (await tool.run(tool_in)).response
         return (
             ToolResponsePart(
                 tool_response=ToolResponse(

@@ -1363,7 +1363,10 @@ class GeminiModel:
             )
         else:
             response = await self._generate(
-                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name, client=client
+                request_contents=request_contents,
+                request_cfg=request_cfg,
+                model_name=model_name,
+                client=client,
             )
 
         response.usage = self._create_usage_stats(request=request, response=response)

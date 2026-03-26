@@ -278,7 +278,11 @@ class PartConverter:
         return genai.types.Part()
 
     @classmethod
-    def from_gemini(cls, part: genai.types.Part, ref: str | None = None) -> Part:
+    def from_gemini(
+        cls,
+        part: genai.types.Part,
+        ref: str | None = None,
+    ) -> Part:
         """Maps a Gemini Part back to a Genkit Part.
 
         This method inspects the type of the Gemini Part and converts it into

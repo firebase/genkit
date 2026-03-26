@@ -37,6 +37,41 @@ _tool_resumed_metadata: ContextVar[dict[str, Any] | None] = ContextVar('tool_res
 _tool_original_input: ContextVar[Any | None] = ContextVar('tool_original_input', default=None)
 
 
+def _json_schema_root_is_scalar_or_array(schema: dict[str, object] | None) -> bool:
+    """Return True if the JSON Schema root is a scalar or array type."""
+    if not schema:
+        return False
+    t = schema.get('type')
+    if isinstance(t, str):
+        tl = t.lower()
+        return tl in ('string', 'number', 'integer', 'boolean', 'array')
+    return False
+
+
+def unwrap_wrapped_scalar_tool_input_if_needed(
+    input_payload: Any,  # noqa: ANN401
+    input_schema: dict[str, object] | None,
+) -> Any:
+    """Unwrap ``{"value": x}`` before calling a tool whose JSON Schema root is scalar/array.
+
+    The Google Genai Gemini plugin wraps scalar/array roots as ``{"value": <schema>}``
+    at declaration time so the Gemini API accepts them. The model then sends arguments
+    in that same shape. This helper strips the wrapper so the tool handler receives the
+    bare value it was defined with.
+
+    Note: ``ToolRequest.input`` is NOT modified — this unwrap happens only at call time
+    so that message history keeps the original wire format (required for subsequent
+    Gemini turns where ``FunctionCall.args`` must be a dict).
+    """
+    if not _json_schema_root_is_scalar_or_array(input_schema):
+        return input_payload
+    if not isinstance(input_payload, dict):
+        return input_payload
+    if set(input_payload.keys()) != {'value'}:
+        return input_payload
+    return input_payload['value']
+
+
 class ToolRunContext(ActionRunContext):
     """Tool execution context with interrupt support."""
 
@@ -181,7 +216,11 @@ async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolR
     token_input = _tool_original_input.set(original_input)
     try:
         try:
-            tool_response = (await tool.run(restart_trp.tool_request.input)).response
+            tool_in = unwrap_wrapped_scalar_tool_input_if_needed(
+                restart_trp.tool_request.input,
+                tool.input_schema,
+            )
+            tool_response = (await tool.run(tool_in)).response
         except GenkitError as e:
             if e.cause and isinstance(e.cause, Interrupt):
                 raise GenkitError(
