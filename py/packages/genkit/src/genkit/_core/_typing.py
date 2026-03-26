@@ -25,7 +25,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import ConfigDict, Field, RootModel
 from pydantic.alias_generators import to_camel
-from strenum import StrEnum
+from genkit._core._compat import StrEnum
 
 from genkit._core._base import GenkitModel
 

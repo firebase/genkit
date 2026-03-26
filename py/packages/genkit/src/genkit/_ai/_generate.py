@@ -39,6 +39,7 @@ from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._tracing import tracer
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
 from genkit._core._typing import (
@@ -104,6 +105,22 @@ def define_generate_action(registry: Registry) -> None:
 
 
 async def generate_action(
+    registry: Registry,
+    raw_request: GenerateActionOptions,
+    on_chunk: Callable[[ModelResponseChunk], None] | None = None,
+    message_index: int = 0,
+    current_turn: int = 0,
+    middleware: list[ModelMiddleware] | None = None,
+    context: dict[str, Any] | None = None,
+) -> ModelResponse:
+    """Execute a generation request with tool calling and middleware support."""
+    with tracer.start_as_current_span('generate'):
+        return await _generate_action(
+            registry, raw_request, on_chunk, message_index, current_turn, middleware, context
+        )
+
+
+async def _generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
@@ -344,7 +361,7 @@ async def generate_action(
         next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
-    return await generate_action(
+    return await _generate_action(
         registry,
         raw_request=next_request,
         # middleware: middleware,
