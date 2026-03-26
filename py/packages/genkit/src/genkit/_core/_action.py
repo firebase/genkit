@@ -587,11 +587,15 @@ def _make_tracing_wrapper(
                             raise ValueError('action fn must have 0-2 args')
                 except Exception as e:
                     span.set_attribute('genkit:state', 'error')
-                    span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
-                    span.record_exception(e)
-                    # Re-raise existing GenkitError instances to avoid double-wrapping
+                    # Bundled Dev UI reads timeEvents.exception.attributes only; stash text for export synthesis.
                     if isinstance(e, GenkitError):
+                        span.set_attribute('genkit:error', e.original_message)
+                        span.set_status(trace_api.StatusCode.ERROR, description=str(e))
+                        span.record_exception(e)
                         raise
+                    span.set_attribute('genkit:error', str(e))
+                    span.set_status(trace_api.StatusCode.ERROR, description=str(e))
+                    span.record_exception(e)
                     raise GenkitError(
                         cause=e,
                         message=f'Error while running action {name}',
