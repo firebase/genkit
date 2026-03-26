@@ -322,6 +322,20 @@ async def _generate_action(
         # No message in response, return as-is
         return response
 
+    # Stamp output format metadata on message for Dev UI rendering.
+    # Mirrors JS GenerateResponse constructor which sets message.metadata.generate.output
+    # so the Dev UI knows to render the output as formatted JSON vs plain text.
+    out = raw_request.output
+    if out and (out.content_type or out.format):
+        generate_output: dict[str, str] = {}
+        if out.content_type:
+            generate_output['contentType'] = out.content_type
+        if out.format:
+            generate_output['format'] = out.format
+        existing_meta = dict(generated_msg.metadata) if isinstance(generated_msg.metadata, dict) else {}
+        existing_meta['generate'] = {'output': generate_output}
+        generated_msg.metadata = existing_meta
+
     tool_requests = [x for x in generated_msg.content if x.root.tool_request]
 
     if raw_request.return_tool_requests or len(tool_requests) == 0:
