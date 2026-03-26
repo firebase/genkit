@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
@@ -117,12 +118,25 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				if p.IsText() {
 					parts = append(parts, openai.TextContentPart(p.Text))
 				}
-				if p.IsMedia() {
-					part := openai.ImageContentPart(
-						openai.ChatCompletionContentPartImageImageURLParam{
-							URL: p.Text,
-						})
-					parts = append(parts, part)
+				if p.IsMedia() || p.IsData() {
+					ct := p.ContentType
+					if ct == "" {
+						ct = contentTypeFromDataURI(p.Text)
+					}
+					if isFilePart(ct) {
+						filePart := openai.ChatCompletionContentPartFileFileParam{
+							FileData: param.NewOpt(p.Text),
+						}
+						if name, ok := p.Metadata["filename"].(string); ok {
+							filePart.Filename = param.NewOpt(name)
+						}
+						parts = append(parts, openai.FileContentPart(filePart))
+					} else {
+						parts = append(parts, openai.ImageContentPart(
+							openai.ChatCompletionContentPartImageImageURLParam{
+								URL: p.Text,
+							}))
+					}
 					continue
 				}
 			}
@@ -483,4 +497,38 @@ func anyToJSONString(data any) (string, error) {
 		return "", fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err)
 	}
 	return string(jsonBytes), nil
+}
+
+// fileContentTypes are MIME types that should be sent as OpenAI file content parts
+// rather than image content parts.
+var fileContentTypes = []string{
+	"application/pdf",
+	"text/plain",
+	"text/csv",
+	"text/html",
+	"text/markdown",
+	"application/json",
+}
+
+// isFilePart returns true if the content type should be handled as a file part.
+func isFilePart(contentType string) bool {
+	for _, ct := range fileContentTypes {
+		if strings.EqualFold(contentType, ct) {
+			return true
+		}
+	}
+	return false
+}
+
+// contentTypeFromDataURI extracts the MIME type from a data URI (e.g. "data:application/pdf;base64,...").
+func contentTypeFromDataURI(uri string) string {
+	after, ok := strings.CutPrefix(uri, "data:")
+	if !ok {
+		return ""
+	}
+	// Format: data:<contentType>[;base64],<data>
+	if idx := strings.IndexAny(after, ";,"); idx > 0 {
+		return after[:idx]
+	}
+	return ""
 }
