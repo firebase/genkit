@@ -39,13 +39,14 @@ from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._tracing import tracer
+from genkit._core._tracing import run_in_new_span
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
     Part,
     Role,
+    SpanMetadata,
     ToolDefinition,
     ToolRequest,
     ToolRequestPart,
@@ -114,10 +115,24 @@ async def generate_action(
     context: dict[str, Any] | None = None,
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support."""
-    with tracer.start_as_current_span('generate'):
-        return await _generate_action(
+    span_name = 'generate'
+    with run_in_new_span(
+        SpanMetadata(name=span_name),
+        labels={'genkit:type': 'util'},
+    ) as span:
+        span.set_attribute('genkit:name', span_name)
+        try:
+            span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
+        except Exception:
+            pass
+        result = await _generate_action(
             registry, raw_request, on_chunk, message_index, current_turn, middleware, context
         )
+        try:
+            span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
+        except Exception:
+            pass
+        return result
 
 
 async def _generate_action(
