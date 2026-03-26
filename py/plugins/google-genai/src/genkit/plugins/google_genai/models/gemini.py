@@ -1190,7 +1190,7 @@ class GeminiModel:
 
         ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
         ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
-        cache_key = generate_cache_key(request=request)
+        cache_key = generate_cache_key(request=request, model_name=model_name)
 
         iterator_config = genai_types.ListCachedContentsConfig()
         cache = None
@@ -1467,8 +1467,12 @@ class GeminiModel:
                 if response.usage_metadata
                 else None,
                 total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
-                thoughts_tokens=float(response.usage_metadata.thoughts_token_count or 0) if response.usage_metadata and response.usage_metadata.thoughts_token_count else None,
-                cached_content_tokens=float(response.usage_metadata.cached_content_token_count or 0) if response.usage_metadata and response.usage_metadata.cached_content_token_count else None,
+                thoughts_tokens=float(response.usage_metadata.thoughts_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.thoughts_token_count
+                else None,
+                cached_content_tokens=float(response.usage_metadata.cached_content_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.cached_content_token_count
+                else None,
             ),
         )
 
