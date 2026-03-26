@@ -32,6 +32,7 @@ from pydantic.alias_generators import to_camel
 from typing_extensions import Never, TypeVar
 
 from genkit._core._channel import Channel
+from genkit._core._schema import to_json_schema
 from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
 from genkit._core._trace._path import build_path
@@ -323,6 +324,9 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
+        *,
+        input_schema: type[BaseModel] | dict[str, object] | None = None,
+        output_schema: type[BaseModel] | dict[str, object] | None = None,
     ) -> None:
         self._kind: ActionKind = kind
         self._name: str = name
@@ -344,6 +348,30 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         n_action_args = len(action_args)
         self._fn = _make_tracing_wrapper(name, kind, span_metadata or {}, n_action_args, fn)
         self._initialize_io_schemas(action_args, arg_types, resolved_annotations, input_spec)
+        if input_schema is not None or output_schema is not None:
+            self._apply_tool_schema_overrides(input_schema=input_schema, output_schema=output_schema)
+
+    def _apply_tool_schema_overrides(
+        self,
+        *,
+        input_schema: type[BaseModel] | dict[str, object] | None,
+        output_schema: type[BaseModel] | dict[str, object] | None,
+    ) -> None:
+        """Replace I/O JSON schemas (and input validation) when explicitly provided.
+
+        Used for tools whose ``metadata_fn`` uses loose annotations (e.g. ``Any``) but
+        callers supply concrete Pydantic models or JSON Schema dicts.
+        """
+        if input_schema is not None:
+            in_js = to_json_schema(input_schema)
+            self.input_schema = in_js
+            if isinstance(input_schema, dict):
+                self._input_type = None
+            else:
+                self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
+
+        if output_schema is not None:
+            self.output_schema = to_json_schema(output_schema)
 
     @property
     def kind(self) -> ActionKind:

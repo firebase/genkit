@@ -19,8 +19,8 @@
 import copy
 import inspect
 import re
-from collections.abc import Callable
-from typing import Any, cast
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, TypeAlias, cast
 
 from pydantic import BaseModel
 
@@ -35,7 +35,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
+from genkit._ai._tools import ToolInterruptError, run_tool_after_restart
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -55,6 +55,34 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+# Allowed ``tools=`` values for :meth:`~genkit.Genkit.generate`:
+#   - tool name (``str``)
+#   - :class:`~genkit.Action` (e.g. from prompt ``as_tool()``)
+#   - a function decorated with ``@ai.tool()`` (the same object you registered as a tool)
+# Use ``Sequence`` instead of ``list``: type checkers treat ``list`` as strict about the
+# exact item type, so ``[my_tool_fn]`` can fail to match ``list[str | Action | ...]`` even
+# though it works at runtime. ``Sequence`` does not have that problem.
+ToolReference: TypeAlias = str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]
+
+
+def tools_to_action_refs(tools: Sequence[ToolReference] | None) -> list[str] | None:
+    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`."""
+    if tools is None:
+        return None
+    refs: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            refs.append(t)
+        elif isinstance(t, Action):
+            refs.append(t.name)
+        else:
+            name = getattr(t, '__name__', None)
+            if not isinstance(name, str) or not name:
+                msg = f'Cannot resolve tool name from callable: {t!r}'
+                raise TypeError(msg)
+            refs.append(name)
+    return refs
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -542,10 +570,7 @@ async def resolve_parameters(
     tools: list[Action[Any, Any, Any]] = []
     if request.tools:
         for tool_name in request.tools:
-            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
-            if tool_action is None:
-                raise Exception(f'Unable to resolve tool {tool_name}')
-            tools.append(tool_action)
+            tools.append(await resolve_tool(registry, tool_name))
 
     format_def: FormatDef | None = None
     if request.output and request.output.format:
@@ -695,11 +720,18 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
 
 
 async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
-    if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
-    return tool
+    """Resolve a tool by name from the registry.
+
+    Tries :class:`~genkit.ActionKind.TOOL` first, then prompt actions registered as
+    :class:`~genkit.ActionKind.PROMPT` / :class:`~genkit.ActionKind.EXECUTABLE_PROMPT`
+    (e.g. :meth:`~genkit.ExecutablePrompt.as_tool`).
+    """
+    for kind in (ActionKind.TOOL, ActionKind.PROMPT, ActionKind.EXECUTABLE_PROMPT):
+        tool = await registry.resolve_action(kind=kind, name=tool_name)
+        if tool is not None:
+            return tool
+    msg = f'Unable to resolve tool {tool_name}'
+    raise ValueError(msg)
 
 
 async def _resolve_resume_options(
@@ -730,7 +762,7 @@ async def _resolve_resume_options(
             i += 1
             continue
 
-        resumed_request, resumed_response = _resolve_resumed_tool_request(raw_request, part)
+        resumed_request, resumed_response = await _resolve_resumed_tool_request(_registry, raw_request, part)
         tool_responses.append(resumed_response)
         updated_content[i] = resumed_request
         i += 1
@@ -755,8 +787,10 @@ async def _resolve_resume_options(
     return (revised_request, None, tool_message)
 
 
-def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_request_part: Part) -> tuple[Part, Part]:
-    """Resolve a single tool request from pending output or resume.respond list."""
+async def _resolve_resumed_tool_request(
+    registry: Registry, raw_request: GenerateActionOptions, tool_request_part: Part
+) -> tuple[Part, Part]:
+    """Resolve a single tool request from pending output, resume.respond, or resume.restart."""
     # Type narrowing: ensure we're working with a ToolRequestPart
     if not isinstance(tool_request_part.root, ToolRequestPart):
         raise GenkitError(
@@ -812,12 +846,50 @@ def _resolve_resumed_tool_request(raw_request: GenerateActionOptions, tool_reque
             provided_response,
         )
 
+    restart_trp = _find_corresponding_restart(
+        raw_request.resume.restart if raw_request.resume else None,
+        tool_req_root,
+    )
+    if restart_trp:
+        tool = await resolve_tool(registry, tool_req_root.tool_request.name)
+        executed = await run_tool_after_restart(tool, restart_trp)
+        metadata = dict(tool_req_root.metadata) if tool_req_root.metadata else {}
+        interrupt = metadata.get('interrupt')
+        if interrupt:
+            del metadata['interrupt']
+        return (
+            Part(
+                root=ToolRequestPart(
+                    tool_request=ToolRequest(
+                        name=tool_req_root.tool_request.name,
+                        ref=tool_req_root.tool_request.ref,
+                        input=tool_req_root.tool_request.input,
+                    ),
+                    metadata={**metadata, 'resolvedInterrupt': interrupt},
+                )
+            ),
+            executed,
+        )
+
     raise GenkitError(
         status='INVALID_ARGUMENT',
         message=f"Unresolved tool request '{tool_req_root.tool_request.name}' "
         + "was not handled by the 'resume' argument. You must supply replies or "
         + 'restarts for all interrupted tool requests.',
     )
+
+
+def _find_corresponding_restart(
+    restarts: list[ToolRequestPart] | None,
+    request: ToolRequestPart,
+) -> ToolRequestPart | None:
+    """Find a restart part matching the pending request by name and ref."""
+    if not restarts:
+        return None
+    for trp in restarts:
+        if trp.tool_request.name == request.tool_request.name and trp.tool_request.ref == request.tool_request.ref:
+            return trp
+    return None
 
 
 def _find_corresponding_tool_response(responses: list[ToolResponsePart], request: ToolRequestPart) -> Part | None:

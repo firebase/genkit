@@ -25,7 +25,7 @@ import signal
 import socket
 import threading
 import uuid
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from pathlib import Path
 from typing import Any, ParamSpec, TypeVar, cast, overload
 
@@ -45,7 +45,7 @@ from genkit._ai._evaluator import (
 )
 from genkit._ai._formats import built_in_formats
 from genkit._ai._formats._types import FormatDef
-from genkit._ai._generate import define_generate_action, generate_action
+from genkit._ai._generate import ToolReference, define_generate_action, generate_action
 from genkit._ai._model import (
     Message,
     ModelConfig,
@@ -71,7 +71,7 @@ from genkit._ai._resource import (
     ResourceOptions,
     define_resource,
 )
-from genkit._ai._tools import define_tool
+from genkit._ai._tools import define_interrupt, define_tool
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._background import (
     BackgroundAction,
@@ -107,6 +107,8 @@ from genkit._core._typing import (
     Part,
     SpanMetadata,
     ToolChoice,
+    ToolRequestPart,
+    ToolResponsePart,
 )
 
 from ._decorators import _FlowDecorator, _FlowDecoratorWithChunk
@@ -270,6 +272,42 @@ class Genkit:
 
         return wrapper
 
+    def define_interrupt(
+        self,
+        name: str,
+        *,
+        input_schema: type[BaseModel] | dict[str, object] | None = None,
+        output_schema: type[BaseModel] | dict[str, object] | None = None,
+        description: str | None = None,
+    ) -> Callable[P, T]:
+        """Register an interrupt tool that always pauses for user input.
+
+        Args:
+            name: Tool name
+            input_schema: Optional input schema (Pydantic model or JSON schema dict)
+            output_schema: Optional output schema (Pydantic model or JSON schema dict)
+            description: Tool description
+
+        Returns:
+            The registered interrupt tool
+
+        Example:
+            ask_user = ai.define_interrupt(
+                name='ask_user',
+                input_schema=Question,
+                output_schema=Answer,
+                description='Ask the user a question',
+            )
+        """
+
+        return define_interrupt(
+            self.registry,
+            name,
+            description=description,
+            input_schema=input_schema,
+            output_schema=output_schema,
+        )
+
     def define_evaluator(
         self,
         *,
@@ -393,7 +431,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -421,7 +459,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -449,7 +487,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -477,7 +515,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -503,7 +541,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -741,10 +779,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -766,10 +806,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -789,10 +831,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
-        tool_responses: list[Part] | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -817,7 +861,9 @@ class Genkit:
                     tools=tools,
                     return_tool_requests=return_tool_requests,
                     tool_choice=tool_choice,
-                    tool_responses=tool_responses,
+                    resume_respond=resume_respond,
+                    resume_restart=resume_restart,
+                    resume_metadata=resume_metadata,
                     config=config,
                     max_turns=max_turns,
                     output_format=output_format,
@@ -841,9 +887,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -866,9 +915,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -889,9 +941,12 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
+        resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+        resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+        resume_metadata: dict[str, Any] | None = None,
         config: dict[str, object] | ModelConfig | None = None,
         max_turns: int | None = None,
         context: dict[str, object] | None = None,
@@ -904,7 +959,13 @@ class Genkit:
         docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> ModelStreamResponse[Any]:
-        """Stream generated text, returning a ModelStreamResponse with .stream and .response."""
+        """Stream generated text, returning a ModelStreamResponse with .stream and .response.
+
+        Middleware (``use=``) uses the same signatures as :meth:`generate`:
+        - Simple: ``(req, ctx, next)`` — 3 params
+        - Streaming-aware: ``(req, ctx, on_chunk, next)`` — 4 params
+        The framework auto-detects by parameter count. Both work with generate_stream.
+        """
         channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
         async def _run_generate() -> ModelResponse[Any]:
@@ -920,6 +981,9 @@ class Genkit:
                         tools=tools,
                         return_tool_requests=return_tool_requests,
                         tool_choice=tool_choice,
+                        resume_respond=resume_respond,
+                        resume_restart=resume_restart,
+                        resume_metadata=resume_metadata,
                         config=config,
                         max_turns=max_turns,
                         output_format=output_format,
@@ -1130,7 +1194,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[ToolReference] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         config: dict[str, object] | ModelConfig | None = None,

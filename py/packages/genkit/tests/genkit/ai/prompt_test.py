@@ -86,12 +86,12 @@ async def test_simple_prompt_with_override_config() -> None:
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
     # New API: pass config via opts parameter - this MERGES with prompt config
-    response = await my_prompt(opts={'config': {'temperature': 12}})
+    response = await my_prompt(config={'temperature': 12})
 
     assert response.text == want_txt
 
     # New API: stream also uses opts
-    result = my_prompt.stream(opts={'config': {'temperature': 12}})
+    result = my_prompt.stream(config={'temperature': 12})
 
     assert (await result.response).text == want_txt
 
@@ -241,10 +241,29 @@ async def test_prompt_rendering_dotprompt(
     """Test prompt rendering."""
     ai, *_ = setup_test()
 
-    my_prompt = ai.define_prompt(**prompt)
+    my_prompt = ai.define_prompt(
+        model=prompt.get('model'),
+        config=prompt.get('config'),
+        description=prompt.get('description'),
+        input_schema=prompt.get('input_schema'),
+        system=prompt.get('system'),
+        prompt=prompt.get('prompt'),
+        messages=prompt.get('messages'),
+        output_format=prompt.get('output_format'),
+        output_content_type=prompt.get('output_content_type'),
+        output_instructions=prompt.get('output_instructions'),
+        output_constrained=prompt.get('output_constrained'),
+        max_turns=prompt.get('max_turns'),
+        return_tool_requests=prompt.get('return_tool_requests'),
+        metadata=prompt.get('metadata'),
+        tools=prompt.get('tools'),
+        tool_choice=prompt.get('tool_choice'),
+        use=prompt.get('use'),
+        docs=prompt.get('docs'),
+    )
 
     # New API: use opts parameter to pass config and context
-    response = await my_prompt(input, opts={'config': input_option, 'context': context})
+    response = await my_prompt(input, config=input_option, context=context)
 
     assert response.text == want_rendered
 
@@ -488,7 +507,7 @@ async def test_config_merge_priority() -> None:
     # New API: runtime config is MERGED with prompt config
     # - temperature: 0.9 (from opts, overrides 0.5)
     # - banana: 'yellow' (from prompt, preserved)
-    rendered = await my_prompt.render(opts={'config': {'temperature': 0.9}})
+    rendered = await my_prompt.render(config={'temperature': 0.9})
 
     assert rendered.config is not None
     # Config is now a dict after merging
@@ -510,7 +529,7 @@ async def test_opts_can_override_model() -> None:
     )
 
     # Override model via opts
-    response = await my_prompt(opts={'model': 'programmableModel'})
+    response = await my_prompt(model='programmableModel')
 
     # Should use programmableModel, not echoModel
     assert response.text == 'pm response'
@@ -532,7 +551,7 @@ async def test_opts_can_append_messages() -> None:
     ]
 
     # Append conversation history via opts
-    rendered = await my_prompt.render(opts={'messages': history_messages})
+    rendered = await my_prompt.render(messages=history_messages)
 
     # Should have: system + history (2) + user prompt = 4 messages
     assert len(rendered.messages) == 4
@@ -583,13 +602,11 @@ async def test_opts_can_override_output() -> None:
         output_format='text',  # Default to text
     )
 
-    # Override output via opts
+    # Override output via kwargs
     rendered = await my_prompt.render(
-        opts={
-            'output': {
-                'format': 'json',
-                'schema': OutputSchema,
-            }
+        output={
+            'format': 'json',
+            'schema': OutputSchema,
         }
     )
 
@@ -597,6 +614,42 @@ async def test_opts_can_override_output() -> None:
     assert rendered.output is not None
     assert rendered.output.format == 'json'
     assert rendered.output.json_schema is not None
+
+
+@pytest.mark.asyncio
+async def test_executable_prompt_opts_removed() -> None:
+    """opts= has been removed; pass options as explicit kwargs (e.g. model=)."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(prompt='hi', output_format='text')
+
+    with pytest.raises(TypeError, match='opts'):
+        await my_prompt(opts={'model': 'echoModel'})
+
+
+@pytest.mark.asyncio
+async def test_executable_prompt_input_positional_opts_as_kwargs() -> None:
+    """ExecutablePrompt: input is positional, opts via kwargs after *."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(
+        prompt='Recipe for {{cuisine}} {{dish}}',
+        output_format='text',
+    )
+
+    # input = positional (template vars), output = kwarg (opts)
+    rendered = await my_prompt.render(
+        {'cuisine': 'Italian', 'dish': 'pasta'},
+        output={'format': 'text'},
+    )
+
+    # Template vars from input should be in the rendered prompt
+    assert any('Italian' in str(m) for m in rendered.messages)
+    assert any('pasta' in str(m) for m in rendered.messages)
+
+    # output kwarg should be respected
+    assert rendered.output is not None
+    assert rendered.output.format == 'text'
 
 
 # Tests for file-based prompt loading and two-action structure

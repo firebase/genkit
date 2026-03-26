@@ -17,13 +17,19 @@
 """Genkit — Build AI-powered applications."""
 
 from genkit._ai._aio import ActionKind, ActionRunContext, Genkit
+from genkit._ai._generate import ToolReference
 from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
     PromptGenerateOptions,
-    ResumeOptions,
 )
-from genkit._ai._tools import ToolInterruptError, ToolRunContext, tool_response
+from genkit._ai._tools import (
+    Interrupt,
+    ToolInterruptError,
+    ToolRunContext,
+    respond_to_interrupt,
+    restart_interrupted_tool,
+)
 from genkit._core._action import Action, StreamResponse
 from genkit._core._error import GenkitError, PublicError
 from genkit._core._model import Document
@@ -94,6 +100,9 @@ __all__ = [
     'GenkitError',
     'PublicError',
     'ToolInterruptError',
+    'Interrupt',
+    'respond_to_interrupt',
+    'restart_interrupted_tool',
     # Content types
     'Constrained',
     'CustomPart',
@@ -126,9 +135,8 @@ __all__ = [
     'ActionRunContext',
     'ExecutablePrompt',
     'PromptGenerateOptions',
-    'ResumeOptions',
     'ToolRunContext',
-    'tool_response',
+    'ToolReference',
     'ModelRequest',
     'ModelResponse',
     'ModelResponseChunk',
