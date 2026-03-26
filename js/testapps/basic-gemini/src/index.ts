@@ -1007,14 +1007,21 @@ ai.defineFlow('deep-research-cancel', async (_, { sendChunk }) => {
 });
 
 // Lyria music generation
-ai.defineFlow('lyria-music-generation', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-instrumental-clip', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-clip-preview'),
+    prompt:
+      'A bright chiptune melody in C Major, retro 8-bit video game style. Instrumental only, no vocals.',
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-music-generation', async () => {
   const { media, text } = await ai.generate({
     model: googleAI.model('lyria-3-clip-preview'),
     prompt:
       'Create a 30-second cheerful acoustic folk song with guitar and harmonica.',
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
   });
 
   // if (media) {
@@ -1023,26 +1030,22 @@ ai.defineFlow('lyria-music-generation', async (_, { sendChunk }) => {
   //     'base64'
   //   );
   //   fs.writeFileSync('clip.mp3', audioBuffer);
-  //   sendChunk('Audio saved to clip.mp3');
   // }
 
   return { text, media };
 });
 
-ai.defineFlow('lyria-full-length-song', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-full-length-song', async () => {
   const response = await ai.generate({
     model: googleAI.model('lyria-3-pro-preview'),
     prompt:
       'An epic cinematic orchestral piece about a journey home. Starts with a solo piano intro, builds through sweeping strings, and climaxes with a massive wall of sound.',
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
   });
 
   return response;
 });
 
-ai.defineFlow('lyria-from-image', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-from-image', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const response = await ai.generate({
@@ -1059,14 +1062,14 @@ ai.defineFlow('lyria-from-image', async (_, { sendChunk }) => {
       },
     ],
     config: {
-      responseModalities: ['AUDIO', 'TEXT'],
+      responseModalities: ['AUDIO'],
     },
   });
 
   return response;
 });
 
-ai.defineFlow('lyria-custom-lyrics', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-custom-lyrics', async () => {
   const prompt = `
 Create a dreamy indie pop song with the following lyrics:
 
@@ -1092,15 +1095,12 @@ dancing through the autumn leaves.
   const response = await ai.generate({
     model: googleAI.model('lyria-3-pro-preview'),
     prompt,
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
   });
 
   return response;
 });
 
-ai.defineFlow('lyria-custom-timing', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-custom-timing', async () => {
   const prompt = `
 [0:00 - 0:10] Intro: Begin with a soft lo-fi beat and muffled vinyl crackle.
 [0:10 - 0:30] Verse 1: Add a warm Fender Rhodes piano melody and gentle vocals singing about a rainy morning.
@@ -1111,35 +1111,16 @@ ai.defineFlow('lyria-custom-timing', async (_, { sendChunk }) => {
   const response = await ai.generate({
     model: googleAI.model('lyria-3-pro-preview'),
     prompt,
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
   });
 
   return response;
 });
 
-ai.defineFlow('lyria-instrumental-clip', async (_, { sendChunk }) => {
-  const response = await ai.generate({
-    model: googleAI.model('lyria-3-clip-preview'),
-    prompt:
-      'A bright chiptune melody in C Major, retro 8-bit video game style. Instrumental only, no vocals.',
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
-  });
-
-  return response;
-});
-
-ai.defineFlow('lyria-foreign-language', async (_, { sendChunk }) => {
+ai.defineFlow('lyria-foreign-language', async () => {
   const response = await ai.generate({
     model: googleAI.model('lyria-3-pro-preview'),
     prompt:
       'Crée une chanson pop romantique en français sur un coucher de soleil à Paris. Utilise du piano et de la guitare acoustique.',
-    config: {
-      responseModalities: ['AUDIO', 'TEXT'],
-    },
   });
 
   return response;
