@@ -1190,7 +1190,7 @@ class GeminiModel:
 
         ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
         ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
-        cache_key = generate_cache_key(request=request, model_name=model_name)
+        cache_key = generate_cache_key(contents=contents, model_name=model_name)
 
         iterator_config = genai_types.ListCachedContentsConfig()
         cache = None
@@ -1605,6 +1605,9 @@ class GeminiModel:
                     cache_config=msg.metadata['cache'],
                     contents=request_contents,
                 )
+                # The prefix up to this message is now stored in the cache.
+                # Only post-cache messages should be sent in the generate call.
+                request_contents = []
 
         if not request_contents:
             request_contents.append(genai_types.Content(parts=[genai_types.Part(text=' ')], role='user'))
