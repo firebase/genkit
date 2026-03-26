@@ -85,6 +85,12 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
     return result
 
 
+DEFAULT_SPAN_FILTERS: dict[str, str] = {
+    # Suppress prompt runner preview traces (triggered on every keystroke in Dev UI)
+    'genkit:metadata:subtype': 'prompt',
+}
+
+
 class TraceServerExporter(SpanExporter):
     """Exports spans to Genkit telemetry server (DevUI)."""
 
@@ -92,16 +98,28 @@ class TraceServerExporter(SpanExporter):
         self,
         telemetry_server_url: str,
         telemetry_server_endpoint: str = '/api/traces',
+        filters: dict[str, str] | None = None,
     ) -> None:
         self.telemetry_server_url = telemetry_server_url
         self.telemetry_server_endpoint = telemetry_server_endpoint
+        self.filters = filters if filters is not None else DEFAULT_SPAN_FILTERS
 
     @override
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        # Collect trace IDs that should be filtered out entirely
+        filtered_trace_ids: set[str] = set()
+        for span in spans:
+            attrs = span.attributes or {}
+            if any(attrs.get(k) == v for k, v in self.filters.items()):
+                if span.context:
+                    filtered_trace_ids.add(format(span.context.trace_id, '032x'))
+
         url = urljoin(self.telemetry_server_url, self.telemetry_server_endpoint)
         headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
         with httpx.Client() as client:
             for span in spans:
+                if span.context and format(span.context.trace_id, '032x') in filtered_trace_ids:
+                    continue
                 client.post(url, json=extract_span_data(span), headers=headers)
         return SpanExportResult.SUCCESS
 
