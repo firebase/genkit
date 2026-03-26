@@ -338,8 +338,10 @@ async def test_generate_with_prompt_as_tool(setup_test: SetupFixture) -> None:
 
     assert response.text is not None
     assert echo.last_request is not None
-    assert len(echo.last_request.tools) == 1
-    assert echo.last_request.tools[0].name == 'subPrompt'
+    tools = echo.last_request.tools
+    assert tools is not None
+    assert len(tools) == 1
+    assert tools[0].name == 'subPrompt'
 
 
 @pytest.mark.asyncio

@@ -279,7 +279,7 @@ class Genkit:
         input_schema: type[BaseModel] | dict[str, object] | None = None,
         output_schema: type[BaseModel] | dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Callable[P, T]:
+    ) -> Callable[..., Any]:
         """Register an interrupt tool that always pauses for user input.
 
         Args:
@@ -299,7 +299,6 @@ class Genkit:
                 description='Ask the user a question',
             )
         """
-
         return define_interrupt(
             self.registry,
             name,

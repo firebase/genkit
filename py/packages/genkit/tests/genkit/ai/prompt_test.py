@@ -19,7 +19,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -624,7 +624,7 @@ async def test_executable_prompt_opts_removed() -> None:
     my_prompt = ai.define_prompt(prompt='hi', output_format='text')
 
     with pytest.raises(TypeError, match='opts'):
-        await my_prompt(opts={'model': 'echoModel'})
+        await my_prompt(**cast(Any, {'opts': {'model': 'echoModel'}}))
 
 
 @pytest.mark.asyncio

@@ -49,9 +49,7 @@ _BAR = '=' * 52
 _RULE = '-' * 52
 
 # Canned user line so the demo always triggers a transfer tool call without stdin.
-USER_MESSAGE = (
-    'Please wire $250.00 to Jane Doe (account ending in 4521) for April rent.'
-)
+USER_MESSAGE = 'Please wire $250.00 to Jane Doe (account ending in 4521) for April rent.'
 
 
 def _print_intro() -> None:
@@ -111,18 +109,16 @@ class TransferRequest(BaseModel):
 async def request_transfer(body: TransferRequest, ctx: ToolRunContext) -> dict:
     """First run: interrupt for approval. After approval: return confirmation with metadata."""
     if not ctx.is_resumed():
-        line = f"Wire ${body.amount_usd} to {body.to_account}"
+        line = f'Wire ${body.amount_usd} to {body.to_account}'
         if body.memo:
             line = f'{line} — {body.memo}'
-        raise Interrupt(
-            {
-                'summary': line,
-                'to_account': body.to_account,
-                'amount_usd': body.amount_usd,
-                'memo': body.memo,
-                'needs_approval': True,
-            }
-        )
+        raise Interrupt({
+            'summary': line,
+            'to_account': body.to_account,
+            'amount_usd': body.amount_usd,
+            'memo': body.memo,
+            'needs_approval': True,
+        })
     return {'status': 'confirmed', 'resumed': ctx.resumed_metadata}
 
 

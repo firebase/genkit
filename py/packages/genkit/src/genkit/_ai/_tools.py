@@ -34,7 +34,8 @@ T = TypeVar('T')
 
 # Context variables for propagating resumed metadata to tools
 _tool_resumed_metadata: ContextVar[dict[str, Any] | None] = ContextVar('tool_resumed_metadata', default=None)
-_tool_original_input: ContextVar[Any | None] = ContextVar('tool_original_input', default=None)
+# Stashed copy of tool_request.input when restart replaces input (JSON; shape is per tool).
+_tool_original_input: ContextVar[Any | None] = ContextVar('tool_original_input', default=None)  # noqa: ANN401
 
 
 def _json_schema_root_is_scalar_or_array(schema: dict[str, object] | None) -> bool:
@@ -49,9 +50,9 @@ def _json_schema_root_is_scalar_or_array(schema: dict[str, object] | None) -> bo
 
 
 def unwrap_wrapped_scalar_tool_input_if_needed(
-    input_payload: Any,  # noqa: ANN401
+    input_payload: Any,  # noqa: ANN401 - wire JSON from model; schema varies per tool
     input_schema: dict[str, object] | None,
-) -> Any:
+) -> Any:  # noqa: ANN401 - same payload after optional {"value": x} unwrap
     """Unwrap ``{"value": x}`` before calling a tool whose JSON Schema root is scalar/array.
 
     The Google Genai Gemini plugin wraps scalar/array roots as ``{"value": <schema>}``
@@ -79,7 +80,7 @@ class ToolRunContext(ActionRunContext):
         self,
         ctx: ActionRunContext,
         resumed_metadata: dict[str, Any] | None = None,
-        original_input: Any = None,
+        original_input: Any = None,  # noqa: ANN401 - prior tool_request.input when replacing on restart
     ) -> None:
         """Initialize from parent ActionRunContext.
 
@@ -97,7 +98,7 @@ class ToolRunContext(ActionRunContext):
         return self.resumed_metadata is not None
 
 
-class Interrupt(Exception):
+class Interrupt(Exception):  # noqa: N818 - public Genkit name (JS/Go); not renamed *Error for style
     """Exception for interrupting tool execution with user-facing API.
 
     Raise ``Interrupt(data)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
@@ -122,7 +123,7 @@ class Interrupt(Exception):
 
 def _tool_response_part(
     interrupt: ToolRequestPart,
-    output: Any,
+    output: Any,  # noqa: ANN401 - arbitrary tool/interrupt reply payload (JSON)
     metadata: dict[str, Any] | None = None,
 ) -> ToolResponsePart:
     """Build a ``ToolResponsePart`` for an interrupted tool request (interrupt reply channel)."""
@@ -139,7 +140,7 @@ def _tool_response_part(
 
 
 def respond_to_interrupt(
-    response: Any,
+    response: Any,  # noqa: ANN401 - user reply or tool output for resume_respond
     *,
     interrupt: ToolRequestPart,
     metadata: dict[str, Any] | None = None,
@@ -157,7 +158,7 @@ def respond_to_interrupt(
 
 
 def restart_interrupted_tool(
-    replace_input: Any | None = None,  # noqa: ANN401
+    replace_input: Any | None = None,  # noqa: ANN401 - new tool_request.input JSON or None to keep prior
     *,
     interrupt: ToolRequestPart,
     tool: Callable[..., Any],
@@ -181,9 +182,7 @@ def restart_interrupted_tool(
     """
     restart = getattr(tool, 'restart', None)
     if restart is None:
-        raise TypeError(
-            f'{tool!r} has no restart method; pass a tool from define_tool or Genkit.tool'
-        )
+        raise TypeError(f'{tool!r} has no restart method; pass a tool from define_tool or Genkit.tool')
     part = restart(
         replace_input,
         interrupt=interrupt,
@@ -286,8 +285,8 @@ def define_tool(
 
     func_any = cast(Callable[..., Any], func)
 
-    async def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
-        # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
+    async def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401 - arity dispatch; args/return follow registered tool
+        # Dynamic dispatch by arity; payload types follow the registered tool (not expressible here).
         match len(input_spec.args):
             case 0:
                 return await func_any()
@@ -320,12 +319,13 @@ def define_tool(
 
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
+        # Return type is the tool's declared output; ParamSpec preserves call shape only.
         action_any = cast(Any, action)
         return (await action_any.run(*args, **kwargs)).response
 
     # Add restart method to the wrapper (use respond_to_interrupt for interrupt replies).
     def restart(
-        replace_input: Any | None = None,  # noqa: ANN401
+        replace_input: Any | None = None,  # noqa: ANN401 - same as restart_interrupted_tool.replace_input
         *,
         interrupt: ToolRequestPart,
         resumed_metadata: dict[str, Any] | None = None,
@@ -342,14 +342,15 @@ def define_tool(
             ``Part`` wrapping a ``ToolRequestPart`` for ``resume_restart`` / message history.
 
         Example:
-            ``pay_invoice.restart({**trp.tool_request.input, "confirmed": True}, interrupt=trp, resumed_metadata={"by": "bob"})``
+            ``pay_invoice.restart({**trp.tool_request.input, "confirmed": True}, interrupt=trp,``
+            ``resumed_metadata={"by": "bob"})``
         """
         tool_req = interrupt.tool_request
         if tool_req.name != tool_name:
             raise ValueError(f"Interrupt is for tool '{tool_req.name}', not '{tool_name}'")
 
         existing_meta = interrupt.metadata or {}
-        new_meta = dict(existing_meta) if existing_meta else {}
+        new_meta: dict[str, Any] = dict(existing_meta) if existing_meta else {}
 
         # Mark as resumed
         new_meta['resumed'] = resumed_metadata if resumed_metadata is not None else True
@@ -385,7 +386,7 @@ def define_interrupt(
     name: str,
     *,
     description: str | None = None,
-    request_metadata: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None,
+    request_metadata: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None,  # noqa: ANN401
     input_schema: type[BaseModel] | dict[str, object] | None = None,
     output_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> Callable[..., Any]:
@@ -419,7 +420,8 @@ def define_interrupt(
         )
     """
 
-    async def interrupt_wrapper(input: Any) -> Any:  # noqa: ANN401
+    async def interrupt_wrapper(input: Any) -> Any:  # noqa: ANN401 - wire JSON args; never returns (raises Interrupt)
+        # Interrupt tools accept arbitrary JSON args like any tool.
         meta = None
         if callable(request_metadata):
             meta = request_metadata(input)
