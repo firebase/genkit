@@ -16,8 +16,11 @@ package compat_oai
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -62,8 +65,9 @@ func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator 
 	}
 }
 
-// WithMessages adds messages to the request
-func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
+// WithMessages adds messages to the request.
+// A context is required for downloading media URLs that need to be inlined.
+func (g *ModelGenerator) WithMessages(ctx context.Context, messages []*ai.Message) *ModelGenerator {
 	// Return early if we already have an error
 	if g.err != nil {
 		return g
@@ -120,12 +124,29 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				}
 				if p.IsMedia() || p.IsData() {
 					ct := p.ContentType
-					if ct == "" {
-						ct = contentTypeFromDataURI(p.Text)
+					dataURI := p.Text
+
+					// If the content is a URL, determine content type from the part
+					// or download it to get both the content type and data.
+					if strings.HasPrefix(dataURI, "http") {
+						if ct == "" || !strings.HasPrefix(dataURI, "data:") {
+							downloaded, err := downloadAsDataURI(ctx, dataURI, ct)
+							if err != nil {
+								g.err = fmt.Errorf("failed to download media %q: %w", dataURI, err)
+								return g
+							}
+							dataURI = downloaded
+							if ct == "" {
+								ct = contentTypeFromDataURI(dataURI)
+							}
+						}
+					} else if ct == "" {
+						ct = contentTypeFromDataURI(dataURI)
 					}
+
 					if isFilePart(ct) {
 						filePart := openai.ChatCompletionContentPartFileFileParam{
-							FileData: param.NewOpt(p.Text),
+							FileData: param.NewOpt(dataURI),
 						}
 						if name, ok := p.Metadata["filename"].(string); ok {
 							filePart.Filename = param.NewOpt(name)
@@ -134,7 +155,7 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 					} else {
 						parts = append(parts, openai.ImageContentPart(
 							openai.ChatCompletionContentPartImageImageURLParam{
-								URL: p.Text,
+								URL: dataURI,
 							}))
 					}
 					continue
@@ -531,4 +552,37 @@ func contentTypeFromDataURI(uri string) string {
 		return after[:idx]
 	}
 	return ""
+}
+
+// downloadAsDataURI fetches a URL and returns its content as a base64 data URI.
+// If contentType is empty, it is inferred from the HTTP response Content-Type header.
+func downloadAsDataURI(ctx context.Context, url, contentType string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	if contentType == "" {
+		contentType = resp.Header.Get("Content-Type")
+		// Strip charset parameters (e.g. "text/plain; charset=utf-8")
+		if idx := strings.IndexByte(contentType, ';'); idx > 0 {
+			contentType = strings.TrimSpace(contentType[:idx])
+		}
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)), nil
 }

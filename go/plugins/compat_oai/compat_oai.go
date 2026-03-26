@@ -120,7 +120,7 @@ func (o *OpenAICompatible) DefineModel(provider, id string, opts ai.ModelOptions
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		// Configure the response generator with input
-		generator := NewModelGenerator(o.client, id).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
+		generator := NewModelGenerator(o.client, id).WithMessages(ctx, input.Messages).WithConfig(input.Config).WithTools(input.Tools)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, input, cb)

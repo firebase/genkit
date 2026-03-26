@@ -68,7 +68,7 @@ func TestGenerator_Complete(t *testing.T) {
 		Messages: messages,
 	}
 
-	resp, err := g.WithMessages(messages).Generate(context.Background(), req, nil)
+	resp, err := g.WithMessages(context.Background(), messages).Generate(context.Background(), req, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +102,7 @@ func TestGenerator_Stream(t *testing.T) {
 		return nil
 	}
 
-	_, err := g.WithMessages(messages).Generate(context.Background(), req, handleChunk)
+	_, err := g.WithMessages(context.Background(), messages).Generate(context.Background(), req, handleChunk)
 	if err != nil {
 		t.Error(err)
 	}
@@ -241,7 +241,7 @@ func TestWithConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			generator := setupTestClient(t)
-			result, err := generator.WithMessages(messages).WithConfig(tt.config).Generate(context.Background(), req, nil)
+			result, err := generator.WithMessages(context.Background(), messages).WithConfig(tt.config).Generate(context.Background(), req, nil)
 
 			if tt.err != nil {
 				assert.Error(t, err)
