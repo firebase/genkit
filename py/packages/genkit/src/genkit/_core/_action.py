@@ -25,6 +25,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, ClassVar, Generic, cast, get_type_hints
 
+from opentelemetry import trace as trace_api
 from opentelemetry.trace import Span
 from opentelemetry.util import types as otel_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
@@ -585,6 +586,9 @@ def _make_tracing_wrapper(
                         case _:
                             raise ValueError('action fn must have 0-2 args')
                 except Exception as e:
+                    span.set_attribute('genkit:state', 'error')
+                    span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
+                    span.record_exception(e)
                     # Re-raise existing GenkitError instances to avoid double-wrapping
                     if isinstance(e, GenkitError):
                         raise
