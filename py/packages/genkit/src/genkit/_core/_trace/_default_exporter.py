@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, cast
 from urllib.parse import urljoin
 
@@ -49,13 +49,17 @@ def _ns_to_ms(ns: int | None) -> float:
     return ns / 1_000_000 if ns is not None else 0
 
 
-def _otel_event_attributes_to_json(attrs: Any) -> dict[str, Any]:
+def _otel_event_attributes_to_json(attrs: object | None) -> dict[str, Any]:
     """Flatten OTel event attributes for JSON / Dev UI (expects string keys and JSON-safe values)."""
     if attrs is None:
         return {}
     out: dict[str, Any] = {}
     try:
-        items = attrs.items() if hasattr(attrs, 'items') else []
+        items_getter = getattr(attrs, 'items', None)
+        if callable(items_getter):
+            items = cast(Callable[[], Iterable[tuple[Any, Any]]], items_getter)()
+        else:
+            items = ()
         for k, v in items:
             key = str(k)
             if isinstance(v, (str, int, float, bool)) or v is None:
@@ -68,11 +72,11 @@ def _otel_event_attributes_to_json(attrs: Any) -> dict[str, Any]:
 
 
 def _ensure_exception_message_for_dev_ui(span_entry: dict[str, Any]) -> None:
-    """Ensure exception timeEvents carry exception.message for Dev UI / evaluate.ts.
+    r"""Ensure exception timeEvents carry exception.message for Dev UI / evaluate.ts.
 
     TraceData SpanStatusSchema uses `message` (not OTel's `description`). Dev UI and
     evaluate.ts read the first `exception` timeEvent's `exception.message` and fall
-    back to the literal \"Error\" if missing. Synthesize from status.message or
+    back to the literal "Error" if missing. Synthesize from status.message or
     genkit:error when events are empty or incomplete.
     """
     st = span_entry.get('status')

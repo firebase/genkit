@@ -16,6 +16,7 @@
 
 """Generate action."""
 
+import contextlib
 import copy
 import inspect
 import re
@@ -39,9 +40,9 @@ from genkit._ai._tools import ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._tracing import run_in_new_span
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
+from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
     FinishReason,
     Part,
@@ -121,17 +122,13 @@ async def generate_action(
         labels={'genkit:type': 'util'},
     ) as span:
         span.set_attribute('genkit:name', span_name)
-        try:
+        with contextlib.suppress(Exception):
             span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
-        except Exception:
-            pass
         result = await _generate_action(
             registry, raw_request, on_chunk, message_index, current_turn, middleware, context
         )
-        try:
+        with contextlib.suppress(Exception):
             span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
-        except Exception:
-            pass
         return result
 
 
