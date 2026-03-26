@@ -18,9 +18,9 @@
 
 import hashlib
 import json
-from typing import Any
 
 import structlog
+from google.genai import types as genai_types
 
 from genkit import GenkitError, ModelRequest
 from genkit.plugins.google_genai.models.context_caching.constants import (
@@ -31,7 +31,7 @@ from genkit.plugins.google_genai.models.context_caching.constants import (
 logger = structlog.getLogger(__name__)
 
 
-def generate_cache_key(contents: list[Any], model_name: str) -> str:
+def generate_cache_key(contents: list[genai_types.Content], model_name: str) -> str:
     """Generates a cache key by hashing the cached prefix contents and model name.
 
     Only the prefix slice (messages up to and including the cache marker) is
@@ -39,8 +39,7 @@ def generate_cache_key(contents: list[Any], model_name: str) -> str:
     messages correctly reuse the same cache entry.
 
     Args:
-        contents: The prefix content objects to be cached (list of
-            ``google.genai.types.Content``).
+        contents: The prefix content objects to be cached.
         model_name: Name of the model — included in the key to prevent
             cross-model cache collisions when multiple models are used
             in the same session.
@@ -48,7 +47,7 @@ def generate_cache_key(contents: list[Any], model_name: str) -> str:
     Returns:
         Generated cache key string
     """
-    serialized = [c.model_dump() if hasattr(c, 'model_dump') else str(c) for c in contents]
+    serialized = [c.model_dump() for c in contents]
     payload = {'model': model_name, 'contents': serialized}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
