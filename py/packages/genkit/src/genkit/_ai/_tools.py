@@ -62,21 +62,13 @@ class ToolRunContext(ActionRunContext):
         return self.resumed_metadata is not None
 
 
-# TODO(#4346): make this extend GenkitError once it has INTERRUPTED status
-class ToolInterruptError(Exception):
-    """Controlled interruption of tool execution (e.g., to request user input)."""
-
-    def __init__(self, metadata: dict[str, Any] | None = None) -> None:
-        """Initialize with optional interrupt metadata."""
-        super().__init__()
-        self.metadata: dict[str, Any] = metadata or {}
-
-
 class Interrupt(Exception):
     """Exception for interrupting tool execution with user-facing API.
 
-    Use ``raise Interrupt(data)`` inside a tool to pause. Prefer this over raising
-    :class:`ToolInterruptError` directly.
+    Raise ``Interrupt(data)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
+    Exceptions from ``tool.run`` are wrapped in :class:`~genkit._core._error.GenkitError`
+    with ``cause=Interrupt``; generation attaches interrupt metadata to the pending tool
+    request.
 
     To resume, use :func:`respond_to_interrupt` or :func:`restart_interrupted_tool` (or
     ``tool.restart`` on the registered tool callable).
@@ -191,7 +183,7 @@ async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolR
         try:
             tool_response = (await tool.run(restart_trp.tool_request.input)).response
         except GenkitError as e:
-            if e.cause and isinstance(e.cause, ToolInterruptError):
+            if e.cause and isinstance(e.cause, Interrupt):
                 raise GenkitError(
                     status='FAILED_PRECONDITION',
                     message='Tool interrupted again during a restart execution; not supported yet.',
@@ -257,29 +249,25 @@ def define_tool(
 
     async def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
         # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
-        try:
-            match len(input_spec.args):
-                case 0:
-                    return await func_any()
-                case 1:
-                    return await func_any(args[0])
-                case 2:
-                    # Read from context variables for resumed metadata
-                    resumed_meta = _tool_resumed_metadata.get()
-                    original_input = _tool_original_input.get()
-                    return await func_any(
-                        args[0],
-                        ToolRunContext(
-                            cast(ActionRunContext, args[1]),
-                            resumed_metadata=resumed_meta,
-                            original_input=original_input,
-                        ),
-                    )
-                case _:
-                    raise ValueError('tool must have 0-2 args...')
-        except Interrupt as e:
-            # Convert Interrupt to ToolInterruptError for compatibility with existing flow
-            raise ToolInterruptError(metadata=e.data) from e
+        match len(input_spec.args):
+            case 0:
+                return await func_any()
+            case 1:
+                return await func_any(args[0])
+            case 2:
+                # Read from context variables for resumed metadata
+                resumed_meta = _tool_resumed_metadata.get()
+                original_input = _tool_original_input.get()
+                return await func_any(
+                    args[0],
+                    ToolRunContext(
+                        cast(ActionRunContext, args[1]),
+                        resumed_metadata=resumed_meta,
+                        original_input=original_input,
+                    ),
+                )
+            case _:
+                raise ValueError('tool must have 0-2 args...')
 
     action = registry.register_action(
         name=tool_name,

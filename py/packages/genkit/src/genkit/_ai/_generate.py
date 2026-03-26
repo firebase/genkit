@@ -35,7 +35,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError, run_tool_after_restart
+from genkit._ai._tools import Interrupt, run_tool_after_restart
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -649,14 +649,12 @@ async def resolve_tool_requests(
         tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 
         if tool_response_part:
-            # Extract the ToolResponsePart from the returned Part for _to_pending_response
-            if isinstance(tool_response_part.root, ToolResponsePart):
-                revised_model_message.content[i] = _to_pending_response(tool_req_root, tool_response_part.root)
-            response_parts.append(tool_response_part)
+            revised_model_message.content[i] = _to_pending_response(tool_req_root, tool_response_part)
+            response_parts.append(Part(root=tool_response_part))
 
         if interrupt_part:
             has_interrupts = True
-            revised_model_message.content[i] = interrupt_part
+            revised_model_message.content[i] = Part(root=interrupt_part)
 
         i += 1
 
@@ -679,44 +677,49 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
     )
 
 
-async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
-    """Execute a tool and return (response_part, interrupt_part)."""
+def _interrupt_from_tool_exc(exc: BaseException) -> Interrupt | None:
+    """If ``exc`` is (or wraps) :class:`~genkit._ai._tools.Interrupt`, return that interrupt."""
+    if isinstance(exc, Interrupt):
+        return exc
+    if isinstance(exc, GenkitError) and exc.cause is not None and isinstance(exc.cause, Interrupt):
+        return exc.cause
+    return None
+
+
+async def _resolve_tool_request(
+    tool: Action, tool_request_part: ToolRequestPart
+) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
+    """Execute a tool.
+
+    Returns ``(ToolResponsePart, None)`` on success or ``(None, ToolRequestPart)`` when interrupted.
+    """
     try:
         tool_response = (await tool.run(tool_request_part.tool_request.input)).response
-        # Part is a RootModel, so we pass content via 'root' parameter
         return (
-            Part(
-                root=ToolResponsePart(
-                    tool_response=ToolResponse(
-                        name=tool_request_part.tool_request.name,
-                        ref=tool_request_part.tool_request.ref,
-                        output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
-                    )
+            ToolResponsePart(
+                tool_response=ToolResponse(
+                    name=tool_request_part.tool_request.name,
+                    ref=tool_request_part.tool_request.ref,
+                    output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
                 )
             ),
             None,
         )
-    except GenkitError as e:
-        if e.cause and isinstance(e.cause, ToolInterruptError):
-            interrupt_error = e.cause
-            # Part is a RootModel, so we pass content via 'root' parameter
+    except Exception as e:
+        intr = _interrupt_from_tool_exc(e)
+        if intr is not None:
+            payload: dict[str, Any] | bool = intr.data if intr.data else True
             tool_meta = tool_request_part.metadata or {}
             if not isinstance(tool_meta, dict):
                 tool_meta = dict(tool_meta)
             return (
                 None,
-                Part(
-                    root=ToolRequestPart(
-                        tool_request=tool_request_part.tool_request,
-                        metadata={
-                            **tool_meta,
-                            'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
-                        },
-                    )
+                ToolRequestPart(
+                    tool_request=tool_request_part.tool_request,
+                    metadata={**tool_meta, 'interrupt': payload},
                 ),
             )
-
-        raise e
+        raise
 
 
 async def resolve_tool(registry: Registry, tool_name: str) -> Action:

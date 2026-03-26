@@ -496,7 +496,7 @@ async def test_generate_with_interrupting_tools(
                 Part(root=TextPart(text='call these tools')),
                 Part(
                     root=ToolRequestPart(
-                        tool_request=ToolRequest(ref='123', name='test_interrupt', input=ToolInput(value=5)),
+                        tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
                         metadata={'interrupt': {'banana': 'yes please'}},
                     )
                 ),
@@ -568,7 +568,7 @@ async def test_generate_with_interrupt_respond(
     assert interrupted_response.tool_requests == [
         Part(
             root=ToolRequestPart(
-                tool_request=ToolRequest(ref='123', name='test_interrupt', input=ToolInput(value=5)),
+                tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
                 metadata={'interrupt': {'banana': 'yes please'}},
             ),
         ).root,
@@ -591,7 +591,7 @@ async def test_generate_with_interrupt_respond(
                 Part(root=TextPart(text='call these tools')),
                 Part(
                     root=ToolRequestPart(
-                        tool_request=ToolRequest(ref='123', name='test_interrupt', input=ToolInput(value=5)),
+                        tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
                         metadata={'interrupt': {'banana': 'yes please'}},
                     )
                 ),
@@ -627,7 +627,7 @@ async def test_generate_with_interrupt_respond(
                 Part(root=TextPart(text='call these tools')),
                 Part(
                     root=ToolRequestPart(
-                        tool_request=ToolRequest(ref='123', name='test_interrupt', input=ToolInput(value=5)),
+                        tool_request=ToolRequest(ref='123', name='test_interrupt', input={'value': 5}),
                         metadata={'resolvedInterrupt': {'banana': 'yes please'}},
                     )
                 ),

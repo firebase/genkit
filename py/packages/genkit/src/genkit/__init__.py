@@ -25,7 +25,6 @@ from genkit._ai._prompt import (
 )
 from genkit._ai._tools import (
     Interrupt,
-    ToolInterruptError,
     ToolRunContext,
     respond_to_interrupt,
     restart_interrupted_tool,
@@ -99,7 +98,6 @@ __all__ = [
     # Errors
     'GenkitError',
     'PublicError',
-    'ToolInterruptError',
     'Interrupt',
     'respond_to_interrupt',
     'restart_interrupted_tool',
