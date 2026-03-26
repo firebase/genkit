@@ -242,6 +242,11 @@ export function fromInteractionContent(content: Content): Part {
       return fromTextContent(content);
     case 'image':
       return fromImageContent(content);
+    case 'audio':
+    case 'document':
+      return fromMediaContent(content);
+    case 'video':
+      return fromVideoContent(content);
     case 'thought':
       return fromThoughtContent(content);
     case 'function_call':
@@ -249,8 +254,24 @@ export function fromInteractionContent(content: Content): Part {
     case 'function_result':
       return fromFunctionResultContent(content);
     default:
-      throw new Error(`Unsupported content type: ${content.type}`);
+      // We need the 'any' because currently this is an exhaustive list
+      throw new Error(`Unsupported content type: ${(content as any).type}`);
   }
+}
+
+function fromMediaContent(
+  content: ImageContent | AudioContent | VideoContent | DocumentContent
+): Part {
+  let url = content.uri;
+  if (content.data && content.mime_type) {
+    url = `data:${content.mime_type};base64,${content.data}`;
+  }
+  return {
+    media: {
+      url: url || '',
+      contentType: content.mime_type,
+    },
+  };
 }
 
 function fromTextContent(content: TextContent): Part {
@@ -263,19 +284,15 @@ function fromTextContent(content: TextContent): Part {
 }
 
 function fromImageContent(content: ImageContent): Part {
-  let url = content.uri;
-  if (content.data && content.mime_type) {
-    url = `data:${content.mime_type};base64,${content.data}`;
-  }
-  return {
-    media: {
-      url: url || '',
-      contentType: content.mime_type,
-    },
-    metadata: {
-      resolution: content.resolution,
-    },
-  };
+  const part = fromMediaContent(content);
+  part.metadata = { resolution: content.resolution };
+  return part;
+}
+
+function fromVideoContent(content: VideoContent): Part {
+  const part = fromMediaContent(content);
+  part.metadata = { resolution: content.resolution };
+  return part;
 }
 
 function fromThoughtContent(content: ThoughtContent): Part {
@@ -318,6 +335,78 @@ function fromFunctionResultContent(content: FunctionResultContent): Part {
       ref: content.call_id,
     },
   };
+}
+
+export function fromInteractionSync(
+  interaction: GeminiInteraction
+): GenerateResponseData {
+  if (interaction.status === 'failed') {
+    throw new Error('Interaction failed');
+  }
+
+  const response: GenerateResponseData = {
+    finishReason: 'stop',
+    message: {
+      role: 'model',
+      content: [],
+    },
+    custom: interaction,
+  };
+
+  if (interaction.status === 'cancelled') {
+    response.finishReason = 'aborted';
+    response.finishMessage = 'Operation cancelled';
+    response.message!.content = [{ text: 'Operation cancelled.' }];
+    return response;
+  }
+
+  const outputs = interaction.outputs;
+  if (outputs?.length) {
+    response.message!.content = outputs.map(fromInteractionContent);
+
+    if (interaction.usage) {
+      response.usage = {
+        inputTokens: interaction.usage.total_input_tokens,
+        outputTokens: interaction.usage.total_output_tokens,
+        totalTokens: interaction.usage.total_tokens,
+        cachedContentTokens: interaction.usage.total_cached_tokens,
+        thoughtsTokens: interaction.usage.total_thought_tokens,
+      };
+      if (interaction.usage.input_tokens_by_modality) {
+        for (const modalityToken of interaction.usage
+          .input_tokens_by_modality) {
+          switch (modalityToken.modality) {
+            case 'text':
+              response.usage.inputCharacters = modalityToken.tokens;
+              break;
+            case 'image':
+              response.usage.inputImages = modalityToken.tokens;
+              break;
+            case 'audio':
+              response.usage.inputAudioFiles = modalityToken.tokens;
+              break;
+          }
+        }
+      }
+      if (interaction.usage.output_tokens_by_modality) {
+        for (const modalityToken of interaction.usage
+          .output_tokens_by_modality) {
+          switch (modalityToken.modality) {
+            case 'text':
+              response.usage.outputCharacters = modalityToken.tokens;
+              break;
+            case 'image':
+              response.usage.outputImages = modalityToken.tokens;
+              break;
+            case 'audio':
+              response.usage.outputAudioFiles = modalityToken.tokens;
+              break;
+          }
+        }
+      }
+    }
+  }
+  return response;
 }
 
 export function fromInteraction<T extends Object>(
