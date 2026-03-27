@@ -17,7 +17,7 @@
 """Realtime span processor for live trace visualization."""
 
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from genkit._core._compat import override
@@ -49,7 +49,7 @@ class RealtimeSpanProcessor(SimpleSpanProcessor):
             )
 
     @override
-    def on_end(self, span: Span) -> None:
+    def on_end(self, span: ReadableSpan) -> None:
         """Skip export entirely for suppressed traces (e.g. prompt keystroke previews)."""
         if suppress_telemetry.get():
             return
