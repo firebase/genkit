@@ -15,4 +15,6 @@ To explore it in Dev UI instead:
 genkit start -- uv run src/main.py
 ```
 
-Run `draw_image_with_imagen`.
+Run `draw_image_with_imagen`, `summarize_with_gemini_31_pro`, and `rewrite_with_gemini_31_flash_lite`.
+
+Note: Gemini 3.1 preview flows use the Vertex plugin's global routing fallback.

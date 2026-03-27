@@ -30,7 +30,7 @@ from genkit.plugins.google_genai.models import gemini
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_FLASH_PREVIEW}',
+    model=f'googleai/{gemini.GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS}',
 )
 
 

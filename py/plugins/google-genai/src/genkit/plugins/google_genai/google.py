@@ -311,6 +311,17 @@ def _create_embedder_action(
     return action
 
 
+def _is_global_vertex_gemini_model(name: str) -> bool:
+    """Return True when a Vertex Gemini model should use global location.
+
+    Gemini 3.1 preview models are only available in `global` for many projects.
+    Keep this predicate narrow so other models continue using the plugin's
+    configured location.
+    """
+    lower_name = name.lower()
+    return lower_name.startswith('gemini-3.1-') and 'preview' in lower_name
+
+
 class GoogleAI(Plugin):
     """GoogleAI plugin for Genkit with dynamic model discovery.
 
@@ -765,6 +776,9 @@ class VertexAI(Plugin):
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
         self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        # Gemini 3.1 preview models frequently require `global` location.
+        global_client_kwargs = {**self._client_kwargs, 'location': 'global'}
+        self._global_runtime_client = loop_local_client(lambda: genai.client.Client(**global_client_kwargs))
         self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
@@ -907,12 +921,15 @@ class VertexAI(Plugin):
             config_schema = get_model_config_schema(clean_name)
 
         async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
+            model_client_getter = (
+                self._global_runtime_client if _is_global_vertex_gemini_model(clean_name) else self._runtime_client
+            )
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             elif is_veo_model(clean_name):
                 model = VeoModel(clean_name, self._runtime_client())
             else:
-                model = GeminiModel(clean_name, self._runtime_client())
+                model = GeminiModel(clean_name, model_client_getter())
             return await model.generate(request, ctx)
 
         return Action(

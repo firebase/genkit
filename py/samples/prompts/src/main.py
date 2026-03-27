@@ -26,7 +26,7 @@ from genkit.plugins.google_genai import GoogleAI
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-3-flash-preview',
+    model='googleai/gemini-3.1-flash-lite-preview',
     prompt_dir=Path(__file__).resolve().parent.parent / 'prompts',
 )
 
@@ -66,6 +66,19 @@ class ChefInput(BaseModel):
     food: str = Field(default='banana bread', description='The food to create a recipe for')
 
 
+class PantryTipInput(BaseModel):
+    """Input for pantry tip tool."""
+
+    food: str = Field(description='Food to provide a pantry tip for')
+
+
+@ai.tool()
+async def get_pantry_tip(input: PantryTipInput) -> str:
+    """Return one quick pantry tip for a requested food."""
+
+    return f'Use extra-ripe bananas and a pinch of salt to boost flavor in {input.food}.'
+
+
 @ai.flow(name='generate_recipe')
 async def chef_flow(input: ChefInput) -> Recipe:
     """Call the default `recipe.prompt` template."""
@@ -74,6 +87,40 @@ async def chef_flow(input: ChefInput) -> Recipe:
     if not response.output:
         raise ValueError('Model did not return a recipe.')
     return Recipe.model_validate(response.output)
+
+
+@ai.flow(name='generate_recipe_with_pro_preview')
+async def chef_flow_pro_preview(input: ChefInput) -> str:
+    """Use Gemini 3.1 Pro Preview directly."""
+
+    response = await ai.generate(
+        model='googleai/gemini-3.1-pro-preview',
+        prompt=f'Create a short 5-step recipe for {input.food}.',
+        config={
+            'thinking_config': {'thinking_budget': 128},
+            'max_output_tokens': 512,
+        },
+    )
+    return response.text
+
+
+@ai.flow(name='generate_recipe_with_pro_preview_customtools')
+async def chef_flow_pro_preview_customtools(input: ChefInput) -> str:
+    """Use Gemini 3.1 Pro Preview Custom Tools with a simple tool call."""
+
+    response = await ai.generate(
+        model='googleai/gemini-3.1-pro-preview-customtools',
+        prompt=(
+            f'Create a short 5-step recipe for {input.food}. '
+            'Call the get_pantry_tip tool exactly once with {"food": "<food name>"} before your final answer.'
+        ),
+        tools=['get_pantry_tip'],
+        config={
+            'thinking_config': {'thinking_budget': 128},
+            'max_output_tokens': 512,
+        },
+    )
+    return response.text
 
 
 @ai.flow(name='generate_robot_recipe')
@@ -110,6 +157,8 @@ async def main() -> None:
     """Run the prompt demos once."""
     try:
         print(await chef_flow(ChefInput()))  # noqa: T201
+        print(await chef_flow_pro_preview(ChefInput()))  # noqa: T201
+        print(await chef_flow_pro_preview_customtools(ChefInput()))  # noqa: T201
         print(await robot_chef_flow(ChefInput()))  # noqa: T201
     except Exception as error:
         print(f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}')  # noqa: T201
