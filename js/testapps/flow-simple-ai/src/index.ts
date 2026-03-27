@@ -1402,7 +1402,7 @@ export const transferFlowManual = ai.defineFlow(
           // use the `respond` method on our tool to populate answers
           askQuestion.respond(
             question,
-            // send the tool request input to the user to respond
+            // mock response
             'The answer is C'
           )
         );
