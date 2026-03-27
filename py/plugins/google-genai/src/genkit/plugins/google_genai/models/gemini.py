@@ -1082,7 +1082,7 @@ class GeminiModel:
         # Actually Google GenAI expects type=OBJECT for params usually.
         if not params:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
-        # ACC-560: Gemini rejects scalar/array root schemas. Tool params must be OBJECT with
+        # Gemini rejects scalar/array root schemas. Tool params must be OBJECT with
         # properties. LLMs always send {"key": value} — wrap scalar/array in {"value": <schema>}.
         elif self._is_scalar_or_array_root(params):
             params = genai_types.Schema(

@@ -484,7 +484,7 @@ def test_gemini_model__create_tool(
 def test_gemini_model__create_tool_wraps_scalar_input_schema(
     gemini_model_instance: GeminiModel,
 ) -> None:
-    """ACC-560: Scalar/array root input schemas are wrapped in object for Gemini.
+    """Scalar/array root input schemas are wrapped in object for Gemini.
 
     Gemini rejects tool params with type=STRING etc. LLMs always send
     {"key": value} — we wrap scalar schemas in {"value": <schema>}.

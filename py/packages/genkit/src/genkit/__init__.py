@@ -17,7 +17,6 @@
 """Genkit — Build AI-powered applications."""
 
 from genkit._ai._aio import ActionKind, ActionRunContext, Genkit
-from genkit._ai._generate import ToolReference
 from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
@@ -134,7 +133,6 @@ __all__ = [
     'ExecutablePrompt',
     'PromptGenerateOptions',
     'ToolRunContext',
-    'ToolReference',
     'ModelRequest',
     'ModelResponse',
     'ModelResponseChunk',

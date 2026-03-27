@@ -20,7 +20,7 @@ import copy
 import inspect
 import re
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any, TypeAlias, cast
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -56,18 +56,19 @@ DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
 
-# Allowed ``tools=`` values for :meth:`~genkit.Genkit.generate`:
-#   - tool name (``str``)
-#   - :class:`~genkit.Action` (e.g. from prompt ``as_tool()``)
-#   - a function decorated with ``@ai.tool()`` (the same object you registered as a tool)
-# Use ``Sequence`` instead of ``list``: type checkers treat ``list`` as strict about the
-# exact item type, so ``[my_tool_fn]`` can fail to match ``list[str | Action | ...]`` even
-# though it works at runtime. ``Sequence`` does not have that problem.
-ToolReference: TypeAlias = str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]
 
+def tools_to_action_refs(
+    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None,
+) -> list[str] | None:
+    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
 
-def tools_to_action_refs(tools: Sequence[ToolReference] | None) -> list[str] | None:
-    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`."""
+    Each item may be: a tool name (``str``), an :class:`~genkit.Action` (e.g. from prompt
+    ``as_tool()``), or an async function registered as a tool (same object as ``@ai.tool()``).
+
+    Use :class:`~collections.abc.Sequence` in call sites instead of ``list``: type checkers
+    treat ``list`` as invariant in the item type, so ``[my_tool_fn]`` may not match
+    ``list[str | Action | ...]`` even though it works at runtime.
+    """
     if tools is None:
         return None
     refs: list[str] = []

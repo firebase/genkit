@@ -35,7 +35,6 @@ from pydantic import BaseModel, ConfigDict
 from typing_extensions import Unpack
 
 from genkit._ai._generate import (
-    ToolReference,
     generate_action,
     resolve_tool,
     to_tool_definition,
@@ -124,7 +123,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     config: dict[str, Any] | ModelConfig | None
     messages: list[Message] | None
     docs: list[Document] | None
-    tools: Sequence[ToolReference] | None
+    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
@@ -232,7 +231,7 @@ class PromptConfig(BaseModel):
     max_turns: int | None = None
     return_tool_requests: bool | None = None
     metadata: dict[str, Any] | None = None
-    tools: Sequence[ToolReference] | None = None
+    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
     docs: list[Document] | None = None
@@ -264,7 +263,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, Any] | None = None,
-        tools: Sequence[ToolReference] | None = None,
+        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,

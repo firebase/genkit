@@ -98,7 +98,7 @@ class ToolRunContext(ActionRunContext):
         return self.resumed_metadata is not None
 
 
-class Interrupt(Exception):  # noqa: N818 - public Genkit name (JS/Go); not renamed *Error for style
+class Interrupt(Exception):  # noqa: N818 - public Genkit name; not renamed *Error for style
     """Exception for interrupting tool execution with user-facing API.
 
     Raise ``Interrupt(data)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
@@ -252,27 +252,22 @@ def _get_func_description(func: Callable[..., Any], description: str | None = No
     return ''
 
 
-def define_tool(
+def _define_tool(
     registry: Registry,
     func: Callable[P, T],
     name: str | None = None,
     description: str | None = None,
     *,
     input_schema: type[BaseModel] | dict[str, object] | None = None,
-    output_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> Callable[P, T]:
     """Register a function as a tool.
 
-    Args:
-        registry: The registry to register the tool in.
-        func: The async function to register as a tool. Must be a coroutine function.
-        name: Optional name for the tool. Defaults to the function name.
-        description: Optional description. Defaults to the function's docstring.
-        input_schema: Optional override for tool input JSON schema / validation (Pydantic model or dict).
-        output_schema: Optional override for tool output JSON schema (Pydantic model or dict).
+    Normally, the input_schema and output_schem are inferred from func. However,
+    in some cases, like define_interrupt, the app developer doesn't have a way to
+    express the input schema in the func signature.
 
-    Raises:
-        TypeError: If func is not an async function.
+    In that case, the app developer can pass in an input_schema to override the inferred schema.
+    This will ensure that the model requesting the tool will see the correct input shape.
     """
     # All Python functions have __name__, but ty is strict about Callable protocol
     if not inspect.iscoroutinefunction(func):
@@ -313,9 +308,9 @@ def define_tool(
         description=tool_description,
         fn=tool_fn_wrapper,
         metadata_fn=func,
-        input_schema=input_schema,
-        output_schema=output_schema,
     )
+    if input_schema is not None:
+        action._override_input_schema(input_schema)
 
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
@@ -381,6 +376,28 @@ def define_tool(
     return cast(Callable[P, T], wrapper)
 
 
+def define_tool(
+    registry: Registry,
+    func: Callable[P, T],
+    name: str | None = None,
+    description: str | None = None,
+) -> Callable[P, T]:
+    """Register a function as a tool.
+
+    Tool input/output JSON Schemas are inferred from ``func`` (first parameter and return type).
+
+    Args:
+        registry: The registry to register the tool in.
+        func: The async function to register as a tool. Must be a coroutine function.
+        name: Optional name for the tool. Defaults to the function name.
+        description: Optional description. Defaults to the function's docstring.
+
+    Raises:
+        TypeError: If func is not an async function.
+    """
+    return _define_tool(registry, func, name, description)
+
+
 def define_interrupt(
     registry: Registry,
     name: str,
@@ -388,7 +405,6 @@ def define_interrupt(
     description: str | None = None,
     request_metadata: dict[str, Any] | Callable[[Any], dict[str, Any]] | None = None,  # noqa: ANN401
     input_schema: type[BaseModel] | dict[str, object] | None = None,
-    output_schema: type[BaseModel] | dict[str, object] | None = None,
 ) -> Callable[..., Any]:
     """Register a tool that always interrupts execution.
 
@@ -402,8 +418,8 @@ def define_interrupt(
         name: Tool name (registry key)
         description: Tool description shown to the model
         request_metadata: Static metadata dict or ``(input) -> dict`` for the interrupt
-        input_schema: Optional input schema override (Pydantic model or JSON schema dict)
-        output_schema: Optional output schema override (Pydantic model or JSON schema dict)
+        input_schema: Optional wire input schema (Pydantic model or JSON schema dict). The
+            interrupt handler is typed as ``Any``; pass this so the model sees a concrete shape.
 
     Returns:
         The registered tool callable (same shape as :func:`define_tool`).
@@ -429,11 +445,10 @@ def define_interrupt(
             meta = request_metadata
         raise Interrupt(meta)
 
-    return define_tool(
+    return _define_tool(
         registry,
         interrupt_wrapper,
         name=name,
         description=description,
         input_schema=input_schema,
-        output_schema=output_schema,
     )
