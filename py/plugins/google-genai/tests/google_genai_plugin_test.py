@@ -296,9 +296,7 @@ async def test_vertexai_uses_global_client_for_gemini_31_preview(
 
     plugin = VertexAI(project='test-project', location='us-central1')
     action = plugin._resolve_model('vertexai/gemini-3.1-pro-preview')
-    await action(
-        ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])])
-    )
+    await action(ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])]))
 
     assert mock_gemini_model.call_args is not None
     used_client = mock_gemini_model.call_args.args[1]
@@ -328,9 +326,7 @@ async def test_vertexai_uses_default_client_for_non_gemini_31_preview(
 
     plugin = VertexAI(project='test-project', location='us-central1')
     action = plugin._resolve_model('vertexai/gemini-2.0-flash')
-    await action(
-        ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])])
-    )
+    await action(ModelRequest(messages=[Message(role=Role.USER, content=[Part(root=TextPart(text='ping'))])]))
 
     assert mock_gemini_model.call_args is not None
     used_client = mock_gemini_model.call_args.args[1]
@@ -363,9 +359,7 @@ def test_googleai_gemini_version_enum() -> None:
     # Check that the enum has at least one value
     assert len(list(GoogleAIGeminiVersion)) > 0
     assert GoogleAIGeminiVersion.GEMINI_3_1_FLASH_LITE_PREVIEW.value == 'gemini-3.1-flash-lite-preview'
-    assert (
-        GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS.value == 'gemini-3.1-pro-preview-customtools'
-    )
+    assert GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS.value == 'gemini-3.1-pro-preview-customtools'
     assert GoogleAIGeminiVersion.GEMINI_3_1_PRO_PREVIEW.value == 'gemini-3.1-pro-preview'
 
 
