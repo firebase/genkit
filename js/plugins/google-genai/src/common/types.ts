@@ -1097,6 +1097,18 @@ export declare interface GenerationConfig {
    * logprobs to return at each decoding step in the logprobsResult.
    */
   logprobs?: number;
+  /** Optional. The requested modalities of the response (TEXT, IMAGE, AUDIO). */
+  responseModalities?: string[];
+  /** Optional. Seed used in decoding for reproducibility. */
+  seed?: number;
+  /** Optional. Speech generation config. */
+  speechConfig?: Record<string, unknown>;
+  /** Optional. Thinking config. */
+  thinkingConfig?: Record<string, unknown>;
+  /** Optional. Image generation config. */
+  imageConfig?: Record<string, unknown>;
+  /** Optional. Media resolution config. */
+  mediaResolution?: string;
   /**
    * Optional. Output response mimetype of the generated candidate text.
    * Supported mimetype:

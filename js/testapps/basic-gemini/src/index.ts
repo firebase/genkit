@@ -490,7 +490,6 @@ ai.defineFlow('gemini-image-editing', async (_) => {
       { media: { url: `data:image/png;base64,${room}` } },
     ],
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:1',
       },
@@ -506,7 +505,6 @@ ai.defineFlow('nano-banana-pro', async (_) => {
     model: googleAI.model('gemini-3-pro-image-preview'),
     prompt: 'Generate a picture of a sunset in the mountains by a lake',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '3:4',
         imageSize: '1K',
@@ -524,10 +522,9 @@ ai.defineFlow('nano-banana-2', async (_) => {
     prompt:
       'Generate an accurate image of the CN Tower. Use webSearch to determine the date, weather and current time in Toronto. The weather and time should be reflected in the image (day, night, rainy, sunny, snowy etc). Also use words to show the date, time and weather on the image.',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:4',
-        imageSize: '0.5K',
+        imageSize: '512P',
       },
       google_search: {
         searchTypes: { webSearch: {}, imageSearch: {} },
@@ -568,7 +565,6 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
-        responseModalities: ['AUDIO'],
         // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
         speechConfig: {
           voiceConfig: {
@@ -1061,9 +1057,6 @@ ai.defineFlow('lyria-from-image', async () => {
         },
       },
     ],
-    config: {
-      responseModalities: ['AUDIO'],
-    },
   });
 
   return response;
