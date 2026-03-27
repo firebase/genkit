@@ -63,8 +63,8 @@ def tools_to_action_refs(
 ) -> list[str] | None:
     """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
 
-    Each item may be: a tool name (``str``), an :class:`~genkit.Action` (e.g. from prompt
-    ``as_tool()``), or an async function registered as a tool (same object as ``@ai.tool()``).
+    Each item may be: a tool name (``str``), a :class:`~genkit.Action` of kind ``TOOL``,
+    or an async function registered as a tool (same object as ``@ai.tool()``).
 
     Use :class:`~collections.abc.Sequence` in call sites instead of ``list``: type checkers
     treat ``list`` as invariant in the item type, so ``[my_tool_fn]`` may not match
@@ -734,16 +734,10 @@ async def _resolve_tool_request(
 
 
 async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry.
-
-    Tries :class:`~genkit.ActionKind.TOOL` first, then prompt actions registered as
-    :class:`~genkit.ActionKind.PROMPT` / :class:`~genkit.ActionKind.EXECUTABLE_PROMPT`
-    (e.g. :meth:`~genkit.ExecutablePrompt.as_tool`).
-    """
-    for kind in (ActionKind.TOOL, ActionKind.PROMPT, ActionKind.EXECUTABLE_PROMPT):
-        tool = await registry.resolve_action(kind=kind, name=tool_name)
-        if tool is not None:
-            return tool
+    """Resolve a :class:`~genkit.ActionKind.TOOL` action by name from the registry."""
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+    if tool is not None:
+        return tool
     msg = f'Unable to resolve tool {tool_name}'
     raise ValueError(msg)
 

@@ -183,16 +183,15 @@ def restart_interrupted_tool(
     restart = getattr(tool, 'restart', None)
     if restart is None:
         raise TypeError(f'{tool!r} has no restart method; pass a tool from define_tool or Genkit.tool')
-    part = restart(
+    out = restart(
         replace_input,
         interrupt=interrupt,
         resumed_metadata=resumed_metadata,
     )
-    root = part.root
-    if not isinstance(root, ToolRequestPart):
-        msg = f'Expected tool.restart() to return Part(root=ToolRequestPart), got {type(root)!r}'
+    if not isinstance(out, ToolRequestPart):
+        msg = f'Expected tool.restart() to return ToolRequestPart, got {type(out)!r}'
         raise TypeError(msg)
-    return root
+    return out
 
 
 async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolRequestPart) -> Part:
@@ -324,7 +323,7 @@ def _define_tool(
         *,
         interrupt: ToolRequestPart,
         resumed_metadata: dict[str, Any] | None = None,
-    ) -> Part:
+    ) -> ToolRequestPart:
         """Create a restart request for an interrupted tool call.
 
         Args:
@@ -334,7 +333,7 @@ def _define_tool(
             resumed_metadata: Passed to the tool as :attr:`ToolRunContext.resumed_metadata`.
 
         Returns:
-            ``Part`` wrapping a ``ToolRequestPart`` for ``resume_restart`` / message history.
+            A ``ToolRequestPart`` for ``resume_restart`` / message history.
 
         Example:
             ``pay_invoice.restart({**trp.tool_request.input, "confirmed": True}, interrupt=trp,``
@@ -360,15 +359,13 @@ def _define_tool(
         if 'interrupt' in new_meta:
             del new_meta['interrupt']
 
-        return Part(
-            root=ToolRequestPart(
-                tool_request=ToolRequest(
-                    name=tool_req.name,
-                    ref=tool_req.ref,
-                    input=new_input,
-                ),
-                metadata=new_meta,
-            )
+        return ToolRequestPart(
+            tool_request=ToolRequest(
+                name=tool_req.name,
+                ref=tool_req.ref,
+                input=new_input,
+            ),
+            metadata=new_meta,
         )
 
     wrapper.restart = restart  # type: ignore[attr-defined]

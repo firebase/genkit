@@ -547,37 +547,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         coerced = _coerce_prompt_opts(opts)
         return await self._render_impl(input, coerced)
 
-    async def as_tool(self) -> Action:
-        """Expose this prompt as a tool.
-
-        Returns the PROMPT action, which can be used as a tool.
-        """
-        await self._ensure_resolved()
-        # If we have a direct reference to the action, use it
-        if self._prompt_action is not None:
-            return self._prompt_action
-
-        # Otherwise, try to look it up using name/variant/ns
-        if self._name is None:
-            raise GenkitError(
-                status='FAILED_PRECONDITION',
-                message=(
-                    'Prompt name not available. This prompt was not created via define_prompt_async() or load_prompt().'
-                ),
-            )
-
-        lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
-
-        action = await self._registry.resolve_action_by_key(lookup_key)
-
-        if action is None or action.kind != ActionKind.PROMPT:
-            raise GenkitError(
-                status='NOT_FOUND',
-                message=f'PROMPT action not found for prompt "{self._name}"',
-            )
-
-        return action
-
 
 def register_prompt_actions(
     registry: Registry,
