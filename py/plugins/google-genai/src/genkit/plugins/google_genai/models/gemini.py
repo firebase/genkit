@@ -173,7 +173,6 @@ from genkit.model import Candidate, FinishReason, get_basic_usage_stats
 from genkit.plugin_api import (
     ActionRunContext,
     StatusName,
-    tracer,
 )
 
 
@@ -1359,55 +1358,42 @@ class GeminiModel:
         Returns:
             genai response.
         """
-        with tracer.start_as_current_span('generate_content') as span:
-            span.set_attribute(
-                'genkit:input',
-                json.dumps(
-                    {
-                        'config': _to_dict(request_cfg),
-                        'contents': [_to_dict(c) for c in request_contents],
-                        'model': model_name,
-                    },
-                    default=lambda _: '[!! failed to serialize !!]',
-                ),
+        client = client or self._client
+        try:
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                response = await client.aio.models.generate_content(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-            except Exception as e:
-                # Catch any other exceptions and provide a clear error message
-                # This helps debug issues like authentication errors that might not be ClientError
-                import logging
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+        except Exception as e:
+            # Catch any other exceptions and provide a clear error message
+            # This helps debug issues like authentication errors that might not be ClientError
+            import logging
 
-                logger = logging.getLogger(__name__)
-                logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
-                raise GenkitError(
-                    status='INTERNAL',
-                    message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
-                ) from e
-            span.set_attribute('genkit:output', json.dumps(_to_dict(response), default=str))
+            logger = logging.getLogger(__name__)
+            logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
+            raise GenkitError(
+                status='INTERNAL',
+                message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
+            ) from e
 
         content = await self._contents_from_response(response)
 
@@ -1496,44 +1482,33 @@ class GeminiModel:
         Returns:
             empty genai response
         """
-        with tracer.start_as_current_span('generate_content_stream') as span:
-            span.set_attribute(
-                'genkit:input',
-                json.dumps(
-                    {
-                        'config': _to_dict(request_cfg),
-                        'contents': [_to_dict(c) for c in request_contents],
-                        'model': model_name,
-                    },
-                    default=str,
-                ),
+        client = client or self._client
+        try:
+            generator = await client.aio.models.generate_content_stream(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                generator = await client.aio.models.generate_content_stream(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-        accumulated_content = []
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+
+        accumulated_content: list[Part] = []
         async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
