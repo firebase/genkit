@@ -28,7 +28,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 from opentelemetry import trace as trace_api
-from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace import Event, ReadableSpan
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
 
 from genkit._core._environment import GENKIT_ENV, GenkitEnvironment
@@ -269,6 +269,7 @@ def test_extract_span_data_includes_status() -> None:
     span_info = data['spans'][span_id_hex]
     assert 'status' in span_info
     assert span_info['status']['code'] == trace_api.StatusCode.OK.value  # OK status is 1
+    assert 'message' not in span_info['status']
 
 
 def test_extract_span_data_includes_instrumentation_library() -> None:
@@ -297,6 +298,51 @@ def test_extract_span_data_handles_none_times() -> None:
     assert span_info['endTime'] == 0
 
 
+def test_extract_span_data_ensures_exception_message_from_status_when_events_empty() -> None:
+    """If OTel events are missing but status is ERROR with description, Dev UI still gets a message."""
+    mock_span = create_mock_span()
+    mock_status = MagicMock()
+    mock_status.status_code = trace_api.StatusCode.ERROR
+    mock_status.description = 'patched from status only'
+    mock_span.status = mock_status
+    mock_span.events = ()
+
+    data = extract_span_data(mock_span)
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
+    assert span_info['status']['code'] == 2
+    assert span_info['status']['message'] == 'patched from status only'
+    te = span_info['timeEvents']['timeEvent']
+    assert len(te) == 1
+    assert te[0]['annotation']['attributes']['exception.message'] == 'patched from status only'
+
+
+def test_extract_span_data_includes_exception_time_events() -> None:
+    """OTel exception events must appear as timeEvents so Dev UI shows the message (not plain 'Error')."""
+    exc_msg = 'DEV_UI_ERROR_TRACE_TEST_2026: deliberate failure'
+    ev = Event(
+        'exception',
+        attributes={
+            'exception.type': 'RuntimeError',
+            'exception.message': exc_msg,
+            'exception.stacktrace': 'traceback...',
+        },
+        timestamp=1_500_000_000,
+    )
+    mock_span = create_mock_span(events=(ev,))
+
+    data = extract_span_data(mock_span)
+
+    span_id_hex = format(67890, '016x')
+    span_info = data['spans'][span_id_hex]
+    assert 'timeEvents' in span_info
+    te = span_info['timeEvents']['timeEvent']
+    assert len(te) == 1
+    assert te[0]['annotation']['description'] == 'exception'
+    assert te[0]['annotation']['attributes']['exception.message'] == exc_msg
+    assert te[0]['time'] == 1500.0
+
+
 # =============================================================================
 # Helper functions
 # =============================================================================
@@ -309,6 +355,7 @@ def create_mock_span(
     start_time: int | None = 1000000000,
     end_time: int | None = 2000000000,
     attributes: dict | None = None,
+    events: tuple[Event, ...] | None = None,
 ) -> MagicMock:
     """Create a mock ReadableSpan for testing.
 
@@ -346,5 +393,7 @@ def create_mock_span(
     mock_status.status_code = trace_api.StatusCode.OK
     mock_status.description = None
     mock_span.status = mock_status
+
+    mock_span.events = events if events is not None else ()
 
     return mock_span

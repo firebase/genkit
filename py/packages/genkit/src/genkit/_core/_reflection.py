@@ -94,6 +94,7 @@ class ActionRunner:
                 on_chunk=on_chunk,
                 context=self.payload.get('context', {}),
                 on_trace_start=self.on_trace_start,
+                telemetry_labels=self.payload.get('telemetryLabels'),
             )
             result = (
                 output.response.model_dump(by_alias=True, exclude_none=True)
