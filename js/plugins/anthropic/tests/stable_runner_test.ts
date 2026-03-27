@@ -1354,7 +1354,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1405,7 +1406,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1446,7 +1448,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1482,7 +1485,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
         defaultApiVersion: 'beta',
       },
       AnthropicConfigSchema
@@ -1519,7 +1523,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
         defaultApiVersion: 'stable',
       },
       AnthropicConfigSchema
@@ -1557,7 +1562,8 @@ describe('claudeRunner', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
         defaultApiVersion: 'beta',
       },
       AnthropicConfigSchema
@@ -1585,7 +1591,8 @@ describe('claudeRunner param object', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1609,7 +1616,8 @@ describe('claudeRunner param object', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
         defaultApiVersion: 'beta',
       },
       AnthropicConfigSchema
@@ -1627,16 +1635,34 @@ describe('claudeRunner param object', () => {
     assert.strictEqual(betaCreateStub.mock.calls.length, 1);
   });
 
-  it('should throw when client is omitted from params object', () => {
-    assert.throws(() => {
-      claudeRunner(
-        {
-          name: 'claude-3-5-haiku',
-          client: undefined as unknown as Anthropic,
-        },
-        AnthropicConfigSchema
-      );
-    }, /Anthropic client is required to create a runner/);
+  it('should throw at request time when no API key is available', async () => {
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        pluginApiKey: false, // Defer to request time
+        testClient: undefined, // No test client
+      },
+      AnthropicConfigSchema
+    );
+
+    // Should not throw at runner creation time
+    assert.ok(runner, 'Runner should be created');
+
+    // Should throw at request time when no API key is provided
+    await assert.rejects(
+      async () => {
+        await runner(
+          { messages: [] },
+          {
+            streamingRequested: false,
+            sendChunk: () => {},
+            abortSignal: new AbortController().signal,
+          }
+        );
+      },
+      /API key/i,
+      'Should throw error about missing API key at request time'
+    );
   });
 });
 
@@ -1645,7 +1671,8 @@ describe('claudeModel', () => {
     const mockClient = createMockAnthropicClient();
     const modelAction = claudeModel({
       name: 'unknown-model',
-      client: mockClient,
+      pluginApiKey: undefined,
+      testClient: mockClient,
     });
 
     const abortSignal = new AbortController().signal;
@@ -1667,7 +1694,8 @@ describe('claudeModel', () => {
     const mockClient = createMockAnthropicClient();
     const modelAction = claudeModel({
       name: 'claude-3-5-haiku',
-      client: mockClient,
+      pluginApiKey: undefined,
+      testClient: mockClient,
       defaultApiVersion: 'beta',
     });
 
@@ -1694,7 +1722,8 @@ describe('claudeModel', () => {
     const modelName = 'claude-3-5-haiku';
     const modelAction = claudeModel({
       name: modelName,
-      client: mockClient,
+      pluginApiKey: undefined,
+      testClient: mockClient,
     });
 
     // Verify the model action is returned
@@ -1706,7 +1735,8 @@ describe('claudeModel', () => {
     // Following Google GenAI pattern: accept any model name, let API validate
     const modelAction = claudeModel({
       name: 'unsupported-model',
-      client: {} as Anthropic,
+      pluginApiKey: undefined,
+      testClient: {} as Anthropic,
     });
     assert.ok(modelAction, 'Should create model action for any model name');
     assert.strictEqual(typeof modelAction, 'function');
@@ -1738,7 +1768,8 @@ describe('claudeModel', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1806,7 +1837,8 @@ describe('claudeModel', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1867,7 +1899,8 @@ describe('claudeModel', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1923,7 +1956,8 @@ describe('claudeModel', () => {
     const runner = claudeRunner(
       {
         name: 'claude-3-5-haiku',
-        client: mockClient,
+        pluginApiKey: undefined,
+        testClient: mockClient,
       },
       AnthropicConfigSchema
     );
@@ -1964,7 +1998,8 @@ describe('claudeModel', () => {
     const mockClient = createMockAnthropicClient();
     const modelAction = claudeModel({
       name: 'unknown-model',
-      client: mockClient,
+      pluginApiKey: undefined,
+      testClient: mockClient,
     });
 
     const abortSignal = new AbortController().signal;

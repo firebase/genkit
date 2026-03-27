@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+import Anthropic from '@anthropic-ai/sdk';
 import type {
   GenerateRequest,
   GenerateResponseData,
@@ -33,6 +34,7 @@ import {
   AnthropicBaseConfigSchemaType,
   AnthropicConfigSchema,
   AnthropicThinkingConfigSchema,
+  calculateApiKey,
   resolveBetaEnabled,
   type ClaudeModelParams,
   type ClaudeRunnerParams,
@@ -198,14 +200,7 @@ export function claudeRunner<TConfigSchema extends z.ZodTypeAny>(
   params: ClaudeRunnerParams,
   configSchema: TConfigSchema
 ) {
-  const { defaultApiVersion, ...runnerParams } = params;
-
-  if (!runnerParams.client) {
-    throw new Error('Anthropic client is required to create a runner');
-  }
-
-  let stableRunner: Runner | null = null;
-  let betaRunner: BetaRunner | null = null;
+  const { defaultApiVersion, pluginApiKey, testClient, name } = params;
 
   return async (
     request: GenerateRequest<TConfigSchema>,
@@ -223,13 +218,28 @@ export function claudeRunner<TConfigSchema extends z.ZodTypeAny>(
     const normalizedRequest = request as unknown as GenerateRequest<
       typeof AnthropicConfigSchema
     >;
+
+    // Determine the client to use
+    // Test client takes precedence, otherwise calculate API key at request time
+    const client = testClient
+      ? testClient
+      : new Anthropic({
+          apiKey: calculateApiKey(
+            pluginApiKey,
+            normalizedRequest.config?.apiKey
+          ),
+        });
+
     const isBeta = resolveBetaEnabled(
       normalizedRequest.config,
       defaultApiVersion
     );
+
+    // Create runner with the client
     const runner = isBeta
-      ? (betaRunner ??= new BetaRunner(runnerParams))
-      : (stableRunner ??= new Runner(runnerParams));
+      ? new BetaRunner({ name, client })
+      : new Runner({ name, client });
+
     return runner.run(normalizedRequest, {
       streamingRequested,
       sendChunk,
@@ -265,17 +275,22 @@ export function claudeModelReference(
 }
 
 /**
- * Defines a Claude model with the given name and Anthropic client.
+ * Defines a Claude model with the given name and API key configuration.
  * Accepts any model name and lets the API validate it. If the model is in KNOWN_CLAUDE_MODELS, uses that modelRef
  * for better defaults; otherwise creates a generic model reference.
  */
 export function claudeModel(
   params: ClaudeModelParams
 ): ModelAction<z.ZodTypeAny> {
-  const { name, client: runnerClient, defaultApiVersion: apiVersion } = params;
+  const {
+    name,
+    pluginApiKey,
+    defaultApiVersion: apiVersion,
+    testClient,
+  } = params;
   // Use supported model ref if available, otherwise create generic model ref
   const knownModelRef = KNOWN_CLAUDE_MODELS[name];
-  let modelInfo = knownModelRef
+  const modelInfo = knownModelRef
     ? knownModelRef.info
     : GENERIC_CLAUDE_MODEL_INFO;
   const configSchema = knownModelRef?.configSchema ?? AnthropicConfigSchema;
@@ -291,8 +306,9 @@ export function claudeModel(
     claudeRunner(
       {
         name,
-        client: runnerClient,
+        pluginApiKey,
         defaultApiVersion: apiVersion,
+        testClient,
       },
       configSchema
     )
