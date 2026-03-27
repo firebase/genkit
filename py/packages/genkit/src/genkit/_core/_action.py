@@ -592,14 +592,12 @@ def _make_tracing_wrapper(
                     except Exception as e:
                         span.set_attribute('genkit:state', 'error')
                         # Bundled Dev UI reads timeEvents.exception.attributes only; stash text for export synthesis.
-                        if isinstance(e, GenkitError):
-                            span.set_attribute('genkit:error', e.original_message)
-                            span.set_status(trace_api.StatusCode.ERROR, description=str(e))
-                            span.record_exception(e)
-                            raise
-                        span.set_attribute('genkit:error', str(e))
                         span.set_status(trace_api.StatusCode.ERROR, description=str(e))
                         span.record_exception(e)
+                        if isinstance(e, GenkitError):
+                            span.set_attribute('genkit:error', e.original_message)
+                            raise
+                        span.set_attribute('genkit:error', str(e))
                         raise GenkitError(
                             cause=e,
                             message=f'Error while running action {name}',

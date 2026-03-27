@@ -330,7 +330,11 @@ async def _generate_action(
         if out.format:
             generate_output['format'] = out.format
         existing_meta = dict(generated_msg.metadata) if isinstance(generated_msg.metadata, dict) else {}
-        existing_meta['generate'] = {'output': generate_output}
+        generate_meta = existing_meta.get('generate')
+        if not isinstance(generate_meta, dict):
+            generate_meta = {}
+        generate_meta['output'] = generate_output
+        existing_meta['generate'] = generate_meta
         generated_msg.metadata = existing_meta
 
     tool_requests = [x for x in generated_msg.content if x.root.tool_request]
