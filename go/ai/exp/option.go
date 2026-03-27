@@ -29,8 +29,9 @@ type SessionFlowOption[State any] interface {
 }
 
 type sessionFlowOptions[State any] struct {
-	store    SessionStore[State]
-	callback SnapshotCallback[State]
+	store         SessionStore[State]
+	callback      SnapshotCallback[State]
+	combineInputs bool
 }
 
 func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[State]) error {
@@ -46,6 +47,9 @@ func (o *sessionFlowOptions[State]) applySessionFlow(opts *sessionFlowOptions[St
 		}
 		opts.callback = o.callback
 	}
+	if o.combineInputs {
+		opts.combineInputs = true
+	}
 	return nil
 }
 
@@ -58,6 +62,13 @@ func WithSessionStore[State any](store SessionStore[State]) SessionFlowOption[St
 // If not provided and a store is configured, snapshots are always created.
 func WithSnapshotCallback[State any](cb SnapshotCallback[State]) SessionFlowOption[State] {
 	return &sessionFlowOptions[State]{callback: cb}
+}
+
+// WithBatchedInputs enables input batching for prompt-backed session flows.
+// When set, [DefineSessionFlowFromPrompt] uses [SessionRunner.RunBatched]
+// instead of [SessionRunner.Run], combining queued inputs into a single turn.
+func WithBatchedInputs[State any]() SessionFlowOption[State] {
+	return &sessionFlowOptions[State]{combineInputs: true}
 }
 
 // WithSnapshotOn configures snapshots to be created only for the specified events.

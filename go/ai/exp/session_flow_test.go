@@ -78,11 +78,11 @@ func TestSessionFlow_BasicMultiTurn(t *testing.T) {
 			t.Fatalf("Receive error: %v", err)
 		}
 		turn1Chunks++
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
-	if turn1Chunks < 2 { // at least status + endTurn
+	if turn1Chunks < 2 { // at least status + turnEnd
 		t.Errorf("expected at least 2 chunks in turn 1, got %d", turn1Chunks)
 	}
 
@@ -94,7 +94,7 @@ func TestSessionFlow_BasicMultiTurn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -148,10 +148,10 @@ func TestSessionFlow_WithSessionStore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.SnapshotID != "" {
-			snapshotIDs = append(snapshotIDs, chunk.SnapshotID)
-		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
+			if chunk.TurnEnd.SnapshotID != "" {
+				snapshotIDs = append(snapshotIDs, chunk.TurnEnd.SnapshotID)
+			}
 			break
 		}
 	}
@@ -216,7 +216,7 @@ func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -239,7 +239,7 @@ func TestSessionFlow_ResumeFromSnapshot(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -313,7 +313,7 @@ func TestSessionFlow_ClientManagedState(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -387,7 +387,7 @@ func TestSessionFlow_Artifacts(t *testing.T) {
 		if chunk.Artifact != nil {
 			receivedArtifacts = append(receivedArtifacts, chunk.Artifact)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -445,10 +445,10 @@ func TestSessionFlow_SnapshotCallback(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Receive error on turn %d: %v", i, err)
 			}
-			if chunk.SnapshotID != "" {
-				snapshotIDs = append(snapshotIDs, chunk.SnapshotID)
-			}
-			if chunk.EndTurn {
+			if chunk.TurnEnd != nil {
+				if chunk.TurnEnd.SnapshotID != "" {
+					snapshotIDs = append(snapshotIDs, chunk.TurnEnd.SnapshotID)
+				}
 				break
 			}
 		}
@@ -496,7 +496,7 @@ func TestSessionFlow_SendMessages(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -547,7 +547,7 @@ func TestSessionFlow_SessionContext(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -609,7 +609,7 @@ func TestSessionFlow_SetMessages(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -656,7 +656,7 @@ func TestSessionFlow_SnapshotIDInMessageMetadata(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -767,7 +767,7 @@ func TestSessionFlow_TurnSpanOutput(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Receive error on turn %d: %v", turn, err)
 			}
-			if chunk.EndTurn {
+			if chunk.TurnEnd != nil {
 				break
 			}
 		}
@@ -793,11 +793,8 @@ func TestSessionFlow_TurnSpanOutput(t *testing.T) {
 			t.Errorf("turn %d: expected 3 chunks, got %d", i, len(chunks))
 		}
 		for j, chunk := range chunks {
-			if chunk.EndTurn {
-				t.Errorf("turn %d, chunk %d: EndTurn should not be in turn output", i, j)
-			}
-			if chunk.SnapshotID != "" {
-				t.Errorf("turn %d, chunk %d: SnapshotID should not be in turn output", i, j)
+			if chunk.TurnEnd != nil {
+				t.Errorf("turn %d, chunk %d: TurnEnd should not be in turn output", i, j)
 			}
 		}
 	}
@@ -839,10 +836,10 @@ func TestSessionFlow_TurnSpanOutput_WithSnapshots(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.SnapshotID != "" {
-			sawSnapshot = true
-		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
+			if chunk.TurnEnd.SnapshotID != "" {
+				sawSnapshot = true
+			}
 			break
 		}
 	}
@@ -850,7 +847,7 @@ func TestSessionFlow_TurnSpanOutput_WithSnapshots(t *testing.T) {
 	conn.Output()
 
 	if !sawSnapshot {
-		t.Fatal("expected a snapshot chunk on the stream")
+		t.Fatal("expected a snapshot ID in TurnEnd")
 	}
 
 	// Turn output should contain only the status chunk, not the snapshot/endTurn.
@@ -938,7 +935,7 @@ func TestPromptAgent_Basic(t *testing.T) {
 		if chunk.ModelChunk != nil {
 			gotChunk = true
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -954,7 +951,7 @@ func TestPromptAgent_Basic(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1007,7 +1004,7 @@ func TestPromptAgent_PromptInputOverride(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1085,7 +1082,7 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 		if chunk.ModelChunk != nil {
 			turn1Response += chunk.ModelChunk.Text()
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1106,7 +1103,7 @@ func TestPromptAgent_MultiTurnHistory(t *testing.T) {
 		if chunk.ModelChunk != nil {
 			turn2Response += chunk.ModelChunk.Text()
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1160,7 +1157,7 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1195,7 +1192,7 @@ func TestPromptAgent_SnapshotPersistsPromptInput(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1286,7 +1283,7 @@ func TestPromptAgent_ToolLoopMessages(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Receive error: %v", err)
 		}
-		if chunk.EndTurn {
+		if chunk.TurnEnd != nil {
 			break
 		}
 	}
@@ -1586,10 +1583,10 @@ func TestSessionFlow_MultiTurnSnapshotDedup(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Receive error on turn %d: %v", i, err)
 			}
-			if chunk.SnapshotID != "" {
-				snapshotIDs = append(snapshotIDs, chunk.SnapshotID)
-			}
-			if chunk.EndTurn {
+			if chunk.TurnEnd != nil {
+				if chunk.TurnEnd.SnapshotID != "" {
+					snapshotIDs = append(snapshotIDs, chunk.TurnEnd.SnapshotID)
+				}
 				break
 			}
 		}
@@ -1665,4 +1662,126 @@ func TestSessionFlow_InvocationEndSnapshotWhenStateChangesAfterRun(t *testing.T)
 	if snap.ParentID == "" {
 		t.Error("expected parent ID (turn-end snapshot)")
 	}
+}
+
+func TestSessionFlow_RunBatched(t *testing.T) {
+	ctx := context.Background()
+	reg := newTestRegistry(t)
+
+	processingTurn1 := make(chan struct{})
+	turn1Done := make(chan struct{})
+
+	var turnInputCounts []int
+	turn := 0
+	af := DefineSessionFlow(reg, "batchedFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
+			return nil, sess.RunBatched(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+				if turn == 0 {
+					close(processingTurn1) // signal: first turn is processing
+					<-turn1Done           // wait for test to send more messages
+				}
+				turn++
+				for _, msg := range input.Messages {
+					sess.AddMessages(ai.NewModelTextMessage("echo: " + msg.Text()))
+				}
+				return nil
+			})
+		},
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	// Send first message.
+	if err := conn.SendText("turn1"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+
+	// Wait for first turn to start processing.
+	<-processingTurn1
+
+	// Send multiple messages while turn 1 is busy.
+	if err := conn.SendText("msg2"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+	if err := conn.SendText("msg3"); err != nil {
+		t.Fatalf("SendText failed: %v", err)
+	}
+
+	// Unblock turn 1.
+	close(turn1Done)
+	conn.Close()
+
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.TurnEnd != nil {
+			turnInputCounts = append(turnInputCounts, chunk.TurnEnd.InputCount)
+		}
+	}
+
+	response, err := conn.Output()
+	if err != nil {
+		t.Fatalf("Output failed: %v", err)
+	}
+
+	// Turn 1 should have processed 1 input.
+	if len(turnInputCounts) < 1 {
+		t.Fatalf("expected at least 1 turn, got %d", len(turnInputCounts))
+	}
+	if turnInputCounts[0] != 1 {
+		t.Errorf("turn 1: expected inputCount=1, got %d", turnInputCounts[0])
+	}
+
+	// All inputs should be accounted for across turns.
+	totalInputs := 0
+	for _, c := range turnInputCounts {
+		totalInputs += c
+	}
+	if totalInputs != 3 {
+		t.Errorf("expected total inputCount=3 across all turns, got %d", totalInputs)
+	}
+
+	// All messages should be in the session: 3 user + 3 echoes = 6.
+	if got := len(response.State.Messages); got != 6 {
+		t.Errorf("expected 6 messages, got %d", got)
+	}
+}
+
+func TestSessionFlow_RunBatched_InputCount(t *testing.T) {
+	// Verify that TurnEnd.InputCount is always 1 for regular Run.
+	ctx := context.Background()
+	reg := newTestRegistry(t)
+
+	af := DefineSessionFlow(reg, "inputCountFlow",
+		func(ctx context.Context, resp Responder[testStatus], sess *SessionRunner[testState]) (*SessionFlowResult, error) {
+			return nil, sess.Run(ctx, func(ctx context.Context, input *SessionFlowInput) error {
+				sess.AddMessages(ai.NewModelTextMessage("reply"))
+				return nil
+			})
+		},
+	)
+
+	conn, err := af.StreamBidi(ctx)
+	if err != nil {
+		t.Fatalf("StreamBidi failed: %v", err)
+	}
+
+	conn.SendText("hello")
+	for chunk, err := range conn.Receive() {
+		if err != nil {
+			t.Fatalf("Receive error: %v", err)
+		}
+		if chunk.TurnEnd != nil {
+			if chunk.TurnEnd.InputCount != 1 {
+				t.Errorf("expected InputCount=1 for regular Run, got %d", chunk.TurnEnd.InputCount)
+			}
+			break
+		}
+	}
+	conn.Close()
+	conn.Output()
 }
