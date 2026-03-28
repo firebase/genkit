@@ -20,7 +20,7 @@ import asyncio
 import copy
 import inspect
 import re
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -36,7 +36,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import Interrupt, run_tool_after_restart, unwrap_wrapped_scalar_tool_input_if_needed
+from genkit._ai._tools import Interrupt, Tool, run_tool_after_restart, unwrap_wrapped_scalar_tool_input_if_needed
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -59,16 +59,12 @@ logger = get_logger(__name__)
 
 
 def tools_to_action_refs(
-    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None,
+    tools: Sequence[str | Tool] | None,
 ) -> list[str] | None:
     """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
 
-    Each item may be: a tool name (``str``), a :class:`~genkit.Action` of kind ``TOOL``,
-    or an async function registered as a tool (same object as ``@ai.tool()``).
-
-    Use :class:`~collections.abc.Sequence` in call sites instead of ``list``: type checkers
-    treat ``list`` as invariant in the item type, so ``[my_tool_fn]`` may not match
-    ``list[str | Action | ...]`` even though it works at runtime.
+    Each item may be a tool name (``str``) or a :class:`~genkit.Tool` returned by
+    :meth:`~genkit.Genkit.tool`.
     """
     if tools is None:
         return None
@@ -76,14 +72,8 @@ def tools_to_action_refs(
     for t in tools:
         if isinstance(t, str):
             refs.append(t)
-        elif isinstance(t, Action):
-            refs.append(t.name)
         else:
-            name = getattr(t, '__name__', None)
-            if not isinstance(name, str) or not name:
-                msg = f'Cannot resolve tool name from callable: {t!r}'
-                raise TypeError(msg)
-            refs.append(name)
+            refs.append(t.name)
     return refs
 
 

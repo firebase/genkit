@@ -11,8 +11,8 @@ import pytest
 
 from genkit import Genkit, Message, ModelResponse
 from genkit._ai._generate import _resolve_resumed_tool_request, generate_action
-from genkit._ai._tools import Interrupt, ToolRunContext, respond_to_interrupt
 from genkit._ai._testing import define_programmable_model
+from genkit._ai._tools import Interrupt, ToolRunContext, respond_to_interrupt
 from genkit._core._error import GenkitError
 from genkit._core._model import GenerateActionOptions
 from genkit._core._typing import FinishReason, Part, Resume
@@ -23,7 +23,9 @@ def _wire(messages: list[Message]) -> list[dict[str, Any]]:
     return [m.model_dump(mode='json', exclude_none=True, by_alias=True) for m in messages]
 
 
-def _gen_opts(ai: Genkit, *, tools: list[str], messages: list[Message], resume: Resume | None = None) -> GenerateActionOptions:
+def _gen_opts(
+    ai: Genkit, *, tools: list[str], messages: list[Message], resume: Resume | None = None
+) -> GenerateActionOptions:
     return GenerateActionOptions(
         model='programmableModel',
         messages=messages,
@@ -56,16 +58,14 @@ async def test_normal_two_arg_tools_see_no_resume_context() -> None:
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 'go'},
-                        {'toolRequest': {'ref': '1', 'name': 'u1', 'input': {}}},
-                        {'toolRequest': {'ref': '2', 'name': 'u2', 'input': {}}},
-                    ],
-                }
-            ),
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'go'},
+                    {'toolRequest': {'ref': '1', 'name': 'u1', 'input': {}}},
+                    {'toolRequest': {'ref': '2', 'name': 'u2', 'input': {}}},
+                ],
+            }),
         )
     )
     pm.responses.append(
@@ -77,7 +77,9 @@ async def test_normal_two_arg_tools_see_no_resume_context() -> None:
 
     r = await generate_action(
         ai.registry,
-        _gen_opts(ai, tools=['u1', 'u2'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        _gen_opts(
+            ai, tools=['u1', 'u2'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
+        ),
     )
     assert seen == [(False, None, None), (False, None, None)]
     assert _wire(r.messages) == [
@@ -122,15 +124,13 @@ async def test_interrupt_wires_trp_metadata_interrupt_and_stops() -> None:
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 'call'},
-                        {'toolRequest': {'ref': 'r1', 'name': 'intr', 'input': {}}},
-                    ],
-                }
-            ),
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'call'},
+                    {'toolRequest': {'ref': 'r1', 'name': 'intr', 'input': {}}},
+                ],
+            }),
         )
     )
 
@@ -173,15 +173,13 @@ async def test_resume_respond_trp_gets_resolved_interrupt_and_tool_trp() -> None
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 'call'},
-                        {'toolRequest': {'ref': 'r1', 'name': 'intr', 'input': {}}},
-                    ],
-                }
-            ),
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'call'},
+                    {'toolRequest': {'ref': 'r1', 'name': 'intr', 'input': {}}},
+                ],
+            }),
         )
     )
     pm.responses.append(
@@ -271,21 +269,19 @@ async def test_tool_either_interrupts_or_returns() -> None:
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 't'},
-                        {
-                            'toolRequest': {
-                                'ref': 'g',
-                                'name': 'bank_transfer',
-                                'input': {'preapproved': False},
-                            },
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 't'},
+                    {
+                        'toolRequest': {
+                            'ref': 'g',
+                            'name': 'bank_transfer',
+                            'input': {'preapproved': False},
                         },
-                    ],
-                }
-            ),
+                    },
+                ],
+            }),
         )
     )
     r_fail = await generate_action(
@@ -321,21 +317,19 @@ async def test_tool_either_interrupts_or_returns() -> None:
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 't2'},
-                        {
-                            'toolRequest': {
-                                'ref': 'g2',
-                                'name': 'bank_transfer',
-                                'input': {'preapproved': True},
-                            },
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 't2'},
+                    {
+                        'toolRequest': {
+                            'ref': 'g2',
+                            'name': 'bank_transfer',
+                            'input': {'preapproved': True},
                         },
-                    ],
-                }
-            ),
+                    },
+                ],
+            }),
         )
     )
     pm.responses.append(
@@ -404,15 +398,13 @@ async def test_resume_restart_runs_tool_second_time_and_resolved_interrupt_on_mo
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 'x'},
-                        {'toolRequest': {'ref': 'p1', 'name': 'pay', 'input': {}}},
-                    ],
-                }
-            ),
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'x'},
+                    {'toolRequest': {'ref': 'p1', 'name': 'pay', 'input': {}}},
+                ],
+            }),
         )
     )
     pm.responses.append(
@@ -504,16 +496,14 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
     pm.responses.append(
         ModelResponse(
             finish_reason=FinishReason.STOP,
-            message=Message.model_validate(
-                {
-                    'role': 'model',
-                    'content': [
-                        {'text': 'both'},
-                        {'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}}},
-                        {'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}}},
-                    ],
-                }
-            ),
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'text': 'both'},
+                    {'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}}},
+                    {'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}}},
+                ],
+            }),
         )
     )
     pm.responses.append(
@@ -525,7 +515,9 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
 
     first = await generate_action(
         ai.registry,
-        _gen_opts(ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        _gen_opts(
+            ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
+        ),
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     assert _wire(first.messages) == [
@@ -610,12 +602,10 @@ async def test_pending_output_trp_yields_tool_response_with_source_pending() -> 
     directly, not a full message list.
     """
     ai = Genkit()
-    part = Part.model_validate(
-        {
-            'toolRequest': {'name': 't', 'ref': 'r', 'input': {}},
-            'metadata': {'pendingOutput': 123},
-        }
-    )
+    part = Part.model_validate({
+        'toolRequest': {'name': 't', 'ref': 'r', 'input': {}},
+        'metadata': {'pendingOutput': 123},
+    })
     _, resp = await _resolve_resumed_tool_request(
         ai.registry,
         GenerateActionOptions(
@@ -645,17 +635,15 @@ async def test_resume_without_matching_replies_raises() -> None:
                 model='programmableModel',
                 messages=[
                     Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]}),
-                    Message.model_validate(
-                        {
-                            'role': 'model',
-                            'content': [
-                                {
-                                    'toolRequest': {'ref': 'z', 'name': 'missing', 'input': {}},
-                                    'metadata': {'interrupt': True},
-                                },
-                            ],
-                        }
-                    ),
+                    Message.model_validate({
+                        'role': 'model',
+                        'content': [
+                            {
+                                'toolRequest': {'ref': 'z', 'name': 'missing', 'input': {}},
+                                'metadata': {'interrupt': True},
+                            },
+                        ],
+                    }),
                 ],
                 resume=Resume(),
             ),
@@ -681,4 +669,3 @@ async def test_resume_requires_last_message_model_with_tool_requests() -> None:
             ),
         )
     assert 'model' in ei.value.original_message.lower()
-

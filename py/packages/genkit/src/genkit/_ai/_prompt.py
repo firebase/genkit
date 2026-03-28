@@ -47,6 +47,7 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
+from genkit._ai._tools import Tool
 from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
@@ -123,7 +124,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     config: dict[str, Any] | ModelConfig | None
     messages: list[Message] | None
     docs: list[Document] | None
-    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None
+    tools: Sequence[str | Tool] | None
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
@@ -231,7 +232,7 @@ class PromptConfig(BaseModel):
     max_turns: int | None = None
     return_tool_requests: bool | None = None
     metadata: dict[str, Any] | None = None
-    tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None
+    tools: Sequence[str | Tool] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
     docs: list[Document] | None = None
@@ -263,7 +264,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, Any] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -674,7 +675,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         resume_metadata=options.resume_metadata,
     )
 
-    # Convert tool refs (name, Action, or @tool callable) to string names for GenerateActionOptions
+    # Convert tool refs (str name or Tool object) to string names for GenerateActionOptions
     tools_refs = tools_to_action_refs(options.tools)
 
     return GenerateActionOptions(

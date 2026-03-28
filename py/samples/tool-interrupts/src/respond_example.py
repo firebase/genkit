@@ -116,7 +116,7 @@ async def interactive_trivia_cli() -> None:
             interrupt = response.interrupts[0]
             name = interrupt.tool_request.name
 
-            if name != present_questions.__name__:
+            if name != present_questions.name:
                 print(f'Unexpected tool: {name!r}')
                 return
 

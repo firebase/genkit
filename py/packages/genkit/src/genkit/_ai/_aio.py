@@ -27,7 +27,7 @@ import threading
 import uuid
 from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from pathlib import Path
-from typing import Any, ParamSpec, TypeVar, cast, overload
+from typing import Any, TypeVar, cast, overload
 
 import anyio
 import uvicorn
@@ -71,7 +71,7 @@ from genkit._ai._resource import (
     ResourceOptions,
     define_resource,
 )
-from genkit._ai._tools import define_interrupt, define_tool
+from genkit._ai._tools import Tool, define_interrupt, define_tool
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._background import (
     BackgroundAction,
@@ -120,7 +120,7 @@ logger = get_logger(__name__)
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 ChunkT = TypeVar('ChunkT')
-P = ParamSpec('P')
+
 R = TypeVar('R')
 T = TypeVar('T')
 
@@ -262,12 +262,10 @@ class Genkit:
             metadata=metadata,
         )
 
-    def tool(
-        self, name: str | None = None, description: str | None = None
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def tool(self, name: str | None = None, description: str | None = None) -> Callable[[Callable[..., Any]], Tool]:
         """Decorator to register a function as a tool."""
 
-        def wrapper(func: Callable[P, T]) -> Callable[P, T]:
+        def wrapper(func: Callable[..., Any]) -> Tool:
             return define_tool(self.registry, func, name, description)
 
         return wrapper
@@ -278,7 +276,7 @@ class Genkit:
         *,
         input_schema: type[BaseModel] | dict[str, object] | None = None,
         description: str | None = None,
-    ) -> Callable[..., Any]:
+    ) -> Tool:
         """Register an interrupt tool that always pauses for user input.
 
         Args:
@@ -426,7 +424,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -454,7 +452,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -482,7 +480,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -510,7 +508,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -536,7 +534,7 @@ class Genkit:
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, object] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -774,7 +772,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -801,7 +799,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -826,7 +824,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -882,7 +880,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -910,7 +908,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -936,7 +934,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
@@ -1189,7 +1187,7 @@ class Genkit:
         prompt: str | list[Part] | None = None,
         system: str | list[Part] | None = None,
         messages: list[Message] | None = None,
-        tools: Sequence[str | Action[Any, Any, Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         return_tool_requests: bool | None = None,
         tool_choice: ToolChoice | None = None,
         config: dict[str, object] | ModelConfig | None = None,

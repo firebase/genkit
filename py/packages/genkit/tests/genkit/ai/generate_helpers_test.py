@@ -3,8 +3,6 @@
 
 """Unit tests for private helpers in genkit._ai._generate (interrupt / resume)."""
 
-import pytest
-
 from genkit._ai._generate import (
     _find_corresponding_restart,
     _find_corresponding_tool_response,
@@ -13,7 +11,7 @@ from genkit._ai._generate import (
 )
 from genkit._ai._tools import Interrupt
 from genkit._core._error import GenkitError
-from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit._core._typing import ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 
 def test_find_corresponding_restart_matches_name_and_ref() -> None:
