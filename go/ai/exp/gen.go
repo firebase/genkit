@@ -73,16 +73,26 @@ type SessionFlowResult struct {
 type SessionFlowStreamChunk[Stream any] struct {
 	// Artifact contains a newly produced artifact.
 	Artifact *Artifact `json:"artifact,omitempty"`
-	// EndTurn signals that the session flow has finished processing the current input.
-	// When true, the client should stop iterating and may send the next input.
-	EndTurn bool `json:"endTurn,omitempty"`
 	// ModelChunk contains generation tokens from the model.
 	ModelChunk *ai.ModelResponseChunk `json:"modelChunk,omitempty"`
-	// SnapshotID contains the ID of a snapshot that was just persisted.
-	SnapshotID string `json:"snapshotId,omitempty"`
 	// Status contains user-defined structured status information.
 	// The Stream type parameter defines the shape of this data.
 	Status Stream `json:"status,omitempty"`
+	// TurnEnd signals that the session flow has finished processing the current
+	// turn. When non-nil, the client should stop iterating and may send the
+	// next input. It carries the snapshot ID (if any) and the number of inputs
+	// that were combined into this turn.
+	TurnEnd *TurnEnd `json:"turnEnd,omitempty"`
+}
+
+// TurnEnd signals the completion of a turn and carries per-turn metadata.
+type TurnEnd struct {
+	// SnapshotID contains the ID of the snapshot persisted at the end of
+	// this turn. Empty if no snapshot was created.
+	SnapshotID string `json:"snapshotId,omitempty"`
+	// InputCount is the number of client inputs that were combined into
+	// this turn. Always >= 1.
+	InputCount int `json:"inputCount"`
 }
 
 // Artifact represents a named collection of parts produced during a session.
