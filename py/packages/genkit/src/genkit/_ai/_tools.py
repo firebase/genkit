@@ -21,7 +21,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any, cast
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel
 
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
@@ -29,18 +29,60 @@ from genkit._core._registry import Registry
 from genkit._core._typing import Part, ToolDefinition, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 
-class Tool(ToolDefinition):
-    """A registered tool: its :class:`ToolDefinition` wire format plus a callable and ``restart``."""
+class Tool:
+    """A registered tool: a callable handle backed by an :class:`~genkit._core._action.Action`.
 
-    _action: Any = PrivateAttr()
+    Obtain instances via :func:`define_tool`, :func:`define_interrupt`, or the
+    ``@ai.tool`` decorator rather than constructing directly.
+    """
 
-    def __init__(self, *, action: Any, **data: Any) -> None:  # noqa: ANN401
-        super().__init__(**data)
+    def __init__(self, action: Action) -> None:
         self._action = action
 
+    # ------------------------------------------------------------------
+    # Properties that delegate to the underlying Action
+    # ------------------------------------------------------------------
+
+    @property
+    def name(self) -> str:
+        """Tool name (registry key)."""
+        return self._action.name
+
+    @property
+    def description(self) -> str:
+        """Human-readable description sent to the model."""
+        return self._action.description or ''
+
+    @property
+    def input_schema(self) -> dict[str, object] | None:
+        """JSON Schema for the tool's input, as sent on the wire."""
+        return self._action.input_schema
+
+    @property
+    def output_schema(self) -> dict[str, object] | None:
+        """JSON Schema for the tool's output."""
+        return self._action.output_schema
+
+    def definition(self) -> ToolDefinition:
+        """Return the wire-format :class:`ToolDefinition` for this tool."""
+        return ToolDefinition(
+            name=self.name,
+            description=self.description,
+            input_schema=self.input_schema,
+            output_schema=self.output_schema,
+        )
+
+    # ------------------------------------------------------------------
+    # Execution
+    # ------------------------------------------------------------------
+
     async def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-        """Call the underlying action."""
+        """Run the tool and return the unwrapped response value."""
         return (await self._action.run(*args, **kwargs)).response
+
+    # ------------------------------------------------------------------
+    # Interrupt / restart helpers
+    # ------------------------------------------------------------------
 
     def restart(
         self,
@@ -330,13 +372,7 @@ def _define_tool(
     if input_schema is not None:
         action._override_input_schema(input_schema)
 
-    return Tool(
-        name=tool_name,
-        description=tool_description or '',
-        input_schema=action.input_schema,
-        output_schema=action.output_schema,
-        action=action,
-    )
+    return Tool(action)
 
 
 def define_tool(

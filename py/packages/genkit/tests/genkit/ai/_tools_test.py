@@ -12,9 +12,10 @@ from genkit._ai._tools import (
     ToolRunContext,
     _tool_original_input,
     _tool_resumed_metadata,
+    respond_to_interrupt,
 )
 from genkit._core._error import GenkitError
-from genkit._core._typing import ToolRequest, ToolRequestPart
+from genkit._core._typing import ToolRequest, ToolRequestPart, ToolResponsePart
 
 
 @pytest.mark.asyncio
@@ -189,3 +190,78 @@ async def test_run_tool_after_restart_nested_interrupt_raises() -> None:
         await run_tool_after_restart(action, restart_trp)
     msg = ei.value.original_message.lower()
     assert 'restart' in msg or 'nested' in msg or 'not supported' in msg
+
+
+# ---------------------------------------------------------------------------
+# Wire-format tests: respond_to_interrupt
+# ---------------------------------------------------------------------------
+
+
+def test_respond_to_interrupt_wire_format_basic() -> None:
+    """respond_to_interrupt produces a ToolResponsePart with matching ref/name and interruptResponse metadata."""
+    interrupt_trp = ToolRequestPart(
+        tool_request=ToolRequest(name='ask_user', ref='ref-abc', input={'question': 'ok?'}),
+        metadata={'interrupt': {'reason': 'needs_approval'}},
+    )
+
+    result = respond_to_interrupt('yes', interrupt=interrupt_trp)
+
+    assert isinstance(result, ToolResponsePart)
+    assert result.tool_response.name == 'ask_user'
+    assert result.tool_response.ref == 'ref-abc'
+    assert result.tool_response.output == 'yes'
+    assert result.metadata is not None
+    assert result.metadata.get('interruptResponse') is True
+
+
+def test_respond_to_interrupt_wire_format_with_metadata() -> None:
+    """respond_to_interrupt attaches custom metadata under interruptResponse key."""
+    interrupt_trp = ToolRequestPart(
+        tool_request=ToolRequest(name='confirm', ref='ref-xyz', input={}),
+        metadata={'interrupt': True},
+    )
+
+    result = respond_to_interrupt({'approved': True}, interrupt=interrupt_trp, metadata={'by': 'admin'})
+
+    assert result.tool_response.ref == 'ref-xyz'
+    assert result.tool_response.output == {'approved': True}
+    assert result.metadata is not None
+    assert result.metadata.get('interruptResponse') == {'by': 'admin'}
+
+
+def test_restart_preserves_ref_on_wire() -> None:
+    """restart() preserves the original tool_request.ref so the resumed TRP can be correlated."""
+    ai = Genkit()
+
+    @ai.tool(name='pay')
+    async def pay(inp: dict) -> str:  # noqa: ARG001
+        return 'ok'
+
+    interrupt_trp = ToolRequestPart(
+        tool_request=ToolRequest(name='pay', ref='corr-id-1', input={'amount': 50}),
+        metadata={'interrupt': True},
+    )
+    out = pay.restart(None, interrupt=interrupt_trp)
+
+    assert out.tool_request.ref == 'corr-id-1'
+
+
+@pytest.mark.asyncio
+async def test_run_tool_after_restart_response_preserves_ref() -> None:
+    """run_tool_after_restart produces a ToolResponsePart whose ref matches the restart TRP's ref."""
+    ai = Genkit()
+
+    @ai.tool(name='t_ref')
+    async def t_ref(inp: dict) -> str:  # noqa: ARG001
+        return 'done'
+
+    action = await ai.registry.resolve_action(kind=ActionKind.TOOL, name='t_ref')
+    assert action is not None
+
+    restart_trp = ToolRequestPart(
+        tool_request=ToolRequest(name='t_ref', ref='wire-ref-99', input={}),
+        metadata={'resumed': True},
+    )
+    part = await run_tool_after_restart(action, restart_trp)
+    assert part.root.tool_response.ref == 'wire-ref-99'
+

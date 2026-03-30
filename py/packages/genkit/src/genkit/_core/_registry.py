@@ -41,7 +41,6 @@ from genkit._core._model import (
     ModelResponseChunk,
 )
 from genkit._core._plugin import Plugin
-from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
     EmbedRequest,
     EmbedResponse,
@@ -138,8 +137,6 @@ class Registry:
         description: str | None = None,
         metadata: dict[str, object] | None = None,
         span_metadata: dict[str, SpanAttributeValue] | None = None,
-        *,
-        output_schema: type[BaseModel] | dict[str, object] | None = None,
     ) -> Action[InputT, OutputT, ChunkT]:
         """Register a new action with the registry.
 
@@ -155,7 +152,6 @@ class Registry:
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
-            output_schema: Optional explicit output JSON schema (Pydantic model or dict).
 
         Returns:
             The newly created and registered Action instance.
@@ -169,8 +165,6 @@ class Registry:
             metadata=metadata,
             span_metadata=span_metadata,
         )
-        if output_schema is not None:
-            action.output_schema = to_json_schema(output_schema)
         action_typed = cast(Action[InputT, OutputT, ChunkT], action)
         with self._lock:
             if kind not in self._entries:

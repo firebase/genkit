@@ -241,26 +241,7 @@ async def test_prompt_rendering_dotprompt(
     """Test prompt rendering."""
     ai, *_ = setup_test()
 
-    my_prompt = ai.define_prompt(
-        model=prompt.get('model'),
-        config=prompt.get('config'),
-        description=prompt.get('description'),
-        input_schema=prompt.get('input_schema'),
-        system=prompt.get('system'),
-        prompt=prompt.get('prompt'),
-        messages=prompt.get('messages'),
-        output_format=prompt.get('output_format'),
-        output_content_type=prompt.get('output_content_type'),
-        output_instructions=prompt.get('output_instructions'),
-        output_constrained=prompt.get('output_constrained'),
-        max_turns=prompt.get('max_turns'),
-        return_tool_requests=prompt.get('return_tool_requests'),
-        metadata=prompt.get('metadata'),
-        tools=prompt.get('tools'),
-        tool_choice=prompt.get('tool_choice'),
-        use=prompt.get('use'),
-        docs=prompt.get('docs'),
-    )
+    my_prompt = ai.define_prompt(**prompt)
 
     # New API: use opts parameter to pass config and context
     response = await my_prompt(input, config=input_option, context=context)

@@ -12,7 +12,6 @@ resolution-markers = [
 [manifest]
 members = [
     "context",
-    "dynamic-tools",
     "evaluators",
     "fastapi-bugbot",
     "flask-hello",
@@ -1221,27 +1220,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/db/b5985db508dab3047ee266e076fc7b4dce1a8ab38b9a5f5e8040848da530/dotpromptz_handlebars-0.1.8-cp310-abi3-manylinux_2_40_x86_64.whl", hash = "sha256:bcfa359c5b694d6b858045aa087869c23acb927dbb77263f295222e35dfbbe89", size = 587843, upload-time = "2026-01-30T06:44:43.68Z" },
     { url = "https://files.pythonhosted.org/packages/b5/7f/ce629f82b305f75e903b5050f678db48df91d0a4678ab14aa6f816198ff6/dotpromptz_handlebars-0.1.8-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:56eef7d063008b78d32038766933c240c85a365fde107338f4066cb600efa442", size = 628631, upload-time = "2026-01-30T06:44:45.505Z" },
     { url = "https://files.pythonhosted.org/packages/89/09/d09dfaa2110884284be6006b7586ea519f7391de58ed5428f2bf457bcd03/dotpromptz_handlebars-0.1.8-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:f23498821610d443a67c860922aba00d20bdd80b8421bfef0ceff07b713f8198", size = 666257, upload-time = "2026-01-30T06:44:46.929Z" },
-]
-
-[[package]]
-name = "dynamic-tools"
-version = "0.2.0"
-source = { editable = "samples/dynamic-tools" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-    { name = "uvloop" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "structlog", specifier = ">=24.0.0" },
-    { name = "uvloop", specifier = ">=0.21.0" },
 ]
 
 [[package]]

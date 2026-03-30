@@ -1110,26 +1110,6 @@ class Genkit:
         """Get the current execution context, or None if not in an action."""
         return ActionRunContext._current_context()  # pyright: ignore[reportPrivateUsage]
 
-    def dynamic_tool(
-        self,
-        *,
-        name: str,
-        fn: Callable[..., object],
-        description: str | None = None,
-        metadata: dict[str, object] | None = None,
-    ) -> Action:
-        """Create an unregistered tool action for passing directly to generate()."""
-        tool_meta: dict[str, object] = metadata.copy() if metadata else {}
-        tool_meta['type'] = 'tool'
-        tool_meta['dynamic'] = True
-        return Action(
-            kind=ActionKind.TOOL,
-            name=name,
-            fn=fn,  # type: ignore[arg-type]  # dynamic tools may be sync
-            description=description,
-            metadata=tool_meta,
-        )
-
     async def flush_tracing(self) -> None:
         """Flush all pending trace spans to exporters."""
         provider = trace_api.get_tracer_provider()

@@ -38,7 +38,7 @@ from genkit._ai._generate import (
     generate_action,
     resolve_tool,
     to_tool_definition,
-    tools_to_action_refs,
+    tools_to_action_names,
 )
 from genkit._ai._model import (
     Message,
@@ -506,7 +506,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             model=model_name,
             messages=resolved_msgs,  # type: ignore[arg-type]
             config=prompt_options.config,
-            tools=tools_to_action_refs(prompt_options.tools),
+            tools=tools_to_action_names(prompt_options.tools),
             return_tool_requests=prompt_options.return_tool_requests,
             tool_choice=prompt_options.tool_choice,
             output=output_config,
@@ -676,7 +676,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     )
 
     # Convert tool refs (str name or Tool object) to string names for GenerateActionOptions
-    tools_refs = tools_to_action_refs(options.tools)
+    tools_refs = tools_to_action_names(options.tools)
 
     return GenerateActionOptions(
         model=model,

@@ -58,7 +58,7 @@ DEFAULT_MAX_TURNS = 5
 logger = get_logger(__name__)
 
 
-def tools_to_action_refs(
+def tools_to_action_names(
     tools: Sequence[str | Tool] | None,
 ) -> list[str] | None:
     """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
@@ -68,13 +68,13 @@ def tools_to_action_refs(
     """
     if tools is None:
         return None
-    refs: list[str] = []
+    names: list[str] = []
     for t in tools:
         if isinstance(t, str):
-            refs.append(t)
+            names.append(t)
         else:
-            refs.append(t.name)
-    return refs
+            names.append(t.name)
+    return names
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
