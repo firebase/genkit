@@ -408,7 +408,7 @@ async function makeRequest(
               .filter(Boolean)
               .join('\n');
             if (detailsText) {
-              errorMessage += `\nDetails: [\n  ${detailsText}\n]`;
+              errorMessage += `\nDetails: ${detailsText}`;
             }
           }
         }
