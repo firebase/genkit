@@ -789,7 +789,6 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported    |
     | `gemini-3-flash-preview`             | Gemini 3 Flash Preview               | Supported    |
-    | `gemini-3-pro-preview`               | Gemini 3 Pro Preview                 | Supported    |
     | `gemini-2.5-pro`                     | Gemini 2.5 Pro                       | Supported    |
     | `gemini-2.5-flash`                   | Gemini 2.5 Flash                     | Supported    |
     | `gemini-2.5-flash-lite`              | Gemini 2.5 Flash Lite                | Supported    |
@@ -814,7 +813,6 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
     GEMINI_3_FLASH_PREVIEW = 'gemini-3-flash-preview'
-    GEMINI_3_PRO_PREVIEW = 'gemini-3-pro-preview'
     GEMINI_2_5_PRO = 'gemini-2.5-pro'
     GEMINI_2_5_FLASH = 'gemini-2.5-flash'
     GEMINI_2_5_FLASH_LITE = 'gemini-2.5-flash-lite'
@@ -849,7 +847,6 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
     | `gemini-3-flash-preview`             | Gemini 3 Flash Preview               | Supported  |
-    | `gemini-3-pro-preview`               | Gemini 3 Pro Preview                 | Supported  |
     | `gemini-2.5-pro`                     | Gemini 2.5 Pro                       | Supported  |
     | `gemini-2.5-flash`                   | Gemini 2.5 Flash                     | Supported  |
     | `gemini-2.5-flash-lite`              | Gemini 2.5 Flash Lite                | Supported  |
@@ -874,7 +871,6 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
     GEMINI_3_FLASH_PREVIEW = 'gemini-3-flash-preview'
-    GEMINI_3_PRO_PREVIEW = 'gemini-3-pro-preview'
     GEMINI_2_5_PRO = 'gemini-2.5-pro'
     GEMINI_2_5_FLASH = 'gemini-2.5-flash'
     GEMINI_2_5_FLASH_LITE = 'gemini-2.5-flash-lite'
