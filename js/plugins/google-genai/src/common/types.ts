@@ -143,13 +143,20 @@ export declare interface GoogleSearchRetrievalTool {
   /** Optional. {@link GoogleSearchRetrieval}. */
   googleSearchRetrieval?: GoogleSearchRetrieval;
   googleSearch?: GoogleSearchRetrieval;
+  google_search?: {
+    searchTypes?: {
+      webSearch?: {};
+      imageSearch?: {};
+    };
+  };
 }
 export function isGoogleSearchRetrievalTool(
   tool: Tool
 ): tool is GoogleSearchRetrievalTool {
   return (
     (tool as GoogleSearchRetrievalTool).googleSearchRetrieval !== undefined ||
-    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined
+    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined ||
+    (tool as GoogleSearchRetrievalTool).google_search !== undefined
   );
 }
 
@@ -755,6 +762,18 @@ export declare interface VideoMetadata {
   fps?: number;
 }
 
+export declare interface ToolCall {
+  id: string;
+  toolType: string;
+  args?: Record<string, unknown>;
+}
+
+export declare interface ToolResponse {
+  id: string;
+  toolType: string;
+  response?: Record<string, unknown>;
+}
+
 export enum MediaResolutionLevel {
   MEDIA_RESOUTION_LOW = 'MEDIA_RESOUTION_LOW',
   MEDIA_RESOLUTION_MEDIUM = 'MEDIA_RESOLUTION_MEDIUM',
@@ -779,10 +798,35 @@ export declare interface Part {
   thoughtSignature?: string;
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
+  toolCall?: ToolCall;
+  toolResponse?: ToolResponse;
   videoMetadata?: VideoMetadata;
   mediaResolution?: MediaResolution;
+  partMetadata?: Record<string, unknown>;
 }
 
+// A utility type that ensures an array contains all keys of T
+type KeysOf<T> = Array<keyof T>;
+
+// This will throw an error if you add a new field to 'Part'
+// but forget to add it to this list.
+// We use this to keep the aggregator/converter in sync.
+export const PART_KEYS: KeysOf<Required<Part>> = [
+  'text',
+  'inlineData',
+  'functionCall',
+  'functionResponse',
+  'fileData',
+  'thought',
+  'thoughtSignature',
+  'executableCode',
+  'codeExecutionResult',
+  'toolCall',
+  'toolResponse',
+  'videoMetadata',
+  'mediaResolution',
+  'partMetadata',
+] as const;
 /**
  * The base structured datatype containing multi-part content of a message.
  */
@@ -1156,6 +1200,8 @@ export declare interface ToolConfig {
   functionCallingConfig?: FunctionCallingConfig;
   /** Retrieval config */
   retrievalConfig?: RetrievalConfig;
+
+  includeServerSideToolInvocations?: boolean;
 }
 
 export declare interface GenerateContentRequest {

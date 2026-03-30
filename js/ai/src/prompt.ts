@@ -32,6 +32,7 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
 import { existsSync, readFileSync, readdirSync } from 'fs';
+import type Handlebars from 'handlebars';
 import { basename, join, resolve } from 'path';
 import type { DocumentData } from './document.js';
 import {

@@ -17,15 +17,12 @@
 import { OperationSchema, z } from '@genkit-ai/core';
 import { DocumentDataSchema } from './document.js';
 import {
-  CustomPartSchema,
-  DataPartSchema,
-  MediaPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-  TextPartSchema,
+  PartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  type Part,
 } from './parts.js';
+export { Part, PartSchema };
 
 export const MiddlewareRefSchema: z.ZodTypeAny = z.object({
   name: z.string(),
@@ -37,25 +34,6 @@ export type MiddlewareRef = z.infer<typeof MiddlewareRefSchema>;
 // IMPORTANT: Please keep type definitions in sync with
 //   genkit-tools/src/types/model.ts
 //
-
-/**
- * Zod schema of message part.
- */
-export const PartSchema = z.union([
-  TextPartSchema,
-  MediaPartSchema,
-  ToolRequestPartSchema,
-  ToolResponsePartSchema,
-  DataPartSchema,
-  CustomPartSchema,
-  ReasoningPartSchema,
-  ResourcePartSchema,
-]);
-
-/**
- * Message part.
- */
-export type Part = z.infer<typeof PartSchema>;
 
 /**
  * Zod schema of a message role.
@@ -303,6 +281,7 @@ export const FinishReasonSchema = z.enum([
   'stop',
   'length',
   'blocked',
+  'aborted',
   'interrupted',
   'other',
   'unknown',

@@ -161,6 +161,7 @@ export async function resolveToolRequest(
           output: multipartResponse.output,
           content: multipartResponse.content,
         } as ToolResponse,
+        metadata: multipartResponse.metadata,
       });
     } else {
       return stripUndefinedProps({

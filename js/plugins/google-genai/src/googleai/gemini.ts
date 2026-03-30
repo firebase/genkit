@@ -195,7 +195,13 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
     .describe('The modalities to be used in response.')
     .optional(),
-  googleSearchRetrieval: z
+  googleSearchRetrieval: z // some models use this, some use just googleSearch
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
+    .optional(),
+  googleSearch: z
     .union([z.boolean(), z.object({}).passthrough()])
     .describe(
       'Retrieve public web data for grounding, powered by Google Search.'
@@ -225,6 +231,19 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   urlContext: z
     .union([z.boolean(), z.object({}).passthrough()])
     .describe('Return grounding metadata from links included in the query')
+    .optional(),
+  retrievalConfig: z
+    .object({
+      latLng: z
+        .object({
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+        })
+        .optional(),
+      languageCode: z.string().optional(),
+    })
+    .passthrough()
+    .describe('Configuration for retrieval tools.')
     .optional(),
   temperature: z
     .number()
@@ -319,19 +338,37 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
       aspectRatio: z
         .enum([
           '1:1',
+          '1:4',
+          '1:8',
           '2:3',
           '3:2',
           '3:4',
+          '4:1',
           '4:3',
           '4:5',
           '5:4',
+          '8:1',
           '9:16',
           '16:9',
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['0.5K', '1K', '2K', '4K']).optional(),
     })
+    .passthrough()
+    .optional(),
+  google_search: z
+    .object({
+      searchTypes: z
+        .object({
+          webSearch: z.object({}).optional(),
+          imageSearch: z.object({}).optional(),
+        })
+        .optional(),
+    })
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
     .passthrough()
     .optional(),
 }).passthrough();
@@ -418,12 +455,15 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-pro-latest': commonRef('gemini-pro-latest'),
+  'gemini-flash-latest': commonRef('gemini-flash-latest'),
+  'gemini-flash-lite-latest': commonRef('gemini-flash-lite-latest'),
+  'gemini-3.1-flash-lite-preview': commonRef('gemini-3.1-flash-lite-preview'),
   'gemini-3.1-pro-preview-customtools': commonRef(
     'gemini-3.1-pro-preview-customtools'
   ),
   'gemini-3.1-pro-preview': commonRef('gemini-3.1-pro-preview'),
   'gemini-3-flash-preview': commonRef('gemini-3-flash-preview'),
-  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
@@ -457,6 +497,11 @@ export function isTTSModelName(value: string): value is TTSModelName {
 }
 
 const KNOWN_IMAGE_MODELS = {
+  'gemini-3.1-flash-image-preview': commonRef(
+    'gemini-3.1-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
   'gemini-3-pro-image-preview': commonRef(
     'gemini-3-pro-image-preview',
     { ...GENERIC_IMAGE_MODEL.info },
@@ -656,11 +701,15 @@ export function defineModel(
         safetySettings: safetySettingsFromConfig,
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
+        toolConfig: toolConfigConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        google_search,
+        googleSearch,
         fileSearch,
         urlContext,
         tools: toolsFromConfig,
+        retrievalConfig,
         ...restOfConfigOptions
       } = requestOptions;
 
@@ -680,6 +729,12 @@ export function defineModel(
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
         } as GoogleSearchRetrievalTool);
+      }
+
+      if (googleSearch || google_search) {
+        tools.push({
+          google_search: google_search || googleSearch,
+        }) as GoogleSearchRetrievalTool;
       }
 
       if (fileSearch) {
@@ -707,6 +762,31 @@ export function defineModel(
           functionCallingConfig: {
             mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
+        };
+      }
+
+      if (toolConfigConfig) {
+        // We need it in snake case or it doesn't work
+        if (
+          Object.hasOwnProperty.call(
+            toolConfigConfig,
+            'includeServerSideToolInvocations'
+          )
+        ) {
+          toolConfigConfig['include_server_side_tool_invocations'] =
+            toolConfigConfig['includeServerSideToolInvocations'];
+          delete toolConfigConfig['includeServerSideToolInvocations'];
+        }
+        toolConfig = {
+          ...toolConfig,
+          ...toolConfigConfig,
+        };
+      }
+
+      if (retrievalConfig) {
+        toolConfig = {
+          ...toolConfig,
+          retrievalConfig,
         };
       }
 
