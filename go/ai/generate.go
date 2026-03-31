@@ -870,7 +870,7 @@ func clone[T any](obj *T) *T {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int, middlewareHandlers []Middleware) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int, mws []Middleware) (*ModelRequest, *Message, error) {
 	toolCount := len(resp.ToolRequests())
 	if toolCount == 0 {
 		return nil, nil, nil
@@ -893,7 +893,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 				return
 			}
 
-			multipartResp, err := runToolWithMiddleware(ctx, tool, toolReq, middlewareHandlers)
+			multipartResp, err := runToolWithMiddleware(ctx, tool, toolReq, mws)
 			if err != nil {
 				var tie *toolInterruptError
 				if errors.As(err, &tie) {
@@ -977,8 +977,8 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 }
 
 // runToolWithMiddleware runs a tool, wrapping the execution with WrapTool hooks from middleware.
-func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest, handlers []Middleware) (*MultipartToolResponse, error) {
-	if len(handlers) == 0 {
+func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest, mws []Middleware) (*MultipartToolResponse, error) {
+	if len(mws) == 0 {
 		return tool.RunRawMultipart(ctx, toolReq.Input)
 	}
 
@@ -1000,8 +1000,8 @@ func runToolWithMiddleware(ctx context.Context, tool Tool, toolReq *ToolRequest,
 		}, nil
 	}
 
-	for i := len(handlers) - 1; i >= 0; i-- {
-		h := handlers[i]
+	for i := len(mws) - 1; i >= 0; i-- {
+		h := mws[i]
 		next := inner
 		inner = func(ctx context.Context, params *ToolParams) (*ToolResponse, error) {
 			return h.WrapTool(ctx, params, next)
@@ -1255,7 +1255,7 @@ func (m ModelRef) Config() any {
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
 // when generation is being resumed. It determines the outcome of the tool request based on
 // pending output, or explicit 'respond' or 'restart' directives in the resume options.
-func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part, middlewareHandlers []Middleware) (*resumedToolRequestOutput, error) {
+func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part, mws []Middleware) (*resumedToolRequestOutput, error) {
 	if p == nil || !p.IsToolRequest() {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
 	}
@@ -1348,7 +1348,7 @@ func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *Gene
 					Ref:   restartPart.ToolRequest.Ref,
 					Input: restartPart.ToolRequest.Input,
 				}
-				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartToolReq, middlewareHandlers)
+				multipartResp, err := runToolWithMiddleware(resumedCtx, tool, restartToolReq, mws)
 				if err != nil {
 					var tie *toolInterruptError
 					if errors.As(err, &tie) {
