@@ -25,6 +25,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, ClassVar, Generic, cast, get_type_hints
 
+from opentelemetry import trace as trace_api
 from opentelemetry.trace import Span
 from opentelemetry.util import types as otel_types
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
@@ -36,6 +37,7 @@ from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
 from genkit._core._schema import to_json_schema
 from genkit._core._trace._path import build_path
+from genkit._core._trace._suppress import suppress_telemetry
 from genkit._core._tracing import tracer
 
 # =============================================================================
@@ -570,49 +572,60 @@ def _make_tracing_wrapper(
     ) -> ActionResponse[Any]:
         start_time = time.perf_counter()
 
-        with _save_parent_path():
-            with tracer.start_as_current_span(name) as span:
-                # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
-                trace_id = format(span.get_span_context().trace_id, '032x')
-                span_id = format(span.get_span_context().span_id, '016x')
-                if on_trace_start:
-                    on_trace_start(trace_id, span_id)
+        suppress = str((telemetry_labels or {}).get('genkitx:ignore-trace', '')).lower() == 'true'
+        suppress_token = suppress_telemetry.set(True) if suppress else None
+        try:
+            with _save_parent_path():
+                with tracer.start_as_current_span(name) as span:
+                    # Format trace_id and span_id as hex strings (OpenTelemetry standard format)
+                    trace_id = format(span.get_span_context().trace_id, '032x')
+                    span_id = format(span.get_span_context().span_id, '016x')
+                    if on_trace_start:
+                        on_trace_start(trace_id, span_id)
 
-                # Set telemetry labels as direct span attributes (matches JS/Go behavior)
-                if telemetry_labels:
-                    for key, value in telemetry_labels.items():
-                        span.set_attribute(key, str(value))
+                    # Set telemetry labels as direct span attributes (matches JS/Go behavior)
+                    if telemetry_labels:
+                        for key, value in telemetry_labels.items():
+                            span.set_attribute(key, str(value))
 
-                _record_input_metadata(
-                    span=span,
-                    kind=kind,
-                    name=name,
-                    span_metadata=span_metadata,
-                    input=input,
-                )
+                    _record_input_metadata(
+                        span=span,
+                        kind=kind,
+                        name=name,
+                        span_metadata=span_metadata,
+                        input=input,
+                    )
 
-                try:
-                    match n_action_args:
-                        case 0:
-                            output = await fn()
-                        case 1:
-                            output = await fn(input)
-                        case 2:
-                            output = await fn(input, ctx)
-                        case _:
-                            raise ValueError('action fn must have 0-2 args')
-                except Exception as e:
-                    # Re-raise existing GenkitError instances to avoid double-wrapping
-                    if isinstance(e, GenkitError):
-                        raise
-                    raise GenkitError(
-                        cause=e,
-                        message=f'Error while running action {name}',
-                        trace_id=trace_id,
-                    ) from e
+                    try:
+                        match n_action_args:
+                            case 0:
+                                output = await fn()
+                            case 1:
+                                output = await fn(input)
+                            case 2:
+                                output = await fn(input, ctx)
+                            case _:
+                                raise ValueError('action fn must have 0-2 args')
+                    except Exception as e:
+                        span.set_attribute('genkit:state', 'error')
+                        # Bundled Dev UI reads timeEvents.exception.attributes only; stash text for export synthesis.
+                        span.set_status(trace_api.StatusCode.ERROR, description=str(e))
+                        span.record_exception(e)
+                        if isinstance(e, GenkitError):
+                            span.set_attribute('genkit:error', e.original_message)
+                            raise
+                        span.set_attribute('genkit:error', str(e))
+                        raise GenkitError(
+                            cause=e,
+                            message=f'Error while running action {name}',
+                            trace_id=trace_id,
+                        ) from e
 
-                output = _record_latency(output, start_time)
-                _record_output_metadata(span, output=output)
-                return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
+                    output = _record_latency(output, start_time)
+                    _record_output_metadata(span, output=output)
+                    return ActionResponse(response=output, trace_id=trace_id, span_id=span_id)
+        finally:
+            if suppress_token is not None:
+                suppress_telemetry.reset(suppress_token)
 
     return tracing_wrapper

@@ -142,7 +142,6 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-import json
 from functools import cached_property
 from typing import Annotated, Any, Any as JsonAny, cast
 
@@ -173,7 +172,6 @@ from genkit.model import Candidate, FinishReason, get_basic_usage_stats
 from genkit.plugin_api import (
     ActionRunContext,
     StatusName,
-    tracer,
 )
 
 
@@ -1218,7 +1216,7 @@ class GeminiModel:
 
         ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
         ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
-        cache_key = generate_cache_key(request=request)
+        cache_key = generate_cache_key(contents=contents, model_name=model_name)
 
         iterator_config = genai_types.ListCachedContentsConfig()
         cache = None
@@ -1390,55 +1388,42 @@ class GeminiModel:
         Returns:
             genai response.
         """
-        with tracer.start_as_current_span('generate_content') as span:
-            span.set_attribute(
-                'genkit:input',
-                json.dumps(
-                    {
-                        'config': _to_dict(request_cfg),
-                        'contents': [_to_dict(c) for c in request_contents],
-                        'model': model_name,
-                    },
-                    default=lambda _: '[!! failed to serialize !!]',
-                ),
+        client = client or self._client
+        try:
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                response = await client.aio.models.generate_content(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-            except Exception as e:
-                # Catch any other exceptions and provide a clear error message
-                # This helps debug issues like authentication errors that might not be ClientError
-                import logging
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+        except Exception as e:
+            # Catch any other exceptions and provide a clear error message
+            # This helps debug issues like authentication errors that might not be ClientError
+            import logging
 
-                logger = logging.getLogger(__name__)
-                logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
-                raise GenkitError(
-                    status='INTERNAL',
-                    message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
-                ) from e
-            span.set_attribute('genkit:output', json.dumps(_to_dict(response), default=str))
+            logger = logging.getLogger(__name__)
+            logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
+            raise GenkitError(
+                status='INTERNAL',
+                message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
+            ) from e
 
         content = await self._contents_from_response(response)
 
@@ -1498,6 +1483,12 @@ class GeminiModel:
                 if response.usage_metadata
                 else None,
                 total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
+                thoughts_tokens=float(response.usage_metadata.thoughts_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.thoughts_token_count
+                else None,
+                cached_content_tokens=float(response.usage_metadata.cached_content_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.cached_content_token_count
+                else None,
             ),
         )
 
@@ -1521,38 +1512,27 @@ class GeminiModel:
         Returns:
             empty genai response
         """
-        with tracer.start_as_current_span('generate_content_stream') as span:
-            span.set_attribute(
-                'genkit:input',
-                json.dumps(
-                    {
-                        'config': _to_dict(request_cfg),
-                        'contents': [_to_dict(c) for c in request_contents],
-                        'model': model_name,
-                    },
-                    default=str,
-                ),
+        client = client or self._client
+        try:
+            generator = await client.aio.models.generate_content_stream(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                generator = await client.aio.models.generate_content_stream(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
+<<<<<<< HEAD
                 raise GenkitError(
                     status=status,
                     message=e.message or 'Unknown error',
@@ -1560,6 +1540,15 @@ class GeminiModel:
                 ) from e
         accumulated_content = []
         finish_reason: FinishReason | None = None
+=======
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+
+        accumulated_content: list[Part] = []
+>>>>>>> main
         async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
@@ -1648,6 +1637,9 @@ class GeminiModel:
                     cache_config=msg.metadata['cache'],
                     contents=request_contents,
                 )
+                # The prefix up to this message is now stored in the cache.
+                # Only post-cache messages should be sent in the generate call.
+                request_contents = []
 
         if not request_contents:
             request_contents.append(genai_types.Content(parts=[genai_types.Part(text=' ')], role='user'))
@@ -1865,5 +1857,7 @@ class GeminiModel:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens
             usage.total_tokens = response.usage.total_tokens
+            usage.thoughts_tokens = response.usage.thoughts_tokens
+            usage.cached_content_tokens = response.usage.cached_content_tokens
 
         return usage

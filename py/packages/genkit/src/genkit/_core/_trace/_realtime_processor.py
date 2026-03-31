@@ -17,11 +17,12 @@
 """Realtime span processor for live trace visualization."""
 
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from genkit._core._compat import override
 from genkit._core._logger import get_logger
+from genkit._core._trace._suppress import suppress_telemetry
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,8 @@ class RealtimeSpanProcessor(SimpleSpanProcessor):
     @override
     def on_start(self, span: Span, parent_context: Context | None = None) -> None:
         """Export span immediately so DevUI can show in-progress traces."""
+        if suppress_telemetry.get():
+            return
         try:
             self.span_exporter.export([span])
         except ConnectionError:
@@ -44,3 +47,10 @@ class RealtimeSpanProcessor(SimpleSpanProcessor):
                 'RealtimeSpanProcessor: unexpected error during export on_start',
                 exc_info=True,
             )
+
+    @override
+    def on_end(self, span: ReadableSpan) -> None:
+        """Skip export entirely for suppressed traces (e.g. prompt keystroke previews)."""
+        if suppress_telemetry.get():
+            return
+        super().on_end(span)

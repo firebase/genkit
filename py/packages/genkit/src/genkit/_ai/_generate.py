@@ -16,7 +16,11 @@
 
 """Generate action."""
 
+<<<<<<< HEAD
 import asyncio
+=======
+import contextlib
+>>>>>>> main
 import copy
 import inspect
 import re
@@ -42,10 +46,12 @@ from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
+from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
     FinishReason,
     Part,
     Role,
+    SpanMetadata,
     ToolDefinition,
     ToolRequest,
     ToolRequestPart,
@@ -124,6 +130,32 @@ def define_generate_action(registry: Registry) -> None:
 
 
 async def generate_action(
+    registry: Registry,
+    raw_request: GenerateActionOptions,
+    on_chunk: Callable[[ModelResponseChunk], None] | None = None,
+    message_index: int = 0,
+    current_turn: int = 0,
+    middleware: list[ModelMiddleware] | None = None,
+    context: dict[str, Any] | None = None,
+) -> ModelResponse:
+    """Execute a generation request with tool calling and middleware support."""
+    span_name = 'generate'
+    with run_in_new_span(
+        SpanMetadata(name=span_name),
+        labels={'genkit:type': 'util'},
+    ) as span:
+        span.set_attribute('genkit:name', span_name)
+        with contextlib.suppress(Exception):
+            span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
+        result = await _generate_action(
+            registry, raw_request, on_chunk, message_index, current_turn, middleware, context
+        )
+        with contextlib.suppress(Exception):
+            span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
+        return result
+
+
+async def _generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
@@ -310,6 +342,24 @@ async def generate_action(
         # No message in response, return as-is
         return response
 
+    # Stamp output format metadata on message for Dev UI rendering.
+    # Mirrors JS GenerateResponse constructor which sets message.metadata.generate.output
+    # so the Dev UI knows to render the output as formatted JSON vs plain text.
+    out = raw_request.output
+    if out and (out.content_type or out.format):
+        generate_output: dict[str, str] = {}
+        if out.content_type:
+            generate_output['contentType'] = out.content_type
+        if out.format:
+            generate_output['format'] = out.format
+        existing_meta = dict(generated_msg.metadata) if isinstance(generated_msg.metadata, dict) else {}
+        generate_meta = existing_meta.get('generate')
+        if not isinstance(generate_meta, dict):
+            generate_meta = {}
+        generate_meta['output'] = generate_output
+        existing_meta['generate'] = generate_meta
+        generated_msg.metadata = existing_meta
+
     tool_requests = [x for x in generated_msg.content if x.root.tool_request]
 
     if raw_request.return_tool_requests or len(tool_requests) == 0:
@@ -364,7 +414,7 @@ async def generate_action(
         next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
     # then recursively call for another loop
-    return await generate_action(
+    return await _generate_action(
         registry,
         raw_request=next_request,
         # middleware: middleware,

@@ -746,11 +746,11 @@ def test_gemini_model__convert_schema_property_raises_exception(
 
 @pytest.mark.asyncio
 @patch(
-    'genkit.plugins.google_genai.models.context_caching.utils.generate_cache_key',
+    'genkit.plugins.google_genai.models.gemini.generate_cache_key',
     new_callable=MagicMock,
 )
 @patch(
-    'genkit.plugins.google_genai.models.context_caching.utils.validate_context_cache_request',
+    'genkit.plugins.google_genai.models.gemini.validate_context_cache_request',
     new_callable=MagicMock,
 )
 @pytest.mark.parametrize(

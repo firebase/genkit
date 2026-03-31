@@ -34,12 +34,14 @@ import * as deepResearch from './deep-research.js';
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
+import * as lyria from './lyria.js';
 import * as veo from './veo.js';
 
 export { type DeepResearchConfig } from './deep-research.js';
 export { type EmbeddingConfig } from './embedder.js';
 export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
+export { type LyriaConfig } from './lyria.js';
 export { type GoogleAIPluginOptions };
 
 async function initializer(options?: GoogleAIPluginOptions) {
@@ -49,6 +51,7 @@ async function initializer(options?: GoogleAIPluginOptions) {
     ...embedder.listKnownModels(options),
     ...veo.listKnownModels(options),
     ...deepResearch.listKnownModels(options),
+    ...lyria.listKnownModels(options),
   ];
 }
 
@@ -67,6 +70,8 @@ async function resolver(
         return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
         return imagen.defineModel(actionName, options);
+      } else if (lyria.isLyriaModelName(actionName)) {
+        return lyria.defineModel(actionName, options);
       } else {
         // gemini, tts, image, gemma, unknown models
         return gemini.defineModel(actionName, options);
@@ -103,6 +108,7 @@ async function listActions(
       ...imagen.listActions(allModels),
       ...veo.listActions(allModels),
       ...deepResearch.listActions(allModels),
+      ...lyria.listActions(allModels),
       ...embedder.listActions(allModels),
     ];
   } catch (e: unknown) {
@@ -161,6 +167,10 @@ export type GoogleAIPlugin = {
     name: deepResearch.KnownModels | (deepResearch.DeepResearchModelName & {}),
     config?: deepResearch.DeepResearchConfig
   ): ModelReference<deepResearch.DeepResearchConfigSchemaType>;
+  model(
+    name: lyria.KnownModels | (lyria.LyriaModelName & {}),
+    config?: lyria.LyriaConfig
+  ): ModelReference<lyria.LyriaConfigSchemaType>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 
   embedder(
@@ -182,6 +192,9 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
   }
   if (deepResearch.isDeepResearchModelName(name)) {
     return deepResearch.model(name, config);
+  }
+  if (lyria.isLyriaModelName(name)) {
+    return lyria.model(name, config);
   }
   if (imagen.isImagenModelName(name)) {
     return imagen.model(name, config);
