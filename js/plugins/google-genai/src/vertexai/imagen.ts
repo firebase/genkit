@@ -236,13 +236,14 @@ function commonRef(
   });
 }
 
-// Allow all the capabilities for unknown future models
+// There are no more future imagen models, set these to the commonRef values.
 const GENERIC_MODEL = commonRef('imagen', {
   supports: {
     media: true,
-    multiturn: true,
-    tools: true,
-    systemRole: true,
+    multiturn: false,
+    tools: false,
+    toolChoice: false,
+    systemRole: false,
     output: ['media'],
   },
 });
