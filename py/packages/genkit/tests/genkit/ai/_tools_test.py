@@ -19,8 +19,8 @@ from genkit._core._typing import ToolRequest, ToolRequestPart, ToolResponsePart
 
 
 @pytest.mark.asyncio
-async def test_restart_sets_resumed_metadata_and_strips_interrupt() -> None:
-    """``tool.restart`` → TRP.metadata.resumed plus ``interrupt`` removed; input unchanged when replace is None."""
+async def test_restart_sets_resumed_metadata_and_preserves_interrupt() -> None:
+    """``tool.restart``: copy interrupt metadata, set ``resumed``; ``interrupt`` stays on the restart TRP."""
     ai = Genkit()
 
     @ai.tool(name='pay')
@@ -35,7 +35,7 @@ async def test_restart_sets_resumed_metadata_and_strips_interrupt() -> None:
     assert isinstance(out, ToolRequestPart)
     assert out.metadata is not None
     assert out.metadata.get('resumed') == {'k': 'v'}
-    assert 'interrupt' not in out.metadata
+    assert out.metadata.get('interrupt') == {'reason': 'hold'}
     assert out.tool_request.input == {'amount': 10}
 
 
@@ -58,6 +58,7 @@ async def test_restart_replace_input_sets_replaced_input() -> None:
     assert out.metadata.get('replacedInput') == {'amount': 10}
     assert out.tool_request.input == {'amount': 99}
     assert out.metadata.get('resumed') == {'by': 'u'}
+    assert out.metadata.get('interrupt') is True
 
 
 @pytest.mark.asyncio
@@ -77,6 +78,7 @@ async def test_restart_resumed_defaults_to_true() -> None:
     assert isinstance(out, ToolRequestPart)
     assert out.metadata is not None
     assert out.metadata.get('resumed') is True
+    assert out.metadata.get('interrupt') is True
 
 
 @pytest.mark.asyncio

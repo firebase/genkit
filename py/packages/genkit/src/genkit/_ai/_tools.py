@@ -39,10 +39,6 @@ class Tool:
     def __init__(self, action: Action) -> None:
         self._action = action
 
-    # ------------------------------------------------------------------
-    # Properties that delegate to the underlying Action
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Tool name (registry key)."""
@@ -64,7 +60,7 @@ class Tool:
         return self._action.output_schema
 
     def definition(self) -> ToolDefinition:
-        """Return the wire-format :class:`ToolDefinition` for this tool."""
+        """Return the wire-format ToolDefinition for this tool."""
         return ToolDefinition(
             name=self.name,
             description=self.description,
@@ -72,17 +68,9 @@ class Tool:
             output_schema=self.output_schema,
         )
 
-    # ------------------------------------------------------------------
-    # Execution
-    # ------------------------------------------------------------------
-
     async def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         """Run the tool and return the unwrapped response value."""
         return (await self._action.run(*args, **kwargs)).response
-
-    # ------------------------------------------------------------------
-    # Interrupt / restart helpers
-    # ------------------------------------------------------------------
 
     def restart(
         self,
@@ -119,9 +107,6 @@ class Tool:
         if replace_input is not None:
             new_meta['replacedInput'] = tool_req.input
             new_input = replace_input
-
-        if 'interrupt' in new_meta:
-            del new_meta['interrupt']
 
         return ToolRequestPart(
             tool_request=ToolRequest(

@@ -418,6 +418,7 @@ async def test_resume_restart_runs_tool_second_time_and_resolved_interrupt_on_mo
     # ^ Queued for the second generate call (after restart re-runs the tool).
 
     first = await generate_action(
+        ai.registry,
         _gen_opts(ai, tools=['pay'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
@@ -607,7 +608,8 @@ async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> Non
 
     Turn 2: resume with ``respond=[...]`` for ``a`` only — no action needed for
     ``b``. The framework reconstructs ``b``'s tool response from the stashed
-    output and marks it ``source: pending`` in the wire.
+    output, strips ``pendingOutput`` from ``b``'s model TRP, and
+    marks the tool response ``source: pending`` on the wire.
     """
     ai = Genkit()
     pm, _ = define_programmable_model(ai)
@@ -683,9 +685,7 @@ async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> Non
                     'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}},
                     'metadata': {'resolvedInterrupt': {'reason': 'needs_approval'}},
                 },
-                {
-                    'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}},
-                },
+                {'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}}},
             ],
         },
         {
@@ -736,7 +736,7 @@ async def test_resume_without_matching_replies_raises() -> None:
             ),
         )
     assert ei.value.status == 'INVALID_ARGUMENT'
-    assert 'replies' in ei.value.original_message or 'restarts' in ei.value.original_message
+    assert 'unresolved tool request' in ei.value.original_message.lower()
 
 
 @pytest.mark.asyncio
@@ -757,4 +757,4 @@ async def test_resume_requires_last_message_model_with_tool_requests() -> None:
             ),
         )
     assert ei.value.status == 'FAILED_PRECONDITION'
-    assert 'model' in ei.value.original_message.lower()
+    assert "cannot 'resume'" in ei.value.original_message.lower()

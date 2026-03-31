@@ -1532,15 +1532,6 @@ class GeminiModel:
             elif e.code == 429:
                 status = 'RESOURCE_EXHAUSTED'
 
-<<<<<<< HEAD
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-        accumulated_content = []
-        finish_reason: FinishReason | None = None
-=======
             raise GenkitError(
                 status=status,
                 message=e.message or 'Unknown error',
@@ -1548,7 +1539,7 @@ class GeminiModel:
             ) from e
 
         accumulated_content: list[Part] = []
->>>>>>> main
+        finish_reason: FinishReason | None = None
         async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content

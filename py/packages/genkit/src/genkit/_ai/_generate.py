@@ -16,11 +16,8 @@
 
 """Generate action."""
 
-<<<<<<< HEAD
 import asyncio
-=======
 import contextlib
->>>>>>> main
 import copy
 import inspect
 import re
@@ -848,19 +845,24 @@ async def _resolve_resumed_tool_request(
     tool_req_root = tool_request_part.root
 
     if tool_req_root.metadata and 'pendingOutput' in tool_req_root.metadata:
-        metadata = dict(tool_req_root.metadata)
-        pending_output = metadata['pendingOutput']
-        del metadata['pendingOutput']
-        metadata['source'] = 'pending'
+        # resolveResumedToolRequest: strip pendingOutput from the model TRP; reconstruct
+        # output on the tool message with metadata { ...rest, source: 'pending' }.
+        trp_metadata = dict(tool_req_root.metadata)
+        pending_output = trp_metadata.pop('pendingOutput')
+        revised_trp = ToolRequestPart(
+            tool_request=tool_req_root.tool_request,
+            metadata=trp_metadata if trp_metadata else None,
+        )
+        response_metadata = {**trp_metadata, 'source': 'pending'}
         return (
-            tool_req_root,
+            revised_trp,
             ToolResponsePart(
                 tool_response=ToolResponse(
                     name=tool_req_root.tool_request.name,
                     ref=tool_req_root.tool_request.ref,
                     output=pending_output.model_dump() if isinstance(pending_output, BaseModel) else pending_output,
                 ),
-                metadata=metadata,
+                metadata=response_metadata,
             ),
         )
 
