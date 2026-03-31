@@ -605,7 +605,8 @@ async def test_executable_prompt_opts_removed() -> None:
     my_prompt = ai.define_prompt(prompt='hi', output_format='text')
 
     with pytest.raises(TypeError, match='opts'):
-        await my_prompt(**{'opts': {'model': 'echoModel'}})
+        # Invalid kwarg on purpose; static checkers need a hint (runtime rejects with TypeError).
+        await my_prompt(opts={'model': 'echoModel'})  # pyrefly: ignore[unexpected-keyword]  # pyright: ignore
 
 
 @pytest.mark.asyncio

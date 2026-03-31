@@ -32,7 +32,6 @@ from pydantic import BaseModel, Field
 from genkit import (
     Genkit,
     Interrupt,
-    ToolResponsePart,
     respond_to_interrupt,
 )
 from genkit.model import ModelResponse

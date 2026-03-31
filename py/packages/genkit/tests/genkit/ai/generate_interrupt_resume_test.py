@@ -643,7 +643,9 @@ async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> Non
 
     first = await generate_action(
         ai.registry,
-        _gen_opts(ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+        _gen_opts(
+            ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]
+        ),
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
     # b's output is stashed in pendingOutput on its TRP; no tool message yet.

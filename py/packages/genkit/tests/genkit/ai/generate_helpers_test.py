@@ -54,7 +54,7 @@ def test_find_corresponding_tool_response_matches_name_and_ref() -> None:
 
     got = _find_corresponding_tool_response([trp], pending)
     assert got is not None
-    assert got.root == trp
+    assert got == trp
 
     assert _find_corresponding_tool_response([other], pending) is None
     assert _find_corresponding_tool_response([], pending) is None

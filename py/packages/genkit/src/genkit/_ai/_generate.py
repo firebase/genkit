@@ -933,7 +933,9 @@ def _find_corresponding_restart(
     return None
 
 
-def _find_corresponding_tool_response(responses: list[ToolResponsePart], request: ToolRequestPart) -> ToolResponsePart | None:
+def _find_corresponding_tool_response(
+    responses: list[ToolResponsePart], request: ToolRequestPart
+) -> ToolResponsePart | None:
     """Find a response matching the request by name and ref."""
     for p in responses:
         if p.tool_response.name == request.tool_request.name and p.tool_response.ref == request.tool_request.ref:

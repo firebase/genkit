@@ -284,7 +284,7 @@ async def test_run_tool_after_restart_response_preserves_ref_and_uses_new_input(
         original_inputs.append(ctx.original_input)
         if not inp.get('confirmed'):
             raise Interrupt({'reason': 'needs_approval'})
-        return f"transferred {inp.get('amount')}"
+        return f'transferred {inp.get("amount")}'
 
     action = await ai.registry.resolve_action(kind=ActionKind.TOOL, name='transfer')
     assert action is not None
