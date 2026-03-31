@@ -841,7 +841,12 @@ class Genkit:
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
     ) -> ModelResponse[Any]:
-        """Generate text or structured data using a language model."""
+        """Generate text or structured data using a language model.
+
+        ``tools`` is typed as ``Sequence`` rather than ``list`` because ``Sequence``
+        is covariant: ``list[Tool]`` or ``list[str]`` are both assignable to
+        ``Sequence[str | Tool]``, but not to ``list[str | Tool]``.
+        """
         return await generate_action(
             self.registry,
             await to_generate_action_options(
@@ -952,13 +957,7 @@ class Genkit:
         docs: list[Document] | None = None,
         timeout: float | None = None,
     ) -> ModelStreamResponse[Any]:
-        """Stream generated text, returning a ModelStreamResponse with .stream and .response.
-
-        Middleware (``use=``) uses the same signatures as :meth:`generate`:
-        - Simple: ``(req, ctx, next)`` — 3 params
-        - Streaming-aware: ``(req, ctx, on_chunk, next)`` — 4 params
-        The framework auto-detects by parameter count. Both work with generate_stream.
-        """
+        """Stream generated text, returning a ModelStreamResponse with .stream and .response."""
         channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
         async def _run_generate() -> ModelResponse[Any]:

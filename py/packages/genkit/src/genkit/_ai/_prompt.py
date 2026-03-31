@@ -109,7 +109,7 @@ def resume_options_to_resume(
     resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
     resume_metadata: dict[str, Any] | None = None,
 ) -> Resume | None:
-    """Build wire :class:`Resume` from flat keyword options (``generate`` / prompts)."""
+    """Build wire Resume from flat keyword options (``generate`` / prompts)."""
     respond = _normalize_resume_respond_parts(resume_respond)
     restart = _normalize_resume_restart_parts(resume_restart)
     if respond is None and restart is None and resume_metadata is None:
@@ -542,7 +542,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     ) -> GenerateActionOptions:
         """Render the prompt template without executing, returning GenerateActionOptions.
 
-        Same keyword options as :meth:`__call__` (see :class:`PromptGenerateOptions`).
+        Same keyword options as ``__call__`` (see PromptGenerateOptions).
         """
         await self._ensure_resolved()
         coerced = _coerce_prompt_opts(opts)

@@ -18,7 +18,7 @@
 
 The model calls ``request_transfer``; the CLI asks **approve (y)** or **decline (n)**.
 **Approve** → ``tool.restart(...)`` / ``resume_restart`` so the tool **runs again**
-with :class:`~genkit.ToolRunContext.is_resumed`. **Decline** → ``respond_to_interrupt`` /
+with ``ToolRunContext.is_resumed``. **Decline** → ``respond_to_interrupt`` /
 ``resume_respond`` (no second tool run).
 
 Opening prompt, then one **canned user message** (no typing) so the model calls

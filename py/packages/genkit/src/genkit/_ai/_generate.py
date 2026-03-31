@@ -61,10 +61,10 @@ logger = get_logger(__name__)
 def tools_to_action_names(
     tools: Sequence[str | Tool] | None,
 ) -> list[str] | None:
-    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
+    """Normalize tool arguments to registry names for GenerateActionOptions.
 
-    Each item may be a tool name (``str``) or a :class:`~genkit.Tool` returned by
-    :meth:`~genkit.Genkit.tool`.
+    Each item may be a tool name (``str``) or a Tool returned by
+    Genkit.tool().
     """
     if tools is None:
         return None
@@ -675,7 +675,7 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
 
 
 def _interrupt_from_tool_exc(exc: BaseException) -> Interrupt | None:
-    """If ``exc`` is (or wraps) :class:`~genkit._ai._tools.Interrupt`, return that interrupt."""
+    """If ``exc`` is (or wraps) an Interrupt exception, return that interrupt."""
     if isinstance(exc, Interrupt):
         return exc
     if isinstance(exc, GenkitError) and exc.cause is not None and isinstance(exc.cause, Interrupt):
@@ -724,12 +724,11 @@ async def _resolve_tool_request(
 
 
 async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a :class:`~genkit.ActionKind.TOOL` action by name from the registry."""
+    """Resolve a tool action by name from the registry."""
     tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
-    if tool is not None:
-        return tool
-    msg = f'Unable to resolve tool {tool_name}'
-    raise ValueError(msg)
+    if tool is None:
+        raise ValueError(f'Unable to resolve tool {tool_name}')
+    return tool
 
 
 async def _resolve_resume_options(
@@ -761,8 +760,8 @@ async def _resolve_resume_options(
             continue
 
         resumed_request, resumed_response = await _resolve_resumed_tool_request(_registry, raw_request, part)
-        tool_responses.append(resumed_response)
-        updated_content[i] = resumed_request
+        tool_responses.append(Part(root=resumed_response))
+        updated_content[i] = Part(root=resumed_request)
         i += 1
     last_message.content = updated_content
 
@@ -787,7 +786,7 @@ async def _resolve_resume_options(
 
 async def _resolve_resumed_tool_request(
     registry: Registry, raw_request: GenerateActionOptions, tool_request_part: Part
-) -> tuple[Part, Part]:
+) -> tuple[ToolRequestPart, ToolResponsePart]:
     """Resolve a single tool request from pending output, resume.respond, or resume.restart."""
     # Type narrowing: ensure we're working with a ToolRequestPart
     if not isinstance(tool_request_part.root, ToolRequestPart):
@@ -804,17 +803,14 @@ async def _resolve_resumed_tool_request(
         del metadata['pendingOutput']
         metadata['source'] = 'pending'
         return (
-            tool_request_part,
-            # Part is a RootModel, so we pass content via 'root' parameter
-            Part(
-                root=ToolResponsePart(
-                    tool_response=ToolResponse(
-                        name=tool_req_root.tool_request.name,
-                        ref=tool_req_root.tool_request.ref,
-                        output=pending_output.model_dump() if isinstance(pending_output, BaseModel) else pending_output,
-                    ),
-                    metadata=metadata,
-                )
+            tool_req_root,
+            ToolResponsePart(
+                tool_response=ToolResponse(
+                    name=tool_req_root.tool_request.name,
+                    ref=tool_req_root.tool_request.ref,
+                    output=pending_output.model_dump() if isinstance(pending_output, BaseModel) else pending_output,
+                ),
+                metadata=metadata,
             ),
         )
 
@@ -830,16 +826,13 @@ async def _resolve_resumed_tool_request(
         if interrupt:
             del metadata['interrupt']
         return (
-            # Part is a RootModel, so we pass content via 'root' parameter
-            Part(
-                root=ToolRequestPart(
-                    tool_request=ToolRequest(
-                        name=tool_req_root.tool_request.name,
-                        ref=tool_req_root.tool_request.ref,
-                        input=tool_req_root.tool_request.input,
-                    ),
-                    metadata={**metadata, 'resolvedInterrupt': interrupt},
-                )
+            ToolRequestPart(
+                tool_request=ToolRequest(
+                    name=tool_req_root.tool_request.name,
+                    ref=tool_req_root.tool_request.ref,
+                    input=tool_req_root.tool_request.input,
+                ),
+                metadata={**metadata, 'resolvedInterrupt': interrupt},
             ),
             provided_response,
         )
@@ -856,15 +849,13 @@ async def _resolve_resumed_tool_request(
         if interrupt:
             del metadata['interrupt']
         return (
-            Part(
-                root=ToolRequestPart(
-                    tool_request=ToolRequest(
-                        name=tool_req_root.tool_request.name,
-                        ref=tool_req_root.tool_request.ref,
-                        input=tool_req_root.tool_request.input,
-                    ),
-                    metadata={**metadata, 'resolvedInterrupt': interrupt},
-                )
+            ToolRequestPart(
+                tool_request=ToolRequest(
+                    name=tool_req_root.tool_request.name,
+                    ref=tool_req_root.tool_request.ref,
+                    input=tool_req_root.tool_request.input,
+                ),
+                metadata={**metadata, 'resolvedInterrupt': interrupt},
             ),
             executed,
         )
@@ -890,11 +881,11 @@ def _find_corresponding_restart(
     return None
 
 
-def _find_corresponding_tool_response(responses: list[ToolResponsePart], request: ToolRequestPart) -> Part | None:
+def _find_corresponding_tool_response(responses: list[ToolResponsePart], request: ToolRequestPart) -> ToolResponsePart | None:
     """Find a response matching the request by name and ref."""
     for p in responses:
         if p.tool_response.name == request.tool_request.name and p.tool_response.ref == request.tool_request.ref:
-            return Part(root=p)
+            return p
     return None
 
 

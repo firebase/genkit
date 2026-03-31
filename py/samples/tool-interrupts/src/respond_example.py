@@ -16,7 +16,7 @@
 
 """Tool interrupts — trivia via ``present_questions`` and ``respond_to_interrupt``.
 
-``present_questions`` raises :class:`~genkit.Interrupt` with the question payload → the user
+``present_questions`` raises ``Interrupt`` with the question payload → the user
 picks an answer → ``respond_to_interrupt(pick, interrupt=…, metadata=…)`` → second
 ``generate`` with ``resume_respond``.
 
@@ -145,7 +145,6 @@ async def interactive_trivia_cli() -> None:
                 interrupt=interrupt,
                 metadata={'source': 'cli', 'path': 'respond'},
             )
-            assert isinstance(interrupt_response, ToolResponsePart)
             response = await ai.generate(
                 messages=messages,
                 resume_respond=[interrupt_response],

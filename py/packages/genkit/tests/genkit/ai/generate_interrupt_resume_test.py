@@ -10,12 +10,12 @@ from typing import Any
 import pytest
 
 from genkit import Genkit, Message, ModelResponse
-from genkit._ai._generate import _resolve_resumed_tool_request, generate_action
+from genkit._ai._generate import generate_action
 from genkit._ai._testing import define_programmable_model
 from genkit._ai._tools import Interrupt, ToolRunContext, respond_to_interrupt
 from genkit._core._error import GenkitError
 from genkit._core._model import GenerateActionOptions
-from genkit._core._typing import FinishReason, Part, Resume
+from genkit._core._typing import FinishReason, Resume
 
 
 def _wire(messages: list[Message]) -> list[dict[str, Any]]:
@@ -253,9 +253,11 @@ async def test_resume_respond_trp_gets_resolved_interrupt_and_tool_trp() -> None
 
 @pytest.mark.asyncio
 async def test_tool_either_interrupts_or_returns() -> None:
-    """Same ``bank_transfer`` tool: ``preapproved=False`` interrupts (short history),
-    ``preapproved=True`` runs through to a normal tool response and a final model turn. Two
-    back-to-back runs with different queued model responses, each wire asserted in full.
+    """Same tool, two independent generate calls with different inputs.
+
+    First call: ``preapproved=False`` → tool raises Interrupt → finish is INTERRUPTED, no tool row.
+    Second call: ``preapproved=True`` → tool returns 42 → finish is STOP, full tool+model rows present.
+    Both results are wire-asserted in full.
     """
     ai = Genkit()
     pm, _ = define_programmable_model(ai)
@@ -413,9 +415,9 @@ async def test_resume_restart_runs_tool_second_time_and_resolved_interrupt_on_mo
             message=Message.model_validate({'role': 'model', 'content': [{'text': 'final'}]}),
         )
     )
+    # ^ Queued for the second generate call (after restart re-runs the tool).
 
     first = await generate_action(
-        ai.registry,
         _gen_opts(ai, tools=['pay'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
     )
     assert first.finish_reason == FinishReason.INTERRUPTED
@@ -584,6 +586,7 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
                     'toolResponse': {'ref': 'ra', 'name': 'a', 'output': {'done': True}},
                     'metadata': {'interruptResponse': True},
                 },
+                # Restart path: tool re-runs and returns its own output; no interruptResponse metadata.
                 {'toolResponse': {'ref': 'rb', 'name': 'b', 'output': 'b-done'}},
             ],
             'metadata': {'resumed': True},
@@ -596,28 +599,112 @@ async def test_mixed_resume_one_respond_one_restart() -> None:
 
 
 @pytest.mark.asyncio
-async def test_pending_output_trp_yields_tool_response_with_source_pending() -> None:
-    """If the TRP only has ``pendingOutput``, ``_resolve_resumed_tool_request`` should synthesize a
-    tool response with that output and ``metadata.source`` set to ``pending``—checked on the part
-    directly, not a full message list.
+async def test_mixed_one_interrupts_one_succeeds_pending_output_in_wire() -> None:
+    """Two tools in one turn: ``a`` interrupts, ``b`` succeeds.
+
+    Turn 1: both run in parallel. ``b``'s output is stashed as ``pendingOutput``
+    on its TRP in the model message (no tool message yet). finish=INTERRUPTED.
+
+    Turn 2: resume with ``respond=[...]`` for ``a`` only — no action needed for
+    ``b``. The framework reconstructs ``b``'s tool response from the stashed
+    output and marks it ``source: pending`` in the wire.
     """
     ai = Genkit()
-    part = Part.model_validate({
-        'toolRequest': {'name': 't', 'ref': 'r', 'input': {}},
-        'metadata': {'pendingOutput': 123},
-    })
-    _, resp = await _resolve_resumed_tool_request(
-        ai.registry,
-        GenerateActionOptions(
-            model='programmableModel',
-            messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'x'}]})],
-        ),
-        part,
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='a')
+    async def a_tool(_: dict) -> str:  # noqa: ARG001
+        raise Interrupt({'reason': 'needs_approval'})
+
+    @ai.tool(name='b')
+    async def b_tool(_: dict) -> int:  # noqa: ARG001
+        return 42
+
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message.model_validate({
+                'role': 'model',
+                'content': [
+                    {'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}}},
+                    {'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}}},
+                ],
+            }),
+        )
     )
-    assert resp.model_dump(mode='json', exclude_none=True, by_alias=True) == {
-        'toolResponse': {'ref': 'r', 'name': 't', 'output': 123},
-        'metadata': {'source': 'pending'},
-    }
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message.model_validate({'role': 'model', 'content': [{'text': 'done'}]}),
+        )
+    )
+
+    first = await generate_action(
+        ai.registry,
+        _gen_opts(ai, tools=['a', 'b'], messages=[Message.model_validate({'role': 'user', 'content': [{'text': 'hi'}]})]),
+    )
+    assert first.finish_reason == FinishReason.INTERRUPTED
+    # b's output is stashed in pendingOutput on its TRP; no tool message yet.
+    assert _wire(first.messages) == [
+        {'role': 'user', 'content': [{'text': 'hi'}]},
+        {
+            'role': 'model',
+            'content': [
+                {
+                    'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}},
+                    'metadata': {'interrupt': {'reason': 'needs_approval'}},
+                },
+                {
+                    'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}},
+                    'metadata': {'pendingOutput': 42},
+                },
+            ],
+        },
+    ]
+
+    ia = first.interrupts[0]
+    second = await generate_action(
+        ai.registry,
+        _gen_opts(
+            ai,
+            tools=['a', 'b'],
+            messages=list(first.messages),
+            resume=Resume(respond=[respond_to_interrupt({'approved': True}, interrupt=ia)]),
+        ),
+    )
+
+    assert second.finish_reason == FinishReason.STOP
+    assert _wire(second.messages) == [
+        {'role': 'user', 'content': [{'text': 'hi'}]},
+        {
+            'role': 'model',
+            'content': [
+                {
+                    'toolRequest': {'ref': 'ra', 'name': 'a', 'input': {}},
+                    'metadata': {'resolvedInterrupt': {'reason': 'needs_approval'}},
+                },
+                {
+                    'toolRequest': {'ref': 'rb', 'name': 'b', 'input': {}},
+                },
+            ],
+        },
+        {
+            'role': 'tool',
+            'content': [
+                {
+                    'toolResponse': {'ref': 'ra', 'name': 'a', 'output': {'approved': True}},
+                    'metadata': {'interruptResponse': True},
+                },
+                {
+                    # b ran on turn 1; output reconstructed from pendingOutput stash.
+                    'toolResponse': {'ref': 'rb', 'name': 'b', 'output': 42},
+                    'metadata': {'source': 'pending'},
+                },
+            ],
+            'metadata': {'resumed': True},
+        },
+        {'role': 'model', 'content': [{'text': 'done'}]},
+    ]
 
 
 @pytest.mark.asyncio
@@ -648,6 +735,7 @@ async def test_resume_without_matching_replies_raises() -> None:
                 resume=Resume(),
             ),
         )
+    assert ei.value.status == 'INVALID_ARGUMENT'
     assert 'replies' in ei.value.original_message or 'restarts' in ei.value.original_message
 
 
@@ -668,4 +756,5 @@ async def test_resume_requires_last_message_model_with_tool_requests() -> None:
                 resume=Resume(),
             ),
         )
+    assert ei.value.status == 'FAILED_PRECONDITION'
     assert 'model' in ei.value.original_message.lower()

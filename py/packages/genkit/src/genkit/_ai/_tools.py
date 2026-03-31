@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._registry import Registry
-from genkit._core._typing import Part, ToolDefinition, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit._core._typing import ToolDefinition, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 
 class Tool:
@@ -97,7 +97,7 @@ class Tool:
             replace_input: Optional new ``tool_request.input`` for this run (previous input is
                 stored in ``metadata.replacedInput`` when this is set).
             interrupt: The interrupted ``ToolRequestPart`` (e.g. from ``response.interrupts``).
-            resumed_metadata: Passed to the tool as :attr:`ToolRunContext.resumed_metadata`.
+            resumed_metadata: Passed to the tool as ``ToolRunContext.resumed_metadata``.
 
         Returns:
             A ``ToolRequestPart`` for ``resume_restart`` / message history.
@@ -203,12 +203,12 @@ class Interrupt(Exception):  # noqa: N818 - public Genkit name; not renamed *Err
     """Exception for interrupting tool execution with user-facing API.
 
     Raise ``Interrupt(data)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
-    Exceptions from ``tool.run`` are wrapped in :class:`~genkit._core._error.GenkitError`
+    Exceptions from ``tool.run`` are wrapped in GenkitError
     with ``cause=Interrupt``; generation attaches interrupt metadata to the pending tool
     request.
 
-    To resume, use :func:`respond_to_interrupt` or ``tool.restart(...)`` on the
-    registered :class:`Tool`.
+    To resume, use ``respond_to_interrupt`` or ``tool.restart(...)`` on the
+    registered Tool.
     """
 
     def __init__(self, data: dict[str, Any] | None = None) -> None:
@@ -258,11 +258,11 @@ def respond_to_interrupt(
     return _tool_response_part(interrupt, response, metadata)
 
 
-async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolRequestPart) -> Part:
+async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolRequestPart) -> ToolResponsePart:
     """Run a tool for ``resume_restart``: applies ``resumed`` / ``replacedInput`` from metadata.
 
-    Sets the same context variables as the tool wrapper so :class:`ToolRunContext` reflects
-    a resumed run. Nested interrupts during restart are not supported and raise :class:`GenkitError`.
+    Sets the same context variables as the tool wrapper so ToolRunContext reflects
+    a resumed run. Nested interrupts during restart are not supported and raise GenkitError.
     """
     meta = restart_trp.metadata or {}
     raw_resumed = meta.get('resumed')
@@ -295,13 +295,11 @@ async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolR
         _tool_resumed_metadata.reset(token_meta)
         _tool_original_input.reset(token_input)
 
-    return Part(
-        root=ToolResponsePart(
-            tool_response=ToolResponse(
-                name=restart_trp.tool_request.name,
-                ref=restart_trp.tool_request.ref,
-                output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
-            )
+    return ToolResponsePart(
+        tool_response=ToolResponse(
+            name=restart_trp.tool_request.name,
+            ref=restart_trp.tool_request.ref,
+            output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
         )
     )
 
@@ -407,10 +405,10 @@ def define_interrupt(
 ) -> Tool:
     """Register a tool that always interrupts execution.
 
-    An interrupt tool is a special tool that always raises :class:`Interrupt` with
+    An interrupt tool is a special tool that always raises ``Interrupt`` with
     optional metadata. This is useful for explicit human-in-the-loop checkpoints.
-    For tools that sometimes run logic and sometimes interrupt, use :func:`define_tool`
-    and raise :class:`Interrupt` from the handler (or use ``ToolRunContext``).
+    For tools that sometimes run logic and sometimes interrupt, use ``define_tool``
+    and raise ``Interrupt`` from the handler (or use ``ToolRunContext``).
 
     Args:
         registry: The registry to register the interrupt tool in
@@ -421,7 +419,7 @@ def define_interrupt(
             interrupt handler is typed as ``Any``; pass this so the model sees a concrete shape.
 
     Returns:
-        The registered tool callable (same shape as :func:`define_tool`).
+        The registered tool callable (same shape as ``define_tool``).
 
     Example:
         def get_meta(input: dict) -> dict:

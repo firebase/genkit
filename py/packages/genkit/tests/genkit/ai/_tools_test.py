@@ -188,8 +188,8 @@ async def test_run_tool_after_restart_nested_interrupt_raises() -> None:
     )
     with pytest.raises(GenkitError) as ei:
         await run_tool_after_restart(action, restart_trp)
-    msg = ei.value.original_message.lower()
-    assert 'restart' in msg or 'nested' in msg or 'not supported' in msg
+    assert ei.value.status == 'FAILED_PRECONDITION'
+    assert 'interrupted again' in ei.value.original_message.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -263,5 +263,37 @@ async def test_run_tool_after_restart_response_preserves_ref() -> None:
         metadata={'resumed': True},
     )
     part = await run_tool_after_restart(action, restart_trp)
-    assert part.root.tool_response.ref == 'wire-ref-99'
+    assert part.tool_response.ref == 'wire-ref-99'
 
+
+@pytest.mark.asyncio
+async def test_run_tool_after_restart_response_preserves_ref_and_uses_new_input() -> None:
+    """``run_tool_after_restart`` returns a ToolResponsePart whose ref matches the restart TRP,
+    and the tool receives the replaced input (not the original interrupted input).
+    """
+    ai = Genkit()
+    received_inputs: list[dict] = []
+
+    @ai.tool(name='transfer')
+    async def transfer(inp: dict) -> str:
+        received_inputs.append(dict(inp))
+        if not inp.get('confirmed'):
+            raise Interrupt({'reason': 'needs_approval'})
+        return f"transferred {inp.get('amount')}"
+
+    action = await ai.registry.resolve_action(kind=ActionKind.TOOL, name='transfer')
+    assert action is not None
+
+    # Simulate a restart TRP: original input had confirmed=False, new input has confirmed=True.
+    restart_trp = ToolRequestPart(
+        tool_request=ToolRequest(name='transfer', ref='ref-42', input={'amount': 100, 'confirmed': True}),
+        metadata={'resumed': True, 'replacedInput': {'amount': 100, 'confirmed': False}},
+    )
+    result = await run_tool_after_restart(action, restart_trp)
+
+    # Ref is preserved from the restart TRP.
+    assert result.tool_response.ref == 'ref-42'
+    assert result.tool_response.name == 'transfer'
+    # Tool received the new (replaced) input, not the original.
+    assert received_inputs == [{'amount': 100, 'confirmed': True}]
+    assert result.tool_response.output == 'transferred 100'
