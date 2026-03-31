@@ -270,15 +270,18 @@ async def test_run_tool_after_restart_response_preserves_ref() -> None:
 
 @pytest.mark.asyncio
 async def test_run_tool_after_restart_response_preserves_ref_and_uses_new_input() -> None:
-    """``run_tool_after_restart`` returns a ToolResponsePart whose ref matches the restart TRP,
-    and the tool receives the replaced input (not the original interrupted input).
+    """``run_tool_after_restart`` returns a ToolResponsePart whose ref matches the restart TRP;
+    ``tool_request.input`` is what ``tool.run`` receives, and ``metadata.replacedInput`` is
+    ``ToolRunContext.original_input`` (prior interrupted input).
     """
     ai = Genkit()
     received_inputs: list[dict] = []
+    original_inputs: list[object | None] = []
 
     @ai.tool(name='transfer')
-    async def transfer(inp: dict) -> str:
+    async def transfer(inp: dict, ctx: ToolRunContext) -> str:
         received_inputs.append(dict(inp))
+        original_inputs.append(ctx.original_input)
         if not inp.get('confirmed'):
             raise Interrupt({'reason': 'needs_approval'})
         return f"transferred {inp.get('amount')}"
@@ -286,16 +289,18 @@ async def test_run_tool_after_restart_response_preserves_ref_and_uses_new_input(
     action = await ai.registry.resolve_action(kind=ActionKind.TOOL, name='transfer')
     assert action is not None
 
+    prior = {'amount': 100, 'confirmed': False}
     # Simulate a restart TRP: original input had confirmed=False, new input has confirmed=True.
     restart_trp = ToolRequestPart(
         tool_request=ToolRequest(name='transfer', ref='ref-42', input={'amount': 100, 'confirmed': True}),
-        metadata={'resumed': True, 'replacedInput': {'amount': 100, 'confirmed': False}},
+        metadata={'resumed': True, 'replacedInput': prior},
     )
     result = await run_tool_after_restart(action, restart_trp)
 
     # Ref is preserved from the restart TRP.
     assert result.tool_response.ref == 'ref-42'
     assert result.tool_response.name == 'transfer'
-    # Tool received the new (replaced) input, not the original.
+    # Primary arg is current tool_request.input; replacedInput is surfaced as original_input.
     assert received_inputs == [{'amount': 100, 'confirmed': True}]
+    assert original_inputs == [prior]
     assert result.tool_response.output == 'transferred 100'
