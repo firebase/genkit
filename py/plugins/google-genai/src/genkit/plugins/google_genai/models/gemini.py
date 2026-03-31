@@ -1630,7 +1630,8 @@ class GeminiModel:
             model metadata.
         """
         if self._version in SUPPORTED_MODELS:
-            supports = SUPPORTED_MODELS[self._version].supports.model_dump(by_alias=True, exclude_none=True)
+            supports_info = SUPPORTED_MODELS[self._version].supports or DEFAULT_SUPPORTS_MODEL
+            supports = supports_info.model_dump(by_alias=True, exclude_none=True)
         else:
             # Fallback to default supports for models not explicitly listed
             supports = DEFAULT_SUPPORTS_MODEL.model_dump(by_alias=True, exclude_none=True)
