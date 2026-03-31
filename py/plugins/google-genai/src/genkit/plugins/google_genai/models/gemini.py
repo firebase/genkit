@@ -946,7 +946,23 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore
     GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
-SUPPORTED_MODELS = {}
+SUPPORTED_MODELS = {
+    'gemini-1.5-pro': GEMINI_1_5_PRO,
+    'gemini-1.5-flash': GEMINI_1_5_FLASH,
+    'gemini-1.5-flash-8b': GEMINI_1_5_FLASH_8B,
+    'gemini-2.0-flash': GEMINI_2_0_FLASH,
+    'gemini-2.0-flash-lite': GEMINI_2_0_FLASH_LITE,
+    'gemini-2.0-pro-exp-02-05': GEMINI_2_0_PRO_EXP_02_05,
+    'gemini-2.0-flash-exp': GEMINI_2_0_FLASH_EXP_IMAGEN,
+    'gemini-2.0-flash-thinking-exp-01-21': GEMINI_2_0_FLASH_THINKING_EXP_01_21,
+    'gemini-2.5-pro-exp-03-25': GEMINI_2_5_PRO_EXP_03_25,
+    'gemini-2.5-pro-preview-03-25': GEMINI_2_5_PRO_PREVIEW_03_25,
+    'gemini-2.5-pro-preview-05-06': GEMINI_2_5_PRO_PREVIEW_05_06,
+    'gemini-2.5-flash-preview-04-17': GEMINI_2_5_FLASH_PREVIEW_04_17,
+    'gemini-3.1-flash-lite-preview': GEMINI_3_1_FLASH_LITE_PREVIEW,
+    'gemini-3.1-pro-preview-customtools': GEMINI_3_1_PRO_PREVIEW_CUSTOMTOOLS,
+    'gemini-3.1-pro-preview': GEMINI_3_1_PRO_PREVIEW,
+}
 
 
 DEFAULT_SUPPORTS_MODEL = Supports(

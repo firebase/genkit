@@ -47,6 +47,7 @@ from genkit import (
 from genkit.plugin_api import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
+    GEMINI_3_1_PRO_PREVIEW,
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
@@ -367,6 +368,12 @@ def test_google_model_info(input: str, expected: ModelInfo) -> None:
     model_info = google_model_info(input)
 
     assert model_info == expected
+
+
+def test_google_model_info_known_uses_registered_metadata() -> None:
+    """Known models should return explicit metadata from SUPPORTED_MODELS."""
+    model_info = google_model_info('gemini-3.1-pro-preview')
+    assert model_info == GEMINI_3_1_PRO_PREVIEW
 
 
 @pytest.fixture
