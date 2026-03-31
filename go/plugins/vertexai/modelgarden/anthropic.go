@@ -32,9 +32,9 @@ import (
 )
 
 const (
-	// TODO: This must be renamed in the next major version.
+	// TODO: The provider value should be updated in the next major version to avoid collisions with the main vertexai plugin.
 	provider   = "vertexai"
-	pluginName = "vertex-model-garden"
+	pluginName = "vertex-model-garden-anthropic"
 )
 
 // Anthropic is a Genkit plugin for interacting with Anthropic models in Vertex AI Model Garden
