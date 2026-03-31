@@ -227,7 +227,7 @@ func TestToAnthropicTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := toAnthropicTools(tt.tools)
+			got, err := toAnthropicTools("anthropic", tt.tools)
 			if checkError(t, err, tt.expectedErr) {
 				return
 			}
@@ -360,7 +360,7 @@ func TestToAnthropicRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := toAnthropicRequest(tt.req)
+			got, err := toAnthropicRequest("anthropic", tt.req)
 			if checkError(t, err, tt.expectedErr) {
 				return
 			}
@@ -403,7 +403,7 @@ func TestToAnthropicRequest_StructuredOutput(t *testing.T) {
 		},
 	}
 
-	got, err := toAnthropicRequest(req)
+	got, err := toAnthropicRequest("anthropic", req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
