@@ -556,11 +556,11 @@ async def test_generate_with_interrupt_respond(
 
     assert interrupted_response.messages == [
         Message(
-            role='user',
+            role=Role.USER,
             content=[Part(root=TextPart(text='hi'))],
         ),
         Message(
-            role='model',
+            role=Role.MODEL,
             content=[
                 Part(root=TextPart(text='call these tools')),
                 Part(
@@ -592,11 +592,11 @@ async def test_generate_with_interrupt_respond(
 
     assert response.messages == [
         Message(
-            role='user',
+            role=Role.USER,
             content=[Part(root=TextPart(text='hi'))],
         ),
         Message(
-            role='model',
+            role=Role.MODEL,
             content=[
                 Part(root=TextPart(text='call these tools')),
                 Part(
@@ -608,14 +608,14 @@ async def test_generate_with_interrupt_respond(
                 Part(
                     root=ToolRequestPart(
                         tool_request=ToolRequest(ref='234', name='test_tool', input={'value': 5}),
-                        metadata={'pendingOutput': 12},
+                        metadata=None,
                     )
                 ),
             ],
             metadata=None,
         ),
         Message(
-            role='tool',
+            role=Role.TOOL,
             content=[
                 Part(
                     root=ToolResponsePart(
@@ -633,7 +633,7 @@ async def test_generate_with_interrupt_respond(
             metadata={'resumed': True},
         ),
         Message(
-            role='model',
+            role=Role.MODEL,
             content=[Part(root=TextPart(text='tool called'))],
             metadata=None,
         ),
