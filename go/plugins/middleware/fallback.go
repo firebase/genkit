@@ -18,7 +18,6 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"slices"
 
@@ -41,55 +40,32 @@ var defaultFallbackStatuses = []core.StatusName{
 // Fallback is a middleware that tries alternative models when the primary model
 // fails with a retryable error status.
 //
-// It only hooks the Model stage — when a model API call fails with a matching
+// It only hooks the Model stage -- when a model API call fails with a matching
 // status, the request is forwarded to the next model in the list.
 //
-// Models are specified as [ai.ModelArg] values (model references, model instances,
-// or strings via [ai.NewModelRef]) and resolved via the [genkit.Genkit] instance at call time.
-// The Genkit instance is available via [genkit.FromContext] during generation.
+// Models are specified as [ai.ModelRef] values (created via [ai.NewModelRef])
+// and resolved via the [genkit.Genkit] instance at call time.
 //
 // Usage:
 //
 //	resp, err := genkit.Generate(ctx, g,
 //	    ai.WithModel(primary),
 //	    ai.WithPrompt("hello"),
-//	    ai.WithUse(&middleware.Fallback{Models: []ai.ModelArg{backup1, backup2}}),
+//	    ai.WithUse(&middleware.Fallback{Models: []ai.ModelRef{
+//	        googlegenai.ModelRef("googleai/gemini-2.5-flash", ...),
+//	        googlegenai.ModelRef("vertexai/gemini-2.5-flash", ...),
+//	    }}),
 //	)
 type Fallback struct {
 	ai.BaseMiddleware
 	// Models is the ordered list of fallback models to try.
-	// Each entry is an [ai.ModelArg] (e.g. an [ai.Model], [ai.ModelRef], etc.).
 	// These are tried in order after the primary model fails.
-	Models ModelList `json:"models,omitempty"`
+	Models []ai.ModelRef `json:"models,omitempty"`
 	// Statuses is the set of status codes that trigger a fallback.
 	// Only [core.GenkitError] errors with a matching status will trigger fallback;
 	// non-GenkitError errors propagate immediately.
 	// Defaults to [defaultFallbackStatuses].
 	Statuses []core.StatusName `json:"statuses,omitempty"`
-}
-
-// ModelList is a list of [ai.ModelArg] values that marshals to/from JSON as
-// a list of model name strings.
-type ModelList []ai.ModelArg
-
-func (l ModelList) MarshalJSON() ([]byte, error) {
-	names := make([]string, len(l))
-	for i, m := range l {
-		names[i] = m.Name()
-	}
-	return json.Marshal(names)
-}
-
-func (l *ModelList) UnmarshalJSON(data []byte) error {
-	var names []string
-	if err := json.Unmarshal(data, &names); err != nil {
-		return err
-	}
-	*l = make(ModelList, len(names))
-	for i, name := range names {
-		(*l)[i] = ai.NewModelRef(name, nil)
-	}
-	return nil
 }
 
 func (f *Fallback) Name() string { return provider + "/fallback" }

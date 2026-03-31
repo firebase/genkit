@@ -53,7 +53,7 @@ func TestFallbackNotTriggeredOnSuccess(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
 
 	resp, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err != nil {
@@ -80,7 +80,7 @@ func TestFallbackTriggeredOnRetryableError(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary ok")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
 
 	resp, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err != nil {
@@ -108,7 +108,7 @@ func TestFallbackTriesMultipleModels(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("tertiary ok")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary, tertiary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil), ai.NewModelRef(tertiary.Name(), nil)}}
 
 	resp, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err != nil {
@@ -138,7 +138,7 @@ func TestFallbackAllModelsFail(t *testing.T) {
 		return nil, core.NewError(core.UNAVAILABLE, "secondary down")
 	})
 
-	fb := &Fallback{Models: ModelList{secondary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
 
 	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err == nil {
@@ -161,7 +161,7 @@ func TestFallbackDoesNotTriggerOnNonRetryableError(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
 
 	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err == nil {
@@ -187,7 +187,7 @@ func TestFallbackDoesNotTriggerOnNonGenkitError(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("secondary")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)}}
 
 	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err == nil {
@@ -213,7 +213,7 @@ func TestFallbackStopsOnNonRetryableFallbackError(t *testing.T) {
 		return &ai.ModelResponse{Message: ai.NewModelTextMessage("tertiary")}, nil
 	})
 
-	fb := &Fallback{Models: ModelList{secondary, tertiary}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil), ai.NewModelRef(tertiary.Name(), nil)}}
 
 	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err == nil {
@@ -238,7 +238,7 @@ func TestFallbackCustomStatuses(t *testing.T) {
 	})
 
 	fb := &Fallback{
-		Models:   ModelList{secondary},
+		Models:   []ai.ModelRef{ai.NewModelRef(secondary.Name(), nil)},
 		Statuses: []core.StatusName{core.PERMISSION_DENIED},
 	}
 
@@ -258,7 +258,7 @@ func TestFallbackModelNotFound(t *testing.T) {
 		return nil, core.NewError(core.UNAVAILABLE, "primary down")
 	})
 
-	fb := &Fallback{Models: ModelList{ai.NewModelRef("test/nonexistent", nil)}}
+	fb := &Fallback{Models: []ai.ModelRef{ai.NewModelRef("test/nonexistent", nil)}}
 
 	_, err := genkit.Generate(ctx, g, ai.WithModel(primary), ai.WithPrompt("hello"), ai.WithUse(fb))
 	if err == nil {
