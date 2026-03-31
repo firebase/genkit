@@ -521,7 +521,79 @@ describe('Google AI Gemini', () => {
             aspectRatio: '16:9',
             imageSize: '2K',
           },
+          responseModalities: ['TEXT', 'IMAGE'],
         });
+      });
+
+      it('defaults responseModalities to AUDIO for TTS models', async () => {
+        const model = defineModel(
+          'gemini-2.5-flash-preview-tts',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        await model.run(minimalRequest);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(
+          apiRequest.generationConfig?.responseModalities,
+          ['AUDIO']
+        );
+      });
+
+      it('does not override responseModalities if specified for TTS models', async () => {
+        const model = defineModel(
+          'gemini-2.5-flash-preview-tts',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiTtsConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            responseModalities: ['TEXT'],
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(
+          apiRequest.generationConfig?.responseModalities,
+          ['TEXT']
+        );
+      });
+
+      it('does not default responseModalities to AUDIO for non-TTS models', async () => {
+        const model = defineModel('gemini-2.5-flash', defaultPluginOptions);
+        mockFetchResponse(defaultApiResponse);
+        await model.run(minimalRequest);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.strictEqual(
+          apiRequest.generationConfig?.responseModalities,
+          undefined
+        );
+      });
+
+      it('defaults responseModalities to TEXT, IMAGE for image models', async () => {
+        const model = defineModel(
+          'gemini-2.5-flash-image',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        await model.run(minimalRequest);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(
+          apiRequest.generationConfig?.responseModalities,
+          ['TEXT', 'IMAGE']
+        );
       });
     });
 

@@ -353,7 +353,19 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['0.5K', '1K', '2K', '4K']).optional(),
+      imageSize: z
+        .enum([
+          '256',
+          '256P',
+          '256PX',
+          '512',
+          '512P',
+          '512PX',
+          '1K',
+          '2K',
+          '4K',
+        ])
+        .optional(),
     })
     .passthrough()
     .optional(),
@@ -790,6 +802,8 @@ export function defineModel(
         };
       }
 
+      const modelVersion = versionFromConfig || extractVersion(ref);
+
       // Cannot use tools with JSON mode
       const jsonMode =
         request.output?.format === 'json' ||
@@ -801,6 +815,16 @@ export function defineModel(
         candidateCount: request.candidates || undefined,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
+
+      if (isTTSModelName(modelVersion)) {
+        if (!generationConfig.responseModalities) {
+          generationConfig.responseModalities = ['AUDIO'];
+        }
+      } else if (isImageModelName(modelVersion)) {
+        if (!generationConfig.responseModalities) {
+          generationConfig.responseModalities = ['TEXT', 'IMAGE'];
+        }
+      }
 
       if (request.output?.constrained && jsonMode) {
         if (pluginOptions?.legacyResponseSchema) {
@@ -822,8 +846,6 @@ export function defineModel(
         ) as SafetySetting[],
         contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
-
-      const modelVersion = versionFromConfig || extractVersion(ref);
 
       const generateApiKey = calculateApiKey(
         pluginOptions?.apiKey,
