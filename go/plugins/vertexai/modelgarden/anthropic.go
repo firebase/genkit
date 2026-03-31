@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	provider = "vertexai"
+	// TODO: This must be renamed in the next major version.
+	provider   = "vertexai"
+	pluginName = "vertex-model-garden"
 )
 
 // Anthropic is a Genkit plugin for interacting with Anthropic models in Vertex AI Model Garden
@@ -47,7 +49,7 @@ type Anthropic struct {
 
 // Name returns the name of the plugin
 func (a *Anthropic) Name() string {
-	return provider
+	return pluginName
 }
 
 // Init initializes the VertexAI Model Garden for Anthropic plugin and all its known models.
