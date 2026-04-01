@@ -32,6 +32,11 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
+from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
+from genkit._ai._tools import ToolInterruptError
+from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._core._error import GenkitError
+from genkit._core._logger import get_logger
 from genkit._core._middleware._augment_with_context import augment_with_context
 from genkit._core._middleware._base import (
     BaseMiddleware,
@@ -39,11 +44,6 @@ from genkit._core._middleware._base import (
     ModelHookParams,
     ToolHookParams,
 )
-from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
-from genkit._core._action import Action, ActionKind, ActionRunContext
-from genkit._core._error import GenkitError
-from genkit._core._logger import get_logger
 from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
 from genkit._core._tracing import run_in_new_span
@@ -165,7 +165,7 @@ async def _generate_action(
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
     current_turn: int = 0,
-    middleware: list[ModelMiddleware] | None = None,
+    middleware: list[BaseMiddleware] | None = None,
     context: dict[str, Any] | None = None,
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support."""

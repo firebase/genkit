@@ -240,7 +240,19 @@ def create_reflection_asgi_app(
 
     async def values(req: Request) -> Response:
         raw = req.query_params.get('type')
-        type_param = (raw or '').strip() or 'defaultModel'
+        if not raw or not raw.strip():
+            return JSONResponse(
+                {'error': 'Query parameter "type" is required.'},
+                status_code=400,
+                headers={'x-genkit-version': version},
+            )
+        type_param = raw.strip()
+        if type_param != 'defaultModel':
+            return JSONResponse(
+                {'error': f"'type' {type_param} is not supported. Only 'defaultModel' is supported"},
+                status_code=400,
+                headers={'x-genkit-version': version},
+            )
         try:
             try:
                 await registry.initialize_all_plugins()

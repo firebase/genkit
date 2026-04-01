@@ -133,19 +133,11 @@ async def test_list_values_default_model(asgi_client: AsyncClient, mock_registry
 
 
 @pytest.mark.asyncio
-async def test_list_values_omitted_type_defaults(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """GET /api/values without type defaults to defaultModel (lenient for Dev UI / axios)."""
-
-    async def mock_initialize_all_plugins() -> None:
-        return None
-
-    mock_registry.initialize_all_plugins = mock_initialize_all_plugins
-    mock_registry.list_values = MagicMock(return_value={'m': 'm'})
-
+async def test_list_values_omitted_type_returns_400(asgi_client: AsyncClient) -> None:
+    """GET /api/values without a type param returns 400 (matches JS v1 behavior)."""
     response = await asgi_client.get('/api/values')
-    assert response.status_code == 200
-    assert response.json() == {'m': 'm'}
-    mock_registry.list_values.assert_called_once_with('defaultModel')
+    assert response.status_code == 400
+    assert 'required' in response.json().get('error', '').lower()
 
 
 @pytest.mark.asyncio

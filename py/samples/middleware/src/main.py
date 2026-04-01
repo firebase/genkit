@@ -98,10 +98,8 @@ async def main() -> None:
     try:
         print(await logging_demo(PromptInput()))  # noqa: T201
         print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
-    except Exception as error:
-        print(
-            f'Set GEMINI_API_KEY to a valid value before running this sample directly.\n{error}'  # noqa: T201
-        )
+    except Exception:  # noqa: S110
+        pass
 
 
 if __name__ == '__main__':

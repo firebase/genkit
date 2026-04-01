@@ -16,19 +16,13 @@ from pydantic import BaseModel, TypeAdapter
 
 from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
 from genkit._ai._generate import generate_action
-from genkit.middleware import (
-    BaseMiddleware,
-    GenerateHookParams,
-    ModelHookParams,
-    ToolHookParams,
-)
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._ai._testing import (
     ProgrammableModel,
     define_echo_model,
     define_programmable_model,
 )
-from genkit._core._model import ModelRequest
+from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     FinishReason,
@@ -37,6 +31,12 @@ from genkit._core._typing import (
     TextPart,
     ToolRequest,
     ToolRequestPart,
+)
+from genkit.middleware import (
+    BaseMiddleware,
+    GenerateHookParams,
+    ModelHookParams,
+    ToolHookParams,
 )
 
 

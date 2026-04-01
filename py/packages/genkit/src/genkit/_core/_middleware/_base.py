@@ -24,8 +24,8 @@ from typing import ClassVar, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from genkit._core._action import Action
-from genkit._core._model import ModelRequest, ModelResponse, ModelResponseChunk
-from genkit._core._typing import GenerateActionOptions, Part, ToolRequestPart
+from genkit._core._model import GenerateActionOptions, ModelRequest, ModelResponse, ModelResponseChunk
+from genkit._core._typing import Part, ToolRequestPart
 
 
 class Middleware(Protocol):

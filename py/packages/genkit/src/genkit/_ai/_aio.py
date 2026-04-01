@@ -54,7 +54,6 @@ from genkit._ai._model import (
     ModelResponseChunk,
     define_model,
 )
-from genkit._core._middleware._base import BaseMiddleware
 from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
@@ -91,6 +90,7 @@ from genkit._core._dap import (
 from genkit._core._environment import is_dev_environment
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
+from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._model import Document
 from genkit._core._plugin import Plugin
 from genkit._core._reflection import ReflectionServer, ServerSpec, create_reflection_asgi_app

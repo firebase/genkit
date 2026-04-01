@@ -6,7 +6,7 @@
 """Tests for the action module."""
 
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -31,7 +31,6 @@ from genkit._ai._testing import (
 )
 from genkit._core._action import ActionKind, ActionRunContext
 from genkit._core._model import ModelRequest
-from genkit.middleware import BaseMiddleware, ModelHookParams
 from genkit._core._typing import (
     BaseDataPoint,
     Details,
@@ -53,6 +52,7 @@ from genkit._core._typing import (
     ToolResponse,
     ToolResponsePart,
 )
+from genkit.middleware import BaseMiddleware, ModelHookParams
 
 # type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
