@@ -80,7 +80,10 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
                         if self._max_bytes is not None and len(content) > self._max_bytes:
                             raise GenkitError(
                                 status='INVALID_ARGUMENT',
-                                message=f"Media content from '{part.root.media.url}' exceeds maximum allowed size of {self._max_bytes} bytes.",
+                                message=(
+                                    f"Media content from '{part.root.media.url}' exceeds"
+                                    f' maximum allowed size of {self._max_bytes} bytes.'
+                                ),
                             )
 
                         content_type = part.root.media.content_type or response.headers.get(

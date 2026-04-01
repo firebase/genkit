@@ -115,3 +115,5 @@ class _RetryMiddleware(BaseMiddleware):
                         continue
 
                 raise
+
+        raise last_error or RuntimeError('Retry loop completed without result')
