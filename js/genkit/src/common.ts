@@ -48,6 +48,8 @@ export {
   modelRef,
   rerankerRef,
   resource,
+  respondTool,
+  restartTool,
   retrieverRef,
   type DocumentData,
   type DynamicResourceAction,

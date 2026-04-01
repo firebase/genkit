@@ -408,6 +408,71 @@ export type InterruptConfig<
       ) => Record<string, any> | Promise<Record<string, any>>);
 };
 
+/**
+ * restartTool constructs a tool request corresponding to the provided interrupt tool request
+ * that will then re-trigger the tool after e.g. a user confirms. In contrast to ToolAction.restart,
+ * this is a standalone utility that does not require an active ToolAction instance.
+ *
+ * @param interrupt The interrupt tool request you want to restart.
+ * @param resumedMetadata The metadata you want to provide to the tool to aide in reprocessing. Defaults to `true` if none is supplied.
+ * @param options Additional options for restarting the tool.
+ *
+ * @beta
+ */
+export function restartTool(
+  interrupt: ToolRequestPart,
+  resumedMetadata?: any,
+  options?: {
+    /**
+     * Replace the existing input arguments to the tool with different ones.
+     **/
+    replaceInput?: any;
+  }
+): ToolRequestPart {
+  let replaceInput = options?.replaceInput;
+  return {
+    toolRequest: stripUndefinedProps({
+      name: interrupt.toolRequest.name,
+      ref: interrupt.toolRequest.ref,
+      input: replaceInput || interrupt.toolRequest.input,
+    }),
+    metadata: stripUndefinedProps({
+      ...interrupt.metadata,
+      resumed: resumedMetadata || true,
+      // annotate the original input if replacing it
+      replacedInput: replaceInput ? interrupt.toolRequest.input : undefined,
+    }),
+  };
+}
+
+/**
+ * respondTool constructs a tool response part corresponding to the provided interrupt tool request
+ * that bypasses normal tool execution and sends a manual output result. In contrast to ToolAction.respond,
+ * this is a standalone utility that does not require an active ToolAction instance.
+ *
+ * @param interrupt The interrupt tool request you are responding to.
+ * @param responseData The manual output result you want to send back to the model.
+ * @param options Additional options for responding to the tool.
+ *
+ * @beta
+ */
+export function respondTool(
+  interrupt: ToolRequestPart,
+  responseData: any,
+  options?: { metadata?: any }
+): ToolResponsePart {
+  return {
+    toolResponse: stripUndefinedProps({
+      name: interrupt.toolRequest.name,
+      ref: interrupt.toolRequest.ref,
+      output: responseData,
+    }),
+    metadata: stripUndefinedProps({
+      interruptResponse: options?.metadata || true,
+    }),
+  };
+}
+
 export function isToolRequest(part: Part): part is ToolRequestPart {
   return !!part.toolRequest;
 }
