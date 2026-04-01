@@ -617,23 +617,23 @@ async function toWav(
 
 // An example of using Ver 3 model to make a static photo move.
 ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
-  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+  const startingImage = fs.readFileSync('woman.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.1-fast-generate-preview'),
+    model: googleAI.model('veo-3.1-lite-generate-preview'),
     prompt: [
       {
         text: 'make the subject in the photo move',
       },
       {
         media: {
-          contentType: 'image/jpeg',
-          url: `data:image/jpeg;base64,${startingImage}`,
+          contentType: 'image/png',
+          url: `data:image/png;base64,${startingImage}`,
         },
       },
     ],
     config: {
-      resolution: '4k',
+      resolution: '1080p',
       durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
@@ -659,6 +659,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
+    sendChunk(operation);
     throw new Error('Failed to find the generated video');
   }
   sendChunk('Writing results to photo.mp4');
