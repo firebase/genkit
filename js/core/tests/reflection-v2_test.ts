@@ -247,6 +247,49 @@ describe('ReflectionServerV2', () => {
     await gotListValues;
   });
 
+  it('should reject unsupported type parameter for listValues in V2', async () => {
+    const gotError = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues error timeout')),
+        2000
+      );
+      wss.on('connection', (ws) => {
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'listValues',
+                params: { type: 'unsupported_type' },
+                id: '126',
+              })
+            );
+          } else if (msg.id === '126') {
+            assert.ok(msg.error);
+            assert.strictEqual(msg.error.code, 400);
+            assert.match(msg.error.message, /is not supported/);
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    await server.start();
+    await gotError;
+  });
+
   it('should handle runAction', async () => {
     const testAction = action(
       {

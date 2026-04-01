@@ -346,6 +346,14 @@ export class ReflectionServerV2 {
   private async handleListValues(request: JsonRpcRequest) {
     if (!request.id) return;
     const { type } = ReflectionListValuesParamsSchema.parse(request.params);
+    if (type !== 'defaultModel' && type !== 'middleware') {
+      this.sendError(
+        request.id,
+        400,
+        `'type' ${type} is not supported. Only 'defaultModel' and 'middleware' are supported`
+      );
+      return;
+    }
     const values = await this.registry.listValues(type);
     const mappedValues: Record<string, any> = {};
     for (const [key, value] of Object.entries(values)) {
