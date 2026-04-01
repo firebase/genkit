@@ -668,6 +668,13 @@ export class Genkit extends GenerateAPI implements HasRegistry {
     plugins.forEach((plugin) => {
       if (isPluginV2(plugin)) {
         logger.debug(`Registering v2 plugin ${plugin.name}...`);
+        plugin.generateMiddleware?.()?.forEach((middleware) => {
+          activeRegistry.registerValue(
+            'middleware',
+            middleware.name,
+            middleware
+          );
+        });
         activeRegistry.registerPluginProvider(plugin.name, {
           name: plugin.name,
           async initializer() {
