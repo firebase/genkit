@@ -80,13 +80,12 @@ type ollamaLocalModel struct {
 }
 
 // listLocalModels calls GET /api/tags to list locally installed Ollama models.
-func listLocalModels(ctx context.Context, serverAddress string) ([]ollamaLocalModel, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", serverAddress+"/api/tags", nil)
+func (o *Ollama) listLocalModels(ctx context.Context) ([]ollamaLocalModel, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", o.ServerAddress+"/api/tags", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := o.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch local models from Ollama: %w", err)
 	}
@@ -244,8 +243,9 @@ type Ollama struct {
 	ServerAddress string // Server address of oLLama.
 	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
-	mu      sync.Mutex // Mutex to control access.
-	initted bool       // Whether the plugin has been initialized.
+	mu      sync.Mutex   // Mutex to control access.
+	initted bool         // Whether the plugin has been initialized.
+	client  *http.Client // Shared HTTP client for API calls (e.g., /api/tags).
 }
 
 func (o *Ollama) Name() string {
@@ -268,6 +268,7 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 	if o.Timeout == 0 {
 		o.Timeout = 30
 	}
+	o.client = &http.Client{}
 	return []api.Action{}
 }
 
@@ -289,7 +290,7 @@ func (o *Ollama) newModel(name string, opts ai.ModelOptions) ai.Model {
 
 // ListActions calls /api/tags to discover locally installed Ollama models.
 func (o *Ollama) ListActions(ctx context.Context) []api.ActionDesc {
-	models, err := listLocalModels(ctx, o.ServerAddress)
+	models, err := o.listLocalModels(ctx)
 	if err != nil {
 		slog.Error("unable to list ollama models", "error", err)
 		return nil
@@ -328,17 +329,11 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	var payload any
 	isChatModel := g.model.Type == "chat"
 
-	// Check if this is an image model
-	hasMediaSupport := slices.Contains(mediaSupportedModels, g.model.Name)
-
-	// Extract images if the model supports them
-	var images []string
-	var err error
-	if hasMediaSupport {
-		images, err = concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
-		if err != nil {
-			return nil, fmt.Errorf("failed to grab image parts: %v", err)
-		}
+	// Extract images from the request. Ollama will handle unsupported media
+	// gracefully, matching the JS plugin behavior of unconditionally forwarding images.
+	images, err := concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
+	if err != nil {
+		return nil, fmt.Errorf("failed to grab image parts: %v", err)
 	}
 
 	if !isChatModel {

@@ -192,7 +192,8 @@ func TestDynamicPlugin(t *testing.T) {
 				}))
 				defer server.Close()
 
-				models, err := listLocalModels(context.Background(), server.URL)
+				o := newTestOllama(server.URL)
+				models, err := o.listLocalModels(context.Background())
 				if (err != nil) != tt.wantErr {
 					t.Errorf("listLocalModels() error = %v, wantErr %v", err, tt.wantErr)
 					return
