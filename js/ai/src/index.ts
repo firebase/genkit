@@ -84,6 +84,7 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export { type ToolRequest, type ToolResponse } from './parts.js';
+export { type GenkitPluginV2 } from './plugin.js';
 export {
   defineHelper,
   definePartial,
