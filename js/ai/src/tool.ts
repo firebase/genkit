@@ -413,13 +413,14 @@ export function restartTool(
     toolRequest: stripUndefinedProps({
       name: interrupt.toolRequest.name,
       ref: interrupt.toolRequest.ref,
-      input: replaceInput || interrupt.toolRequest.input,
+      input: replaceInput ?? interrupt.toolRequest.input,
     }),
     metadata: stripUndefinedProps({
       ...interrupt.metadata,
-      resumed: resumedMetadata || true,
+      resumed: resumedMetadata ?? true,
       // annotate the original input if replacing it
-      replacedInput: replaceInput ? interrupt.toolRequest.input : undefined,
+      replacedInput:
+        replaceInput !== undefined ? interrupt.toolRequest.input : undefined,
     }),
   };
 }
@@ -447,7 +448,7 @@ export function respondTool(
       output: responseData,
     }),
     metadata: stripUndefinedProps({
-      interruptResponse: options?.metadata || true,
+      interruptResponse: options?.metadata ?? true,
     }),
   };
 }
