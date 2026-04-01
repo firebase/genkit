@@ -248,16 +248,6 @@ export async function resolveToolRequests(
         transferPreamble = preamble;
       }
 
-      // this happens for preamble or normal tools
-      if (response) {
-        responseParts.push(response!);
-        revisedModelMessage.content.splice(
-          i,
-          1,
-          toPendingOutput(part, response)
-        );
-      }
-
       if (response) {
         responseParts.push(response!);
         revisedModelMessage.content.splice(
