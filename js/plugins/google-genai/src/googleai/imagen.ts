@@ -248,20 +248,22 @@ function fromImagenPrediction(p: ImagenPrediction): MediaPart {
 function toImagenParameters(
   request: GenerateRequest<typeof ImagenConfigSchema>
 ): ImagenParameters {
-  const out = {
+  const params = {
     sampleCount: request.config?.numberOfImages ?? 1,
     ...request?.config,
   };
 
-  for (const k in out) {
-    if (!out[k]) delete out[k];
+  for (const k in params) {
+    if (params[k] === undefined || params[k] === null) {
+      delete params[k];
+    }
   }
 
   // This is not part of the request parameters sent to the endpoint
   // It's pulled out and used separately
-  delete out.apiKey;
+  delete params.apiKey;
 
-  return out;
+  return params;
 }
 
 export const TEST_ONLY = {
