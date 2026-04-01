@@ -125,9 +125,215 @@ func equalContent(a, b []*ai.Part) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Text != b[i].Text || !a[i].IsText() || !b[i].IsText() {
+		if a[i].IsText() {
+			if !b[i].IsText() || a[i].Text != b[i].Text {
+				return false
+			}
+		} else if a[i].IsReasoning() {
+			if !b[i].IsReasoning() || a[i].Text != b[i].Text {
+				return false
+			}
+		} else {
+			// For other types, we might need more specific checks,
+			// but for now return false if kinds don't match or not handled
 			return false
 		}
 	}
 	return true
+}
+
+func TestParseThinking(t *testing.T) {
+	tests := []struct {
+		name         string
+		content      string
+		wantThinking string
+		wantRest     string
+	}{
+		{
+			name:         "Single think tag",
+			content:      "<think>I am thinking</think>Hello world",
+			wantThinking: "I am thinking",
+			wantRest:     "Hello world",
+		},
+		{
+			name:         "Single thinking tag",
+			content:      "<thinking>I am thinking</thinking>Hello world",
+			wantThinking: "I am thinking",
+			wantRest:     "Hello world",
+		},
+		{
+			name:         "Multiple think tags",
+			content:      "<think>First thought</think> Some text <think>Second thought</think> Final text",
+			wantThinking: "First thought\n\nSecond thought",
+			wantRest:     "Some text  Final text",
+		},
+		{
+			name:         "Mixed think and thinking tags",
+			content:      "<think>First thought</think> <thinking>Second thought</thinking> Final text",
+			wantThinking: "First thought\n\nSecond thought",
+			wantRest:     "Final text",
+		},
+		{
+			name:         "Multiline thinking",
+			content:      "<think>\nLine 1\nLine 2\n</think>Hello",
+			wantThinking: "Line 1\nLine 2",
+			wantRest:     "Hello",
+		},
+		{
+			name:         "No thinking tags",
+			content:      "Just plain text",
+			wantThinking: "",
+			wantRest:     "Just plain text",
+		},
+		{
+			name:         "Case insensitive tags",
+			content:      "<THINK>Shouting thoughts</THINK>Quiet response",
+			wantThinking: "Shouting thoughts",
+			wantRest:     "Quiet response",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotThinking, gotRest := parseThinking(tt.content)
+			if gotThinking != tt.wantThinking {
+				t.Errorf("parseThinking() gotThinking = %q, want %q", gotThinking, tt.wantThinking)
+			}
+			if gotRest != tt.wantRest {
+				t.Errorf("parseThinking() gotRest = %q, want %q", gotRest, tt.wantRest)
+			}
+		})
+	}
+}
+
+func TestTranslateChatResponse(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		thinkingEnabled bool
+		want            *ai.ModelResponse
+		wantReasoning   string
+		wantErr         bool
+	}{
+		{
+			name:            "Thinking field present (always honored regardless of thinkingEnabled)",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello", "thinking": "I should say hello"}}`,
+			thinkingEnabled: false,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewReasoningPart("I should say hello", nil),
+						ai.NewTextPart("Hello"),
+					},
+				},
+			},
+			wantReasoning: "I should say hello",
+		},
+		{
+			name:            "Thinking in content tag with thinking enabled",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>I should say hello</think>Hello"}}`,
+			thinkingEnabled: true,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewReasoningPart("I should say hello", nil),
+						ai.NewTextPart("Hello"),
+					},
+				},
+			},
+			wantReasoning: "I should say hello",
+		},
+		{
+			name:            "Think tags in content NOT parsed when thinking disabled",
+			input:           `{"model": "llama3", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>Not reasoning</think>Hello"}}`,
+			thinkingEnabled: false,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewTextPart("<think>Not reasoning</think>Hello"),
+					},
+				},
+			},
+			wantReasoning: "",
+		},
+		{
+			name:            "Thinking in thinking tag with thinking enabled",
+			input:           `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<thinking>I am thinking</thinking>Hello"}}`,
+			thinkingEnabled: true,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewReasoningPart("I am thinking", nil),
+						ai.NewTextPart("Hello"),
+					},
+				},
+			},
+			wantReasoning: "I am thinking",
+		},
+		{
+			name:            "Multiple thinking blocks",
+			input:           `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>First</think><think>Second</think>Hello"}}`,
+			thinkingEnabled: true,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewReasoningPart("First\n\nSecond", nil),
+						ai.NewTextPart("Hello"),
+					},
+				},
+			},
+			wantReasoning: "First\n\nSecond",
+		},
+		{
+			name:            "Only thinking in content",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>Just thinking</think>"}}`,
+			thinkingEnabled: true,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewReasoningPart("Just thinking", nil),
+					},
+				},
+			},
+			wantReasoning: "Just thinking",
+		},
+		{
+			name:            "No thinking",
+			input:           `{"model": "llama3", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello"}}`,
+			thinkingEnabled: false,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewTextPart("Hello"),
+					},
+				},
+			},
+			wantReasoning: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := translateChatResponse([]byte(tt.input), tt.thinkingEnabled)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("translateChatResponse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got.Reasoning() != tt.wantReasoning {
+					t.Errorf("translateChatResponse() Reasoning = %q, want %q", got.Reasoning(), tt.wantReasoning)
+				}
+				if !equalContent(got.Message.Content, tt.want.Message.Content) {
+					t.Errorf("translateChatResponse() got = %v, want %v", got.Message.Content, tt.want.Message.Content)
+				}
+			}
+		})
+	}
 }
