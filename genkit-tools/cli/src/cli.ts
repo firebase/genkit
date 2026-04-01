@@ -23,6 +23,7 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
+import { exportSchema } from './commands/export-schema';
 import { devTestModel } from './commands/dev-test-model';
 import { docsList, docsRead, docsSearch } from './commands/docs';
 import { evalExtractData } from './commands/eval-extract-data';
@@ -68,6 +69,7 @@ const commands: Command[] = [
   docsList,
   docsRead,
   docsSearch,
+  exportSchema,
 ];
 
 /** Main entry point for CLI. */
