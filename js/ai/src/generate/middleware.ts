@@ -17,7 +17,7 @@
 import { ActionRunOptions, GenkitError, z } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { GenerateAPI } from '../generate-api.js';
+import { GenkitAI } from '../genkit-ai.js';
 import type { GenerateActionOptions } from '../model-types.js';
 import { type MiddlewareRef } from '../model-types.js';
 import {
@@ -65,7 +65,7 @@ export interface GenerateMiddleware<C extends z.ZodTypeAny = z.ZodTypeAny>
    */
   instantiate: (
     config: z.infer<C> | undefined,
-    ai: GenerateAPI
+    ai: GenkitAI
   ) => GenerateMiddlewareDef;
   /**
    * Optional plugin wrapper exposing this middleware for framework-level registration.
@@ -135,7 +135,7 @@ export function generateMiddleware<
   },
   middlewareFn: (
     config: z.infer<ConfigSchema> | undefined,
-    ai: GenerateAPI
+    ai: GenkitAI
   ) => GenerateMiddlewareDef
 ): GenerateMiddleware<ConfigSchema> {
   const def = function (config?: z.infer<ConfigSchema>) {
@@ -206,7 +206,7 @@ export async function resolveMiddleware(
         message: `Middleware ${ref.name} not found in registry.`,
       });
     }
-    result.push(def.instantiate(ref.config, new GenerateAPI(registry)));
+    result.push(def.instantiate(ref.config, new GenkitAI(registry)));
   }
   return result;
 }
