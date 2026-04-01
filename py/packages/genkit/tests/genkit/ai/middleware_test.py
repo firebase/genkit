@@ -22,8 +22,8 @@ import asyncio
 import pytest
 
 from genkit import Document, Message, ModelResponse
-from genkit._ai._middleware import augment_with_context
-from genkit._core._action import ActionRunContext
+from genkit.middleware import augment_with_context
+from genkit._core._middleware._base import ModelHookParams
 from genkit._core._model import ModelRequest
 from genkit._core._typing import (
     DocumentPart,
@@ -38,11 +38,14 @@ async def run_augmenter(req: ModelRequest) -> ModelRequest:
     augmenter = augment_with_context()
     req_future = asyncio.Future()
 
-    async def next(req: ModelRequest, _: ActionRunContext) -> ModelResponse:
-        req_future.set_result(req)
+    async def next_fn(params: ModelHookParams) -> ModelResponse:
+        req_future.set_result(params.request)
         return ModelResponse(message=Message(role=Role.USER, content=[Part(root=TextPart(text='hi'))]))
 
-    await augmenter(req, ActionRunContext(), next)
+    await augmenter.wrap_model(
+        ModelHookParams(request=req, on_chunk=None, context={}),
+        next_fn,
+    )
 
     return req_future.result()
 

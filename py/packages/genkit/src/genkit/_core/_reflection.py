@@ -47,6 +47,16 @@ logger = get_logger(__name__)
 LifecycleHook = Callable[[], Awaitable[None]]
 
 
+def _encode_reflection_json(payload: dict[str, Any]) -> bytes:
+    """Encode reflection JSON for Dev UI; tolerate non-JSON-native metadata values."""
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        allow_nan=False,
+        default=str,
+    ).encode('utf-8')
+
+
 @dataclass
 class ServerSpec:
     port: int
@@ -154,7 +164,17 @@ async def _get_actions_payload(registry: Registry) -> dict[str, dict[str, Any]]:
                 'metadata': action.metadata,
             }
 
-    for meta in await registry.list_actions() or []:
+    plugin_action_list: list[Any] = []
+    try:
+        plugin_action_list = await registry.list_actions() or []
+    except Exception as e:
+        logger.warning(
+            'registry.list_actions failed; continuing with registered actions only: %s',
+            e,
+            exc_info=True,
+        )
+
+    for meta in plugin_action_list:
         try:
             key = f'/{meta.kind}/{meta.name}'
         except Exception as exc:
@@ -201,13 +221,48 @@ def create_reflection_asgi_app(
         asyncio.get_running_loop().call_soon(os.kill, os.getpid(), signal.SIGTERM)
         return JSONResponse({'status': 'OK'})
 
-    async def actions(_: Request) -> JSONResponse:
-        return JSONResponse(await _get_actions_payload(registry), headers={'x-genkit-version': version})
+    async def actions(_: Request) -> Response:
+        try:
+            payload = await _get_actions_payload(registry)
+            body = _encode_reflection_json(payload)
+        except Exception:
+            logger.exception('Reflection /api/actions failed')
+            return JSONResponse(
+                {'error': 'Failed to list actions', 'detail': 'See Python process logs for the traceback.'},
+                status_code=500,
+                headers={'x-genkit-version': version},
+            )
+        return Response(
+            content=body,
+            media_type='application/json',
+            headers={'x-genkit-version': version},
+        )
 
-    async def values(req: Request) -> JSONResponse:
-        if req.query_params.get('type') != 'defaultModel':
-            return JSONResponse({'error': 'Only type=defaultModel supported'}, status_code=400)
-        return JSONResponse(registry.list_values('defaultModel'))
+    async def values(req: Request) -> Response:
+        raw = req.query_params.get('type')
+        type_param = (raw or '').strip() or 'defaultModel'
+        try:
+            try:
+                await registry.initialize_all_plugins()
+            except Exception as e:
+                logger.warning(
+                    'initialize_all_plugins failed during /api/values; returning registered values only: %s',
+                    e,
+                    exc_info=True,
+                )
+            body = _encode_reflection_json(registry.list_values(type_param))
+        except Exception:
+            logger.exception('Reflection /api/values failed')
+            return JSONResponse(
+                {'error': 'Failed to list values', 'detail': 'See Python process logs for the traceback.'},
+                status_code=500,
+                headers={'x-genkit-version': version},
+            )
+        return Response(
+            content=body,
+            media_type='application/json',
+            headers={'x-genkit-version': version},
+        )
 
     async def envs(_: Request) -> JSONResponse:
         return JSONResponse(['dev'])

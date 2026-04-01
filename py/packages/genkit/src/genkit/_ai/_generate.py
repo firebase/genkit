@@ -18,22 +18,26 @@
 
 import contextlib
 import copy
-import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 from pydantic import BaseModel
 
 from genkit._ai._formats._types import FormatDef, Formatter
 from genkit._ai._messages import inject_instructions
-from genkit._ai._middleware import augment_with_context
 from genkit._ai._model import (
     Message,
-    ModelMiddleware,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
+)
+from genkit._core._middleware._augment_with_context import augment_with_context
+from genkit._core._middleware._base import (
+    BaseMiddleware,
+    GenerateHookParams,
+    ModelHookParams,
+    ToolHookParams,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit._ai._tools import ToolInterruptError
@@ -58,6 +62,29 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+async def _chain_tool_middleware(
+    middleware: list[BaseMiddleware],
+    params: ToolHookParams,
+    next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
+) -> tuple[Part | None, Part | None]:
+    """Run the tool middleware chain and return (response_part, interrupt_part)."""
+    runner: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = next_fn
+    for mw in reversed(middleware):
+        _mw = mw
+        _inner = runner
+
+        async def run_next(
+            p: ToolHookParams,
+            *,
+            _m: BaseMiddleware = _mw,
+            _i: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
+        ) -> tuple[Part | None, Part | None]:
+            return await _m.wrap_tool(p, _i)
+
+        runner = run_next
+    return await runner(params)
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -112,7 +139,7 @@ async def generate_action(
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
     current_turn: int = 0,
-    middleware: list[ModelMiddleware] | None = None,
+    middleware: list[BaseMiddleware] | None = None,
     context: dict[str, Any] | None = None,
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support."""
@@ -227,55 +254,64 @@ async def _generate_action(
     if raw_request.docs and not supports_context:
         middleware.append(augment_with_context())
 
-    async def dispatch(
-        index: int,
+    normalized_mw: list[BaseMiddleware] = list(middleware)
+
+    async def dispatch_generate(
+        params: GenerateHookParams,
+        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        """Chain wrap_generate middleware and call next_fn."""
+        runner: Callable[[GenerateHookParams], Awaitable[ModelResponse]] = next_fn
+        for mw in reversed(normalized_mw):
+            _mw = mw
+            _inner = runner
+
+            async def run_next(
+                p: GenerateHookParams,
+                *,
+                _m: BaseMiddleware = _mw,
+                _i: Callable[[GenerateHookParams], Awaitable[ModelResponse]] = _inner,
+            ) -> ModelResponse:
+                return await _m.wrap_generate(p, _i)
+
+            runner = run_next
+        return await runner(params)
+
+    async def dispatch_model(
         req: ModelRequest,
-        ctx: ActionRunContext,
         chunk_callback: Callable[[ModelResponseChunk], None] | None,
     ) -> ModelResponse:
-        """Dispatch request through middleware chain to the model."""
-        if not middleware or index == len(middleware):
-            # End of the chain, call the original model action
+        async def run_model(params: ModelHookParams) -> ModelResponse:
             return (
                 await model.run(
-                    input=req,
-                    context=ctx.context,
-                    on_chunk=cast(Callable[[object], None], chunk_callback) if chunk_callback else None,
+                    input=params.request,
+                    context=params.context,
+                    on_chunk=cast(Callable[[object], None], params.on_chunk) if params.on_chunk else None,
                 )
             ).response
 
-        current_middleware = middleware[index]
-        n_params = len(inspect.signature(current_middleware).parameters)
+        runner: Callable[[ModelHookParams], Awaitable[ModelResponse]] = run_model
+        for mw in reversed(normalized_mw):
+            _mw = mw
+            _inner = runner
 
-        if n_params == 4:
-            # Streaming middleware: (req, ctx, on_chunk, next) -> response
-            async def next_fn_streaming(
-                modified_req: ModelRequest | None = None,
-                modified_ctx: ActionRunContext | None = None,
-                modified_on_chunk: Callable[[ModelResponseChunk], None] | None = None,
+            async def run_next(
+                params: ModelHookParams,
+                *,
+                _mw: BaseMiddleware = _mw,
+                _inner: Callable[[ModelHookParams], Awaitable[ModelResponse]] = _inner,
             ) -> ModelResponse:
-                return await dispatch(
-                    index + 1,
-                    modified_req if modified_req else req,
-                    modified_ctx if modified_ctx else ctx,
-                    modified_on_chunk if modified_on_chunk is not None else chunk_callback,
-                )
+                return await _mw.wrap_model(params, _inner)
 
-            return await current_middleware(req, ctx, chunk_callback, next_fn_streaming)
-        else:
-            # Simple middleware: (req, ctx, next) -> response
-            async def next_fn_simple(
-                modified_req: ModelRequest | None = None,
-                modified_ctx: ActionRunContext | None = None,
-            ) -> ModelResponse:
-                return await dispatch(
-                    index + 1,
-                    modified_req if modified_req else req,
-                    modified_ctx if modified_ctx else ctx,
-                    chunk_callback,
-                )
+            runner = cast(Callable[[ModelHookParams], Awaitable[ModelResponse]], run_next)
 
-            return await current_middleware(req, ctx, next_fn_simple)
+        return await runner(
+            ModelHookParams(
+                request=req,
+                on_chunk=chunk_callback,
+                context=context or {},
+            )
+        )
 
     # if resolving the 'resume' option above generated a tool message, stream it.
     if resumed_tool_message and on_chunk:
@@ -286,119 +322,112 @@ async def _generate_action(
             )
         )
 
-    model_response = await dispatch(
-        0,
-        request,
-        ActionRunContext(context=context),
-        wrap_chunks() if on_chunk else None,
-    )
-
-    def message_parser(msg: Message) -> Any:  # noqa: ANN401
-        if formatter is None:
-            return None
-        return formatter.parse_message(msg)
-
-    # Extract schema_type for runtime Pydantic validation
-    schema_type = raw_request.output.schema_type if raw_request.output else None
-
-    # Plugin returns ModelResponse directly. Framework sets request and
-    # any output format context (message_parser, schema_type) as private attrs.
-    response = model_response
-    response.request = request
-    if formatter:
-        response._message_parser = message_parser
-    if schema_type:
-        response._schema_type = schema_type
-
-    logger.debug('generate response', response=_redact_data_uris(response.model_dump()))
-
-    response.assert_valid()
-    generated_msg = response.message
-
-    if generated_msg is None:
-        # No message in response, return as-is
-        return response
-
-    # Stamp output format metadata on message for Dev UI rendering.
-    # Mirrors JS GenerateResponse constructor which sets message.metadata.generate.output
-    # so the Dev UI knows to render the output as formatted JSON vs plain text.
-    out = raw_request.output
-    if out and (out.content_type or out.format):
-        generate_output: dict[str, str] = {}
-        if out.content_type:
-            generate_output['contentType'] = out.content_type
-        if out.format:
-            generate_output['format'] = out.format
-        existing_meta = dict(generated_msg.metadata) if isinstance(generated_msg.metadata, dict) else {}
-        generate_meta = existing_meta.get('generate')
-        if not isinstance(generate_meta, dict):
-            generate_meta = {}
-        generate_meta['output'] = generate_output
-        existing_meta['generate'] = generate_meta
-        generated_msg.metadata = existing_meta
-
-    tool_requests = [x for x in generated_msg.content if x.root.tool_request]
-
-    if raw_request.return_tool_requests or len(tool_requests) == 0:
-        if len(tool_requests) == 0:
-            response.assert_valid_schema()
-        return response
-
-    max_iters = raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
-
-    if current_turn + 1 > max_iters:
-        raise GenerationResponseError(
-            response=response,
-            message=f'Exceeded maximum tool call iterations ({max_iters})',
-            status='ABORTED',
-            details={'request': request},
+    async def run_one_iteration(_params: GenerateHookParams) -> ModelResponse:
+        """Execute one turn of the generate loop (model call + optional tool resolution)."""
+        model_response = await dispatch_model(
+            request,
+            wrap_chunks() if on_chunk else None,
         )
 
-    (
-        revised_model_msg,
-        tool_msg,
-        transfer_preamble,
-    ) = await resolve_tool_requests(registry, raw_request, generated_msg)
+        def message_parser(msg: Message) -> Any:  # noqa: ANN401
+            if formatter is None:
+                return None
+            return formatter.parse_message(msg)
 
-    # if an interrupt message is returned, stop the tool loop and return a
-    # response.
-    if revised_model_msg:
-        interrupted_resp = response.model_copy(deep=False)
-        interrupted_resp.finish_reason = FinishReason.INTERRUPTED
-        interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
-        interrupted_resp.message = Message(revised_model_msg)
-        return interrupted_resp
+        # Extract schema_type for runtime Pydantic validation
+        schema_type = raw_request.output.schema_type if raw_request.output else None
 
-    # If the loop will continue, stream out the tool response message...
-    if on_chunk and tool_msg:
-        on_chunk(
-            make_chunk(
-                Role.TOOL,
-                ModelResponseChunk(
-                    role=tool_msg.role,
-                    content=tool_msg.content,
-                ),
+        # Plugin returns ModelResponse directly. Framework sets request and
+        # any output format context (message_parser, schema_type) as private attrs.
+        response = model_response
+        response.request = request
+        if formatter:
+            response._message_parser = message_parser
+        if schema_type:
+            response._schema_type = schema_type
+
+        logger.debug(
+            'generate response',
+            response=_redact_data_uris(response.model_dump()),
+        )
+
+        response.assert_valid()
+        generated_msg = response.message
+
+        if generated_msg is None:
+            # No message in response, return as-is
+            return response
+
+        tool_requests = [x for x in generated_msg.content if x.root.tool_request]
+
+        if raw_request.return_tool_requests or len(tool_requests) == 0:
+            if len(tool_requests) == 0:
+                response.assert_valid_schema()
+            return response
+
+        max_iters = raw_request.max_turns if raw_request.max_turns else DEFAULT_MAX_TURNS
+
+        if current_turn + 1 > max_iters:
+            raise GenerationResponseError(
+                response=response,
+                message=f'Exceeded maximum tool call iterations ({max_iters})',
+                status='ABORTED',
+                details={'request': request},
             )
+
+        (
+            revised_model_msg,
+            tool_msg,
+            transfer_preamble,
+        ) = await resolve_tool_requests(registry, raw_request, generated_msg, middleware=normalized_mw)
+
+        # if an interrupt message is returned, stop the tool loop and return a
+        # response.
+        if revised_model_msg:
+            interrupted_resp = response.model_copy(deep=False)
+            interrupted_resp.finish_reason = FinishReason.INTERRUPTED
+            interrupted_resp.finish_message = 'One or more tool calls resulted in interrupts.'
+            interrupted_resp.message = Message(revised_model_msg)
+            return interrupted_resp
+
+        # If the loop will continue, stream out the tool response message...
+        if on_chunk and tool_msg:
+            on_chunk(
+                make_chunk(
+                    Role.TOOL,
+                    ModelResponseChunk(
+                        role=tool_msg.role,
+                        content=tool_msg.content,
+                    ),
+                )
+            )
+
+        next_request = copy.copy(raw_request)
+        next_messages = copy.copy(raw_request.messages)
+        next_messages.append(generated_msg)
+        if tool_msg:
+            next_messages.append(tool_msg)
+        next_request.messages = next_messages
+        if transfer_preamble:
+            next_request = apply_transfer_preamble(next_request, transfer_preamble)
+
+        # then recursively call for another loop
+        return await generate_action(
+            registry,
+            raw_request=next_request,
+            middleware=normalized_mw,
+            current_turn=current_turn + 1,
+            message_index=message_index + 1,
+            on_chunk=on_chunk,
+            context=context,
         )
 
-    next_request = copy.copy(raw_request)
-    next_messages = copy.copy(raw_request.messages)
-    next_messages.append(generated_msg)
-    if tool_msg:
-        next_messages.append(tool_msg)
-    next_request.messages = next_messages
-    if transfer_preamble:
-        next_request = apply_transfer_preamble(next_request, transfer_preamble)
-
-    # then recursively call for another loop
-    return await _generate_action(
-        registry,
-        raw_request=next_request,
-        # middleware: middleware,
-        current_turn=current_turn + 1,
-        message_index=message_index + 1,
-        on_chunk=on_chunk,
+    generate_params = GenerateHookParams(
+        options=raw_request,
+        request=request,
+        iteration=current_turn,
     )
+    return await dispatch_generate(generate_params, run_one_iteration)
 
 
 def apply_format(
@@ -642,7 +671,11 @@ def to_tool_definition(tool: Action) -> ToolDefinition:
 
 
 async def resolve_tool_requests(
-    registry: Registry, request: GenerateActionOptions, message: Message
+    registry: Registry,
+    request: GenerateActionOptions,
+    message: Message,
+    *,
+    middleware: list[BaseMiddleware] | None = None,
 ) -> tuple[Message | None, Message | None, GenerateActionOptions | None]:
     """Execute tool requests in a message, returning responses or interrupt info."""
     # TODO(#4342): prompt transfer
@@ -652,6 +685,7 @@ async def resolve_tool_requests(
             tool_dict[tool_name] = await resolve_tool(registry, tool_name)
 
     revised_model_message = message.model_copy(deep=True)
+    mw_list = middleware or []
 
     has_interrupts = False
     response_parts: list[Part] = []
@@ -668,7 +702,16 @@ async def resolve_tool_requests(
         if tool_request.name not in tool_dict:
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
-        tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
+
+        if mw_list:
+            params = ToolHookParams(tool_request_part=tool_req_root, tool=tool)
+
+            async def next_fn(p: ToolHookParams) -> tuple[Part | None, Part | None]:
+                return await _resolve_tool_request(p.tool, p.tool_request_part)
+
+            tool_response_part, interrupt_part = await _chain_tool_middleware(mw_list, params, next_fn)
+        else:
+            tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
 
         if tool_response_part:
             # Extract the ToolResponsePart from the returned Part for _to_pending_response

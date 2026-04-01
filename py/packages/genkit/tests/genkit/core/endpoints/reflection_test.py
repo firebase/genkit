@@ -117,6 +117,46 @@ async def test_notify_endpoint(asgi_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_values_default_model(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
+    """GET /api/values?type=defaultModel returns a name-to-value map like the JS registry."""
+
+    async def mock_initialize_all_plugins() -> None:
+        return None
+
+    mock_registry.initialize_all_plugins = mock_initialize_all_plugins
+    mock_registry.list_values = MagicMock(return_value={'gemini-pro': 'gemini-pro'})
+
+    response = await asgi_client.get('/api/values?type=defaultModel')
+    assert response.status_code == 200
+    assert response.json() == {'gemini-pro': 'gemini-pro'}
+    mock_registry.list_values.assert_called_once_with('defaultModel')
+
+
+@pytest.mark.asyncio
+async def test_list_values_omitted_type_defaults(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
+    """GET /api/values without type defaults to defaultModel (lenient for Dev UI / axios)."""
+
+    async def mock_initialize_all_plugins() -> None:
+        return None
+
+    mock_registry.initialize_all_plugins = mock_initialize_all_plugins
+    mock_registry.list_values = MagicMock(return_value={'m': 'm'})
+
+    response = await asgi_client.get('/api/values')
+    assert response.status_code == 200
+    assert response.json() == {'m': 'm'}
+    mock_registry.list_values.assert_called_once_with('defaultModel')
+
+
+@pytest.mark.asyncio
+async def test_list_values_unsupported_type(asgi_client: AsyncClient) -> None:
+    """GET /api/values with a non-defaultModel type returns 400."""
+    response = await asgi_client.get('/api/values?type=other')
+    assert response.status_code == 400
+    assert 'defaultModel' in response.json().get('error', '')
+
+
+@pytest.mark.asyncio
 async def test_run_action_not_found(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
     """Test that requesting a non-existent action returns a 404 error."""
 
