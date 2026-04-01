@@ -39,7 +39,6 @@ export {
   type EvaluatorParams,
   type EvaluatorReference,
 } from './evaluator.js';
-export { GenerateAPI } from './generate-api.js';
 export {
   GenerateResponse,
   GenerateResponseChunk,
@@ -57,6 +56,7 @@ export {
   type ResumeOptions,
   type ToolChoice,
 } from './generate.js';
+export { GenkitAI } from './genkit-ai.js';
 export { Message } from './message.js';
 export {
   GenerateResponseChunkSchema,

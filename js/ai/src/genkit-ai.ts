@@ -44,9 +44,9 @@ import {
 import { GenerationCommonConfigSchema, type Part } from './model-types.js';
 
 /**
- * `GenerateAPI` encapsulates model generate APIs.
+ * `GenkitAI` encapsulates Genkit's AI APIs.
  */
-export class GenerateAPI {
+export class GenkitAI {
   readonly registry: Registry;
 
   constructor(registry: Registry) {
