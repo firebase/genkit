@@ -16,8 +16,8 @@
 
 export { fallback } from './fallback.js';
 export { retry } from './retry.js';
+export { skills } from './skills.js';
 
-/// coming soon...
+/// cooming
 // export { filesystem } from './filesystem.js';
-// export { skills } from './skills.js';
 // export { toolApproval } from './toolApproval.js';
