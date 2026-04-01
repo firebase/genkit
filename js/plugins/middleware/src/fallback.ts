@@ -49,12 +49,7 @@ export const FallbackOptionsSchema = z
   })
   .passthrough();
 
-export interface FallbackOptions extends z.infer<typeof FallbackOptionsSchema> {
-  /**
-   * A callback to be executed on each fallback attempt.
-   */
-  onError?: (error: Error) => void;
-}
+export type FallbackOptions = z.infer<typeof FallbackOptionsSchema>;
 
 /**
  * Creates a middleware that falls back to a different model on specific error statuses.
@@ -79,11 +74,8 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       configSchema: FallbackOptionsSchema,
     },
     (options: FallbackOptions | undefined, ai) => {
-      const {
-        models = [],
-        statuses = DEFAULT_FALLBACK_STATUSES,
-        onError,
-      } = options || {};
+      const { models = [], statuses = DEFAULT_FALLBACK_STATUSES } =
+        options || {};
 
       return {
         model: async (req, ctx, next) => {
@@ -94,7 +86,6 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
               e instanceof GenkitError &&
               statuses.includes(e.status as StatusName)
             ) {
-              onError?.(e);
               let lastError: any = e;
               for (const model of models) {
                 const normalizedModel = await resolveModel(ai.registry, model);
@@ -112,7 +103,6 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                     e2 instanceof GenkitError &&
                     statuses.includes(e2.status as StatusName)
                   ) {
-                    onError?.(e2);
                     continue;
                   }
                   throw e2;

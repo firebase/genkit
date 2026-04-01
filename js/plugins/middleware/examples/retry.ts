@@ -30,9 +30,6 @@ async function main() {
       retry({
         maxRetries: 3,
         initialDelayMs: 500,
-        onError: (err, attempt) => {
-          console.error(`Retry attempt ${attempt} failed: ${err.message}`);
-        },
       }),
     ],
   });

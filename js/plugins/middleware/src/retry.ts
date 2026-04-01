@@ -59,12 +59,7 @@ export const RetryOptionsSchema = z
   })
   .passthrough();
 
-export interface RetryOptions extends z.infer<typeof RetryOptionsSchema> {
-  /**
-   * A callback to be executed on each retry attempt.
-   */
-  onError?: (error: Error, attempt: number) => void;
-}
+export type RetryOptions = z.infer<typeof RetryOptionsSchema>;
 
 const DEFAULT_RETRY_STATUSES: StatusName[] = [
   'UNAVAILABLE',
@@ -122,7 +117,6 @@ export const retry: GenerateMiddleware<typeof RetryOptionsSchema> =
         maxDelayMs = 60000,
         backoffFactor = 2,
         noJitter = false,
-        onError,
       } = options || {};
 
       return {
@@ -146,7 +140,6 @@ export const retry: GenerateMiddleware<typeof RetryOptionsSchema> =
                 }
 
                 if (shouldRetry) {
-                  onError?.(error, i + 1);
                   let delay = currentDelay;
                   if (!noJitter) {
                     delay = delay + 1000 * Math.pow(2, i) * Math.random();

@@ -50,50 +50,6 @@ describe('fallback', () => {
     assert.strictEqual(result.text, 'success');
   });
 
-  it('should call onError callback', async () => {
-    let requestCount = 0;
-    const ai = genkit({});
-    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
-      requestCount++;
-      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
-    });
-
-    let pmFallbackRequestCount = 0;
-    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
-      pmFallbackRequestCount++;
-      throw new GenkitError({
-        status: 'RESOURCE_EXHAUSTED',
-        message: 'test2',
-      });
-    });
-
-    let errorCount = 0;
-    let lastError: Error | undefined;
-
-    await assert.rejects(
-      ai.generate({
-        model: pm,
-        prompt: 'test',
-        use: [
-          fallback({
-            models: ['programmableModelFallback'],
-            onError: (err) => {
-              errorCount++;
-              lastError = err;
-            },
-          }),
-        ],
-      }),
-      /RESOURCE_EXHAUSTED: test2/
-    );
-
-    assert.strictEqual(requestCount, 1);
-    assert.strictEqual(pmFallbackRequestCount, 1);
-    assert.strictEqual(errorCount, 2);
-    assert.ok(lastError);
-    assert.strictEqual(lastError!.message, 'RESOURCE_EXHAUSTED: test2');
-  });
-
   it('should fallback on a fallbackable error', async () => {
     let requestCount = 0;
     const ai = genkit({});
