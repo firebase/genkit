@@ -193,7 +193,7 @@ export class ReflectionServer {
 
         response.send(
           values.map((v: any) => {
-            if (typeof v.toJson === 'function') {
+            if (v && typeof v.toJson === 'function') {
               return v.toJson();
             }
             return v;
