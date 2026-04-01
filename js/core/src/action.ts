@@ -322,6 +322,7 @@ export function action<
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
   const actionMetadata = {
+    key: `/${config.actionType}/${actionName}`,
     name: actionName,
     description: config.description,
     inputSchema: config.inputSchema,

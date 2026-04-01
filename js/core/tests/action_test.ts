@@ -275,7 +275,7 @@ describe('action', () => {
     assert.strictEqual(gotAbortSignal, signal);
   });
 
-  it('includes genkit:key in telemetry if action has a key', async () => {
+  it('includes genkit:key in telemetry', async () => {
     const act = defineAction(
       registry,
       {
@@ -286,14 +286,13 @@ describe('action', () => {
         return 'success';
       }
     );
-    act.__action.key = 'some-custom-key';
 
     await act();
 
     assert.strictEqual(spanExporter.exportedSpans.length, 1);
     assert.strictEqual(
       spanExporter.exportedSpans[0].attributes['genkit:key'],
-      'some-custom-key'
+      '/custom/keyedAction'
     );
   });
 });
