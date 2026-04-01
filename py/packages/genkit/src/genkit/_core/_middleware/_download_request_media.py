@@ -46,6 +46,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
     ) -> None:
         self._max_bytes = max_bytes
         self._filter_fn = filter_fn
+        self._client = httpx.AsyncClient()
 
     async def wrap_model(
         self,
@@ -53,65 +54,67 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
         next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
-        async with httpx.AsyncClient() as client:
-            new_messages: list[Message] = []
+        new_messages: list[Message] = []
 
-            for msg in req.messages:
-                new_content: list[Part] = []
-                content_changed = False
+        for msg in req.messages:
+            new_content: list[Part] = []
+            content_changed = False
 
-                for part in msg.content:
-                    if isinstance(part.root, MediaPart) and part.root.media.url.startswith('http'):
-                        if not _is_safe_url(part.root.media.url):
-                            raise GenkitError(
-                                status='INVALID_ARGUMENT',
-                                message=f"Media URL is not allowed (SSRF protection): '{part.root.media.url}'",
-                            )
-                        if self._filter_fn is not None and not self._filter_fn(part):
-                            new_content.append(part)
-                            continue
-
-                        content_changed = True
-                        try:
-                            response = await client.get(part.root.media.url)
-                            response.raise_for_status()
-
-                            content = response.content
-                            if self._max_bytes is not None and len(content) > self._max_bytes:
-                                content = content[: self._max_bytes]
-
-                            content_type = part.root.media.content_type or response.headers.get(
-                                'content-type', 'application/octet-stream'
-                            )
-
-                            b64_data = base64.b64encode(content).decode('utf-8')
-                            data_uri = f'data:{content_type};base64,{b64_data}'
-
-                            new_part = Part(
-                                root=MediaPart(
-                                    media=Media(url=data_uri, content_type=content_type),
-                                )
-                            )
-                            new_content.append(new_part)
-
-                        except httpx.HTTPError as e:
-                            raise GenkitError(
-                                status='INVALID_ARGUMENT',
-                                message=f"Failed to download media from '{part.root.media.url}': {e}",
-                            ) from e
-                    else:
+            for part in msg.content:
+                if isinstance(part.root, MediaPart) and part.root.media.url.startswith('http'):
+                    if not _is_safe_url(part.root.media.url):
+                        raise GenkitError(
+                            status='INVALID_ARGUMENT',
+                            message=f"Media URL is not allowed (SSRF protection): '{part.root.media.url}'",
+                        )
+                    if self._filter_fn is not None and not self._filter_fn(part):
                         new_content.append(part)
+                        continue
 
-                if content_changed:
-                    new_messages.append(Message(role=msg.role, content=new_content, metadata=msg.metadata))
+                    content_changed = True
+                    try:
+                        response = await self._client.get(part.root.media.url)
+                        response.raise_for_status()
+
+                        content = response.content
+                        if self._max_bytes is not None and len(content) > self._max_bytes:
+                            raise GenkitError(
+                                status='INVALID_ARGUMENT',
+                                message=f"Media content from '{part.root.media.url}' exceeds maximum allowed size of {self._max_bytes} bytes.",
+                            )
+
+                        content_type = part.root.media.content_type or response.headers.get(
+                            'content-type', 'application/octet-stream'
+                        )
+
+                        b64_data = base64.b64encode(content).decode('utf-8')
+                        data_uri = f'data:{content_type};base64,{b64_data}'
+
+                        new_part = Part(
+                            root=MediaPart(
+                                media=Media(url=data_uri, content_type=content_type),
+                            )
+                        )
+                        new_content.append(new_part)
+
+                    except httpx.HTTPError as e:
+                        raise GenkitError(
+                            status='INVALID_ARGUMENT',
+                            message=f"Failed to download media from '{part.root.media.url}': {e}",
+                        ) from e
                 else:
-                    new_messages.append(msg)
+                    new_content.append(part)
 
-            new_req = req.model_copy(update={'messages': new_messages})
-            return await next_fn(
-                ModelHookParams(
-                    request=new_req,
-                    on_chunk=params.on_chunk,
-                    context=params.context,
-                )
+            if content_changed:
+                new_messages.append(Message(role=msg.role, content=new_content, metadata=msg.metadata))
+            else:
+                new_messages.append(msg)
+
+        new_req = req.model_copy(update={'messages': new_messages})
+        return await next_fn(
+            ModelHookParams(
+                request=new_req,
+                on_chunk=params.on_chunk,
+                context=params.context,
             )
+        )

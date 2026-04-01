@@ -104,8 +104,9 @@ class _RetryMiddleware(BaseMiddleware):
 
                         delay = current_delay_ms
                         if self._jitter:
-                            delay = delay + random.random() * (2**attempt) * 1000
+                            delay += random.random() * delay
 
+                        delay = min(delay, float(self._max_delay_ms))
                         await asyncio.sleep(delay / 1000.0)
                         current_delay_ms = min(
                             current_delay_ms * self._backoff_factor,
@@ -114,7 +115,3 @@ class _RetryMiddleware(BaseMiddleware):
                         continue
 
                 raise
-
-        if last_error:
-            raise last_error
-        raise RuntimeError('Retry loop completed without result')

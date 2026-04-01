@@ -59,10 +59,9 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
     ) -> ModelResponse:
         req = params.request
         new_messages: list[Message] = []
-        system_found = False
 
         for msg in req.messages:
-            if msg.role == 'system' and not system_found:
+            if msg.role == 'system':
                 user_content: list[Part] = [Part(root=TextPart(text=self._preface))]
                 user_content.extend(msg.content)
                 new_messages.append(Message(role='user', content=user_content))
@@ -72,7 +71,6 @@ class _SimulateSystemPromptMiddleware(BaseMiddleware):
                         content=[Part(root=TextPart(text=self._acknowledgement))],
                     )
                 )
-                system_found = True
             else:
                 new_messages.append(msg)
 

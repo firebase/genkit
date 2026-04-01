@@ -412,7 +412,7 @@ async def _generate_action(
             next_request = apply_transfer_preamble(next_request, transfer_preamble)
 
         # then recursively call for another loop
-        return await generate_action(
+        return await _generate_action(
             registry,
             raw_request=next_request,
             middleware=normalized_mw,
