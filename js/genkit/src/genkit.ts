@@ -160,8 +160,8 @@ export type PromptFn<
 export interface GenkitOptions {
   /** List of plugins to load. */
   plugins?: (GenkitPlugin | GenkitPluginV2)[];
-  /** Directory where dotprompts are stored. */
-  promptDir?: string;
+  /** Directory where dotprompts are stored. Set to `null` to disable automatic prompt loading. */
+  promptDir?: string | null;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
   /** Additional runtime context data for flows and tools. */
