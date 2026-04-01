@@ -154,6 +154,8 @@ export {
   defineInterrupt,
   defineTool,
   interrupt,
+  restartTool,
+  respondTool,
   type InterruptConfig,
   type ToolAction,
   type ToolArgument,
