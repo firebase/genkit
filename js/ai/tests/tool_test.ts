@@ -24,8 +24,8 @@ import {
   defineTool,
   isDynamicTool,
   isMultipartTool,
-  restartTool,
   respondTool,
+  restartTool,
   tool,
 } from '../src/tool.js';
 
