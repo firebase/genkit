@@ -143,37 +143,23 @@ else:
     from enum import StrEnum
 
 from functools import cached_property
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Any as JsonAny, cast
 
 from google import genai
 from google.genai import types as genai_types
 from google.genai.errors import ClientError
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
-from genkit.ai import (
-    ActionRunContext,
-)
-from genkit.blocks.model import get_basic_usage_stats
-from genkit.codec import dump_dict, dump_json
-from genkit.core.error import GenkitError, StatusName
-from genkit.core.tracing import tracer
-from genkit.core.typing import (
-    Candidate,
-    FinishReason,
-)
-from genkit.lang.deprecations import (
-    deprecated_enum_metafactory,
-)
-from genkit.plugins.google_genai.models.utils import PartConverter
-from genkit.types import (
+from genkit import (
     Constrained,
-    GenerateRequest,
-    GenerateResponse,
-    GenerateResponseChunk,
-    GenerationCommonConfig,
-    GenerationUsage,
+    GenkitError,
     Message,
+    ModelConfig,
     ModelInfo,
+    ModelRequest,
+    ModelResponse,
+    ModelResponseChunk,
+    ModelUsage,
     Part,
     Role,
     Stage,
@@ -181,6 +167,23 @@ from genkit.types import (
     TextPart,
     ToolDefinition,
 )
+from genkit._core._typing import GenerationCommonConfig
+from genkit.model import Candidate, FinishReason, get_basic_usage_stats
+from genkit.plugin_api import (
+    ActionRunContext,
+    StatusName,
+)
+
+
+def _to_dict(obj: JsonAny) -> JsonAny:  # noqa: ANN401
+    """Convert object to dict if it's a Pydantic model, otherwise return as-is."""
+    return obj.model_dump() if isinstance(obj, BaseModel) else obj
+
+
+from genkit.plugins.google_genai.models._deprecations import (  # noqa: E402
+    deprecated_enum_metafactory,
+)
+from genkit.plugins.google_genai.models.utils import PartConverter  # noqa: E402
 
 
 class HarmCategory(StrEnum):
@@ -299,7 +302,7 @@ class VoiceConfigSchema(BaseModel):
     prebuilt_voice_config: PrebuiltVoiceConfig | None = Field(None, alias='prebuiltVoiceConfig')
 
 
-class GeminiConfigSchema(GenerationCommonConfig):
+class GeminiConfigSchema(ModelConfig):
     """Gemini Config Schema."""
 
     model_config = ConfigDict(extra='allow', populate_by_name=True)
@@ -419,7 +422,7 @@ class GeminiConfigSchema(GenerationCommonConfig):
         None, description='Return grounding metadata from links included in the query', alias='urlContext'
     )
 
-    # inherited from GenerationCommonConfig:
+    # inherited from ModelConfig:
     # version, temperature, max_output_tokens, top_k, top_p, stop_sequences
 
     temperature: Annotated[
@@ -767,7 +770,7 @@ GENERIC_GEMMA_MODEL = ModelInfo(
 Deprecations = deprecated_enum_metafactory({})
 
 
-class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
+class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore[invalid-inheritance]
     """VertexAIGemini models.
 
     Model Support:
@@ -827,7 +830,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMMA_3N_E4B_IT = 'gemma-3n-e4b-it'
 
 
-class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
+class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):  # pyrefly: ignore[invalid-inheritance]
     """GoogleAI Gemini models.
 
     Model Support:
@@ -1047,7 +1050,7 @@ class GeminiModel:
         self._version = version
         self._client = client
 
-    def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
+    def _get_tools(self, request: ModelRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
         Args:
@@ -1136,7 +1139,12 @@ class GeminiModel:
             schema.required = cast(list[str], input_schema['required'])
 
         if 'type' in input_schema:
-            schema_type = genai_types.Type(cast(str, input_schema['type']))
+            raw_type = input_schema['type']
+            if isinstance(raw_type, list):
+                non_null = [t for t in raw_type if t != 'null']
+                schema.nullable = True
+                raw_type = non_null[0] if non_null else 'string'
+            schema_type = genai_types.Type(cast(str, raw_type))
             schema.type = schema_type
 
             if 'enum' in input_schema:
@@ -1160,7 +1168,7 @@ class GeminiModel:
         return schema
 
     async def _retrieve_cached_content(
-        self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
+        self, request: ModelRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
 
@@ -1180,7 +1188,7 @@ class GeminiModel:
 
         ttl_value = cache_config.get('ttl_seconds', DEFAULT_TTL)
         ttl: float = float(ttl_value) if ttl_value is not None else DEFAULT_TTL
-        cache_key = generate_cache_key(request=request)
+        cache_key = generate_cache_key(contents=contents, model_name=model_name)
 
         iterator_config = genai_types.ListCachedContentsConfig()
         cache = None
@@ -1206,7 +1214,7 @@ class GeminiModel:
             )
         return cache
 
-    async def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
         """Handle a generation request.
 
         Args:
@@ -1254,9 +1262,9 @@ class GeminiModel:
 
         if request.config:
             if isinstance(request.config, dict):
-                api_version = request.config.get('api_version') or request.config.get('apiVersion')
-                api_key_override = request.config.get('api_key') or request.config.get('apiKey')
-                base_url_override = request.config.get('base_url') or request.config.get('baseUrl')
+                api_version = request.config.get('api_version')
+                api_key_override = request.config.get('api_key')
+                base_url_override = request.config.get('base_url')
             else:
                 api_version = getattr(request.config, 'api_version', None)
                 api_key_override = getattr(request.config, 'api_key', None)
@@ -1337,7 +1345,7 @@ class GeminiModel:
         request_cfg: genai_types.GenerateContentConfig | None,
         model_name: str,
         client: genai.Client | None = None,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Call google-genai generate.
 
         Args:
@@ -1349,55 +1357,42 @@ class GeminiModel:
         Returns:
             genai response.
         """
-        with tracer.start_as_current_span('generate_content') as span:
-            span.set_attribute(
-                'genkit:input',
-                dump_json(
-                    {
-                        'config': dump_dict(request_cfg),
-                        'contents': [dump_dict(c) for c in request_contents],
-                        'model': model_name,
-                    },
-                    fallback=lambda _: '[!! failed to serialize !!]',
-                ),
+        client = client or self._client
+        try:
+            response = await client.aio.models.generate_content(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                response = await client.aio.models.generate_content(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-            except Exception as e:
-                # Catch any other exceptions and provide a clear error message
-                # This helps debug issues like authentication errors that might not be ClientError
-                import logging
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+        except Exception as e:
+            # Catch any other exceptions and provide a clear error message
+            # This helps debug issues like authentication errors that might not be ClientError
+            import logging
 
-                logger = logging.getLogger(__name__)
-                logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
-                raise GenkitError(
-                    status='INTERNAL',
-                    message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
-                ) from e
-            span.set_attribute('genkit:output', dump_json(response))
+            logger = logging.getLogger(__name__)
+            logger.error(f'Unexpected error during generate_content: {type(e).__name__}: {str(e)}')
+            raise GenkitError(
+                status='INTERNAL',
+                message=f'Unexpected error during generation: {type(e).__name__}: {str(e)}',
+            ) from e
 
         content = await self._contents_from_response(response)
 
@@ -1442,14 +1437,14 @@ class GeminiModel:
                     )
                 )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 content=content,
                 role=Role.MODEL,
             ),
             finish_reason=finish_reason,
             candidates=candidates,
-            usage=GenerationUsage(
+            usage=ModelUsage(
                 input_tokens=float(response.usage_metadata.prompt_token_count or 0)
                 if response.usage_metadata
                 else None,
@@ -1457,6 +1452,12 @@ class GeminiModel:
                 if response.usage_metadata
                 else None,
                 total_tokens=float(response.usage_metadata.total_token_count or 0) if response.usage_metadata else None,
+                thoughts_tokens=float(response.usage_metadata.thoughts_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.thoughts_token_count
+                else None,
+                cached_content_tokens=float(response.usage_metadata.cached_content_token_count or 0)
+                if response.usage_metadata and response.usage_metadata.cached_content_token_count
+                else None,
             ),
         )
 
@@ -1467,7 +1468,7 @@ class GeminiModel:
         ctx: ActionRunContext,
         model_name: str,
         client: genai.Client | None = None,
-    ) -> GenerateResponse:
+    ) -> ModelResponse:
         """Call google-genai generate for streaming.
 
         Args:
@@ -1480,53 +1481,45 @@ class GeminiModel:
         Returns:
             empty genai response
         """
-        with tracer.start_as_current_span('generate_content_stream') as span:
-            span.set_attribute(
-                'genkit:input',
-                dump_json({
-                    'config': dump_dict(request_cfg),
-                    'contents': [dump_dict(c) for c in request_contents],
-                    'model': model_name,
-                }),
+        client = client or self._client
+        try:
+            generator = await client.aio.models.generate_content_stream(
+                model=model_name,
+                contents=cast(genai_types.ContentListUnion, request_contents),
+                config=request_cfg,
             )
-            client = client or self._client
-            try:
-                generator = await client.aio.models.generate_content_stream(
-                    model=model_name,
-                    contents=cast(genai_types.ContentListUnion, request_contents),
-                    config=request_cfg,
-                )
-            except ClientError as e:
-                status: StatusName = 'INTERNAL'
-                if e.code == 400:
-                    status = 'INVALID_ARGUMENT'
-                elif e.code == 401:
-                    status = 'UNAUTHENTICATED'
-                elif e.code == 403:
-                    status = 'PERMISSION_DENIED'
-                elif e.code == 404:
-                    status = 'NOT_FOUND'
-                elif e.code == 429:
-                    status = 'RESOURCE_EXHAUSTED'
+        except ClientError as e:
+            status: StatusName = 'INTERNAL'
+            if e.code == 400:
+                status = 'INVALID_ARGUMENT'
+            elif e.code == 401:
+                status = 'UNAUTHENTICATED'
+            elif e.code == 403:
+                status = 'PERMISSION_DENIED'
+            elif e.code == 404:
+                status = 'NOT_FOUND'
+            elif e.code == 429:
+                status = 'RESOURCE_EXHAUSTED'
 
-                raise GenkitError(
-                    status=status,
-                    message=e.message or 'Unknown error',
-                    cause=e,
-                ) from e
-        accumulated_content = []
+            raise GenkitError(
+                status=status,
+                message=e.message or 'Unknown error',
+                cause=e,
+            ) from e
+
+        accumulated_content: list[Part] = []
         async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
                 accumulated_content.extend(content)
                 ctx.send_chunk(
-                    chunk=GenerateResponseChunk(
+                    chunk=ModelResponseChunk(
                         content=content,
                         role=Role.MODEL,
                     )
                 )
 
-        return GenerateResponse(
+        return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=accumulated_content,
@@ -1553,7 +1546,7 @@ class GeminiModel:
         }
 
     async def _build_messages(
-        self, request: GenerateRequest, model_name: str
+        self, request: ModelRequest, model_name: str
     ) -> tuple[list[genai_types.Content], genai_types.CachedContent | None]:
         """Build google-genai request contents from Genkit request.
 
@@ -1586,6 +1579,9 @@ class GeminiModel:
                     cache_config=msg.metadata['cache'],
                     contents=request_contents,
                 )
+                # The prefix up to this message is now stored in the cache.
+                # Only post-cache messages should be sent in the generate call.
+                request_contents = []
 
         if not request_contents:
             request_contents.append(genai_types.Content(parts=[genai_types.Part(text=' ')], role='user'))
@@ -1613,8 +1609,16 @@ class GeminiModel:
         # Ensure we always return a list, even if empty
         return content if content else []
 
-    async def _genkit_to_googleai_cfg(self, request: GenerateRequest) -> genai_types.GenerateContentConfig | None:
-        """Converts a Genkit GenerateRequest to a Gemini GenerateContentConfig."""
+    async def _genkit_to_googleai_cfg(self, request: ModelRequest) -> genai_types.GenerateContentConfig | None:
+        """Converts a Genkit ModelRequest to a Gemini GenerateContentConfig.
+
+        The conversion follows a linear pipeline:
+        1. Extract system instructions from messages
+        2. Normalize request.config into a dict (regardless of input type)
+        3. Extract tool-related fields from the dict
+        4. Clean Genkit-specific / unsupported keys from the dict
+        5. Build the final GenerateContentConfig
+        """
         system_instruction: list[genai.types.Part] = []
 
         # 1. System messages
@@ -1629,82 +1633,20 @@ class GeminiModel:
                         system_instruction.append(converted)
 
         cfg = None
-        tools = []
+        tools: list[genai_types.Tool] = []
 
         if request.config:
-            request_config = request.config
-            if isinstance(request_config, GeminiConfigSchema):
-                cfg = request_config
-            elif isinstance(request_config, GenerationCommonConfig):
-                dumped = request_config.model_dump(exclude_none=True)
-                if dumped:
-                    cfg = genai_types.GenerateContentConfig(**dumped)
-                else:
-                    cfg = None
-            elif isinstance(request_config, dict):
-                if 'image_config' in request_config:
-                    cfg = GeminiImageConfigSchema(**request_config)
-                elif 'speech_config' in request_config:
-                    cfg = GeminiTtsConfigSchema(**request_config)
-                else:
-                    cfg = GeminiConfigSchema(**request_config)
+            # 2. Normalize config into a dict
+            dumped_config = self._normalize_config_to_dict(request.config)
 
-            if isinstance(cfg, GeminiConfigSchema):
-                if cfg.code_execution:
-                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
+            if dumped_config is not None:
+                # 3. Extract tool-related fields
+                self._extract_tools_from_config(dumped_config, tools)
 
-                dumped_config = cfg.model_dump(exclude_none=True)
+                # 4. Clean Genkit-specific and unsupported keys
+                self._clean_unsupported_keys(dumped_config)
 
-                if 'code_execution' in dumped_config:
-                    dumped_config.pop('code_execution')
-
-                if 'safety_settings' in dumped_config:
-                    dumped_config['safety_settings'] = [
-                        s
-                        for s in dumped_config['safety_settings']
-                        if s['category'] != HarmCategory.HARM_CATEGORY_UNSPECIFIED
-                    ]
-
-                if 'google_search_retrieval' in dumped_config:
-                    val = dumped_config.pop('google_search_retrieval')
-                    if val is not None:
-                        val = {} if val is True else val
-                        tools.append(genai_types.Tool(google_search=genai_types.GoogleSearchRetrieval(**val)))  # type: ignore[arg-type]
-
-                if 'file_search' in dumped_config:
-                    val = dumped_config.pop('file_search')
-                    # File search requires a store name to be valid.
-                    if val and val.get('file_search_store_names'):
-                        # Filter out empty strings from store names
-                        valid_stores = [s for s in val['file_search_store_names'] if s]
-                        if valid_stores:
-                            val['file_search_store_names'] = valid_stores
-                            tools.append(genai_types.Tool(file_search=genai_types.FileSearch(**val)))
-
-                if 'url_context' in dumped_config:
-                    val = dumped_config.pop('url_context')
-                    if val is not None:
-                        val = {} if val is True else val
-                        tools.append(genai_types.Tool(url_context=genai_types.UrlContext(**val)))
-
-                # Map Function Calling Config to ToolConfig
-                if 'function_calling_config' in dumped_config:
-                    dumped_config['tool_config'] = genai_types.ToolConfig(
-                        function_calling_config=genai_types.FunctionCallingConfig(
-                            **dumped_config.pop('function_calling_config')
-                        )
-                    )
-
-                # Clean up fields not supported by GenerateContentConfig
-                for key in ['api_version', 'api_key', 'base_url', 'context_cache']:
-                    if key in dumped_config:
-                        del dumped_config[key]
-
-                # Check for SDK support of newer fields
-                for key in ['image_config', 'thinking_config', 'response_modalities']:
-                    if key in dumped_config and key not in genai_types.GenerateContentConfig.model_fields:
-                        del dumped_config[key]
-
+                # 5. Build GenerateContentConfig
                 if dumped_config:
                     cfg = genai_types.GenerateContentConfig(**dumped_config)
                 else:
@@ -1713,28 +1655,129 @@ class GeminiModel:
         # Tools from top-level field and config-level fields
         tools.extend(self._get_tools(request))
 
-        if cfg is not None or tools or system_instruction or request.output:
+        has_output = bool(request.output_format or request.output_schema)
+
+        if cfg is not None or tools or system_instruction or request.output_format:
             if cfg is None:
                 cfg = genai_types.GenerateContentConfig()
 
-            if request.output:
+            if has_output:
                 response_mime_type = (
-                    'application/json' if request.output.format == 'json' and not request.tools else None
+                    'application/json' if request.output_format == 'json' and not request.tools else None
                 )
                 cfg.response_mime_type = response_mime_type
 
-                if request.output.schema and request.output.constrained:
-                    cfg.response_schema = self._convert_schema_property(request.output.schema)
+                if request.output_schema and request.output_constrained:
+                    cfg.response_schema = self._convert_schema_property(request.output_schema)
 
             if tools:
-                cfg.tools = tools
+                cfg.tools = cast(genai_types.ToolListUnion, tools)
 
             cfg.system_instruction = genai_types.Content(parts=system_instruction) if system_instruction else None
             return cfg
 
         return None
 
-    def _create_usage_stats(self, request: GenerateRequest, response: GenerateResponse) -> GenerationUsage:
+    # -- Config conversion helpers (called by _genkit_to_googleai_cfg) --
+
+    # Keys that are Genkit-specific and must not be forwarded to the API.
+    # 'version' overrides the model name, others are client-level settings.
+    _GENKIT_ONLY_KEYS = frozenset(['version', 'api_version', 'api_key', 'base_url', 'context_cache'])
+
+    # Keys that may not be supported by older google-genai SDK versions.
+    _SDK_GATED_KEYS = frozenset(['image_config', 'thinking_config', 'response_modalities'])
+
+    def _normalize_config_to_dict(
+        self,
+        config: GeminiConfigSchema | ModelConfig | dict,
+    ) -> dict[str, Any] | None:
+        """Normalize any config type into a plain dict for uniform processing.
+
+        Handles three input shapes:
+        - GeminiConfigSchema (and subclasses like TTS/Image): model_dump
+        - ModelConfig: model_dump
+        - dict: route to the appropriate schema first, then model_dump
+
+        Returns:
+            A mutable dict ready for tool extraction and key cleanup,
+            or None if the config is empty after dumping.
+        """
+        if isinstance(config, GeminiConfigSchema):
+            schema = config
+        elif isinstance(config, (ModelConfig, GenerationCommonConfig)):
+            schema = config
+        elif isinstance(config, dict):
+            if 'image_config' in config:
+                schema = GeminiImageConfigSchema(**config)
+            elif 'speech_config' in config:
+                schema = GeminiTtsConfigSchema(**config)
+            else:
+                schema = GeminiConfigSchema(**config)
+        else:
+            return None
+
+        dumped = schema.model_dump(exclude_none=True, by_alias=False)
+        return dumped or None
+
+    def _extract_tools_from_config(
+        self,
+        config: dict[str, Any],
+        tools: list[genai_types.Tool],
+    ) -> None:
+        """Extract tool-related fields from config dict into the tools list.
+
+        Mutates *config* by popping consumed keys and appends to *tools*.
+        """
+        # Code execution
+        if config.pop('code_execution', None):
+            tools.append(genai_types.Tool(code_execution=genai_types.ToolCodeExecution()))
+
+        # Safety settings — filter out unspecified categories
+        if 'safety_settings' in config:
+            config['safety_settings'] = [
+                s for s in config['safety_settings'] if s['category'] != HarmCategory.HARM_CATEGORY_UNSPECIFIED
+            ]
+
+        # Google Search
+        val = config.pop('google_search_retrieval', None)
+        if val is not None:
+            val = {} if val is True else val
+            tools.append(genai_types.Tool(google_search=genai_types.GoogleSearch(**val)))
+
+        # File Search
+        val = config.pop('file_search', None)
+        if val and val.get('file_search_store_names'):
+            valid_stores = [s for s in val['file_search_store_names'] if s]
+            if valid_stores:
+                val['file_search_store_names'] = valid_stores
+                tools.append(genai_types.Tool(file_search=genai_types.FileSearch(**val)))
+
+        # URL Context
+        val = config.pop('url_context', None)
+        if val is not None:
+            val = {} if val is True else val
+            tools.append(genai_types.Tool(url_context=genai_types.UrlContext(**val)))
+
+        # Function Calling Config → ToolConfig
+        fcc = config.pop('function_calling_config', None)
+        if fcc:
+            config['tool_config'] = genai_types.ToolConfig(
+                function_calling_config=genai_types.FunctionCallingConfig(**fcc)
+            )
+
+    def _clean_unsupported_keys(self, config: dict[str, Any]) -> None:
+        """Remove Genkit-specific and SDK-gated keys from the config dict.
+
+        Mutates *config* in place.
+        """
+        for key in self._GENKIT_ONLY_KEYS:
+            config.pop(key, None)
+
+        for key in self._SDK_GATED_KEYS:
+            if key in config and key not in genai_types.GenerateContentConfig.model_fields:
+                del config[key]
+
+    def _create_usage_stats(self, request: ModelRequest, response: ModelResponse) -> ModelUsage:
         """Create usage statistics.
 
         Args:
@@ -1745,7 +1788,7 @@ class GeminiModel:
             usage statistics
         """
         if not response.message:
-            usage = GenerationUsage()
+            usage = ModelUsage()
             usage.input_tokens = 0
             usage.output_tokens = 0
             usage.total_tokens = 0
@@ -1756,5 +1799,7 @@ class GeminiModel:
             usage.input_tokens = response.usage.input_tokens
             usage.output_tokens = response.usage.output_tokens
             usage.total_tokens = response.usage.total_tokens
+            usage.thoughts_tokens = response.usage.thoughts_tokens
+            usage.cached_content_tokens = response.usage.cached_content_tokens
 
         return usage

@@ -55,6 +55,8 @@ fi
   -ignore '**/coverage/**/*' \
   -ignore '**/develop-eggs/**/*' \
   -ignore '**/dist/**/*' \
+  -ignore '**/lib/**/*' \
+  -ignore '**/next-env.d.ts' \
   -ignore '**/node_modules/**/*' \
   -ignore '**/pnpm-lock.yaml' \
   -ignore '.nx/**/*' \

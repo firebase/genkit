@@ -16,42 +16,45 @@
 
 """Unit-Tests for GoogleAI & VertexAI plugin."""
 
-import sys  # noqa
+import asyncio
 import os
-
+import sys  # noqa
 import unittest
-from unittest.mock import MagicMock, patch, ANY
-
-from google.auth.credentials import Credentials
 from dataclasses import dataclass
-
-from google.genai.types import HttpOptions
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
-from genkit.core.registry import ActionKind
-from genkit.plugins.google_genai import GoogleAI, VertexAI
-from genkit.plugins.google_genai.google import googleai_name, vertexai_name
-from genkit.plugins.google_genai.google import _inject_attribution_headers
-from genkit.plugins.google_genai.models.gemini import (
-    DEFAULT_SUPPORTS_MODEL,
-    GeminiModel,
-    SUPPORTED_MODELS,
-    GeminiConfigSchema,
-)
-from genkit.plugins.google_genai.models.imagen import (
-    SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
-    DEFAULT_IMAGE_SUPPORT,
-)
-from genkit.types import (
-    GenerateRequest,
+from google import genai
+from google.auth.credentials import Credentials
+from google.genai.types import HttpOptions
+
+from genkit import (
+    ActionKind,
+    Genkit,
     Message,
     ModelInfo,
+    ModelRequest,
     Part,
     Role,
     TextPart,
 )
-from google import genai
+from genkit.plugin_api import GENKIT_CLIENT_HEADER
+from genkit.plugins.google_genai import GoogleAI, VertexAI
+from genkit.plugins.google_genai.google import _inject_attribution_headers, googleai_name, vertexai_name
+from genkit.plugins.google_genai.models.gemini import (
+    DEFAULT_SUPPORTS_MODEL,
+    SUPPORTED_MODELS,
+    GeminiConfigSchema,
+    GeminiModel,
+)
+from genkit.plugins.google_genai.models.imagen import (
+    DEFAULT_IMAGE_SUPPORT,
+    SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
+)
+
+
+async def _get_runtime_client(plugin: GoogleAI | VertexAI) -> object:
+    return plugin._runtime_client()
 
 
 @pytest.fixture
@@ -70,6 +73,7 @@ class TestGoogleAIInit(unittest.TestCase):
         """Test using api_key parameter."""
         api_key = 'test_api_key'
         plugin = GoogleAI(api_key=api_key)
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=False,
             api_key=api_key,
@@ -79,13 +83,14 @@ class TestGoogleAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, GoogleAI)
         self.assertFalse(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
     @patch('google.genai.client.Client')
     @patch.dict(os.environ, {'GEMINI_API_KEY': 'env_api_key'})
     def test_init_from_env_var(self, mock_genai_client: MagicMock) -> None:
         """Test using env var for api_key."""
         plugin = GoogleAI()
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=False,
             api_key='env_api_key',
@@ -95,13 +100,14 @@ class TestGoogleAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, GoogleAI)
         self.assertFalse(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
     @patch('google.genai.client.Client')
     def test_init_with_credentials(self, mock_genai_client: MagicMock) -> None:
         """Test using credentials parameter."""
         mock_credentials = MagicMock(spec=Credentials)
         plugin = GoogleAI(credentials=mock_credentials)
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=False,
             api_key=ANY,
@@ -111,7 +117,7 @@ class TestGoogleAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, GoogleAI)
         self.assertFalse(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
     def test_init_raises_value_error_no_api_key(self) -> None:
         """Test using credentials parameter."""
@@ -137,7 +143,7 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
     m1.description = ' Gemini Pro '
 
     m2 = MagicMock()
-    m2.name = 'models/text-embedding-004'
+    m2.name = 'models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
     m2.description = ' Embedding '
 
@@ -145,8 +151,7 @@ async def test_googleai_initialize(mock_client_cls: MagicMock) -> None:
 
     api_key = 'test_api_key'
     plugin = GoogleAI(api_key=api_key)
-    # Ensure usage of mock
-    plugin._client = mock_client
+    plugin._runtime_client = lambda: mock_client
 
     await plugin.init()
     result = await plugin.list_actions()
@@ -264,13 +269,13 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
 
     models_return_value = [
         MockModel(supported_actions=['generateContent'], name='models/gemini-pro'),
-        MockModel(supported_actions=['embedContent'], name='models/text-embedding-004'),
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
         MockModel(supported_actions=['generateContent'], name='models/gemini-2.0-flash-tts'),  # TTS
     ]
 
     mock_client = MagicMock()
     mock_client.models.list.return_value = models_return_value
-    googleai_plugin_instance._client = mock_client
+    googleai_plugin_instance._runtime_client = lambda: mock_client
 
     result = await googleai_plugin_instance.list_actions()
 
@@ -279,7 +284,7 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     assert action1 is not None
 
     # Check Embedder
-    action2 = next(a for a in result if a.name == googleai_name('text-embedding-004'))
+    action2 = next(a for a in result if a.name == googleai_name('gemini-embedding-001'))
     assert action2 is not None
     assert action2.kind == ActionKind.EMBEDDER
 
@@ -289,6 +294,87 @@ async def test_googleai_list_actions(googleai_plugin_instance: GoogleAI) -> None
     # from genkit.plugins.google_genai.models.gemini import GeminiTtsConfigSchema, GeminiConfigSchema
     # assert action3.config_schema == GeminiTtsConfigSchema
     # assert action1.config_schema == GeminiConfigSchema
+
+
+@pytest.mark.asyncio
+async def test_googleai_list_known_models(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known models."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['generateContent'], name='models/gemini-pro'),
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
+        MockModel(supported_actions=['generateContent'], name='models/gemini-2.0-flash-tts'),  # TTS
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._runtime_client = lambda: mock_client
+
+    result = googleai_plugin_instance._list_known_models()
+
+    # Check Gemini Pro
+    action1 = next(a for a in result if a.name == googleai_name('gemini-pro'))
+    assert action1 is not None
+
+    # Check TTS
+    action3 = next(a for a in result if a.name == googleai_name('gemini-2.0-flash-tts'))
+    assert action3 is not None
+
+
+@pytest.mark.asyncio
+async def test_googleai_list_known_veo_models(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known veo models."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['generateVideos'], name='models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._runtime_client = lambda: mock_client
+
+    result = googleai_plugin_instance._list_known_veo_models()
+
+    # Check Veo
+    action1 = next(a for a in result if a.name == googleai_name('veo-2.0-generate-001'))
+    assert action1 is not None
+
+
+@pytest.mark.asyncio
+async def test_googleai_list_known_embedders(googleai_plugin_instance: GoogleAI) -> None:
+    """Unit test for list known embedders."""
+
+    @dataclass
+    class MockModel:
+        supported_actions: list[str]
+        name: str
+        description: str = ''
+
+    models_return_value = [
+        MockModel(supported_actions=['embedContent'], name='models/gemini-embedding-001'),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._runtime_client = lambda: mock_client
+
+    result = googleai_plugin_instance._list_known_embedders()
+
+    # Check Embedder
+    action1 = next(a for a in result if a.name == googleai_name('gemini-embedding-001'))
+    assert action1 is not None
 
 
 @pytest.mark.parametrize(
@@ -415,6 +501,7 @@ class TestVertexAIInit(unittest.TestCase):
         """Test using api_key parameter."""
         api_key = 'test_api_key'
         plugin = VertexAI(api_key=api_key)
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=True,
             api_key=api_key,
@@ -426,7 +513,7 @@ class TestVertexAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
     @patch('google.genai.client.Client')
     @patch.dict(os.environ, {'GCLOUD_PROJECT': 'project'})
@@ -434,6 +521,7 @@ class TestVertexAIInit(unittest.TestCase):
         """Test using credentials parameter."""
         mock_credentials = MagicMock(spec=Credentials)
         plugin = VertexAI(credentials=mock_credentials)
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=True,
             api_key=None,
@@ -445,7 +533,7 @@ class TestVertexAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
     @patch('google.genai.client.Client')
     def test_init_with_all(self, mock_genai_client: MagicMock) -> None:
@@ -458,6 +546,7 @@ class TestVertexAIInit(unittest.TestCase):
             project='project',
             location='location',
         )
+        runtime_client = asyncio.run(_get_runtime_client(plugin))
         mock_genai_client.assert_called_once_with(
             vertexai=True,
             api_key=api_key,
@@ -469,7 +558,7 @@ class TestVertexAIInit(unittest.TestCase):
         )
         self.assertIsInstance(plugin, VertexAI)
         self.assertTrue(plugin._vertexai)
-        self.assertIsInstance(plugin._client, MagicMock)
+        self.assertIsInstance(runtime_client, MagicMock)
 
 
 @pytest.fixture
@@ -490,10 +579,12 @@ async def test_vertexai_initialize(vertexai_plugin_instance: VertexAI) -> None:
     m1.supported_actions = ['generateContent']
 
     m2 = MagicMock()
-    m2.name = 'publishers/google/models/text-embedding-004'
+    m2.name = 'publishers/google/models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
 
-    plugin._client.models.list.return_value = [m1, m2]  # type: ignore
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = [m1, m2]
+    plugin._runtime_client = lambda: mock_client
 
     await plugin.init()
 
@@ -661,7 +752,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
 
     [
         MockModel(name='publishers/google/models/gemini-1.5-flash'),
-        MockModel(name='publishers/google/models/text-embedding-004'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
         MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
         MockModel(name='publishers/google/models/veo-2.0-generate-001'),
     ]
@@ -674,7 +765,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     m1.description = 'Gemini model'
 
     m2 = MagicMock()
-    m2.name = 'publishers/google/models/text-embedding-004'
+    m2.name = 'publishers/google/models/gemini-embedding-001'
     m2.supported_actions = ['embedContent']
     m2.description = 'Embedder'
 
@@ -689,7 +780,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     m4.description = 'Veo'
 
     mock_client.models.list.return_value = [m1, m2, m3, m4]
-    vertexai_plugin_instance._client = mock_client
+    vertexai_plugin_instance._runtime_client = lambda: mock_client
 
     result = await vertexai_plugin_instance.list_actions()
 
@@ -698,7 +789,7 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     assert action1 is not None
 
     # Verify Embedder
-    action2 = next(a for a in result if a.name == vertexai_name('text-embedding-004'))
+    action2 = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
     assert action2 is not None
 
     # Verify Imagen
@@ -711,6 +802,145 @@ async def test_vertexai_list_actions(vertexai_plugin_instance: VertexAI) -> None
     assert action4 is not None
     # from genkit.plugins.google_genai.models.veo import VeoConfigSchema
     # assert action4.config_schema == VeoConfigSchema
+
+
+@pytest.mark.asyncio
+async def test_googleai_resolve_background_model(googleai_plugin_instance: GoogleAI) -> None:
+    """Test resolve action for background model."""
+    plugin = googleai_plugin_instance
+
+    action = await plugin.resolve(action_type=ActionKind.BACKGROUND_MODEL, name=googleai_name('veo-2.0-generate-001'))
+    assert action is not None
+    assert action.kind == ActionKind.BACKGROUND_MODEL
+    assert action.name == googleai_name('veo-2.0-generate-001')
+
+
+@pytest.mark.asyncio
+async def test_googleai_resolve_check_operation(googleai_plugin_instance: GoogleAI) -> None:
+    """Test resolve action for check operation."""
+    plugin = googleai_plugin_instance
+
+    action = await plugin.resolve(
+        action_type=ActionKind.CHECK_OPERATION, name=googleai_name('veo-2.0-generate-001/check')
+    )
+    assert action is not None
+    assert action.kind == ActionKind.CHECK_OPERATION
+    assert action.name == googleai_name('veo-2.0-generate-001/check')
+
+
+@pytest.mark.asyncio
+async def test_vertexai_list_known_models(vertexai_plugin_instance: VertexAI) -> None:
+    """Unit test for list known models."""
+
+    @dataclass
+    class MockModel:
+        name: str
+        description: str = ''
+
+    [
+        MockModel(name='publishers/google/models/gemini-1.5-flash'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
+        MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
+        MockModel(name='publishers/google/models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    # Create sophisticated mocks that have supported_actions
+    m1 = MagicMock()
+    m1.name = 'publishers/google/models/gemini-1.5-flash'
+    m1.supported_actions = ['generateContent']
+    m1.description = 'Gemini model'
+
+    m2 = MagicMock()
+    m2.name = 'publishers/google/models/gemini-embedding-001'
+    m2.supported_actions = ['embedContent']
+    m2.description = 'Embedder'
+
+    m3 = MagicMock()
+    m3.name = 'publishers/google/models/imagen-3.0-generate-001'
+    m3.supported_actions = ['predict']
+    m3.description = 'Imagen'
+
+    m4 = MagicMock()
+    m4.name = 'publishers/google/models/veo-2.0-generate-001'
+    m4.supported_actions = ['generateVideos']
+    m4.description = 'Veo'
+
+    mock_client.models.list.return_value = [m1, m2, m3, m4]
+    vertexai_plugin_instance._runtime_client = lambda: mock_client
+
+    result = vertexai_plugin_instance._list_known_models()
+
+    # Verify Gemini
+    action1 = next(a for a in result if a.name == vertexai_name('gemini-1.5-flash'))
+    assert action1 is not None
+
+    # Verify Imagen
+    action3 = next(a for a in result if a.name == vertexai_name('imagen-3.0-generate-001'))
+    assert action3 is not None
+
+    # Verify Veo
+    action4 = next(a for a in result if a.name == vertexai_name('veo-2.0-generate-001'))
+    assert action4 is not None
+
+
+@pytest.mark.asyncio
+async def test_vertexai_list_known_embedders(vertexai_plugin_instance: VertexAI) -> None:
+    """Unit test for list known embedders."""
+
+    @dataclass
+    class MockModel:
+        name: str
+        description: str = ''
+
+    [
+        MockModel(name='publishers/google/models/gemini-1.5-flash'),
+        MockModel(name='publishers/google/models/gemini-embedding-001'),
+        MockModel(name='publishers/google/models/imagen-3.0-generate-001'),
+        MockModel(name='publishers/google/models/veo-2.0-generate-001'),
+    ]
+
+    mock_client = MagicMock()
+    # Create sophisticated mocks that have supported_actions
+    m1 = MagicMock()
+    m1.name = 'publishers/google/models/gemini-1.5-flash'
+    m1.supported_actions = ['generateContent']
+    m1.description = 'Gemini model'
+
+    m2 = MagicMock()
+    m2.name = 'publishers/google/models/gemini-embedding-001'
+    m2.supported_actions = ['embedContent']
+    m2.description = 'Embedder'
+
+    m3 = MagicMock()
+    m3.name = 'publishers/google/models/imagen-3.0-generate-001'
+    m3.supported_actions = ['predict']
+    m3.description = 'Imagen'
+
+    m4 = MagicMock()
+    m4.name = 'publishers/google/models/veo-2.0-generate-001'
+    m4.supported_actions = ['generateVideos']
+    m4.description = 'Veo'
+
+    mock_client.models.list.return_value = [m1, m2, m3, m4]
+    vertexai_plugin_instance._runtime_client = lambda: mock_client
+
+    result = vertexai_plugin_instance._list_known_embedders()
+
+    # Verify Embedder
+    action2 = next(a for a in result if a.name == vertexai_name('gemini-embedding-001'))
+    assert action2 is not None
+
+
+@pytest.mark.asyncio
+async def test_vertexai_resolve_evaluator(vertexai_plugin_instance: VertexAI) -> None:
+    """Test resolve action for evaluator."""
+    plugin = vertexai_plugin_instance
+
+    action = await plugin.resolve(action_type=ActionKind.EVALUATOR, name=vertexai_name('fluency'))
+    assert action is not None
+    assert action.kind == ActionKind.EVALUATOR
+    assert action.name == vertexai_name('fluency')
 
 
 def test_config_schema_extra_fields() -> None:
@@ -732,7 +962,7 @@ async def test_system_prompt_handling() -> None:
     mock_client = MagicMock(spec=genai.Client)
     model = GeminiModel(version='gemini-1.5-flash', client=mock_client)
 
-    request = GenerateRequest(
+    request = ModelRequest(
         messages=[
             Message(role=Role.SYSTEM, content=[Part(root=TextPart(text='You are a helpful assistant'))]),
             Message(role=Role.USER, content=[Part(root=TextPart(text='Hello'))]),

@@ -301,6 +301,7 @@ export type MultipartToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
 ) => Promise<{
   output?: z.infer<O>;
   content?: Part[];
+  metadata?: Record<string, any>;
 }>;
 
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -415,8 +416,13 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
 }
 
-export function isDynamicTool(t: unknown): t is ToolAction {
+export function isDynamicTool(
+  t: unknown
+): t is ToolAction | MultipartToolAction {
   return isAction(t) && t.__action?.metadata?.dynamic === true;
+}
+export function isMultipartTool(t: unknown): t is MultipartToolAction {
+  return isAction(t) && t.__action?.metadata?.type === 'tool.v2';
 }
 
 export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -460,6 +466,11 @@ function interruptTool(registry?: Registry) {
     if (registry) {
       assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
     }
+    if (metadata) {
+      setCustomMetadataAttributes({
+        interrupt: JSON.stringify(metadata),
+      });
+    }
     throw new ToolInterruptError(metadata);
   };
 }
@@ -484,6 +495,15 @@ export function tool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return config.multipart ? multipartTool(config, fn) : basicTool(config, fn);
 }
 
+function recordResumedMetadata(runOptions: any) {
+  const optionsMetadata = runOptions.metadata;
+  if (optionsMetadata?.resumed) {
+    setCustomMetadataAttributes({
+      resumed: JSON.stringify(optionsMetadata.resumed),
+    });
+  }
+}
+
 function basicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,
   fn?: ToolFn<I, O>
@@ -495,6 +515,7 @@ function basicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       metadata: { ...(config.metadata || {}), type: 'tool', dynamic: true },
     },
     (i, runOptions) => {
+      recordResumedMetadata(runOptions);
       const interrupt = interruptTool(runOptions.registry);
       if (fn) {
         return fn(i, {
@@ -538,9 +559,11 @@ function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         ...(config.metadata || {}),
         type: 'tool.v2',
         tool: { multipart: true },
+        dynamic: true,
       },
     },
     (i, runOptions) => {
+      recordResumedMetadata(runOptions);
       const interrupt = interruptTool(runOptions.registry);
       if (fn) {
         return fn(i, {

@@ -4,14 +4,14 @@ This directory contains all official Genkit plugins for Python.
 
 ## Plugin Architecture
 
-All plugins inherit from `genkit.core.plugin.Plugin` and implement three
+All plugins inherit from `genkit._core.plugin.Plugin` and implement three
 async methods. The registry calls them lazily — `init()` runs only on
 first use, not at registration time.
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
   │                  Plugin (Abstract Base Class)                       │
-  │                  genkit.core.plugin.Plugin                          │
+  │                  genkit._core.plugin.Plugin                          │
   ├─────────────────────────────────────────────────────────────────────┤
   │                                                                     │
   │  name: str              Plugin namespace (e.g., 'googleai')        │
@@ -98,14 +98,8 @@ first use, not at registration time.
 │   │ anthropic               │        │ firebase                │               │
 │   │ • Claude 3.5/4          │        │ • Firebase Telemetry    │               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
-│   ┌─────────────────────────┐                                                  │
-│   │ amazon-bedrock  🌐      │        INTEGRATIONS                              │
-│   │ • Claude, Llama, Nova   │        ────────────                              │
-│   │ • Titan, Mistral        │        ┌─────────────────────────┐               │
-│   │ • X-Ray telemetry       │        │ flask                   │               │
-│   └─────────────────────────┘        │ • HTTP endpoints        │               │
-│   ┌─────────────────────────┐        └─────────────────────────┘               │
-│   │ microsoft-foundry               │        ┌─────────────────────────┐               │
+│   ┌─────────────────────────┐        ┌─────────────────────────┐               │
+│   │ microsoft-foundry       │        │ flask                   │               │
 │   │ • GPT-4o, Claude, Llama │        │ mcp                     │               │
 │   │ • 11,000+ models        │        │ • Model Context Protocol│               │
 │   └─────────────────────────┘        └─────────────────────────┘               │
@@ -162,10 +156,7 @@ first use, not at registration time.
 │       → google-genai (Gemini 2.0)                                               │
 │                                                                                 │
 │   "I need Claude models"                                                        │
-│       → anthropic (direct) OR amazon-bedrock OR microsoft-foundry                          │
-│                                                                                 │
-│   "I'm on AWS and want managed models"                                          │
-│       → amazon-bedrock (Claude, Llama, Nova, Titan)                                │
+│       → anthropic (direct) OR microsoft-foundry                                  │
 │                                                                                 │
 │   "I'm on Azure and want managed models"                                        │
 │       → microsoft-foundry (GPT-4o, Claude, Llama, 11,000+ models)                       │
@@ -245,7 +236,6 @@ first use, not at registration time.
 │                                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
-│   "I'm on AWS and want X-Ray"           → amazon-bedrock plugin                 │
 │   "I'm on GCP and want Cloud Trace"     → google-cloud plugin                  │
 │   "I'm on Azure and want App Insights"  → microsoft-foundry plugin              │
 │   "I'm using Firebase"                  → firebase plugin (auto telemetry)     │
@@ -311,7 +301,6 @@ first use, not at registration time.
 |--------|--------|----------|
 | **google-genai** | Gemini, Imagen, Veo, Lyria | Multimodal AI, Google ecosystem |
 | **anthropic** | Claude 3.5, Claude 4 | Direct Claude access |
-| **amazon-bedrock** 🌐 | Claude, Llama, Nova, Titan | AWS managed models (community) |
 | **microsoft-foundry** 🌐 | GPT-4o, Claude, Llama, 11,000+ | Azure AI, enterprise (community) |
 | **vertex-ai** | Model Garden (Claude, Llama) | GCP third-party models |
 | **ollama** | Llama, Mistral, Phi, etc. | Local/private deployment |
@@ -337,7 +326,6 @@ first use, not at registration time.
 | Plugin | Backend | Features |
 |--------|---------|----------|
 | **google-cloud** | Cloud Trace, Logging | GCP native, log correlation |
-| **amazon-bedrock** 🌐 | X-Ray | AWS native, SigV4 auth, built into model plugin (community) |
 | **microsoft-foundry** 🌐 | Application Insights | Azure Monitor, trace correlation, built into model plugin (community) |
 | **cloudflare-workers-ai** 🌐 | Any OTLP endpoint | Generic OTLP, Bearer auth, combined with models (community) |
 | **observability** 🌐 | Sentry, Honeycomb, Datadog, Grafana, Axiom | 3rd party presets (community) |
@@ -347,6 +335,7 @@ first use, not at registration time.
 
 | Plugin | Purpose |
 |--------|---------|
+| **fastapi** | Serve flows via FastAPI endpoints with lifespan management |
 | **flask** | Serve flows via Flask HTTP endpoints |
 | **mcp** | Model Context Protocol for tool integration |
 
@@ -373,11 +362,8 @@ All environment variables used by Genkit plugins. Configure these before running
 
 | Variable | Plugin | Required | Description | Documentation |
 |----------|--------|----------|-------------|---------------|
-| `GOOGLE_GENAI_API_KEY` | google-genai | Yes | Google AI Studio API key | [Get API Key](https://aistudio.google.com/apikey) |
+| `GEMINI_API_KEY` | google-genai | Yes | Google AI Studio API key | [Get API Key](https://aistudio.google.com/apikey) |
 | `ANTHROPIC_API_KEY` | anthropic | Yes | Anthropic API key | [Anthropic Console](https://console.anthropic.com/) |
-| `AWS_REGION` | amazon-bedrock | Yes | AWS region (e.g., `us-east-1`) | [AWS Regions](https://docs.aws.amazon.com/general/latest/gr/bedrock.html) |
-| `AWS_ACCESS_KEY_ID` | amazon-bedrock | Yes* | AWS access key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
-| `AWS_SECRET_ACCESS_KEY` | amazon-bedrock | Yes* | AWS secret key | [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html) |
 | `AZURE_AI_FOUNDRY_ENDPOINT` | microsoft-foundry | Yes | Azure AI Foundry endpoint URL | [Azure AI Foundry](https://ai.azure.com/) |
 | `AZURE_AI_FOUNDRY_API_KEY` | microsoft-foundry | Yes* | Azure AI Foundry API key | [Azure AI Foundry](https://ai.azure.com/) |
 | `OPENAI_API_KEY` | compat-oai | Yes | OpenAI API key | [OpenAI API Keys](https://platform.openai.com/api-keys) |
@@ -510,7 +496,6 @@ Each plugin is a separate package. Install only what you need:
 # Model providers
 pip install genkit-google-genai-plugin
 pip install genkit-anthropic-plugin
-pip install genkit-amazon-bedrock-plugin  # Also includes X-Ray telemetry
 pip install genkit-microsoft-foundry-plugin
 
 # Telemetry
@@ -521,6 +506,7 @@ pip install genkit-checks-plugin
 pip install genkit-evaluators-plugin
 
 # Integrations
+pip install genkit-plugin-fastapi
 pip install genkit-flask-plugin
 pip install genkit-mcp-plugin
 pip install genkit-cohere-plugin
@@ -529,18 +515,19 @@ pip install genkit-cohere-plugin
 ## Quick Start
 
 ```python
-from genkit.ai import Genkit
+from genkit import Genkit
 from genkit.plugins.google_genai import GoogleAI
 
 # Initialize with your chosen plugin
 ai = Genkit(
     plugins=[GoogleAI()],
-    model="googleai/gemini-2.0-flash",
+    model='googleai/gemini-2.0-flash',
 )
+
 
 @ai.flow()
 async def hello(name: str) -> str:
-    response = await ai.generate(prompt=f"Say hello to {name}")
+    response = await ai.generate(prompt=f'Say hello to {name}')
     return response.text
 ```
 
@@ -578,10 +565,10 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 │                                                                                  │
 │   INDEPENDENT PLUGINS (no inter-plugin dependencies):                            │
 │   ─────────────────────────────────────────────────                               │
-│   google-genai, anthropic, amazon-bedrock, microsoft-foundry,                    │
+│   google-genai, anthropic, microsoft-foundry,                                     │
 │   ollama, xai, mistral, huggingface, cloudflare-workers-ai,                      │
-│   cohere, google-cloud, firebase, observability, mcp, evaluators,                │
-│   dev-local-vectorstore, checks                                                  │
+│   cohere, google-cloud, firebase, observability, mcp, fastapi,                   │
+│   evaluators, dev-local-vectorstore, checks                                      │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -594,10 +581,10 @@ plugins are independent leaf nodes; only a few have inter-plugin dependencies.
 
 ## Cross-Language Plugin Coverage
 
-> **Last audited**: 2026-02-08
+> **Last audited**: 2026-02-12
 
 The table below compares plugin availability across Python and JavaScript SDKs.
-Python currently has **21 plugins** vs JavaScript's **17 plugins**, with broader
+Python currently has **22 plugins** vs JavaScript's **17 plugins**, with broader
 model provider diversity.
 
 ### Model Providers
@@ -631,6 +618,7 @@ model provider diversity.
 | Plugin | Python | JavaScript | Notes |
 |--------|:------:|:----------:|-------|
 | MCP (Model Context Protocol) | ✅ | ✅ | |
+| FastAPI | ✅ | — | Python-only |
 | Flask | ✅ | — | Python-only |
 | Express | — | ✅ | JS-only |
 | Next.js | — | ✅ | JS-only |
@@ -661,6 +649,4 @@ model provider diversity.
 
 ## Further Reading
 
-- [Plugin Planning & Roadmap](../engdoc/planning/)
-- [Feature Matrix](../engdoc/planning/FEATURE_MATRIX.md)
 - [Contributing Guide](../engdoc/contributing/)

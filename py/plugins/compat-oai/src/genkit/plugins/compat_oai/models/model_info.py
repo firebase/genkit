@@ -24,11 +24,11 @@ if sys.version_info < (3, 11):
 else:
     from enum import StrEnum
 
-from genkit.plugins.compat_oai.typing import SupportedOutputFormat
-from genkit.types import (
+from genkit import (
     ModelInfo,
     Supports,
 )
+from genkit.plugins.compat_oai.typing import SupportedOutputFormat
 
 OPENAI = 'openai'
 MODEL_GARDEN = 'model-garden'
@@ -76,6 +76,14 @@ O_SERIES_MODEL_SUPPORTS = Supports(
 GPT_5_MODEL_SUPPORTS = Supports(
     multiturn=True,
     media=True,
+    tools=True,
+    system_role=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
+
+GPT_OSS_MODEL_SUPPORTS = Supports(
+    multiturn=True,
+    media=False,
     tools=True,
     system_role=True,
     output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
@@ -142,6 +150,9 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     'gpt-5.2-chat': ModelInfo(label='OpenAI - gpt-5.2-chat', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.2-pro': ModelInfo(label='OpenAI - gpt-5.2-pro', supports=GPT_5_MODEL_SUPPORTS),
     'gpt-5.3-codex': ModelInfo(label='OpenAI - gpt-5.3-codex', supports=GPT_5_MODEL_SUPPORTS),
+    # --- OSS models (hosted) ---
+    'gpt-oss-120b': ModelInfo(label='OpenAI - gpt-oss-120b', supports=GPT_OSS_MODEL_SUPPORTS),
+    'gpt-oss-20b': ModelInfo(label='OpenAI - gpt-oss-20b', supports=GPT_OSS_MODEL_SUPPORTS),
 }
 
 SUPPORTED_EMBEDDING_MODELS: dict[str, dict] = {

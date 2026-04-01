@@ -15,6 +15,10 @@
  */
 
 import {
+  CreateInteractionRequest,
+  GeminiInteraction,
+} from '../common/interaction-types.js';
+import {
   Content,
   FinishReason,
   GenerateContentCandidate,
@@ -46,6 +50,8 @@ export {
   HarmCategory,
   TaskTypeSchema,
   type Content,
+  type CreateInteractionRequest,
+  type GeminiInteraction,
   type GenerateContentCandidate,
   type GenerateContentRequest,
   type GenerateContentResponse,
@@ -193,6 +199,8 @@ export declare interface VeoParameters {
   personGeneration?: string;
   durationSeconds?: number;
   enhancePrompt?: boolean;
+  resolution?: string;
+  seed?: number;
 }
 
 export declare interface VeoInstance {
