@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { GenerateMiddleware } from '@genkit-ai/ai';
 import { type GenkitPluginV2 } from '@genkit-ai/ai';
 import { type ModelAction } from '@genkit-ai/ai/model';
 import {
@@ -23,6 +24,7 @@ import {
 } from '@genkit-ai/core';
 import type { Genkit } from './genkit.js';
 import type { ActionType } from './registry.js';
+
 export { embedder, embedderActionMetadata } from '@genkit-ai/ai/embedder';
 export { evaluator } from '@genkit-ai/ai/evaluator';
 export {
@@ -32,7 +34,7 @@ export {
 } from '@genkit-ai/ai/model';
 export { reranker } from '@genkit-ai/ai/reranker';
 export { indexer, retriever } from '@genkit-ai/ai/retriever';
-export { type GenkitPluginV2, type ResolvableAction };
+export { type GenerateMiddleware, type GenkitPluginV2, type ResolvableAction };
 
 export interface PluginProvider {
   name: string;
@@ -102,6 +104,13 @@ export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
       return [];
     }
     return this.plugin.list();
+  }
+
+  generateMiddleware(): GenerateMiddleware[] {
+    if (!this.plugin.generateMiddleware) {
+      return [];
+    }
+    return this.plugin.generateMiddleware();
   }
 
   resolve(

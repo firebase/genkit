@@ -57,11 +57,20 @@ export {
   type ResumeOptions,
   type ToolChoice,
 } from './generate.js';
+export {
+  MiddlewareDescSchema,
+  generateMiddleware,
+  type GenerateMiddleware,
+  type GenerateMiddlewareDef,
+  type MiddlewareDesc,
+} from './generate/middleware.js';
 export { Message } from './message.js';
 export {
   GenerateResponseChunkSchema,
   GenerationCommonConfigSchema,
   MessageSchema,
+  MiddlewareRefSchema,
+  ModelReferenceSchema,
   ModelRequestSchema,
   ModelResponseSchema,
   PartSchema,
@@ -75,6 +84,7 @@ export {
   type GenerationUsage,
   type MediaPart,
   type MessageData,
+  type MiddlewareRef,
   type ModelArgument,
   type ModelReference,
   type ModelRequest,
@@ -144,6 +154,8 @@ export {
   defineInterrupt,
   defineTool,
   interrupt,
+  restartTool,
+  respondTool,
   type InterruptConfig,
   type ToolAction,
   type ToolArgument,
