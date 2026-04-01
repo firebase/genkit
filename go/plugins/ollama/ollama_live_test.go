@@ -26,28 +26,29 @@ import (
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
-var serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
-var modelName = flag.String("model-name", "tinyllama", "model name")
-var dynamicModelName = flag.String("dynamic-model-name", "moondream", "model name for dynamic discovery test (must not be in hardcoded lists)")
-var testLive = flag.Bool("test-live", false, "run live tests")
+var (
+	serverAddress    = flag.String("server-address", "http://localhost:11434", "Ollama server address")
+	modelName        = flag.String("model-name", "tinyllama", "model name")
+	dynamicModelName = flag.String("dynamic-model-name", "moondream", "model name for dynamic discovery test (must not be in hardcoded lists)")
+	testLive         = flag.Bool("test-live", false, "run live tests")
+)
 
 /*
 To run this test, you need to have the Ollama server running. You can set the server address using the OLLAMA_SERVER_ADDRESS environment variable.
 If the environment variable is not set, the test will default to http://localhost:11434 (the default address for the Ollama server).
 */
 func TestLive(t *testing.T) {
-
 	if !*testLive {
 		t.Skip("skipping go/plugins/ollama live test")
 	}
 
 	ctx := context.Background()
 
-	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress, Timeout: 60}
 	g := genkit.Init(ctx, genkit.WithPlugins(o))
 
 	// Define the model
-	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName, Type: "chat"}, nil)
 
 	// Use the Ollama model
 	m := ollamaPlugin.Model(g, *modelName)
@@ -58,8 +59,8 @@ func TestLive(t *testing.T) {
 	// Generate a response from the model
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(m),
-		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
-		ai.WithPrompt("I'm hungry, what should I eat?"),
+		ai.WithConfig(&ollamaPlugin.GenerateContentConfig{Temperature: ollamaPlugin.Ptr(1.0), Think: ollamaPlugin.ThinkEnabled(true)}),
+		ai.WithPrompt("I'm hungry what should I eat?"),
 	)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
@@ -71,7 +72,7 @@ func TestLive(t *testing.T) {
 
 	// Get the text from the response
 	text := resp.Text()
-	// log.Println("Response:", text)
+	t.Logf("Full response: %s", text)
 
 	// Assert that the response text is as expected
 	if text == "" {
