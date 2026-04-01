@@ -15,7 +15,7 @@
  */
 
 import {
-  GenerateAPI,
+  GenkitAI,
   defineHelper,
   definePartial,
   definePrompt,
@@ -168,7 +168,7 @@ export interface GenkitOptions {
  *
  * There may be multiple Genkit instances in a single codebase.
  */
-export class Genkit extends GenerateAPI implements HasRegistry {
+export class Genkit extends GenkitAI implements HasRegistry {
   readonly registry: Registry;
   /** Developer-configured options. */
   readonly options: GenkitOptions;
