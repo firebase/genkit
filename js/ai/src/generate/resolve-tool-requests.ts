@@ -182,6 +182,7 @@ export async function resolveToolRequest(
   } catch (e) {
     if (
       e instanceof ToolInterruptError ||
+      // There's an inexplicable case when the above type check fails, only in tests.
       (e as Error).name === 'ToolInterruptError'
     ) {
       const ie = e as ToolInterruptError;
