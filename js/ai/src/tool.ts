@@ -348,20 +348,11 @@ function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         "The 'tool.reply' method is part of the 'interrupts' beta feature."
       );
     }
-    parseSchema(responseData, {
+    responseData = parseSchema(responseData, {
       jsonSchema: config.outputJsonSchema,
       schema: config.outputSchema,
     });
-    return {
-      toolResponse: stripUndefinedProps({
-        name: interrupt.toolRequest.name,
-        ref: interrupt.toolRequest.ref,
-        output: responseData,
-      }),
-      metadata: {
-        interruptResponse: options?.metadata || true,
-      },
-    };
+    return respondTool(interrupt, responseData, options);
   };
 
   (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
@@ -379,19 +370,7 @@ function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         jsonSchema: config.inputJsonSchema,
       });
     }
-    return {
-      toolRequest: stripUndefinedProps({
-        name: interrupt.toolRequest.name,
-        ref: interrupt.toolRequest.ref,
-        input: replaceInput || interrupt.toolRequest.input,
-      }),
-      metadata: stripUndefinedProps({
-        ...interrupt.metadata,
-        resumed: resumedMetadata || true,
-        // annotate the original input if replacing it
-        replacedInput: replaceInput ? interrupt.toolRequest.input : undefined,
-      }),
-    };
+    return restartTool(interrupt, resumedMetadata, { replaceInput });
   };
 }
 
