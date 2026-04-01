@@ -39,6 +39,7 @@ export {
   type EvaluatorParams,
   type EvaluatorReference,
 } from './evaluator.js';
+export { GenerateAPI } from './generate-api.js';
 export {
   GenerateResponse,
   GenerateResponseChunk,
