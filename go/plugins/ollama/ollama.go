@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"slices"
@@ -58,12 +59,55 @@ var (
 		ai.RoleSystem: "system",
 		ai.RoleTool:   "tool",
 	}
+	// defaultOllamaSupports defines the default capabilities for dynamically
+	// discovered Ollama models. All capabilities are enabled since local models
+	// vary widely and we can't query their capabilities individually.
+	defaultOllamaSupports = ai.ModelSupports{
+		Multiturn:  true,
+		Media:      true,
+		Tools:      true,
+		SystemRole: true,
+	}
 
 	// thinkingRegex matches <think> or <thinking> tags case-insensitively across multiple lines.
 	// It uses non-greedy matching (.*?) to correctly extract individual blocks when
 	// multiple blocks are present in a single response.
 	thinkingRegex = regexp.MustCompile("(?si)<(think|thinking)>(.*?)</(?:think|thinking)>")
 )
+
+// ollamaTagsResponse represents the response from GET /api/tags.
+type ollamaTagsResponse struct {
+	Models []ollamaLocalModel `json:"models"`
+}
+
+// ollamaLocalModel represents a locally available Ollama model.
+type ollamaLocalModel struct {
+	Name  string `json:"name"`
+	Model string `json:"model"`
+}
+
+// listLocalModels calls GET /api/tags to list locally installed Ollama models.
+func (o *Ollama) listLocalModels(ctx context.Context) ([]ollamaLocalModel, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", o.ServerAddress+"/api/tags", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := o.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch local models from Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama /api/tags returned status %d", resp.StatusCode)
+	}
+
+	var tagsResp ollamaTagsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		return nil, fmt.Errorf("failed to decode /api/tags response: %w", err)
+	}
+	return tagsResp.Models, nil
+}
 
 func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.ModelOptions) ai.Model {
 	o.mu.Lock()
@@ -268,8 +312,9 @@ type Ollama struct {
 	ServerAddress string // Server address of oLLama.
 	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
-	mu      sync.Mutex // Mutex to control access.
-	initted bool       // Whether the plugin has been initialized.
+	mu      sync.Mutex   // Mutex to control access.
+	initted bool         // Whether the plugin has been initialized.
+	client  *http.Client // Shared HTTP client for API calls (e.g., /api/tags).
 }
 
 func (o *Ollama) Name() string {
@@ -292,7 +337,60 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 	if o.Timeout == 0 {
 		o.Timeout = 30
 	}
+	o.client = &http.Client{}
 	return []api.Action{}
+}
+
+// newModel creates an Ollama model without registering it in the Genkit registry.
+// It is used by ListActions (to generate ActionDesc) and ResolveAction (to return an Action).
+func (o *Ollama) newModel(name string, opts ai.ModelOptions) ai.Model {
+	meta := &ai.ModelOptions{
+		Label:        "Ollama - " + name,
+		Supports:     opts.Supports,
+		Versions:     []string{},
+		ConfigSchema: core.InferSchemaMap(GenerateContentConfig{}),
+	}
+	gen := &generator{
+		model:         ModelDefinition{Name: name, Type: "chat"},
+		serverAddress: o.ServerAddress,
+		timeout:       o.Timeout,
+	}
+	return ai.NewModel(api.NewName(provider, name), meta, gen.generate)
+}
+
+// ListActions calls /api/tags to discover locally installed Ollama models.
+func (o *Ollama) ListActions(ctx context.Context) []api.ActionDesc {
+	models, err := o.listLocalModels(ctx)
+	if err != nil {
+		slog.Error("unable to list ollama models", "error", err)
+		return nil
+	}
+
+	var actions []api.ActionDesc
+	for _, m := range models {
+		name := m.Name
+		// Filter out embedding models (following JS: !m.model.includes('embed'))
+		if strings.Contains(name, "embed") {
+			continue
+		}
+		model := o.newModel(name, ai.ModelOptions{Supports: &defaultOllamaSupports})
+		if action, ok := model.(api.Action); ok {
+			actions = append(actions, action.Desc())
+		}
+	}
+	return actions
+}
+
+// ResolveAction dynamically creates a model action on demand.
+func (o *Ollama) ResolveAction(atype api.ActionType, name string) api.Action {
+	if atype != api.ActionTypeModel {
+		return nil
+	}
+	model := o.newModel(name, ai.ModelOptions{Supports: &defaultOllamaSupports})
+	if action, ok := model.(api.Action); ok {
+		return action
+	}
+	return nil
 }
 
 // Ptr returns a pointer to the given value.
@@ -307,17 +405,11 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	var thinkingEnabled bool
 	isChatModel := g.model.Type == "chat"
 
-	// Check if this is an image model
-	hasMediaSupport := slices.Contains(mediaSupportedModels, g.model.Name)
-
-	// Extract images if the model supports them
-	var images []string
-	var err error
-	if hasMediaSupport {
-		images, err = concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
-		if err != nil {
-			return nil, fmt.Errorf("failed to grab image parts: %v", err)
-		}
+	// Extract images from the request. Ollama will handle unsupported media
+	// gracefully, matching the JS plugin behavior of unconditionally forwarding images.
+	images, err := concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
+	if err != nil {
+		return nil, fmt.Errorf("failed to grab image parts: %v", err)
 	}
 
 	if !isChatModel {
