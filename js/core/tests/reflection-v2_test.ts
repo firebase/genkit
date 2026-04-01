@@ -196,6 +196,57 @@ describe('ReflectionServerV2', () => {
     await gotListValues;
   });
 
+  it('should handle listValues with toJson mapping', async () => {
+    registry.registerValue('middleware', 'mw1', {
+      toJson: () => ({ name: 'mw1' }),
+    });
+    registry.registerValue('middleware', 'mw2', {
+      name: 'mw2',
+    });
+
+    const gotListValues = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('listValues toJson timeout')),
+        2000
+      );
+      wss.on('connection', (ws) => {
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString());
+          if (msg.method === 'register') {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                result: {},
+                id: msg.id,
+              })
+            );
+            ws.send(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'listValues',
+                params: { type: 'middleware' },
+                id: '125',
+              })
+            );
+          } else if (msg.id === '125') {
+            assert.ok(msg.result.values['mw1']);
+            assert.strictEqual(msg.result.values['mw1'].name, 'mw1');
+            assert.ok(msg.result.values['mw2']);
+            assert.strictEqual(msg.result.values['mw2'].name, 'mw2');
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+      });
+    });
+
+    server = new ReflectionServerV2(registry, {
+      url: `ws://localhost:${port}`,
+    });
+    await server.start();
+    await gotListValues;
+  });
+
   it('should handle runAction', async () => {
     const testAction = action(
       {

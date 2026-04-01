@@ -347,9 +347,16 @@ export class ReflectionServerV2 {
     if (!request.id) return;
     const { type } = ReflectionListValuesParamsSchema.parse(request.params);
     const values = await this.registry.listValues(type);
+    const mappedValues: Record<string, any> = {};
+    for (const [key, value] of Object.entries(values)) {
+      mappedValues[key] =
+        value && typeof value === 'object' && 'toJson' in value && typeof (value as any).toJson === 'function'
+          ? (value as any).toJson()
+          : value;
+    }
     this.sendResponse(
       request.id,
-      ReflectionListValuesResponseSchema.parse({ values })
+      ReflectionListValuesResponseSchema.parse({ values: mappedValues })
     );
   }
 
