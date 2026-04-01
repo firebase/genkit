@@ -21,7 +21,7 @@ import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
 import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
-import { enableTelemetry } from '../src/tracing.js';
+import { enableTelemetry, flushTracing } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
 
 initNodeFeatures();
@@ -48,10 +48,12 @@ function createTestFlow(registry: Registry) {
 describe('flow', () => {
   let registry: Registry;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Skips starting reflection server.
     delete process.env.GENKIT_ENV;
     registry = new Registry();
+    await flushTracing();
+    spanExporter.exportedSpans = [];
   });
 
   describe('runFlow', () => {
@@ -370,6 +372,8 @@ describe('flow', () => {
         telemetryLabels: { custom: 'label' },
       });
 
+      await flushTracing();
+
       assert.equal(result, 'bar foo');
       assert.strictEqual(spanExporter.exportedSpans.length, 1);
       assert.strictEqual(spanExporter.exportedSpans[0].displayName, 'testFlow');
@@ -393,6 +397,8 @@ describe('flow', () => {
         telemetryLabels: { custom: 'label' },
       });
       const result = await output;
+
+      await flushTracing();
 
       assert.equal(result, 'bar foo');
       assert.strictEqual(spanExporter.exportedSpans.length, 1);
@@ -444,6 +450,8 @@ describe('flow', () => {
       const result = await testFlow('foo', {
         context: { user: 'pavel' },
       });
+
+      await flushTracing();
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);

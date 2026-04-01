@@ -117,11 +117,17 @@ describe('GoogleCloudTracing', () => {
     const spans = await getExportedSpans();
     assert.equal(spans.length, 3);
     assert.equal(spans[2].name, 'testFlow');
-    assert.equal(spans[2].parentSpanId, undefined);
+    assert.equal(spans[2].parentSpanContext?.spanId, undefined);
     assert.equal(spans[1].name, 'subAction');
-    assert.equal(spans[1].parentSpanId, spans[2].spanContext().spanId);
+    assert.equal(
+      spans[1].parentSpanContext?.spanId,
+      spans[2].spanContext().spanId
+    );
     assert.equal(spans[0].name, 'subAction2');
-    assert.equal(spans[0].parentSpanId, spans[1].spanContext().spanId);
+    assert.equal(
+      spans[0].parentSpanContext?.spanId,
+      spans[1].spanContext().spanId
+    );
   });
 
   it('different flows run independently', async () => {
@@ -133,8 +139,8 @@ describe('GoogleCloudTracing', () => {
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 2);
-    assert.equal(spans[0].parentSpanId, undefined);
-    assert.equal(spans[1].parentSpanId, undefined);
+    assert.equal(spans[0].parentSpanContext?.spanId, undefined);
+    assert.equal(spans[1].parentSpanContext?.spanId, undefined);
   });
 
   it('labels failed spans', async () => {

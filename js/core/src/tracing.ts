@@ -100,9 +100,10 @@ export async function enableTelemetry(
   if (isOTelInitializationDisabled()) {
     return;
   }
-  global[instrumentationKey] =
-    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
-  return getTelemetryProvider().enableTelemetry(telemetryConfig);
+  const instrumentationPromise =
+    getTelemetryProvider().enableTelemetry(telemetryConfig);
+  global[instrumentationKey] = instrumentationPromise;
+  return instrumentationPromise;
 }
 
 /**

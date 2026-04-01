@@ -29,6 +29,7 @@ import type {
   ScopeMetrics,
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
+import { DataPointType } from '@opentelemetry/sdk-metrics';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
 import { genkit, z, type GenerateResponseData, type Genkit } from 'genkit';
@@ -652,7 +653,8 @@ describe('GoogleCloudMetrics', () => {
     if (genkitMetrics) {
       const counterMetric: SumMetricData = genkitMetrics.metrics.find(
         (e) =>
-          e.descriptor.name === metricName && e.descriptor.type === 'COUNTER'
+          e.descriptor.name === metricName &&
+          e.dataPointType === DataPointType.SUM
       ) as SumMetricData;
       if (counterMetric) {
         return counterMetric.dataPoints;
@@ -692,7 +694,8 @@ describe('GoogleCloudMetrics', () => {
     } else {
       const histogramMetric = genkitMetrics.metrics.find(
         (e) =>
-          e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
+          e.descriptor.name === metricName &&
+          e.dataPointType === DataPointType.HISTOGRAM
       ) as HistogramMetricData;
       if (histogramMetric === undefined) {
         assert.fail(

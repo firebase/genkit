@@ -73,7 +73,7 @@ export class TraceServerExporter implements SpanExporter {
       displayName: span.name,
       links: span.links,
       spanKind: SpanKind[span.kind],
-      parentSpanId: span.parentSpanId,
+      parentSpanId: span.parentSpanContext?.spanId,
       sameProcessAsParentSpan: { value: !span.spanContext().isRemote },
       status: span.status,
       timeEvents: {
@@ -86,17 +86,17 @@ export class TraceServerExporter implements SpanExporter {
         })),
       },
     };
-    if (span.instrumentationLibrary !== undefined) {
+    if (span.instrumentationScope !== undefined) {
       spanData.instrumentationLibrary = {
-        name: span.instrumentationLibrary.name,
+        name: span.instrumentationScope.name,
       };
-      if (span.instrumentationLibrary.schemaUrl !== undefined) {
+      if (span.instrumentationScope.schemaUrl !== undefined) {
         spanData.instrumentationLibrary.schemaUrl =
-          span.instrumentationLibrary.schemaUrl;
+          span.instrumentationScope.schemaUrl;
       }
-      if (span.instrumentationLibrary.version !== undefined) {
+      if (span.instrumentationScope.version !== undefined) {
         spanData.instrumentationLibrary.version =
-          span.instrumentationLibrary.version;
+          span.instrumentationScope.version;
       }
     }
     deleteUndefinedProps(spanData);
@@ -127,19 +127,19 @@ export class TraceServerExporter implements SpanExporter {
         await this.save(traceId, traces[traceId]);
       } catch (e) {
         error = true;
-        logger.error(`Failed to save trace ${traceId}`, e);
+        logger.defaultLogger.error(`Failed to save trace ${traceId}`, e);
       }
-      if (done) {
-        return done({
-          code: error ? ExportResultCode.FAILED : ExportResultCode.SUCCESS,
-        });
-      }
+    }
+    if (done) {
+      return done({
+        code: error ? ExportResultCode.FAILED : ExportResultCode.SUCCESS,
+      });
     }
   }
 
-  private async save(traceId, spans: ReadableSpan[]): Promise<void> {
+  private async save(traceId: string, spans: ReadableSpan[]): Promise<void> {
     if (!telemetryServerUrl) {
-      logger.debug(
+      logger.defaultLogger.debug(
         `Telemetry server is not configured, trace ${traceId} not saved!`
       );
       return;

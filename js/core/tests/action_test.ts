@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { action, defineAction } from '../src/action.js';
 import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
-import { enableTelemetry } from '../src/tracing.js';
+import { enableTelemetry, flushTracing } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
 
 initNodeFeatures();
@@ -33,8 +33,9 @@ enableTelemetry({
 
 describe('action', () => {
   var registry: Registry;
-  beforeEach(() => {
+  beforeEach(async () => {
     registry = new Registry();
+    await flushTracing();
     spanExporter.exportedSpans = [];
   });
 
@@ -289,6 +290,7 @@ describe('action', () => {
     act.__action.key = 'some-custom-key';
 
     await act();
+    await flushTracing();
 
     assert.strictEqual(spanExporter.exportedSpans.length, 1);
     assert.strictEqual(
