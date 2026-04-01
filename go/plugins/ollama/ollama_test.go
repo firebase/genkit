@@ -208,15 +208,17 @@ func TestParseThinking(t *testing.T) {
 
 func TestTranslateChatResponse(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		want          *ai.ModelResponse
-		wantReasoning string
-		wantErr       bool
+		name            string
+		input           string
+		thinkingEnabled bool
+		want            *ai.ModelResponse
+		wantReasoning   string
+		wantErr         bool
 	}{
 		{
-			name:  "Thinking field present",
-			input: `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello", "thinking": "I should say hello"}}`,
+			name:            "Thinking field present (always honored regardless of thinkingEnabled)",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello", "thinking": "I should say hello"}}`,
+			thinkingEnabled: false,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -229,8 +231,9 @@ func TestTranslateChatResponse(t *testing.T) {
 			wantReasoning: "I should say hello",
 		},
 		{
-			name:  "Thinking in content tag",
-			input: `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>I should say hello</think>Hello"}}`,
+			name:            "Thinking in content tag with thinking enabled",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>I should say hello</think>Hello"}}`,
+			thinkingEnabled: true,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -243,8 +246,23 @@ func TestTranslateChatResponse(t *testing.T) {
 			wantReasoning: "I should say hello",
 		},
 		{
-			name:  "Thinking in thinking tag",
-			input: `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<thinking>I am thinking</thinking>Hello"}}`,
+			name:            "Think tags in content NOT parsed when thinking disabled",
+			input:           `{"model": "llama3", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>Not reasoning</think>Hello"}}`,
+			thinkingEnabled: false,
+			want: &ai.ModelResponse{
+				Message: &ai.Message{
+					Role: ai.RoleModel,
+					Content: []*ai.Part{
+						ai.NewTextPart("<think>Not reasoning</think>Hello"),
+					},
+				},
+			},
+			wantReasoning: "",
+		},
+		{
+			name:            "Thinking in thinking tag with thinking enabled",
+			input:           `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<thinking>I am thinking</thinking>Hello"}}`,
+			thinkingEnabled: true,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -257,8 +275,9 @@ func TestTranslateChatResponse(t *testing.T) {
 			wantReasoning: "I am thinking",
 		},
 		{
-			name:  "Multiple thinking blocks",
-			input: `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>First</think><think>Second</think>Hello"}}`,
+			name:            "Multiple thinking blocks",
+			input:           `{"model": "ollama-model", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>First</think><think>Second</think>Hello"}}`,
+			thinkingEnabled: true,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -271,8 +290,9 @@ func TestTranslateChatResponse(t *testing.T) {
 			wantReasoning: "First\n\nSecond",
 		},
 		{
-			name:  "Only thinking in content",
-			input: `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>Just thinking</think>"}}`,
+			name:            "Only thinking in content",
+			input:           `{"model": "deepseek-r1", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "<think>Just thinking</think>"}}`,
+			thinkingEnabled: true,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -284,8 +304,9 @@ func TestTranslateChatResponse(t *testing.T) {
 			wantReasoning: "Just thinking",
 		},
 		{
-			name:  "No thinking",
-			input: `{"model": "llama3", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello"}}`,
+			name:            "No thinking",
+			input:           `{"model": "llama3", "created_at": "2024-06-20T12:34:56Z", "message": {"role": "assistant", "content": "Hello"}}`,
+			thinkingEnabled: false,
 			want: &ai.ModelResponse{
 				Message: &ai.Message{
 					Role: ai.RoleModel,
@@ -300,7 +321,7 @@ func TestTranslateChatResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := translateChatResponse([]byte(tt.input))
+			got, err := translateChatResponse([]byte(tt.input), tt.thinkingEnabled)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("translateChatResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return

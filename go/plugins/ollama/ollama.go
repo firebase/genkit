@@ -36,6 +36,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
 )
 
 const provider = "ollama"
@@ -129,11 +130,73 @@ type ollamaMessage struct {
 	Thinking  string           `json:"thinking,omitempty"`
 }
 
+// ThinkOption controls thinking/reasoning behavior for models that support it.
+// Use [ThinkEnabled] for Ollama models (e.g. deepseek-r1) or [ThinkEffort]
+// for GPT-OSS models.
+type ThinkOption struct {
+	value any // bool or string; unexported to enforce use of constructors
+}
+
+// ThinkEnabled creates a ThinkOption that enables or disables thinking mode.
+// This is used with Ollama models like deepseek-r1.
+func ThinkEnabled(enabled bool) *ThinkOption {
+	return &ThinkOption{value: enabled}
+}
+
+// ThinkEffort creates a ThinkOption with an effort level for GPT-OSS models.
+// Valid values: "low", "medium", "high".
+func ThinkEffort(level string) *ThinkOption {
+	return &ThinkOption{value: level}
+}
+
+// IsEnabled reports whether thinking is active.
+func (t *ThinkOption) IsEnabled() bool {
+	if t == nil {
+		return false
+	}
+	switch v := t.value.(type) {
+	case bool:
+		return v
+	case string:
+		return v != ""
+	default:
+		return false
+	}
+}
+
+func (t ThinkOption) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.value)
+}
+
+func (t *ThinkOption) UnmarshalJSON(data []byte) error {
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		t.value = b
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		t.value = s
+		return nil
+	}
+	return fmt.Errorf("think must be a boolean or string, got: %s", data)
+}
+
+// JSONSchema returns a schema allowing either a boolean or a string.
+func (ThinkOption) JSONSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
+		OneOf: []*jsonschema.Schema{
+			{Type: "boolean"},
+			{Type: "string"},
+		},
+	}
+}
+
 type GenerateContentConfig struct {
-	// Thinking mode:
-	// ollama: true | false
-	// gpt-oss: "low" | "medium" | "high"
-	Think any `json:"think,omitempty"`
+	// Think controls thinking/reasoning mode.
+	// Use ThinkEnabled(true/false) for Ollama models, or
+	// ThinkEffort("low"/"medium"/"high") for GPT-OSS models.
+	Think *ThinkOption `json:"think,omitempty"`
 
 	// Runtime options
 	Seed        *int     `json:"seed,omitempty"`
@@ -241,6 +304,7 @@ func Ptr[T any](v T) *T {
 func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	stream := cb != nil
 	var payload any
+	var thinkingEnabled bool
 	isChatModel := g.model.Type == "chat"
 
 	// Check if this is an image model
@@ -284,6 +348,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		if err := chatReq.ApplyOptions(input.Config); err != nil {
 			return nil, fmt.Errorf("failed to apply options: %v", err)
 		}
+		thinkingEnabled = chatReq.Think.IsEnabled()
 
 		if len(input.Tools) > 0 {
 			tools, err := convertTools(input.Tools)
@@ -333,7 +398,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 
 		var response *ai.ModelResponse
 		if isChatModel {
-			response, err = translateChatResponse(body)
+			response, err = translateChatResponse(body, thinkingEnabled)
 		} else {
 			response, err = translateModelResponse(body)
 		}
@@ -452,7 +517,10 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 }
 
 // translateChatResponse translates Ollama chat response into a genkit response.
-func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
+// When thinkingEnabled is true, the function will also parse <think>/<thinking>
+// tags from content text as a fallback for models that don't return a dedicated
+// "thinking" JSON field.
+func translateChatResponse(responseData []byte, thinkingEnabled bool) (*ai.ModelResponse, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
@@ -466,12 +534,15 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 		},
 	}
 
-	// Check for thinking/reasoning first
+	// Check for thinking/reasoning in the dedicated JSON field first.
 	if response.Message.Thinking != "" {
 		aiPart := ai.NewReasoningPart(response.Message.Thinking, nil)
 		modelResponse.Message.Content = append(modelResponse.Message.Content, aiPart)
-	} else {
-		// If thinking is not explicitly returned, check if it's in the content
+	} else if thinkingEnabled {
+		// Only parse <think>/<thinking> tags from content when thinking was
+		// explicitly requested. Without this guard, a model could legitimately
+		// return these tags as part of normal text output and they would be
+		// incorrectly hijacked.
 		thinking, content := parseThinking(response.Message.Content)
 		if thinking != "" {
 			aiPart := ai.NewReasoningPart(thinking, nil)

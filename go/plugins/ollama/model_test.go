@@ -28,7 +28,7 @@ import (
 func TestOllamaChatRequest_MarshalJSON(t *testing.T) {
 	req := &ollamaChatRequest{
 		Model: "qwen3",
-		Think: true,
+		Think: ThinkEnabled(true),
 		Options: map[string]any{
 			"temperature": 0.7,
 		},
@@ -60,10 +60,10 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			cfg: &GenerateContentConfig{
 				Seed:        Ptr(42),
 				Temperature: Ptr(0.7),
-				Think:       true,
+				Think:       ThinkEnabled(true),
 			},
 			want: &ollamaChatRequest{
-				Think: true,
+				Think: ThinkEnabled(true),
 				Options: map[string]any{
 					"seed":        42,
 					"temperature": 0.7,
@@ -75,10 +75,10 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			cfg: &GenerateContentConfig{
 				Seed:        Ptr(0),
 				Temperature: Ptr(0.0),
-				Think:       true,
+				Think:       ThinkEnabled(true),
 			},
 			want: &ollamaChatRequest{
-				Think: true,
+				Think: ThinkEnabled(true),
 				Options: map[string]any{
 					"seed":        0,
 					"temperature": 0.0,
@@ -89,13 +89,22 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 			name: "GenerateContentConfig value",
 			cfg: GenerateContentConfig{
 				Seed:  Ptr(42),
-				Think: true,
+				Think: ThinkEnabled(true),
 			},
 			want: &ollamaChatRequest{
-				Think: true,
+				Think: ThinkEnabled(true),
 				Options: map[string]any{
 					"seed": 42,
 				},
+			},
+		},
+		{
+			name: "GenerateContentConfig with ThinkEffort",
+			cfg: &GenerateContentConfig{
+				Think: ThinkEffort("high"),
+			},
+			want: &ollamaChatRequest{
+				Think: ThinkEffort("high"),
 			},
 		},
 		{
@@ -118,7 +127,7 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 				"keep_alive": "10m",
 			},
 			want: &ollamaChatRequest{
-				Think:     true,
+				Think:     ThinkEnabled(true),
 				KeepAlive: "10m",
 			},
 		},
@@ -129,10 +138,19 @@ func TestOllamaChatRequest_ApplyOptions(t *testing.T) {
 				"think":       true,
 			},
 			want: &ollamaChatRequest{
-				Think: true,
+				Think: ThinkEnabled(true),
 				Options: map[string]any{
 					"temperature": 0.9,
 				},
+			},
+		},
+		{
+			name: "map[string]any with string think (GPT-OSS)",
+			cfg: map[string]any{
+				"think": "medium",
+			},
+			want: &ollamaChatRequest{
+				Think: ThinkEffort("medium"),
 			},
 		},
 		{

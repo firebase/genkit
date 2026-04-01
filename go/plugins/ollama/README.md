@@ -153,7 +153,7 @@ resp, err := genkit.Generate(ctx, g,
  ai.WithModel(m),
  ai.WithPrompt("What is heavier, one kilo of steel or one kilo of feathers?"),
  ai.WithConfig(&ollama.GenerateContentConfig{
-  Think: true, // Enable thinking mode for supported models
+  Think: ollama.ThinkEnabled(true), // Enable thinking mode for supported models
  }),
 )
 

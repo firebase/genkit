@@ -58,7 +58,7 @@ func TestLive(t *testing.T) {
 	// Generate a response from the model
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(m),
-		ai.WithConfig(&ollamaPlugin.GenerateContentConfig{Temperature: ollamaPlugin.Ptr(1.0), Think: true}),
+		ai.WithConfig(&ollamaPlugin.GenerateContentConfig{Temperature: ollamaPlugin.Ptr(1.0), Think: ollamaPlugin.ThinkEnabled(true)}),
 		ai.WithPrompt("I'm hungry what should I eat?"),
 	)
 	if err != nil {

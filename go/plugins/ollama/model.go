@@ -49,7 +49,7 @@ type ollamaChatRequest struct {
 	Stream    bool             `json:"stream"`
 	Format    string           `json:"format,omitempty"`
 	Tools     []ollamaTool     `json:"tools,omitempty"`
-	Think     any              `json:"think,omitempty"`
+	Think     *ThinkOption     `json:"think,omitempty"`
 	Options   map[string]any   `json:"options,omitempty"`
 	KeepAlive string           `json:"keep_alive,omitempty"`
 }
@@ -83,6 +83,7 @@ func (o *ollamaChatRequest) applyGenerateContentConfig(cfg *GenerateContentConfi
 	if cfg.Think != nil {
 		o.Think = cfg.Think
 	}
+
 	if cfg.KeepAlive != "" {
 		o.KeepAlive = cfg.KeepAlive
 	}
@@ -161,7 +162,16 @@ func (o *ollamaChatRequest) applyMapAny(m map[string]any) error {
 		if _, isTopLevel := topLevelOpts[k]; isTopLevel {
 			switch k {
 			case "think":
-				o.Think = v
+				switch tv := v.(type) {
+				case bool:
+					o.Think = ThinkEnabled(tv)
+				case string:
+					o.Think = ThinkEffort(tv)
+				case *ThinkOption:
+					o.Think = tv
+				default:
+					return fmt.Errorf("think must be a boolean or string, got: %T", v)
+				}
 			case "keep_alive":
 				if s, ok := v.(string); ok {
 					o.KeepAlive = s
