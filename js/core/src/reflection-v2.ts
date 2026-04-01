@@ -350,7 +350,10 @@ export class ReflectionServerV2 {
     const mappedValues: Record<string, any> = {};
     for (const [key, value] of Object.entries(values)) {
       mappedValues[key] =
-        value && typeof value === 'object' && 'toJson' in value && typeof (value as any).toJson === 'function'
+        value &&
+        typeof value === 'object' &&
+        'toJson' in value &&
+        typeof (value as any).toJson === 'function'
           ? (value as any).toJson()
           : value;
     }
