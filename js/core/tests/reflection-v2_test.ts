@@ -153,7 +153,7 @@ describe('ReflectionServerV2', () => {
   });
 
   it('should handle listValues', async () => {
-    registry.registerValue('prompt', 'my-prompt', { template: 'foo' });
+    registry.registerValue('middleware', 'my-mw', { template: 'foo' });
 
     const gotListValues = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
@@ -175,13 +175,13 @@ describe('ReflectionServerV2', () => {
               JSON.stringify({
                 jsonrpc: '2.0',
                 method: 'listValues',
-                params: { type: 'prompt' },
+                params: { type: 'middleware' },
                 id: '124',
               })
             );
           } else if (msg.id === '124') {
-            assert.ok(msg.result.values['my-prompt']);
-            assert.strictEqual(msg.result.values['my-prompt'].template, 'foo');
+            assert.ok(msg.result.values['my-mw']);
+            assert.strictEqual(msg.result.values['my-mw'].template, 'foo');
             clearTimeout(timer);
             resolve();
           }
