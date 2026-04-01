@@ -174,8 +174,29 @@ export async function resolveToolRequest(
   };
 
   const initialCtx = runOptions ?? toRunOptions(part);
-  const dispatchResult = await dispatch(0, part, initialCtx);
-  return dispatchResult ? { response: dispatchResult } : {};
+  try {
+    const dispatchResult = await dispatch(0, part, initialCtx);
+    return dispatchResult
+      ? { response: dispatchResult as ToolResponsePart }
+      : {};
+  } catch (e) {
+    if (
+      e instanceof ToolInterruptError ||
+      (e as Error).name === 'ToolInterruptError'
+    ) {
+      const ie = e as ToolInterruptError;
+      logger.debug(
+        `tool '${tool.__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
+      );
+      return {
+        interrupt: {
+          toolRequest: part.toolRequest,
+          metadata: { ...part.metadata, interrupt: ie.metadata || true },
+        },
+      };
+    }
+    throw e;
+  }
 }
 
 /**
@@ -208,58 +229,36 @@ export async function resolveToolRequests(
     revisedModelMessage.content.map(async (part, i) => {
       if (!part.toolRequest) return; // skip non-tool-request parts
 
-      try {
-        const { preamble, response, interrupt } = await resolveToolRequest(
-          rawRequest,
-          part as ToolRequestPart,
-          toolMap,
-          middleware
+      const { preamble, response, interrupt } = await resolveToolRequest(
+        rawRequest,
+        part as ToolRequestPart,
+        toolMap,
+        middleware
+      );
+
+      if (preamble) {
+        if (transferPreamble) {
+          throw new GenkitError({
+            status: 'INVALID_ARGUMENT',
+            message: `Model attempted to transfer to multiple prompt tools.`,
+          });
+        }
+
+        transferPreamble = preamble;
+      }
+
+      if (response) {
+        responseParts.push(response!);
+        revisedModelMessage.content.splice(
+          i,
+          1,
+          toPendingOutput(part, response)
         );
+      }
 
-        if (preamble) {
-          if (transferPreamble) {
-            throw new GenkitError({
-              status: 'INVALID_ARGUMENT',
-              message: `Model attempted to transfer to multiple prompt tools.`,
-            });
-          }
-
-          transferPreamble = preamble;
-        }
-
-        // this happens for preamble or normal tools
-        if (response) {
-          responseParts.push(response!);
-          revisedModelMessage.content.splice(
-            i,
-            1,
-            toPendingOutput(part, response)
-          );
-        }
-
-        if (interrupt) {
-          revisedModelMessage.content.splice(i, 1, interrupt);
-          hasInterrupts = true;
-        }
-      } catch (e) {
-        if (
-          e instanceof ToolInterruptError ||
-          // There's an inexplicable case when the above type check fails, only in tests.
-          (e as Error).name === 'ToolInterruptError'
-        ) {
-          const ie = e as ToolInterruptError;
-          logger.debug(
-            `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
-          );
-          const interrupt = {
-            toolRequest: part.toolRequest,
-            metadata: { ...part.metadata, interrupt: ie.metadata || true },
-          };
-          revisedModelMessage.content.splice(i, 1, interrupt);
-          hasInterrupts = true;
-        } else {
-          throw e;
-        }
+      if (interrupt) {
+        revisedModelMessage.content.splice(i, 1, interrupt);
+        hasInterrupts = true;
       }
     })
   );
