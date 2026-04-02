@@ -60,16 +60,22 @@ describe('filesystem middleware', () => {
 
   it('fails if rootDirectory is not provided', () => {
     assert.throws(
-      () => filesystem.instantiate({} as any, fakeGenerateAPI),
+      () =>
+        filesystem.instantiate({
+          config: {} as any,
+          ai: fakeGenerateAPI,
+          pluginConfig: undefined,
+        }),
       /requires a rootDirectory option/
     );
   });
 
   it('injects tools', () => {
-    const mw = filesystem.instantiate(
-      { rootDirectory: tempDir },
-      fakeGenerateAPI
-    );
+    const mw = filesystem.instantiate({
+      config: { rootDirectory: tempDir },
+      ai: fakeGenerateAPI,
+      pluginConfig: undefined,
+    });
     assert.ok(mw.tools);
     assert.strictEqual(mw.tools.length, 4);
     assert.strictEqual(mw.tools[0].__action.name, 'list_files');
@@ -515,5 +521,83 @@ D
         'Tool message should not be present'
       );
     });
+  });
+});
+
+describe('filesystem middleware image support', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'genkit-filesystem-test-')
+    );
+    await fs.writeFile(path.join(tempDir, 'image.png'), 'fake image content');
+    await fs.writeFile(path.join(tempDir, 'unknown.xyz'), 'unknown content');
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  function createToolModel(ai: any, toolName: string, input: any) {
+    let turn = 0;
+    return ai.defineModel(
+      { name: `pm-${toolName}-${Math.random()}` },
+      async () => {
+        turn++;
+        if (turn === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [{ toolRequest: { name: toolName, input } }],
+            },
+          };
+        }
+        return { message: { role: 'model', content: [{ text: 'done' }] } };
+      }
+    );
+  }
+
+  it('reads an image file as media', async () => {
+    const ai = genkit({});
+    const pm = createToolModel(ai, 'read_file', { filePath: 'image.png' });
+    const result = (await ai.generate({
+      model: pm,
+      prompt: 'test',
+      use: [filesystem({ rootDirectory: tempDir })],
+    })) as any;
+
+    const toolMsg = result.messages.find((m: any) => m.role === 'tool');
+    assert.ok(toolMsg);
+    assert.match(toolMsg.content[0].toolResponse.output, /read successfully/);
+
+    const userMsg = result.messages.find(
+      (m: any) => m.role === 'user' && m.content.some((c: any) => c.media)
+    );
+    assert.ok(userMsg);
+    const mediaPart = userMsg.content.find((c: any) => c.media);
+    assert.ok(mediaPart);
+    assert.strictEqual(mediaPart.media.contentType, 'image/png');
+    assert.ok(mediaPart.media.url.startsWith('data:image/png;base64,'));
+  });
+
+  it('reads unknown file as text', async () => {
+    const ai = genkit({});
+    const pm = createToolModel(ai, 'read_file', { filePath: 'unknown.xyz' });
+    const result = (await ai.generate({
+      model: pm,
+      prompt: 'test',
+      use: [filesystem({ rootDirectory: tempDir })],
+    })) as any;
+
+    const userMsg = result.messages.find(
+      (m: any) =>
+        m.role === 'user' &&
+        m.content.some((c: any) => c.text && c.text.includes('<read_file'))
+    );
+    assert.ok(userMsg);
+    assert.ok(userMsg.content[0].text.includes('unknown content'));
+    // Should NOT have media
+    assert.ok(!userMsg.content.some((c: any) => c.media));
   });
 });

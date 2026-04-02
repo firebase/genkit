@@ -46,13 +46,13 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
       name: 'filesystem',
       configSchema: FilesystemOptionsSchema,
     },
-    (options) => {
-      if (!options?.rootDirectory) {
+    ({ config }) => {
+      if (!config?.rootDirectory) {
         throw new Error(
           'filesystem middleware requires a rootDirectory option'
         );
       }
-      const rootDir = path.resolve(options.rootDirectory);
+      const rootDir = path.resolve(config.rootDirectory);
 
       function resolvePath(requestedPath: string) {
         const p = path.resolve(rootDir, requestedPath);
