@@ -60,6 +60,7 @@ jobs:
             py/plugins/fastapi
             py/plugins/flask
             py/plugins/vertex-ai
+            py/plugins/evaluators
           )
 
           FAILED=()
