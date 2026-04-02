@@ -18,7 +18,7 @@ import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { action, defineAction } from '../src/action.js';
+import { action, defineAction, defineActionAsync } from '../src/action.js';
 import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
@@ -294,5 +294,22 @@ describe('action', () => {
       spanExporter.exportedSpans[0].attributes['genkit:key'],
       '/custom/keyedAction'
     );
+  });
+
+  it('sets genkit:key on action metadata when using defineActionAsync', async () => {
+    const actPromise = defineActionAsync(
+      registry,
+      'custom',
+      'asyncKeyedAction',
+      Promise.resolve({
+        name: 'asyncKeyedAction',
+        actionType: 'custom',
+        fn: async () => 'success',
+      })
+    );
+
+    const act = await actPromise;
+
+    assert.strictEqual(act.__action.key, '/custom/asyncKeyedAction');
   });
 });

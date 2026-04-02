@@ -551,6 +551,7 @@ export function defineActionAsync<
         }
       );
       act.__action.actionType = actionType;
+      act.__action.key = `/${actionType}/${actionName}`;
       onInit?.(act);
       return act;
     })
