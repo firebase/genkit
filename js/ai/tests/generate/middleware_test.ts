@@ -20,7 +20,11 @@ import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { generate, generateStream } from '../../src/generate.js';
-import { generateMiddleware } from '../../src/generate/middleware.js';
+import {
+  GenerateMiddlewareDef,
+  generateMiddleware,
+} from '../../src/generate/middleware.js';
+import { resolveRestartedTools } from '../../src/generate/resolve-tool-requests.js';
 import { defineModel } from '../../src/model.js';
 import { ToolInterruptError, defineTool, tool } from '../../src/tool.js';
 
@@ -286,6 +290,45 @@ describe('generateMiddleware', () => {
 
     assert.strictEqual(executed, true);
     assert.strictEqual(configValue, 'plugin_config');
+  });
+
+  it('should resolve tools injected by middleware during restarts', async () => {
+    const middlewareTool = defineTool(
+      registry,
+      {
+        name: 'middlewareTool',
+        description: 'injected by middleware',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => 'success'
+    );
+
+    const middleware: GenerateMiddlewareDef = {
+      tools: [middlewareTool],
+    };
+
+    const rawRequest = {
+      tools: [],
+      messages: [
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: { name: 'middlewareTool', input: {} },
+              metadata: { resumed: true },
+            },
+          ],
+        },
+      ],
+    } as any;
+
+    const result = await resolveRestartedTools(registry, rawRequest, [
+      middleware,
+    ]);
+
+    assert.strictEqual(result.length, 1);
+    assert.deepStrictEqual(result[0].metadata?.pendingOutput, 'success');
   });
 
   it('throws an error if a middleware factory is passed without being called', async () => {

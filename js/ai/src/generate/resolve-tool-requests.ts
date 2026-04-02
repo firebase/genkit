@@ -489,7 +489,12 @@ export async function resolveRestartedTools(
   rawRequest: GenerateActionOptions,
   middleware: GenerateMiddlewareDef[] = []
 ): Promise<ToolRequestPart[]> {
-  const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
+  const tools = await resolveTools(registry, rawRequest.tools);
+  // rawRequest.tools only holds user-provided tools (treated as immutable). We must
+  // harvest active middleware tools here to ensure we can resolve tools dynamically
+  // injected by plugins.
+  tools.push(...middleware.flatMap((m) => m.tools || []));
+  const toolMap = toToolMap(tools);
   const lastMessage = rawRequest.messages.at(-1);
   if (!lastMessage || lastMessage.role !== 'model') return [];
 
