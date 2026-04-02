@@ -35,8 +35,8 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
       name: 'skills',
       configSchema: SkillsOptionsSchema,
     },
-    (options) => {
-      const skillPaths = options?.skillPaths ?? ['skills'];
+    ({ config }) => {
+      const skillPaths = config?.skillPaths ?? ['skills'];
       const skillCache = new Map<
         string,
         { path: string; description: string }
