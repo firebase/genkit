@@ -47,30 +47,35 @@ export type MiddlewareDesc = z.infer<typeof MiddlewareDescSchema>;
  * When invoked with an optional configuration, it returns a reference suitable for
  * inclusion in a `GenerateOptions.use` array.
  */
-export interface GenerateMiddleware<C extends z.ZodTypeAny = z.ZodTypeAny>
-  extends MiddlewareDesc {
+export interface GenerateMiddleware<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> extends MiddlewareDesc {
   /** Configures the middleware, returning a MiddlewareRef for usage in `generate({use: [...]})`. */
-  (config?: z.infer<C>): MiddlewareRef & { __def: GenerateMiddleware<C> };
+  (
+    config?: z.infer<ConfigSchema>
+  ): MiddlewareRef & { __def: GenerateMiddleware<ConfigSchema, PluginOptions> };
   /** The unique name of this middleware. */
   name: string;
   /** An optional description of what the middleware does. */
   description?: string;
   /** An optional Zod schema for validating the middleware's configuration. */
-  configSchema?: C;
+  configSchema?: ConfigSchema;
   /** Metadata describing this middleware. */
   metadata?: Record<string, any>;
+  /** Options passed to the middleware plugin function. */
+  pluginOptions: PluginOptions;
   /**
    * Factory function that receives the validated configuration and creates
    * a `GenerateMiddlewareDef` holding the active hooks.
    */
   instantiate: (
-    config: z.infer<C> | undefined,
-    ai: GenkitAI
+    options: MiddlewareFnOptions<ConfigSchema, PluginOptions>
   ) => GenerateMiddlewareDef;
   /**
    * Optional plugin wrapper exposing this middleware for framework-level registration.
    */
-  plugin: (config?: z.infer<C>) => GenkitPluginV2;
+  plugin: (pluginOptions: PluginOptions) => GenkitPluginV2;
   /** Generates a JSON-compatible representation of the middleware metadata. */
   toJson: () => MiddlewareDesc;
 }
@@ -124,7 +129,20 @@ export interface GenerateMiddlewareDef {
   tools?: ToolAction[];
 }
 
+/**
+ * Options passed to the middleware factory function.
+ */
+export interface MiddlewareFnOptions<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> {
+  config: z.infer<ConfigSchema> | undefined;
+  pluginConfig: PluginOptions;
+  ai: GenkitAI;
+}
+
 export function generateMiddleware<
+  PluginOptions extends void = void,
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
@@ -134,42 +152,36 @@ export function generateMiddleware<
     metadata?: Record<string, any>;
   },
   middlewareFn: (
-    config: z.infer<ConfigSchema> | undefined,
-    ai: GenkitAI
+    options: MiddlewareFnOptions<ConfigSchema, PluginOptions>
   ) => GenerateMiddlewareDef
-): GenerateMiddleware<ConfigSchema> {
+): GenerateMiddleware<ConfigSchema, PluginOptions> {
   const def = function (config?: z.infer<ConfigSchema>) {
     return {
       name: options.name,
       config,
       __def: def,
     };
-  } as GenerateMiddleware<ConfigSchema>;
-
+  } as GenerateMiddleware<ConfigSchema, PluginOptions>;
   Object.defineProperty(def, 'name', { value: options.name });
   def.configSchema = options.configSchema;
   def.description = options.description;
   def.metadata = options.metadata;
   def.instantiate = middlewareFn;
-  def.plugin = (pluginConfig?: z.infer<ConfigSchema>) => ({
+  def.plugin = (pluginConfig: PluginOptions) => ({
     name: `middleware:${options.name}`,
     version: 'v2',
     generateMiddleware: () => {
-      if (pluginConfig === undefined) {
-        return [def];
-      }
+      // we copy def, including the instantiate function, and set pluginOptions
       const wrappedDef = function (config?: z.infer<ConfigSchema>) {
-        return def(config ?? pluginConfig);
-      } as GenerateMiddleware<ConfigSchema>;
-
+        return def(config);
+      } as GenerateMiddleware<ConfigSchema, PluginOptions>;
+      wrappedDef.pluginOptions = pluginConfig;
+      wrappedDef.instantiate = def.instantiate;
+      wrappedDef.toJson = () => def.toJson();
+      wrappedDef.configSchema = def.configSchema;
+      wrappedDef.description = def.description;
+      wrappedDef.metadata = def.metadata;
       Object.defineProperty(wrappedDef, 'name', { value: options.name });
-      wrappedDef.configSchema = options.configSchema;
-      wrappedDef.description = options.description;
-      wrappedDef.metadata = options.metadata;
-      wrappedDef.instantiate = (reqConfig, ai) =>
-        def.instantiate(reqConfig ?? pluginConfig, ai);
-      wrappedDef.plugin = def.plugin;
-
       return [wrappedDef];
     },
     model: (_) => {
@@ -206,7 +218,13 @@ export async function resolveMiddleware(
         message: `Middleware ${ref.name} not found in registry.`,
       });
     }
-    result.push(def.instantiate(ref.config, new GenkitAI(registry)));
+    result.push(
+      def.instantiate({
+        config: ref.config,
+        ai: new GenkitAI(registry),
+        pluginConfig: def.pluginOptions,
+      })
+    );
   }
   return result;
 }

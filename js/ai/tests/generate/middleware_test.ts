@@ -203,9 +203,9 @@ describe('generateMiddleware', () => {
 
     const testMiddleware = generateMiddleware(
       { name: 'configMw', configSchema: z.object({ val: z.string() }) },
-      (config) => ({
+      (options) => ({
         model: async (req, ctx, next) => {
-          configValue = config?.val || '';
+          configValue = options.config?.val || '';
           return next(req, ctx);
         },
       })
@@ -244,19 +244,19 @@ describe('generateMiddleware', () => {
       }
     );
 
-    const preRegisteredMw = generateMiddleware(
+    const preRegisteredMw = generateMiddleware<{ pluginOption: string }>(
       { name: 'preRegisteredMw', configSchema: z.object({ val: z.string() }) },
-      (config) => ({
+      (middlewareOpts) => ({
         model: async (req, ctx, next) => {
           executed = true;
-          configValue = config?.val || '';
+          configValue = middlewareOpts.pluginConfig?.pluginOption || '';
           return next(req, ctx);
         },
       })
     );
 
     // Act as a plugin registering the middleware
-    const myPlugin = preRegisteredMw.plugin({ val: 'plugin_config' });
+    const myPlugin = preRegisteredMw.plugin({ pluginOption: 'plugin_config' });
     assert.ok(myPlugin.generateMiddleware);
     myPlugin.generateMiddleware().forEach((mw: any) => {
       registry.registerValue('middleware', mw.name, mw);
