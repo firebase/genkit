@@ -33,5 +33,5 @@ export interface GenkitPluginV2 {
   model(name: string): Promise<ModelAction>;
 
   // Returns a list of generate middleware to be used in `generate({use: [...])`.
-  generateMiddleware?: () => GenerateMiddleware<any>[];
+  generateMiddleware?: () => GenerateMiddleware<any, any>[];
 }

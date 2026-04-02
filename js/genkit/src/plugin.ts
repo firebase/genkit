@@ -106,7 +106,7 @@ export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
     return this.plugin.list();
   }
 
-  generateMiddleware(): GenerateMiddleware[] {
+  generateMiddleware(): GenerateMiddleware<any, any>[] {
     if (!this.plugin.generateMiddleware) {
       return [];
     }
