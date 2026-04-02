@@ -127,8 +127,8 @@ export interface GenerateMiddlewareDef {
     next: (
       req: ToolRequestPart,
       ctx: ActionRunOptions<any>
-    ) => Promise<ToolResponsePart>
-  ) => Promise<ToolResponsePart>;
+    ) => Promise<ToolResponsePart | undefined>
+  ) => Promise<ToolResponsePart | undefined>;
   /**
    * Tools to statically inject into the generation request whenever this middleware is active.
    */
