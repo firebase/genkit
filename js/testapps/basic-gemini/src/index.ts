@@ -93,6 +93,18 @@ ai.defineFlow('basic-hi', async () => {
   return text;
 });
 
+ai.defineFlow('basic-hi-flex-tier', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-flash-lite-latest'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    config: {
+      serviceTier: 'flex',  // or 'standard' or 'priority'
+    },
+  });
+
+  return text;
+});
+
 ai.defineFlow('basic-hi-with-retry', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-pro-latest'),
