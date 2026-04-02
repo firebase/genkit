@@ -655,10 +655,8 @@ async def resolve_tool_requests(
     revised_model_message = message.model_copy(deep=True)
 
     work: list[tuple[int, Action, ToolRequestPart]] = []
-    i = 0
-    for tool_request_part in message.content:
+    for i, tool_request_part in enumerate(message.content):
         if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
-            i += 1
             continue
 
         tool_req_root = tool_request_part.root
@@ -668,7 +666,6 @@ async def resolve_tool_requests(
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
         work.append((i, tool, tool_req_root))
-        i += 1
 
     if not work:
         return (None, Message(role=Role.TOOL, content=[]), None)
