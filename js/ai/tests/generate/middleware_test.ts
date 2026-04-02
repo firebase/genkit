@@ -258,7 +258,23 @@ describe('generateMiddleware', () => {
     // Act as a plugin registering the middleware
     const myPlugin = preRegisteredMw.plugin({ pluginOption: 'plugin_config' });
     assert.ok(myPlugin.generateMiddleware);
-    myPlugin.generateMiddleware().forEach((mw: any) => {
+    assert.deepStrictEqual(
+      (myPlugin.generateMiddleware()[0] as any).pluginOptions,
+      {
+        pluginOption: 'plugin_config',
+      }
+    );
+
+    const middlewares = myPlugin.generateMiddleware();
+    assert.strictEqual(middlewares.length, 1);
+    const mw = middlewares[0];
+
+    // Verify name and properties are correctly copied/preserved
+    assert.strictEqual(mw.name, 'preRegisteredMw');
+    assert.strictEqual(mw.configSchema, preRegisteredMw.configSchema);
+    assert.strictEqual(mw.toJson, preRegisteredMw.toJson);
+
+    middlewares.forEach((mw: any) => {
       registry.registerValue('middleware', mw.name, mw);
     });
 

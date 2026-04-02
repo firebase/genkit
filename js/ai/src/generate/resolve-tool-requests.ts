@@ -129,7 +129,7 @@ export async function resolveToolRequest(
     index: number,
     req: ToolRequestPart,
     ctx: ActionRunOptions<any>
-  ): Promise<ToolResponsePart | void> => {
+  ): Promise<ToolResponsePart> => {
     if (index === middleware.length) {
       return executeTool(req, ctx);
     }

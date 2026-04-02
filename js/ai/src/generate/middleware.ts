@@ -63,8 +63,6 @@ export interface GenerateMiddleware<
   configSchema?: ConfigSchema;
   /** Metadata describing this middleware. */
   metadata?: Record<string, any>;
-  /** Options passed to the middleware plugin function. */
-  pluginOptions: PluginOptions;
   /**
    * Factory function that receives the validated configuration and creates
    * a `GenerateMiddlewareDef` holding the active hooks.
@@ -78,6 +76,14 @@ export interface GenerateMiddleware<
   plugin: (pluginOptions: PluginOptions) => GenkitPluginV2;
   /** Generates a JSON-compatible representation of the middleware metadata. */
   toJson: () => MiddlewareDesc;
+}
+
+interface GenerateMiddlewarePluginInstance<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> extends GenerateMiddleware<ConfigSchema, PluginOptions> {
+  /** Options passed to the middleware plugin function. */
+  pluginOptions: PluginOptions;
 }
 
 /**
@@ -121,8 +127,8 @@ export interface GenerateMiddlewareDef {
     next: (
       req: ToolRequestPart,
       ctx: ActionRunOptions<any>
-    ) => Promise<ToolResponsePart | void>
-  ) => Promise<ToolResponsePart | void>;
+    ) => Promise<ToolResponsePart>
+  ) => Promise<ToolResponsePart>;
   /**
    * Tools to statically inject into the generation request whenever this middleware is active.
    */
@@ -171,16 +177,13 @@ export function generateMiddleware<
     name: `middleware:${options.name}`,
     version: 'v2',
     generateMiddleware: () => {
-      // we copy def, including the instantiate function, and set pluginOptions
-      const wrappedDef = function (config?: z.infer<ConfigSchema>) {
-        return def(config);
-      } as GenerateMiddleware<ConfigSchema, PluginOptions>;
-      wrappedDef.pluginOptions = pluginConfig;
-      wrappedDef.instantiate = def.instantiate;
-      wrappedDef.toJson = () => def.toJson();
-      wrappedDef.configSchema = def.configSchema;
-      wrappedDef.description = def.description;
-      wrappedDef.metadata = def.metadata;
+      const wrappedDef = Object.assign(
+        function (config?: z.infer<ConfigSchema>) {
+          return def(config);
+        },
+        def,
+        { pluginOptions: pluginConfig }
+      ) as GenerateMiddlewarePluginInstance<ConfigSchema, PluginOptions>;
       Object.defineProperty(wrappedDef, 'name', { value: options.name });
       return [wrappedDef];
     },
@@ -222,7 +225,7 @@ export async function resolveMiddleware(
       def.instantiate({
         config: ref.config,
         ai: new GenkitAI(registry),
-        pluginConfig: def.pluginOptions,
+        pluginConfig: (def as GenerateMiddlewarePluginInstance).pluginOptions,
       })
     );
   }
