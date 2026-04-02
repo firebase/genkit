@@ -19,9 +19,7 @@ import * as fs from 'fs';
 import { genkit, MessageData, restartTool, type ToolRequestPart } from 'genkit';
 import * as path from 'path';
 import * as readline from 'readline';
-import { filesystem } from '../src/filesystem.js';
-import { skills } from '../src/skills.js';
-import { toolApproval } from '../src/toolApproval.js';
+import { filesystem, skills, toolApproval } from '../src/index.js';
 
 const rl = readline.createInterface({
   input: process.stdin,
