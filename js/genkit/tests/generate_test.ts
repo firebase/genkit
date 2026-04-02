@@ -114,7 +114,7 @@ describe('generate', () => {
       let middlewareExecuted = false;
       const myMiddleware = generateMiddleware(
         { name: 'myMiddleware', configSchema: z.string() },
-        (config) => {
+        ({ config }) => {
           return {
             model: async (req, ctx, next) => {
               middlewareExecuted = true;
