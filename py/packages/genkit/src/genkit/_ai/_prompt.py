@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
@@ -32,10 +32,13 @@ from dotpromptz.typing import (
     PromptMetadata,
 )
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import Unpack
 
 from genkit._ai._generate import (
     generate_action,
+    resolve_tool,
     to_tool_definition,
+    tools_to_action_names,
 )
 from genkit._ai._model import (
     Message,
@@ -44,6 +47,7 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
+from genkit._ai._tools import Tool
 from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
@@ -83,12 +87,34 @@ class OutputOptions(TypedDict, total=False):
     constrained: bool | None
 
 
-class ResumeOptions(TypedDict, total=False):
-    """Options for resuming generation after a tool interrupt."""
+def _normalize_resume_respond_parts(
+    value: ToolResponsePart | list[ToolResponsePart] | None,
+) -> list[ToolResponsePart] | None:
+    if value is None:
+        return None
+    return list(value) if isinstance(value, list) else [value]
 
-    respond: ToolResponsePart | list[ToolResponsePart] | None
-    restart: ToolRequestPart | list[ToolRequestPart] | None
-    metadata: dict[str, Any] | None
+
+def _normalize_resume_restart_parts(
+    value: ToolRequestPart | list[ToolRequestPart] | None,
+) -> list[ToolRequestPart] | None:
+    if value is None:
+        return None
+    return list(value) if isinstance(value, list) else [value]
+
+
+def resume_options_to_resume(
+    *,
+    resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None,
+    resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None,
+    resume_metadata: dict[str, Any] | None = None,
+) -> Resume | None:
+    """Build wire Resume from flat keyword options (``generate`` / prompts)."""
+    respond = _normalize_resume_respond_parts(resume_respond)
+    restart = _normalize_resume_restart_parts(resume_restart)
+    if respond is None and restart is None and resume_metadata is None:
+        return None
+    return Resume(respond=respond, restart=restart, metadata=resume_metadata)
 
 
 class PromptGenerateOptions(TypedDict, total=False):
@@ -98,11 +124,13 @@ class PromptGenerateOptions(TypedDict, total=False):
     config: dict[str, Any] | ModelConfig | None
     messages: list[Message] | None
     docs: list[Document] | None
-    tools: list[str] | None
+    tools: Sequence[str | Tool] | None
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
-    resume: ResumeOptions | None
+    resume_respond: ToolResponsePart | list[ToolResponsePart] | None
+    resume_restart: ToolRequestPart | list[ToolRequestPart] | None
+    resume_metadata: dict[str, Any] | None
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
@@ -110,6 +138,27 @@ class PromptGenerateOptions(TypedDict, total=False):
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
+
+
+_PROMPT_GENERATE_OPTION_KEYS: frozenset[str] = frozenset(PromptGenerateOptions.__annotations__)
+
+
+def _coerce_prompt_opts(opts: Mapping[str, Any]) -> PromptGenerateOptions:
+    """Build effective opts from a kwargs mapping: drop keys whose value is None.
+
+    Rejects unknown keys at runtime (Unpack only enforces this for type checkers).
+    """
+    raw = dict(opts)
+    unknown = set(raw) - _PROMPT_GENERATE_OPTION_KEYS
+    if unknown:
+        if 'opts' in unknown:
+            raise TypeError(
+                'Passing a combined `opts` dict is not supported; use keyword arguments '
+                '(e.g. model=..., config=...) matching PromptGenerateOptions.'
+            )
+        sorted_unknown = ', '.join(sorted(unknown))
+        raise TypeError(f'Unexpected keyword arguments for prompt execution: {sorted_unknown}')
+    return cast(PromptGenerateOptions, {k: v for k, v in raw.items() if v is not None})
 
 
 class ModelStreamResponse(Generic[OutputT]):
@@ -183,11 +232,13 @@ class PromptConfig(BaseModel):
     max_turns: int | None = None
     return_tool_requests: bool | None = None
     metadata: dict[str, Any] | None = None
-    tools: list[str] | None = None
+    tools: Sequence[str | Tool] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
     docs: list[Document] | None = None
-    tool_responses: list[Part] | None = None
+    resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None
+    resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None
+    resume_metadata: dict[str, Any] | None = None
     resources: list[str] | None = None
 
 
@@ -213,7 +264,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, Any] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -295,60 +346,42 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
     async def __call__(
         self,
-        input: InputT | None = None,
-        opts: PromptGenerateOptions | None = None,
+        input: InputT | dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
     ) -> ModelResponse[OutputT]:
-        """Execute the prompt and return the response."""
+        """Execute the prompt and return the response.
+
+        Args:
+            input: Template variables for rendering.
+        """
+        effective_opts = _coerce_prompt_opts(opts)
+        return await self._call_impl(input, effective_opts)
+
+    async def _call_impl(
+        self,
+        input: InputT | dict[str, Any] | None,
+        opts: PromptGenerateOptions,
+    ) -> ModelResponse[OutputT]:
+        """Execute the prompt with resolved opts. Used by __call__ and stream."""
         await self._ensure_resolved()
-        effective_opts: PromptGenerateOptions = opts if opts else {}
-
-        # Extract streaming callback and middleware from opts
-        on_chunk = effective_opts.get('on_chunk')
-        middleware = effective_opts.get('use') or self._use
-        context = effective_opts.get('context')
-
+        on_chunk = opts.get('on_chunk')
+        middleware = opts.get('use') or self._use
+        context = opts.get('context')
         result = await generate_action(
             self._registry,
-            await self.render(input=input, opts=effective_opts),
+            await self._render_impl(input, opts),
             on_chunk=on_chunk,
             middleware=middleware,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
-        # Cast to preserve the generic type parameter
         return cast(ModelResponse[OutputT], result)
 
-    def stream(
+    async def _render_impl(
         self,
-        input: InputT | None = None,
-        opts: PromptGenerateOptions | None = None,
-        *,
-        timeout: float | None = None,
-    ) -> ModelStreamResponse[OutputT]:
-        """Stream the prompt execution, returning (stream, response_future)."""
-        effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
-
-        # Create a copy of opts with the streaming callback
-        stream_opts: PromptGenerateOptions = {
-            **effective_opts,
-            'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
-        }
-
-        resp = self.__call__(input=input, opts=stream_opts)
-        response_future: asyncio.Future[ModelResponse[OutputT]] = asyncio.create_task(resp)
-        channel.set_close_future(response_future)
-
-        return ModelStreamResponse[OutputT](channel=channel, response_future=response_future)
-
-    async def render(
-        self,
-        input: InputT | dict[str, Any] | None = None,
-        opts: PromptGenerateOptions | None = None,
+        input: InputT | dict[str, Any] | None,
+        opts: PromptGenerateOptions,
     ) -> GenerateActionOptions:
-        """Render the prompt template without executing, returning GenerateActionOptions."""
-        await self._ensure_resolved()
-        if opts is None:
-            opts = cast(PromptGenerateOptions, {})
+        """Render the prompt with resolved opts. Used by render() and _call_impl."""
         output_opts = opts.get('output') or {}
         context = opts.get('context')
 
@@ -395,46 +428,37 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             metadata=merged_metadata,
             docs=self._docs,
             resources=opts.get('resources') or self._resources,
+            resume_respond=opts.get('resume_respond'),
+            resume_restart=opts.get('resume_restart'),
+            resume_metadata=opts.get('resume_metadata'),
         )
 
-        model = prompt_options.model or self._registry.default_model
-        if model is None:
+        model_name = prompt_options.model or self._registry.default_model
+        if model_name is None:
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
         resolved_msgs: list[Message] = []
         # Convert input to dict for render functions
-        # If input is a Pydantic model, convert to dict; otherwise use as-is
         render_input: dict[str, Any]
         if input is None:
             render_input = {}
         elif isinstance(input, dict):
-            # Type narrow: input is dict here, assign to dict[str, Any] typed variable
             render_input = {str(k): v for k, v in input.items()}
         elif isinstance(input, BaseModel):
-            # Pydantic v2 model
             render_input = input.model_dump()
         elif hasattr(input, 'dict'):
-            # Pydantic v1 model
             dict_func = getattr(input, 'dict', None)
             render_input = cast(Callable[[], dict[str, Any]], dict_func)()
         else:
-            # Fallback: cast to dict (should not happen with proper typing)
             render_input = cast(dict[str, Any], input)
-        # Get opts.messages for history (matching JS behavior)
-        opts_messages = opts.get('messages')
 
-        # Render system prompt
+        opts_messages = opts.get('messages')
         if prompt_options.system:
             result = await render_system_prompt(
                 self._registry, render_input, prompt_options, self._cache_prompt, context
             )
             resolved_msgs.append(result)
-
-        # Handle messages (matching JS behavior):
-        # - If prompt has messages template: render it (opts.messages passed as history to resolvers)
-        # - If prompt has no messages: use opts.messages directly
         if prompt_options.messages:
-            # Prompt defines messages - render them (resolvers receive opts_messages as history)
             resolved_msgs.extend(
                 await render_message_prompt(
                     self._registry,
@@ -446,89 +470,83 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
                 )
             )
         elif opts_messages:
-            # Prompt has no messages template - use opts.messages directly
             resolved_msgs.extend(opts_messages)
-
-        # Render user prompt
         if prompt_options.prompt:
             result = await render_user_prompt(self._registry, render_input, prompt_options, self._cache_prompt, context)
             resolved_msgs.append(result)
 
-        # If schema is set but format is not explicitly set, default to 'json' format
         if prompt_options.output_schema and not prompt_options.output_format:
-            output_format = 'json'
+            out_format = 'json'
         else:
-            output_format = prompt_options.output_format
+            out_format = prompt_options.output_format
 
-        # Build output config
-        output = GenerateActionOutputConfig()
-        if output_format:
-            output.format = output_format
+        output_config = GenerateActionOutputConfig()
+        if out_format:
+            output_config.format = out_format
         if prompt_options.output_content_type:
-            output.content_type = prompt_options.output_content_type
+            output_config.content_type = prompt_options.output_content_type
         if prompt_options.output_instructions is not None:
-            output.instructions = prompt_options.output_instructions
-        _resolve_output_schema(self._registry, prompt_options.output_schema, output)
+            output_config.instructions = prompt_options.output_instructions
+        _resolve_output_schema(self._registry, prompt_options.output_schema, output_config)
         if prompt_options.output_constrained is not None:
-            output.constrained = prompt_options.output_constrained
+            output_config.constrained = prompt_options.output_constrained
 
-        # Handle resume options
-        resume = None
-        resume_opts = opts.get('resume')
-        if resume_opts:
-            respond = resume_opts.get('respond')
-            if respond:
-                resume = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
+        resume_result = resume_options_to_resume(
+            resume_respond=opts.get('resume_respond'),
+            resume_restart=opts.get('resume_restart'),
+            resume_metadata=opts.get('resume_metadata'),
+        )
 
-        # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_options, context)
         opts_docs = opts.get('docs')
         if opts_docs:
             merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
 
         return GenerateActionOptions(
-            model=model,
-            messages=resolved_msgs,
+            model=model_name,
+            messages=resolved_msgs,  # type: ignore[arg-type]
             config=prompt_options.config,
-            tools=prompt_options.tools,
+            tools=tools_to_action_names(prompt_options.tools),
             return_tool_requests=prompt_options.return_tool_requests,
             tool_choice=prompt_options.tool_choice,
-            output=output,
+            output=output_config,
             max_turns=prompt_options.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
-            resume=resume,
+            resume=resume_result,
         )
 
-    async def as_tool(self) -> Action:
-        """Expose this prompt as a tool.
+    def stream(
+        self,
+        input: InputT | dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        **opts: Unpack[PromptGenerateOptions],
+    ) -> ModelStreamResponse[OutputT]:
+        """Stream the prompt execution, returning (stream, response_future)."""
+        effective_opts = _coerce_prompt_opts(opts)
+        channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
+        stream_opts: PromptGenerateOptions = {
+            **effective_opts,
+            'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
+        }
+        resp = self._call_impl(input, stream_opts)
+        response_future: asyncio.Future[ModelResponse[OutputT]] = asyncio.create_task(resp)
+        channel.set_close_future(response_future)
 
-        Returns the PROMPT action, which can be used as a tool.
+        return ModelStreamResponse[OutputT](channel=channel, response_future=response_future)
+
+    async def render(
+        self,
+        input: InputT | dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
+    ) -> GenerateActionOptions:
+        """Render the prompt template without executing, returning GenerateActionOptions.
+
+        Same keyword options as ``__call__`` (see PromptGenerateOptions).
         """
         await self._ensure_resolved()
-        # If we have a direct reference to the action, use it
-        if self._prompt_action is not None:
-            return self._prompt_action
-
-        # Otherwise, try to look it up using name/variant/ns
-        if self._name is None:
-            raise GenkitError(
-                status='FAILED_PRECONDITION',
-                message=(
-                    'Prompt name not available. This prompt was not created via define_prompt_async() or load_prompt().'
-                ),
-            )
-
-        lookup_key = registry_lookup_key(self._name, self._variant, self._ns)
-
-        action = await self._registry.resolve_action_by_key(lookup_key)
-
-        if action is None or action.kind != ActionKind.PROMPT:
-            raise GenkitError(
-                status='NOT_FOUND',
-                message=f'PROMPT action not found for prompt "{self._name}"',
-            )
-
-        return action
+        coerced = _coerce_prompt_opts(opts)
+        return await self._render_impl(input, coerced)
 
 
 def register_prompt_actions(
@@ -651,18 +669,20 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     if options.output_constrained is not None:
         output.constrained = options.output_constrained
 
-    resume = None
-    if options.tool_responses:
-        # Filter for only ToolResponsePart instances
-        tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
-        if tool_response_parts:
-            resume = Resume(respond=tool_response_parts)
+    resume = resume_options_to_resume(
+        resume_respond=options.resume_respond,
+        resume_restart=options.resume_restart,
+        resume_metadata=options.resume_metadata,
+    )
+
+    # Convert tool refs (str name or Tool object) to string names for GenerateActionOptions
+    tools_refs = tools_to_action_names(options.tools)
 
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,  # type: ignore[arg-type]
         config=options.config,
-        tools=options.tools,
+        tools=tools_refs,
         return_tool_requests=options.return_tool_requests,
         tool_choice=options.tool_choice,
         output=output,
@@ -676,11 +696,8 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     """Convert GenerateActionOptions to ModelRequest, resolving tool names."""
     tools: list[Action] = []
     if options.tools:
-        for tool_name in options.tools:
-            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
-            if tool_action is None:
-                raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
-            tools.append(tool_action)
+        for tool_ref in options.tools:
+            tools.append(await resolve_tool(registry, tool_ref))
 
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 

@@ -35,6 +35,7 @@ from typing_extensions import Never, TypeVar
 from genkit._core._channel import Channel
 from genkit._core._compat import StrEnum
 from genkit._core._error import GenkitError
+from genkit._core._schema import to_json_schema
 from genkit._core._trace._path import build_path
 from genkit._core._trace._suppress import suppress_telemetry
 from genkit._core._tracing import tracer
@@ -346,6 +347,22 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         n_action_args = len(action_args)
         self._fn = _make_tracing_wrapper(name, kind, span_metadata or {}, n_action_args, fn)
         self._initialize_io_schemas(action_args, arg_types, resolved_annotations, input_spec)
+
+    def _override_input_schema(
+        self,
+        input_schema: type[BaseModel] | dict[str, object],
+    ) -> None:
+        """Replace input JSON schema (and input validation) when explicitly provided.
+
+        Used when ``metadata_fn`` is loosely typed but the wire contract should be a
+        Pydantic model or JSON Schema dict.
+        """
+        in_js = to_json_schema(input_schema)
+        self.input_schema = in_js
+        if isinstance(input_schema, dict):
+            self._input_type = None
+        else:
+            self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
 
     @property
     def kind(self) -> ActionKind:

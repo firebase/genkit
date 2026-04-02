@@ -1076,10 +1076,18 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
-        # Fix for no-arg tools: parameters cannot be None if we want the tool to be callable?
-        # Actually Google GenAI expects type=OBJECT for params usually.
+        # Empty params: Gemini requires type=OBJECT even for no-arg tools.
         if not params:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
+        # Gemini rejects scalar/array root schemas. Tool params must be OBJECT with
+        # properties. LLMs always send {"key": value} — wrap scalar/array in {"value": <schema>}.
+        elif self._is_scalar_or_array_root(params):
+            params = genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                properties={'value': params},
+                required=['value'],
+                description=params.description,
+            )
 
         function = genai_types.FunctionDeclaration(
             name=tool.name,
@@ -1088,6 +1096,26 @@ class GeminiModel:
             response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
         )
         return genai_types.Tool(function_declarations=[function])
+
+    @staticmethod
+    def _is_scalar_or_array_root(schema: genai_types.Schema | None) -> bool:
+        """True if schema root is scalar or array (Gemini rejects these for tool params)."""
+        if not schema or not schema.type:
+            return False
+        t = schema.type
+        scalar_or_array = {
+            genai_types.Type.STRING,
+            genai_types.Type.NUMBER,
+            genai_types.Type.INTEGER,
+            genai_types.Type.BOOLEAN,
+            genai_types.Type.ARRAY,
+        }
+        if t not in scalar_or_array:
+            return False
+        # Object with properties is fine (already has properties)
+        if t == genai_types.Type.OBJECT:
+            return False
+        return True
 
     def _convert_schema_property(
         self, input_schema: dict[str, object] | None, defs: dict[str, object] | None = None
@@ -1332,7 +1360,10 @@ class GeminiModel:
             )
         else:
             response = await self._generate(
-                request_contents=request_contents, request_cfg=request_cfg, model_name=model_name, client=client
+                request_contents=request_contents,
+                request_cfg=request_cfg,
+                model_name=model_name,
+                client=client,
             )
 
         response.usage = self._create_usage_stats(request=request, response=response)
@@ -1508,6 +1539,7 @@ class GeminiModel:
             ) from e
 
         accumulated_content: list[Part] = []
+        finish_reason: FinishReason | None = None
         async for response_chunk in generator:
             content = await self._contents_from_response(response_chunk)
             if content:  # Only process if we have content
@@ -1518,12 +1550,29 @@ class GeminiModel:
                         role=Role.MODEL,
                     )
                 )
+            # Track finish_reason from last chunk (stream typically sends it in final chunk)
+            if response_chunk.candidates:
+                for c in response_chunk.candidates:
+                    if c.finish_reason:
+                        fr_name = c.finish_reason.name
+                        if fr_name == 'STOP':
+                            finish_reason = FinishReason.STOP
+                        elif fr_name in ('MAX_TOKENS', 'MAX_OUTPUT_TOKENS'):
+                            finish_reason = FinishReason.LENGTH
+                        elif fr_name in ('SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'):
+                            finish_reason = FinishReason.BLOCKED
+                        elif fr_name == 'OTHER':
+                            finish_reason = FinishReason.OTHER
+                        else:
+                            finish_reason = FinishReason.OTHER
+                        break
 
         return ModelResponse(
             message=Message(
                 role=Role.MODEL,
                 content=accumulated_content,
-            )
+            ),
+            finish_reason=finish_reason,
         )
 
     @cached_property

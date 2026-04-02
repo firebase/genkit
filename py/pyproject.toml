@@ -271,7 +271,7 @@ select = [
 # Samples are demo code and can use blocking I/O for simplicity
 "samples/*/*.py"     = ["ANN", "D", "E402", "ASYNC"]
 "samples/*/**/*.py"  = ["ANN", "D", "E402", "ASYNC"]
-"samples/*/src/*.py" = ["ANN", "D", "E402", "ASYNC"]
+"samples/*/src/*.py" = ["ANN", "D", "E402", "ASYNC", "T201"]
 
 
 [tool.ruff.lint.isort]
