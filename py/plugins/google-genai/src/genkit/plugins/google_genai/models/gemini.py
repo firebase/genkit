@@ -1112,9 +1112,6 @@ class GeminiModel:
         }
         if t not in scalar_or_array:
             return False
-        # Object with properties is fine (already has properties)
-        if t == genai_types.Type.OBJECT:
-            return False
         return True
 
     def _convert_schema_property(
