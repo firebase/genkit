@@ -64,6 +64,7 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         return p;
       }
 
+      // Middleware is instantiated once per top generate call, so it's ok (by design) to keep state here.
       const messageQueue: MessageData[] = [];
 
       const listFilesTool = defineListFileTool(resolvePath);
@@ -102,6 +103,8 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
                   content: [errorPart],
                 });
               }
+              // Don't throw, don't return a response, we return control back to the LLM, let it try again.
+              // We add a message to the queue to let the LLM know about the error and let it correct.
               return;
             }
             throw e;
