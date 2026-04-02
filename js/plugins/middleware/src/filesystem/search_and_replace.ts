@@ -108,7 +108,7 @@ export function defineSearchAndReplaceTool(
 
         // Apply the replacement (first occurrence only)
         if (match) {
-          content = content.replace(match.search, match.replace);
+          content = content.replace(match.search, () => match!.replace);
         }
       }
 
