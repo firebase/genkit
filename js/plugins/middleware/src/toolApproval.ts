@@ -37,8 +37,8 @@ export const toolApproval: GenerateMiddleware<typeof ToolApprovalOptionsSchema> 
       name: 'toolApproval',
       configSchema: ToolApprovalOptionsSchema,
     },
-    (options) => {
-      const approvedTools = options?.approved ?? [];
+    ({ config }) => {
+      const approvedTools = config?.approved ?? [];
 
       return {
         tool: async (req, ctx, next) => {
