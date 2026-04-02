@@ -116,25 +116,22 @@ describe('toolApproval middleware', () => {
     );
 
     let turn = 0;
-    const pm = ai.defineModel(
-      { name: 'pm-' + Math.random() },
-      async () => {
-        turn++;
-        if (turn === 1) {
-          return {
-            message: {
-              role: 'model',
-              content: [
-                {
-                  toolRequest: { name: 'bad_tool_approved', input: {} },
-                },
-              ],
-            },
-          };
-        }
-        return { message: { role: 'model', content: [{ text: 'done' }] } };
+    const pm = ai.defineModel({ name: 'pm-' + Math.random() }, async () => {
+      turn++;
+      if (turn === 1) {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                toolRequest: { name: 'bad_tool_approved', input: {} },
+              },
+            ],
+          },
+        };
       }
-    );
+      return { message: { role: 'model', content: [{ text: 'done' }] } };
+    });
 
     // First call, should be interrupted because it's not approved
     const response1 = (await ai.generate({
@@ -153,8 +150,10 @@ describe('toolApproval middleware', () => {
     assert.ok(interruptPart);
 
     // Call ToolAction.restart to prepare for resume
-    const restartedPart = mockTool.restart(interruptPart, { toolApproved: true });
-    
+    const restartedPart = mockTool.restart(interruptPart, {
+      toolApproved: true,
+    });
+
     // Second call, should execute because it's resumed
     const response2 = (await ai.generate({
       model: pm,

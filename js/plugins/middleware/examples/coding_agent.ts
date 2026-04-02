@@ -108,7 +108,9 @@ async function main() {
 
           const approval = await askQuestion('Approve? (y/N): ');
           if (approval.trim().toLowerCase() === 'y') {
-            approvedInterrupts.push(restartTool(interrupt, { toolApproved: true }));
+            approvedInterrupts.push(
+              restartTool(interrupt, { toolApproved: true })
+            );
           }
         }
 

@@ -31,27 +31,28 @@ export type ToolApprovalOptions = z.infer<typeof ToolApprovalOptionsSchema>;
  * Creates a middleware that restricts tool execution to an approved list.
  * Throws a `ToolInterruptError` if an unapproved tool is called, unless approved via metadata.
  */
-export const toolApproval: GenerateMiddleware<typeof ToolApprovalOptionsSchema> =
-  generateMiddleware(
-    {
-      name: 'toolApproval',
-      configSchema: ToolApprovalOptionsSchema,
-    },
-    ({ config }) => {
-      const approvedTools = config?.approved ?? [];
+export const toolApproval: GenerateMiddleware<
+  typeof ToolApprovalOptionsSchema
+> = generateMiddleware(
+  {
+    name: 'toolApproval',
+    configSchema: ToolApprovalOptionsSchema,
+  },
+  ({ config }) => {
+    const approvedTools = config?.approved ?? [];
 
-      return {
-        tool: async (req, ctx, next) => {
-          const isApproved = (ctx as any).resumed?.toolApproved === true;
+    return {
+      tool: async (req, ctx, next) => {
+        const isApproved = (ctx as any).resumed?.toolApproved === true;
 
-          if (!approvedTools.includes(req.toolRequest.name) && !isApproved) {
-            throw new ToolInterruptError({
-              message: `Tool not in approved list: ${req.toolRequest.name}`,
-            });
-          }
+        if (!approvedTools.includes(req.toolRequest.name) && !isApproved) {
+          throw new ToolInterruptError({
+            message: `Tool not in approved list: ${req.toolRequest.name}`,
+          });
+        }
 
-          return next(req, ctx);
-        },
-      };
-    }
-  );
+        return next(req, ctx);
+      },
+    };
+  }
+);
