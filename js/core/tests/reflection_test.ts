@@ -79,7 +79,7 @@ describe('ReflectionServer API', () => {
     registry.registerValue('defaultModel', 'testModel', 'my-model');
     const res = await fetchApi('/api/values?type=defaultModel');
     assert.strictEqual(res.status, 200);
-    assert.deepStrictEqual(res.body, ['my-model']);
+    assert.deepStrictEqual(res.body, { testModel: 'my-model' });
   });
 
   it('returns middleware values mapped via toJson if available', async () => {
@@ -94,9 +94,9 @@ describe('ReflectionServer API', () => {
 
     const res = await fetchApi('/api/values?type=middleware');
     assert.strictEqual(res.status, 200);
-    assert.deepStrictEqual(res.body, [
-      { name: 'mw1', description: 'test mw1' },
-      { name: 'mw2' },
-    ]);
+    assert.deepStrictEqual(res.body, {
+      mw1: { name: 'mw1', description: 'test mw1' },
+      mw2: { name: 'mw2' },
+    });
   });
 });

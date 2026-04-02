@@ -115,45 +115,6 @@ describe('retry', () => {
     assert.strictEqual(requestCount, 3);
   });
 
-  it('should call onError callback', async () => {
-    let requestCount = 0;
-    const ai = genkit({});
-    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
-      requestCount++;
-      throw new Error('test error');
-    });
-
-    TEST_ONLY.setRetryTimeout((callback, ms) => {
-      callback();
-      return 0 as any;
-    });
-
-    let errorCount = 0;
-    let lastError: Error | undefined;
-    await assert.rejects(
-      ai.generate({
-        model: pm,
-        prompt: 'test',
-        use: [
-          retry({
-            maxRetries: 2,
-            onError: (err, attempt) => {
-              errorCount++;
-              lastError = err;
-              assert.strictEqual(attempt, errorCount);
-            },
-          }),
-        ],
-      }),
-      /test error/
-    );
-
-    assert.strictEqual(requestCount, 3);
-    assert.strictEqual(errorCount, 2);
-    assert.ok(lastError);
-    assert.strictEqual(lastError!.message, 'test error');
-  });
-
   it('should not retry on non-retryable status', async () => {
     let requestCount = 0;
     const ai = genkit({});

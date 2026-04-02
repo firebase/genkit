@@ -30,9 +30,6 @@ async function main() {
       fallback({
         models: [googleAI.model('gemini-3-flash-preview')],
         statuses: ['RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'DEADLINE_EXCEEDED'],
-        onError: (err) => {
-          console.error(`Fallback triggered due to error: ${err.message}`);
-        },
       }),
     ],
   });

@@ -187,18 +187,18 @@ export class ReflectionServer {
             );
           return;
         }
-        const values = Object.values(
-          await this.registry.listValues(type as string)
-        );
-
-        response.send(
-          values.map((v: any) => {
-            if (typeof v.toJson === 'function') {
-              return v.toJson();
-            }
-            return v;
-          })
-        );
+        const values = await this.registry.listValues(type as string);
+        const mappedValues: Record<string, any> = {};
+        for (const [key, value] of Object.entries(values)) {
+          mappedValues[key] =
+            value &&
+            typeof value === 'object' &&
+            'toJson' in value &&
+            typeof (value as any).toJson === 'function'
+              ? (value as any).toJson()
+              : value;
+        }
+        response.send(mappedValues);
       } catch (err) {
         const { message, stack } = err as Error;
         next({ message, stack });

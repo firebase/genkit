@@ -50,50 +50,6 @@ describe('fallback', () => {
     assert.strictEqual(result.text, 'success');
   });
 
-  it('should call onError callback', async () => {
-    let requestCount = 0;
-    const ai = genkit({});
-    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
-      requestCount++;
-      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
-    });
-
-    let pmFallbackRequestCount = 0;
-    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
-      pmFallbackRequestCount++;
-      throw new GenkitError({
-        status: 'RESOURCE_EXHAUSTED',
-        message: 'test2',
-      });
-    });
-
-    let errorCount = 0;
-    let lastError: Error | undefined;
-
-    await assert.rejects(
-      ai.generate({
-        model: pm,
-        prompt: 'test',
-        use: [
-          fallback({
-            models: ['programmableModelFallback'],
-            onError: (err) => {
-              errorCount++;
-              lastError = err;
-            },
-          }),
-        ],
-      }),
-      /RESOURCE_EXHAUSTED: test2/
-    );
-
-    assert.strictEqual(requestCount, 1);
-    assert.strictEqual(pmFallbackRequestCount, 1);
-    assert.strictEqual(errorCount, 2);
-    assert.ok(lastError);
-    assert.strictEqual(lastError!.message, 'RESOURCE_EXHAUSTED: test2');
-  });
-
   it('should fallback on a fallbackable error', async () => {
     let requestCount = 0;
     const ai = genkit({});
@@ -115,7 +71,7 @@ describe('fallback', () => {
       prompt: 'test',
       use: [
         fallback({
-          models: ['programmableModelFallback'],
+          models: [{ name: 'programmableModelFallback' }],
           statuses: ['RESOURCE_EXHAUSTED'],
         }),
       ],
@@ -146,7 +102,7 @@ describe('fallback', () => {
         prompt: 'test',
         use: [
           fallback({
-            models: ['programmableModelFallback'],
+            models: [{ name: 'programmableModelFallback' }],
           }),
         ],
       }),
@@ -179,7 +135,7 @@ describe('fallback', () => {
         prompt: 'test',
         use: [
           fallback({
-            models: ['programmableModelFallback'],
+            models: [{ name: 'programmableModelFallback' }],
             statuses: ['RESOURCE_EXHAUSTED'],
           }),
         ],
@@ -189,5 +145,62 @@ describe('fallback', () => {
 
     assert.strictEqual(requestCount, 1);
     assert.strictEqual(pmFallbackRequestCount, 0);
+  });
+
+  it('should not inherit config when isolateConfig is true', async () => {
+    const ai = genkit({});
+    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
+      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
+    });
+
+    let receivedConfig: any = null;
+    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
+      receivedConfig = req.config;
+      return {
+        message: { role: 'model', content: [{ text: 'fallback success' }] },
+      };
+    });
+
+    await ai.generate({
+      model: pm,
+      prompt: 'test',
+      config: { temperature: 0.5 },
+      use: [
+        fallback({
+          models: [{ name: 'programmableModelFallback' }],
+          isolateConfig: true,
+        }),
+      ],
+    });
+
+    assert.strictEqual(receivedConfig, undefined);
+  });
+
+  it('should inherit config when isolateConfig is false (default)', async () => {
+    const ai = genkit({});
+    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
+      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
+    });
+
+    let receivedConfig: any = null;
+    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
+      receivedConfig = req.config;
+      return {
+        message: { role: 'model', content: [{ text: 'fallback success' }] },
+      };
+    });
+
+    await ai.generate({
+      model: pm,
+      prompt: 'test',
+      config: { temperature: 0.5 },
+      use: [
+        fallback({
+          models: [{ name: 'programmableModelFallback' }],
+        }),
+      ],
+    });
+
+    assert.strictEqual(receivedConfig.temperature, 0.5);
   });
 });

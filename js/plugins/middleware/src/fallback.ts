@@ -40,21 +40,21 @@ export const FallbackOptionsSchema = z
     /**
      * An array of models to try in order.
      */
-    models: z.array(z.union([z.string(), ModelReferenceSchema])),
+    models: z.array(ModelReferenceSchema),
     /**
      * An array of `StatusName` values that should trigger a fallback.
      * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
      */
     statuses: z.array(z.string()).optional(),
+    /**
+     * If true, the fallback model will not inherit the original request's configuration.
+     * @default false
+     */
+    isolateConfig: z.boolean().optional(),
   })
   .passthrough();
 
-export interface FallbackOptions extends z.infer<typeof FallbackOptionsSchema> {
-  /**
-   * A callback to be executed on each fallback attempt.
-   */
-  onError?: (error: Error) => void;
-}
+export type FallbackOptions = z.infer<typeof FallbackOptionsSchema>;
 
 /**
  * Creates a middleware that falls back to a different model on specific error statuses.
@@ -78,12 +78,12 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       name: 'fallback',
       configSchema: FallbackOptionsSchema,
     },
-    (options: FallbackOptions | undefined, ai) => {
+    (options) => {
       const {
         models = [],
         statuses = DEFAULT_FALLBACK_STATUSES,
-        onError,
-      } = options || {};
+        isolateConfig = false,
+      } = options.config || {};
 
       return {
         model: async (req, ctx, next) => {
@@ -94,15 +94,19 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
               e instanceof GenkitError &&
               statuses.includes(e.status as StatusName)
             ) {
-              onError?.(e);
               let lastError: any = e;
               for (const model of models) {
-                const normalizedModel = await resolveModel(ai.registry, model);
+                const normalizedModel = await resolveModel(
+                  options.ai.registry,
+                  model
+                );
                 try {
                   return await normalizedModel.model(
                     {
                       ...req,
-                      config: normalizedModel.config ?? req.config,
+                      config: isolateConfig
+                        ? normalizedModel.config
+                        : (normalizedModel.config ?? req.config),
                     },
                     ctx
                   );
@@ -112,7 +116,6 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                     e2 instanceof GenkitError &&
                     statuses.includes(e2.status as StatusName)
                   ) {
-                    onError?.(e2);
                     continue;
                   }
                   throw e2;
@@ -129,11 +132,8 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
 
 async function resolveModel(
   registry: Registry,
-  model: string | z.infer<typeof ModelReferenceSchema>
+  model: z.infer<typeof ModelReferenceSchema>
 ): Promise<{ model: ModelAction; config?: any }> {
-  if (typeof model === 'string') {
-    return { model: await registry.lookupAction(`/model/${model}`) };
-  }
   return {
     model: await registry.lookupAction(`/model/${model.name}`),
     config: model.config,

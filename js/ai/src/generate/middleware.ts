@@ -17,7 +17,7 @@
 import { ActionRunOptions, GenkitError, z } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { GenerateAPI } from '../generate-api.js';
+import { GenkitAI } from '../genkit-ai.js';
 import type { GenerateActionOptions } from '../model-types.js';
 import { type MiddlewareRef } from '../model-types.js';
 import {
@@ -47,16 +47,20 @@ export type MiddlewareDesc = z.infer<typeof MiddlewareDescSchema>;
  * When invoked with an optional configuration, it returns a reference suitable for
  * inclusion in a `GenerateOptions.use` array.
  */
-export interface GenerateMiddleware<C extends z.ZodTypeAny = z.ZodTypeAny>
-  extends MiddlewareDesc {
+export interface GenerateMiddleware<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> extends MiddlewareDesc {
   /** Configures the middleware, returning a MiddlewareRef for usage in `generate({use: [...]})`. */
-  (config?: z.infer<C>): MiddlewareRef & { __def: GenerateMiddleware<C> };
+  (
+    config?: z.infer<ConfigSchema>
+  ): MiddlewareRef & { __def: GenerateMiddleware<ConfigSchema, PluginOptions> };
   /** The unique name of this middleware. */
   name: string;
   /** An optional description of what the middleware does. */
   description?: string;
   /** An optional Zod schema for validating the middleware's configuration. */
-  configSchema?: C;
+  configSchema?: ConfigSchema;
   /** Metadata describing this middleware. */
   metadata?: Record<string, any>;
   /**
@@ -64,15 +68,22 @@ export interface GenerateMiddleware<C extends z.ZodTypeAny = z.ZodTypeAny>
    * a `GenerateMiddlewareDef` holding the active hooks.
    */
   instantiate: (
-    config: z.infer<C> | undefined,
-    ai: GenerateAPI
+    options: MiddlewareFnOptions<ConfigSchema, PluginOptions>
   ) => GenerateMiddlewareDef;
   /**
    * Optional plugin wrapper exposing this middleware for framework-level registration.
    */
-  plugin: (config?: z.infer<C>) => GenkitPluginV2;
+  plugin: (pluginOptions: PluginOptions) => GenkitPluginV2;
   /** Generates a JSON-compatible representation of the middleware metadata. */
   toJson: () => MiddlewareDesc;
+}
+
+interface GenerateMiddlewarePluginInstance<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> extends GenerateMiddleware<ConfigSchema, PluginOptions> {
+  /** Options passed to the middleware plugin function. */
+  pluginOptions: PluginOptions;
 }
 
 /**
@@ -116,15 +127,28 @@ export interface GenerateMiddlewareDef {
     next: (
       req: ToolRequestPart,
       ctx: ActionRunOptions<any>
-    ) => Promise<ToolResponsePart | void>
-  ) => Promise<ToolResponsePart | void>;
+    ) => Promise<ToolResponsePart>
+  ) => Promise<ToolResponsePart>;
   /**
    * Tools to statically inject into the generation request whenever this middleware is active.
    */
   tools?: ToolAction[];
 }
 
+/**
+ * Options passed to the middleware factory function.
+ */
+export interface MiddlewareFnOptions<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  PluginOptions = void,
+> {
+  config: z.infer<ConfigSchema> | undefined;
+  pluginConfig: PluginOptions;
+  ai: GenkitAI;
+}
+
 export function generateMiddleware<
+  PluginOptions = void,
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
@@ -134,42 +158,33 @@ export function generateMiddleware<
     metadata?: Record<string, any>;
   },
   middlewareFn: (
-    config: z.infer<ConfigSchema> | undefined,
-    ai: GenerateAPI
+    options: MiddlewareFnOptions<ConfigSchema, PluginOptions>
   ) => GenerateMiddlewareDef
-): GenerateMiddleware<ConfigSchema> {
+): GenerateMiddleware<ConfigSchema, PluginOptions> {
   const def = function (config?: z.infer<ConfigSchema>) {
     return {
       name: options.name,
       config,
       __def: def,
     };
-  } as GenerateMiddleware<ConfigSchema>;
-
+  } as GenerateMiddleware<ConfigSchema, PluginOptions>;
   Object.defineProperty(def, 'name', { value: options.name });
   def.configSchema = options.configSchema;
   def.description = options.description;
   def.metadata = options.metadata;
   def.instantiate = middlewareFn;
-  def.plugin = (pluginConfig?: z.infer<ConfigSchema>) => ({
+  def.plugin = (pluginConfig: PluginOptions) => ({
     name: `middleware:${options.name}`,
     version: 'v2',
     generateMiddleware: () => {
-      if (pluginConfig === undefined) {
-        return [def];
-      }
-      const wrappedDef = function (config?: z.infer<ConfigSchema>) {
-        return def(config ?? pluginConfig);
-      } as GenerateMiddleware<ConfigSchema>;
-
+      const wrappedDef = Object.assign(
+        function (config?: z.infer<ConfigSchema>) {
+          return def(config);
+        },
+        def,
+        { pluginOptions: pluginConfig }
+      ) as GenerateMiddlewarePluginInstance<ConfigSchema, PluginOptions>;
       Object.defineProperty(wrappedDef, 'name', { value: options.name });
-      wrappedDef.configSchema = options.configSchema;
-      wrappedDef.description = options.description;
-      wrappedDef.metadata = options.metadata;
-      wrappedDef.instantiate = (reqConfig, ai) =>
-        def.instantiate(reqConfig ?? pluginConfig, ai);
-      wrappedDef.plugin = def.plugin;
-
       return [wrappedDef];
     },
     model: (_) => {
@@ -206,7 +221,13 @@ export async function resolveMiddleware(
         message: `Middleware ${ref.name} not found in registry.`,
       });
     }
-    result.push(def.instantiate(ref.config, new GenerateAPI(registry)));
+    result.push(
+      def.instantiate({
+        config: ref.config,
+        ai: new GenkitAI(registry),
+        pluginConfig: (def as GenerateMiddlewarePluginInstance).pluginOptions,
+      })
+    );
   }
   return result;
 }
