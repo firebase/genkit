@@ -71,7 +71,7 @@ describe('fallback', () => {
       prompt: 'test',
       use: [
         fallback({
-          models: ['programmableModelFallback'],
+          models: [{ name: 'programmableModelFallback' }],
           statuses: ['RESOURCE_EXHAUSTED'],
         }),
       ],
@@ -102,7 +102,7 @@ describe('fallback', () => {
         prompt: 'test',
         use: [
           fallback({
-            models: ['programmableModelFallback'],
+            models: [{ name: 'programmableModelFallback' }],
           }),
         ],
       }),
@@ -135,7 +135,7 @@ describe('fallback', () => {
         prompt: 'test',
         use: [
           fallback({
-            models: ['programmableModelFallback'],
+            models: [{ name: 'programmableModelFallback' }],
             statuses: ['RESOURCE_EXHAUSTED'],
           }),
         ],
@@ -167,7 +167,7 @@ describe('fallback', () => {
       config: { temperature: 0.5 },
       use: [
         fallback({
-          models: ['programmableModelFallback'],
+          models: [{ name: 'programmableModelFallback' }],
           isolateConfig: true,
         }),
       ],
@@ -196,7 +196,7 @@ describe('fallback', () => {
       config: { temperature: 0.5 },
       use: [
         fallback({
-          models: ['programmableModelFallback'],
+          models: [{ name: 'programmableModelFallback' }],
         }),
       ],
     });

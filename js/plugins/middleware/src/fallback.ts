@@ -40,7 +40,7 @@ export const FallbackOptionsSchema = z
     /**
      * An array of models to try in order.
      */
-    models: z.array(z.union([z.string(), ModelReferenceSchema])),
+    models: z.array(ModelReferenceSchema),
     /**
      * An array of `StatusName` values that should trigger a fallback.
      * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
@@ -106,7 +106,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                       ...req,
                       config: isolateConfig
                         ? normalizedModel.config
-                        : normalizedModel.config ?? req.config,
+                        : (normalizedModel.config ?? req.config),
                     },
                     ctx
                   );
@@ -132,11 +132,8 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
 
 async function resolveModel(
   registry: Registry,
-  model: string | z.infer<typeof ModelReferenceSchema>
+  model: z.infer<typeof ModelReferenceSchema>
 ): Promise<{ model: ModelAction; config?: any }> {
-  if (typeof model === 'string') {
-    return { model: await registry.lookupAction(`/model/${model}`) };
-  }
   return {
     model: await registry.lookupAction(`/model/${model.name}`),
     config: model.config,
