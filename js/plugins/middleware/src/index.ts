@@ -19,5 +19,5 @@ export { filesystem } from './filesystem.js';
 export { retry } from './retry.js';
 export { skills } from './skills.js';
 
-/// coming
+/// coming soon...
 // export { toolApproval } from './toolApproval.js';
