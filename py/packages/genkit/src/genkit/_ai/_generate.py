@@ -251,10 +251,9 @@ async def _generate_action(
                 supports_dict = cast(dict[str, object], supports_info)
                 supports_context = bool(supports_dict.get('context'))
     # if it doesn't support contextm inject context middleware
-    if raw_request.docs and not supports_context:
-        middleware.append(augment_with_context())
-
     normalized_mw: list[BaseMiddleware] = list(middleware)
+    if raw_request.docs and not supports_context:
+        normalized_mw.append(augment_with_context())
 
     async def dispatch_generate(
         params: GenerateHookParams,

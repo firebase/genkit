@@ -23,6 +23,7 @@ import httpx
 
 from genkit._ai._model import Message
 from genkit._core._error import GenkitError
+from genkit._core._http_client import get_cached_client
 from genkit._core._model import ModelResponse
 from genkit._core._typing import Media, MediaPart, Part
 
@@ -46,7 +47,6 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
     ) -> None:
         self._max_bytes = max_bytes
         self._filter_fn = filter_fn
-        self._client = httpx.AsyncClient()
 
     async def wrap_model(
         self,
@@ -54,6 +54,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
         next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         req = params.request
+        client = get_cached_client('download_request_media')
         new_messages: list[Message] = []
 
         for msg in req.messages:
@@ -73,7 +74,7 @@ class _DownloadRequestMediaMiddleware(BaseMiddleware):
 
                     content_changed = True
                     try:
-                        response = await self._client.get(part.root.media.url)
+                        response = await client.get(part.root.media.url)
                         response.raise_for_status()
 
                         content = response.content
