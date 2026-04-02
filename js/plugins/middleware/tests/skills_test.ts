@@ -54,29 +54,34 @@ describe('skills middleware', () => {
 
   function createToolModel(ai: any, toolName: string, input: any) {
     let turn = 0;
-    return ai.defineModel({ name: `pm-${toolName}-${Math.random()}` }, async () => {
-      turn++;
-      if (turn === 1) {
-        return {
-          message: {
-            role: 'model',
-            content: [{ toolRequest: { name: toolName, input } }],
-          },
-        };
+    return ai.defineModel(
+      { name: `pm-${toolName}-${Math.random()}` },
+      async () => {
+        turn++;
+        if (turn === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [{ toolRequest: { name: toolName, input } }],
+            },
+          };
+        }
+        return { message: { role: 'model', content: [{ text: 'done' }] } };
       }
-      return { message: { role: 'model', content: [{ text: 'done' }] } };
-    });
+    );
   }
 
   it('injects system prompt with available skills', async () => {
     const ai = genkit({});
-    
+
     // We want to see the messages passed to the model, so we can define a mock model
     // that captures the messages it receives.
     let capturedMessages: any[] = [];
     const mockModel = ai.defineModel({ name: 'capture-model' }, async (req) => {
       capturedMessages = req.messages;
-      return { message: { role: 'model', content: [{ text: 'mock response' }] } };
+      return {
+        message: { role: 'model', content: [{ text: 'mock response' }] },
+      };
     });
 
     await ai.generate({
@@ -104,7 +109,10 @@ describe('skills middleware', () => {
 
     const toolMsg = result.messages.find((m: any) => m.role === 'tool');
     assert.ok(toolMsg);
-    assert.match(toolMsg.content[0].toolResponse.output, /Python prompt content/);
+    assert.match(
+      toolMsg.content[0].toolResponse.output,
+      /Python prompt content/
+    );
   });
 
   it('rejects access to unknown skills', async () => {
@@ -124,10 +132,15 @@ describe('skills middleware', () => {
     const ai = genkit({});
 
     let capturedMessages: any[] = [];
-    const mockModel = ai.defineModel({ name: 'capture-model-' + Math.random() }, async (req) => {
-      capturedMessages = req.messages;
-      return { message: { role: 'model', content: [{ text: 'mock response' }] } };
-    });
+    const mockModel = ai.defineModel(
+      { name: 'capture-model-' + Math.random() },
+      async (req) => {
+        capturedMessages = req.messages;
+        return {
+          message: { role: 'model', content: [{ text: 'mock response' }] },
+        };
+      }
+    );
 
     // First call
     const response = await ai.generate({
@@ -138,9 +151,10 @@ describe('skills middleware', () => {
 
     const firstSysMsg = capturedMessages.find((m) => m.role === 'system');
     assert.ok(firstSysMsg);
-    
+
     // Count occurrences of "<skills>" in the first system message
-    const firstCount = (firstSysMsg.content[0].text.match(/<skills>/g) || []).length;
+    const firstCount = (firstSysMsg.content[0].text.match(/<skills>/g) || [])
+      .length;
     assert.strictEqual(firstCount, 1);
 
     // Second call (simulating multi-turn scenario by passing messages back)
@@ -154,7 +168,8 @@ describe('skills middleware', () => {
     assert.ok(secondSysMsg);
 
     // Count occurrences of "<skills>" in the second system message
-    const secondCount = (secondSysMsg.content[0].text.match(/<skills>/g) || []).length;
+    const secondCount = (secondSysMsg.content[0].text.match(/<skills>/g) || [])
+      .length;
     assert.strictEqual(secondCount, 1, 'Should not duplicate skills block');
   });
 });
