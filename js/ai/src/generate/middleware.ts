@@ -142,7 +142,7 @@ export interface MiddlewareFnOptions<
 }
 
 export function generateMiddleware<
-  PluginOptions extends void = void,
+  PluginOptions = void,
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
