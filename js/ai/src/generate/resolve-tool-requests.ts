@@ -129,7 +129,7 @@ export async function resolveToolRequest(
     index: number,
     req: ToolRequestPart,
     ctx: ActionRunOptions<any>
-  ): Promise<ToolResponsePart> => {
+  ): Promise<ToolResponsePart | undefined> => {
     if (index === middleware.length) {
       return executeTool(req, ctx);
     }
@@ -176,9 +176,7 @@ export async function resolveToolRequest(
   const initialCtx = runOptions ?? toRunOptions(part);
   try {
     const dispatchResult = await dispatch(0, part, initialCtx);
-    return dispatchResult
-      ? { response: dispatchResult as ToolResponsePart }
-      : {};
+    return dispatchResult ? { response: dispatchResult } : {};
   } catch (e) {
     if (
       e instanceof ToolInterruptError ||
