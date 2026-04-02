@@ -895,4 +895,74 @@ describe('generateMiddleware', () => {
     );
     assert.strictEqual(generateMiddlewareCallCount, 2);
   });
+
+  it('should handle tool middleware returning undefined', async () => {
+    const mockTool = tool(
+      {
+        name: 'mockTool',
+        description: 'a mock tool',
+        inputSchema: z.object({}),
+      },
+      async () => 'tool response'
+    );
+
+    const mockModel = defineModel(
+      registry,
+      { name: 'mockModelWithTool3' },
+      async (req) => {
+        if (req.messages.length === 1) {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    name: mockTool.__action.name,
+                    ref: '123',
+                    input: {},
+                  },
+                },
+              ],
+            },
+          };
+        }
+        return { message: { role: 'model', content: [{ text: 'done' }] } };
+      }
+    );
+
+    const testMiddleware = generateMiddleware(
+      { name: 'swallowToolMw' },
+      () => ({
+        tool: async (req, ctx, next) => {
+          return undefined; // Swallowing the tool call
+        },
+      })
+    );
+
+    const result = await generate(registry, {
+      model: mockModel,
+      prompt: 'hi',
+      tools: [mockTool],
+      use: [testMiddleware()],
+    });
+
+    // Verify it doesn't crash and completes.
+    assert.strictEqual(result.text, 'done');
+
+    // We expect 3 messages:
+    // 1. User: "hi" (the prompt)
+    // 2. Model: toolRequest (from Turn 1)
+    // 3. Model: "done" (from Turn 2)
+    // There should be NO 'tool' role message in between because the middleware swallowed it!
+    assert.strictEqual(result.messages.length, 3);
+    assert.strictEqual(result.messages[0].role, 'user');
+    assert.strictEqual(result.messages[1].role, 'model');
+    assert.strictEqual(result.messages[2].role, 'model'); // Consecutive model message!
+
+    // Ensure no tool response parts exist
+    const hasToolResponse = result.messages.some((m) =>
+      m.content.some((c) => c.toolResponse)
+    );
+    assert.ok(!hasToolResponse, 'Should not contain any tool response');
+  });
 });
