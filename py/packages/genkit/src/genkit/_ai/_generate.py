@@ -16,6 +16,7 @@
 
 """Generate action."""
 
+import asyncio
 import contextlib
 import copy
 import inspect
@@ -653,34 +654,39 @@ async def resolve_tool_requests(
 
     revised_model_message = message.model_copy(deep=True)
 
-    has_interrupts = False
-    response_parts: list[Part] = []
+    work: list[tuple[int, Action, ToolRequestPart]] = []
     i = 0
     for tool_request_part in message.content:
         if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
             i += 1
             continue
 
-        # Type is now narrowed: tool_request_part.root is ToolRequestPart
         tool_req_root = tool_request_part.root
         tool_request = tool_req_root.tool_request
 
         if tool_request.name not in tool_dict:
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
-        tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
+        work.append((i, tool, tool_req_root))
+        i += 1
 
+    if not work:
+        return (None, Message(role=Role.TOOL, content=[]), None)
+
+    outs = await asyncio.gather(*[_resolve_tool_request(tool, trp) for _, tool, trp in work])
+
+    has_interrupts = False
+    response_parts: list[Part] = []
+    for (idx, _tool, tool_req_root), (tool_response_part, interrupt_part) in zip(work, outs, strict=True):
         if tool_response_part:
             # Extract the ToolResponsePart from the returned Part for _to_pending_response
             if isinstance(tool_response_part.root, ToolResponsePart):
-                revised_model_message.content[i] = _to_pending_response(tool_req_root, tool_response_part.root)
+                revised_model_message.content[idx] = _to_pending_response(tool_req_root, tool_response_part.root)
             response_parts.append(tool_response_part)
 
         if interrupt_part:
             has_interrupts = True
-            revised_model_message.content[i] = interrupt_part
-
-        i += 1
+            revised_model_message.content[idx] = interrupt_part
 
     if has_interrupts:
         return (revised_model_message, None, None)
