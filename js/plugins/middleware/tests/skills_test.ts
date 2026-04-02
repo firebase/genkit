@@ -125,7 +125,7 @@ describe('skills middleware', () => {
         prompt: 'use skill',
         use: [skills({ skillPaths: [skillsDir] })],
       });
-    }, /Access denied/);
+    }, /not found/);
   });
 
   it('is idempotent when injecting prompt', async () => {

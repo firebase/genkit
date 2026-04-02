@@ -43,12 +43,12 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
       >();
 
       function parseFrontmatter(content: string) {
-        const match = /^---\n([^]*?)\n---/.exec(content);
+        const match = /^---\r?\n([^]*?)\r?\n---/.exec(content);
         if (!match) return null;
 
         const yaml = match[1];
-        const nameMatch = /name:\s*(.+)/.exec(yaml);
-        const descriptionMatch = /description:\s*(.+)/.exec(yaml);
+        const nameMatch = /^name:\s*(.+)/m.exec(yaml);
+        const descriptionMatch = /^description:\s*(.+)/m.exec(yaml);
 
         return {
           name: nameMatch ? nameMatch[1].trim() : undefined,
@@ -58,41 +58,49 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
         };
       }
 
-      let scanned = false;
+      let scanPromise: Promise<void> | null = null;
 
-      async function ensureSkillsScanned() {
-        if (scanned) return;
-        scanned = true;
-        skillCache.clear();
+      function ensureSkillsScanned(): Promise<void> {
+        if (!scanPromise) {
+          scanPromise = (async () => {
+            skillCache.clear();
 
-        for (const p of skillPaths) {
-          const dirPath = path.resolve(p);
-          if (!fs.existsSync(dirPath)) continue;
-
-          const files = fs.readdirSync(dirPath, { withFileTypes: true });
-          for (const file of files) {
-            if (file.isDirectory() && !file.name.startsWith('.')) {
-              const skillDir = path.join(dirPath, file.name);
-              const skillMdPath = path.join(skillDir, 'SKILL.md');
-              if (fs.existsSync(skillMdPath)) {
-                let description = 'No description provided.';
-                try {
-                  const content = fs.readFileSync(skillMdPath, 'utf-8');
-                  const fm = parseFrontmatter(content);
-                  if (fm?.description) {
-                    description = fm.description;
-                  }
-                } catch (e) {
-                  // ignore
-                }
-                skillCache.set(file.name, {
-                  path: skillMdPath,
-                  description,
+            for (const p of skillPaths) {
+              const dirPath = path.resolve(p);
+              try {
+                const files = await fs.promises.readdir(dirPath, {
+                  withFileTypes: true,
                 });
+                for (const file of files) {
+                  if (file.isDirectory() && !file.name.startsWith('.')) {
+                    const skillDir = path.join(dirPath, file.name);
+                    const skillMdPath = path.join(skillDir, 'SKILL.md');
+                    try {
+                      const content = await fs.promises.readFile(
+                        skillMdPath,
+                        'utf-8'
+                      );
+                      let description = 'No description provided.';
+                      const fm = parseFrontmatter(content);
+                      if (fm?.description) {
+                        description = fm.description;
+                      }
+                      skillCache.set(file.name, {
+                        path: skillMdPath,
+                        description,
+                      });
+                    } catch (e) {
+                      // ignore file read errors
+                    }
+                  }
+                }
+              } catch (e) {
+                // ignore directory read errors
               }
             }
-          }
+          })();
         }
+        return scanPromise;
       }
 
       const useSkillTool = tool(
@@ -108,13 +116,11 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
           await ensureSkillsScanned();
           const info = skillCache.get(input.skillName);
           if (!info) {
-            throw new Error(
-              'Access denied: Path is outside of skills directory or skill not found.'
-            );
+            throw new Error(`Skill '${input.skillName}' not found.`);
           }
 
           try {
-            return fs.readFileSync(info.path, 'utf-8');
+            return await fs.promises.readFile(info.path, 'utf-8');
           } catch (e) {
             throw new Error(`Failed to read skill "${input.skillName}": ${e}`);
           }
