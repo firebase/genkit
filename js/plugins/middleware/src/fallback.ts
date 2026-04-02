@@ -73,9 +73,9 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       name: 'fallback',
       configSchema: FallbackOptionsSchema,
     },
-    (options: FallbackOptions | undefined, ai) => {
+    (options) => {
       const { models = [], statuses = DEFAULT_FALLBACK_STATUSES } =
-        options || {};
+        options.config || {};
 
       return {
         model: async (req, ctx, next) => {
@@ -88,7 +88,10 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
             ) {
               let lastError: any = e;
               for (const model of models) {
-                const normalizedModel = await resolveModel(ai.registry, model);
+                const normalizedModel = await resolveModel(
+                  options.ai.registry,
+                  model
+                );
                 try {
                   return await normalizedModel.model(
                     {

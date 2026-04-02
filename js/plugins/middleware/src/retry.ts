@@ -15,10 +15,10 @@
  */
 
 import {
+  GenerateMiddleware,
   GenkitError,
   generateMiddleware,
   z,
-  type GenerateMiddleware,
   type StatusName,
 } from 'genkit';
 
@@ -109,7 +109,7 @@ export const retry: GenerateMiddleware<typeof RetryOptionsSchema> =
       name: 'retry',
       configSchema: RetryOptionsSchema,
     },
-    (options?: RetryOptions) => {
+    (options) => {
       const {
         maxRetries = 3,
         statuses = DEFAULT_RETRY_STATUSES,
@@ -117,7 +117,7 @@ export const retry: GenerateMiddleware<typeof RetryOptionsSchema> =
         maxDelayMs = 60000,
         backoffFactor = 2,
         noJitter = false,
-      } = options || {};
+      } = options.config || {};
 
       return {
         model: async (req, ctx, next) => {
