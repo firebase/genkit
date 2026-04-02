@@ -34,16 +34,21 @@ def _json_schema_root_is_scalar_or_array(schema: dict[str, object] | None) -> bo
     if not schema:
         return False
     t = schema.get('type')
+    if isinstance(t, list):
+        # Handle nullable types like ["string", "null"] by looking at the first non-null type
+        t = next((item for item in t if item != 'null'), None)
     if isinstance(t, str):
         tl = t.lower()
         return tl in ('string', 'number', 'integer', 'boolean', 'array')
     return False
 
 
+# 'Any' is used here because this utility handles and returns arbitrary, dynamic
+# JSON data (scalars, lists, or objects) whose types are determined at runtime.
 def unwrap_wrapped_scalar_tool_input_if_needed(
     input_payload: Any,  # noqa: ANN401
     input_schema: dict[str, object] | None,
-) -> Any:
+) -> Any:  # noqa: ANN401
     """Unwrap ``{"value": x}`` before calling a tool whose JSON Schema root is scalar/array.
 
     The Google Genai Gemini plugin wraps scalar/array roots as ``{"value": <schema>}``
