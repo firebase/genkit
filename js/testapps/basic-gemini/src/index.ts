@@ -98,7 +98,7 @@ ai.defineFlow('basic-hi-flex-tier', async () => {
     model: googleAI.model('gemini-flash-lite-latest'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     config: {
-      serviceTier: 'flex',  // or 'standard' or 'priority'
+      serviceTier: 'flex', // or 'standard' or 'priority'
     },
   });
 

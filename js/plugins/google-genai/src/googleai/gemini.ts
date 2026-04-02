@@ -263,7 +263,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     )
     .optional(),
   serviceTier: z
-    .enum(['standard', 'flex', 'priority'])
+    .union([z.enum(['standard', 'flex', 'priority']), z.string()])
     .describe('Service tier for the Gemini API.')
     .optional(),
   thinkingConfig: z
