@@ -20,7 +20,11 @@ import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { generate, generateStream } from '../../src/generate.js';
-import { generateMiddleware } from '../../src/generate/middleware.js';
+import {
+  GenerateMiddlewareDef,
+  generateMiddleware,
+} from '../../src/generate/middleware.js';
+import { resolveRestartedTools } from '../../src/generate/resolve-tool-requests.js';
 import { defineModel } from '../../src/model.js';
 import { ToolInterruptError, defineTool, tool } from '../../src/tool.js';
 
@@ -203,9 +207,9 @@ describe('generateMiddleware', () => {
 
     const testMiddleware = generateMiddleware(
       { name: 'configMw', configSchema: z.object({ val: z.string() }) },
-      (config) => ({
+      (options) => ({
         model: async (req, ctx, next) => {
-          configValue = config?.val || '';
+          configValue = options.config?.val || '';
           return next(req, ctx);
         },
       })
@@ -244,21 +248,37 @@ describe('generateMiddleware', () => {
       }
     );
 
-    const preRegisteredMw = generateMiddleware(
+    const preRegisteredMw = generateMiddleware<{ pluginOption: string }>(
       { name: 'preRegisteredMw', configSchema: z.object({ val: z.string() }) },
-      (config) => ({
+      (middlewareOpts) => ({
         model: async (req, ctx, next) => {
           executed = true;
-          configValue = config?.val || '';
+          configValue = middlewareOpts.pluginConfig?.pluginOption || '';
           return next(req, ctx);
         },
       })
     );
 
     // Act as a plugin registering the middleware
-    const myPlugin = preRegisteredMw.plugin({ val: 'plugin_config' });
+    const myPlugin = preRegisteredMw.plugin({ pluginOption: 'plugin_config' });
     assert.ok(myPlugin.generateMiddleware);
-    myPlugin.generateMiddleware().forEach((mw: any) => {
+    assert.deepStrictEqual(
+      (myPlugin.generateMiddleware()[0] as any).pluginOptions,
+      {
+        pluginOption: 'plugin_config',
+      }
+    );
+
+    const middlewares = myPlugin.generateMiddleware();
+    assert.strictEqual(middlewares.length, 1);
+    const mw = middlewares[0];
+
+    // Verify name and properties are correctly copied/preserved
+    assert.strictEqual(mw.name, 'preRegisteredMw');
+    assert.strictEqual(mw.configSchema, preRegisteredMw.configSchema);
+    assert.strictEqual(mw.toJson, preRegisteredMw.toJson);
+
+    middlewares.forEach((mw: any) => {
       registry.registerValue('middleware', mw.name, mw);
     });
 
@@ -270,6 +290,45 @@ describe('generateMiddleware', () => {
 
     assert.strictEqual(executed, true);
     assert.strictEqual(configValue, 'plugin_config');
+  });
+
+  it('should resolve tools injected by middleware during restarts', async () => {
+    const middlewareTool = defineTool(
+      registry,
+      {
+        name: 'middlewareTool',
+        description: 'injected by middleware',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => 'success'
+    );
+
+    const middleware: GenerateMiddlewareDef = {
+      tools: [middlewareTool],
+    };
+
+    const rawRequest = {
+      tools: [],
+      messages: [
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: { name: 'middlewareTool', input: {} },
+              metadata: { resumed: true },
+            },
+          ],
+        },
+      ],
+    } as any;
+
+    const result = await resolveRestartedTools(registry, rawRequest, [
+      middleware,
+    ]);
+
+    assert.strictEqual(result.length, 1);
+    assert.deepStrictEqual(result[0].metadata?.pendingOutput, 'success');
   });
 
   it('throws an error if a middleware factory is passed without being called', async () => {
