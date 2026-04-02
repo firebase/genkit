@@ -46,6 +46,11 @@ export const FallbackOptionsSchema = z
      * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
      */
     statuses: z.array(z.string()).optional(),
+    /**
+     * If true, the fallback model will not inherit the original request's configuration.
+     * @default false
+     */
+    isolateConfig: z.boolean().optional(),
   })
   .passthrough();
 
@@ -74,8 +79,11 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
       configSchema: FallbackOptionsSchema,
     },
     (options) => {
-      const { models = [], statuses = DEFAULT_FALLBACK_STATUSES } =
-        options.config || {};
+      const {
+        models = [],
+        statuses = DEFAULT_FALLBACK_STATUSES,
+        isolateConfig = false,
+      } = options.config || {};
 
       return {
         model: async (req, ctx, next) => {
@@ -96,7 +104,9 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
                   return await normalizedModel.model(
                     {
                       ...req,
-                      config: normalizedModel.config ?? req.config,
+                      config: isolateConfig
+                        ? normalizedModel.config
+                        : normalizedModel.config ?? req.config,
                     },
                     ctx
                   );

@@ -146,4 +146,61 @@ describe('fallback', () => {
     assert.strictEqual(requestCount, 1);
     assert.strictEqual(pmFallbackRequestCount, 0);
   });
+
+  it('should not inherit config when isolateConfig is true', async () => {
+    const ai = genkit({});
+    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
+      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
+    });
+
+    let receivedConfig: any = null;
+    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
+      receivedConfig = req.config;
+      return {
+        message: { role: 'model', content: [{ text: 'fallback success' }] },
+      };
+    });
+
+    await ai.generate({
+      model: pm,
+      prompt: 'test',
+      config: { temperature: 0.5 },
+      use: [
+        fallback({
+          models: ['programmableModelFallback'],
+          isolateConfig: true,
+        }),
+      ],
+    });
+
+    assert.strictEqual(receivedConfig, undefined);
+  });
+
+  it('should inherit config when isolateConfig is false (default)', async () => {
+    const ai = genkit({});
+    const pm = ai.defineModel({ name: 'programmableModel' }, async (req) => {
+      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
+    });
+
+    let receivedConfig: any = null;
+    ai.defineModel({ name: 'programmableModelFallback' }, async (req) => {
+      receivedConfig = req.config;
+      return {
+        message: { role: 'model', content: [{ text: 'fallback success' }] },
+      };
+    });
+
+    await ai.generate({
+      model: pm,
+      prompt: 'test',
+      config: { temperature: 0.5 },
+      use: [
+        fallback({
+          models: ['programmableModelFallback'],
+        }),
+      ],
+    });
+
+    assert.strictEqual(receivedConfig.temperature, 0.5);
+  });
 });
