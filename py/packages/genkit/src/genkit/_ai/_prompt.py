@@ -39,7 +39,6 @@ from genkit._ai._generate import (
     to_tool_definition,
     tools_to_action_names,
 )
-from genkit._ai._tools import Tool
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
@@ -47,6 +46,7 @@ from genkit._ai._model import (
     ModelResponse,
     ModelResponseChunk,
 )
+from genkit._ai._tools import Tool
 from genkit._core._action import Action, ActionKind, ActionRunContext, StreamingCallback, create_action_key
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
@@ -192,6 +192,7 @@ class PromptConfig(BaseModel):
     use: list[ModelMiddleware] | None = None
     docs: list[Document] | None = None
     tool_responses: list[Part] | None = None
+    resume: Resume | None = None
     resources: list[str] | None = None
 
 
@@ -664,8 +665,8 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
     if options.output_constrained is not None:
         output.constrained = options.output_constrained
 
-    resume = None
-    if options.tool_responses:
+    resume = options.resume
+    if resume is None and options.tool_responses:
         tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
         if tool_response_parts:
             resume = Resume(respond=tool_response_parts)
