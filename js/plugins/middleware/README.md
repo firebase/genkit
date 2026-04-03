@@ -42,10 +42,9 @@ import { skills } from '@genkit-ai/middleware';
 const ai = genkit({ ... });
 
 const response = await ai.generate({
-  model: 'gemini-2.5-flash',
   prompt: 'How do I run tests in this repo?',
   use: [
-    skills({ skillsDir: './skills' })
+    skills({ skillPaths: ['./skills'] })
   ]
 });
 ```
@@ -62,7 +61,6 @@ const ai = genkit({ ... });
 
 // 1. Initial attempt
 const response = await ai.generate({
-  model: 'gemini-2.5-flash',
   prompt: 'write a file',
   tools: [writeFileTool],
   use: [
@@ -78,7 +76,6 @@ if (response.finishReason === 'interrupted') {
 
   // 3. Resume execution
   const resumedResponse = await ai.generate({
-    model: 'gemini-2.5-flash',
     messages: response.messages,
     resume: { restart: [approvedPart] }, 
     use: [
@@ -99,7 +96,7 @@ import { retry } from '@genkit-ai/middleware';
 const ai = genkit({ ... });
 
 const response = await ai.generate({
-  model: 'gemini-2.5-pro',
+  model: googleAI.model('gemini-pro-latest'),
   prompt: 'Heavy reasoning task...',
   use: [
     retry({
@@ -122,11 +119,11 @@ import { fallback } from '@genkit-ai/middleware';
 const ai = genkit({ ... });
 
 const response = await ai.generate({
-  model: 'gemini-2.5-pro',
+  model: googleAI.model('gemini-pro-latest'),
   prompt: 'Try the pro model first...',
   use: [
     fallback({
-      models: ['gemini-2.5-flash'], // try flash if pro fails
+      models: [googleAI.model('gemini-flash-latest')], // try flash if pro fails
       statuses: ['RESOURCE_EXHAUSTED']
     })
   ]
