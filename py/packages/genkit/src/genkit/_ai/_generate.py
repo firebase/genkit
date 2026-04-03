@@ -763,11 +763,18 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
+    """Resolve a tool from a registry name or a :class:`~genkit._ai._tools.Tool` handle.
+
+    Used when building :class:`~genkit._ai._model.ModelRequest` (e.g. from
+    :func:`~genkit._ai._prompt.to_generate_request`).
+    """
+    if isinstance(tool_ref, Tool):
+        return tool_ref.action
+
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_ref)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
     return tool
 
 

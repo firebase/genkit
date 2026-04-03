@@ -37,6 +37,11 @@ class Tool:
         self._action = action
 
     @property
+    def action(self) -> Action:
+        """Underlying TOOL :class:`~genkit._core._action.Action` registered for this tool."""
+        return self._action
+
+    @property
     def name(self) -> str:
         """Tool name (registry key)."""
         return self._action.name
@@ -68,41 +73,6 @@ class Tool:
     async def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         """Run the tool and return the unwrapped response value."""
         return (await self._action.run(*args, **kwargs)).response
-
-
-def _json_schema_root_is_scalar_or_array(schema: dict[str, object] | None) -> bool:
-    """Return True if the JSON Schema root is a scalar or array type."""
-    if not schema:
-        return False
-    t = schema.get('type')
-    if isinstance(t, str):
-        tl = t.lower()
-        return tl in ('string', 'number', 'integer', 'boolean', 'array')
-    return False
-
-
-def unwrap_wrapped_scalar_tool_input_if_needed(
-    input_payload: Any,  # noqa: ANN401 - wire JSON from model; schema varies per tool
-    input_schema: dict[str, object] | None,
-) -> Any:  # noqa: ANN401 - same payload after optional {"value": x} unwrap
-    """Unwrap ``{"value": x}`` before calling a tool whose JSON Schema root is scalar/array.
-
-    The Google Genai Gemini plugin wraps scalar/array roots as ``{"value": <schema>}``
-    at declaration time so the Gemini API accepts them. The model then sends arguments
-    in that same shape. This helper strips the wrapper so the tool handler receives the
-    bare value it was defined with.
-
-    Note: ``ToolRequest.input`` is NOT modified — this unwrap happens only at call time
-    so that message history keeps the original wire format (required for subsequent
-    Gemini turns where ``FunctionCall.args`` must be a dict).
-    """
-    if not _json_schema_root_is_scalar_or_array(input_schema):
-        return input_payload
-    if not isinstance(input_payload, dict):
-        return input_payload
-    if set(input_payload.keys()) != {'value'}:
-        return input_payload
-    return input_payload['value']
 
 
 class ToolRunContext(ActionRunContext):
@@ -207,7 +177,7 @@ def _define_tool(
         metadata_fn=func,
     )
     if input_schema is not None:
-        action._override_input_schema(input_schema)
+        action.override_input_schema(input_schema)
 
     return Tool(action)
 

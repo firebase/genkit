@@ -370,7 +370,8 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         def _or(opt_val: Any, default: Any) -> Any:  # noqa: ANN401
             return opt_val if opt_val is not None else default
 
-        prompt_options = PromptConfig(
+        # Pydantic PromptConfig (merged prompt + runtime opts). Not PromptGenerateOptions (TypedDict).
+        prompt_config = PromptConfig(
             model=opts.get('model') or self._model,
             prompt=self._prompt,
             system=self._system,
@@ -392,7 +393,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             tool_responses=opts.get('tool_responses'),
         )
 
-        model = prompt_options.model or self._registry.default_model
+        model = prompt_config.model or self._registry.default_model
         if model is None:
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
@@ -419,22 +420,22 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         opts_messages = opts.get('messages')
 
         # Render system prompt
-        if prompt_options.system:
+        if prompt_config.system:
             result = await render_system_prompt(
-                self._registry, render_input, prompt_options, self._cache_prompt, context
+                self._registry, render_input, prompt_config, self._cache_prompt, context
             )
             resolved_msgs.append(result)
 
         # Handle messages (matching JS behavior):
         # - If prompt has messages template: render it (opts.messages passed as history to resolvers)
         # - If prompt has no messages: use opts.messages directly
-        if prompt_options.messages:
+        if prompt_config.messages:
             # Prompt defines messages - render them (resolvers receive opts_messages as history)
             resolved_msgs.extend(
                 await render_message_prompt(
                     self._registry,
                     render_input,
-                    prompt_options,
+                    prompt_config,
                     self._cache_prompt,
                     context,
                     history=opts_messages,
@@ -445,38 +446,38 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             resolved_msgs.extend(opts_messages)
 
         # Render user prompt
-        if prompt_options.prompt:
-            result = await render_user_prompt(self._registry, render_input, prompt_options, self._cache_prompt, context)
+        if prompt_config.prompt:
+            result = await render_user_prompt(self._registry, render_input, prompt_config, self._cache_prompt, context)
             resolved_msgs.append(result)
 
         # If schema is set but format is not explicitly set, default to 'json' format
-        if prompt_options.output_schema and not prompt_options.output_format:
+        if prompt_config.output_schema and not prompt_config.output_format:
             output_format = 'json'
         else:
-            output_format = prompt_options.output_format
+            output_format = prompt_config.output_format
 
         # Build output config
         output = GenerateActionOutputConfig()
         if output_format:
             output.format = output_format
-        if prompt_options.output_content_type:
-            output.content_type = prompt_options.output_content_type
-        if prompt_options.output_instructions is not None:
-            output.instructions = prompt_options.output_instructions
-        _resolve_output_schema(self._registry, prompt_options.output_schema, output)
-        if prompt_options.output_constrained is not None:
-            output.constrained = prompt_options.output_constrained
+        if prompt_config.output_content_type:
+            output.content_type = prompt_config.output_content_type
+        if prompt_config.output_instructions is not None:
+            output.instructions = prompt_config.output_instructions
+        _resolve_output_schema(self._registry, prompt_config.output_schema, output)
+        if prompt_config.output_constrained is not None:
+            output.constrained = prompt_config.output_constrained
 
         resume_result = None
-        if prompt_options.tool_responses:
+        if prompt_config.tool_responses:
             tool_response_parts = [
-                r.root for r in prompt_options.tool_responses if isinstance(r.root, ToolResponsePart)
+                r.root for r in prompt_config.tool_responses if isinstance(r.root, ToolResponsePart)
             ]
             if tool_response_parts:
                 resume_result = Resume(respond=tool_response_parts)
 
         # Merge docs: opts.docs extends prompt docs
-        merged_docs = await render_docs(render_input, prompt_options, context)
+        merged_docs = await render_docs(render_input, prompt_config, context)
         opts_docs = opts.get('docs')
         if opts_docs:
             merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
@@ -484,12 +485,12 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         return GenerateActionOptions(
             model=model,
             messages=resolved_msgs,  # type: ignore[arg-type]
-            config=prompt_options.config,
-            tools=tools_to_action_names(prompt_options.tools),
-            return_tool_requests=prompt_options.return_tool_requests,
-            tool_choice=prompt_options.tool_choice,
+            config=prompt_config.config,
+            tools=tools_to_action_names(prompt_config.tools),
+            return_tool_requests=prompt_config.return_tool_requests,
+            tool_choice=prompt_config.tool_choice,
             output=output,
-            max_turns=prompt_options.max_turns,
+            max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
             resume=resume_result,
         )
