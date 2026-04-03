@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
@@ -35,8 +35,11 @@ from pydantic import BaseModel, ConfigDict
 
 from genkit._ai._generate import (
     generate_action,
+    resolve_tool,
     to_tool_definition,
+    tools_to_action_names,
 )
+from genkit._ai._tools import Tool
 from genkit._ai._model import (
     Message,
     ModelMiddleware,
@@ -59,7 +62,6 @@ from genkit._core._typing import (
     Role,
     TextPart,
     ToolChoice,
-    ToolRequestPart,
     ToolResponsePart,
 )
 
@@ -83,14 +85,6 @@ class OutputOptions(TypedDict, total=False):
     constrained: bool | None
 
 
-class ResumeOptions(TypedDict, total=False):
-    """Options for resuming generation after a tool interrupt."""
-
-    respond: ToolResponsePart | list[ToolResponsePart] | None
-    restart: ToolRequestPart | list[ToolRequestPart] | None
-    metadata: dict[str, Any] | None
-
-
 class PromptGenerateOptions(TypedDict, total=False):
     """Runtime options for prompt execution (config, tools, messages, etc.)."""
 
@@ -98,11 +92,11 @@ class PromptGenerateOptions(TypedDict, total=False):
     config: dict[str, Any] | ModelConfig | None
     messages: list[Message] | None
     docs: list[Document] | None
-    tools: list[str] | None
+    tools: Sequence[str | Tool] | None
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
-    resume: ResumeOptions | None
+    tool_responses: list[Part] | None
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
@@ -183,7 +177,7 @@ class PromptConfig(BaseModel):
     max_turns: int | None = None
     return_tool_requests: bool | None = None
     metadata: dict[str, Any] | None = None
-    tools: list[str] | None = None
+    tools: Sequence[str | Tool] | None = None
     tool_choice: ToolChoice | None = None
     use: list[ModelMiddleware] | None = None
     docs: list[Document] | None = None
@@ -213,7 +207,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         max_turns: int | None = None,
         return_tool_requests: bool | None = None,
         metadata: dict[str, Any] | None = None,
-        tools: list[str] | None = None,
+        tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[Document] | None = None,
@@ -395,6 +389,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             metadata=merged_metadata,
             docs=self._docs,
             resources=opts.get('resources') or self._resources,
+            tool_responses=opts.get('tool_responses'),
         )
 
         model = prompt_options.model or self._registry.default_model
@@ -472,13 +467,13 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         if prompt_options.output_constrained is not None:
             output.constrained = prompt_options.output_constrained
 
-        # Handle resume options
-        resume = None
-        resume_opts = opts.get('resume')
-        if resume_opts:
-            respond = resume_opts.get('respond')
-            if respond:
-                resume = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
+        resume_result = None
+        if prompt_options.tool_responses:
+            tool_response_parts = [
+                r.root for r in prompt_options.tool_responses if isinstance(r.root, ToolResponsePart)
+            ]
+            if tool_response_parts:
+                resume_result = Resume(respond=tool_response_parts)
 
         # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_options, context)
@@ -488,15 +483,15 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return GenerateActionOptions(
             model=model,
-            messages=resolved_msgs,
+            messages=resolved_msgs,  # type: ignore[arg-type]
             config=prompt_options.config,
-            tools=prompt_options.tools,
+            tools=tools_to_action_names(prompt_options.tools),
             return_tool_requests=prompt_options.return_tool_requests,
             tool_choice=prompt_options.tool_choice,
             output=output,
             max_turns=prompt_options.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
-            resume=resume,
+            resume=resume_result,
         )
 
     async def as_tool(self) -> Action:
@@ -653,16 +648,17 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     resume = None
     if options.tool_responses:
-        # Filter for only ToolResponsePart instances
         tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
         if tool_response_parts:
             resume = Resume(respond=tool_response_parts)
+
+    tools_refs = tools_to_action_names(options.tools)
 
     return GenerateActionOptions(
         model=model,
         messages=resolved_msgs,  # type: ignore[arg-type]
         config=options.config,
-        tools=options.tools,
+        tools=tools_refs,
         return_tool_requests=options.return_tool_requests,
         tool_choice=options.tool_choice,
         output=output,
@@ -676,11 +672,8 @@ async def to_generate_request(registry: Registry, options: GenerateActionOptions
     """Convert GenerateActionOptions to ModelRequest, resolving tool names."""
     tools: list[Action] = []
     if options.tools:
-        for tool_name in options.tools:
-            tool_action = await registry.resolve_action(ActionKind.TOOL, tool_name)
-            if tool_action is None:
-                raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
-            tools.append(tool_action)
+        for tool_ref in options.tools:
+            tools.append(await resolve_tool(registry, tool_ref))
 
     tool_defs = [to_tool_definition(tool) for tool in tools] if tools else []
 

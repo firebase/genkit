@@ -21,9 +21,8 @@ from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
     PromptGenerateOptions,
-    ResumeOptions,
 )
-from genkit._ai._tools import ToolInterruptError, ToolRunContext, tool_response
+from genkit._ai._tools import Tool, ToolInterruptError, ToolRunContext, tool_response
 from genkit._core._action import Action, StreamResponse
 from genkit._core._error import GenkitError, PublicError
 from genkit._core._model import Document
@@ -93,7 +92,9 @@ __all__ = [
     # Errors
     'GenkitError',
     'PublicError',
+    'Tool',
     'ToolInterruptError',
+    'tool_response',
     # Content types
     'Constrained',
     'CustomPart',
@@ -126,9 +127,7 @@ __all__ = [
     'ActionRunContext',
     'ExecutablePrompt',
     'PromptGenerateOptions',
-    'ResumeOptions',
     'ToolRunContext',
-    'tool_response',
     'ModelRequest',
     'ModelResponse',
     'ModelResponseChunk',

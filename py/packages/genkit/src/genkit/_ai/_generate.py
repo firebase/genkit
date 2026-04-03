@@ -21,7 +21,7 @@ import contextlib
 import copy
 import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
+from genkit._ai._tools import Tool, ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -59,6 +59,25 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+def tools_to_action_names(
+    tools: Sequence[str | Tool] | None,
+) -> list[str] | None:
+    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
+
+    Each item may be a tool name (``str``) or a :class:`~genkit._ai._tools.Tool` from
+    :func:`~genkit._ai._tools.define_tool` / ``@ai.tool``.
+    """
+    if tools is None:
+        return None
+    names: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            names.append(t)
+        else:
+            names.append(t.name)
+    return names
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
