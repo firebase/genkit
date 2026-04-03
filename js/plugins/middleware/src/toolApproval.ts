@@ -44,7 +44,8 @@ export const toolApproval: GenerateMiddleware<
     return {
       tool: async (req, ctx, next) => {
         // Access approval via tool request metadata (set by restartTool)
-        const isApproved = (req.metadata?.resumed as any)?.toolApproved === true;
+        const isApproved =
+          (req.metadata?.resumed as any)?.toolApproved === true;
 
         if (!approvedTools.includes(req.toolRequest.name) && !isApproved) {
           throw new ToolInterruptError({
