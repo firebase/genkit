@@ -18,11 +18,21 @@
 
 import inspect
 from collections.abc import Callable
+from contextvars import ContextVar
 from typing import Any, NoReturn, cast
 
+from pydantic import BaseModel
+
 from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._core._error import GenkitError
 from genkit._core._registry import Registry
-from genkit._core._typing import ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
+from genkit._core._typing import (
+    ToolDefinition,
+    ToolRequest,
+    ToolRequestPart,
+    ToolResponse,
+    ToolResponsePart,
+)
 
 
 class Tool:
@@ -244,7 +254,7 @@ async def run_tool_after_restart(tool: Action[Any, Any, Any], restart_trp: ToolR
         try:
             tool_response = (await tool.run(restart_trp.tool_request.input)).response
         except GenkitError as e:
-            if e.cause and isinstance(e.cause, Interrupt):
+            if e.cause and isinstance(e.cause, ToolInterruptError):
                 raise GenkitError(
                     status='FAILED_PRECONDITION',
                     message='Tool interrupted again during a restart execution; not supported yet.',
