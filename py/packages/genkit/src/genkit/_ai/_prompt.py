@@ -470,9 +470,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         resume_result = None
         if prompt_config.tool_responses:
-            tool_response_parts = [
-                r.root for r in prompt_config.tool_responses if isinstance(r.root, ToolResponsePart)
-            ]
+            tool_response_parts = [r.root for r in prompt_config.tool_responses if isinstance(r.root, ToolResponsePart)]
             if tool_response_parts:
                 resume_result = Resume(respond=tool_response_parts)
 
