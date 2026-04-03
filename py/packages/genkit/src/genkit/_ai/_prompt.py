@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable, Mapping
+from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
@@ -112,26 +112,6 @@ class PromptGenerateOptions(TypedDict, total=False):
     step_name: str | None
     metadata: dict[str, Any] | None
 
-
-_PROMPT_GENERATE_OPTION_KEYS: frozenset[str] = frozenset(PromptGenerateOptions.__annotations__)
-
-
-def _coerce_prompt_opts(opts: Mapping[str, Any]) -> PromptGenerateOptions:
-    """Build effective opts from a kwargs mapping: drop keys whose value is None.
-
-    Rejects unknown keys at runtime (Unpack only enforces this for type checkers).
-    """
-    raw = dict(opts)
-    unknown = set(raw) - _PROMPT_GENERATE_OPTION_KEYS
-    if unknown:
-        if 'opts' in unknown:
-            raise TypeError(
-                'Passing a combined `opts` dict is not supported; use keyword arguments '
-                '(e.g. model=..., config=...) matching PromptGenerateOptions.'
-            )
-        sorted_unknown = ', '.join(sorted(unknown))
-        raise TypeError(f'Unexpected keyword arguments for prompt execution: {sorted_unknown}')
-    return cast(PromptGenerateOptions, {k: v for k, v in raw.items() if v is not None})
 
 
 class ModelStreamResponse(Generic[OutputT]):
@@ -325,8 +305,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Args:
             input: Template variables for rendering.
         """
-        effective_opts = _coerce_prompt_opts(opts)
-        return await self._call_impl(input, effective_opts)
+        return await self._call_impl(input, cast(PromptGenerateOptions, opts))
 
     async def _call_impl(
         self,
@@ -511,10 +490,9 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         **opts: Unpack[PromptGenerateOptions],
     ) -> ModelStreamResponse[OutputT]:
         """Stream the prompt execution, returning (stream, response_future)."""
-        effective_opts = _coerce_prompt_opts(opts)
         channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
         stream_opts: PromptGenerateOptions = {
-            **effective_opts,
+            **cast(PromptGenerateOptions, opts),
             'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
         }
         resp = self._call_impl(input, stream_opts)
@@ -533,8 +511,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Same keyword options as ``__call__`` (see PromptGenerateOptions).
         """
         await self._ensure_resolved()
-        coerced = _coerce_prompt_opts(opts)
-        return await self._render_impl(input, coerced)
+        return await self._render_impl(input, cast(PromptGenerateOptions, opts))
 
     async def as_tool(self) -> Action:
         """Expose this prompt as a tool.
