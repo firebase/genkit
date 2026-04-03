@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
@@ -32,6 +32,7 @@ from dotpromptz.typing import (
     PromptMetadata,
 )
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import Unpack
 
 from genkit._ai._generate import (
     generate_action,
@@ -110,6 +111,27 @@ class PromptGenerateOptions(TypedDict, total=False):
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
+
+
+_PROMPT_GENERATE_OPTION_KEYS: frozenset[str] = frozenset(PromptGenerateOptions.__annotations__)
+
+
+def _coerce_prompt_opts(opts: Mapping[str, Any]) -> PromptGenerateOptions:
+    """Build effective opts from a kwargs mapping: drop keys whose value is None.
+
+    Rejects unknown keys at runtime (Unpack only enforces this for type checkers).
+    """
+    raw = dict(opts)
+    unknown = set(raw) - _PROMPT_GENERATE_OPTION_KEYS
+    if unknown:
+        if 'opts' in unknown:
+            raise TypeError(
+                'Passing a combined `opts` dict is not supported; use keyword arguments '
+                '(e.g. model=..., config=...) matching PromptGenerateOptions.'
+            )
+        sorted_unknown = ', '.join(sorted(unknown))
+        raise TypeError(f'Unexpected keyword arguments for prompt execution: {sorted_unknown}')
+    return cast(PromptGenerateOptions, {k: v for k, v in raw.items() if v is not None})
 
 
 class ModelStreamResponse(Generic[OutputT]):
@@ -295,60 +317,42 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
     async def __call__(
         self,
-        input: InputT | None = None,
-        opts: PromptGenerateOptions | None = None,
+        input: InputT | dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
     ) -> ModelResponse[OutputT]:
-        """Execute the prompt and return the response."""
+        """Execute the prompt and return the response.
+
+        Args:
+            input: Template variables for rendering.
+        """
+        effective_opts = _coerce_prompt_opts(opts)
+        return await self._call_impl(input, effective_opts)
+
+    async def _call_impl(
+        self,
+        input: InputT | dict[str, Any] | None,
+        opts: PromptGenerateOptions,
+    ) -> ModelResponse[OutputT]:
+        """Execute the prompt with resolved opts. Used by __call__ and stream."""
         await self._ensure_resolved()
-        effective_opts: PromptGenerateOptions = opts if opts else {}
-
-        # Extract streaming callback and middleware from opts
-        on_chunk = effective_opts.get('on_chunk')
-        middleware = effective_opts.get('use') or self._use
-        context = effective_opts.get('context')
-
+        on_chunk = opts.get('on_chunk')
+        middleware = opts.get('use') or self._use
+        context = opts.get('context')
         result = await generate_action(
             self._registry,
-            await self.render(input=input, opts=effective_opts),
+            await self._render_impl(input, opts),
             on_chunk=on_chunk,
             middleware=middleware,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
-        # Cast to preserve the generic type parameter
         return cast(ModelResponse[OutputT], result)
 
-    def stream(
+    async def _render_impl(
         self,
-        input: InputT | None = None,
-        opts: PromptGenerateOptions | None = None,
-        *,
-        timeout: float | None = None,
-    ) -> ModelStreamResponse[OutputT]:
-        """Stream the prompt execution, returning (stream, response_future)."""
-        effective_opts: PromptGenerateOptions = opts if opts else {}
-        channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
-
-        # Create a copy of opts with the streaming callback
-        stream_opts: PromptGenerateOptions = {
-            **effective_opts,
-            'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
-        }
-
-        resp = self.__call__(input=input, opts=stream_opts)
-        response_future: asyncio.Future[ModelResponse[OutputT]] = asyncio.create_task(resp)
-        channel.set_close_future(response_future)
-
-        return ModelStreamResponse[OutputT](channel=channel, response_future=response_future)
-
-    async def render(
-        self,
-        input: InputT | dict[str, Any] | None = None,
-        opts: PromptGenerateOptions | None = None,
+        input: InputT | dict[str, Any] | None,
+        opts: PromptGenerateOptions,
     ) -> GenerateActionOptions:
-        """Render the prompt template without executing, returning GenerateActionOptions."""
-        await self._ensure_resolved()
-        if opts is None:
-            opts = cast(PromptGenerateOptions, {})
+        """Render the prompt with resolved opts. Used by render() and _call_impl."""
         output_opts = opts.get('output') or {}
         context = opts.get('context')
 
@@ -498,6 +502,39 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             docs=merged_docs,  # type: ignore[arg-type]
             resume=resume,
         )
+
+    def stream(
+        self,
+        input: InputT | dict[str, Any] | None = None,
+        *,
+        timeout: float | None = None,
+        **opts: Unpack[PromptGenerateOptions],
+    ) -> ModelStreamResponse[OutputT]:
+        """Stream the prompt execution, returning (stream, response_future)."""
+        effective_opts = _coerce_prompt_opts(opts)
+        channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
+        stream_opts: PromptGenerateOptions = {
+            **effective_opts,
+            'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
+        }
+        resp = self._call_impl(input, stream_opts)
+        response_future: asyncio.Future[ModelResponse[OutputT]] = asyncio.create_task(resp)
+        channel.set_close_future(response_future)
+
+        return ModelStreamResponse[OutputT](channel=channel, response_future=response_future)
+
+    async def render(
+        self,
+        input: InputT | dict[str, Any] | None = None,
+        **opts: Unpack[PromptGenerateOptions],
+    ) -> GenerateActionOptions:
+        """Render the prompt template without executing, returning GenerateActionOptions.
+
+        Same keyword options as ``__call__`` (see PromptGenerateOptions).
+        """
+        await self._ensure_resolved()
+        coerced = _coerce_prompt_opts(opts)
+        return await self._render_impl(input, coerced)
 
     async def as_tool(self) -> Action:
         """Expose this prompt as a tool.
