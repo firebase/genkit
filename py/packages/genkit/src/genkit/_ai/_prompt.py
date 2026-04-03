@@ -304,7 +304,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Args:
             input: Template variables for rendering.
         """
-        return await self._call_impl(input, opts)
+        return await self._call_impl(input, opts)  # ty: ignore[invalid-argument-type]  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
 
     async def _call_impl(
         self,
@@ -491,7 +491,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         """Stream the prompt execution, returning (stream, response_future)."""
         channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
         stream_opts: PromptGenerateOptions = {
-            **opts,
+            **opts,  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
             'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
         }
         resp = self._call_impl(input, stream_opts)
@@ -510,7 +510,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Same keyword options as ``__call__`` (see PromptGenerateOptions).
         """
         await self._ensure_resolved()
-        return await self._render_impl(input, opts)
+        return await self._render_impl(input, opts)  # ty: ignore[invalid-argument-type]  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
 
     async def as_tool(self) -> Action:
         """Expose this prompt as a tool.
