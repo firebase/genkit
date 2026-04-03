@@ -18,7 +18,6 @@ from genkit import (
     Message,
     ModelResponse,
     ModelResponseChunk,
-    Resume,
     ToolRunContext,
     tool_response,
 )
@@ -583,7 +582,7 @@ async def test_generate_with_interrupt_respond(
     response = await ai.generate(
         model='programmableModel',
         messages=interrupted_response.messages,
-        resume=Resume(respond=[tool_response(interrupted_response.interrupts[0], {'bar': 2}).root]),
+        tool_responses=[tool_response(interrupted_response.interrupts[0], {'bar': 2})],
         tools=['test_tool', 'test_interrupt'],
     )
 

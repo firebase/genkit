@@ -22,7 +22,6 @@ from pydantic import BaseModel, Field
 
 from genkit import (
     Genkit,
-    Resume,
     ToolRunContext,
     tool_response,
 )
@@ -107,7 +106,7 @@ async def main() -> None:
                 tr = tool_response(request, input('Your answer (number): '))
                 response = await ai.generate(
                     messages=messages,
-                    resume=Resume(respond=[tr.root]),
+                    tool_responses=[tr],
                     tools=['present_questions'],
                 )
                 messages = response.messages

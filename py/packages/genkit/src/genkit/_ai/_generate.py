@@ -764,10 +764,9 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
 
 
 async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
-    """Resolve a tool from a registry name or a :class:`~genkit._ai._tools.Tool` handle.
+    """Resolve a tool from a registry name or a Tool instance.
 
-    Used when building :class:`~genkit._ai._model.ModelRequest` (e.g. from
-    :func:`~genkit._ai._prompt.to_generate_request`).
+    Used when building ModelRequest (for example from to_generate_request).
     """
     if isinstance(tool_ref, Tool):
         return tool_ref.action
