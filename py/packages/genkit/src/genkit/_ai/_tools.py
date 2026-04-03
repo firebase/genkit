@@ -30,7 +30,7 @@ T = TypeVar('T')
 
 
 def _check_tool_input_schema_is_object(name: str, schema: dict[str, object] | None) -> None:
-    """Raise unless the tool input schema is empty ``{}`` or ``type: \"object\"``.
+    r"""Raise unless the tool input schema is empty ``{}`` or ``type: \"object\"``.
 
     Only ``{}`` is accepted for empty input (zero-arg tools use Pydantic's
     ``TypeAdapter(object).json_schema()``, which is ``{}``). Any non-empty
@@ -48,7 +48,7 @@ def _check_tool_input_schema_is_object(name: str, schema: dict[str, object] | No
     if isinstance(t, list):
         raise ValueError(
             f"Tool '{name}' uses a JSON Schema union for root ``type`` ({t!r}). "
-            'Use root ``type: \"object\"`` only, or ``{{}}`` for no input.'
+            'Use root ``type: "object"`` only, or ``{{}}`` for no input.'
         )
     if isinstance(t, str) and t.lower() == 'object':
         return
