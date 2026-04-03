@@ -36,7 +36,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError, unwrap_wrapped_scalar_tool_input_if_needed
+from genkit._ai._tools import Interrupt, Tool, run_tool_after_restart
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -704,12 +704,7 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
 async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
     """Execute a tool and return (response_part, interrupt_part)."""
     try:
-        tool_in = unwrap_wrapped_scalar_tool_input_if_needed(
-            tool_request_part.tool_request.input,
-            tool.input_schema,
-        )
-        tool_response = (await tool.run(tool_in)).response
-        # Part is a RootModel, so we pass content via 'root' parameter
+        tool_response = (await tool.run(tool_request_part.tool_request.input)).response
         return (
             Part(
                 root=ToolResponsePart(

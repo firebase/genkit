@@ -1079,15 +1079,6 @@ class GeminiModel:
         # Empty params: Gemini requires type=OBJECT even for no-arg tools.
         if not params:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
-        # Gemini rejects scalar/array root schemas. Tool params must be OBJECT with
-        # properties. LLMs always send {"key": value} — wrap scalar/array in {"value": <schema>}.
-        elif self._is_scalar_or_array_root(params):
-            params = genai_types.Schema(
-                type=genai_types.Type.OBJECT,
-                properties={'value': params},
-                required=['value'],
-                description=params.description,
-            )
 
         function = genai_types.FunctionDeclaration(
             name=tool.name,
@@ -1096,23 +1087,6 @@ class GeminiModel:
             response=self._convert_schema_property(tool.output_schema) if tool.output_schema else None,
         )
         return genai_types.Tool(function_declarations=[function])
-
-    @staticmethod
-    def _is_scalar_or_array_root(schema: genai_types.Schema | None) -> bool:
-        """True if schema root is scalar or array (Gemini rejects these for tool params)."""
-        if not schema or not schema.type:
-            return False
-        t = schema.type
-        scalar_or_array = {
-            genai_types.Type.STRING,
-            genai_types.Type.NUMBER,
-            genai_types.Type.INTEGER,
-            genai_types.Type.BOOLEAN,
-            genai_types.Type.ARRAY,
-        }
-        if t not in scalar_or_array:
-            return False
-        return True
 
     def _convert_schema_property(
         self, input_schema: dict[str, object] | None, defs: dict[str, object] | None = None
