@@ -379,7 +379,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         def _or(opt_val: Any, default: Any) -> Any:  # noqa: ANN401
             return opt_val if opt_val is not None else default
 
-        # Pydantic PromptConfig (merged prompt + runtime opts). Not PromptGenerateOptions (TypedDict).
         prompt_config = PromptConfig(
             model=opts.get('model') or self._model,
             prompt=self._prompt,
@@ -477,12 +476,12 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output.constrained = prompt_config.output_constrained
 
         # Handle resume options
-        resume_result = None
+        resume = None
         resume_opts = opts.get('resume')
         if resume_opts:
             respond = resume_opts.get('respond')
             if respond:
-                resume_result = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
+                resume = Resume(respond=respond) if isinstance(respond, list) else Resume(respond=[respond])
 
         # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_config, context)
@@ -492,7 +491,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return GenerateActionOptions(
             model=model,
-            messages=resolved_msgs,  # type: ignore[arg-type]
+            messages=resolved_msgs,
             config=prompt_config.config,
             tools=tools_to_action_names(prompt_config.tools),
             return_tool_requests=prompt_config.return_tool_requests,
@@ -500,7 +499,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output=output,
             max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
-            resume=resume_result,
+            resume=resume,
         )
 
     async def as_tool(self) -> Action:
@@ -657,6 +656,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
 
     resume = None
     if options.tool_responses:
+        # Filter for only ToolResponsePart instances
         tool_response_parts = [r.root for r in options.tool_responses if isinstance(r.root, ToolResponsePart)]
         if tool_response_parts:
             resume = Resume(respond=tool_response_parts)

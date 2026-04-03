@@ -64,11 +64,7 @@ logger = get_logger(__name__)
 def tools_to_action_names(
     tools: Sequence[str | Tool] | None,
 ) -> list[str] | None:
-    """Normalize tool arguments to registry names for :class:`GenerateActionOptions`.
-
-    Each item may be a tool name (``str``) or a :class:`~genkit._ai._tools.Tool` from
-    :func:`~genkit._ai._tools.define_tool` / ``@ai.tool``.
-    """
+    """Normalize tool arguments to registry tool name strings for GenerateActionOptions."""
     if tools is None:
         return None
     names: list[str] = []
