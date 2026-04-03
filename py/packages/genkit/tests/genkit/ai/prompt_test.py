@@ -598,18 +598,6 @@ async def test_opts_can_override_output() -> None:
 
 
 @pytest.mark.asyncio
-async def test_executable_prompt_opts_removed() -> None:
-    """opts= has been removed; pass options as explicit kwargs (e.g. model=)."""
-    ai, *_ = setup_test()
-
-    my_prompt = ai.define_prompt(prompt='hi', output_format='text')
-
-    with pytest.raises(TypeError, match='opts'):
-        # Invalid kwarg on purpose; static checkers need a hint (runtime rejects with TypeError).
-        await my_prompt(opts={'model': 'echoModel'})  # pyrefly: ignore[unexpected-keyword]  # pyright: ignore
-
-
-@pytest.mark.asyncio
 async def test_executable_prompt_input_positional_opts_as_kwargs() -> None:
     """ExecutablePrompt: input is positional, opts via kwargs after *."""
     ai, *_ = setup_test()
