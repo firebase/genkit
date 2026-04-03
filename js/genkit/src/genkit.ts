@@ -360,7 +360,7 @@ export class Genkit implements HasRegistry {
       `${name}${options?.variant ? `.${options?.variant}` : ''}`,
       prompt(this.registry, name, {
         ...options,
-        dir: this.options.promptDir ?? './prompts',
+        dir: this.options.promptDir === undefined ? './prompts' : this.options.promptDir,
       })
     );
   }

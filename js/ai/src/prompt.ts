@@ -875,7 +875,7 @@ export async function prompt<
 >(
   registry: Registry,
   name: string,
-  options?: { variant?: string; dir?: string }
+  options?: { variant?: string; dir?: string | null }
 ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
   return await lookupPrompt<I, O, CustomOptions>(
     registry,
