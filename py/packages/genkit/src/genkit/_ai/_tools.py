@@ -28,39 +28,37 @@ from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolRespons
 P = ParamSpec('P')
 T = TypeVar('T')
 
-_SCALAR_TYPES = frozenset(('string', 'number', 'integer', 'boolean', 'array'))
-
 
 def _check_tool_input_schema_is_object(name: str, schema: dict[str, object] | None) -> None:
-    """Raise if the tool input schema root is a scalar or array type.
+    """Raise unless the tool input schema is empty ``{}`` or ``type: \"object\"``.
 
-    All Genkit tools must declare an object schema at the root. This keeps
-    tool definitions portable across model providers (e.g. Gemini rejects
-    scalar/array roots) and ensures every parameter has a meaningful field name
-    and description that the model can use.
-
-    Wrap scalars in a Pydantic model or TypedDict:
-
-        class MyInput(BaseModel):
-            city: str  # The city to look up weather for
+    Only ``{}`` is accepted for empty input (zero-arg tools use Pydantic's
+    ``TypeAdapter(object).json_schema()``, which is ``{}``). Any non-empty
+    schema must have root ``type`` as the string ``object`` — not a list
+    (no ``[\"object\", \"null\"]`` or other unions).
 
     Raises:
-        ValueError: If the root type is a scalar or array.
+        ValueError: If the schema is non-empty and not root object type.
     """
     if not schema:
         return
+    if schema == {}:
+        return
     t = schema.get('type')
     if isinstance(t, list):
-        t = next((item for item in t if item != 'null'), None)
-    if isinstance(t, str) and t.lower() in _SCALAR_TYPES:
         raise ValueError(
-            f"Tool '{name}' has a {t!r} input schema. "
-            'Tool inputs must be an object type. '
-            'Wrap your parameter in a Pydantic model or TypedDict with a '
-            'descriptive field name, e.g.:\n'
-            '  class MyInput(BaseModel):\n'
-            '      value: <your_type>  # add a meaningful description here'
+            f"Tool '{name}' uses a JSON Schema union for root ``type`` ({t!r}). "
+            'Use root ``type: \"object\"`` only, or ``{{}}`` for no input.'
         )
+    if isinstance(t, str) and t.lower() == 'object':
+        return
+    raise ValueError(
+        f"Tool '{name}' has root JSON Schema type {t!r}. "
+        "Tool inputs must use ``type: 'object'`` at the root, or ``{{}}`` for no input. "
+        'Example:\n'
+        '  class MyInput(BaseModel):\n'
+        '      city: str  # describe the field for the model'
+    )
 
 
 class ToolRunContext(ActionRunContext):
