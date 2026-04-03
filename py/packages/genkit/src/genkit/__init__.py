@@ -21,6 +21,7 @@ from genkit._ai._prompt import (
     ExecutablePrompt,
     ModelStreamResponse,
     PromptGenerateOptions,
+    ResumeOptions,
 )
 from genkit._ai._tools import Tool, ToolInterruptError, ToolRunContext, tool_response
 from genkit._core._action import Action, StreamResponse
@@ -127,6 +128,7 @@ __all__ = [
     'ActionRunContext',
     'ExecutablePrompt',
     'PromptGenerateOptions',
+    'ResumeOptions',
     'ToolRunContext',
     'ModelRequest',
     'ModelResponse',

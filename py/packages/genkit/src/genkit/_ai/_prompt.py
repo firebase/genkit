@@ -56,12 +56,14 @@ from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
     GenerateActionOutputConfig,
+    Metadata,
     OutputConfig,
     Part,
     Resume,
     Role,
     TextPart,
     ToolChoice,
+    ToolRequestPart,
     ToolResponsePart,
 )
 
@@ -85,6 +87,14 @@ class OutputOptions(TypedDict, total=False):
     constrained: bool | None
 
 
+class ResumeOptions(TypedDict, total=False):
+    """Resume data for prompt generation (mirrors :class:`Resume`)."""
+
+    respond: list[ToolResponsePart] | ToolResponsePart | None
+    restart: list[ToolRequestPart] | ToolRequestPart | None
+    metadata: Metadata | None
+
+
 class PromptGenerateOptions(TypedDict, total=False):
     """Runtime options for prompt execution (config, tools, messages, etc.)."""
 
@@ -96,7 +106,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     resources: list[str] | None
     tool_choice: ToolChoice | None
     output: OutputOptions | None
-    tool_responses: list[Part] | None
+    resume: ResumeOptions | None
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
@@ -390,7 +400,6 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             metadata=merged_metadata,
             docs=self._docs,
             resources=opts.get('resources') or self._resources,
-            tool_responses=opts.get('tool_responses'),
         )
 
         model = prompt_config.model or self._registry.default_model
@@ -469,10 +478,20 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output.constrained = prompt_config.output_constrained
 
         resume_result = None
-        if prompt_config.tool_responses:
-            tool_response_parts = [r.root for r in prompt_config.tool_responses if isinstance(r.root, ToolResponsePart)]
-            if tool_response_parts:
-                resume_result = Resume(respond=tool_response_parts)
+        resume_opts = opts.get('resume')
+        if resume_opts:
+            respond = resume_opts.get('respond')
+            restart = resume_opts.get('restart')
+            metadata = resume_opts.get('metadata')
+            resume_kwargs: dict[str, Any] = {}
+            if respond:
+                resume_kwargs['respond'] = respond if isinstance(respond, list) else [respond]
+            if restart:
+                resume_kwargs['restart'] = restart if isinstance(restart, list) else [restart]
+            if metadata is not None:
+                resume_kwargs['metadata'] = metadata
+            if resume_kwargs:
+                resume_result = Resume(**resume_kwargs)
 
         # Merge docs: opts.docs extends prompt docs
         merged_docs = await render_docs(render_input, prompt_config, context)
