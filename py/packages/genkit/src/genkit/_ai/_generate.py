@@ -704,6 +704,7 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
 async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
     """Execute a tool and return (response_part, interrupt_part)."""
     try:
+        # Part is a RootModel, so we pass content via 'root' parameter
         tool_response = (await tool.run(tool_request_part.tool_request.input)).response
         return (
             Part(
