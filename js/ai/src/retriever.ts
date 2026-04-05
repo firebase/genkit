@@ -40,9 +40,9 @@ export type IndexerFn<IndexerOptions extends z.ZodTypeAny> = (
 ) => Promise<void>;
 
 const RetrieverRequestSchema = z.object({
-  query: DocumentDataSchema,
-  options: z.undefined(),
-});
+   query: DocumentDataSchema,
+   options: z.unknown().optional(),
+ });
 
 const RetrieverResponseSchema = z.object({
   documents: z.array(DocumentDataSchema),
@@ -51,9 +51,9 @@ const RetrieverResponseSchema = z.object({
 type RetrieverResponse = z.infer<typeof RetrieverResponseSchema>;
 
 const IndexerRequestSchema = z.object({
-  documents: z.array(DocumentDataSchema),
-  options: z.undefined(),
-});
+   documents: z.array(DocumentDataSchema),
+   options: z.unknown().optional(),
+ });
 
 /**
  * Zod schema of retriever info metadata.
@@ -270,13 +270,7 @@ export async function retrieve<CustomOptions extends z.ZodTypeAny>(
     throw new Error('Unable to resolve the retriever');
   }
 
-  // Validate options using the retriever's configSchema if available
-  if (retriever.__configSchema) {
-    const result = retriever.__configSchema.safeParse(params.options);
-    if (!result.success) {
-      throw new Error(`Invalid retriever options: ${result.error.message}`);
-    }
-  }
+
 
   const response = await retriever({
     query:
@@ -325,13 +319,7 @@ export async function index<CustomOptions extends z.ZodTypeAny>(
     throw new Error('Unable to utilize the provided indexer');
   }
 
-  // Validate options using the indexer's configSchema if available
-  if (indexer.__configSchema) {
-    const result = indexer.__configSchema.safeParse(params.options);
-    if (!result.success) {
-      throw new Error(`Invalid indexer options: ${result.error.message}`);
-    }
-  }
+
 
   return await indexer({
     documents: params.documents,
