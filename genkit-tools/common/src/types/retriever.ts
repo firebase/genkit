@@ -24,9 +24,9 @@ import { DocumentDataSchema } from './document';
  * Zod schema for retriever request.
  */
 export const RetrieverRequestSchema = z.object({
-   query: DocumentDataSchema,
-   options: z.unknown().optional(),
- });
+  query: DocumentDataSchema,
+  options: z.undefined(),
+});
 export type RetrieverRequest = z.infer<typeof RetrieverRequestSchema>;
 
 /**
