@@ -34,9 +34,8 @@ from genkit._ai._testing import (
     define_programmable_model,
 )
 from genkit._core._action import ActionKind
-from genkit._core._model import ModelConfig, ModelRequest
+from genkit._core._model import GenerateActionOptions, ModelConfig, ModelRequest
 from genkit._core._typing import (
-    GenerateActionOptions,
     Part,
     Role,
     TextPart,

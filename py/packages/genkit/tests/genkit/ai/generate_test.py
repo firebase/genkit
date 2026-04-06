@@ -23,14 +23,15 @@ from genkit._ai._testing import (
     define_programmable_model,
 )
 from genkit._core._action import ActionRunContext
-from genkit._core._model import ModelRequest
+from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     FinishReason,
-    GenerateActionOptions,
     Part,
     Role,
     TextPart,
+    ToolRequest,
+    ToolRequestPart,
 )
 
 
@@ -369,6 +370,72 @@ async def test_generate_middleware_can_modify_stream(
         'intercepted: 3',
         'something extra after',
     ]
+
+
+@pytest.mark.asyncio
+async def test_parallel_tool_requests_all_complete() -> None:
+    """Multiple tool requests in one model turn are resolved together (asyncio.gather); all succeed."""
+    ai = Genkit()
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='tool_a')
+    async def tool_a() -> str:
+        return 'a_ok'
+
+    @ai.tool(name='tool_b')
+    async def tool_b() -> str:
+        return 'b_ok'
+
+    @ai.tool(name='tool_c')
+    async def tool_c() -> str:
+        return 'c_ok'
+
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(
+                role=Role.MODEL,
+                content=[
+                    Part(TextPart(text='call three')),
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='tool_a', ref='ref-a', input={}),
+                        )
+                    ),
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='tool_b', ref='ref-b', input={}),
+                        )
+                    ),
+                    Part(
+                        root=ToolRequestPart(
+                            tool_request=ToolRequest(name='tool_c', ref='ref-c', input={}),
+                        )
+                    ),
+                ],
+            ),
+        )
+    )
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(TextPart(text='after_tools'))]),
+        )
+    )
+
+    response = await generate_action(
+        ai.registry,
+        GenerateActionOptions(
+            model='programmableModel',
+            messages=[
+                Message(role=Role.USER, content=[Part(TextPart(text='hi'))]),
+            ],
+            tools=['tool_a', 'tool_b', 'tool_c'],
+        ),
+    )
+
+    assert response.finish_reason == FinishReason.STOP
+    assert response.text == 'after_tools'
 
 
 ##########################################################################

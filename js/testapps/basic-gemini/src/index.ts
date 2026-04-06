@@ -42,6 +42,48 @@ const ai = genkit({
   ],
 });
 
+ai.defineFlow('maps-grounding', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-3.1-pro-preview'),
+    prompt: 'Describe some sights near me',
+    config: {
+      tools: [
+        {
+          googleMaps: { enableWidget: true },
+        },
+      ],
+      retrievalConfig: {
+        latLng: {
+          latitude: 43.0896,
+          longitude: -79.0849,
+        },
+      },
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+ai.defineFlow('combine tools and builtins', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-3-flash-preview'),
+    prompt:
+      'What is the southernmost city in Canada? What is the weather like there today? Use the getWeather tool.',
+    config: {
+      tools: [{ googleSearch: {} }],
+      toolConfig: {
+        includeServerSideToolInvocations: true,
+      },
+    },
+    tools: [getWeather],
+  });
+
+  return text;
+});
+
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-flash-lite-latest'),
@@ -448,7 +490,6 @@ ai.defineFlow('gemini-image-editing', async (_) => {
       { media: { url: `data:image/png;base64,${room}` } },
     ],
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:1',
       },
@@ -464,7 +505,6 @@ ai.defineFlow('nano-banana-pro', async (_) => {
     model: googleAI.model('gemini-3-pro-image-preview'),
     prompt: 'Generate a picture of a sunset in the mountains by a lake',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '3:4',
         imageSize: '1K',
@@ -482,10 +522,9 @@ ai.defineFlow('nano-banana-2', async (_) => {
     prompt:
       'Generate an accurate image of the CN Tower. Use webSearch to determine the date, weather and current time in Toronto. The weather and time should be reflected in the image (day, night, rainy, sunny, snowy etc). Also use words to show the date, time and weather on the image.',
     config: {
-      responseModalities: ['TEXT', 'IMAGE'],
       imageConfig: {
         aspectRatio: '1:4',
-        imageSize: '0.5K',
+        imageSize: '512P',
       },
       google_search: {
         searchTypes: { webSearch: {}, imageSearch: {} },
@@ -526,7 +565,6 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
-        responseModalities: ['AUDIO'],
         // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
         speechConfig: {
           voiceConfig: {
@@ -579,23 +617,23 @@ async function toWav(
 
 // An example of using Ver 3 model to make a static photo move.
 ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
-  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+  const startingImage = fs.readFileSync('woman.png', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.1-fast-generate-preview'),
+    model: googleAI.model('veo-3.1-lite-generate-preview'),
     prompt: [
       {
         text: 'make the subject in the photo move',
       },
       {
         media: {
-          contentType: 'image/jpeg',
-          url: `data:image/jpeg;base64,${startingImage}`,
+          contentType: 'image/png',
+          url: `data:image/png;base64,${startingImage}`,
         },
       },
     ],
     config: {
-      resolution: '4k',
+      resolution: '1080p',
       durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
@@ -621,6 +659,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
+    sendChunk(operation);
     throw new Error('Failed to find the generated video');
   }
   sendChunk('Writing results to photo.mp4');
@@ -962,4 +1001,121 @@ ai.defineFlow('deep-research-cancel', async (_, { sendChunk }) => {
   sendChunk('Operation cancelled');
 
   return JSON.stringify(canceledOp, null, 2);
+});
+
+// Lyria music generation
+ai.defineFlow('lyria-instrumental-clip', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-clip-preview'),
+    prompt:
+      'A bright chiptune melody in C Major, retro 8-bit video game style. Instrumental only, no vocals.',
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-music-generation', async () => {
+  const { media, text } = await ai.generate({
+    model: googleAI.model('lyria-3-clip-preview'),
+    prompt:
+      'Create a 30-second cheerful acoustic folk song with guitar and harmonica.',
+  });
+
+  // if (media) {
+  //   const audioBuffer = Buffer.from(
+  //     media.url.substring(media.url.indexOf(',') + 1),
+  //     'base64'
+  //   );
+  //   fs.writeFileSync('clip.mp3', audioBuffer);
+  // }
+
+  return { text, media };
+});
+
+ai.defineFlow('lyria-full-length-song', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt:
+      'An epic cinematic orchestral piece about a journey home. Starts with a solo piano intro, builds through sweeping strings, and climaxes with a massive wall of sound.',
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-from-image', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt: [
+      {
+        text: 'An atmospheric ambient track inspired by the mood and colors in this image.',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ],
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-custom-lyrics', async () => {
+  const prompt = `
+Create a dreamy indie pop song with the following lyrics:
+
+[Verse 1]
+Walking through the neon glow,
+city lights reflect below,
+every shadow tells a story,
+every corner, fading glory.
+
+[Chorus]
+We are the echoes in the night,
+burning brighter than the light,
+hold on tight, don't let me go,
+we are the echoes down below.
+
+[Verse 2]
+Footsteps lost on empty streets,
+rhythms sync to heartbeats,
+whispers carried by the breeze,
+dancing through the autumn leaves.
+`;
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt,
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-custom-timing', async () => {
+  const prompt = `
+[0:00 - 0:10] Intro: Begin with a soft lo-fi beat and muffled vinyl crackle.
+[0:10 - 0:30] Verse 1: Add a warm Fender Rhodes piano melody and gentle vocals singing about a rainy morning.
+[0:30 - 0:50] Chorus: Full band with upbeat drums and soaring synth leads. The lyrics are hopeful and uplifting.
+[0:50 - 1:00] Outro: Fade out with the piano melody alone.
+`;
+
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt,
+  });
+
+  return response;
+});
+
+ai.defineFlow('lyria-foreign-language', async () => {
+  const response = await ai.generate({
+    model: googleAI.model('lyria-3-pro-preview'),
+    prompt:
+      'Crée une chanson pop romantique en français sur un coucher de soleil à Paris. Utilise du piano et de la guitare acoustique.',
+  });
+
+  return response;
 });

@@ -23,6 +23,7 @@ from genkit._ai._model import (
 )
 from genkit._core._background import BackgroundAction
 from genkit._core._model import (
+    GenerateActionOptions,
     Message,
     ModelRef,
     ModelRequest,
@@ -36,7 +37,6 @@ from genkit._core._typing import (
     Constrained,
     Error,
     FinishReason,
-    GenerateActionOptions,
     ModelInfo,
     Operation,
     Stage,

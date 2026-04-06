@@ -381,7 +381,7 @@ export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
           '21:9',
         ])
         .optional(),
-      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+      imageSize: z.enum(['512', '1K', '2K', '4K']).optional(),
     })
     .passthrough()
     .optional(),
@@ -703,6 +703,15 @@ export function defineModel(
       };
 
       const modelVersion = versionFromConfig || extractVersion(ref);
+
+      if (isImageModelName(modelVersion)) {
+        if (!generateContentRequest.generationConfig!.responseModalities) {
+          generateContentRequest.generationConfig!.responseModalities = [
+            'TEXT',
+            'IMAGE',
+          ];
+        }
+      }
 
       if (jsonMode && request.output?.constrained) {
         if (pluginOptions?.legacyResponseSchema) {

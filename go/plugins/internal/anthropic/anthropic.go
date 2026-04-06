@@ -62,7 +62,7 @@ func DefineModel(client anthropic.Client, provider, name string, info ai.ModelOp
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return Generate(ctx, client, name, input, cb)
+		return Generate(ctx, client, provider, name, input, cb)
 	})
 }
 
@@ -110,11 +110,12 @@ func ConfigSchema(config any) map[string]any {
 func Generate(
 	ctx context.Context,
 	client anthropic.Client,
+	provider string,
 	model string,
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	req, err := toAnthropicRequest(input)
+	req, err := toAnthropicRequest(provider, input)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate anthropic request: %w", err)
 	}
@@ -207,7 +208,7 @@ func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 }
 
 // toAnthropicRequest translates [ai.ModelRequest] to an Anthropic request
-func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
+func toAnthropicRequest(provider string, i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
 	messages := make([]anthropic.MessageParam, 0)
 
 	req, err := configFromRequest(i)
@@ -253,7 +254,7 @@ func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error)
 	req.System = sysBlocks
 	req.Messages = messages
 
-	tools, err := toAnthropicTools(i.Tools)
+	tools, err := toAnthropicTools(provider, i.Tools)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +305,7 @@ func configFromRequest(input *ai.ModelRequest) (*anthropic.MessageNewParams, err
 }
 
 // toAnthropicTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
-func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error) {
+func toAnthropicTools(provider string, tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error) {
 	resp := make([]anthropic.ToolUnionParam, 0)
 	regex := regexp.MustCompile(ToolNameRegex)
 
@@ -347,14 +348,16 @@ func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, e
 			schema.ExtraFields["additionalProperties"] = false
 		}
 
-		resp = append(resp, anthropic.ToolUnionParam{
-			OfTool: &anthropic.ToolParam{
-				Name:        t.Name,
-				Description: anthropic.String(t.Description),
-				InputSchema: schema,
-				Strict:      anthropic.Bool(true),
-			},
-		})
+		tool := &anthropic.ToolParam{
+			Name:        t.Name,
+			Description: anthropic.String(t.Description),
+			InputSchema: schema,
+		}
+		// Vertex AI's Anthropic endpoint does not support the strict field.
+		if provider != "vertexai" {
+			tool.Strict = anthropic.Bool(true)
+		}
+		resp = append(resp, anthropic.ToolUnionParam{OfTool: tool})
 	}
 
 	return resp, nil
