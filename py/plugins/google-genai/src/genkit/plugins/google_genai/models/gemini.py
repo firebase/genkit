@@ -1076,8 +1076,7 @@ class GeminiModel:
             Genai tool compatible with Gemini API.
         """
         params = self._convert_schema_property(tool.input_schema)
-        # Fix for no-arg tools: parameters cannot be None if we want the tool to be callable?
-        # Actually Google GenAI expects type=OBJECT for params usually.
+        # Empty params: Gemini requires type=OBJECT even for no-arg tools.
         if not params:
             params = genai_types.Schema(type=genai_types.Type.OBJECT, properties={})
 

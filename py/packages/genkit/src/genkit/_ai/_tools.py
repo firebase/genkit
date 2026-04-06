@@ -29,6 +29,38 @@ P = ParamSpec('P')
 T = TypeVar('T')
 
 
+def _check_tool_input_schema_is_object(name: str, schema: dict[str, object] | None) -> None:
+    r"""Raise unless the tool input schema is empty ``{}`` or ``type: \"object\"``.
+
+    Only ``{}`` is accepted for empty input (zero-arg tools use Pydantic's
+    ``TypeAdapter(object).json_schema()``, which is ``{}``). Any non-empty
+    schema must have root ``type`` as the string ``object`` — not a list
+    (no ``[\"object\", \"null\"]`` or other unions).
+
+    Raises:
+        ValueError: If the schema is non-empty and not root object type.
+    """
+    if not schema:
+        return
+    if schema == {}:
+        return
+    t = schema.get('type')
+    if isinstance(t, list):
+        raise ValueError(
+            f"Tool '{name}' uses a JSON Schema union for root ``type`` ({t!r}). "
+            'Use root ``type: "object"`` only, or ``{{}}`` for no input.'
+        )
+    if isinstance(t, str) and t.lower() == 'object':
+        return
+    raise ValueError(
+        f"Tool '{name}' has root JSON Schema type {t!r}. "
+        "Tool inputs must use ``type: 'object'`` at the root, or ``{{}}`` for no input. "
+        'Example:\n'
+        '  class MyInput(BaseModel):\n'
+        '      city: str  # describe the field for the model'
+    )
+
+
 class ToolRunContext(ActionRunContext):
     """Tool execution context with interrupt support."""
 
@@ -138,6 +170,8 @@ def define_tool(
         fn=tool_fn_wrapper,
         metadata_fn=func,
     )
+
+    _check_tool_input_schema_is_object(tool_name, action.input_schema)
 
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
