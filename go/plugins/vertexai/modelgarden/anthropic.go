@@ -88,7 +88,7 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	}
 
 	c := anthropic.NewClient(
-		vertex.WithGoogleAuth(context.Background(), location, projectID, "https://www.googleapis.com/auth/cloud-platform"),
+		vertex.WithGoogleAuth(ctx, location, projectID, "https://www.googleapis.com/auth/cloud-platform"),
 	)
 	a.client = c
 	a.initted = true
