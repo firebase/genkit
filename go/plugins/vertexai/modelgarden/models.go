@@ -70,11 +70,11 @@ var AnthropicModels = map[string]ai.ModelOptions{
 		Supports: &internal.Multimodal,
 	},
 	"claude-sonnet-4-6": {
-		Label:    "Claude Sonnet 4.6",
+		Label:    "Claude 4.6 Sonnet",
 		Supports: &internal.Multimodal,
 	},
 	"claude-opus-4-6": {
-		Label:    "Claude Opus 4.6",
+		Label:    "Claude 4.6 Opus",
 		Supports: &internal.Multimodal,
 	},
 }
