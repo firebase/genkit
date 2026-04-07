@@ -18,47 +18,61 @@
 
 import inspect
 from collections.abc import Callable
-from functools import wraps
-from typing import Any, NoReturn, ParamSpec, TypeVar, cast
+from typing import Any, NoReturn, cast
 
-from genkit._core._action import ActionKind, ActionRunContext
+from pydantic import BaseModel
+
+from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._registry import Registry
-from genkit._core._typing import Part, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
-
-P = ParamSpec('P')
-T = TypeVar('T')
+from genkit._core._typing import Part, ToolDefinition, ToolRequest, ToolRequestPart, ToolResponse, ToolResponsePart
 
 
-def _check_tool_input_schema_is_object(name: str, schema: dict[str, object] | None) -> None:
-    r"""Raise unless the tool input schema is empty ``{}`` or ``type: \"object\"``.
+class Tool:
+    """A registered tool: a callable handle backed by an :class:`~genkit._core._action.Action`.
 
-    Only ``{}`` is accepted for empty input (zero-arg tools use Pydantic's
-    ``TypeAdapter(object).json_schema()``, which is ``{}``). Any non-empty
-    schema must have root ``type`` as the string ``object`` — not a list
-    (no ``[\"object\", \"null\"]`` or other unions).
-
-    Raises:
-        ValueError: If the schema is non-empty and not root object type.
+    Obtain instances via :func:`define_tool` or the ``@ai.tool`` decorator rather than constructing directly.
     """
-    if not schema:
-        return
-    if schema == {}:
-        return
-    t = schema.get('type')
-    if isinstance(t, list):
-        raise ValueError(
-            f"Tool '{name}' uses a JSON Schema union for root ``type`` ({t!r}). "
-            'Use root ``type: "object"`` only, or ``{{}}`` for no input.'
+
+    def __init__(self, action: Action) -> None:
+        self._action = action
+
+    @property
+    def action(self) -> Action:
+        """Underlying TOOL :class:`~genkit._core._action.Action` registered for this tool."""
+        return self._action
+
+    @property
+    def name(self) -> str:
+        """Tool name (registry key)."""
+        return self._action.name
+
+    @property
+    def description(self) -> str:
+        """Human-readable description sent to the model."""
+        return self._action.description or ''
+
+    @property
+    def input_schema(self) -> dict[str, object] | None:
+        """JSON Schema for the tool's input, as sent on the wire."""
+        return self._action.input_schema
+
+    @property
+    def output_schema(self) -> dict[str, object] | None:
+        """JSON Schema for the tool's output."""
+        return self._action.output_schema
+
+    def definition(self) -> ToolDefinition:
+        """Return the wire-format ToolDefinition for this tool."""
+        return ToolDefinition(
+            name=self.name,
+            description=self.description,
+            input_schema=self.input_schema,
+            output_schema=self.output_schema,
         )
-    if isinstance(t, str) and t.lower() == 'object':
-        return
-    raise ValueError(
-        f"Tool '{name}' has root JSON Schema type {t!r}. "
-        "Tool inputs must use ``type: 'object'`` at the root, or ``{{}}`` for no input. "
-        'Example:\n'
-        '  class MyInput(BaseModel):\n'
-        '      city: str  # describe the field for the model'
-    )
+
+    async def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        """Run the tool and return the unwrapped response value."""
+        return (await self._action.run(*args, **kwargs)).response
 
 
 class ToolRunContext(ActionRunContext):
@@ -123,43 +137,35 @@ def _get_func_description(func: Callable[..., Any], description: str | None = No
     return ''
 
 
-def define_tool(
+def _define_tool(
     registry: Registry,
-    func: Callable[P, T],
+    func: Callable[..., Any],
     name: str | None = None,
     description: str | None = None,
-) -> Callable[P, T]:
+    *,
+    input_schema: type[BaseModel] | dict[str, object] | None = None,
+) -> Tool:
     """Register a function as a tool.
 
-    Args:
-        registry: The registry to register the tool in.
-        func: The async function to register as a tool. Must be a coroutine function.
-        name: Optional name for the tool. Defaults to the function name.
-        description: Optional description. Defaults to the function's docstring.
-
-    Raises:
-        TypeError: If func is not an async function.
+    The input_schema and output_schema are normally inferred from ``func``. Pass
+    ``input_schema`` to override the inferred wire schema when needed.
     """
-    # All Python functions have __name__, but ty is strict about Callable protocol
     if not inspect.iscoroutinefunction(func):
-        raise TypeError(f'Tool function must be async. Got sync function: {func.__name__}')  # ty: ignore[unresolved-attribute]
+        raise TypeError(f'Tool function must be async. Got sync function: {getattr(func, "__name__", repr(func))}')
 
     tool_name = name if name is not None else getattr(func, '__name__', 'unnamed_tool')
     tool_description = _get_func_description(func, description)
 
     input_spec = inspect.getfullargspec(func)
 
-    func_any = cast(Callable[..., Any], func)
-
     async def tool_fn_wrapper(*args: Any) -> Any:  # noqa: ANN401
-        # Dynamic dispatch based on function signature - pyright can't verify ParamSpec here
         match len(input_spec.args):
             case 0:
-                return await func_any()
+                return await func()
             case 1:
-                return await func_any(args[0])
+                return await func(args[0])
             case 2:
-                return await func_any(args[0], ToolRunContext(cast(ActionRunContext, args[1])))
+                return await func(args[0], ToolRunContext(cast(ActionRunContext, args[1])))
             case _:
                 raise ValueError('tool must have 0-2 args...')
 
@@ -170,12 +176,29 @@ def define_tool(
         fn=tool_fn_wrapper,
         metadata_fn=func,
     )
+    if input_schema is not None:
+        action.override_input_schema(input_schema)
 
-    _check_tool_input_schema_is_object(tool_name, action.input_schema)
+    return Tool(action)
 
-    @wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:  # noqa: ANN401
-        action_any = cast(Any, action)
-        return (await action_any.run(*args, **kwargs)).response
 
-    return cast(Callable[P, T], wrapper)
+def define_tool(
+    registry: Registry,
+    func: Callable[..., Any],
+    name: str | None = None,
+    description: str | None = None,
+) -> Tool:
+    """Register a function as a tool.
+
+    Tool input/output JSON Schemas are inferred from ``func`` (first parameter and return type).
+
+    Args:
+        registry: The registry to register the tool in.
+        func: The async function to register as a tool. Must be a coroutine function.
+        name: Optional name for the tool. Defaults to the function name.
+        description: Optional description. Defaults to the function's docstring.
+
+    Raises:
+        TypeError: If func is not an async function.
+    """
+    return _define_tool(registry, func, name, description)

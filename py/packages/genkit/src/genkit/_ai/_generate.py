@@ -21,7 +21,7 @@ import contextlib
 import copy
 import inspect
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -37,7 +37,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
+from genkit._ai._tools import Tool, ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -59,6 +59,21 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+def tools_to_action_names(
+    tools: Sequence[str | Tool] | None,
+) -> list[str] | None:
+    """Normalize tool arguments to registry tool name strings for GenerateActionOptions."""
+    if tools is None:
+        return None
+    names: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            names.append(t)
+        else:
+            names.append(t.name)
+    return names
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -744,11 +759,17 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
+    """Resolve a tool from a registry name or a Tool instance.
+
+    Used when building ModelRequest (for example from to_generate_request).
+    """
+    if isinstance(tool_ref, Tool):
+        return tool_ref.action
+
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_ref)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
     return tool
 
 
