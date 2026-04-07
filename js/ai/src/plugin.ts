@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, ResolvableAction } from '@genkit-ai/core';
-import { ActionType } from '@genkit-ai/core/registry';
+import type { ActionMetadata, ResolvableAction } from '@genkit-ai/core';
+import type { ActionType } from '@genkit-ai/core/registry';
 import { type ModelAction } from './model.js';
 
 export interface GenkitPluginV2 {
