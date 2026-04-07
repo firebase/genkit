@@ -37,7 +37,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import Interrupt, Tool, run_tool_after_restart, unwrap_wrapped_scalar_tool_input_if_needed
+from genkit._ai._tools import Interrupt, Tool, run_tool_after_restart
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -671,10 +671,8 @@ async def resolve_tool_requests(
     revised_model_message = message.model_copy(deep=True)
 
     work: list[tuple[int, Action, ToolRequestPart]] = []
-    i = 0
-    for tool_request_part in message.content:
+    for i, tool_request_part in enumerate(message.content):
         if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
-            i += 1
             continue
 
         tool_req_root = tool_request_part.root
@@ -684,7 +682,6 @@ async def resolve_tool_requests(
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
         work.append((i, tool, tool_req_root))
-        i += 1
 
     if not work:
         return (None, Message(role=Role.TOOL, content=[]), None)
@@ -738,11 +735,7 @@ async def _resolve_tool_request(
     Returns ``(ToolResponsePart, None)`` on success or ``(None, ToolRequestPart)`` when interrupted.
     """
     try:
-        tool_in = unwrap_wrapped_scalar_tool_input_if_needed(
-            tool_request_part.tool_request.input,
-            tool.input_schema,
-        )
-        tool_response = (await tool.run(tool_in)).response
+        tool_response = (await tool.run(tool_request_part.tool_request.input)).response
         return (
             ToolResponsePart(
                 tool_response=ToolResponse(
@@ -774,7 +767,7 @@ async def resolve_tool(registry: Registry, tool_name: str) -> Action:
     """Resolve a tool action by name from the registry."""
     tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_name}')
     return tool
 
 

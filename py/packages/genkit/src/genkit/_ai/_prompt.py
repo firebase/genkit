@@ -20,7 +20,7 @@
 import asyncio
 import os
 import weakref
-from collections.abc import AsyncIterable, Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterable, Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Generic, TypedDict, TypeVar, cast
@@ -138,27 +138,6 @@ class PromptGenerateOptions(TypedDict, total=False):
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
-
-
-_PROMPT_GENERATE_OPTION_KEYS: frozenset[str] = frozenset(PromptGenerateOptions.__annotations__)
-
-
-def _coerce_prompt_opts(opts: Mapping[str, Any]) -> PromptGenerateOptions:
-    """Build effective opts from a kwargs mapping: drop keys whose value is None.
-
-    Rejects unknown keys at runtime (Unpack only enforces this for type checkers).
-    """
-    raw = dict(opts)
-    unknown = set(raw) - _PROMPT_GENERATE_OPTION_KEYS
-    if unknown:
-        if 'opts' in unknown:
-            raise TypeError(
-                'Passing a combined `opts` dict is not supported; use keyword arguments '
-                '(e.g. model=..., config=...) matching PromptGenerateOptions.'
-            )
-        sorted_unknown = ', '.join(sorted(unknown))
-        raise TypeError(f'Unexpected keyword arguments for prompt execution: {sorted_unknown}')
-    return cast(PromptGenerateOptions, {k: v for k, v in raw.items() if v is not None})
 
 
 class ModelStreamResponse(Generic[OutputT]):
@@ -354,8 +333,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Args:
             input: Template variables for rendering.
         """
-        effective_opts = _coerce_prompt_opts(opts)
-        return await self._call_impl(input, effective_opts)
+        return await self._call_impl(input, opts)  # ty: ignore[invalid-argument-type]  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
 
     async def _call_impl(
         self,
@@ -409,7 +387,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         def _or(opt_val: Any, default: Any) -> Any:  # noqa: ANN401
             return opt_val if opt_val is not None else default
 
-        prompt_options = PromptConfig(
+        prompt_config = PromptConfig(
             model=opts.get('model') or self._model,
             prompt=self._prompt,
             system=self._system,
@@ -433,7 +411,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             resume_metadata=opts.get('resume_metadata'),
         )
 
-        model_name = prompt_options.model or self._registry.default_model
+        model_name = prompt_config.model or self._registry.default_model
         if model_name is None:
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
@@ -453,17 +431,17 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             render_input = cast(dict[str, Any], input)
 
         opts_messages = opts.get('messages')
-        if prompt_options.system:
+        if prompt_config.system:
             result = await render_system_prompt(
-                self._registry, render_input, prompt_options, self._cache_prompt, context
+                self._registry, render_input, prompt_config, self._cache_prompt, context
             )
             resolved_msgs.append(result)
-        if prompt_options.messages:
+        if prompt_config.messages:
             resolved_msgs.extend(
                 await render_message_prompt(
                     self._registry,
                     render_input,
-                    prompt_options,
+                    prompt_config,
                     self._cache_prompt,
                     context,
                     history=opts_messages,
@@ -471,25 +449,25 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             )
         elif opts_messages:
             resolved_msgs.extend(opts_messages)
-        if prompt_options.prompt:
-            result = await render_user_prompt(self._registry, render_input, prompt_options, self._cache_prompt, context)
+        if prompt_config.prompt:
+            result = await render_user_prompt(self._registry, render_input, prompt_config, self._cache_prompt, context)
             resolved_msgs.append(result)
 
-        if prompt_options.output_schema and not prompt_options.output_format:
+        if prompt_config.output_schema and not prompt_config.output_format:
             out_format = 'json'
         else:
-            out_format = prompt_options.output_format
+            out_format = prompt_config.output_format
 
         output_config = GenerateActionOutputConfig()
         if out_format:
             output_config.format = out_format
-        if prompt_options.output_content_type:
-            output_config.content_type = prompt_options.output_content_type
-        if prompt_options.output_instructions is not None:
-            output_config.instructions = prompt_options.output_instructions
-        _resolve_output_schema(self._registry, prompt_options.output_schema, output_config)
-        if prompt_options.output_constrained is not None:
-            output_config.constrained = prompt_options.output_constrained
+        if prompt_config.output_content_type:
+            output_config.content_type = prompt_config.output_content_type
+        if prompt_config.output_instructions is not None:
+            output_config.instructions = prompt_config.output_instructions
+        _resolve_output_schema(self._registry, prompt_config.output_schema, output_config)
+        if prompt_config.output_constrained is not None:
+            output_config.constrained = prompt_config.output_constrained
 
         resume_result = resume_options_to_resume(
             resume_respond=opts.get('resume_respond'),
@@ -497,7 +475,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             resume_metadata=opts.get('resume_metadata'),
         )
 
-        merged_docs = await render_docs(render_input, prompt_options, context)
+        merged_docs = await render_docs(render_input, prompt_config, context)
         opts_docs = opts.get('docs')
         if opts_docs:
             merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
@@ -505,12 +483,12 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         return GenerateActionOptions(
             model=model_name,
             messages=resolved_msgs,  # type: ignore[arg-type]
-            config=prompt_options.config,
-            tools=tools_to_action_names(prompt_options.tools),
-            return_tool_requests=prompt_options.return_tool_requests,
-            tool_choice=prompt_options.tool_choice,
+            config=prompt_config.config,
+            tools=tools_to_action_names(prompt_config.tools),
+            return_tool_requests=prompt_config.return_tool_requests,
+            tool_choice=prompt_config.tool_choice,
             output=output_config,
-            max_turns=prompt_options.max_turns,
+            max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
             resume=resume_result,
         )
@@ -523,10 +501,9 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         **opts: Unpack[PromptGenerateOptions],
     ) -> ModelStreamResponse[OutputT]:
         """Stream the prompt execution, returning (stream, response_future)."""
-        effective_opts = _coerce_prompt_opts(opts)
         channel: Channel[ModelResponseChunk, ModelResponse[OutputT]] = Channel(timeout=timeout)
         stream_opts: PromptGenerateOptions = {
-            **effective_opts,
+            **opts,  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
             'on_chunk': lambda c: channel.send(cast(ModelResponseChunk, c)),
         }
         resp = self._call_impl(input, stream_opts)
@@ -545,8 +522,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         Same keyword options as ``__call__`` (see PromptGenerateOptions).
         """
         await self._ensure_resolved()
-        coerced = _coerce_prompt_opts(opts)
-        return await self._render_impl(input, coerced)
+        return await self._render_impl(input, opts)  # ty: ignore[invalid-argument-type]  # ty doesn't infer Unpack[TD] as TD in function body (PEP 692 gap)
 
 
 def register_prompt_actions(
