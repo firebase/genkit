@@ -113,7 +113,7 @@ func cloneToolWithoutFunctions(t *genai.Tool) *genai.Tool {
 }
 
 // toGeminiToolChoice translates tool choice settings to Gemini tool config.
-func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
+func toGeminiToolChoice(toolConfig *genai.ToolConfig, toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
@@ -135,6 +135,16 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 			toolNames = append(toolNames, t.Name)
 		}
 	}
+
+	// If a config already exists, just add as a parameter
+	if toolConfig != nil {
+		toolConfig.FunctionCallingConfig = &genai.FunctionCallingConfig{
+			Mode:                 mode,
+			AllowedFunctionNames: toolNames,
+		}
+		return toolConfig, nil
+	}
+
 	return &genai.ToolConfig{
 		FunctionCallingConfig: &genai.FunctionCallingConfig{
 			Mode:                 mode,
