@@ -22,6 +22,7 @@ from genkit._ai._testing import (
     define_echo_model,
     define_programmable_model,
 )
+from genkit._ai._tools import Interrupt
 from genkit._core._action import ActionRunContext
 from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._typing import (
@@ -373,18 +374,19 @@ async def test_generate_middleware_can_modify_stream(
 
 
 @pytest.mark.asyncio
-async def test_parallel_tool_requests_all_complete() -> None:
-    """Multiple tool requests in one model turn are resolved together (asyncio.gather); all succeed."""
-    ai = Genkit()
-    pm, _ = define_programmable_model(ai)
+async def test_parallel_tool_requests_one_interrupt_keeps_pending_output_for_others(
+    setup_test: tuple[Genkit, ProgrammableModel],
+) -> None:
+    """With asyncio.gather in resolve_tool_requests: one interrupt still records pendingOutput for others."""
+    ai, pm = setup_test
 
     @ai.tool(name='tool_a')
     async def tool_a() -> str:
         return 'a_ok'
 
     @ai.tool(name='tool_b')
-    async def tool_b() -> str:
-        return 'b_ok'
+    async def tool_b() -> None:
+        raise Interrupt({'stop': True})
 
     @ai.tool(name='tool_c')
     async def tool_c() -> str:
@@ -416,12 +418,6 @@ async def test_parallel_tool_requests_all_complete() -> None:
             ),
         )
     )
-    pm.responses.append(
-        ModelResponse(
-            finish_reason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(TextPart(text='after_tools'))]),
-        )
-    )
 
     response = await generate_action(
         ai.registry,
@@ -434,8 +430,20 @@ async def test_parallel_tool_requests_all_complete() -> None:
         ),
     )
 
-    assert response.finish_reason == FinishReason.STOP
-    assert response.text == 'after_tools'
+    assert response.finish_reason == FinishReason.INTERRUPTED
+    assert response.message is not None
+    parts = response.message.content
+    assert len(parts) == 4
+    assert parts[0].root == TextPart(text='call three')
+    a_root = parts[1].root
+    b_root = parts[2].root
+    c_root = parts[3].root
+    assert isinstance(a_root, ToolRequestPart)
+    assert isinstance(b_root, ToolRequestPart)
+    assert isinstance(c_root, ToolRequestPart)
+    assert a_root.metadata and a_root.metadata.get('pendingOutput') == 'a_ok'
+    assert b_root.metadata and b_root.metadata.get('interrupt') == {'stop': True}
+    assert c_root.metadata and c_root.metadata.get('pendingOutput') == 'c_ok'
 
 
 ##########################################################################
