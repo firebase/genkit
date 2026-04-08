@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
+import * as clc from 'colorette';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
-import { runWithManager } from '../utils/manager-utils';
+import {
+  runWithEphemeralManager,
+  runWithManager,
+} from '../utils/manager-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;
@@ -43,7 +48,15 @@ export const flowBatchRun = new Command('flow:batchRun')
       fileName: string,
       options: FlowBatchRunOptions
     ) => {
-      await runWithManager(await findProjectRoot(), async (manager) => {
+      const dashDashIndex = process.argv.indexOf('--');
+      let runtimeCommand: string[] | undefined;
+      if (dashDashIndex !== -1) {
+        runtimeCommand = process.argv.slice(dashDashIndex + 1);
+      }
+
+      const projectRoot = await findProjectRoot();
+
+      const runAction = async (manager: BaseRuntimeManager) => {
         const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
         let input = inputData;
         if (inputData.length === 0) {
@@ -56,7 +69,7 @@ export const flowBatchRun = new Command('flow:batchRun')
 
         const outputValues = [] as { input: any; output: any }[];
         for (const data of input) {
-          logger.info(`Running '/flow/${flowName}'...`);
+          logger.debug(`Running '/flow/${flowName}'...`);
           const response = await manager.runAction({
             key: `/flow/${flowName}`,
             input: data,
@@ -65,9 +78,19 @@ export const flowBatchRun = new Command('flow:batchRun')
               ? { batchRun: options.label }
               : undefined,
           });
-          logger.info(
-            'Result:\n' + JSON.stringify(response.result, undefined, '  ')
-          );
+
+          logger.info(clc.green('Result:'));
+          const resultOutput =
+            typeof response.result === 'string'
+              ? response.result
+              : JSON.stringify(response.result, undefined, '  ');
+          logger.info(resultOutput);
+          if (response.telemetry?.traceId) {
+            logger.info(
+              `${clc.cyan('Trace ID:')} ${response.telemetry.traceId}`
+            );
+          }
+
           outputValues.push({
             input: data,
             output: response.result,
@@ -80,6 +103,12 @@ export const flowBatchRun = new Command('flow:batchRun')
             JSON.stringify(outputValues, undefined, ' ')
           );
         }
-      });
+      };
+
+      if (runtimeCommand && runtimeCommand.length > 0) {
+        await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
+      } else {
+        await runWithManager(projectRoot, runAction);
+      }
     }
   );

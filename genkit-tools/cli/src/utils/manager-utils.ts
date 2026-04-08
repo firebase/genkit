@@ -246,3 +246,63 @@ export async function runWithManager(
     logger.error(`${error.stack}`);
   }
 }
+
+export async function runWithEphemeralManager(
+  projectRoot: string,
+  runtimeCommand: string[],
+  fn: (manager: BaseRuntimeManager) => Promise<void>
+) {
+  const devEnv = await getDevEnvVars(projectRoot, {
+    experimentalReflectionV2: true,
+  });
+  const { envVars, telemetryServerUrl, reflectionV2Port } = devEnv;
+
+  process.env.GENKIT_TELEMETRY_SERVER = telemetryServerUrl;
+
+  const oldLevel = logger.level;
+  logger.level = 'warn';
+
+  let manager: BaseRuntimeManager;
+  let processPromise: Promise<void>;
+  try {
+    const result = await startDevProcessManager(
+      projectRoot,
+      runtimeCommand[0],
+      runtimeCommand.slice(1),
+      {
+        experimentalReflectionV2: true,
+        healthCheck: true,
+        envVars,
+        telemetryServerUrl,
+        reflectionV2Port,
+        nonInteractive: true,
+      }
+    );
+    manager = result.manager;
+    processPromise = result.processPromise;
+  } finally {
+    logger.level = oldLevel;
+  }
+
+  try {
+    await fn(manager);
+  } catch (err) {
+    logger.error('Command exited with an Error:');
+    const error = err as GenkitToolsError;
+    if (typeof error.data === 'object') {
+      const errorStatus = error.data as Status;
+      const { code, details, message } = errorStatus;
+      logger.error(`\tCode: ${code}`);
+      logger.error(`\tMessage: ${message}`);
+      logger.error(
+        `\tTrace: http://localhost:4200/traces/${details?.traceId}\n`
+      );
+    } else {
+      logger.error(`\tMessage: ${error.data}\n`);
+    }
+    logger.error('Stack trace:');
+    logger.error(`${error.stack}`);
+  } finally {
+    await manager.stop();
+  }
+}

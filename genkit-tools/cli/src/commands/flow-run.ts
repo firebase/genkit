@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
+import * as clc from 'colorette';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
-import { runWithManager } from '../utils/manager-utils';
+import {
+  runWithEphemeralManager,
+  runWithManager,
+} from '../utils/manager-utils';
 
 interface FlowRunOptions {
   wait?: boolean;
@@ -39,25 +44,59 @@ export const flowRun = new Command('flow:run')
     'name of the output file to store the extracted data'
   )
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
-    await runWithManager(await findProjectRoot(), async (manager) => {
-      logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-      const result = (
-        await manager.runAction(
-          {
-            key: `/flow/${flowName}`,
-            input: data ? JSON.parse(data) : undefined,
-            context: options.context ? JSON.parse(options.context) : undefined,
-          },
-          options.stream
-            ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
-            : undefined
-        )
-      ).result;
+    const dashDashIndex = process.argv.indexOf('--');
+    let runtimeCommand: string[] | undefined;
+    let actualData: string | undefined = data;
 
-      logger.info('Result:\n' + JSON.stringify(result, undefined, '  '));
+    if (dashDashIndex !== -1) {
+      runtimeCommand = process.argv.slice(dashDashIndex + 1);
+      if (data) {
+        const dataIndex = process.argv.indexOf(data);
+        if (dataIndex > dashDashIndex) {
+          actualData = undefined;
+        }
+      }
+    }
+
+    const projectRoot = await findProjectRoot();
+
+    const runAction = async (manager: BaseRuntimeManager) => {
+      let traceId: string | undefined;
+      const response = await manager.runAction(
+        {
+          key: `/flow/${flowName}`,
+          input: actualData ? JSON.parse(actualData) : undefined,
+          context: options.context ? JSON.parse(options.context) : undefined,
+        },
+        options.stream
+          ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
+          : undefined,
+        (tid) => {
+          traceId = tid;
+        }
+      );
+
+      const result = response.result;
+
+      logger.info(clc.green('Result:'));
+      const resultOutput =
+        typeof result === 'string'
+          ? result
+          : JSON.stringify(result, undefined, '  ');
+      logger.info(resultOutput);
+      if (traceId) {
+        logger.info(`${clc.cyan('Trace ID:')} ${traceId}`);
+      }
 
       if (options.output && result) {
         await writeFile(options.output, JSON.stringify(result, undefined, ' '));
       }
-    });
+    };
+
+    if (runtimeCommand && runtimeCommand.length > 0) {
+      logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
+      await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
+    } else {
+      await runWithManager(projectRoot, runAction);
+    }
   });

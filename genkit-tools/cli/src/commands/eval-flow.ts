@@ -29,6 +29,7 @@ import {
   runInference,
   type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import {
   confirmLlmUse,
   findProjectRoot,
@@ -38,7 +39,10 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { runWithManager } from '../utils/manager-utils';
+import {
+  runWithEphemeralManager,
+  runWithManager,
+} from '../utils/manager-utils';
 
 interface EvalFlowRunCliOptions {
   input?: string;
@@ -91,9 +95,25 @@ export const evalFlow = new Command('eval:flow')
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
-      await runWithManager(await findProjectRoot(), async (manager) => {
+      const dashDashIndex = process.argv.indexOf('--');
+      let runtimeCommand: string[] | undefined;
+      let actualData: string | undefined = data;
+
+      if (dashDashIndex !== -1) {
+        runtimeCommand = process.argv.slice(dashDashIndex + 1);
+        if (data) {
+          const dataIndex = process.argv.indexOf(data);
+          if (dataIndex > dashDashIndex) {
+            actualData = undefined;
+          }
+        }
+      }
+
+      const projectRoot = await findProjectRoot();
+
+      const runAction = async (manager: BaseRuntimeManager) => {
         const actionRef = `/flow/${flowName}`;
-        if (!data && !options.input) {
+        if (!actualData && !options.input) {
           throw new Error(
             'No input data passed. Specify input data using [data] argument or --input <filename> option'
           );
@@ -134,7 +154,7 @@ export const evalFlow = new Command('eval:flow')
           }
         }
 
-        const sourceType = getSourceType(data, options.input);
+        const sourceType = getSourceType(actualData, options.input);
         let targetDatasetMetadata;
         if (sourceType === SourceType.DATASET) {
           const datasetStore = await getDatasetStore();
@@ -146,7 +166,7 @@ export const evalFlow = new Command('eval:flow')
 
         const inferenceDataset = await readInputs(
           sourceType,
-          data,
+          actualData,
           options.input
         );
         const evalDataset = await runInference({
@@ -184,11 +204,16 @@ export const evalFlow = new Command('eval:flow')
             )
           );
         } else {
-          logger.info(
-            `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
-          );
+          logger.info(`${clc.cyan('Evaluation ID:')} ${evalRun.key.evalRunId}`);
         }
-      });
+      };
+
+      if (runtimeCommand && runtimeCommand.length > 0) {
+        logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
+        await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
+      } else {
+        await runWithManager(projectRoot, runAction);
+      }
     }
   );
 

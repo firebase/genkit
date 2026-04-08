@@ -22,6 +22,7 @@ import {
   runEvaluation,
   type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
+import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import {
   confirmLlmUse,
   findProjectRoot,
@@ -30,7 +31,10 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { runWithManager } from '../utils/manager-utils';
+import {
+  runWithEphemeralManager,
+  runWithManager,
+} from '../utils/manager-utils';
 
 interface EvalRunCliOptions {
   output?: string;
@@ -67,7 +71,16 @@ export const evalRun = new Command('eval:run')
   )
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
-    await runWithManager(await findProjectRoot(), async (manager) => {
+    const dashDashIndex = process.argv.indexOf('--');
+    let runtimeCommand: string[] | undefined;
+
+    if (dashDashIndex !== -1) {
+      runtimeCommand = process.argv.slice(dashDashIndex + 1);
+    }
+
+    const projectRoot = await findProjectRoot();
+
+    const runAction = async (manager: BaseRuntimeManager) => {
       if (!dataset) {
         throw new Error(
           'No input data passed. Specify input data using [data] argument'
@@ -100,9 +113,7 @@ export const evalRun = new Command('eval:run')
       if (!options.force) {
         const confirmed = await confirmLlmUse(evaluatorActions);
         if (!confirmed) {
-          if (!confirmed) {
-            throw new Error('User declined using billed evaluators.');
-          }
+          throw new Error('User declined using billed evaluators.');
         }
       }
 
@@ -130,9 +141,14 @@ export const evalRun = new Command('eval:run')
           )
         );
       } else {
-        logger.info(
-          `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
-        );
+        logger.info(`${clc.cyan('Evaluation ID:')} ${evalRun.key.evalRunId}`);
       }
-    });
+    };
+
+    if (runtimeCommand && runtimeCommand.length > 0) {
+      logger.debug(`Starting ephemeral runtime: ${runtimeCommand.join(' ')}`);
+      await runWithEphemeralManager(projectRoot, runtimeCommand, runAction);
+    } else {
+      await runWithManager(projectRoot, runAction);
+    }
   });
