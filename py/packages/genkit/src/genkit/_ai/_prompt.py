@@ -42,7 +42,6 @@ from genkit._ai._generate import (
 )
 from genkit._ai._model import (
     Message,
-    ModelMiddleware,
     ModelRequest,
     ModelResponse,
     ModelResponseChunk,
@@ -57,6 +56,7 @@ from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
     GenerateActionOutputConfig,
+    MiddlewareRef,
     OutputConfig,
     Part,
     Resume,
@@ -110,7 +110,7 @@ class PromptGenerateOptions(TypedDict, total=False):
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
-    use: list[ModelMiddleware] | None
+    use: list[MiddlewareRef] | None
     context: dict[str, Any] | None
     step_name: str | None
     metadata: dict[str, Any] | None
@@ -189,7 +189,7 @@ class PromptConfig(BaseModel):
     metadata: dict[str, Any] | None = None
     tools: Sequence[str | Tool] | None = None
     tool_choice: ToolChoice | None = None
-    use: list[ModelMiddleware] | None = None
+    use: list[MiddlewareRef] | None = None
     docs: list[Document] | None = None
     tool_responses: list[Part] | None = None
     resources: list[str] | None = None
@@ -219,7 +219,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         metadata: dict[str, Any] | None = None,
         tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[ModelMiddleware] | None = None,
+        use: list[MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
         resources: list[str] | None = None,
         name: str | None = None,
@@ -316,14 +316,16 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     ) -> ModelResponse[OutputT]:
         """Execute the prompt with resolved opts. Used by __call__ and stream."""
         await self._ensure_resolved()
-        on_chunk = opts.get('on_chunk')
-        middleware = opts.get('use') or self._use
-        context = opts.get('context')
+        effective_opts: PromptGenerateOptions = opts if opts else {}
+
+        # Extract streaming callback from opts; middleware ``use`` is merged in ``_render_impl``.
+        on_chunk = effective_opts.get('on_chunk')
+        context = effective_opts.get('context')
+
         result = await generate_action(
             self._registry,
             await self._render_impl(input, opts),
             on_chunk=on_chunk,
-            middleware=middleware,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
         return cast(ModelResponse[OutputT], result)
@@ -380,6 +382,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             metadata=merged_metadata,
             docs=self._docs,
             resources=opts.get('resources') or self._resources,
+            use=_or(opts.get('use'), self._use),
         )
 
         model = prompt_config.model or self._registry.default_model
@@ -482,6 +485,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
             resume=resume,
+            use=prompt_config.use,
         )
 
     def stream(
@@ -687,6 +691,7 @@ async def to_generate_action_options(registry: Registry, options: PromptConfig) 
         max_turns=options.max_turns,
         docs=await render_docs(render_input, options),  # type: ignore[arg-type]
         resume=resume,
+        use=options.use,
     )
 
 
