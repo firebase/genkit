@@ -23,7 +23,9 @@ from collections.abc import Awaitable, Callable
 from genkit._core._error import GenkitError, StatusName
 from genkit._core._model import ModelResponse
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 from ._utils import _DEFAULT_RETRY_STATUSES
 
 

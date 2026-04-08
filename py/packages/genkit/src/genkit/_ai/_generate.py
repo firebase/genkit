@@ -38,17 +38,18 @@ from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._middleware._augment_with_context import augment_with_context
-from genkit._core._middleware._base import (
-    BaseMiddleware,
+from genkit._core._middleware._base import BaseMiddleware, GenerateMiddleware, MiddlewareFnOptions
+from genkit._core._model import (
+    GenerateActionOptions,
     GenerateHookParams,
     ModelHookParams,
     ToolHookParams,
 )
-from genkit._core._model import GenerateActionOptions
 from genkit._core._registry import Registry
 from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
     FinishReason,
+    MiddlewareRef,
     Part,
     Role,
     SpanMetadata,
@@ -62,6 +63,53 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+def resolve_middleware_from_use(
+    registry: Registry,
+    use: list[MiddlewareRef | BaseMiddleware] | None,
+    *,
+    genkit: Any = None,
+) -> list[BaseMiddleware] | None:
+    """Turn the use list (inline middleware and/or registry refs) into BaseMiddleware instances."""
+    if not use:
+        return None
+    out: list[BaseMiddleware] = []
+    for item in use:
+        if isinstance(item, BaseMiddleware):
+            out.append(item)
+            continue
+        ref = item
+        defn = registry.lookup_value('middleware', ref.name)
+        if isinstance(defn, GenerateMiddleware):
+            cfg = ref.config if isinstance(ref.config, dict) else None
+            out.append(
+                defn(
+                    MiddlewareFnOptions(
+                        registry=registry,
+                        config=cfg,
+                        genkit=genkit,
+                    )
+                )
+            )
+            continue
+        cls = registry.lookup_value('middleware_class', ref.name)
+        if cls is not None:
+            out.append(cast(type[BaseMiddleware], cls)())
+            continue
+        raise GenkitError(
+            status='NOT_FOUND',
+            message=(
+                f'No middleware named "{ref.name}" is registered on this app. '
+                'Add it by passing middleware_plugin([...]) or any Plugin that implements '
+                'generate_middleware() in plugins=[...], or call ai.generate_middleware() at '
+                'startup. Built-in names (for example retry, fallback) '
+                'are registered automatically. You can also pass a BaseMiddleware instance '
+                'directly in use= without using a name.'
+            ),
+            source='genkit.generate',
+        )
+    return out
 
 
 async def _chain_tool_middleware(
@@ -139,10 +187,15 @@ async def generate_action(
     on_chunk: Callable[[ModelResponseChunk], None] | None = None,
     message_index: int = 0,
     current_turn: int = 0,
-    middleware: list[BaseMiddleware] | None = None,
     context: dict[str, Any] | None = None,
 ) -> ModelResponse:
-    """Execute a generation request with tool calling and middleware support."""
+    """Execute a generation request with tool calling and middleware support.
+
+    Middleware is taken only from raw_request.use. Each entry may be a MiddlewareRef,
+    a MiddlewareRuntime instance (such as BaseMiddleware), or a dict coerced to MiddlewareRef.
+    Register named definitions with Genkit.generate_middleware, middleware_plugin([...]),
+    or a Plugin that implements generate_middleware().
+    """
     span_name = 'generate'
     with run_in_new_span(
         SpanMetadata(name=span_name),
@@ -151,6 +204,7 @@ async def generate_action(
         span.set_attribute('genkit:name', span_name)
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
+        middleware = resolve_middleware_from_use(registry, raw_request.use, genkit=None)
         result = await _generate_action(
             registry, raw_request, on_chunk, message_index, current_turn, middleware, context
         )

@@ -195,8 +195,8 @@ async def test_generate_applies_middleware(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
+            use=[PreMiddleware(), PostMiddleware()],
         ),
-        middleware=[PreMiddleware(), PostMiddleware()],
     )
 
     assert response.text == '[ECHO] user: "PRE hi" POST'
@@ -220,8 +220,8 @@ async def test_generate_middleware_next_fn_args_optional(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
+            use=[PostMiddleware()],
         ),
-        middleware=[PostMiddleware()],
     )
 
     assert response.text == '[ECHO] user: "hi" POST'
@@ -275,8 +275,8 @@ async def test_generate_middleware_can_modify_context(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
+            use=[AddContextMiddleware(), InjectContextMiddleware()],
         ),
-        middleware=[AddContextMiddleware(), InjectContextMiddleware()],
         context={'foo': 'bar'},
     )
 
@@ -353,8 +353,8 @@ async def test_generate_middleware_can_modify_stream(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
+            use=[ModifyStreamMiddleware()],
         ),
-        middleware=[ModifyStreamMiddleware()],
         on_chunk=collect_chunks,
     )
 
@@ -405,8 +405,8 @@ async def test_wrap_generate_called_per_turn(
         GenerateActionOptions(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
+            use=[track_mw],
         ),
-        middleware=[track_mw],
     )
     assert response.text == 'done'
     assert track_mw.iterations == [0]
@@ -433,8 +433,8 @@ async def test_wrap_generate_called_per_turn(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
             tools=['testTool'],
+            use=[track_mw2],
         ),
-        middleware=[track_mw2],
     )
     assert response2.text == 'final'
     assert track_mw2.iterations == [0, 1]
@@ -488,8 +488,8 @@ async def test_wrap_tool_called_on_tool_execution(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
             tools=['myTool'],
+            use=[track_mw],
         ),
-        middleware=[track_mw],
     )
     assert response.text == 'done'
     assert track_mw.tool_names == ['myTool']

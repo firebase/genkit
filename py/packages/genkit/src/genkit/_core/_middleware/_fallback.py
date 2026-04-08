@@ -23,7 +23,9 @@ from genkit._core._error import GenkitError, StatusName
 from genkit._core._model import ModelResponse
 from genkit._core._registry import Registry
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 from ._utils import _DEFAULT_FALLBACK_STATUSES
 
 

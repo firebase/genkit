@@ -95,12 +95,8 @@ async def request_modifier_demo(input: PromptInput) -> str:
 
 async def main() -> None:
     """Run both middleware demos once."""
-    try:
-        print(await logging_demo(PromptInput()))  # noqa: T201
-        print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
-    except Exception:  # noqa: S110
-        pass
-
+    print(await logging_demo(PromptInput()))  # noqa: T201
+    print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
 
 if __name__ == '__main__':
     ai.run_main(main())

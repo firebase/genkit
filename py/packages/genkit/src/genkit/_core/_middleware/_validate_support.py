@@ -22,7 +22,9 @@ from genkit._core._error import GenkitError
 from genkit._core._model import ModelResponse
 from genkit._core._typing import MediaPart, Supports
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 
 
 def validate_support(

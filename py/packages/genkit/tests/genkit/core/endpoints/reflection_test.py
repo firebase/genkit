@@ -141,11 +141,14 @@ async def test_list_values_omitted_type_returns_400(asgi_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_list_values_unsupported_type(asgi_client: AsyncClient) -> None:
-    """GET /api/values with a non-defaultModel type returns 400."""
+async def test_list_values_arbitrary_type_delegates_to_registry(
+    asgi_client: AsyncClient, mock_registry: MagicMock
+) -> None:
+    """GET /api/values forwards ``type`` to ``Registry.list_values`` (e.g. ``middleware``)."""
+    mock_registry.list_values = MagicMock(return_value={})
     response = await asgi_client.get('/api/values?type=other')
-    assert response.status_code == 400
-    assert 'defaultModel' in response.json().get('error', '')
+    assert response.status_code == 200
+    mock_registry.list_values.assert_called_once_with('other')
 
 
 @pytest.mark.asyncio

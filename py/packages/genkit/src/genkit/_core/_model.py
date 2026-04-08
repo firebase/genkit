@@ -27,12 +27,14 @@ from copy import deepcopy
 from functools import cached_property
 from typing import Any, ClassVar, Generic, cast
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_serializer
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_serializer, field_validator, model_serializer
 from pydantic.alias_generators import to_camel
 from typing_extensions import TypeVar
 
+from genkit._core._action import Action
 from genkit._core._base import GenkitModel
 from genkit._core._extract_json import extract_json
+from genkit._core._middleware._runtime import MiddlewareRuntime
 from genkit._core._typing import (
     Candidate,
     DocumentData,
@@ -135,11 +137,50 @@ class GenerateActionOptions(GenerateActionOptionsData):
     """Generate options with messages as list[Message] for type-safe use with ai.generate()."""
 
     messages: list[Message]
+    use: list[Any] | None = Field(
+        default=None,
+        description='Each entry: MiddlewareRef (name/config) and/or inline MiddlewareRuntime.',
+    )
 
     @field_validator('messages', mode='before')
     @classmethod
     def _wrap_messages(cls, v: list[MessageData]) -> list[Message]:
         return [m if isinstance(m, Message) else Message(m) for m in v]
+
+    @field_validator('use', mode='before')
+    @classmethod
+    def _coerce_use(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if not isinstance(v, list):
+            raise TypeError('use must be a list of MiddlewareRef and/or MiddlewareRuntime instances.')
+        out: list[Any] = []
+        for item in v:
+            if isinstance(item, MiddlewareRuntime):
+                out.append(item)
+            elif isinstance(item, MiddlewareRef):
+                out.append(item)
+            elif isinstance(item, dict):
+                out.append(MiddlewareRef.model_validate(item))
+            else:
+                raise TypeError(
+                    'Each use entry must be MiddlewareRef, MiddlewareRuntime (e.g. BaseMiddleware), '
+                    + 'or a MiddlewareRef-compatible dict.'
+                )
+        return out
+
+    @field_serializer('use', when_used='json')
+    def _serialize_use_for_json(self, value: Any) -> Any:
+        if value is None:
+            return None
+
+        serialized: list[Any] = []
+        for x in value:
+            if isinstance(x, MiddlewareRuntime):
+                serialized.append({'inline': True, 'class': x.__class__.__name__})
+            else:
+                serialized.append(x.model_dump(by_alias=True))
+        return serialized
 
 
 _TEXT_DATA_TYPE: str = 'text'
@@ -476,6 +517,35 @@ class ModelResponseChunk(GenerateResponseChunk, Generic[OutputT]):
         if self.chunk_parser:
             return cast(OutputT, self.chunk_parser(self))
         return cast(OutputT, extract_json(self.accumulated_text))
+
+
+class GenerateHookParams(BaseModel):
+    """Params for the wrap_generate hook."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
+
+    options: GenerateActionOptions
+    request: ModelRequest
+    iteration: int
+
+
+class ModelHookParams(BaseModel):
+    """Params for the wrap_model hook."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
+
+    request: ModelRequest
+    on_chunk: Callable[[ModelResponseChunk], None] | None = None
+    context: dict[str, object] = Field(default_factory=dict)
+
+
+class ToolHookParams(BaseModel):
+    """Params for the wrap_tool hook."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
+
+    tool_request_part: ToolRequestPart
+    tool: Action
 
 
 def text_from_message(msg: Message) -> str:

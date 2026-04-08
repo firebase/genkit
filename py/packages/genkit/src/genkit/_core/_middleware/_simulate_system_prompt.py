@@ -22,7 +22,9 @@ from genkit._ai._model import Message
 from genkit._core._model import ModelResponse
 from genkit._core._typing import Part, TextPart
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 
 
 def simulate_system_prompt(

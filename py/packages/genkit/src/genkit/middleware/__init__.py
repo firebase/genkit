@@ -23,8 +23,11 @@ Chain ordering: middleware is applied first-in, outermost. The first middleware
 in the list wraps around the rest; calls flow in → out.
 
 Example usage:
-    from genkit import Genkit
-    from genkit.middleware import retry, fallback
+    from genkit import Genkit, MiddlewareRef
+    from genkit.middleware import BaseMiddleware
+
+    class MyMw(BaseMiddleware):
+        ...
 
     ai = Genkit()
 
@@ -32,8 +35,8 @@ Example usage:
         model="gemini-pro",
         prompt="Hello",
         use=[
-            retry(max_retries=3),
-            fallback(ai, models=["gemini-flash"]),
+            MyMw(),
+            MiddlewareRef(name="retry", config={"max_retries": 3}),
         ],
     )
 """
@@ -41,10 +44,11 @@ Example usage:
 from genkit._core._middleware._augment_with_context import augment_with_context
 from genkit._core._middleware._base import (
     BaseMiddleware,
-    GenerateHookParams,
-    ModelHookParams,
-    ToolHookParams,
+    GenerateMiddleware,
+    MiddlewareFnOptions,
+    generate_middleware,
 )
+from genkit._core._model import GenerateHookParams, ModelHookParams, ToolHookParams
 from genkit._core._middleware._download_request_media import (
     download_request_media,
 )
@@ -54,15 +58,22 @@ from genkit._core._middleware._simulate_system_prompt import (
     simulate_system_prompt,
 )
 from genkit._core._middleware._validate_support import validate_support
+from genkit._core._middleware._runtime import MiddlewareRuntime
+from genkit._core._plugin import middleware_plugin
 
 __all__ = [
     'BaseMiddleware',
     'GenerateHookParams',
+    'GenerateMiddleware',
+    'MiddlewareFnOptions',
+    'MiddlewareRuntime',
     'ModelHookParams',
     'ToolHookParams',
     'augment_with_context',
     'download_request_media',
     'fallback',
+    'generate_middleware',
+    'middleware_plugin',
     'retry',
     'simulate_system_prompt',
     'validate_support',

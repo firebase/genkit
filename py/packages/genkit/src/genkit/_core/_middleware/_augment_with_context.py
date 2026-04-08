@@ -21,7 +21,9 @@ from collections.abc import Awaitable, Callable
 from genkit._core._model import Document, ModelResponse
 from genkit._core._typing import Part, TextPart
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 from ._utils import _CONTEXT_PREFACE, _context_item_template, _last_user_message
 
 

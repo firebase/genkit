@@ -27,7 +27,9 @@ from genkit._core._http_client import get_cached_client
 from genkit._core._model import ModelResponse
 from genkit._core._typing import Media, MediaPart, Part
 
-from ._base import BaseMiddleware, ModelHookParams
+from genkit._core._model import ModelHookParams
+
+from ._base import BaseMiddleware
 from ._utils import _is_safe_url
 
 

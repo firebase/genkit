@@ -40,6 +40,7 @@ from genkit._core._action import Action, ActionKind
 from genkit._core._constants import GENKIT_VERSION
 from genkit._core._error import get_reflection_json
 from genkit._core._logger import get_logger
+from genkit._core._middleware._base import GenerateMiddleware
 from genkit._core._registry import Registry
 
 logger = get_logger(__name__)
@@ -247,12 +248,6 @@ def create_reflection_asgi_app(
                 headers={'x-genkit-version': version},
             )
         type_param = raw.strip()
-        if type_param != 'defaultModel':
-            return JSONResponse(
-                {'error': f"'type' {type_param} is not supported. Only 'defaultModel' is supported"},
-                status_code=400,
-                headers={'x-genkit-version': version},
-            )
         try:
             try:
                 await registry.initialize_all_plugins()
@@ -262,7 +257,16 @@ def create_reflection_asgi_app(
                     e,
                     exc_info=True,
                 )
-            body = _encode_reflection_json(registry.list_values(type_param))
+            raw_values = registry.list_values(type_param)
+            if type_param == 'middleware':
+                serialized: dict[str, Any] = {}
+                for key, val in raw_values.items():
+                    if isinstance(val, GenerateMiddleware):
+                        serialized[key] = val.to_json()
+                    else:
+                        serialized[key] = val
+                raw_values = serialized
+            body = _encode_reflection_json(raw_values)
         except Exception:
             logger.exception('Reflection /api/values failed')
             return JSONResponse(
