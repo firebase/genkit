@@ -228,6 +228,33 @@ def extract_action_args_and_types(
 # =============================================================================
 
 
+GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR = '_genkit_dynamic_action_provider'
+
+
+def parse_dap_qualified_name(name: str) -> tuple[str, str, str] | None:
+    """Parse DAP-qualified segment ``provider:innerKind/innerName``.
+
+    Used when the action key kind is ``dynamic-action-provider`` and the name
+    references a nested action exposed by a provider (e.g. MCP tools).
+
+    Returns:
+        ``(provider_name, inner_kind, inner_name)`` if the string matches the
+        pattern; otherwise ``None`` so callers can treat the name as a plain
+        dynamic-action-provider id.
+    """
+    if ':' not in name or '/' not in name:
+        return None
+    colon = name.index(':')
+    provider = name[:colon]
+    rest = name[colon + 1 :]
+    if '/' not in rest:
+        return None
+    inner_kind, inner_name = rest.split('/', 1)
+    if not provider or not inner_kind or not inner_name:
+        return None
+    return (provider, inner_kind, inner_name)
+
+
 def parse_action_key(key: str) -> tuple[ActionKind, str]:
     """Parse '/<kind>/<name>' key into (ActionKind, name)."""
     tokens = key.split('/')

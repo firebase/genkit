@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from typing_extensions import Never, TypeVar
 
 from genkit._core._action import (
+    GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
     Action,
     ActionKind,
     ActionMetadata,
@@ -33,6 +34,7 @@ from genkit._core._action import (
     ActionRunContext,
     SpanAttributeValue,
     parse_action_key,
+    parse_dap_qualified_name,
 )
 from genkit._core._logger import get_logger
 from genkit._core._model import (
@@ -448,15 +450,30 @@ class Registry:
                 else:
                     providers_dict = {}
                 providers = list(providers_dict.values())
-            for provider in providers:
+            for provider_action in providers:
+                dap = getattr(provider_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
+                if dap is not None:
+                    try:
+                        resolved = await dap.get_action(str(kind), name)
+                        if resolved is not None:
+                            self.register_action_instance(resolved)
+                            return await self._trigger_lazy_loading(resolved)
+                    except Exception as e:
+                        logger.debug(
+                            f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
+                            exc_info=e,
+                        )
+                        continue
+                    continue
                 try:
-                    response = await provider.run({'kind': kind, 'name': name})
-                    if response.response:
-                        self.register_action_instance(response.response)
-                        return await self._trigger_lazy_loading(response.response)
+                    response = await provider_action.run({'kind': kind, 'name': name})
+                    legacy = response.response
+                    if isinstance(legacy, Action):
+                        self.register_action_instance(legacy)
+                        return await self._trigger_lazy_loading(legacy)
                 except Exception as e:
                     logger.debug(
-                        f'Dynamic action provider {provider.name} failed for {kind}/{name}',
+                        f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
                         exc_info=e,
                     )
                     continue
@@ -466,20 +483,51 @@ class Registry:
     async def resolve_action_by_key(self, key: str) -> Action | None:
         """Resolve an action using its combined key string.
 
-        The key format is `<kind>/<name>`, where kind must be a valid
-        `ActionKind` and name may be prefixed with plugin namespace or unprefixed.
+        The key format is ``/<kind>/<name>``, where kind must be a valid
+        ``ActionKind`` and name may be prefixed with plugin namespace or
+        unprefixed.
+
+        For nested actions exposed by a dynamic action provider, use
+        ``/dynamic-action-provider/<provider>:<innerKind>/<innerName>`` (for
+        example ``/dynamic-action-provider/my-mcp:tool/echo``).
 
         Args:
-            key: The action key in the format `<kind>/<name>`.
+            key: The action key in the format ``/<kind>/<name>``.
 
         Returns:
-            The `Action` instance if found, None otherwise.
+            The ``Action`` instance if found, None otherwise.
 
         Raises:
             ValueError: If the key format is invalid, the kind is not a valid
-                `ActionKind`, or an unprefixed name is ambiguous.
+                ``ActionKind``, or an unprefixed name is ambiguous.
         """
         kind, name = parse_action_key(key)
+        if kind == ActionKind.DYNAMIC_ACTION_PROVIDER:
+            dap_parts = parse_dap_qualified_name(name)
+            if dap_parts is not None:
+                provider_name, inner_kind_str, inner_name = dap_parts
+                provider_action = await self.resolve_action(
+                    ActionKind.DYNAMIC_ACTION_PROVIDER,
+                    provider_name,
+                )
+                if provider_action is None:
+                    return None
+                dap = getattr(provider_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
+                if dap is None:
+                    return None
+                try:
+                    resolved = await dap.get_action(inner_kind_str, inner_name)
+                except Exception as e:
+                    logger.debug(
+                        f'Dynamic action provider {provider_name} failed for '
+                        f'qualified key {inner_kind_str}/{inner_name}',
+                        exc_info=e,
+                    )
+                    return None
+                if resolved is None:
+                    return None
+                self.register_action_instance(resolved)
+                return await self._trigger_lazy_loading(resolved)
         return await self.resolve_action(kind, name)
 
     async def list_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:

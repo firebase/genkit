@@ -13,6 +13,7 @@ import pytest
 
 from genkit import Genkit, Plugin
 from genkit._core._action import Action, ActionKind, ActionMetadata
+from genkit._core._dap import DapValue, define_dynamic_action_provider
 from genkit._core._registry import Registry
 
 
@@ -52,6 +53,54 @@ async def test_resolve_action_by_key_invalid_format() -> None:
     registry = Registry()
     with pytest.raises(ValueError, match='Invalid action key format'):
         await registry.resolve_action_by_key('invalid_key')
+
+
+@pytest.mark.asyncio
+async def test_resolve_action_via_dynamic_action_provider() -> None:
+    """Registry resolves actions supplied only by a DAP via get_action."""
+    registry = Registry()
+
+    async def tool_fn(x: str) -> str:
+        return x
+
+    inner = Action(
+        name='inner-tool',
+        kind=ActionKind.TOOL,
+        fn=tool_fn,
+        metadata={'name': 'inner-tool'},
+    )
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [inner]}
+
+    define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+
+    got = await registry.resolve_action(ActionKind.TOOL, 'inner-tool')
+    assert got is inner
+
+
+@pytest.mark.asyncio
+async def test_resolve_action_by_key_dap_qualified() -> None:
+    """DAP-qualified keys resolve nested actions."""
+    registry = Registry()
+
+    async def tool_fn(x: str) -> str:
+        return x
+
+    inner = Action(
+        name='inner-tool',
+        kind=ActionKind.TOOL,
+        fn=tool_fn,
+        metadata={'name': 'inner-tool'},
+    )
+
+    async def dap_fn() -> DapValue:
+        return {'tool': [inner]}
+
+    define_dynamic_action_provider(registry, 'my-dap', dap_fn)
+
+    got = await registry.resolve_action_by_key('/dynamic-action-provider/my-dap:tool/inner-tool')
+    assert got is inner
 
 
 @pytest.mark.asyncio

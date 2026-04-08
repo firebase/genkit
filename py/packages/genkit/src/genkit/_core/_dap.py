@@ -21,7 +21,11 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from genkit._core._action import Action, ActionKind
+from genkit._core._action import (
+    GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR,
+    Action,
+    ActionKind,
+)
 from genkit._core._registry import Registry
 
 ActionMetadataLike = Mapping[str, object]
@@ -151,4 +155,6 @@ def define_dynamic_action_provider(
         metadata={**(metadata or {}), 'type': 'dynamic-action-provider'},
     )
 
-    return DynamicActionProvider(action, fn, cache_ttl_millis)
+    dap = DynamicActionProvider(action, fn, cache_ttl_millis)
+    setattr(action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, dap)
+    return dap
