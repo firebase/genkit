@@ -86,6 +86,11 @@ class Registry:
     plugins, and schemas. It provides methods for registering new resources and
     looking them up at runtime.
 
+    Supports a **child registry** pattern (see ``new_child``): a child registry
+    delegates lookups to its parent when a name is not found locally.  This is
+    used to create cheap, ephemeral registries scoped to a single generate call
+    (for DAP-resolved tools) without polluting the root registry.
+
     This class is thread-safe and can be safely shared between multiple threads.
 
     Attributes:
@@ -93,10 +98,17 @@ class Registry:
             action names and their corresponding Action instances.
     """
 
-    default_model: str | None = None
+    def __init__(self, parent: 'Registry | None' = None) -> None:
+        """Initialize a Registry instance.
 
-    def __init__(self) -> None:
-        """Initialize an empty Registry instance."""
+        Args:
+            parent: Optional parent registry.  When provided this is a *child*
+                registry that falls back to the parent for any lookup that
+                returns ``None`` locally.  Use ``new_child()`` as the
+                preferred factory rather than passing ``parent`` directly.
+        """
+        self._parent: Registry | None = parent
+        self._default_model: str | None = None
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, object]] = {}
         self._schemas_by_name: dict[str, dict[str, object]] = {}
@@ -113,7 +125,8 @@ class Registry:
         async def async_schema_resolver(name: str) -> dict[str, object] | str:
             return self.lookup_schema(name) or name
 
-        self.dotprompt: Dotprompt = Dotprompt(schema_resolver=async_schema_resolver)
+        # Children share the parent's Dotprompt instance (prompts are global).
+        self.dotprompt: Dotprompt = parent.dotprompt if parent is not None else Dotprompt(schema_resolver=async_schema_resolver)
         # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 
@@ -129,6 +142,44 @@ class Registry:
         #   reflection server schedules coroutines onto that loop.)
         self._plugins: dict[str, Plugin] = {}
         self._plugin_init_tasks: dict[str, asyncio.Task[None]] = {}
+
+    # -------------------------------------------------------------------------
+    # Child registry support
+    # -------------------------------------------------------------------------
+
+    def new_child(self) -> 'Registry':
+        """Create a cheap child registry that inherits from this registry.
+
+        Child registries are used to create short-lived, ephemeral scopes (e.g.
+        per-generate-call tool registrations from a DAP) without polluting the
+        root registry.  Any lookup that fails locally falls back to this parent.
+        Writes on the child never propagate back to the parent.
+
+        Returns:
+            A new ``Registry`` whose parent is ``self``.
+        """
+        return Registry(parent=self)
+
+    @property
+    def parent(self) -> 'Registry | None':
+        """The parent registry, or ``None`` if this is a root registry."""
+        return self._parent
+
+    @property
+    def is_child(self) -> bool:
+        """``True`` if this registry has a parent."""
+        return self._parent is not None
+
+    @property
+    def default_model(self) -> str | None:
+        """The default model name, falling back to parent if not set locally."""
+        if self._default_model is not None:
+            return self._default_model
+        return self._parent.default_model if self._parent is not None else None
+
+    @default_model.setter
+    def default_model(self, value: str | None) -> None:
+        self._default_model = value
 
     def register_action(
         self,
@@ -240,10 +291,13 @@ class Registry:
             name: The name of the value (e.g., "json", "text").
 
         Returns:
-            The value or None if not found.
+            The value or None if not found.  Falls back to parent registry.
         """
         with self._lock:
-            return self._value_by_kind_and_name.get(kind, {}).get(name)
+            local = self._value_by_kind_and_name.get(kind, {}).get(name)
+        if local is not None:
+            return local
+        return self._parent.lookup_value(kind, name) if self._parent is not None else None
 
     def list_values(self, kind: str) -> list[str]:
         """List all values registered for a specific kind.
@@ -456,8 +510,7 @@ class Registry:
                     try:
                         resolved = await dap.get_action(str(kind), name)
                         if resolved is not None:
-                            self.register_action_instance(resolved)
-                            return await self._trigger_lazy_loading(resolved)
+                            return resolved
                     except Exception as e:
                         logger.debug(
                             f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
@@ -469,14 +522,17 @@ class Registry:
                     response = await provider_action.run({'kind': kind, 'name': name})
                     legacy = response.response
                     if isinstance(legacy, Action):
-                        self.register_action_instance(legacy)
-                        return await self._trigger_lazy_loading(legacy)
+                        return legacy
                 except Exception as e:
                     logger.debug(
                         f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
                         exc_info=e,
                     )
                     continue
+
+        # Final fallback: delegate to parent registry.
+        if self._parent is not None:
+            return await self._parent.resolve_action(kind, name)
 
         return None
 
@@ -526,8 +582,7 @@ class Registry:
                     return None
                 if resolved is None:
                     return None
-                self.register_action_instance(resolved)
-                return await self._trigger_lazy_loading(resolved)
+                return resolved
         return await self.resolve_action(kind, name)
 
     async def list_actions(self, allowed_kinds: list[ActionKind] | None = None) -> list[ActionMetadata]:
@@ -536,6 +591,9 @@ class Registry:
         This method returns the advertised set of actions from all registered
         plugins. It does NOT trigger plugin initialization and does NOT consult
         the registry's internal action store.
+
+        For a child registry, parent actions are included but child actions with
+        the same (kind, name) take precedence.
 
         Args:
             allowed_kinds: Optional list of action kinds to filter by.
@@ -547,6 +605,7 @@ class Registry:
             ValueError: If a plugin returns invalid ActionMetadata.
         """
         metas: list[ActionMetadata] = []
+        seen: set[tuple[ActionKind, str]] = set()
         with self._lock:
             plugins = list(self._plugins.items())
         for plugin_name, plugin in plugins:
@@ -561,7 +620,15 @@ class Registry:
 
                 if allowed_kinds and meta.kind not in allowed_kinds:
                     continue
+                seen.add((meta.kind, meta.name))
                 metas.append(meta)
+
+        # Include parent actions not shadowed by local plugins.
+        if self._parent is not None:
+            for parent_meta in await self._parent.list_actions(allowed_kinds):
+                if (parent_meta.kind, parent_meta.name) not in seen:
+                    metas.append(parent_meta)
+
         return metas
 
     def register_schema(self, name: str, schema: dict[str, object], schema_type: type[BaseModel] | None = None) -> None:
@@ -593,10 +660,13 @@ class Registry:
             name: The name of the schema to look up.
 
         Returns:
-            The schema data if found, None otherwise.
+            The schema data if found, None otherwise.  Falls back to parent.
         """
         with self._lock:
-            return self._schemas_by_name.get(name)
+            local = self._schemas_by_name.get(name)
+        if local is not None:
+            return local
+        return self._parent.lookup_schema(name) if self._parent is not None else None
 
     def lookup_schema_type(self, name: str) -> type[BaseModel] | None:
         """Looks up a schema's Pydantic type by name.
@@ -605,10 +675,13 @@ class Registry:
             name: The name of the schema to look up.
 
         Returns:
-            The Pydantic model class if found, None otherwise.
+            The Pydantic model class if found, None otherwise.  Falls back to parent.
         """
         with self._lock:
-            return self._schema_types_by_name.get(name)
+            local = self._schema_types_by_name.get(name)
+        if local is not None:
+            return local
+        return self._parent.lookup_schema_type(name) if self._parent is not None else None
 
     # ===== Typed Action Lookups =====
     #

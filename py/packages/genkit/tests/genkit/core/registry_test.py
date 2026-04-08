@@ -188,3 +188,108 @@ async def test_trigger_lazy_loading_reentrant_guard() -> None:
     assert resolved.name == 'self_ref'
     # Factory should have been called exactly once (re-entrant call skipped)
     assert call_count == 1
+
+
+# =============================================================================
+# Child registry tests
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_new_child_is_child() -> None:
+    """new_child() returns a child whose is_child is True."""
+    parent = Registry()
+    child = parent.new_child()
+    assert child.is_child
+    assert not parent.is_child
+    assert child.parent is parent
+
+
+@pytest.mark.asyncio
+async def test_child_resolves_parent_action() -> None:
+    """Child registry falls back to parent for resolve_action."""
+    parent = Registry()
+    action = parent.register_action(name='shared', kind=ActionKind.CUSTOM, fn=_identity)
+
+    child = parent.new_child()
+    got = await child.resolve_action(ActionKind.CUSTOM, 'shared')
+    assert got is action
+
+
+@pytest.mark.asyncio
+async def test_child_action_does_not_pollute_parent() -> None:
+    """Actions registered on child are invisible to parent."""
+    parent = Registry()
+    child = parent.new_child()
+    child.register_action(name='child_only', kind=ActionKind.CUSTOM, fn=_identity)
+
+    assert await parent.resolve_action(ActionKind.CUSTOM, 'child_only') is None
+    assert await child.resolve_action(ActionKind.CUSTOM, 'child_only') is not None
+
+
+@pytest.mark.asyncio
+async def test_child_shadows_parent_action() -> None:
+    """Child action with the same name takes precedence over parent."""
+    parent = Registry()
+    parent_action = parent.register_action(name='shared', kind=ActionKind.CUSTOM, fn=_identity)
+
+    child = parent.new_child()
+
+    async def child_fn(x: object) -> object:
+        return x
+
+    child_action = child.register_action(name='shared', kind=ActionKind.CUSTOM, fn=child_fn)
+
+    assert await child.resolve_action(ActionKind.CUSTOM, 'shared') is child_action
+    assert await parent.resolve_action(ActionKind.CUSTOM, 'shared') is parent_action
+
+
+def test_child_inherits_default_model() -> None:
+    """Child inherits default_model from parent if not set locally."""
+    parent = Registry()
+    parent.default_model = 'gemini-pro'
+
+    child = parent.new_child()
+    assert child.default_model == 'gemini-pro'
+
+    child.default_model = 'gemini-flash'
+    assert child.default_model == 'gemini-flash'
+    assert parent.default_model == 'gemini-pro'
+
+
+def test_child_inherits_lookup_value() -> None:
+    """Child falls back to parent for lookup_value."""
+    parent = Registry()
+    parent.register_value('format', 'json', {'json': True})
+
+    child = parent.new_child()
+    assert child.lookup_value('format', 'json') == {'json': True}
+
+    # Local override shadows parent
+    child.register_value('format', 'json', {'json': False})
+    assert child.lookup_value('format', 'json') == {'json': False}
+    assert parent.lookup_value('format', 'json') == {'json': True}
+
+
+@pytest.mark.asyncio
+async def test_child_list_actions_includes_parent_plugin() -> None:
+    """list_actions on child includes parent-plugin actions not shadowed locally."""
+
+    class ParentPlugin(Plugin):
+        name = 'parentplugin'
+
+        async def init(self) -> list[Action]:
+            return []
+
+        async def resolve(self, action_type: ActionKind, name: str) -> Action | None:
+            return None
+
+        async def list_actions(self) -> list[ActionMetadata]:
+            return [ActionMetadata(kind=ActionKind.MODEL, name='my-model')]
+
+    parent = Registry()
+    parent.register_plugin(ParentPlugin())
+
+    child = parent.new_child()
+    metas = await child.list_actions()
+    names = [m.name for m in metas]
+    assert 'parentplugin/my-model' in names
