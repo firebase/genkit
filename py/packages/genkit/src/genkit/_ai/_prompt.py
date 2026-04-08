@@ -489,7 +489,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             tool_choice=prompt_config.tool_choice,
             output=output,
             max_turns=prompt_config.max_turns,
-            docs=cast(list[DocumentData] | None, merged_docs),
+            docs=merged_docs,  # type: ignore[arg-type]
             resume=resume_result,
         )
 
