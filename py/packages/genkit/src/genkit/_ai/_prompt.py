@@ -490,7 +490,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output=output,
             max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
-            resume=resume_result,
+            resume=resume,
         )
 
     def stream(
