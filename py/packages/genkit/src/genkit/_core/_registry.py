@@ -128,7 +128,9 @@ class Registry:
             return self.lookup_schema(name) or name
 
         # Children share the parent's Dotprompt instance (prompts are global).
-        self.dotprompt: Dotprompt = parent.dotprompt if parent is not None else Dotprompt(schema_resolver=async_schema_resolver)
+        self.dotprompt: Dotprompt = (
+            parent.dotprompt if parent is not None else Dotprompt(schema_resolver=async_schema_resolver)
+        )
         # TODO(#4352): Figure out how to set this.
         self.api_stability: str = 'stable'
 
