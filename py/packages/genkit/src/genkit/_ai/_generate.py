@@ -39,6 +39,7 @@ from genkit._ai._model import (
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
 from genkit._ai._tools import Tool, ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._core._dap import GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
 from genkit._core._model import GenerateActionOptions
@@ -59,6 +60,46 @@ from genkit._core._typing import (
 DEFAULT_MAX_TURNS = 5
 
 logger = get_logger(__name__)
+
+
+async def expand_wildcard_tools(registry: Registry, tool_names: list[str]) -> list[str]:
+    """Expand DAP wildcard tool names into individual tool names.
+
+    A wildcard has the form ``<provider>:tool/*`` (or ``<provider>:tool/<prefix>*``).
+    Non-wildcard names are passed through unchanged.
+    """
+    expanded: list[str] = []
+    for name in tool_names:
+        if ':' not in name or not name.endswith('*'):
+            expanded.append(name)
+            continue
+
+        colon = name.index(':')
+        provider_name = name[:colon]
+        rest = name[colon + 1:]  # e.g. "tool/*" or "tool/prefix*"
+
+        provider_action = await registry.resolve_action(ActionKind.DYNAMIC_ACTION_PROVIDER, provider_name)
+        if provider_action is None:
+            expanded.append(name)
+            continue
+
+        dap = getattr(provider_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
+        if dap is None:
+            expanded.append(name)
+            continue
+
+        if '/' not in rest:
+            expanded.append(name)
+            continue
+
+        action_type, action_pattern = rest.split('/', 1)
+        metas = await dap.list_action_metadata(action_type, action_pattern)
+        for meta in metas:
+            tool_name = meta.get('name')
+            if tool_name:
+                expanded.append(str(tool_name))
+
+    return expanded
 
 
 def tools_to_action_names(
@@ -158,12 +199,18 @@ async def _generate_action(
     context: dict[str, Any] | None = None,
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support."""
-    model, tools, format_def = await resolve_parameters(registry, raw_request)
+    effective_registry = registry if registry.is_child else registry.new_child()
+
+    if raw_request.tools:
+        raw_request = raw_request.model_copy()
+        raw_request.tools = await expand_wildcard_tools(effective_registry, raw_request.tools)
+
+    model, tools, format_def = await resolve_parameters(effective_registry, raw_request)
 
     raw_request, formatter = apply_format(raw_request, format_def)
 
     if raw_request.resources:
-        raw_request = await apply_resources(registry, raw_request)
+        raw_request = await apply_resources(effective_registry, raw_request)
 
     assert_valid_tool_names(raw_request)
 
@@ -171,7 +218,7 @@ async def _generate_action(
         revised_request,
         interrupted_response,
         resumed_tool_message,
-    ) = await _resolve_resume_options(registry, raw_request)
+    ) = await _resolve_resume_options(effective_registry, raw_request)
 
     # NOTE: in the future we should make it possible to interrupt a restart, but
     # at the moment it's too complicated because it's not clear how to return a
@@ -374,7 +421,7 @@ async def _generate_action(
         revised_model_msg,
         tool_msg,
         transfer_preamble,
-    ) = await resolve_tool_requests(registry, raw_request, generated_msg)
+    ) = await resolve_tool_requests(effective_registry, raw_request, generated_msg)
 
     # if an interrupt message is returned, stop the tool loop and return a
     # response.
@@ -408,7 +455,7 @@ async def _generate_action(
 
     # then recursively call for another loop
     return await _generate_action(
-        registry,
+        effective_registry,
         raw_request=next_request,
         # middleware: middleware,
         current_turn=current_turn + 1,
