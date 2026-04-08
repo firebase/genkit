@@ -16,10 +16,11 @@
 
 """Generate action."""
 
+import asyncio
 import contextlib
 import copy
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, cast
 
 from pydantic import BaseModel
@@ -33,7 +34,7 @@ from genkit._ai._model import (
     ModelResponseChunk,
 )
 from genkit._ai._resource import ResourceArgument, ResourceInput, find_matching_resource, resolve_resources
-from genkit._ai._tools import ToolInterruptError
+from genkit._ai._tools import Tool, ToolInterruptError
 from genkit._core._action import Action, ActionKind, ActionRunContext
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
@@ -123,6 +124,21 @@ async def _chain_tool_middleware(
 
         runner = run_next
     return await runner(params)
+
+
+def tools_to_action_names(
+    tools: Sequence[str | Tool] | None,
+) -> list[str] | None:
+    """Normalize tool arguments to registry tool name strings for GenerateActionOptions."""
+    if tools is None:
+        return None
+    names: list[str] = []
+    for t in tools:
+        if isinstance(t, str):
+            names.append(t)
+        else:
+            names.append(t.name)
+    return names
 
 
 # Matches data URIs: everything up to the first comma is the media-type +
@@ -730,43 +746,46 @@ async def resolve_tool_requests(
     revised_model_message = message.model_copy(deep=True)
     mw_list = middleware or []
 
-    has_interrupts = False
-    response_parts: list[Part] = []
-    i = 0
-    for tool_request_part in message.content:
+    work: list[tuple[int, Action, ToolRequestPart]] = []
+    for i, tool_request_part in enumerate(message.content):
         if not (isinstance(tool_request_part, Part) and isinstance(tool_request_part.root, ToolRequestPart)):  # pyright: ignore[reportUnnecessaryIsInstance]
-            i += 1
             continue
 
-        # Type is now narrowed: tool_request_part.root is ToolRequestPart
         tool_req_root = tool_request_part.root
         tool_request = tool_req_root.tool_request
 
         if tool_request.name not in tool_dict:
             raise RuntimeError(f'failed {tool_request.name} not found')
         tool = tool_dict[tool_request.name]
+        work.append((i, tool, tool_req_root))
 
+    if not work:
+        return (None, Message(role=Role.TOOL, content=[]), None)
+
+    async def _resolve_one_tool(tool: Action, trp: ToolRequestPart) -> tuple[Part | None, Part | None]:
         if mw_list:
-            params = ToolHookParams(tool_request_part=tool_req_root, tool=tool)
+            params = ToolHookParams(tool_request_part=trp, tool=tool)
 
             async def next_fn(p: ToolHookParams) -> tuple[Part | None, Part | None]:
                 return await _resolve_tool_request(p.tool, p.tool_request_part)
 
-            tool_response_part, interrupt_part = await _chain_tool_middleware(mw_list, params, next_fn)
-        else:
-            tool_response_part, interrupt_part = await _resolve_tool_request(tool, tool_req_root)
+            return await _chain_tool_middleware(mw_list, params, next_fn)
+        return await _resolve_tool_request(tool, trp)
 
+    outs = await asyncio.gather(*[_resolve_one_tool(tool, trp) for _, tool, trp in work])
+
+    has_interrupts = False
+    response_parts: list[Part] = []
+    for (idx, _tool, tool_req_root), (tool_response_part, interrupt_part) in zip(work, outs, strict=True):
         if tool_response_part:
             # Extract the ToolResponsePart from the returned Part for _to_pending_response
             if isinstance(tool_response_part.root, ToolResponsePart):
-                revised_model_message.content[i] = _to_pending_response(tool_req_root, tool_response_part.root)
+                revised_model_message.content[idx] = _to_pending_response(tool_req_root, tool_response_part.root)
             response_parts.append(tool_response_part)
 
         if interrupt_part:
             has_interrupts = True
-            revised_model_message.content[i] = interrupt_part
-
-        i += 1
+            revised_model_message.content[idx] = interrupt_part
 
     if has_interrupts:
         return (revised_model_message, None, None)
@@ -827,11 +846,17 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
         raise e
 
 
-async def resolve_tool(registry: Registry, tool_name: str) -> Action:
-    """Resolve a tool by name from the registry."""
-    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_name)
+async def resolve_tool(registry: Registry, tool_ref: str | Tool) -> Action:
+    """Resolve a tool from a registry name or a Tool instance.
+
+    Used when building ModelRequest (for example from to_generate_request).
+    """
+    if isinstance(tool_ref, Tool):
+        return tool_ref.action
+
+    tool = await registry.resolve_action(kind=ActionKind.TOOL, name=tool_ref)
     if tool is None:
-        raise ValueError(f'Unable to resolve tool {tool_name}')
+        raise GenkitError(status='NOT_FOUND', message=f'Unable to resolve tool {tool_ref}')
     return tool
 
 
