@@ -41,7 +41,6 @@ from genkit._ai._generate import (
     tools_to_action_names,
 )
 from genkit._ai._model import (
-    Message,
     ModelMiddleware,
     ModelRequest,
     ModelResponse,
@@ -52,10 +51,11 @@ from genkit._core._action import Action, ActionKind, ActionRunContext, Streaming
 from genkit._core._channel import Channel
 from genkit._core._error import GenkitError
 from genkit._core._logger import get_logger
-from genkit._core._model import Document, GenerateActionOptions, ModelConfig
+from genkit._core._model import Document, GenerateActionOptions, Message, ModelConfig
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
+    DocumentData,
     GenerateActionOutputConfig,
     OutputConfig,
     Part,
@@ -482,14 +482,14 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
 
         return GenerateActionOptions(
             model=model,
-            messages=resolved_msgs,  # type: ignore[arg-type]
+            messages=resolved_msgs,
             config=prompt_config.config,
             tools=tools_to_action_names(prompt_config.tools),
             return_tool_requests=prompt_config.return_tool_requests,
             tool_choice=prompt_config.tool_choice,
             output=output,
             max_turns=prompt_config.max_turns,
-            docs=merged_docs,  # type: ignore[arg-type]
+            docs=cast(list[DocumentData] | None, merged_docs),
             resume=resume_result,
         )
 

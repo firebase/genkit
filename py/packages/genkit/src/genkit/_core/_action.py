@@ -348,26 +348,6 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         self._fn = _make_tracing_wrapper(name, kind, span_metadata or {}, n_action_args, fn)
         self._initialize_io_schemas(action_args, arg_types, resolved_annotations, input_spec)
 
-    def _override_input_schema(
-        self,
-        input_schema: type[BaseModel] | dict[str, object],
-    ) -> None:
-        """Replace input JSON schema (and input validation) when explicitly provided.
-
-        Used when ``metadata_fn`` is loosely typed but the wire contract should be a
-        Pydantic model or JSON Schema dict. Replaces the older public
-        ``override_input_schema`` method: same purpose (e.g. tools passing
-        ``input_schema=``), but implementation now uses ``to_json_schema`` so schemas
-        match the rest of Genkit, and assignments go through the ``input_schema``
-        property so registry metadata stays aligned.
-        """
-        in_js = to_json_schema(input_schema)
-        self.input_schema = in_js
-        if isinstance(input_schema, dict):
-            self._input_type = None
-        else:
-            self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
-
     @property
     def kind(self) -> ActionKind:
         return self._kind
@@ -405,6 +385,18 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def output_schema(self, value: dict[str, object]) -> None:
         self._output_schema = value
         self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
+
+    def _override_input_schema(
+        self,
+        input_schema: type[BaseModel] | dict[str, object],
+    ) -> None:
+        """Replace inferred input JSON Schema and validation type (e.g. tool schema overrides)."""
+        in_js = to_json_schema(input_schema)
+        self.input_schema = in_js
+        if isinstance(input_schema, dict):
+            self._input_type = None
+        else:
+            self._input_type = cast(TypeAdapter[InputT], TypeAdapter(input_schema))
 
     async def __call__(self, input: InputT | None = None) -> OutputT:
         """Call the action directly, returning just the response value."""
