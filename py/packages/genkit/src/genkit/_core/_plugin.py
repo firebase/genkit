@@ -112,8 +112,8 @@ def middleware_plugin(
             ], namespace='myapp'),
         ])
 
-    Build each item with generate_middleware in genkit.middleware (class or dict + factory),
-    or the same API on your Genkit instance; neither registers by itself. Registration happens
+    Build each item with generate_middleware in genkit.middleware or the same API on your
+    Genkit instance; neither registers by itself. Registration happens
     when this plugin is passed in plugins=[...].
 
     Args:

@@ -316,11 +316,10 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
     ) -> ModelResponse[OutputT]:
         """Execute the prompt with resolved opts. Used by __call__ and stream."""
         await self._ensure_resolved()
-        effective_opts: PromptGenerateOptions = opts if opts else {}
 
         # Extract streaming callback from opts; middleware ``use`` is merged in ``_render_impl``.
-        on_chunk = effective_opts.get('on_chunk')
-        context = effective_opts.get('context')
+        on_chunk = opts.get('on_chunk')
+        context = opts.get('context')
 
         result = await generate_action(
             self._registry,

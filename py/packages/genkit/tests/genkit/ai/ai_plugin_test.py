@@ -146,12 +146,10 @@ class PluginWithMiddleware(Plugin):
             return _NoopPluginMiddleware()
 
         return [
-            generate_middleware(
-                {
-                    'name': f'{self.name}_noop',
-                    'description': 'noop plugin middleware for tests',
-                },
-                _factory,
+            GenerateMiddleware(
+                name=f'{self.name}_noop',
+                factory=_factory,
+                description='noop plugin middleware for tests',
             )
         ]
 
@@ -165,12 +163,17 @@ def test_plugin_generate_middleware_registers_on_registry() -> None:
     assert gm.to_json()['description'] == 'noop plugin middleware for tests'
 
 
+class _PluginPackMw(BaseMiddleware):
+    name = 'my_pack_custom_mw'
+    description = 'from plugin() helper'
+
+    async def wrap_model(self, params, next_fn):
+        return await next_fn(params)
+
+
 def test_middleware_plugin_registers_on_registry() -> None:
     """``middleware_plugin`` wraps definitions in a minimal ``Plugin``."""
-    gm = generate_middleware(
-        {'name': 'my_pack_custom_mw', 'description': 'from plugin() helper'},
-        lambda _opts: _NoopPluginMiddleware(),
-    )
+    gm = generate_middleware(_PluginPackMw)
     plugin = middleware_plugin([gm])
     assert plugin.name == 'extension-middleware'
     ai = Genkit(plugins=[plugin])
@@ -180,18 +183,31 @@ def test_middleware_plugin_registers_on_registry() -> None:
     assert looked.to_json()['description'] == 'from plugin() helper'
 
 
+class _MwOne(BaseMiddleware):
+    name = 'mw_one'
+
+
+class _MwTwo(BaseMiddleware):
+    name = 'mw_two'
+
+
 def test_middleware_plugin_registers_multiple_definitions() -> None:
     """One plugin can bundle several ``GenerateMiddleware`` definitions."""
-    g1 = generate_middleware({'name': 'mw_one'}, lambda _o: _NoopPluginMiddleware())
-    g2 = generate_middleware({'name': 'mw_two'}, lambda _o: _NoopPluginMiddleware())
+    g1 = generate_middleware(_MwOne)
+    g2 = generate_middleware(_MwTwo)
     ai = Genkit(plugins=[middleware_plugin([g1, g2])])
     assert ai.registry.lookup_value('middleware', 'mw_one') is not None
     assert ai.registry.lookup_value('middleware', 'mw_two') is not None
 
 
+class _LoggingMw(BaseMiddleware):
+    name = 'logging'
+    description = 'd'
+
+
 def test_middleware_plugin_namespace_prefixes_registry_key() -> None:
     """With ``namespace``, registry keys are ``{namespace}_{definition.name}``; ``Plugin.name`` defaults to namespace."""
-    g = generate_middleware({'name': 'logging', 'description': 'd'}, lambda _o: _NoopPluginMiddleware())
+    g = generate_middleware(_LoggingMw)
     plugin = middleware_plugin([g], namespace='acme')
     assert plugin.name == 'acme'
     ai = Genkit(plugins=[plugin])
@@ -199,16 +215,24 @@ def test_middleware_plugin_namespace_prefixes_registry_key() -> None:
     assert ai.registry.lookup_value('middleware', 'logging') is None
 
 
+class _XMw(BaseMiddleware):
+    name = 'x'
+
+
 def test_middleware_plugin_namespace_must_not_contain_slash() -> None:
     with pytest.raises(ValueError, match='namespace'):
-        g = generate_middleware({'name': 'x'}, lambda _o: _NoopPluginMiddleware())
+        g = generate_middleware(_XMw)
         middleware_plugin([g], namespace='bad/ns')
+
+
+class _BadSlashNameMw(BaseMiddleware):
+    name = 'bad/name'
 
 
 def test_generate_middleware_name_must_not_contain_slash() -> None:
     """``/`` is reserved for model/action style keys; middleware ids are flat."""
     with pytest.raises(ValueError, match='must not contain'):
-        generate_middleware({'name': 'bad/name'}, lambda _o: _NoopPluginMiddleware())
+        generate_middleware(_BadSlashNameMw)
 
 
 def test_generate_middleware_from_class_reads_name_and_description() -> None:

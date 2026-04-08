@@ -93,7 +93,6 @@ from genkit._core._logger import get_logger
 from genkit._core._middleware._base import BaseMiddleware
 from genkit._core._middleware._generate_middleware import (
     GenerateMiddleware,
-    MiddlewareFnOptions,
     generate_middleware as _build_generate_middleware,
     register_builtin_generate_middleware,
 )
@@ -385,7 +384,7 @@ class Genkit:
         register_builtin_generate_middleware(self.registry)
 
     def _register_plugin_middleware(self, plugins: list[Plugin] | None) -> None:
-        """Register ``Plugin.generate_middleware`` after built-ins (JS: ``plugin.generateMiddleware``)."""
+        """Register ``Plugin.generate_middleware`` after built-ins."""
         if not plugins:
             return
         for plugin in plugins:
@@ -394,30 +393,16 @@ class Genkit:
             for gm in plugin.generate_middleware():
                 self.registry.register_value('middleware', gm.name, gm)
 
-    @overload
-    def generate_middleware(
-        self,
-        meta: dict[str, Any],
-        factory: Callable[[MiddlewareFnOptions], BaseMiddleware],
-    ) -> GenerateMiddleware: ...
+    def generate_middleware(self, middleware_cls: type[BaseMiddleware]) -> GenerateMiddleware:
+        """Build a middleware definition (same as ``genkit.middleware.generate_middleware``).
 
-    @overload
-    def generate_middleware(self, middleware_cls: type[BaseMiddleware]) -> GenerateMiddleware: ...
-
-    def generate_middleware(
-        self,
-        meta_or_cls: dict[str, Any] | type[BaseMiddleware],
-        factory: Callable[[MiddlewareFnOptions], BaseMiddleware] | None = None,
-    ) -> GenerateMiddleware:
-        """Build a middleware definition (same as genkit.middleware.generate_middleware).
-
-        Does not register on the registry. Pass the result to middleware_plugin([...]) or a
-        custom Plugin.generate_middleware so it is registered when the app is constructed.
+        Does not register on the registry. Pass the result to ``middleware_plugin([...])`` or a
+        custom ``Plugin.generate_middleware`` so it is registered when the app is constructed.
 
         Returns:
             The GenerateMiddleware instance.
         """
-        return _build_generate_middleware(meta_or_cls, factory)
+        return _build_generate_middleware(middleware_cls)
 
     # Overload 1: Both input_schema and output_schema typed -> ExecutablePrompt[InputT, OutputT]
     @overload

@@ -35,6 +35,7 @@ from genkit._core._typing import (
 from genkit.middleware import (
     BaseMiddleware,
     GenerateHookParams,
+    GenerateMiddleware,
     ModelHookParams,
     ToolHookParams,
     generate_middleware,
@@ -426,12 +427,14 @@ async def test_wrap_generate_called_per_turn() -> None:
         plugins=[
             middleware_plugin(
                 [
-                    generate_middleware(
-                        {'name': 'track_gen', 'description': 'track generate'},
+                    GenerateMiddleware(
+                        name='track_gen',
+                        description='track generate',
                         factory=lambda _opts: track_mw,
                     ),
-                    generate_middleware(
-                        {'name': 'track_gen2', 'description': 'track generate 2'},
+                    GenerateMiddleware(
+                        name='track_gen2',
+                        description='track generate 2',
                         factory=lambda _opts: track_mw2,
                     ),
                 ]
@@ -579,8 +582,9 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
         plugins=[
             middleware_plugin(
                 [
-                    generate_middleware(
-                        {'name': 'track_tool', 'description': 'track tool'},
+                    GenerateMiddleware(
+                        name='track_tool',
+                        description='track tool',
                         factory=lambda _opts: track_mw,
                     ),
                 ]

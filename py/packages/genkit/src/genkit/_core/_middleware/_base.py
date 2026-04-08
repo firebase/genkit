@@ -14,12 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Middleware protocol, hook params, default implementation, and registration types.
+"""Middleware hook params, default implementation, and registration types.
 
 Two roles (they are not superclass/subclass):
 
-- **Runtime:** BaseMiddleware (and the Middleware protocol) — objects that implement
-  the wrap_* hooks. Factories produce these; they are not passed directly in ``use=``.
+- **Runtime:** BaseMiddleware subclasses MiddlewareRuntime and implements wrap_* hooks.
+  Factories produce these; instances are not passed directly in ``use=``.
 - **Definition:** GenerateMiddleware — a named bundle in the registry (metadata plus a
   factory callable). It does not extend BaseMiddleware; calling it with options returns
   the BaseMiddleware instance for that request. Register via ``middleware_plugin`` or
@@ -33,47 +33,23 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from genkit._core._model import (
-    GenerateActionOptions,
     GenerateHookParams,
     ModelHookParams,
-    ModelRequest,
     ModelResponse,
-    ModelResponseChunk,
     ToolHookParams,
 )
 from genkit._core._middleware._runtime import MiddlewareRuntime
-from genkit._core._typing import Part, ToolRequestPart
+from genkit._core._typing import Part
 
 
-class Middleware(Protocol):
-    """Middleware with hooks for the generate loop, model call, and tool execution.
+class _MiddlewareRegistryView(Protocol):
+    """Minimal registry surface passed into middleware factories (avoids importing ``Registry`` here)."""
 
-    Subclass BaseMiddleware to implement only the hooks you need.
-    """
+    def lookup_value(self, kind: str, name: str) -> object | None: ...
 
-    def wrap_generate(
-        self,
-        params: GenerateHookParams,
-        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
-    ) -> Awaitable[ModelResponse]:
-        """Wrap each iteration of the tool loop (model call + optional tool resolution)."""
-        ...
 
-    def wrap_model(
-        self,
-        params: ModelHookParams,
-        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
-    ) -> Awaitable[ModelResponse]:
-        """Wrap each model API call."""
-        ...
-
-    def wrap_tool(
-        self,
-        params: ToolHookParams,
-        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
-    ) -> Awaitable[tuple[Part | None, Part | None]]:
-        """Wrap each tool execution."""
-        ...
+# (tool response Part, interrupt Part) — matches ``_resolve_tool_request`` / ``_chain_tool_middleware``.
+ToolHookChainResult = tuple[Part | None, Part | None]
 
 
 class BaseMiddleware(MiddlewareRuntime):
@@ -83,11 +59,12 @@ class BaseMiddleware(MiddlewareRuntime):
     GenerateMiddleware, which is only the registry definition plus a factory that
     produces a BaseMiddleware.
 
-    To expose middleware to ``use=``, build a ``GenerateMiddleware`` with generate_middleware
-    (meta dict + factory, or ``name`` / ``description`` / schema class attributes +
-    ``generate_middleware(MySubclass)``), register it via ``middleware_plugin`` or a ``Plugin``,
-    then pass ``MiddlewareRef(name=...)``. The class form calls ``MySubclass()`` with no arguments;
-    use the dict form for a custom factory.
+    To expose middleware to ``use=``, define a subclass with ``name`` (and optional
+    ``description``, ``middleware_config_schema``, ``middleware_metadata``), build a
+    definition with ``generate_middleware(MySubclass)``, register via
+    ``middleware_plugin`` or a ``Plugin``, then pass ``MiddlewareRef(name=...)``.
+    ``generate_middleware`` uses ``MySubclass()`` with no arguments when the pipeline
+    runs.
     """
 
     # Class-level metadata for generate_middleware(MyClass); not instance fields.
@@ -113,23 +90,17 @@ class BaseMiddleware(MiddlewareRuntime):
     def wrap_tool(
         self,
         params: ToolHookParams,
-        next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
-    ) -> Awaitable[tuple[Part | None, Part | None]]:
+        next_fn: Callable[[ToolHookParams], Awaitable[ToolHookChainResult]],
+    ) -> Awaitable[ToolHookChainResult]:
         return next_fn(params)
 
 
 @dataclass
 class MiddlewareFnOptions:
-    """Arguments passed when invoking a GenerateMiddleware callable (definition with options).
+    """Arguments passed when invoking a GenerateMiddleware callable (definition with options)."""
 
-    registry is typed loosely (Any) so this module does not import Registry (avoids
-    import cycles with plugins).
-    """
-
-    registry: Any
+    registry: _MiddlewareRegistryView
     config: dict[str, Any] | None = None
-    plugin_config: Any = None
-    genkit: Any = None
 
 
 class GenerateMiddleware:
@@ -152,9 +123,11 @@ class GenerateMiddleware:
     ) -> None:
         if '/' in name:
             raise ValueError(
-                'GenerateMiddleware name must not contain "/". '
-                'Use a single segment (for example "myorg_logging_mw") so it stays distinct '
-                'from model/action keys, which use "/".'
+                (
+                    'GenerateMiddleware name must not contain "/". Use a single segment '
+                    '(for example "myorg_logging_mw") so it stays distinct from model/action '
+                    'keys, which use "/".'
+                )
             )
         self.name = name
         self._factory = factory
@@ -188,18 +161,23 @@ class GenerateMiddleware:
         return out
 
 
-def _generate_middleware_from_class(middleware_cls: type[BaseMiddleware]) -> GenerateMiddleware:
-    """Build a definition from BaseMiddleware class metadata."""
-    if not isinstance(middleware_cls, type) or not issubclass(middleware_cls, BaseMiddleware):
-        raise TypeError(
-            'generate_middleware(cls) expects a BaseMiddleware subclass; '
-            f'got {middleware_cls!r}'
-        )
+def generate_middleware(middleware_cls: type[BaseMiddleware]) -> GenerateMiddleware:
+    """Create a GenerateMiddleware definition from a BaseMiddleware subclass.
+
+    Set ``name``, and optionally ``description``, ``middleware_config_schema``, and
+    ``middleware_metadata`` on the class. The class is instantiated with no arguments
+    when the definition is invoked for a request.
+
+    Args:
+        middleware_cls: A BaseMiddleware subclass with a non-empty ``name``.
+
+    Returns:
+        A definition suitable for ``registry.register_value`` or ``middleware_plugin``.
+    """
     reg_name = middleware_cls.name
     if not reg_name:
         raise ValueError(
-            f'{middleware_cls.__qualname__}.name must be set to a non-empty '
-            'flat string (no "/") for class-based generate_middleware(MyClass).'
+            f"{middleware_cls.__qualname__}.name must be set to a non-empty flat string (no '/') for generate_middleware(MyClass)."
         )
 
     def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
@@ -212,51 +190,3 @@ def _generate_middleware_from_class(middleware_cls: type[BaseMiddleware]) -> Gen
         config_schema=middleware_cls.middleware_config_schema,
         metadata=middleware_cls.middleware_metadata,
     )
-
-
-def generate_middleware(
-    meta_or_cls: dict[str, Any] | type[BaseMiddleware],
-    factory: Callable[[MiddlewareFnOptions], BaseMiddleware] | None = None,
-) -> GenerateMiddleware:
-    """Create a GenerateMiddleware definition.
-
-    Form 1 — meta dict plus factory (full control, including custom constructors). Example:
-
-        generate_middleware(
-            {
-                'name': 'my_middleware',
-                'description': '...',
-                'config_schema': {...},
-            },
-            lambda opts: MyMiddleware(),
-        )
-
-    Form 2 — middleware class only — set ``name``, ``description``, ``middleware_config_schema``,
-    and ``middleware_metadata`` on your BaseMiddleware subclass. Then:
-
-        generate_middleware(MyMiddleware)
-
-    The class form instantiates with MyMiddleware() when the definition is invoked.
-
-    Args:
-        meta_or_cls: Either a meta dict (must include name) or a BaseMiddleware subclass
-            with ``name`` set.
-        factory: Required with the dict form. Omitted with the class form.
-
-    Returns:
-        A definition suitable for registry.register_value.
-    """
-    if isinstance(meta_or_cls, dict):
-        if factory is None:
-            raise TypeError('generate_middleware(meta_dict, factory) requires a factory callable')
-        meta = meta_or_cls
-        return GenerateMiddleware(
-            name=meta['name'],
-            factory=factory,
-            description=meta.get('description'),
-            config_schema=meta.get('config_schema'),
-            metadata=meta.get('metadata'),
-        )
-    if factory is not None:
-        raise TypeError('generate_middleware(MyMiddlewareClass): remove the factory argument')
-    return _generate_middleware_from_class(meta_or_cls)

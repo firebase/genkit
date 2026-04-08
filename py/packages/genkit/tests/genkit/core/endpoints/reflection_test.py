@@ -118,7 +118,7 @@ async def test_notify_endpoint(asgi_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_list_values_default_model(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
-    """GET /api/values?type=defaultModel returns a name-to-value map like the JS registry."""
+    """GET /api/values?type=defaultModel returns a name-to-value map from the registry."""
 
     async def mock_initialize_all_plugins() -> None:
         return None
@@ -133,8 +133,19 @@ async def test_list_values_default_model(asgi_client: AsyncClient, mock_registry
 
 
 @pytest.mark.asyncio
+async def test_list_values_middleware_initializes_plugins_like_js(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
+    """GET /api/values?type=middleware runs initialize_all_plugins then list_values (matches JS Registry.listValues)."""
+    mock_registry.initialize_all_plugins = AsyncMock()
+    mock_registry.list_values = MagicMock(return_value={})
+    response = await asgi_client.get('/api/values?type=middleware')
+    assert response.status_code == 200
+    mock_registry.initialize_all_plugins.assert_called_once()
+    mock_registry.list_values.assert_called_once_with('middleware')
+
+
+@pytest.mark.asyncio
 async def test_list_values_omitted_type_returns_400(asgi_client: AsyncClient) -> None:
-    """GET /api/values without a type param returns 400 (matches JS v1 behavior)."""
+    """GET /api/values without a type param returns 400."""
     response = await asgi_client.get('/api/values')
     assert response.status_code == 400
     assert 'required' in response.json().get('error', '').lower()

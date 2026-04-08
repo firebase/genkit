@@ -16,10 +16,8 @@
 
 """Shared middleware utilities and constants."""
 
-import ipaddress
-from urllib.parse import urlparse
-
-from genkit._ai._model import Message, text_from_content
+from genkit._ai._model import text_from_content
+from genkit._core._model import Message
 from genkit._core._error import StatusName
 from genkit._core._model import Document
 
@@ -42,28 +40,6 @@ _DEFAULT_FALLBACK_STATUSES: list[StatusName] = [
     'NOT_FOUND',
     'UNIMPLEMENTED',
 ]
-
-_SSRF_BLOCKED_HOSTNAMES: frozenset[str] = frozenset(('metadata.google.internal', 'metadata', '169.254.169.254'))
-
-
-def _is_safe_url(url: str) -> bool:
-    """Check if URL is safe for download (blocks SSRF: private IPs, loopback, cloud metadata)."""
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-        host_lower = hostname.lower()
-        blocked = ('localhost', 'localhost.', 'ip6-localhost', 'ip6-loopback')
-        if host_lower in blocked or host_lower in _SSRF_BLOCKED_HOSTNAMES:
-            return False
-        try:
-            addr = ipaddress.ip_address(hostname)
-        except ValueError:
-            return True  # Hostname (e.g. example.com); caller can use filter_fn to restrict
-        return not (addr.is_private or addr.is_loopback or addr.is_link_local)
-    except Exception:
-        return False
 
 
 def _last_user_message(messages: list[Message]) -> Message | None:

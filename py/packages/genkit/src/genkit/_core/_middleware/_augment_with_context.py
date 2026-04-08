@@ -18,10 +18,8 @@
 
 from collections.abc import Awaitable, Callable
 
-from genkit._core._model import Document, ModelResponse
+from genkit._core._model import Document, ModelHookParams, ModelResponse
 from genkit._core._typing import Part, TextPart
-
-from genkit._core._model import ModelHookParams
 
 from ._base import BaseMiddleware
 from ._utils import _CONTEXT_PREFACE, _context_item_template, _last_user_message
@@ -60,7 +58,7 @@ class _AugmentWithContextMiddleware(BaseMiddleware):
         if not req.docs:
             return await next_fn(params)
 
-        user_message = _last_user_message(req.messages)  # type: ignore[arg-type]
+        user_message = _last_user_message(req.messages)
         if not user_message:
             return await next_fn(params)
 

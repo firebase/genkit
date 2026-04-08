@@ -69,8 +69,6 @@ logger = get_logger(__name__)
 def resolve_middleware_from_use(
     registry: Registry,
     use: list[MiddlewareRef] | None,
-    *,
-    genkit: Any = None,
 ) -> list[BaseMiddleware] | None:
     """Resolve MiddlewareRef names to BaseMiddleware instances via the registry."""
     if not use:
@@ -85,7 +83,6 @@ def resolve_middleware_from_use(
                     MiddlewareFnOptions(
                         registry=registry,
                         config=cfg,
-                        genkit=genkit,
                     )
                 )
             )
@@ -209,7 +206,7 @@ async def generate_action(
         span.set_attribute('genkit:name', span_name)
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
-        middleware = resolve_middleware_from_use(registry, raw_request.use, genkit=None)
+        middleware = resolve_middleware_from_use(registry, raw_request.use)
         result = await _generate_action(
             registry, raw_request, on_chunk, message_index, current_turn, middleware, context
         )

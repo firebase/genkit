@@ -59,6 +59,11 @@ from genkit.middleware import BaseMiddleware, ModelHookParams, generate_middlewa
 SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
 
+def middleware_ref(name: str) -> MiddlewareRef:
+    """Shorthand for tests: ``middleware_ref('inject_ctx')`` instead of MiddlewareRef(name=...)."""
+    return MiddlewareRef(name=name)
+
+
 @pytest.fixture
 def setup_test() -> SetupFixture:
     """Setup a test fixture for the veneer tests."""
@@ -1053,7 +1058,7 @@ async def test_generate_with_middleware() -> None:
     response = await ai.generate(
         model='echoModel',
         prompt='hi',
-        use=[MiddlewareRef(name='pre_mw'), MiddlewareRef(name='post_mw')],
+        use=[middleware_ref('pre_mw'), middleware_ref('post_mw')],
     )
 
     assert response.text == want
@@ -1061,7 +1066,7 @@ async def test_generate_with_middleware() -> None:
     stream_result = ai.generate_stream(
         model='echoModel',
         prompt='hi',
-        use=[MiddlewareRef(name='pre_mw'), MiddlewareRef(name='post_mw')],
+        use=[middleware_ref('pre_mw'), middleware_ref('post_mw')],
     )
 
     assert (await stream_result.response).text == want
@@ -1102,7 +1107,7 @@ async def test_generate_passes_through_current_action_context() -> None:
         return await ai.generate(
             model='echoModel',
             prompt='hi',
-            use=[MiddlewareRef(name='inject_ctx')],
+            use=[middleware_ref('inject_ctx')],
         )
 
     action = ai.registry.register_action(name='test_action', kind=ActionKind.CUSTOM, fn=action_fn)
@@ -1125,7 +1130,7 @@ async def test_generate_uses_explicitly_passed_in_context() -> None:
         return await ai.generate(
             model='echoModel',
             prompt='hi',
-            use=[MiddlewareRef(name='inject_ctx')],
+            use=[middleware_ref('inject_ctx')],
             context={'bar': 'baz'},
         )
 

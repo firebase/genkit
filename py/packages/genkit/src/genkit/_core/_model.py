@@ -136,11 +136,7 @@ class GenerateActionOptions(GenerateActionOptionsData):
     """Generate options with messages as list[Message] for type-safe use with ai.generate()."""
 
     messages: list[Message]
-    use: list[MiddlewareRef] | None = Field(
-        default=None,
-        description='Each entry: MiddlewareRef (name and optional config). Register middleware '
-        'via middleware_plugin([...]) or a Plugin that implements generate_middleware().',
-    )
+    use: list[MiddlewareRef] | None = None
 
     @field_validator('messages', mode='before')
     @classmethod

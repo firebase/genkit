@@ -44,7 +44,6 @@ from genkit._core._middleware._base import (
     generate_middleware,
 )
 from genkit._core._model import GenerateHookParams, ModelHookParams, ToolHookParams
-from genkit._core._middleware._runtime import MiddlewareRuntime
 from genkit._core._plugin import middleware_plugin
 
 __all__ = [
@@ -52,7 +51,6 @@ __all__ = [
     'GenerateHookParams',
     'GenerateMiddleware',
     'MiddlewareFnOptions',
-    'MiddlewareRuntime',
     'ModelHookParams',
     'ToolHookParams',
     'augment_with_context',

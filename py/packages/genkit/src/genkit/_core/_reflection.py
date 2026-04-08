@@ -249,6 +249,7 @@ def create_reflection_asgi_app(
             )
         type_param = raw.strip()
         try:
+            # Align with JS ``Registry.listValues``, which awaits ``initializeAllPlugins()`` before listing.
             try:
                 await registry.initialize_all_plugins()
             except Exception as e:

@@ -244,7 +244,7 @@ class Registry:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
 
     def list_values(self, kind: str) -> dict[str, object]:
-        """Return all values registered for a kind (name to value), matching JS ``listValues``.
+        """Return all values registered for a kind (name to value).
 
         Args:
             kind: The kind of values to list (e.g., ``defaultModel``).
@@ -262,7 +262,9 @@ class Registry:
         """Initialize every registered plugin once (lazy init is idempotent).
 
         Used by the reflection server so values such as default models are
-        registered before ``list_values`` is called.
+        registered before ``list_values`` is called. Iterates a snapshot of
+        plugin names; ``register_plugin`` holds ``_lock``, so this is safe if
+        another thread registers a plugin concurrently.
         """
         for plugin_name in list(self._plugins.keys()):
             await self._ensure_plugin_initialized(plugin_name)
