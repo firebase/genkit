@@ -16,6 +16,8 @@
 
 """Registry for managing Genkit resources and actions."""
 
+from __future__ import annotations
+
 import asyncio
 import threading
 from collections.abc import Awaitable, Callable
@@ -98,7 +100,7 @@ class Registry:
             action names and their corresponding Action instances.
     """
 
-    def __init__(self, parent: 'Registry | None' = None) -> None:
+    def __init__(self, parent: Registry | None = None) -> None:
         """Initialize a Registry instance.
 
         Args:
@@ -147,7 +149,7 @@ class Registry:
     # Child registry support
     # -------------------------------------------------------------------------
 
-    def new_child(self) -> 'Registry':
+    def new_child(self) -> Registry:
         """Create a cheap child registry that inherits from this registry.
 
         Child registries are used to create short-lived, ephemeral scopes (e.g.
@@ -161,7 +163,7 @@ class Registry:
         return Registry(parent=self)
 
     @property
-    def parent(self) -> 'Registry | None':
+    def parent(self) -> Registry | None:
         """The parent registry, or ``None`` if this is a root registry."""
         return self._parent
 
@@ -506,29 +508,17 @@ class Registry:
                 providers = list(providers_dict.values())
             for provider_action in providers:
                 dap = getattr(provider_action, GENKIT_DYNAMIC_ACTION_PROVIDER_ATTR, None)
-                if dap is not None:
-                    try:
-                        resolved = await dap.get_action(str(kind), name)
-                        if resolved is not None:
-                            return resolved
-                    except Exception as e:
-                        logger.debug(
-                            f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
-                            exc_info=e,
-                        )
-                        continue
+                if dap is None:
                     continue
                 try:
-                    response = await provider_action.run({'kind': kind, 'name': name})
-                    legacy = response.response
-                    if isinstance(legacy, Action):
-                        return legacy
+                    resolved = await dap.get_action(str(kind), name)
+                    if resolved is not None:
+                        return resolved
                 except Exception as e:
                     logger.debug(
                         f'Dynamic action provider {provider_action.name} failed for {kind}/{name}',
                         exc_info=e,
                     )
-                    continue
 
         # Final fallback: delegate to parent registry.
         if self._parent is not None:
