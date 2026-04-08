@@ -19,11 +19,11 @@
 import pytest
 from pydantic import BaseModel
 
-from genkit._ai._generate import expand_wildcard_tools, generate_action
+from genkit import Genkit, Message, ModelResponse
+from genkit._ai._generate import expand_wildcard_tools
 from genkit._ai._testing import define_programmable_model
-from genkit._core._action import Action, ActionKind, ActionRunContext
+from genkit._core._action import Action, ActionKind
 from genkit._core._dap import DapValue, define_dynamic_action_provider
-from genkit._core._model import GenerateActionOptions, ModelRequest
 from genkit._core._registry import Registry
 from genkit._core._typing import (
     FinishReason,
@@ -33,8 +33,6 @@ from genkit._core._typing import (
     ToolRequest,
     ToolRequestPart,
 )
-from genkit import Genkit, Message, ModelResponse, ModelResponseChunk
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -121,7 +119,7 @@ async def test_non_wildcard_names_pass_through() -> None:
 
 @pytest.mark.asyncio
 async def test_dap_tool_resolved_in_generate() -> None:
-    """generate resolves a tool that lives only in a DAP, calls it, and gets final answer."""
+    """generate resolves and runs a tool that is only advertised via a DAP (never register_action)."""
     ai = Genkit()
     pm, _ = define_programmable_model(ai)
 
@@ -134,7 +132,8 @@ async def test_dap_tool_resolved_in_generate() -> None:
         call_log.append(inp.text)
         return f'echoed:{inp.text}'
 
-    echo_action = ai.registry.register_action(
+    # Detached Action — only returned from the DAP; not registered on the root registry.
+    echo_action = Action(
         name='echo',
         kind=ActionKind.TOOL,
         fn=echo_fn,
@@ -146,7 +145,9 @@ async def test_dap_tool_resolved_in_generate() -> None:
 
     ai.define_dynamic_action_provider('mcp', dap_fn)
 
-    # Turn 1: model asks to call 'echo'
+    # Precondition: `echo` is not a normal root TOOL registration (only in the DAP).
+    assert 'echo' not in ai.registry._entries.get(ActionKind.TOOL, {})
+
     pm.responses = [
         _tool_call_response('echo', {'text': 'hello'}),
         _text_response('done'),
@@ -160,6 +161,9 @@ async def test_dap_tool_resolved_in_generate() -> None:
 
     assert response.text == 'done'
     assert call_log == ['hello']
+    # Postcondition: resolving/running the tool via the child registry + DAP still does not
+    # persist `echo` under the root registry as a static tool (same check as above).
+    assert 'echo' not in ai.registry._entries.get(ActionKind.TOOL, {})
 
 
 @pytest.mark.asyncio
