@@ -82,10 +82,11 @@ class BaseMiddleware(MiddlewareRuntime):
     GenerateMiddleware, which is only the registry definition plus a factory that
     produces a BaseMiddleware.
 
-    To register: either pass a meta dict and factory to generate_middleware, or set the
-    middleware_* class attributes below and call generate_middleware(MySubclass) with no
-    dict. The class form calls MySubclass() with no arguments; use the dict form if you
-    need a custom factory or constructor.
+    To obtain a definition object, pass a meta dict and factory to generate_middleware, or set
+    the middleware_* class attributes below and call generate_middleware(MySubclass) with no
+    dict. That does not register anything by itself; pass the result to middleware_plugin([...])
+    or a Plugin so it is registered on the app. The class form calls MySubclass() with no
+    arguments; use the dict form if you need a custom factory or constructor.
     """
 
     middleware_name: ClassVar[str] = ''

@@ -102,8 +102,7 @@ def resolve_middleware_from_use(
             message=(
                 f'No middleware named "{ref.name}" is registered on this app. '
                 'Add it by passing middleware_plugin([...]) or any Plugin that implements '
-                'generate_middleware() in plugins=[...], or call ai.generate_middleware() at '
-                'startup. Built-in names (for example retry, fallback) '
+                'generate_middleware() in plugins=[...]. Built-in names (for example retry, fallback) '
                 'are registered automatically. You can also pass a BaseMiddleware instance '
                 'directly in use= without using a name.'
             ),
@@ -193,8 +192,9 @@ async def generate_action(
 
     Middleware is taken only from raw_request.use. Each entry may be a MiddlewareRef,
     a MiddlewareRuntime instance (such as BaseMiddleware), or a dict coerced to MiddlewareRef.
-    Register named definitions with Genkit.generate_middleware, middleware_plugin([...]),
-    or a Plugin that implements generate_middleware().
+    Register named definitions via middleware_plugin([...]) or a Plugin that implements
+    generate_middleware(). Use genkit.middleware.generate_middleware (or ai.generate_middleware)
+    only to build definitions; registration happens through plugins.
     """
     span_name = 'generate'
     with run_in_new_span(

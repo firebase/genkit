@@ -411,18 +411,15 @@ class Genkit:
         meta_or_cls: dict[str, Any] | type[BaseMiddleware],
         factory: Callable[[MiddlewareFnOptions], BaseMiddleware] | None = None,
     ) -> GenerateMiddleware:
-        """Register a middleware definition on this app.
+        """Build a middleware definition (same as genkit.middleware.generate_middleware).
 
-        Pass a meta dict and factory, or pass a BaseMiddleware subclass from genkit.middleware
-        with middleware_name and related class attributes set; see
-        genkit.middleware.generate_middleware.
+        Does not register on the registry. Pass the result to middleware_plugin([...]) or a
+        custom Plugin.generate_middleware so it is registered when the app is constructed.
 
         Returns:
-            The registered definition.
+            The GenerateMiddleware instance.
         """
-        gm = _build_generate_middleware(meta_or_cls, factory)
-        self.registry.register_value('middleware', gm.name, gm)
-        return gm
+        return _build_generate_middleware(meta_or_cls, factory)
 
     # Overload 1: Both input_schema and output_schema typed -> ExecutablePrompt[InputT, OutputT]
     @overload

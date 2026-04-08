@@ -229,10 +229,14 @@ def test_generate_middleware_from_class_requires_middleware_name() -> None:
 
 
 def test_genkit_generate_middleware_accepts_class_form() -> None:
+    """Genkit.generate_middleware builds a definition but does not register it."""
     ai = Genkit()
     gm = ai.generate_middleware(_ClassMetaMiddleware)
     assert gm.name == 'class_meta_mw'
-    assert ai.registry.lookup_value('middleware', 'class_meta_mw') is gm
+    assert ai.registry.lookup_value('middleware', 'class_meta_mw') is None
+
+    ai2 = Genkit(plugins=[middleware_plugin([gm])])
+    assert ai2.registry.lookup_value('middleware', 'class_meta_mw') is gm
 
 
 def test_middleware_plugin_requires_at_least_one_definition() -> None:

@@ -112,9 +112,9 @@ def middleware_plugin(
             ], namespace='myapp'),
         ])
 
-    Build each item with generate_middleware in genkit.middleware (class or dict + factory).
-    Genkit.generate_middleware also builds a definition but registers it on that instance
-    immediately; use the module-level function when you only need values for plugins=[...].
+    Build each item with generate_middleware in genkit.middleware (class or dict + factory),
+    or the same API on your Genkit instance; neither registers by itself. Registration happens
+    when this plugin is passed in plugins=[...].
 
     Args:
         definitions: Non-empty sequence of definitions.
@@ -131,8 +131,7 @@ def middleware_plugin(
     if not defs:
         raise ValueError(
             'middleware_plugin() needs a non-empty list of GenerateMiddleware instances. '
-            + 'Build each with generate_middleware(MyClass), generate_middleware({...}, factory), '
-            + 'or Genkit.generate_middleware(...).'
+            + 'Build each with generate_middleware(...) from genkit.middleware or ai.generate_middleware(...).'
         )
     if not namespace:
         ns = None
