@@ -24,18 +24,19 @@ in the list wraps around the rest; calls flow in → out.
 
 Example usage:
     from genkit import Genkit, MiddlewareRef
-    from genkit.middleware import BaseMiddleware
+    from genkit.middleware import BaseMiddleware, generate_middleware, middleware_plugin
 
     class MyMw(BaseMiddleware):
+        name = "my_mw"
         ...
 
-    ai = Genkit()
+    ai = Genkit(plugins=[middleware_plugin([generate_middleware(MyMw)])])
 
     response = await ai.generate(
         model="gemini-pro",
         prompt="Hello",
         use=[
-            MyMw(),
+            MiddlewareRef(name="my_mw"),
             MiddlewareRef(name="retry", config={"max_retries": 3}),
         ],
     )

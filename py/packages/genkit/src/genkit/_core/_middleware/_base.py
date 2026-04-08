@@ -19,17 +19,18 @@
 Two roles (they are not superclass/subclass):
 
 - **Runtime:** BaseMiddleware (and the Middleware protocol) — objects that implement
-  the wrap_* hooks and run in the generate pipeline.
-- **Registration:** GenerateMiddleware — a named definition in the registry (metadata
-  plus a factory callable). It does not extend BaseMiddleware; calling it with options
-  returns the BaseMiddleware instance that runs for that request.
+  the wrap_* hooks. Factories produce these; they are not passed directly in ``use=``.
+- **Definition:** GenerateMiddleware — a named bundle in the registry (metadata plus a
+  factory callable). It does not extend BaseMiddleware; calling it with options returns
+  the BaseMiddleware instance for that request. Register via ``middleware_plugin`` or
+  ``Plugin.generate_middleware``; reference by name in ``use=`` as ``MiddlewareRef``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol
+from typing import Any, Protocol
 
 from genkit._core._model import (
     GenerateActionOptions,
@@ -82,17 +83,18 @@ class BaseMiddleware(MiddlewareRuntime):
     GenerateMiddleware, which is only the registry definition plus a factory that
     produces a BaseMiddleware.
 
-    To obtain a definition object, pass a meta dict and factory to generate_middleware, or set
-    the middleware_* class attributes below and call generate_middleware(MySubclass) with no
-    dict. That does not register anything by itself; pass the result to middleware_plugin([...])
-    or a Plugin so it is registered on the app. The class form calls MySubclass() with no
-    arguments; use the dict form if you need a custom factory or constructor.
+    To expose middleware to ``use=``, build a ``GenerateMiddleware`` with generate_middleware
+    (meta dict + factory, or ``name`` / ``description`` / schema class attributes +
+    ``generate_middleware(MySubclass)``), register it via ``middleware_plugin`` or a ``Plugin``,
+    then pass ``MiddlewareRef(name=...)``. The class form calls ``MySubclass()`` with no arguments;
+    use the dict form for a custom factory.
     """
 
-    middleware_name: ClassVar[str] = ''
-    middleware_description: ClassVar[str | None] = None
-    middleware_config_schema: ClassVar[dict[str, Any] | None] = None
-    middleware_metadata: ClassVar[dict[str, object] | None] = None
+    # Class-level metadata for generate_middleware(MyClass); not instance fields.
+    name = ''
+    description = None
+    middleware_config_schema = None
+    middleware_metadata = None
 
     def wrap_generate(
         self,
@@ -193,10 +195,10 @@ def _generate_middleware_from_class(middleware_cls: type[BaseMiddleware]) -> Gen
             'generate_middleware(cls) expects a BaseMiddleware subclass; '
             f'got {middleware_cls!r}'
         )
-    name = middleware_cls.middleware_name
-    if not name:
+    reg_name = middleware_cls.name
+    if not reg_name:
         raise ValueError(
-            f'{middleware_cls.__qualname__}.middleware_name must be set to a non-empty '
+            f'{middleware_cls.__qualname__}.name must be set to a non-empty '
             'flat string (no "/") for class-based generate_middleware(MyClass).'
         )
 
@@ -204,9 +206,9 @@ def _generate_middleware_from_class(middleware_cls: type[BaseMiddleware]) -> Gen
         return middleware_cls()
 
     return GenerateMiddleware(
-        name=name,
+        name=reg_name,
         factory=_factory,
-        description=middleware_cls.middleware_description,
+        description=middleware_cls.description,
         config_schema=middleware_cls.middleware_config_schema,
         metadata=middleware_cls.middleware_metadata,
     )
@@ -229,8 +231,8 @@ def generate_middleware(
             lambda opts: MyMiddleware(),
         )
 
-    Form 2 — middleware class only — set middleware_name, middleware_description,
-    middleware_config_schema, and middleware_metadata on your BaseMiddleware subclass. Then:
+    Form 2 — middleware class only — set ``name``, ``description``, ``middleware_config_schema``,
+    and ``middleware_metadata`` on your BaseMiddleware subclass. Then:
 
         generate_middleware(MyMiddleware)
 
@@ -238,7 +240,7 @@ def generate_middleware(
 
     Args:
         meta_or_cls: Either a meta dict (must include name) or a BaseMiddleware subclass
-            with middleware_name set.
+            with ``name`` set.
         factory: Required with the dict form. Omitted with the class form.
 
     Returns:

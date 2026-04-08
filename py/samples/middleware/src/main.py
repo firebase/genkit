@@ -21,12 +21,11 @@ from collections.abc import Awaitable, Callable
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, Message, Part, Role, TextPart
-from genkit.middleware import BaseMiddleware, ModelHookParams
+from genkit import Genkit, Message, MiddlewareRef, Part, Role, TextPart
+from genkit.middleware import BaseMiddleware, ModelHookParams, generate_middleware, middleware_plugin
 from genkit.plugins.google_genai import GoogleAI
 
 logger = structlog.get_logger(__name__)
-ai = Genkit(plugins=[GoogleAI()], model='googleai/gemini-2.5-flash')
 
 
 class PromptInput(BaseModel):
@@ -40,6 +39,8 @@ class PromptInput(BaseModel):
 
 class LoggingMiddleware(BaseMiddleware):
     """Log request/response details without changing behavior."""
+
+    name: ClassVar[str] = 'logging_mw'
 
     async def wrap_model(
         self,
@@ -57,6 +58,8 @@ class LoggingMiddleware(BaseMiddleware):
 
 class ConciseReplyMiddleware(BaseMiddleware):
     """Add a short system instruction before the model call."""
+
+    name = 'concise_reply_mw'
 
     async def wrap_model(
         self,
@@ -77,11 +80,22 @@ class ConciseReplyMiddleware(BaseMiddleware):
         )
 
 
+_LOGGING_MW = generate_middleware(LoggingMiddleware)
+_CONCISE_MW = generate_middleware(ConciseReplyMiddleware)
+ai = Genkit(
+    plugins=[
+        GoogleAI(),
+        middleware_plugin([_LOGGING_MW, _CONCISE_MW]),
+    ],
+    model='googleai/gemini-2.5-flash',
+)
+
+
 @ai.flow()
 async def logging_demo(input: PromptInput) -> str:
     """Run a prompt through a read-only middleware."""
 
-    response = await ai.generate(prompt=input.prompt, use=[LoggingMiddleware()])
+    response = await ai.generate(prompt=input.prompt, use=[MiddlewareRef(name='logging_mw')])
     return response.text
 
 
@@ -89,7 +103,7 @@ async def logging_demo(input: PromptInput) -> str:
 async def request_modifier_demo(input: PromptInput) -> str:
     """Run a prompt through a request-modifying middleware."""
 
-    response = await ai.generate(prompt=input.prompt, use=[ConciseReplyMiddleware()])
+    response = await ai.generate(prompt=input.prompt, use=[MiddlewareRef(name='concise_reply_mw')])
     return response.text
 
 

@@ -23,11 +23,10 @@ from typing import Any
 
 
 class MiddlewareRuntime(ABC):
-    """Abstract contract for values allowed inline in GenerateActionOptions.use.
+    """Abstract hook contract implemented by BaseMiddleware at runtime.
 
     BaseMiddleware subclasses this and provides default pass-through behavior. Keeping
-    this type in a leaf module lets genkit._core._model validate use with isinstance
-    without importing the full middleware base module.
+    this type in a leaf module avoids import cycles with the model and generate layers.
     """
 
     @abstractmethod

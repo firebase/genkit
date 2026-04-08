@@ -120,8 +120,8 @@ class _NoopPluginMiddleware(BaseMiddleware):
 class _ClassMetaMiddleware(BaseMiddleware):
     """Registered via ``generate_middleware(MyClass)`` using class attributes."""
 
-    middleware_name = 'class_meta_mw'
-    middleware_description = 'from class attrs'
+    name = 'class_meta_mw'
+    description = 'from class attrs'
 
     async def wrap_model(self, params, next_fn):
         return await next_fn(params)
@@ -212,7 +212,7 @@ def test_generate_middleware_name_must_not_contain_slash() -> None:
 
 
 def test_generate_middleware_from_class_reads_name_and_description() -> None:
-    """``generate_middleware(MyMiddleware)`` uses ``middleware_name`` / ``middleware_description``."""
+    """``generate_middleware(MyMiddleware)`` uses ``name`` / ``description`` class attributes."""
     gm = generate_middleware(_ClassMetaMiddleware)
     assert gm.name == 'class_meta_mw'
     assert gm.to_json()['description'] == 'from class attrs'
@@ -220,11 +220,11 @@ def test_generate_middleware_from_class_reads_name_and_description() -> None:
     assert ai.registry.lookup_value('middleware', 'class_meta_mw') is not None
 
 
-def test_generate_middleware_from_class_requires_middleware_name() -> None:
+def test_generate_middleware_from_class_requires_name() -> None:
     class EmptyNameMiddleware(BaseMiddleware):
         pass
 
-    with pytest.raises(ValueError, match='middleware_name'):
+    with pytest.raises(ValueError, match='name must be set'):
         generate_middleware(EmptyNameMiddleware)
 
 

@@ -34,7 +34,6 @@ from typing_extensions import TypeVar
 from genkit._core._action import Action
 from genkit._core._base import GenkitModel
 from genkit._core._extract_json import extract_json
-from genkit._core._middleware._runtime import MiddlewareRuntime
 from genkit._core._typing import (
     Candidate,
     DocumentData,
@@ -139,7 +138,8 @@ class GenerateActionOptions(GenerateActionOptionsData):
     messages: list[Message]
     use: list[Any] | None = Field(
         default=None,
-        description='Each entry: MiddlewareRef (name/config) and/or inline MiddlewareRuntime.',
+        description='Each entry: MiddlewareRef (name and optional config). Register middleware '
+        'via middleware_plugin([...]) or a Plugin that implements generate_middleware().',
     )
 
     @field_validator('messages', mode='before')
@@ -153,19 +153,17 @@ class GenerateActionOptions(GenerateActionOptionsData):
         if v is None:
             return None
         if not isinstance(v, list):
-            raise TypeError('use must be a list of MiddlewareRef and/or MiddlewareRuntime instances.')
+            raise TypeError('use must be a list of MiddlewareRef instances.')
         out: list[Any] = []
         for item in v:
-            if isinstance(item, MiddlewareRuntime):
-                out.append(item)
-            elif isinstance(item, MiddlewareRef):
+            if isinstance(item, MiddlewareRef):
                 out.append(item)
             elif isinstance(item, dict):
                 out.append(MiddlewareRef.model_validate(item))
             else:
                 raise TypeError(
-                    'Each use entry must be MiddlewareRef, MiddlewareRuntime (e.g. BaseMiddleware), '
-                    + 'or a MiddlewareRef-compatible dict.'
+                    'Each use entry must be MiddlewareRef or a MiddlewareRef-compatible dict. '
+                    'Register middleware with middleware_plugin([...]) or a Plugin; reference it by name in use=.'
                 )
         return out
 
@@ -174,13 +172,7 @@ class GenerateActionOptions(GenerateActionOptionsData):
         if value is None:
             return None
 
-        serialized: list[Any] = []
-        for x in value:
-            if isinstance(x, MiddlewareRuntime):
-                serialized.append({'inline': True, 'class': x.__class__.__name__})
-            else:
-                serialized.append(x.model_dump(by_alias=True))
-        return serialized
+        return [x.model_dump(by_alias=True) for x in value]
 
 
 _TEXT_DATA_TYPE: str = 'text'

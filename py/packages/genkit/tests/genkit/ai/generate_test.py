@@ -14,7 +14,7 @@ import pytest
 import yaml
 from pydantic import BaseModel, TypeAdapter
 
-from genkit import ActionKind, Document, Genkit, Message, ModelResponse, ModelResponseChunk
+from genkit import ActionKind, Document, Genkit, Message, MiddlewareRef, ModelResponse, ModelResponseChunk
 from genkit._ai._generate import generate_action
 from genkit._ai._model import text_from_content, text_from_message
 from genkit._ai._testing import (
@@ -37,6 +37,8 @@ from genkit.middleware import (
     GenerateHookParams,
     ModelHookParams,
     ToolHookParams,
+    generate_middleware,
+    middleware_plugin,
 )
 
 
@@ -151,6 +153,8 @@ async def test_simulates_doc_grounding(
 
 
 class PreMiddleware(BaseMiddleware):
+    name = 'pre_mw'
+
     async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         return await next_fn(
@@ -167,6 +171,8 @@ class PreMiddleware(BaseMiddleware):
 
 
 class PostMiddleware(BaseMiddleware):
+    name = 'post_mw'
+
     async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
         resp: ModelResponse = await next_fn(params)
         assert resp.message is not None
@@ -177,12 +183,29 @@ class PostMiddleware(BaseMiddleware):
         )
 
 
+def test_use_rejects_inline_base_middleware_instance() -> None:
+    """use= must list MiddlewareRef only; inline BaseMiddleware instances are rejected."""
+    with pytest.raises(TypeError, match='MiddlewareRef'):
+        GenerateActionOptions(
+            model='echoModel',
+            messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
+            use=[PreMiddleware()],
+        )
+
+
 @pytest.mark.asyncio
-async def test_generate_applies_middleware(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_generate_applies_middleware() -> None:
     """When middleware is provided, apply it."""
-    ai, *_ = setup_test
+    ai = Genkit(
+        plugins=[
+            middleware_plugin(
+                [
+                    generate_middleware(PreMiddleware),
+                    generate_middleware(PostMiddleware),
+                ]
+            )
+        ],
+    )
     define_echo_model(ai)
 
     response = await generate_action(
@@ -195,7 +218,7 @@ async def test_generate_applies_middleware(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            use=[PreMiddleware(), PostMiddleware()],
+            use=[MiddlewareRef(name='pre_mw'), MiddlewareRef(name='post_mw')],
         ),
     )
 
@@ -203,11 +226,9 @@ async def test_generate_applies_middleware(
 
 
 @pytest.mark.asyncio
-async def test_generate_middleware_next_fn_args_optional(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_generate_middleware_next_fn_args_optional() -> None:
     """Can call next function without args (convenience)."""
-    ai, *_ = setup_test
+    ai = Genkit(plugins=[middleware_plugin([generate_middleware(PostMiddleware)])])
     define_echo_model(ai)
 
     response = await generate_action(
@@ -220,7 +241,7 @@ async def test_generate_middleware_next_fn_args_optional(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            use=[PostMiddleware()],
+            use=[MiddlewareRef(name='post_mw')],
         ),
     )
 
@@ -228,6 +249,8 @@ async def test_generate_middleware_next_fn_args_optional(
 
 
 class AddContextMiddleware(BaseMiddleware):
+    name = 'add_ctx'
+
     async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
         return await next_fn(
             ModelHookParams(
@@ -239,6 +262,8 @@ class AddContextMiddleware(BaseMiddleware):
 
 
 class InjectContextMiddleware(BaseMiddleware):
+    name = 'inject_ctx'
+
     async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
         txt = ''.join(text_from_message(m) for m in params.request.messages)
         return await next_fn(
@@ -258,11 +283,18 @@ class InjectContextMiddleware(BaseMiddleware):
 
 
 @pytest.mark.asyncio
-async def test_generate_middleware_can_modify_context(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_generate_middleware_can_modify_context() -> None:
     """Test that middleware can modify context."""
-    ai, *_ = setup_test
+    ai = Genkit(
+        plugins=[
+            middleware_plugin(
+                [
+                    generate_middleware(AddContextMiddleware),
+                    generate_middleware(InjectContextMiddleware),
+                ]
+            )
+        ],
+    )
     define_echo_model(ai)
 
     response = await generate_action(
@@ -275,7 +307,7 @@ async def test_generate_middleware_can_modify_context(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            use=[AddContextMiddleware(), InjectContextMiddleware()],
+            use=[MiddlewareRef(name='add_ctx'), MiddlewareRef(name='inject_ctx')],
         ),
         context={'foo': 'bar'},
     )
@@ -284,32 +316,12 @@ async def test_generate_middleware_can_modify_context(
 
 
 @pytest.mark.asyncio
-async def test_generate_middleware_can_modify_stream(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_generate_middleware_can_modify_stream() -> None:
     """Test that middleware can modify streams."""
-    ai, pm = setup_test
-
-    pm.responses.append(
-        ModelResponse(
-            finish_reason=FinishReason.STOP,
-            message=Message(role=Role.MODEL, content=[Part(TextPart(text='bye'))]),
-        )
-    )
-    pm.chunks = [
-        [
-            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='1'))]),
-            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='2'))]),
-            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='3'))]),
-        ]
-    ]
-
-    got_chunks = []
-
-    def collect_chunks(c: ModelResponseChunk) -> None:
-        got_chunks.append(text_from_content(c.content))
 
     class ModifyStreamMiddleware(BaseMiddleware):
+        name = 'mod_stream_mw'
+
         async def wrap_model(self, params: ModelHookParams, next_fn: Callable) -> ModelResponse:
             if params.on_chunk:
                 params.on_chunk(
@@ -343,6 +355,28 @@ async def test_generate_middleware_can_modify_stream(
                 )
             return resp
 
+    ai = Genkit(plugins=[middleware_plugin([generate_middleware(ModifyStreamMiddleware)])])
+    pm, _ = define_programmable_model(ai)
+
+    pm.responses.append(
+        ModelResponse(
+            finish_reason=FinishReason.STOP,
+            message=Message(role=Role.MODEL, content=[Part(TextPart(text='bye'))]),
+        )
+    )
+    pm.chunks = [
+        [
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='1'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='2'))]),
+            ModelResponseChunk(role=Role.MODEL, content=[Part(TextPart(text='3'))]),
+        ]
+    ]
+
+    got_chunks = []
+
+    def collect_chunks(c: ModelResponseChunk) -> None:
+        got_chunks.append(text_from_content(c.content))
+
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
@@ -353,7 +387,7 @@ async def test_generate_middleware_can_modify_stream(
                     content=[Part(TextPart(text='hi'))],
                 ),
             ],
-            use=[ModifyStreamMiddleware()],
+            use=[MiddlewareRef(name='mod_stream_mw')],
         ),
         on_chunk=collect_chunks,
     )
@@ -384,14 +418,31 @@ class TrackGenerateMiddleware(BaseMiddleware):
 
 
 @pytest.mark.asyncio
-async def test_wrap_generate_called_per_turn(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_wrap_generate_called_per_turn() -> None:
     """wrap_generate is invoked for each turn of the generate loop."""
-    ai, pm = setup_test
-    define_echo_model(ai)
-
     track_mw = TrackGenerateMiddleware()
+    track_mw2 = TrackGenerateMiddleware()
+    ai = Genkit(
+        plugins=[
+            middleware_plugin(
+                [
+                    generate_middleware(
+                        {'name': 'track_gen', 'description': 'track generate'},
+                        factory=lambda _opts: track_mw,
+                    ),
+                    generate_middleware(
+                        {'name': 'track_gen2', 'description': 'track generate 2'},
+                        factory=lambda _opts: track_mw2,
+                    ),
+                ]
+            )
+        ],
+    )
+    pm, _ = define_programmable_model(ai)
+
+    @ai.tool(name='testTool')
+    async def _test_tool() -> object:
+        return 'tool called'
 
     # No tools: single turn, wrap_generate called once with iteration=0
     pm.responses.append(
@@ -405,14 +456,13 @@ async def test_wrap_generate_called_per_turn(
         GenerateActionOptions(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
-            use=[track_mw],
+            use=[MiddlewareRef(name='track_gen')],
         ),
     )
     assert response.text == 'done'
     assert track_mw.iterations == [0]
 
     # With tools: two turns (model->tool->model), wrap_generate called for each
-    track_mw2 = TrackGenerateMiddleware()
     pm.responses.append(
         ModelResponse(
             message=Message(
@@ -433,7 +483,7 @@ async def test_wrap_generate_called_per_turn(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
             tools=['testTool'],
-            use=[track_mw2],
+            use=[MiddlewareRef(name='track_gen2')],
         ),
     )
     assert response2.text == 'final'
@@ -456,11 +506,22 @@ class TrackToolMiddleware(BaseMiddleware):
 
 
 @pytest.mark.asyncio
-async def test_wrap_tool_called_on_tool_execution(
-    setup_test: tuple[Genkit, ProgrammableModel],
-) -> None:
+async def test_wrap_tool_called_on_tool_execution() -> None:
     """wrap_tool is invoked for each tool execution."""
-    ai, pm = setup_test
+    track_mw = TrackToolMiddleware()
+    ai = Genkit(
+        plugins=[
+            middleware_plugin(
+                [
+                    generate_middleware(
+                        {'name': 'track_tool', 'description': 'track tool'},
+                        factory=lambda _opts: track_mw,
+                    ),
+                ]
+            )
+        ],
+    )
+    pm, _ = define_programmable_model(ai)
 
     @ai.tool(name='myTool')
     async def my_tool() -> object:
@@ -481,14 +542,13 @@ async def test_wrap_tool_called_on_tool_execution(
         )
     )
 
-    track_mw = TrackToolMiddleware()
     response = await generate_action(
         ai.registry,
         GenerateActionOptions(
             model='programmableModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
             tools=['myTool'],
-            use=[track_mw],
+            use=[MiddlewareRef(name='track_tool')],
         ),
     )
     assert response.text == 'done'

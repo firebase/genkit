@@ -67,19 +67,15 @@ logger = get_logger(__name__)
 
 def resolve_middleware_from_use(
     registry: Registry,
-    use: list[MiddlewareRef | BaseMiddleware] | None,
+    use: list[MiddlewareRef] | None,
     *,
     genkit: Any = None,
 ) -> list[BaseMiddleware] | None:
-    """Turn the use list (inline middleware and/or registry refs) into BaseMiddleware instances."""
+    """Resolve MiddlewareRef names to BaseMiddleware instances via the registry."""
     if not use:
         return None
     out: list[BaseMiddleware] = []
-    for item in use:
-        if isinstance(item, BaseMiddleware):
-            out.append(item)
-            continue
-        ref = item
+    for ref in use:
         defn = registry.lookup_value('middleware', ref.name)
         if isinstance(defn, GenerateMiddleware):
             cfg = ref.config if isinstance(ref.config, dict) else None
@@ -93,18 +89,13 @@ def resolve_middleware_from_use(
                 )
             )
             continue
-        cls = registry.lookup_value('middleware_class', ref.name)
-        if cls is not None:
-            out.append(cast(type[BaseMiddleware], cls)())
-            continue
         raise GenkitError(
             status='NOT_FOUND',
             message=(
                 f'No middleware named "{ref.name}" is registered on this app. '
-                'Add it by passing middleware_plugin([...]) or any Plugin that implements '
+                'Register definitions with middleware_plugin([...]) or any Plugin that implements '
                 'generate_middleware() in plugins=[...]. Built-in names (for example retry, fallback) '
-                'are registered automatically. You can also pass a BaseMiddleware instance '
-                'directly in use= without using a name.'
+                'are registered automatically.'
             ),
             source='genkit.generate',
         )
@@ -190,11 +181,10 @@ async def generate_action(
 ) -> ModelResponse:
     """Execute a generation request with tool calling and middleware support.
 
-    Middleware is taken only from raw_request.use. Each entry may be a MiddlewareRef,
-    a MiddlewareRuntime instance (such as BaseMiddleware), or a dict coerced to MiddlewareRef.
-    Register named definitions via middleware_plugin([...]) or a Plugin that implements
-    generate_middleware(). Use genkit.middleware.generate_middleware (or ai.generate_middleware)
-    only to build definitions; registration happens through plugins.
+    Middleware is taken only from raw_request.use. Each entry is a MiddlewareRef (or dict
+    coerced to MiddlewareRef). Register definitions with middleware_plugin([...]) or a Plugin
+    that implements generate_middleware(); build definitions with generate_middleware or
+    ai.generate_middleware.
     """
     span_name = 'generate'
     with run_in_new_span(
