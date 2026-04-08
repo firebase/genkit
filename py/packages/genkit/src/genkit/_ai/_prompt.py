@@ -55,7 +55,6 @@ from genkit._core._model import Document, GenerateActionOptions, Message, ModelC
 from genkit._core._registry import Registry
 from genkit._core._schema import to_json_schema
 from genkit._core._typing import (
-    DocumentData,
     GenerateActionOutputConfig,
     OutputConfig,
     Part,
@@ -490,7 +489,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             output=output,
             max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
-            resume=resume,
+            resume=resume_result,
         )
 
     def stream(
