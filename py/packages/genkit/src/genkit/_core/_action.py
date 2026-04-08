@@ -247,6 +247,8 @@ def parse_dap_qualified_name(name: str) -> tuple[str, str, str] | None:
     colon = name.index(':')
     provider = name[:colon]
     rest = name[colon + 1 :]
+    if '/' in provider:
+        return None
     if '/' not in rest:
         return None
     inner_kind, inner_name = rest.split('/', 1)
