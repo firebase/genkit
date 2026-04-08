@@ -243,7 +243,7 @@ async def test_prompt_rendering_dotprompt(
 
     my_prompt = ai.define_prompt(**prompt)
 
-    # New API: use opts parameter to pass config and context
+    # New API: use kwargs parameter to pass config and context
     response = await my_prompt(input, config=input_option, context=context)
 
     assert response.text == want_rendered
@@ -509,7 +509,7 @@ async def test_opts_can_override_model() -> None:
         prompt='hello',
     )
 
-    # Override model via opts
+    # Override model via kwargs
     response = await my_prompt(model='programmableModel')
 
     # Should use programmableModel, not echoModel
@@ -531,7 +531,7 @@ async def test_opts_can_append_messages() -> None:
         Message(role=Role.MODEL, content=[Part(root=TextPart(text='Previous answer'))]),
     ]
 
-    # Append conversation history via opts
+    # Append conversation history via kwargs
     rendered = await my_prompt.render(messages=history_messages)
 
     # Should have: system + history (2) + user prompt = 4 messages

@@ -411,8 +411,8 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             resume_metadata=opts.get('resume_metadata'),
         )
 
-        model_name = prompt_config.model or self._registry.default_model
-        if model_name is None:
+        model = prompt_config.model or self._registry.default_model
+        if model is None:
             raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
 
         resolved_msgs: list[Message] = []
@@ -454,20 +454,20 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             resolved_msgs.append(result)
 
         if prompt_config.output_schema and not prompt_config.output_format:
-            out_format = 'json'
+            output_format = 'json'
         else:
-            out_format = prompt_config.output_format
+            output_format = prompt_config.output_format
 
-        output_config = GenerateActionOutputConfig()
-        if out_format:
-            output_config.format = out_format
+        output = GenerateActionOutputConfig()
+        if output_format:
+            output.format = output_format
         if prompt_config.output_content_type:
-            output_config.content_type = prompt_config.output_content_type
+            output.content_type = prompt_config.output_content_type
         if prompt_config.output_instructions is not None:
-            output_config.instructions = prompt_config.output_instructions
-        _resolve_output_schema(self._registry, prompt_config.output_schema, output_config)
+            output.instructions = prompt_config.output_instructions
+        _resolve_output_schema(self._registry, prompt_config.output_schema, output)
         if prompt_config.output_constrained is not None:
-            output_config.constrained = prompt_config.output_constrained
+            output.constrained = prompt_config.output_constrained
 
         resume_result = resume_options_to_resume(
             resume_respond=opts.get('resume_respond'),
@@ -481,13 +481,13 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
             merged_docs = [*merged_docs, *opts_docs] if merged_docs else list(opts_docs)
 
         return GenerateActionOptions(
-            model=model_name,
+            model=model,
             messages=resolved_msgs,  # type: ignore[arg-type]
             config=prompt_config.config,
             tools=tools_to_action_names(prompt_config.tools),
             return_tool_requests=prompt_config.return_tool_requests,
             tool_choice=prompt_config.tool_choice,
-            output=output_config,
+            output=output,
             max_turns=prompt_config.max_turns,
             docs=merged_docs,  # type: ignore[arg-type]
             resume=resume_result,

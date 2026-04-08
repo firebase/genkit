@@ -749,7 +749,7 @@ async def _resolve_tool_request(
     except Exception as e:
         intr = _interrupt_from_tool_exc(e)
         if intr is not None:
-            payload: dict[str, Any] | bool = intr.data if intr.data else True
+            payload: dict[str, Any] | bool = intr.metadata if intr.metadata else True
             tool_meta = tool_request_part.metadata or {}
             if not isinstance(tool_meta, dict):
                 tool_meta = dict(tool_meta)

@@ -355,7 +355,11 @@ class Action(Generic[InputT, OutputT, ChunkT]):
         """Replace input JSON schema (and input validation) when explicitly provided.
 
         Used when ``metadata_fn`` is loosely typed but the wire contract should be a
-        Pydantic model or JSON Schema dict.
+        Pydantic model or JSON Schema dict. Replaces the older public
+        ``override_input_schema`` method: same purpose (e.g. tools passing
+        ``input_schema=``), but implementation now uses ``to_json_schema`` so schemas
+        match the rest of Genkit, and assignments go through the ``input_schema``
+        property so registry metadata stays aligned.
         """
         in_js = to_json_schema(input_schema)
         self.input_schema = in_js

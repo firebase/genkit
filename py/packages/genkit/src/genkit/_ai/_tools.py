@@ -68,6 +68,10 @@ class Tool:
             output_schema=self.output_schema,
         )
 
+    def action(self) -> Action[Any, Any, Any]:
+        """Return the underlying :class:`~genkit._core._action.Action` registered for this tool."""
+        return self._action
+
     async def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         """Run the tool and return the unwrapped response value."""
         return (await self._action.run(*args, **kwargs)).response
@@ -152,7 +156,7 @@ class ToolRunContext(ActionRunContext):
 class Interrupt(Exception):  # noqa: N818 - public Genkit name; not renamed *Error for style
     """Exception for interrupting tool execution with user-facing API.
 
-    Raise ``Interrupt(data)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
+    Raise ``Interrupt(metadata)`` from a tool or from tool middleware (e.g. ``wrap_tool``).
     Exceptions from ``tool.run`` are wrapped in GenkitError
     with ``cause=Interrupt``; generation attaches interrupt metadata to the pending tool
     request.
@@ -161,15 +165,15 @@ class Interrupt(Exception):  # noqa: N818 - public Genkit name; not renamed *Err
     registered Tool.
     """
 
-    def __init__(self, data: dict[str, Any] | None = None) -> None:
+    def __init__(self, metadata: dict[str, Any] | None = None) -> None:
         """Initialize an Interrupt exception.
 
         Args:
-            data: Interrupt metadata (attached to the tool request on the wire). Use a
-                plain dict; for a Pydantic model, pass ``m.model_dump(mode="json")``.
+            metadata: Attached to the tool request on the wire. Use a plain dict; for a
+                Pydantic model, pass ``m.model_dump(mode="json")``.
         """
         super().__init__()
-        self.data: dict[str, Any] = {} if data is None else data
+        self.metadata: dict[str, Any] = {} if metadata is None else metadata
 
 
 def _tool_response_part(
