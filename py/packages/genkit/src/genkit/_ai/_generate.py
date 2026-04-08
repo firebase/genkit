@@ -76,7 +76,7 @@ async def expand_wildcard_tools(registry: Registry, tool_names: list[str]) -> li
 
         colon = name.index(':')
         provider_name = name[:colon]
-        rest = name[colon + 1:]  # e.g. "tool/*" or "tool/prefix*"
+        rest = name[colon + 1 :]  # e.g. "tool/*" or "tool/prefix*"
 
         provider_action = await registry.resolve_action(ActionKind.DYNAMIC_ACTION_PROVIDER, provider_name)
         if provider_action is None:
@@ -201,9 +201,10 @@ async def _generate_action(
     """Execute a generation request with tool calling and middleware support."""
     effective_registry = registry if registry.is_child else registry.new_child()
 
-    if raw_request.tools:
+    tools_in = raw_request.tools
+    if tools_in:
         raw_request = raw_request.model_copy()
-        raw_request.tools = await expand_wildcard_tools(effective_registry, raw_request.tools)
+        raw_request.tools = await expand_wildcard_tools(effective_registry, tools_in)
 
     model, tools, format_def = await resolve_parameters(effective_registry, raw_request)
 

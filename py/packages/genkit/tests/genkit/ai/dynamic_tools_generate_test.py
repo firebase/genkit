@@ -40,6 +40,7 @@ from genkit import Genkit, Message, ModelResponse, ModelResponseChunk
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _text_response(text: str) -> ModelResponse:
     return ModelResponse(
         message=Message(role=Role.MODEL, content=[Part(root=TextPart(text=text))]),
@@ -60,6 +61,7 @@ def _tool_call_response(tool_name: str, input: dict) -> ModelResponse:
 # ---------------------------------------------------------------------------
 # expand_wildcard_tools
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_expand_wildcard_all() -> None:
@@ -89,7 +91,9 @@ async def test_expand_wildcard_prefix() -> None:
     async def tool_fn(x: str) -> str:
         return x
 
-    t1 = registry.register_action(name='get_weather', kind=ActionKind.TOOL, fn=tool_fn, metadata={'name': 'get_weather'})
+    t1 = registry.register_action(
+        name='get_weather', kind=ActionKind.TOOL, fn=tool_fn, metadata={'name': 'get_weather'}
+    )
     t2 = registry.register_action(name='get_time', kind=ActionKind.TOOL, fn=tool_fn, metadata={'name': 'get_time'})
     t3 = registry.register_action(name='set_alarm', kind=ActionKind.TOOL, fn=tool_fn, metadata={'name': 'set_alarm'})
 
@@ -113,6 +117,7 @@ async def test_non_wildcard_names_pass_through() -> None:
 # ---------------------------------------------------------------------------
 # DAP tools resolved inside generate loop
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_dap_tool_resolved_in_generate() -> None:
@@ -170,8 +175,7 @@ async def test_dap_tools_do_not_pollute_root_registry() -> None:
         return inp.x
 
     # Create an Action directly — NOT registered in root via register_action
-    dap_only_action = Action(name='dap_only_tool', kind=ActionKind.TOOL, fn=tool_fn,
-                             metadata={'name': 'dap_only_tool'})
+    dap_only_action = Action(name='dap_only_tool', kind=ActionKind.TOOL, fn=tool_fn, metadata={'name': 'dap_only_tool'})
 
     async def dap_fn() -> DapValue:
         return {'tool': [dap_only_action]}

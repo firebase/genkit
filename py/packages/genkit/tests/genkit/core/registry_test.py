@@ -194,6 +194,7 @@ async def test_trigger_lazy_loading_reentrant_guard() -> None:
 # Child registry tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_new_child_is_child() -> None:
     """new_child() returns a child whose is_child is True."""
