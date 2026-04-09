@@ -1119,3 +1119,93 @@ ai.defineFlow('lyria-foreign-language', async () => {
 
   return response;
 });
+
+// Gemma 3
+ai.defineFlow('gemma-3', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemma-3-27b-it'),
+    prompt: 'Tell me a short joke about a programmer.',
+  });
+  return text;
+});
+
+// Gemma 4 with thinkingConfig
+ai.defineFlow('gemma-4', async (_, { sendChunk }) => {
+  const { text, message } = await ai.generate({
+    model: googleAI.model('gemma-4-31b-it'),
+    system: 'You are a physics tutor who loves cats. Use cat analogies.',
+    prompt: 'Explain relativity to a 10 year old',
+    config: {
+      thinkingConfig: {
+        thinkingLevel: 'HIGH', // The only possibility is 'HIGH'
+      },
+    },
+    onChunk: sendChunk,
+  });
+  return {
+    text,
+    reasoning: message?.content.find((p) => !!p.reasoning)?.reasoning,
+  };
+});
+
+// Gemma 4 multi-turn
+ai.defineFlow('gemma-4-multi-turn', async (_, { sendChunk }) => {
+  // First turn
+  sendChunk('--- Turn 1 ---');
+  const response1 = await ai.generate({
+    model: googleAI.model('gemma-4-26b-a4b-it'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Think of a number between 1 and 10. Explain your reasoning, then tell me the number.',
+          },
+        ],
+      },
+    ],
+  });
+
+  sendChunk(
+    'Reasoning 1: ' +
+      response1.message?.content.find((p) => !!p.reasoning)?.reasoning
+  );
+  sendChunk('Text 1: ' + response1.text);
+
+  // Second turn - passes the previous model response which includes reasoning,
+  // but the plugin should strip the reasoning before sending to the API.
+  sendChunk('\n--- Turn 2 ---');
+  const response2 = await ai.generate({
+    model: googleAI.model('gemma-4-26b-a4b-it'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Think of a number between 1 and 10. Explain your reasoning, then tell me the number.',
+          },
+        ],
+      },
+      response1.message!,
+      {
+        role: 'user',
+        content: [
+          {
+            text: 'Now multiply that number by 5. Again, explain your reasoning.',
+          },
+        ],
+      },
+    ],
+  });
+
+  sendChunk(
+    'Reasoning 2: ' +
+      response2.message?.content.find((p) => !!p.reasoning)?.reasoning
+  );
+  sendChunk('Text 2: ' + response2.text);
+
+  return {
+    turn1: response1.text,
+    turn2: response2.text,
+  };
+});
