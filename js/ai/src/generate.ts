@@ -29,6 +29,7 @@ import {
 import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import type { DocumentData } from './document.js';
 import {
   injectInstructions,
@@ -50,6 +51,7 @@ import {
   type GenerateActionOptions,
   type GenerateRequest,
   type GenerationCommonConfigSchema,
+  type GenerationUsageInput,
   type MessageData,
   type ModelArgument,
   type ModelMiddlewareArgument,
@@ -73,6 +75,77 @@ import {
 } from './tool.js';
 
 export { GenerateResponse, GenerateResponseChunk };
+
+export async function countTokens<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<GenerationUsageInput> {
+  const resolvedOptions: GenerateOptions<O, CustomOptions> = {
+    ...(await Promise.resolve(options)),
+  };
+
+  const registryWithTools = maybeRegisterDynamicTools(
+    registry,
+    resolvedOptions
+  );
+  const registryWithResources = maybeRegisterDynamicResources(
+    registryWithTools,
+    resolvedOptions
+  );
+
+  const tools = await toolsToActionRefs(
+    registryWithResources,
+    resolvedOptions.tools
+  );
+  const resources = await resourcesToActionRefs(
+    registryWithResources,
+    resolvedOptions.resources
+  );
+
+  const request = await toGenerateRequest(registryWithResources, {
+    ...resolvedOptions,
+    tools,
+    resources,
+  });
+
+  const resolvedModel = await resolveModel(
+    registryWithResources,
+    resolvedOptions.model
+  );
+
+  if (!resolvedModel.modelAction.countTokens) {
+    throw new GenkitError({
+      status: 'UNIMPLEMENTED',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support countTokens.`,
+    });
+  }
+
+  return runInNewSpan(
+    {
+      metadata: {
+        name: 'countTokens',
+      },
+      labels: {
+        [SPAN_TYPE_ATTR]: 'model',
+      },
+    },
+    async (metadata) => {
+      return runWithContext(resolvedOptions.context, async () => {
+        metadata.input = {
+          request,
+        };
+        const response = await resolvedModel.modelAction.countTokens!(request);
+        metadata.output = JSON.stringify(response, null, 2);
+        return response;
+      });
+    }
+  );
+}
 
 /** Specifies how tools should be called by the model. */
 export type ToolChoice = 'auto' | 'required' | 'none';

@@ -20,6 +20,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
+  countTokens,
   generate,
   generateStream,
   toGenerateActionOptions,
@@ -353,6 +354,76 @@ describe('toGenerateActionOptions', () => {
     assert.deepStrictEqual(actionOptions.messages, [
       { role: 'user', content: [{ text: 'hello' }] },
     ]);
+  });
+});
+
+describe('countTokens', () => {
+  let registry: Registry;
+  var echoModel: ModelAction;
+
+  beforeEach(() => {
+    registry = new Registry();
+    echoModel = defineModel(
+      registry,
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: 'Echo: ' + request.messages[0].content[0].text }],
+          },
+          finishReason: 'stop',
+        };
+      },
+      async (request) => {
+        const textLength = request.messages[0].content[0].text?.length || 0;
+        return {
+          inputTokens: textLength,
+          totalTokens: textLength,
+        };
+      }
+    );
+  });
+
+  it('calls the countTokens method on the model', async () => {
+    const usage = await countTokens(registry, {
+      prompt: 'banana',
+      model: echoModel,
+    });
+    assert.deepStrictEqual(usage, {
+      inputTokens: 6,
+      totalTokens: 6,
+    });
+  });
+
+  it('throws an error if the model does not support countTokens', async () => {
+    const noCountModel = defineModel(
+      registry,
+      {
+        name: 'noCountModel',
+      },
+      async (request) => {
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: 'Echo' }],
+          },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    await assert.rejects(
+      async () => {
+        await countTokens(registry, {
+          prompt: 'banana',
+          model: noCountModel,
+        });
+      },
+      { name: 'GenkitError', status: 'UNIMPLEMENTED' }
+    );
   });
 });
 

@@ -45,6 +45,7 @@ import {
   GenerateResponseData,
   GenerateResponseSchema,
   GenerationUsage,
+  GenerationUsageInput,
   MessageData,
   ModelInfo,
   Part,
@@ -105,6 +106,10 @@ export type ModelAction<
   typeof GenerateResponseChunkSchema
 > & {
   __configSchema: CustomOptionsSchema;
+  countTokens?(
+    request: GenerateRequest<CustomOptionsSchema>,
+    options?: ActionFnArg<GenerateResponseChunkData>
+  ): Promise<GenerationUsageInput>;
 };
 
 export type BackgroundModelAction<
@@ -152,7 +157,11 @@ export function model<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     options: ActionFnArg<GenerateResponseChunkData>
-  ) => Promise<GenerateResponseData>
+  ) => Promise<GenerateResponseData>,
+  countTokens?: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options?: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerationUsageInput>
 ): ModelAction<CustomOptionsSchema> {
   const act = action(modelActionOptions(options), (input, ctx) => {
     const startTimeMs = performance.now();
@@ -166,6 +175,7 @@ export function model<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
   });
   Object.assign(act, {
     __configSchema: options.configSchema || z.unknown(),
+    countTokens,
   });
   return act as ModelAction<CustomOptionsSchema>;
 }
@@ -210,7 +220,11 @@ export function defineModel<
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     options: ActionFnArg<GenerateResponseChunkData>
-  ) => Promise<GenerateResponseData>
+  ) => Promise<GenerateResponseData>,
+  countTokens?: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options?: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerationUsageInput>
 ): ModelAction<CustomOptionsSchema>;
 
 /**
@@ -224,7 +238,10 @@ export function defineModel<
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
-  ) => Promise<GenerateResponseData>
+  ) => Promise<GenerateResponseData>,
+  countTokens?: (
+    request: GenerateRequest<CustomOptionsSchema>
+  ) => Promise<GenerationUsageInput>
 ): ModelAction<CustomOptionsSchema>;
 
 export function defineModel<
@@ -235,7 +252,11 @@ export function defineModel<
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     options: any
-  ) => Promise<GenerateResponseData>
+  ) => Promise<GenerateResponseData>,
+  countTokens?: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: any
+  ) => Promise<GenerationUsageInput>
 ): ModelAction<CustomOptionsSchema> {
   const act = defineAction(
     registry,
@@ -259,6 +280,7 @@ export function defineModel<
   );
   Object.assign(act, {
     __configSchema: options.configSchema || z.unknown(),
+    countTokens,
   });
   return act as ModelAction<CustomOptionsSchema>;
 }

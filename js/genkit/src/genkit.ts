@@ -17,6 +17,7 @@
 import {
   cancelOperation,
   checkOperation,
+  countTokens,
   defineHelper,
   definePartial,
   definePrompt,
@@ -46,6 +47,7 @@ import {
   type GenerateStreamOptions,
   type GenerateStreamResponse,
   type GenerationCommonConfigSchema,
+  type GenerationUsageInput,
   type IndexerParams,
   type ModelArgument,
   type ModelReference,
@@ -673,6 +675,75 @@ export class Genkit implements HasRegistry {
     params: RetrieverParams<CustomOptions>
   ): Promise<Array<Document>> {
     return retrieve(this.registry, params);
+  }
+
+  /**
+   * Counts tokens for the given request.
+   *
+   * ```ts
+   * const usage = await ai.countTokens('hi');
+   * ```
+   */
+  countTokens<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    strPrompt: string,
+    options?: GenerateOptions<O>
+  ): Promise<GenerationUsageInput>;
+
+  /**
+   * Counts tokens for the given multipart request.
+   *
+   * ```ts
+   * const usage = await ai.countTokens([
+   *   { media: {url: 'http://....'} },
+   *   { text: 'describe this image'}
+   * ]);
+   * ```
+   */
+  countTokens<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    parts: Part[],
+    options?: GenerateOptions<O>
+  ): Promise<GenerationUsageInput>;
+
+  /**
+   * Counts tokens for the given request based on the provided prompt and configuration.
+   *
+   * ```ts
+   * const usage = await ai.countTokens({
+   *   system: 'talk like a pirate',
+   *   prompt: 'hi',
+   * });
+   * ```
+   */
+  countTokens<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(options: GenerateOptions<O, CustomOptions>): Promise<GenerationUsageInput>;
+
+  async countTokens<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    promptOrPartsOrOptions: string | Part[] | GenerateOptions<O, CustomOptions>,
+    options?: GenerateOptions<O, CustomOptions>
+  ): Promise<GenerationUsageInput> {
+    let resolvedOptions: GenerateOptions<O, CustomOptions>;
+    if (typeof promptOrPartsOrOptions === 'string') {
+      resolvedOptions = {
+        prompt: promptOrPartsOrOptions,
+        ...options,
+      };
+    } else if (Array.isArray(promptOrPartsOrOptions)) {
+      resolvedOptions = {
+        prompt: promptOrPartsOrOptions,
+        ...options,
+      };
+    } else {
+      resolvedOptions = promptOrPartsOrOptions as GenerateOptions<
+        O,
+        CustomOptions
+      >;
+    }
+    return countTokens(this.registry, resolvedOptions);
   }
 
   /**

@@ -247,23 +247,34 @@ export interface GenerateRequest<
 }
 
 /**
- * Zod schema of usage info from a generate request.
+ * Zod schema of usage info for the input of a generate request.
  */
-export const GenerationUsageSchema = z.object({
+export const GenerationUsageInputSchema = z.object({
   inputTokens: z.number().optional(),
-  outputTokens: z.number().optional(),
   totalTokens: z.number().optional(),
   inputCharacters: z.number().optional(),
-  outputCharacters: z.number().optional(),
   inputImages: z.number().optional(),
-  outputImages: z.number().optional(),
   inputVideos: z.number().optional(),
-  outputVideos: z.number().optional(),
   inputAudioFiles: z.number().optional(),
-  outputAudioFiles: z.number().optional(),
-  custom: z.record(z.number()).optional(),
-  thoughtsTokens: z.number().optional(),
   cachedContentTokens: z.number().optional(),
+  custom: z.record(z.number()).optional(),
+});
+
+/**
+ * Usage info for the input of a generate request.
+ */
+export type GenerationUsageInput = z.infer<typeof GenerationUsageInputSchema>;
+
+/**
+ * Zod schema of usage info from a generate request.
+ */
+export const GenerationUsageSchema = GenerationUsageInputSchema.extend({
+  outputTokens: z.number().optional(),
+  outputCharacters: z.number().optional(),
+  outputImages: z.number().optional(),
+  outputVideos: z.number().optional(),
+  outputAudioFiles: z.number().optional(),
+  thoughtsTokens: z.number().optional(),
 });
 
 /**
