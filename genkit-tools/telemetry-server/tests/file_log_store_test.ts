@@ -19,7 +19,11 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { LocalFileLogStore } from '../src/file-log-store';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('LocalFileLogStore', () => {
   const testRoot = path.join(__dirname, '.test_log_store');

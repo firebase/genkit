@@ -218,16 +218,17 @@ export async function startTelemetryServer(params: {
     }
   });
 
-  api.get('/api/spans/:spanId/logs', async (request, response, next) => {
+  api.get('/api/traces/:traceId/spans/:spanId/logs', async (request, response, next) => {
     try {
       const { limit, continuationToken } = request.query;
-      const { spanId } = request.params;
+      const { traceId, spanId } = request.params;
       response.json(
         await params.logStore.list({
           limit: limit ? Number.parseInt(limit.toString()) : 100,
           continuationToken: continuationToken
             ? continuationToken.toString()
             : undefined,
+          traceId,
           spanId,
         })
       );
