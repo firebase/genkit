@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, ResolvableAction } from '@genkit-ai/core';
-import { ActionType } from '@genkit-ai/core/registry';
-import { type GenerateMiddleware } from './generate/middleware.js';
-import { type ModelAction } from './model.js';
+import type { ActionMetadata, ResolvableAction } from '@genkit-ai/core';
+import type { ActionType } from '@genkit-ai/core/registry';
+import type { GenerateMiddleware } from './generate/middleware.js';
+import type { ModelAction } from './model.js';
 
 export interface GenkitPluginV2 {
   version: 'v2';
