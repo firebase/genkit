@@ -196,9 +196,7 @@ def generate_middleware(middleware_cls: type[BaseMiddleware]) -> GenerateMiddlew
     """
     reg_name = middleware_cls.name
     if not reg_name:
-        raise ValueError(
-            f'{middleware_cls.__qualname__}.name must be set for generate_middleware(MyClass).'
-        )
+        raise ValueError(f'{middleware_cls.__qualname__}.name must be set for generate_middleware(MyClass).')
     _validate_middleware_key_segment(str(reg_name), label=f'{middleware_cls.__qualname__}.name')
 
     def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
