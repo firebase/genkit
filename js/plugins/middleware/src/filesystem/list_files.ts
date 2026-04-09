@@ -20,11 +20,12 @@ import { tool } from 'genkit/beta';
 import * as path from 'path';
 
 export function defineListFileTool(
-  resolvePath: (requestedPath: string) => string
+  resolvePath: (requestedPath: string) => string,
+  prefix?: string
 ): ToolAction {
   return tool(
     {
-      name: 'list_files',
+      name: `${prefix || ''}list_files`,
       description:
         'Lists files and directories in a given path. Returns a list of objects with path and type.',
       inputSchema: z.object({

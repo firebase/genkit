@@ -20,12 +20,14 @@ import { tool } from 'genkit/beta';
 import * as path from 'path';
 
 export function defineWriteFileTool(
-  resolvePath: (requestedPath: string) => string
+  resolvePath: (requestedPath: string) => string,
+  prefix?: string
 ): ToolAction {
   return tool(
     {
-      name: 'write_file',
-      description: 'Writes content to a file, overwriting it if it exists.',
+      name: `${prefix || ''}write_file`,
+      description:
+        'Writes content to a file, overwriting it if it exists. Use this tool to create new files.',
       inputSchema: z.object({
         filePath: z.string().describe('File path relative to root.'),
         content: z.string().describe('Content to write to the file.'),

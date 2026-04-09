@@ -96,6 +96,20 @@ describe('filesystem middleware', () => {
     assert.strictEqual(mw.tools[1].__action.name, 'read_file');
   });
 
+  it('injects tools with prefix when toolNamePrefix is provided', () => {
+    const mw = filesystem.instantiate({
+      config: { rootDirectory: tempDir, toolNamePrefix: 'my_' },
+      ai: fakeGenerateAPI,
+      pluginConfig: undefined,
+    });
+    assert.ok(mw.tools);
+    assert.strictEqual(mw.tools.length, 4);
+    assert.strictEqual(mw.tools[0].__action.name, 'my_list_files');
+    assert.strictEqual(mw.tools[1].__action.name, 'my_read_file');
+    assert.strictEqual(mw.tools[2].__action.name, 'my_write_file');
+    assert.strictEqual(mw.tools[3].__action.name, 'my_search_and_replace');
+  });
+
   describe('list_files', () => {
     it('lists files in root directory', async () => {
       const ai = genkit({});

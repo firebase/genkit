@@ -22,11 +22,12 @@ import * as path from 'path';
 
 export function defineReadFileTool(
   messageQueue: MessageData[],
-  resolvePath: (requestedPath: string) => string
+  resolvePath: (requestedPath: string) => string,
+  prefix?: string
 ): ToolAction {
   return tool(
     {
-      name: 'read_file',
+      name: `${prefix || ''}read_file`,
       description: 'Reads the contents of a file',
       inputSchema: z.object({
         filePath: z.string().describe('File path relative to root.'),
