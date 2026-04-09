@@ -316,6 +316,8 @@ class ActionRunContext:
 class Action(Generic[InputT, OutputT, ChunkT]):
     """A named, traced, remotely callable function."""
 
+    _input_type: TypeAdapter[InputT] | None
+
     def __init__(
         self,
         kind: ActionKind,
@@ -384,6 +386,19 @@ class Action(Generic[InputT, OutputT, ChunkT]):
     def output_schema(self, value: dict[str, object]) -> None:
         self._output_schema = value
         self._metadata[ActionMetadataKey.OUTPUT_KEY] = value
+
+    def override_input_schema(self, schema: type[BaseModel] | dict[str, object]) -> None:
+        """Replace inferred input JSON Schema and validation type (e.g. tool schema overrides)."""
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            type_adapter: TypeAdapter[Any] = TypeAdapter(schema)
+            self._input_schema = type_adapter.json_schema()
+            self._input_type = cast(TypeAdapter[InputT], type_adapter)
+        elif isinstance(schema, dict):
+            self._input_schema = schema
+            self._input_type = None
+        else:
+            raise TypeError(f'input_schema must be a Pydantic model type or dict, got {type(schema)}')
+        self._metadata[ActionMetadataKey.INPUT_KEY] = self._input_schema
 
     async def __call__(self, input: InputT | None = None) -> OutputT:
         """Call the action directly, returning just the response value."""
