@@ -17,7 +17,7 @@
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
 import { describe, it } from 'node:test';
-import { toolApproval } from '../src/toolApproval.js';
+import { toolApproval } from '../src/tool-approval.js';
 
 describe('toolApproval middleware', () => {
   function createToolModel(ai: any, toolName: string) {

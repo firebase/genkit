@@ -18,4 +18,4 @@ export { fallback } from './fallback.js';
 export { filesystem } from './filesystem.js';
 export { retry } from './retry.js';
 export { skills } from './skills.js';
-export { toolApproval } from './toolApproval.js';
+export { toolApproval } from './tool-approval.js';
