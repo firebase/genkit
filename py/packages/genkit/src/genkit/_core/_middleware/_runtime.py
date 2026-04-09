@@ -14,29 +14,54 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Abstract middleware runtime hooks (leaf module: avoids importing genkit._core._model)."""
+"""Abstract middleware runtime hook signatures.
+
+``MiddlewareRuntime`` lives here with types from ``genkit._core._model`` and
+``genkit._core._typing`` only (no ``BaseMiddleware`` / registry imports), keeping this
+module low in the middleware import graph.
+"""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from collections.abc import Awaitable, Callable
+
+from genkit._core._model import GenerateHookParams, ModelHookParams, ModelResponse, ToolHookParams
+from genkit._core._typing import ToolRequestPart, ToolResponsePart
 
 
 class MiddlewareRuntime(ABC):
-    """Abstract hook contract implemented by BaseMiddleware at runtime.
+    """Abstract hook contract implemented by ``BaseMiddleware`` at runtime.
 
-    BaseMiddleware subclasses this and provides default pass-through behavior. Keeping
-    this type in a leaf module avoids import cycles with the model and generate layers.
+    ``BaseMiddleware`` subclasses this and provides default pass-through behavior.
     """
 
     @abstractmethod
-    def wrap_generate(self, params: Any, next_fn: Any) -> Any:
+    def wrap_generate(
+        self,
+        params: GenerateHookParams,
+        next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
+    ) -> Awaitable[ModelResponse]:
         """Wrap each iteration of the tool loop (model call + optional tool resolution)."""
 
     @abstractmethod
-    def wrap_model(self, params: Any, next_fn: Any) -> Any:
+    def wrap_model(
+        self,
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
+    ) -> Awaitable[ModelResponse]:
         """Wrap each model API call."""
 
     @abstractmethod
-    def wrap_tool(self, params: Any, next_fn: Any) -> Any:
-        """Wrap each tool execution."""
+    def wrap_tool(
+        self,
+        params: ToolHookParams,
+        next_fn: Callable[
+            [ToolHookParams],
+            Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+        ],
+    ) -> Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]]:
+        """Wrap each tool execution.
+
+        Return ``(tool_response, interrupt)``: one of the tuple elements is non-``None``.
+        """

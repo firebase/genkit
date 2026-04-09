@@ -31,6 +31,7 @@ from genkit._core._typing import (
     TextPart,
     ToolRequest,
     ToolRequestPart,
+    ToolResponsePart,
 )
 from genkit.middleware import (
     BaseMiddleware,
@@ -563,8 +564,11 @@ class TrackToolMiddleware(BaseMiddleware):
     async def wrap_tool(
         self,
         params: ToolHookParams,
-        next_fn: Callable[[ToolHookParams], Awaitable[tuple['Part | None', 'Part | None']]],
-    ) -> tuple['Part | None', 'Part | None']:
+        next_fn: Callable[
+            [ToolHookParams],
+            Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+        ],
+    ) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
         self.tool_names.append(params.tool_request_part.tool_request.name)
         return await next_fn(params)
 

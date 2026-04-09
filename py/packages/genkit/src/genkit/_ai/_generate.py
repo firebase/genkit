@@ -102,10 +102,16 @@ def resolve_middleware_from_use(
 async def _chain_tool_middleware(
     middleware: list[BaseMiddleware],
     params: ToolHookParams,
-    next_fn: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]],
-) -> tuple[Part | None, Part | None]:
+    next_fn: Callable[
+        [ToolHookParams],
+        Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+    ],
+) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
     """Run the tool middleware chain and return (response_part, interrupt_part)."""
-    runner: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = next_fn
+    runner: Callable[
+        [ToolHookParams],
+        Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+    ] = next_fn
     for mw in reversed(middleware):
         _mw = mw
         _inner = runner
@@ -114,8 +120,11 @@ async def _chain_tool_middleware(
             p: ToolHookParams,
             *,
             _m: BaseMiddleware = _mw,
-            _i: Callable[[ToolHookParams], Awaitable[tuple[Part | None, Part | None]]] = _inner,
-        ) -> tuple[Part | None, Part | None]:
+            _i: Callable[
+                [ToolHookParams],
+                Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+            ] = _inner,
+        ) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
             return await _m.wrap_tool(p, _i)
 
         runner = run_next
@@ -758,11 +767,15 @@ async def resolve_tool_requests(
     if not work:
         return (None, Message(role=Role.TOOL, content=[]), None)
 
-    async def _resolve_one_tool(tool: Action, trp: ToolRequestPart) -> tuple[Part | None, Part | None]:
+    async def _resolve_one_tool(
+        tool: Action, trp: ToolRequestPart
+    ) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
         if mw_list:
             params = ToolHookParams(tool_request_part=trp, tool=tool)
 
-            async def next_fn(p: ToolHookParams) -> tuple[Part | None, Part | None]:
+            async def next_fn(
+                p: ToolHookParams,
+            ) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
                 return await _resolve_tool_request(p.tool, p.tool_request_part)
 
             return await _chain_tool_middleware(mw_list, params, next_fn)
@@ -774,14 +787,12 @@ async def resolve_tool_requests(
     response_parts: list[Part] = []
     for (idx, _tool, tool_req_root), (tool_response_part, interrupt_part) in zip(work, outs, strict=True):
         if tool_response_part:
-            # Extract the ToolResponsePart from the returned Part for _to_pending_response
-            if isinstance(tool_response_part.root, ToolResponsePart):
-                revised_model_message.content[idx] = _to_pending_response(tool_req_root, tool_response_part.root)
-            response_parts.append(tool_response_part)
+            revised_model_message.content[idx] = _to_pending_response(tool_req_root, tool_response_part)
+            response_parts.append(Part(root=tool_response_part))
 
         if interrupt_part:
             has_interrupts = True
-            revised_model_message.content[idx] = interrupt_part
+            revised_model_message.content[idx] = Part(root=interrupt_part)
 
     if has_interrupts:
         return (revised_model_message, None, None)
@@ -802,19 +813,18 @@ def _to_pending_response(request: ToolRequestPart, response: ToolResponsePart) -
     )
 
 
-async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart) -> tuple[Part | None, Part | None]:
+async def _resolve_tool_request(
+    tool: Action, tool_request_part: ToolRequestPart
+) -> tuple[ToolResponsePart | None, ToolRequestPart | None]:
     """Execute a tool and return (response_part, interrupt_part)."""
     try:
         tool_response = (await tool.run(tool_request_part.tool_request.input)).response
-        # Part is a RootModel, so we pass content via 'root' parameter
         return (
-            Part(
-                root=ToolResponsePart(
-                    tool_response=ToolResponse(
-                        name=tool_request_part.tool_request.name,
-                        ref=tool_request_part.tool_request.ref,
-                        output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
-                    )
+            ToolResponsePart(
+                tool_response=ToolResponse(
+                    name=tool_request_part.tool_request.name,
+                    ref=tool_request_part.tool_request.ref,
+                    output=tool_response.model_dump() if isinstance(tool_response, BaseModel) else tool_response,
                 )
             ),
             None,
@@ -822,20 +832,17 @@ async def _resolve_tool_request(tool: Action, tool_request_part: ToolRequestPart
     except GenkitError as e:
         if e.cause and isinstance(e.cause, ToolInterruptError):
             interrupt_error = e.cause
-            # Part is a RootModel, so we pass content via 'root' parameter
             tool_meta = tool_request_part.metadata or {}
             if not isinstance(tool_meta, dict):
                 tool_meta = dict(tool_meta)
             return (
                 None,
-                Part(
-                    root=ToolRequestPart(
-                        tool_request=tool_request_part.tool_request,
-                        metadata={
-                            **tool_meta,
-                            'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
-                        },
-                    )
+                ToolRequestPart(
+                    tool_request=tool_request_part.tool_request,
+                    metadata={
+                        **tool_meta,
+                        'interrupt': (interrupt_error.metadata if interrupt_error.metadata else True),
+                    },
                 ),
             )
 

@@ -39,17 +39,13 @@ from genkit._core._model import (
     ModelResponse,
     ToolHookParams,
 )
-from genkit._core._typing import Part
+from genkit._core._typing import ToolRequestPart, ToolResponsePart
 
 
 class _MiddlewareRegistryView(Protocol):
     """Minimal registry surface passed into middleware factories (avoids importing ``Registry`` here)."""
 
     def lookup_value(self, kind: str, name: str) -> object | None: ...
-
-
-# (tool response Part, interrupt Part) — matches ``_resolve_tool_request`` / ``_chain_tool_middleware``.
-ToolHookChainResult = tuple[Part | None, Part | None]
 
 
 class BaseMiddleware(MiddlewareRuntime):
@@ -90,8 +86,11 @@ class BaseMiddleware(MiddlewareRuntime):
     def wrap_tool(
         self,
         params: ToolHookParams,
-        next_fn: Callable[[ToolHookParams], Awaitable[ToolHookChainResult]],
-    ) -> Awaitable[ToolHookChainResult]:
+        next_fn: Callable[
+            [ToolHookParams],
+            Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]],
+        ],
+    ) -> Awaitable[tuple[ToolResponsePart | None, ToolRequestPart | None]]:
         return next_fn(params)
 
 
