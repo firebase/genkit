@@ -48,6 +48,7 @@ export const toolApproval: GenerateMiddleware<
           (req.metadata?.resumed as any)?.toolApproved === true;
 
         if (!approvedTools.includes(req.toolRequest.name) && !isApproved) {
+          // We use ai.run to create an OTel span for the tool interrupt.
           await ai.run(
             req.toolRequest.name,
             req.toolRequest.input,
