@@ -40,6 +40,7 @@ import type { PluginProvider } from 'genkit/plugin';
 import { Readable } from 'node:stream';
 import { Allow, parse } from 'partial-json';
 import wav from 'wav';
+import { filesystem, skills, toolApproval } from '@genkit-ai/middleware';
 
 logger.setLogLevel('debug');
 
@@ -71,6 +72,9 @@ const ai = genkit({
         GenkitMetric.JSONATA,
       ],
     }),
+    filesystem.plugin(),
+    skills.plugin(),
+    toolApproval.plugin(),
   ],
   model: googleAI.model('gemini-flash-latest'),
 });
