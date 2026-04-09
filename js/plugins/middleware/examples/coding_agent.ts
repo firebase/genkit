@@ -25,7 +25,7 @@ import {
 } from 'genkit';
 import * as path from 'path';
 import * as readline from 'readline';
-import { filesystem, skills, toolApproval } from '../src/index.js';
+import { filesystem, retry, skills, toolApproval } from '../src/index.js';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -43,6 +43,7 @@ async function main() {
       filesystem.plugin(),
       skills.plugin(),
       toolApproval.plugin(),
+      retry.plugin(),
     ],
   });
 

@@ -40,17 +40,29 @@ export const FallbackOptionsSchema = z
     /**
      * An array of models to try in order.
      */
-    models: z.array(ModelReferenceSchema),
+    models: z
+      .array(ModelReferenceSchema)
+      .describe('An array of models to try in order.'),
     /**
      * An array of `StatusName` values that should trigger a fallback.
      * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
      */
-    statuses: z.array(z.string()).optional(),
+    statuses: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'An array of StatusName values that should trigger a fallback.'
+      ),
     /**
      * If true, the fallback model will not inherit the original request's configuration.
      * @default false
      */
-    isolateConfig: z.boolean().optional(),
+    isolateConfig: z
+      .boolean()
+      .optional()
+      .describe(
+        "If true, the fallback model will not inherit the original request's configuration."
+      ),
   })
   .passthrough();
 
