@@ -88,6 +88,7 @@ export const fallback: GenerateMiddleware<typeof FallbackOptionsSchema> =
   generateMiddleware(
     {
       name: 'fallback',
+      description: 'Fallback to a different model on specific error statuses.',
       configSchema: FallbackOptionsSchema,
     },
     (options) => {

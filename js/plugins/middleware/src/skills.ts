@@ -40,6 +40,7 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
   generateMiddleware(
     {
       name: 'skills',
+      description: 'Injects system instructions and tools for using skills.',
       configSchema: SkillsOptionsSchema,
     },
     ({ config }) => {

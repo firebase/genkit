@@ -52,6 +52,8 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
   generateMiddleware(
     {
       name: 'filesystem',
+      description:
+        'Injects tools for reading, writing, and searching files in a directory.',
       configSchema: FilesystemOptionsSchema,
     },
     ({ config }) => {

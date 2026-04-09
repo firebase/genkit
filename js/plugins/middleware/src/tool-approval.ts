@@ -36,6 +36,8 @@ export const toolApproval: GenerateMiddleware<
 > = generateMiddleware(
   {
     name: 'toolApproval',
+    description:
+      'Interrupts tool execution unless the tool is in the approved list or approved via metadata.',
     configSchema: ToolApprovalOptionsSchema,
   },
   ({ config, ai }) => {

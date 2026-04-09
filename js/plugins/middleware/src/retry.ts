@@ -129,6 +129,8 @@ export const retry: GenerateMiddleware<typeof RetryOptionsSchema> =
   generateMiddleware(
     {
       name: 'retry',
+      description:
+        'Retries a request a specified number of times when a specific set of errors occurs',
       configSchema: RetryOptionsSchema,
     },
     (options) => {
