@@ -63,7 +63,9 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         );
       }
       const rootDir = path.resolve(config.rootDirectory);
-      const securePrefix = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep;
+      const securePrefix = rootDir.endsWith(path.sep)
+        ? rootDir
+        : rootDir + path.sep;
 
       function resolvePath(requestedPath: string) {
         const p = path.resolve(rootDir, requestedPath);
