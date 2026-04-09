@@ -30,6 +30,7 @@ export const RetryOptionsSchema = z
      */
     maxRetries: z
       .number()
+      .gt(0)
       .optional()
       .describe('The maximum number of times to retry a failed request.'),
     /**
@@ -54,6 +55,7 @@ export const RetryOptionsSchema = z
      */
     maxDelayMs: z
       .number()
+      .gt(0)
       .optional()
       .describe('The maximum delay between retries, in milliseconds.'),
     /**
@@ -62,6 +64,7 @@ export const RetryOptionsSchema = z
      */
     backoffFactor: z
       .number()
+      .gt(0)
       .optional()
       .describe(
         'The factor by which the delay increases after each retry (exponential backoff).'
