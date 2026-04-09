@@ -98,7 +98,11 @@ describe('filesystem middleware', () => {
 
   it('injects tools with prefix when toolNamePrefix is provided', () => {
     const mw = filesystem.instantiate({
-      config: { rootDirectory: tempDir, toolNamePrefix: 'my_', allowWriteAccess: true },
+      config: {
+        rootDirectory: tempDir,
+        toolNamePrefix: 'my_',
+        allowWriteAccess: true,
+      },
       ai: fakeGenerateAPI,
       pluginConfig: undefined,
     });
