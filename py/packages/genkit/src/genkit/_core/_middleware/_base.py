@@ -28,6 +28,7 @@ Two roles (they are not superclass/subclass):
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -41,11 +42,38 @@ from genkit._core._model import (
 )
 from genkit._core._typing import ToolRequestPart, ToolResponsePart
 
+# Disallowed in middleware definition names and in ``middleware_plugin(..., namespace=...)``.
+# Model/action keys use ``provider/name``; middleware stays one path-free token for the registry.
+_FORBIDDEN_IN_MIDDLEWARE_KEY_SEGMENT = re.compile(r'[\x00-\x1f/\\:]|\s')
+
 
 class _MiddlewareRegistryView(Protocol):
     """Minimal registry surface passed into middleware factories (avoids importing ``Registry`` here)."""
 
     def lookup_value(self, kind: str, name: str) -> object | None: ...
+
+
+def _validate_middleware_key_segment(name: str, *, label: str) -> None:
+    """Raise if ``name`` is not usable as a single middleware registry key (or namespace).
+
+    Middleware definitions are stored under ``register_value(kind='middleware', name=...)``.
+    Optional ``middleware_plugin(..., namespace='acme')`` builds keys like ``acme_logging``.
+    So the string must be one segment: no ``/`` (that shape is for models/actions), and no
+    whitespace, ``:``, backslashes, or control characters that would break keys or Dev UI.
+
+    Args:
+        name: Proposed name or namespace segment.
+        label: Field name for error messages (e.g. ``GenerateMiddleware name``).
+    """
+    if not name or not name.strip():
+        raise ValueError(f'{label} must be a non-empty string (not whitespace-only).')
+    if name != name.strip():
+        raise ValueError(f'{label} must not have leading or trailing whitespace.')
+    if _FORBIDDEN_IN_MIDDLEWARE_KEY_SEGMENT.search(name):
+        raise ValueError(
+            f'{label} must be one path-free token: no whitespace, "/", ":", '
+            r'backslashes, or control characters (for example "myorg_logging_mw").'
+        )
 
 
 class BaseMiddleware(MiddlewareRuntime):
@@ -120,12 +148,7 @@ class GenerateMiddleware:
         config_schema: dict[str, Any] | None = None,
         metadata: dict[str, object] | None = None,
     ) -> None:
-        if '/' in name:
-            raise ValueError(
-                'GenerateMiddleware name must not contain "/". Use a single segment '
-                '(for example "myorg_logging_mw") so it stays distinct from model/action '
-                'keys, which use "/".'
-            )
+        _validate_middleware_key_segment(name, label='GenerateMiddleware name')
         self.name = name
         self._factory = factory
         self.description = description
@@ -174,9 +197,9 @@ def generate_middleware(middleware_cls: type[BaseMiddleware]) -> GenerateMiddlew
     reg_name = middleware_cls.name
     if not reg_name:
         raise ValueError(
-            f'{middleware_cls.__qualname__}.name must be set to a non-empty flat string '
-            "(no '/') for generate_middleware(MyClass)."
+            f'{middleware_cls.__qualname__}.name must be set for generate_middleware(MyClass).'
         )
+    _validate_middleware_key_segment(str(reg_name), label=f'{middleware_cls.__qualname__}.name')
 
     def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
         return middleware_cls()

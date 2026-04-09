@@ -262,11 +262,20 @@ class Registry:
         """Initialize every registered plugin once (lazy init is idempotent).
 
         Used by the reflection server so values such as default models are
-        registered before ``list_values`` is called. Iterates a snapshot of
-        plugin names; ``register_plugin`` holds ``_lock``, so this is safe if
-        another thread registers a plugin concurrently.
+        registered before ``list_values`` is called. Copies plugin names with
+        ``list(self._plugins)`` under ``_lock`` so iteration cannot race
+        ``register_plugin`` (unlike iterating ``dict.keys()`` views directly).
+        The loop then calls ``_ensure_plugin_initialized`` without holding
+        ``_lock``: that path must ``await plugin.init()``, and holding a
+        ``threading.Lock`` across an ``await`` would block every other thread that
+        needs the registry (including ``register_plugin``) for the entire duration
+        of each slow ``init()``, and can deadlock if ``init`` ever waits on work
+        that needs the same lock. The lock is only taken for short sync sections
+        (snapshot, or scheduling the init task in ``_ensure_plugin_initialized``).
         """
-        for plugin_name in list(self._plugins.keys()):
+        with self._lock:
+            plugin_names = list(self._plugins)
+        for plugin_name in plugin_names:
             await self._ensure_plugin_initialized(plugin_name)
 
     def register_plugin(self, plugin: Plugin) -> None:

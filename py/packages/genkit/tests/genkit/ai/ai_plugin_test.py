@@ -244,8 +244,32 @@ class _BadSlashNameMw(BaseMiddleware):
 
 def test_generate_middleware_name_must_not_contain_slash() -> None:
     """``/`` is reserved for model/action style keys; middleware ids are flat."""
-    with pytest.raises(ValueError, match='must not contain'):
+    with pytest.raises(ValueError, match='path-free'):
         generate_middleware(_BadSlashNameMw)
+
+
+class _BadSpaceNameMw(BaseMiddleware):
+    name = 'bad name'
+
+
+def test_generate_middleware_name_rejects_whitespace_in_segment() -> None:
+    with pytest.raises(ValueError, match='path-free'):
+        generate_middleware(_BadSpaceNameMw)
+
+
+class _BadColonNameMw(BaseMiddleware):
+    name = 'bad:name'
+
+
+def test_generate_middleware_name_rejects_colon_in_segment() -> None:
+    with pytest.raises(ValueError, match='path-free'):
+        generate_middleware(_BadColonNameMw)
+
+
+def test_middleware_plugin_namespace_rejects_colon() -> None:
+    g = generate_middleware(_XMw)
+    with pytest.raises(ValueError, match='middleware_plugin namespace'):
+        middleware_plugin([g], namespace='acme:ns')
 
 
 def test_generate_middleware_from_class_reads_name_and_description() -> None:

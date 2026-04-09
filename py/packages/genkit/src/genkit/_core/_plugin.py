@@ -22,7 +22,7 @@ import abc
 from collections.abc import Sequence
 
 from genkit._core._action import Action, ActionKind, ActionMetadata
-from genkit._core._middleware._base import GenerateMiddleware
+from genkit._core._middleware._base import GenerateMiddleware, _validate_middleware_key_segment
 
 
 class Plugin(abc.ABC):
@@ -121,7 +121,8 @@ def middleware_plugin(
         namespace: If set, becomes the plugin name and each definition is registered as
             namespace + underscore + definition name (e.g. acme + logging → acme_logging).
             If omitted, the plugin name is extension-middleware and registry keys stay the
-            definitions' own names. Must not contain a slash.
+            definitions' own names. Same flat-segment rules as middleware definition names
+            (no ``/``, whitespace, ``:``, backslashes, or control characters).
 
     Returns:
         A plugin object whose generate_middleware returns the definitions (renamed when
@@ -137,8 +138,8 @@ def middleware_plugin(
         ns = None
     else:
         ns = namespace.strip() or None
-    if ns is not None and '/' in ns:
-        raise ValueError('middleware_plugin() namespace must not contain "/"')
+    if ns is not None:
+        _validate_middleware_key_segment(ns, label='middleware_plugin namespace')
 
     if ns is None:
         registered = defs
