@@ -50,14 +50,29 @@ export const flowBatchRun = new Command('flow:batchRun')
     ) => {
       const dashDashIndex = process.argv.indexOf('--');
       let runtimeCommand: string[] | undefined;
+      let actualFileName: string | undefined = fileName;
+
+      // Commander removes the '--' separator from flowBatchRun.args.
+      // We find '--' in process.argv to determine which arguments belong to the runtime command.
       if (dashDashIndex !== -1) {
-        runtimeCommand = process.argv.slice(dashDashIndex + 1);
+        const numArgsAfterDashDash = process.argv.length - dashDashIndex - 1;
+        runtimeCommand = flowBatchRun.args.slice(-numArgsAfterDashDash);
+        const commandArgs = flowBatchRun.args.slice(
+          0,
+          flowBatchRun.args.length - numArgsAfterDashDash
+        );
+        actualFileName = commandArgs[1];
       }
 
       const projectRoot = await findProjectRoot();
 
       const runAction = async (manager: BaseRuntimeManager) => {
-        const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
+        if (!actualFileName) {
+          throw new Error('Missing required argument <inputFileName>');
+        }
+        const inputData = JSON.parse(
+          await readFile(actualFileName, 'utf8')
+        ) as any[];
         let input = inputData;
         if (inputData.length === 0) {
           throw new Error('batch input data must be a non-empty array');

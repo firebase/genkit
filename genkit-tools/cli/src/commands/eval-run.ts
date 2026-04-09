@@ -73,18 +73,25 @@ export const evalRun = new Command('eval:run')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
     const dashDashIndex = process.argv.indexOf('--');
     let runtimeCommand: string[] | undefined;
+    let actualDataset: string | undefined = dataset;
 
+    // Commander removes the '--' separator from evalRun.args.
+    // We find '--' in process.argv to determine which arguments belong to the runtime command.
     if (dashDashIndex !== -1) {
-      runtimeCommand = process.argv.slice(dashDashIndex + 1);
+      const numArgsAfterDashDash = process.argv.length - dashDashIndex - 1;
+      runtimeCommand = evalRun.args.slice(-numArgsAfterDashDash);
+      const commandArgs = evalRun.args.slice(
+        0,
+        evalRun.args.length - numArgsAfterDashDash
+      );
+      actualDataset = commandArgs[0];
     }
 
     const projectRoot = await findProjectRoot();
 
     const runAction = async (manager: BaseRuntimeManager) => {
-      if (!dataset) {
-        throw new Error(
-          'No input data passed. Specify input data using [data] argument'
-        );
+      if (!actualDataset) {
+        throw new Error('Missing required argument <dataset>');
       }
 
       let evaluatorActions: Action[];
@@ -118,7 +125,7 @@ export const evalRun = new Command('eval:run')
       }
 
       const evalDataset: EvalInputDataset =
-        await loadEvaluationDatasetFile(dataset);
+        await loadEvaluationDatasetFile(actualDataset);
       const evalRun = await runEvaluation({
         manager,
         evaluatorActions,

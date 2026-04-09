@@ -99,13 +99,20 @@ export const evalFlow = new Command('eval:flow')
       let runtimeCommand: string[] | undefined;
       let actualData: string | undefined = data;
 
+      // Commander removes the '--' separator from evalFlow.args.
+      // We find '--' in process.argv to determine which arguments belong to the runtime command
+      // and which belong to the command itself (like the optional [data] argument).
       if (dashDashIndex !== -1) {
-        runtimeCommand = process.argv.slice(dashDashIndex + 1);
-        if (data) {
-          const dataIndex = process.argv.indexOf(data);
-          if (dataIndex > dashDashIndex) {
-            actualData = undefined;
-          }
+        const numArgsAfterDashDash = process.argv.length - dashDashIndex - 1;
+        runtimeCommand = evalFlow.args.slice(-numArgsAfterDashDash);
+        const commandArgs = evalFlow.args.slice(
+          0,
+          evalFlow.args.length - numArgsAfterDashDash
+        );
+        if (commandArgs.length > 1) {
+          actualData = commandArgs[1];
+        } else {
+          actualData = undefined;
         }
       }
 

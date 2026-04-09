@@ -236,9 +236,9 @@ export async function runWithManager(
       const { code, details, message } = errorStatus;
       logger.error(`\tCode: ${code}`);
       logger.error(`\tMessage: ${message}`);
-      logger.error(
-        `\tTrace: http://localhost:4200/traces/${details.traceId}\n`
-      );
+      if (details?.traceId) {
+        logger.error(`\tTrace ID: ${details.traceId}\n`);
+      }
     } else {
       logger.error(`\tMessage: ${error.data}\n`);
     }
@@ -294,9 +294,9 @@ export async function runWithEphemeralManager(
       const { code, details, message } = errorStatus;
       logger.error(`\tCode: ${code}`);
       logger.error(`\tMessage: ${message}`);
-      logger.error(
-        `\tTrace: http://localhost:4200/traces/${details?.traceId}\n`
-      );
+      if (details?.traceId) {
+        logger.error(`\tTrace ID:${details.traceId}\n`);
+      }
     } else {
       logger.error(`\tMessage: ${error.data}\n`);
     }
