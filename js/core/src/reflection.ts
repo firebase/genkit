@@ -192,8 +192,7 @@ export class ReflectionServer {
         for (const [key, value] of Object.entries(values)) {
           mappedValues[key] =
             value &&
-            typeof value === 'object' &&
-            'toJson' in value &&
+            (value as any).toJson &&
             typeof (value as any).toJson === 'function'
               ? (value as any).toJson()
               : value;
