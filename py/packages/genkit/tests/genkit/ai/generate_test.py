@@ -190,7 +190,8 @@ def test_use_rejects_inline_base_middleware_instance() -> None:
         GenerateActionOptions(
             model='echoModel',
             messages=[Message(role=Role.USER, content=[Part(TextPart(text='hi'))])],
-            use=[PreMiddleware()],
+            # Intentionally invalid at runtime; cast satisfies static checking for this negative test.
+            use=cast(list[MiddlewareRef], [PreMiddleware()]),
         )
 
 
@@ -199,12 +200,10 @@ async def test_generate_applies_middleware() -> None:
     """When middleware is provided, apply it."""
     ai = Genkit(
         plugins=[
-            middleware_plugin(
-                [
-                    generate_middleware(PreMiddleware),
-                    generate_middleware(PostMiddleware),
-                ]
-            )
+            middleware_plugin([
+                generate_middleware(PreMiddleware),
+                generate_middleware(PostMiddleware),
+            ])
         ],
     )
     define_echo_model(ai)
@@ -288,12 +287,10 @@ async def test_generate_middleware_can_modify_context() -> None:
     """Test that middleware can modify context."""
     ai = Genkit(
         plugins=[
-            middleware_plugin(
-                [
-                    generate_middleware(AddContextMiddleware),
-                    generate_middleware(InjectContextMiddleware),
-                ]
-            )
+            middleware_plugin([
+                generate_middleware(AddContextMiddleware),
+                generate_middleware(InjectContextMiddleware),
+            ])
         ],
     )
     define_echo_model(ai)
@@ -425,20 +422,18 @@ async def test_wrap_generate_called_per_turn() -> None:
     track_mw2 = TrackGenerateMiddleware()
     ai = Genkit(
         plugins=[
-            middleware_plugin(
-                [
-                    GenerateMiddleware(
-                        name='track_gen',
-                        description='track generate',
-                        factory=lambda _opts: track_mw,
-                    ),
-                    GenerateMiddleware(
-                        name='track_gen2',
-                        description='track generate 2',
-                        factory=lambda _opts: track_mw2,
-                    ),
-                ]
-            )
+            middleware_plugin([
+                GenerateMiddleware(
+                    name='track_gen',
+                    description='track generate',
+                    factory=lambda _opts: track_mw,
+                ),
+                GenerateMiddleware(
+                    name='track_gen2',
+                    description='track generate 2',
+                    factory=lambda _opts: track_mw2,
+                ),
+            ])
         ],
     )
     pm, _ = define_programmable_model(ai)
@@ -580,15 +575,13 @@ async def test_wrap_tool_called_on_tool_execution() -> None:
     track_mw = TrackToolMiddleware()
     ai = Genkit(
         plugins=[
-            middleware_plugin(
-                [
-                    GenerateMiddleware(
-                        name='track_tool',
-                        description='track tool',
-                        factory=lambda _opts: track_mw,
-                    ),
-                ]
-            )
+            middleware_plugin([
+                GenerateMiddleware(
+                    name='track_tool',
+                    description='track tool',
+                    factory=lambda _opts: track_mw,
+                ),
+            ])
         ],
     )
     pm, _ = define_programmable_model(ai)

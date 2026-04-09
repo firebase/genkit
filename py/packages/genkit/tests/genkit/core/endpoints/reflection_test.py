@@ -133,7 +133,9 @@ async def test_list_values_default_model(asgi_client: AsyncClient, mock_registry
 
 
 @pytest.mark.asyncio
-async def test_list_values_middleware_initializes_plugins_like_js(asgi_client: AsyncClient, mock_registry: MagicMock) -> None:
+async def test_list_values_middleware_initializes_plugins_like_js(
+    asgi_client: AsyncClient, mock_registry: MagicMock
+) -> None:
     """GET /api/values?type=middleware runs initialize_all_plugins then list_values (matches JS Registry.listValues)."""
     mock_registry.initialize_all_plugins = AsyncMock()
     mock_registry.list_values = MagicMock(return_value={})

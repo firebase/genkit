@@ -32,13 +32,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from genkit._core._middleware._runtime import MiddlewareRuntime
 from genkit._core._model import (
     GenerateHookParams,
     ModelHookParams,
     ModelResponse,
     ToolHookParams,
 )
-from genkit._core._middleware._runtime import MiddlewareRuntime
 from genkit._core._typing import Part
 
 
@@ -123,11 +123,9 @@ class GenerateMiddleware:
     ) -> None:
         if '/' in name:
             raise ValueError(
-                (
-                    'GenerateMiddleware name must not contain "/". Use a single segment '
-                    '(for example "myorg_logging_mw") so it stays distinct from model/action '
-                    'keys, which use "/".'
-                )
+                'GenerateMiddleware name must not contain "/". Use a single segment '
+                '(for example "myorg_logging_mw") so it stays distinct from model/action '
+                'keys, which use "/".'
             )
         self.name = name
         self._factory = factory
@@ -177,7 +175,8 @@ def generate_middleware(middleware_cls: type[BaseMiddleware]) -> GenerateMiddlew
     reg_name = middleware_cls.name
     if not reg_name:
         raise ValueError(
-            f"{middleware_cls.__qualname__}.name must be set to a non-empty flat string (no '/') for generate_middleware(MyClass)."
+            f'{middleware_cls.__qualname__}.name must be set to a non-empty flat string '
+            "(no '/') for generate_middleware(MyClass)."
         )
 
     def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:

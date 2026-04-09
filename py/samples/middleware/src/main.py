@@ -40,7 +40,7 @@ class PromptInput(BaseModel):
 class LoggingMiddleware(BaseMiddleware):
     """Log request/response details without changing behavior."""
 
-    name: ClassVar[str] = 'logging_mw'
+    name = 'logging_mw'
 
     async def wrap_model(
         self,
@@ -111,6 +111,7 @@ async def main() -> None:
     """Run both middleware demos once."""
     print(await logging_demo(PromptInput()))  # noqa: T201
     print(await request_modifier_demo(PromptInput(prompt='Write a haiku about recursion.')))  # noqa: T201
+
 
 if __name__ == '__main__':
     ai.run_main(main())

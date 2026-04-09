@@ -17,9 +17,8 @@
 """Shared middleware utilities and constants."""
 
 from genkit._ai._model import text_from_content
-from genkit._core._model import Message
 from genkit._core._error import StatusName
-from genkit._core._model import Document
+from genkit._core._model import Document, Message
 
 _CONTEXT_PREFACE = '\n\nUse the following information to complete your task:\n\n'
 

@@ -1042,12 +1042,10 @@ async def test_generate_with_middleware() -> None:
     ai = Genkit(
         model='echoModel',
         plugins=[
-            middleware_plugin(
-                [
-                    generate_middleware(PreMiddleware),
-                    generate_middleware(PostMiddleware),
-                ]
-            )
+            middleware_plugin([
+                generate_middleware(PreMiddleware),
+                generate_middleware(PostMiddleware),
+            ])
         ],
     )
     define_programmable_model(ai)

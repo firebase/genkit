@@ -22,8 +22,7 @@ import asyncio
 import pytest
 
 from genkit import Document, Message, ModelResponse
-from genkit._core._model import ModelHookParams
-from genkit._core._model import ModelRequest
+from genkit._core._model import ModelHookParams, ModelRequest
 from genkit._core._typing import (
     DocumentPart,
     Part,

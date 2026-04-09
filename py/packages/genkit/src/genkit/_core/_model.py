@@ -145,7 +145,7 @@ class GenerateActionOptions(GenerateActionOptionsData):
 
     @field_validator('use', mode='before')
     @classmethod
-    def _coerce_use(cls, v: Any) -> list[MiddlewareRef] | None:
+    def _coerce_use(cls, v: object) -> list[MiddlewareRef] | None:
         if v is None:
             return None
         if not isinstance(v, list):

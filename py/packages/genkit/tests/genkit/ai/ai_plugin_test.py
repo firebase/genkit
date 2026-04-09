@@ -20,13 +20,14 @@
 
 """Tests for AI plugin functionality."""
 
+from collections.abc import Awaitable, Callable
+
 import pytest
 
 from genkit import Genkit, GenkitError, Message, ModelResponse, Part, Plugin, Role, TextPart, middleware_plugin
 from genkit._core._action import Action, ActionMetadata, ActionRunContext
-from genkit._core._middleware._base import BaseMiddleware
-from genkit._core._middleware._base import MiddlewareFnOptions
-from genkit._core._model import ModelRequest
+from genkit._core._middleware._base import BaseMiddleware, MiddlewareFnOptions
+from genkit._core._model import ModelHookParams, ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import FinishReason, MiddlewareRef
 from genkit.middleware import GenerateMiddleware, generate_middleware
@@ -113,7 +114,11 @@ class AsyncInitPlugin(Plugin):
 class _NoopPluginMiddleware(BaseMiddleware):
     """Minimal middleware for plugin registration tests."""
 
-    async def wrap_model(self, params, next_fn):
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
         return await next_fn(params)
 
 
@@ -123,7 +128,11 @@ class _ClassMetaMiddleware(BaseMiddleware):
     name = 'class_meta_mw'
     description = 'from class attrs'
 
-    async def wrap_model(self, params, next_fn):
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
         return await next_fn(params)
 
 
@@ -141,7 +150,7 @@ class PluginWithMiddleware(Plugin):
     async def list_actions(self) -> list[ActionMetadata]:
         return []
 
-    def generate_middleware(self):
+    def generate_middleware(self) -> list[GenerateMiddleware]:
         def _factory(_opts: MiddlewareFnOptions) -> BaseMiddleware:
             return _NoopPluginMiddleware()
 
@@ -158,7 +167,7 @@ def test_plugin_generate_middleware_registers_on_registry() -> None:
     """Plugin generate_middleware is registered after built-ins."""
     ai = Genkit(plugins=[PluginWithMiddleware()])
     gm = ai.registry.lookup_value('middleware', 'plugin-with-mw_noop')
-    assert gm is not None
+    assert isinstance(gm, GenerateMiddleware)
     assert gm.name == 'plugin-with-mw_noop'
     assert gm.to_json()['description'] == 'noop plugin middleware for tests'
 
@@ -167,7 +176,11 @@ class _PluginPackMw(BaseMiddleware):
     name = 'my_pack_custom_mw'
     description = 'from plugin() helper'
 
-    async def wrap_model(self, params, next_fn):
+    async def wrap_model(
+        self,
+        params: ModelHookParams,
+        next_fn: Callable[[ModelHookParams], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
         return await next_fn(params)
 
 
@@ -178,7 +191,7 @@ def test_middleware_plugin_registers_on_registry() -> None:
     assert plugin.name == 'extension-middleware'
     ai = Genkit(plugins=[plugin])
     looked = ai.registry.lookup_value('middleware', 'my_pack_custom_mw')
-    assert looked is not None
+    assert isinstance(looked, GenerateMiddleware)
     assert looked.name == 'my_pack_custom_mw'
     assert looked.to_json()['description'] == 'from plugin() helper'
 
@@ -206,7 +219,7 @@ class _LoggingMw(BaseMiddleware):
 
 
 def test_middleware_plugin_namespace_prefixes_registry_key() -> None:
-    """With ``namespace``, registry keys are ``{namespace}_{definition.name}``; ``Plugin.name`` defaults to namespace."""
+    """With ``namespace``, keys are ``{namespace}_{definition.name}``; ``Plugin.name`` defaults to namespace."""
     g = generate_middleware(_LoggingMw)
     plugin = middleware_plugin([g], namespace='acme')
     assert plugin.name == 'acme'
