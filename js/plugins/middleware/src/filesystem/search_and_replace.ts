@@ -19,12 +19,14 @@ import { ToolAction, z } from 'genkit';
 import { tool } from 'genkit/beta';
 
 export function defineSearchAndReplaceTool(
-  resolvePath: (requestedPath: string) => string
+  resolvePath: (requestedPath: string) => string,
+  prefix?: string
 ): ToolAction {
   return tool(
     {
-      name: 'search_and_replace',
-      description: 'Replaces text in a file using search and replace blocks. ',
+      name: `${prefix || ''}search_and_replace`,
+      description:
+        'Replaces text in a file using search and replace blocks. Use this tool to edit existing files.',
       inputSchema: z.object({
         filePath: z.string().describe('File path relative to root.'),
         edits: z.array(

@@ -32,6 +32,14 @@ export const FilesystemOptionsSchema = z.object({
     .describe(
       'The root directory to which all filesystem operations are restricted.'
     ),
+  readonly: z
+    .boolean()
+    .optional()
+    .describe('If true, only gives readonly access to the filesystem.'),
+  toolNamePrefix: z
+    .string()
+    .optional()
+    .describe('Prefix to add to the name of the injected tools.'),
 });
 
 export type FilesystemOptions = z.infer<typeof FilesystemOptionsSchema>;
@@ -67,17 +75,28 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
       // Middleware is instantiated once per top generate call, so it's ok (by design) to keep state here.
       const messageQueue: MessageData[] = [];
 
-      const listFilesTool = defineListFileTool(resolvePath);
-      const readFileTool = defineReadFileTool(messageQueue, resolvePath);
-      const writeFileTool = defineWriteFileTool(resolvePath);
-      const searchAndReplaceTool = defineSearchAndReplaceTool(resolvePath);
+      const listFilesTool = defineListFileTool(
+        resolvePath,
+        config.toolNamePrefix
+      );
+      const readFileTool = defineReadFileTool(
+        messageQueue,
+        resolvePath,
+        config.toolNamePrefix
+      );
 
-      const filesystemTools = [
-        listFilesTool,
-        readFileTool,
-        writeFileTool,
-        searchAndReplaceTool,
-      ];
+      const filesystemTools = [listFilesTool, readFileTool];
+      if (!config.readonly) {
+        const writeFileTool = defineWriteFileTool(
+          resolvePath,
+          config.toolNamePrefix
+        );
+        const searchAndReplaceTool = defineSearchAndReplaceTool(
+          resolvePath,
+          config.toolNamePrefix
+        );
+        filesystemTools.push(writeFileTool, searchAndReplaceTool);
+      }
       const filesystemToolNames = filesystemTools.map((t) => t.__action.name);
 
       return {
