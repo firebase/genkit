@@ -32,6 +32,11 @@ export const FilesystemOptionsSchema = z.object({
     .describe(
       'The root directory to which all filesystem operations are restricted.'
     ),
+  readonly: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('If true, only gives readonly access to the filesystem.'),
 });
 
 export type FilesystemOptions = z.infer<typeof FilesystemOptionsSchema>;
@@ -72,12 +77,10 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
       const writeFileTool = defineWriteFileTool(resolvePath);
       const searchAndReplaceTool = defineSearchAndReplaceTool(resolvePath);
 
-      const filesystemTools = [
-        listFilesTool,
-        readFileTool,
-        writeFileTool,
-        searchAndReplaceTool,
-      ];
+      const filesystemTools = [listFilesTool, readFileTool];
+      if (!config.readonly) {
+        filesystemTools.push(writeFileTool, searchAndReplaceTool);
+      }
       const filesystemToolNames = filesystemTools.map((t) => t.__action.name);
 
       return {

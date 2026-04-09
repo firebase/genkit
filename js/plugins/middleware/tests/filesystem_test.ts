@@ -84,6 +84,18 @@ describe('filesystem middleware', () => {
     assert.strictEqual(mw.tools[3].__action.name, 'search_and_replace');
   });
 
+  it('injects only readonly tools when readonly is true', () => {
+    const mw = filesystem.instantiate({
+      config: { rootDirectory: tempDir, readonly: true },
+      ai: fakeGenerateAPI,
+      pluginConfig: undefined,
+    });
+    assert.ok(mw.tools);
+    assert.strictEqual(mw.tools.length, 2);
+    assert.strictEqual(mw.tools[0].__action.name, 'list_files');
+    assert.strictEqual(mw.tools[1].__action.name, 'read_file');
+  });
+
   describe('list_files', () => {
     it('lists files in root directory', async () => {
       const ai = genkit({});
