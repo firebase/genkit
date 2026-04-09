@@ -38,7 +38,7 @@ export const toolApproval: GenerateMiddleware<
     name: 'toolApproval',
     configSchema: ToolApprovalOptionsSchema,
   },
-  ({ config }) => {
+  ({ config, ai }) => {
     const approvedTools = config?.approved ?? [];
 
     return {
@@ -48,9 +48,15 @@ export const toolApproval: GenerateMiddleware<
           (req.metadata?.resumed as any)?.toolApproved === true;
 
         if (!approvedTools.includes(req.toolRequest.name) && !isApproved) {
-          throw new ToolInterruptError({
-            message: `Tool not in approved list: ${req.toolRequest.name}`,
-          });
+          await ai.run(
+            req.toolRequest.name,
+            req.toolRequest.input,
+            async () => {
+              throw new ToolInterruptError({
+                message: `Tool not in approved list: ${req.toolRequest.name}`,
+              });
+            }
+          );
         }
 
         return next(req, ctx);

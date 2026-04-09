@@ -16,7 +16,13 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MessageData, restartTool, type ToolRequestPart } from 'genkit';
+import {
+  genkit,
+  restartTool,
+  type GenerateResponse,
+  type MessageData,
+  type ToolRequestPart,
+} from 'genkit';
 import * as path from 'path';
 import * as readline from 'readline';
 import { filesystem, skills, toolApproval } from '../src/index.js';
@@ -75,7 +81,7 @@ async function main() {
 
     try {
       let interruptRestart: ToolRequestPart[] | undefined;
-      let response: any;
+      let response: GenerateResponse;
 
       while (true) {
         response = await ai.generate({
