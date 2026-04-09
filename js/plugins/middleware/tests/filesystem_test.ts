@@ -70,9 +70,9 @@ describe('filesystem middleware', () => {
     );
   });
 
-  it('injects tools', () => {
+  it('injects all tools when allowWriteAccess is true', () => {
     const mw = filesystem.instantiate({
-      config: { rootDirectory: tempDir },
+      config: { rootDirectory: tempDir, allowWriteAccess: true },
       ai: fakeGenerateAPI,
       pluginConfig: undefined,
     });
@@ -84,9 +84,9 @@ describe('filesystem middleware', () => {
     assert.strictEqual(mw.tools[3].__action.name, 'search_and_replace');
   });
 
-  it('injects only readonly tools when readonly is true', () => {
+  it('injects only readonly tools by default', () => {
     const mw = filesystem.instantiate({
-      config: { rootDirectory: tempDir, readonly: true },
+      config: { rootDirectory: tempDir },
       ai: fakeGenerateAPI,
       pluginConfig: undefined,
     });
@@ -98,7 +98,7 @@ describe('filesystem middleware', () => {
 
   it('injects tools with prefix when toolNamePrefix is provided', () => {
     const mw = filesystem.instantiate({
-      config: { rootDirectory: tempDir, toolNamePrefix: 'my_' },
+      config: { rootDirectory: tempDir, toolNamePrefix: 'my_', allowWriteAccess: true },
       ai: fakeGenerateAPI,
       pluginConfig: undefined,
     });
@@ -270,7 +270,7 @@ describe('filesystem middleware', () => {
       const result = (await ai.generate({
         model: pm,
         prompt: 'test',
-        use: [filesystem({ rootDirectory: tempDir })],
+        use: [filesystem({ rootDirectory: tempDir, allowWriteAccess: true })],
       })) as any;
 
       const toolMsg = result.messages.find((m: any) => m.role === 'tool');
@@ -293,7 +293,7 @@ describe('filesystem middleware', () => {
       await ai.generate({
         model: pm,
         prompt: 'test',
-        use: [filesystem({ rootDirectory: tempDir })],
+        use: [filesystem({ rootDirectory: tempDir, allowWriteAccess: true })],
       });
 
       const content = await fs.readFile(
@@ -320,7 +320,7 @@ hello universe
       const result = (await ai.generate({
         model: pm,
         prompt: 'test',
-        use: [filesystem({ rootDirectory: tempDir })],
+        use: [filesystem({ rootDirectory: tempDir, allowWriteAccess: true })],
       })) as any;
 
       const toolMsg = result.messages.find((m: any) => m.role === 'tool');
@@ -362,7 +362,7 @@ replace
       const result = (await ai.generate({
         model: pm,
         prompt: 'test',
-        use: [filesystem({ rootDirectory: tempDir })],
+        use: [filesystem({ rootDirectory: tempDir, allowWriteAccess: true })],
       })) as any;
 
       const userMsg = result.messages.find(
@@ -497,7 +497,7 @@ D
         const result = (await ai.generate({
           model: pm,
           prompt: 'test',
-          use: [filesystem({ rootDirectory: tempDir })],
+          use: [filesystem({ rootDirectory: tempDir, allowWriteAccess: true })],
         })) as any;
 
         const toolMsg = result.messages.find((m: any) => m.role === 'tool');

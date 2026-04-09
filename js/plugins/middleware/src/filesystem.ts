@@ -32,10 +32,10 @@ export const FilesystemOptionsSchema = z.object({
     .describe(
       'The root directory to which all filesystem operations are restricted.'
     ),
-  readonly: z
+  allowWriteAccess: z
     .boolean()
     .optional()
-    .describe('If true, only gives readonly access to the filesystem.'),
+    .describe('If true, allows write access to the filesystem.'),
   toolNamePrefix: z
     .string()
     .optional()
@@ -91,7 +91,7 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
       );
 
       const filesystemTools = [listFilesTool, readFileTool];
-      if (!config.readonly) {
+      if (config.allowWriteAccess) {
         const writeFileTool = defineWriteFileTool(
           resolvePath,
           config.toolNamePrefix
