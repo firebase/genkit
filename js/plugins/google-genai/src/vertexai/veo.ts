@@ -23,6 +23,7 @@ import {
 } from 'genkit';
 import { BackgroundModelAction, ModelInfo } from 'genkit/model';
 import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
+import { isKnownKey } from '../common/utils.js';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   fromVeoOperation,
@@ -151,6 +152,7 @@ const KNOWN_MODELS = {
   'veo-3.1-generate-001': commonRef('veo-3.1-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
+
 export type VeoModelName = `veo-${string}`;
 export function isVeoModelName(value?: string): value is VeoModelName {
   return !!value?.startsWith('veo-');
@@ -161,6 +163,17 @@ export function model(
   config: VeoConfig = {}
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
+
+  if (isKnownKey(name, KNOWN_MODELS)) {
+    const known = KNOWN_MODELS[name];
+    return modelRef({
+      name: known.name,
+      info: known.info,
+      configSchema: known.configSchema,
+      config,
+    });
+  }
+
   return modelRef({
     name: `vertexai/${name}`,
     config,

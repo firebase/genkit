@@ -36,6 +36,7 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters.js';
+import { isKnownKey } from '../common/utils.js';
 import {
   generateContent,
   generateContentStream,
@@ -465,6 +466,12 @@ const GENERIC_GEMMA_MODEL = commonRef(
   undefined,
   GemmaConfigSchema
 );
+const GEMMA_3_INFO = {
+  supports: {
+    ...GENERIC_GEMMA_MODEL.info!.supports!,
+    systemRole: false,
+  },
+};
 
 const KNOWN_GEMINI_MODELS = {
   'gemini-pro-latest': commonRef('gemini-pro-latest'),
@@ -532,11 +539,29 @@ export function isImageModelName(value: string): value is ImageModelName {
 }
 
 const KNOWN_GEMMA_MODELS = {
-  'gemma-3-12b-it': commonRef('gemma-3-12b-it', undefined, GemmaConfigSchema),
-  'gemma-3-1b-it': commonRef('gemma-3-1b-it', undefined, GemmaConfigSchema),
-  'gemma-3-27b-it': commonRef('gemma-3-27b-it', undefined, GemmaConfigSchema),
-  'gemma-3-4b-it': commonRef('gemma-3-4b-it', undefined, GemmaConfigSchema),
-  'gemma-3n-e4b-it': commonRef('gemma-3n-e4b-it', undefined, GemmaConfigSchema),
+  'gemma-4-26b-a4b-it': commonRef(
+    'gemma-4-26b-a4b-it',
+    undefined,
+    GemmaConfigSchema
+  ),
+  'gemma-4-31b-it': commonRef('gemma-4-31b-it', undefined, GemmaConfigSchema),
+  'gemma-3-12b-it': commonRef(
+    'gemma-3-12b-it',
+    GEMMA_3_INFO,
+    GemmaConfigSchema
+  ),
+  'gemma-3-1b-it': commonRef('gemma-3-1b-it', GEMMA_3_INFO, GemmaConfigSchema),
+  'gemma-3-27b-it': commonRef(
+    'gemma-3-27b-it',
+    GEMMA_3_INFO,
+    GemmaConfigSchema
+  ),
+  'gemma-3-4b-it': commonRef('gemma-3-4b-it', GEMMA_3_INFO, GemmaConfigSchema),
+  'gemma-3n-e4b-it': commonRef(
+    'gemma-3n-e4b-it',
+    GEMMA_3_INFO,
+    GemmaConfigSchema
+  ),
 } as const;
 export type KnownGemmaModels = keyof typeof KNOWN_GEMMA_MODELS;
 export type GemmaModelName = `gemma-${string}`;
@@ -556,6 +581,10 @@ export function model(
   config: ConfigSchema = {}
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
+
+  if (isKnownKey(name, KNOWN_MODELS)) {
+    return KNOWN_MODELS[name].withConfig(config);
+  }
 
   if (isTTSModelName(name)) {
     return modelRef({
@@ -684,9 +713,21 @@ export function defineModel(
         request.config
       );
 
+      const modelVersion = request.config?.version || extractVersion(ref);
+      const isGemma = isGemmaModelName(modelVersion);
+
       // Make a copy so that modifying the request will not produce side-effects
-      const messages = [...request.messages];
+      const messages = request.messages.map((m) => ({ ...m }));
       if (messages.length === 0) throw new Error('No messages provided.');
+
+      if (isGemma) {
+        // Gemma does not allow previous thoughts
+        messages.forEach((m) => {
+          m.content = m.content.filter(
+            (p) => !p.reasoning && !p.metadata?.thoughtSignature
+          );
+        });
+      }
 
       // Gemini does not support messages with role system and instead expects
       // systemInstructions to be provided as a separate input. The first
@@ -708,6 +749,7 @@ export function defineModel(
       const requestOptions: ConfigSchema = {
         ...request.config,
       };
+
       const {
         apiKey: apiKeyFromConfig,
         safetySettings: safetySettingsFromConfig,
@@ -801,8 +843,6 @@ export function defineModel(
           retrievalConfig,
         };
       }
-
-      const modelVersion = versionFromConfig || extractVersion(ref);
 
       // Cannot use tools with JSON mode
       const jsonMode =
