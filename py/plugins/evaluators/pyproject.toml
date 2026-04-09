@@ -49,5 +49,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["src/genkit/plugins/evaluators"]
-sources      = ["src"]
+packages = ["src/genkit"]
