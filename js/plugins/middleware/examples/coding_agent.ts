@@ -32,7 +32,12 @@ function askQuestion(query: string): Promise<string> {
 
 async function main() {
   const ai = genkit({
-    plugins: [googleAI()],
+    plugins: [
+      googleAI(),
+      filesystem.plugin(),
+      skills.plugin(),
+      toolApproval.plugin(),
+    ],
   });
 
   const currentDir = process.cwd();
