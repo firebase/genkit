@@ -176,6 +176,23 @@ describe('filesystem middleware', () => {
       );
       assert.ok(userMsg);
     });
+
+    it('allows listing when root is /', async () => {
+      if (os.platform() === 'win32') return;
+      const ai = genkit({});
+      const pm = createToolModel(ai, 'list_files', { dirPath: 'tmp' });
+      const result = (await ai.generate({
+        model: pm,
+        prompt: 'test',
+        use: [filesystem({ rootDirectory: '/' })],
+      })) as any;
+
+      const userMsg = result.messages.find(
+        (m: any) =>
+          m.role === 'user' && m.content[0].text.includes('Access denied')
+      );
+      assert.ok(!userMsg, 'Should not fail with Access denied when root is /');
+    });
   });
 
   describe('read_file', () => {
