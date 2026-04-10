@@ -31,7 +31,7 @@
  * Pre-stream errors (auth failures, bad input) still return a non-2xx status.
  */
 
-import { NotificationsSchema, type Notification } from '@/lib/schemas';
+import { NotificationsSchema, type Notification } from '@/schemas';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { useState } from 'react';
 

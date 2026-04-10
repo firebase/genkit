@@ -15,7 +15,7 @@
  */
 
 import { z } from 'genkit';
-import { NotificationsSchema } from '../lib/schemas';
+import { NotificationsSchema } from '../schemas';
 import { ai } from './index';
 
 export { NotificationsSchema };
