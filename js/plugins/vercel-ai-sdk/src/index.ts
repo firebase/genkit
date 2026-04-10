@@ -26,7 +26,6 @@
  */
 
 export { chatHandler, type ChatHandlerOptions } from './chat.js';
-export { toStreamChunks } from './generate.js';
 export {
   completionHandler,
   type CompletionHandlerOptions,
@@ -44,6 +43,7 @@ export {
   dispatchChunk,
   type DispatchState,
 } from './dispatch.js';
+export { toFlowOutput, toStreamChunks } from './generate.js';
 export { objectHandler, type ObjectHandlerOptions } from './object.js';
 export {
   ContentPartSchema,

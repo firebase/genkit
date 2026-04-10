@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import type { GenerateResponseChunk } from 'genkit';
-import type { StreamChunk } from './schema.js';
+import type { GenerateResponse, GenerateResponseChunk } from 'genkit';
+import type { FlowOutput, StreamChunk } from './schema.js';
 
 /**
  * Converts a Genkit {@link https://genkit.dev/docs/models GenerateResponseChunk}
  * into an array of {@link StreamChunk} values ready to pass to `sendChunk()` in
  * a flow that uses `StreamChunkSchema` as its `streamSchema`.
  *
- * Handles text deltas, reasoning/thinking deltas, and tool-request parts.
- * Returns an empty array for chunks that carry none of these (e.g. pure
- * metadata chunks).
+ * Handles text deltas, reasoning/thinking deltas, media parts, and
+ * tool-request parts. Returns an empty array for chunks that carry none of
+ * these (e.g. pure metadata chunks).
  *
  * ```ts
  * import { toStreamChunks } from '@genkit-ai/vercel-ai-sdk';
@@ -36,8 +36,7 @@ import type { StreamChunk } from './schema.js';
  *     for await (const chunk of stream) {
  *       for (const c of toStreamChunks(chunk)) sendChunk(c);
  *     }
- *     const res = await response;
- *     return { finishReason: res.finishReason, usage: res.usage };
+ *     return toFlowOutput(await response);
  *   }
  * );
  * ```
@@ -55,6 +54,16 @@ export function toStreamChunks(chunk: GenerateResponseChunk): StreamChunk[] {
     chunks.push({ type: 'text', delta: chunk.text });
   }
 
+  for (const part of chunk.content) {
+    if ('media' in part && part.media?.url) {
+      chunks.push({
+        type: 'file',
+        url: part.media.url,
+        mediaType: part.media.contentType ?? 'application/octet-stream',
+      });
+    }
+  }
+
   for (const part of chunk.toolRequests) {
     const { ref, name, input } = part.toolRequest;
     chunks.push({
@@ -66,4 +75,27 @@ export function toStreamChunks(chunk: GenerateResponseChunk): StreamChunk[] {
   }
 
   return chunks;
+}
+
+/**
+ * Extracts {@link FlowOutput} from a Genkit {@link GenerateResponse}, ready
+ * to return from a flow that uses `FlowOutputSchema` as its `outputSchema`.
+ *
+ * Surfaces `finishReason` and `usage` so `chatHandler` and
+ * `completionHandler` can populate the
+ * {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#finish-chunk `finish`}
+ * SSE event.
+ *
+ * ```ts
+ * return toFlowOutput(await response);
+ * // equivalent to:
+ * // const res = await response;
+ * // return { finishReason: res.finishReason, usage: res.usage };
+ * ```
+ */
+export function toFlowOutput(response: GenerateResponse): FlowOutput {
+  return {
+    finishReason: response.finishReason ?? undefined,
+    usage: response.usage as Record<string, unknown>,
+  };
 }

@@ -16,23 +16,74 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { toStreamChunks } from '../src/generate.js';
+import { toFlowOutput, toStreamChunks } from '../src/generate.js';
 
 function fakeChunk({
   text = '',
   reasoning = '',
+  content = [] as any[],
   toolRequests = [] as any[],
 } = {}) {
-  return {
-    text,
-    reasoning,
-    toolRequests,
-  } as any;
+  return { text, reasoning, content, toolRequests } as any;
+}
+
+function fakeResponse(opts: { finishReason?: string; usage?: any } = {}) {
+  return { finishReason: opts.finishReason, usage: opts.usage ?? {} } as any;
 }
 
 describe('toStreamChunks', () => {
   it('returns empty array for empty chunk', () => {
     assert.deepEqual(toStreamChunks(fakeChunk()), []);
+  });
+
+  it('maps media parts to file chunks', () => {
+    const result = toStreamChunks(
+      fakeChunk({
+        content: [
+          {
+            media: {
+              url: 'data:image/png;base64,abc',
+              contentType: 'image/png',
+            },
+          },
+        ],
+      })
+    );
+    assert.deepEqual(result, [
+      {
+        type: 'file',
+        url: 'data:image/png;base64,abc',
+        mediaType: 'image/png',
+      },
+    ]);
+  });
+
+  it('uses application/octet-stream when contentType is missing', () => {
+    const result = toStreamChunks(
+      fakeChunk({ content: [{ media: { url: 'data:image/png;base64,abc' } }] })
+    );
+    assert.equal((result[0] as any).mediaType, 'application/octet-stream');
+  });
+
+  it('maps multiple media parts', () => {
+    const result = toStreamChunks(
+      fakeChunk({
+        content: [
+          { media: { url: 'u1', contentType: 'image/png' } },
+          { media: { url: 'u2', contentType: 'image/jpeg' } },
+        ],
+      })
+    );
+    assert.equal(result.length, 2);
+    assert.equal((result[0] as any).url, 'u1');
+    assert.equal((result[1] as any).url, 'u2');
+  });
+
+  it('ignores non-media content parts', () => {
+    const result = toStreamChunks(
+      fakeChunk({ content: [{ text: 'hi' }, { data: {} }], text: 'hi' })
+    );
+    assert.equal(result.filter((c) => c.type === 'file').length, 0);
   });
 
   it('maps text to a text chunk', () => {
@@ -50,12 +101,23 @@ describe('toStreamChunks', () => {
     const result = toStreamChunks(
       fakeChunk({
         toolRequests: [
-          { toolRequest: { ref: 'call-1', name: 'search', input: { q: 'genkit' } } },
+          {
+            toolRequest: {
+              ref: 'call-1',
+              name: 'search',
+              input: { q: 'genkit' },
+            },
+          },
         ],
       })
     );
     assert.deepEqual(result, [
-      { type: 'tool-request', toolCallId: 'call-1', toolName: 'search', input: { q: 'genkit' } },
+      {
+        type: 'tool-request',
+        toolCallId: 'call-1',
+        toolName: 'search',
+        input: { q: 'genkit' },
+      },
     ]);
   });
 
@@ -80,5 +142,36 @@ describe('toStreamChunks', () => {
     assert.equal(result.length, 2);
     assert.equal((result[0] as any).toolCallId, 'c1');
     assert.equal((result[1] as any).toolCallId, 'c2');
+  });
+
+  it('emits media before tool requests', () => {
+    const result = toStreamChunks(
+      fakeChunk({
+        content: [{ media: { url: 'u1', contentType: 'image/png' } }],
+        toolRequests: [{ toolRequest: { ref: 'c1', name: 'a', input: {} } }],
+      })
+    );
+    assert.equal(result[0].type, 'file');
+    assert.equal(result[1].type, 'tool-request');
+  });
+});
+
+describe('toFlowOutput', () => {
+  it('extracts finishReason and usage', () => {
+    const result = toFlowOutput(
+      fakeResponse({ finishReason: 'stop', usage: { inputTokens: 5 } })
+    );
+    assert.equal(result.finishReason, 'stop');
+    assert.deepEqual(result.usage, { inputTokens: 5 });
+  });
+
+  it('handles undefined finishReason', () => {
+    const result = toFlowOutput(fakeResponse({ finishReason: undefined }));
+    assert.equal(result.finishReason, undefined);
+  });
+
+  it('returns empty usage object when usage is empty', () => {
+    const result = toFlowOutput(fakeResponse({ usage: {} }));
+    assert.deepEqual(result.usage, {});
   });
 });

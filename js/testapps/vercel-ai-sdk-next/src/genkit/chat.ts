@@ -18,6 +18,7 @@ import {
   FlowOutputSchema,
   MessagesSchema,
   StreamChunkSchema,
+  toFlowOutput,
   toStreamChunks,
 } from '@genkit-ai/vercel-ai-sdk';
 import type { MessageData } from 'genkit';
@@ -55,10 +56,6 @@ export const chatFlow = ai.defineFlow(
       }
     }
 
-    const res = await response;
-    return {
-      finishReason: res.finishReason,
-      usage: res.usage as Record<string, unknown> | undefined,
-    };
+    return toFlowOutput(await response);
   }
 );
