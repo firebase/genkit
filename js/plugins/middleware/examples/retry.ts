@@ -19,7 +19,7 @@ import { genkit } from 'genkit';
 import { retry } from '../src/index.js'; // @genkit-ai/middleware
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI(), retry.plugin()],
 });
 
 async function main() {

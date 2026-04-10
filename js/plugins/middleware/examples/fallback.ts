@@ -19,7 +19,7 @@ import { genkit } from 'genkit';
 import { fallback } from '../src/index.js';
 
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI(), fallback.plugin()],
 });
 
 async function main() {

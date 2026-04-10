@@ -1486,6 +1486,9 @@ importers:
       '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
+      '@genkit-ai/middleware':
+        specifier: workspace:*
+        version: link:../../plugins/middleware
       '@google/generative-ai':
         specifier: ^0.15.0
         version: 0.15.0

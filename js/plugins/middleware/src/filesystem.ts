@@ -32,10 +32,10 @@ export const FilesystemOptionsSchema = z.object({
     .describe(
       'The root directory to which all filesystem operations are restricted.'
     ),
-  readonly: z
+  allowWriteAccess: z
     .boolean()
     .optional()
-    .describe('If true, only gives readonly access to the filesystem.'),
+    .describe('If true, allows write access to the filesystem.'),
   toolNamePrefix: z
     .string()
     .optional()
@@ -52,6 +52,8 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
   generateMiddleware(
     {
       name: 'filesystem',
+      description:
+        'Injects tools for reading, writing, and searching files in a directory.',
       configSchema: FilesystemOptionsSchema,
     },
     ({ config }) => {
@@ -61,12 +63,15 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
         );
       }
       const rootDir = path.resolve(config.rootDirectory);
+      const securePrefix = rootDir.endsWith(path.sep)
+        ? rootDir
+        : rootDir + path.sep;
 
       function resolvePath(requestedPath: string) {
         const p = path.resolve(rootDir, requestedPath);
         // Ensure the resolved path starts with the rootDir and a path separator
         // to prevent directory traversal attacks (e.g. rootDir is /a/b, requested is ../b_secret)
-        if (!p.startsWith(rootDir + path.sep) && p !== rootDir) {
+        if (!p.startsWith(securePrefix) && p !== rootDir) {
           throw new Error('Access denied: Path is outside of root directory.');
         }
         return p;
@@ -86,7 +91,7 @@ export const filesystem: GenerateMiddleware<typeof FilesystemOptionsSchema> =
       );
 
       const filesystemTools = [listFilesTool, readFileTool];
-      if (!config.readonly) {
+      if (config.allowWriteAccess) {
         const writeFileTool = defineWriteFileTool(
           resolvePath,
           config.toolNamePrefix
