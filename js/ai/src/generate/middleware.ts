@@ -210,6 +210,7 @@ export async function resolveMiddleware(
 ): Promise<GenerateMiddlewareDef[]> {
   const result: GenerateMiddlewareDef[] = [];
   if (!refs) return result;
+  const ai = new GenkitAI(registry);
   for (const ref of refs) {
     const def = await registry.lookupValue<GenerateMiddleware>(
       'middleware',
