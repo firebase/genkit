@@ -20,7 +20,14 @@ import { tool } from 'genkit/beta';
 import * as path from 'path';
 
 export const SkillsOptionsSchema = z.object({
-  skillPaths: z.array(z.string()).optional(),
+  /**
+   * Paths to directories containing skills.
+   * @default ['skills']
+   */
+  skillPaths: z
+    .array(z.string())
+    .optional()
+    .describe('Paths to directories containing skills.'),
 });
 
 export type SkillsOptions = z.infer<typeof SkillsOptionsSchema>;
@@ -33,6 +40,7 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
   generateMiddleware(
     {
       name: 'skills',
+      description: 'Injects system instructions and tools for using skills.',
       configSchema: SkillsOptionsSchema,
     },
     ({ config }) => {
