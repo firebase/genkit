@@ -106,11 +106,11 @@ export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
     return this.plugin.list();
   }
 
-  generateMiddleware(): GenerateMiddleware<any, any>[] {
-    if (!this.plugin.generateMiddleware) {
+  middleware(): GenerateMiddleware<any, any>[] {
+    if (!this.plugin.middleware) {
       return [];
     }
-    return this.plugin.generateMiddleware();
+    return this.plugin.middleware();
   }
 
   resolve(
