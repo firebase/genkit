@@ -22,7 +22,11 @@ import { toGenkitMessages, type UIMessage } from '../src/convert.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function msg(role: UIMessage['role'], parts: UIMessage['parts'], content?: string): UIMessage {
+function msg(
+  role: UIMessage['role'],
+  parts: UIMessage['parts'],
+  content?: string
+): UIMessage {
   return { id: 'x', role, parts, content };
 }
 
@@ -58,7 +62,11 @@ describe('toGenkitMessages', () => {
     const result = toGenkitMessages([
       msg('user', [
         { type: 'text', text: 'What is this?' },
-        { type: 'file', url: 'data:image/png;base64,abc', mediaType: 'image/png' } as any,
+        {
+          type: 'file',
+          url: 'data:image/png;base64,abc',
+          mediaType: 'image/png',
+        } as any,
       ]),
     ]);
     assert.deepEqual(result[0].content, [
@@ -128,7 +136,10 @@ describe('toGenkitMessages', () => {
       msg('user', [{ type: 'text', text: 'Q' }]),
       msg('assistant', [{ type: 'text', text: 'A' }]),
     ]);
-    assert.deepEqual(result.map((m) => m.role), ['system', 'user', 'model']);
+    assert.deepEqual(
+      result.map((m) => m.role),
+      ['system', 'user', 'model']
+    );
   });
 
   it('handles assistant with text + tool-invocation result → 3 messages', () => {

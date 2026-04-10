@@ -81,16 +81,19 @@ export function objectHandler(
           input,
         });
       } catch (err) {
-        return new Response(
-          JSON.stringify({ error: String(err) }),
-          { status: resolveStatus(err), headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: String(err) }), {
+          status: resolveStatus(err),
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
     }
 
     // ---- Stream -----------------------------------------------------------
     const encoder = new TextEncoder();
-    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const { readable, writable } = new TransformStream<
+      Uint8Array,
+      Uint8Array
+    >();
     const writer = writable.getWriter();
 
     (async () => {
@@ -106,7 +109,9 @@ export function objectHandler(
           }
         }
       } catch (err) {
-        const message = opts?.onError ? opts.onError(err) : 'An error occurred.';
+        const message = opts?.onError
+          ? opts.onError(err)
+          : 'An error occurred.';
         console.error('[objectHandler]', err);
         await writer.write(encoder.encode(JSON.stringify({ error: message })));
       } finally {

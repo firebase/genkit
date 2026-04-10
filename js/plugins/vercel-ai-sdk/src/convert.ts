@@ -44,8 +44,8 @@ interface ToolInvocationPart {
 /** A file/image attachment part inside a user UIMessage. */
 interface FilePart {
   type: 'file';
-  url: string;          // data: URI or https: URL
-  mediaType?: string;   // MIME type
+  url: string; // data: URI or https: URL
+  mediaType?: string; // MIME type
   filename?: string;
 }
 
@@ -65,10 +65,18 @@ export interface UIMessage {
 // Genkit MessageData types (mirrored here to avoid importing genkit at runtime)
 // ---------------------------------------------------------------------------
 
-export interface GenkitTextPart       { text: string }
-export interface GenkitMediaPart      { media: { url: string; contentType?: string } }
-export interface GenkitToolReqPart    { toolRequest: { ref?: string; name: string; input?: unknown } }
-export interface GenkitToolResPart    { toolResponse: { ref?: string; name: string; output?: unknown } }
+export interface GenkitTextPart {
+  text: string;
+}
+export interface GenkitMediaPart {
+  media: { url: string; contentType?: string };
+}
+export interface GenkitToolReqPart {
+  toolRequest: { ref?: string; name: string; input?: unknown };
+}
+export interface GenkitToolResPart {
+  toolResponse: { ref?: string; name: string; output?: unknown };
+}
 
 export type GenkitPart =
   | GenkitTextPart

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { objectHandler } from '@genkit-ai/vercel-ai-sdk';
 import { notificationsFlow } from '@/genkit/object';
+import { objectHandler } from '@genkit-ai/vercel-ai-sdk';
 
 /**
  * useObject endpoint.

@@ -28,12 +28,14 @@
  *   - Default transport is DefaultChatTransport → POST /api/chat.
  */
 
-import { useState } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
 
 export default function ChatPage() {
   const [input, setInput] = useState('');
-  const { messages, sendMessage, status } = useChat({ api: '/api/chat' } as any);
+  const { messages, sendMessage, status } = useChat({
+    api: '/api/chat',
+  } as any);
 
   const isLoading = status === 'streaming' || status === 'submitted';
 

@@ -14,12 +14,24 @@
  * limitations under the License.
  */
 
+import {
+  createTextStreamResponse,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+} from 'ai';
 import { z, type Action } from 'genkit/beta';
 import { type ContextProvider } from 'genkit/context';
-import { createUIMessageStream, createUIMessageStreamResponse, createTextStreamResponse } from 'ai';
+import {
+  closeOpenBlocks,
+  createDispatchState,
+  dispatchChunk,
+} from './dispatch.js';
 import { ChatFlowOutputSchema } from './schema.js';
-import { dispatchChunk, closeOpenBlocks, createDispatchState } from './dispatch.js';
-import { headersToRecord, resolveStatus, normalizeFinishReason } from './utils.js';
+import {
+  headersToRecord,
+  normalizeFinishReason,
+  resolveStatus,
+} from './utils.js';
 
 /**
  * Options for `completionHandler`.
@@ -102,10 +114,10 @@ export function completionHandler(
           input: prompt,
         });
       } catch (err) {
-        return new Response(
-          JSON.stringify({ error: String(err) }),
-          { status: resolveStatus(err), headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: String(err) }), {
+          status: resolveStatus(err),
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
     }
 
@@ -116,18 +128,27 @@ export function completionHandler(
 
       (async () => {
         try {
-          const { stream } = flow.stream(prompt, { context, abortSignal: req.signal });
+          const { stream } = flow.stream(prompt, {
+            context,
+            abortSignal: req.signal,
+          });
           for await (const chunk of stream) {
             let text: string | undefined;
             if (typeof chunk === 'string') {
               text = chunk;
-            } else if (chunk !== null && typeof chunk === 'object' && (chunk as any).type === 'text') {
+            } else if (
+              chunk !== null &&
+              typeof chunk === 'object' &&
+              (chunk as any).type === 'text'
+            ) {
               text = (chunk as any).delta;
             }
             if (text) await writer.write(text);
           }
         } catch (err) {
-          const message = opts?.onError ? opts.onError(err) : 'An error occurred.';
+          const message = opts?.onError
+            ? opts.onError(err)
+            : 'An error occurred.';
           await writer.write(message);
         } finally {
           await writer.close();

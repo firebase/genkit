@@ -23,8 +23,12 @@ function fakeFlow(chunks: (string | AiSdkChunk)[], finalOutput?: unknown) {
   return {
     stream(_input: unknown, _opts?: unknown) {
       return {
-        stream: (async function* () { for (const c of chunks) yield c; })(),
-        output: Promise.resolve(finalOutput ?? chunks.filter((c) => typeof c === 'string').join('')),
+        stream: (async function* () {
+          for (const c of chunks) yield c;
+        })(),
+        output: Promise.resolve(
+          finalOutput ?? chunks.filter((c) => typeof c === 'string').join('')
+        ),
       };
     },
   } as any;
@@ -42,7 +46,9 @@ async function parseSSE(res: Response): Promise<Array<object | string>> {
 }
 
 function eventsOfType(events: Array<object | string>, type: string) {
-  return events.filter((e) => typeof e === 'object' && (e as any).type === type);
+  return events.filter(
+    (e) => typeof e === 'object' && (e as any).type === type
+  );
 }
 
 function makeReq(prompt: string) {
@@ -54,7 +60,11 @@ function makeReq(prompt: string) {
 
 describe('completionHandler — lifecycle', () => {
   it('emits text events and [DONE]', async () => {
-    const events = await parseSSE(await completionHandler(fakeFlow(['Once', ' upon']))(makeReq('tell me a story')));
+    const events = await parseSSE(
+      await completionHandler(fakeFlow(['Once', ' upon']))(
+        makeReq('tell me a story')
+      )
+    );
     assert.equal(eventsOfType(events, 'text-start').length, 1);
     assert.equal(eventsOfType(events, 'text-delta').length, 2);
     assert.equal(eventsOfType(events, 'text-end').length, 1);
@@ -62,40 +72,65 @@ describe('completionHandler — lifecycle', () => {
   });
 
   it('skips empty chunks', async () => {
-    const events = await parseSSE(await completionHandler(fakeFlow(['', 'hello', '']))(makeReq('hi')));
+    const events = await parseSSE(
+      await completionHandler(fakeFlow(['', 'hello', '']))(makeReq('hi'))
+    );
     assert.equal((eventsOfType(events, 'text-delta') as any[]).length, 1);
   });
 });
 
 describe('completionHandler — rich chunks (AiSdkChunkSchema)', () => {
   it('handles reasoning chunks', async () => {
-    const events = await parseSSE(await completionHandler(fakeFlow([
-      { type: 'reasoning', delta: 'thinking...' } as AiSdkChunk,
-      { type: 'text', delta: 'answer' } as AiSdkChunk,
-    ]))(makeReq('prompt')));
+    const events = await parseSSE(
+      await completionHandler(
+        fakeFlow([
+          { type: 'reasoning', delta: 'thinking...' } as AiSdkChunk,
+          { type: 'text', delta: 'answer' } as AiSdkChunk,
+        ])
+      )(makeReq('prompt'))
+    );
     assert.equal(eventsOfType(events, 'reasoning-start').length, 1);
     assert.equal(eventsOfType(events, 'reasoning-delta').length, 1);
     assert.equal(eventsOfType(events, 'text-start').length, 1);
   });
 
   it('handles file chunks', async () => {
-    const events = await parseSSE(await completionHandler(fakeFlow([
-      { type: 'file', url: 'data:image/png;base64,abc', mediaType: 'image/png' } as AiSdkChunk,
-    ]))(makeReq('prompt')));
+    const events = await parseSSE(
+      await completionHandler(
+        fakeFlow([
+          {
+            type: 'file',
+            url: 'data:image/png;base64,abc',
+            mediaType: 'image/png',
+          } as AiSdkChunk,
+        ])
+      )(makeReq('prompt'))
+    );
     assert.equal(eventsOfType(events, 'file').length, 1);
   });
 
   it('handles source-url chunks', async () => {
-    const events = await parseSSE(await completionHandler(fakeFlow([
-      { type: 'source-url', sourceId: 's1', url: 'https://genkit.dev' } as AiSdkChunk,
-    ]))(makeReq('prompt')));
+    const events = await parseSSE(
+      await completionHandler(
+        fakeFlow([
+          {
+            type: 'source-url',
+            sourceId: 's1',
+            url: 'https://genkit.dev',
+          } as AiSdkChunk,
+        ])
+      )(makeReq('prompt'))
+    );
     assert.equal(eventsOfType(events, 'source-url').length, 1);
   });
 });
 
 describe('completionHandler — finish data', () => {
   it('populates finish with finishReason from ChatFlowOutputSchema output', async () => {
-    const flow = fakeFlow([], { finishReason: 'stop', usage: { inputTokens: 3 } });
+    const flow = fakeFlow([], {
+      finishReason: 'stop',
+      usage: { inputTokens: 3 },
+    });
     const events = await parseSSE(await completionHandler(flow)(makeReq('hi')));
     const f = eventsOfType(events, 'finish')[0] as any;
     assert.equal(f.finishReason, 'stop');
@@ -105,19 +140,28 @@ describe('completionHandler — finish data', () => {
 
 describe('completionHandler — request validation', () => {
   it('returns 400 for malformed JSON', async () => {
-    const req = new Request('http://localhost/api/completion', { method: 'POST', body: 'bad' });
+    const req = new Request('http://localhost/api/completion', {
+      method: 'POST',
+      body: 'bad',
+    });
     const res = await completionHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
 
   it('returns 400 when prompt is missing', async () => {
-    const req = new Request('http://localhost/api/completion', { method: 'POST', body: JSON.stringify({}) });
+    const req = new Request('http://localhost/api/completion', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
     const res = await completionHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
 
   it('returns 400 when prompt is not a string', async () => {
-    const req = new Request('http://localhost/api/completion', { method: 'POST', body: JSON.stringify({ prompt: 42 }) });
+    const req = new Request('http://localhost/api/completion', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: 42 }),
+    });
     const res = await completionHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
@@ -129,17 +173,26 @@ describe('completionHandler — contextProvider', () => {
     const flow = {
       stream(_: unknown, opts: unknown) {
         capturedOpts = opts;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
-    const res = await completionHandler(flow, { contextProvider: async () => ({ userId: 'u1' }) })(makeReq('hi'));
+    const res = await completionHandler(flow, {
+      contextProvider: async () => ({ userId: 'u1' }),
+    })(makeReq('hi'));
     await res.text(); // drain
     assert.deepEqual(capturedOpts.context, { userId: 'u1' });
   });
 
   it('returns error status when contextProvider throws', async () => {
     const err = Object.assign(new Error('Forbidden'), { status: 403 });
-    const res = await completionHandler(fakeFlow([]), { contextProvider: async () => { throw err; } })(makeReq('hi'));
+    const res = await completionHandler(fakeFlow([]), {
+      contextProvider: async () => {
+        throw err;
+      },
+    })(makeReq('hi'));
     assert.equal(res.status, 403);
   });
 });
@@ -150,7 +203,10 @@ describe('completionHandler — abort signal', () => {
     const flow = {
       stream(_: unknown, opts: unknown) {
         capturedOpts = opts;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
     const res = await completionHandler(flow)(makeReq('hi'));
@@ -172,10 +228,9 @@ describe('completionHandler — response format', () => {
 
 describe('completionHandler — streamProtocol: text', () => {
   it('returns text/plain with raw text chunks', async () => {
-    const res = await completionHandler(
-      fakeFlow(['Hello', ', ', 'world!']),
-      { streamProtocol: 'text' }
-    )(makeReq('hi'));
+    const res = await completionHandler(fakeFlow(['Hello', ', ', 'world!']), {
+      streamProtocol: 'text',
+    })(makeReq('hi'));
     assert.equal(res.status, 200);
     assert.ok(res.headers.get('Content-Type')?.includes('text/plain'));
     assert.equal(await res.text(), 'Hello, world!');
@@ -183,7 +238,10 @@ describe('completionHandler — streamProtocol: text', () => {
 
   it('extracts delta from typed text chunks', async () => {
     const res = await completionHandler(
-      fakeFlow([{ type: 'text', delta: 'Hi' } as AiSdkChunk, { type: 'text', delta: '!' } as AiSdkChunk]),
+      fakeFlow([
+        { type: 'text', delta: 'Hi' } as AiSdkChunk,
+        { type: 'text', delta: '!' } as AiSdkChunk,
+      ]),
       { streamProtocol: 'text' }
     )(makeReq('hi'));
     assert.equal(await res.text(), 'Hi!');
@@ -201,10 +259,9 @@ describe('completionHandler — streamProtocol: text', () => {
   });
 
   it('skips empty string chunks', async () => {
-    const res = await completionHandler(
-      fakeFlow(['', 'ok', '']),
-      { streamProtocol: 'text' }
-    )(makeReq('hi'));
+    const res = await completionHandler(fakeFlow(['', 'ok', '']), {
+      streamProtocol: 'text',
+    })(makeReq('hi'));
     assert.equal(await res.text(), 'ok');
   });
 });

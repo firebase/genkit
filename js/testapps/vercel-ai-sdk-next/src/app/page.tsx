@@ -19,12 +19,12 @@ export default function Home() {
     <div className="container">
       <h1>@genkit-ai/vercel-ai-sdk demos</h1>
       <p>
-        These demos show how to use Genkit flows as backends for the Vercel AI SDK
-        UI hooks. Each page has a live demo and links to the relevant source files.
+        These demos show how to use Genkit flows as backends for the Vercel AI
+        SDK UI hooks. Each page has a live demo and links to the relevant source
+        files.
       </p>
       <p>
-        Set <code>GEMINI_API_KEY</code> before running{' '}
-        <code>pnpm dev</code>.
+        Set <code>GEMINI_API_KEY</code> before running <code>pnpm dev</code>.
       </p>
 
       <nav>
@@ -49,9 +49,9 @@ export default function Home() {
         and <code>streamProtocol: &apos;text&apos;</code> mode.
       </p>
       <p>
-        <strong>objectHandler</strong> — wraps a flow that streams raw JSON
-        text fragments. <code>useObject</code> reassembles them into a typed
-        partial object in real time.
+        <strong>objectHandler</strong> — wraps a flow that streams raw JSON text
+        fragments. <code>useObject</code> reassembles them into a typed partial
+        object in real time.
       </p>
     </div>
   );

@@ -27,8 +27,8 @@
  *                            for `useCompletion({ streamProtocol: 'text' })`.
  */
 export {
+  createTextStreamResponse,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  createTextStreamResponse,
   type UIMessageStreamWriter,
 } from 'ai';

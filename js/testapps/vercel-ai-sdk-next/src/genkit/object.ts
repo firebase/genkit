@@ -15,8 +15,8 @@
  */
 
 import { z } from 'genkit';
-import { ai } from './index';
 import { NotificationsSchema } from '../lib/schemas';
+import { ai } from './index';
 
 export { NotificationsSchema };
 
@@ -52,6 +52,6 @@ Return ONLY valid JSON (no markdown, no explanation) matching this structure:
     }
 
     const text = (await response).text.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(text) as z.infer<typeof NotificationsSchema>;  // eslint-disable-line @typescript-eslint/no-unsafe-return
+    return JSON.parse(text) as z.infer<typeof NotificationsSchema>; // eslint-disable-line @typescript-eslint/no-unsafe-return
   }
 );

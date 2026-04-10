@@ -28,7 +28,9 @@ function fakeFlow(chunks: (string | AiSdkChunk)[], finalOutput?: unknown) {
   return {
     stream(_input: unknown, _opts?: unknown) {
       return {
-        stream: (async function* () { for (const c of chunks) yield c; })(),
+        stream: (async function* () {
+          for (const c of chunks) yield c;
+        })(),
         output: Promise.resolve(finalOutput ?? ''),
       };
     },
@@ -47,12 +49,21 @@ async function parseSSE(res: Response): Promise<Array<object | string>> {
 }
 
 function eventsOfType(events: Array<object | string>, type: string) {
-  return events.filter((e) => typeof e === 'object' && (e as any).type === type);
+  return events.filter(
+    (e) => typeof e === 'object' && (e as any).type === type
+  );
 }
 
-const userMsg: UIMessage = { id: '1', role: 'user', parts: [{ type: 'text', text: 'Hi' }] };
+const userMsg: UIMessage = {
+  id: '1',
+  role: 'user',
+  parts: [{ type: 'text', text: 'Hi' }],
+};
 
-function makeRequest(messages: UIMessage[], extra: Record<string, unknown> = {}) {
+function makeRequest(
+  messages: UIMessage[],
+  extra: Record<string, unknown> = {}
+) {
   return new Request('http://localhost/api/chat', {
     method: 'POST',
     body: JSON.stringify({ messages, ...extra }),
@@ -65,7 +76,9 @@ function makeRequest(messages: UIMessage[], extra: Record<string, unknown> = {})
 
 describe('chatHandler — lifecycle events', () => {
   it('ends with [DONE]', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow(['hi']))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(fakeFlow(['hi']))(makeRequest([userMsg]))
+    );
     assert.equal(events[events.length - 1], '[DONE]');
   });
 
@@ -84,24 +97,37 @@ describe('chatHandler — lifecycle events', () => {
 
 describe('chatHandler — text streaming', () => {
   it('handles plain string chunks (backward-compat)', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow(['Hello', ', ', 'world!']))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(fakeFlow(['Hello', ', ', 'world!']))(
+        makeRequest([userMsg])
+      )
+    );
     assert.equal(eventsOfType(events, 'text-start').length, 1);
-    assert.deepEqual((eventsOfType(events, 'text-delta') as any[]).map((d) => d.delta), ['Hello', ', ', 'world!']);
+    assert.deepEqual(
+      (eventsOfType(events, 'text-delta') as any[]).map((d) => d.delta),
+      ['Hello', ', ', 'world!']
+    );
     assert.equal(eventsOfType(events, 'text-end').length, 1);
   });
 
   it('handles {type:text} chunks', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'text', delta: 'Hi' } as AiSdkChunk,
-      { type: 'text', delta: '!' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          { type: 'text', delta: 'Hi' } as AiSdkChunk,
+          { type: 'text', delta: '!' } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'text-start').length, 1);
     assert.equal(eventsOfType(events, 'text-delta').length, 2);
     assert.equal(eventsOfType(events, 'text-end').length, 1);
   });
 
   it('skips empty string chunks', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow(['', 'hi', '']))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(fakeFlow(['', 'hi', '']))(makeRequest([userMsg]))
+    );
     assert.equal((eventsOfType(events, 'text-delta') as any[]).length, 1);
   });
 });
@@ -112,10 +138,14 @@ describe('chatHandler — text streaming', () => {
 
 describe('chatHandler — reasoning chunks', () => {
   it('emits reasoning-start / reasoning-delta / reasoning-end', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'reasoning', delta: 'hmm...' } as AiSdkChunk,
-      { type: 'text', delta: 'Answer' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          { type: 'reasoning', delta: 'hmm...' } as AiSdkChunk,
+          { type: 'text', delta: 'Answer' } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'reasoning-start').length, 1);
     assert.equal(eventsOfType(events, 'reasoning-delta').length, 1);
     assert.equal(eventsOfType(events, 'reasoning-end').length, 1);
@@ -129,27 +159,64 @@ describe('chatHandler — reasoning chunks', () => {
 
 describe('chatHandler — tool chunks', () => {
   it('emits tool-input-start + tool-input-delta', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'tool-request', toolCallId: 'tc1', toolName: 'search', inputDelta: '{"q":' } as AiSdkChunk,
-      { type: 'tool-request', toolCallId: 'tc1', toolName: 'search', inputDelta: '"hi"}' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-request',
+            toolCallId: 'tc1',
+            toolName: 'search',
+            inputDelta: '{"q":',
+          } as AiSdkChunk,
+          {
+            type: 'tool-request',
+            toolCallId: 'tc1',
+            toolName: 'search',
+            inputDelta: '"hi"}',
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'tool-input-start').length, 1);
     assert.equal(eventsOfType(events, 'tool-input-delta').length, 2);
   });
 
   it('emits tool-input-available for full input', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'tool-request', toolCallId: 'tc1', toolName: 'search', input: { q: 'genkit' } } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-request',
+            toolCallId: 'tc1',
+            toolName: 'search',
+            input: { q: 'genkit' },
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'tool-input-available').length, 1);
-    assert.deepEqual((eventsOfType(events, 'tool-input-available')[0] as any).input, { q: 'genkit' });
+    assert.deepEqual(
+      (eventsOfType(events, 'tool-input-available')[0] as any).input,
+      { q: 'genkit' }
+    );
   });
 
   it('emits tool-output-available for tool-result', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'tool-result', toolCallId: 'tc1', output: { hits: 3 } } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
-    assert.deepEqual((eventsOfType(events, 'tool-output-available')[0] as any).output, { hits: 3 });
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-result',
+            toolCallId: 'tc1',
+            output: { hits: 3 },
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    assert.deepEqual(
+      (eventsOfType(events, 'tool-output-available')[0] as any).output,
+      { hits: 3 }
+    );
   });
 });
 
@@ -159,9 +226,17 @@ describe('chatHandler — tool chunks', () => {
 
 describe('chatHandler — file output', () => {
   it('emits file events with url and mediaType', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'file', url: 'data:image/png;base64,abc', mediaType: 'image/png' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'file',
+            url: 'data:image/png;base64,abc',
+            mediaType: 'image/png',
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     const f = eventsOfType(events, 'file')[0] as any;
     assert.equal(f.url, 'data:image/png;base64,abc');
     assert.equal(f.mediaType, 'image/png');
@@ -176,9 +251,18 @@ describe('chatHandler — file output', () => {
 
 describe('chatHandler — source citations', () => {
   it('emits source-url event', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'source-url', sourceId: 's1', url: 'https://genkit.dev', title: 'Genkit Docs' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'source-url',
+            sourceId: 's1',
+            url: 'https://genkit.dev',
+            title: 'Genkit Docs',
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     const e = eventsOfType(events, 'source-url')[0] as any;
     assert.equal(e.sourceId, 's1');
     assert.equal(e.url, 'https://genkit.dev');
@@ -186,9 +270,19 @@ describe('chatHandler — source citations', () => {
   });
 
   it('emits source-document event', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'source-document', sourceId: 's2', mediaType: 'application/pdf', title: 'Report', filename: 'report.pdf' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'source-document',
+            sourceId: 's2',
+            mediaType: 'application/pdf',
+            title: 'Report',
+            filename: 'report.pdf',
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     const e = eventsOfType(events, 'source-document')[0] as any;
     assert.equal(e.sourceId, 's2');
     assert.equal(e.mediaType, 'application/pdf');
@@ -202,10 +296,20 @@ describe('chatHandler — source citations', () => {
 
 describe('chatHandler — custom data', () => {
   it('emits data-* events', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'data', id: 'usage', value: { inputTokens: 10 } } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
-    const e = events.find((e) => typeof e === 'object' && (e as any).type === 'data-usage') as any;
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'data',
+            id: 'usage',
+            value: { inputTokens: 10 },
+          } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    const e = events.find(
+      (e) => typeof e === 'object' && (e as any).type === 'data-usage'
+    ) as any;
     assert.ok(e);
     assert.deepEqual(e.data, { inputTokens: 10 });
   });
@@ -217,21 +321,29 @@ describe('chatHandler — custom data', () => {
 
 describe('chatHandler — step markers', () => {
   it('emits start-step and finish-step', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'step-start' } as AiSdkChunk,
-      { type: 'text', delta: 'hi' } as AiSdkChunk,
-      { type: 'step-end' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          { type: 'step-start' } as AiSdkChunk,
+          { type: 'text', delta: 'hi' } as AiSdkChunk,
+          { type: 'step-end' } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'start-step').length, 1);
     assert.equal(eventsOfType(events, 'finish-step').length, 1);
   });
 
   it('closes open text block at step-end', async () => {
-    const events = await parseSSE(await chatHandler(fakeFlow([
-      { type: 'text', delta: 'A' } as AiSdkChunk,
-      { type: 'step-end' } as AiSdkChunk,
-      { type: 'text', delta: 'B' } as AiSdkChunk,
-    ]))(makeRequest([userMsg])));
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          { type: 'text', delta: 'A' } as AiSdkChunk,
+          { type: 'step-end' } as AiSdkChunk,
+          { type: 'text', delta: 'B' } as AiSdkChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
     assert.equal(eventsOfType(events, 'text-start').length, 2);
     assert.equal(eventsOfType(events, 'text-end').length, 2);
   });
@@ -243,19 +355,29 @@ describe('chatHandler — step markers', () => {
 
 describe('chatHandler — finish data', () => {
   it('emits finish with finishReason and usage in messageMetadata', async () => {
-    const flow = fakeFlow(
-      [{ type: 'text', delta: 'hi' } as AiSdkChunk],
-      { finishReason: 'stop', usage: { inputTokens: 5, outputTokens: 10 } }
+    const flow = fakeFlow([{ type: 'text', delta: 'hi' } as AiSdkChunk], {
+      finishReason: 'stop',
+      usage: { inputTokens: 5, outputTokens: 10 },
+    });
+    const events = await parseSSE(
+      await chatHandler(flow)(makeRequest([userMsg]))
     );
-    const events = await parseSSE(await chatHandler(flow)(makeRequest([userMsg])));
     const f = eventsOfType(events, 'finish')[0] as any;
     assert.equal(f.finishReason, 'stop');
-    assert.deepEqual(f.messageMetadata?.usage, { inputTokens: 5, outputTokens: 10 });
+    assert.deepEqual(f.messageMetadata?.usage, {
+      inputTokens: 5,
+      outputTokens: 10,
+    });
   });
 
   it('emits no finish event when flow returns plain string (no structured output)', async () => {
-    const flow = fakeFlow([{ type: 'text', delta: 'hi' } as AiSdkChunk], 'plain string output');
-    const events = await parseSSE(await chatHandler(flow)(makeRequest([userMsg])));
+    const flow = fakeFlow(
+      [{ type: 'text', delta: 'hi' } as AiSdkChunk],
+      'plain string output'
+    );
+    const events = await parseSSE(
+      await chatHandler(flow)(makeRequest([userMsg]))
+    );
     // No finish chunk — createUIMessageStream only emits what we write
     assert.equal(eventsOfType(events, 'finish').length, 0);
   });
@@ -271,13 +393,21 @@ describe('chatHandler — body passthrough', () => {
     const flow = {
       stream(input: unknown) {
         capturedInput = input;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
 
-    const res = await chatHandler(flow)(makeRequest([userMsg], { sessionId: 'xyz', persona: 'helpful' }));
+    const res = await chatHandler(flow)(
+      makeRequest([userMsg], { sessionId: 'xyz', persona: 'helpful' })
+    );
     await res.text(); // drain stream so flow.stream() runs before asserting
-    assert.deepEqual(capturedInput.body, { sessionId: 'xyz', persona: 'helpful' });
+    assert.deepEqual(capturedInput.body, {
+      sessionId: 'xyz',
+      persona: 'helpful',
+    });
   });
 
   it('does not include body in input when no extra fields', async () => {
@@ -285,7 +415,10 @@ describe('chatHandler — body passthrough', () => {
     const flow = {
       stream(input: unknown) {
         capturedInput = input;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
 
@@ -301,19 +434,28 @@ describe('chatHandler — body passthrough', () => {
 
 describe('chatHandler — request validation', () => {
   it('returns 400 for malformed JSON', async () => {
-    const req = new Request('http://localhost/api/chat', { method: 'POST', body: 'not json' });
+    const req = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      body: 'not json',
+    });
     const res = await chatHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
 
   it('returns 400 when messages is missing', async () => {
-    const req = new Request('http://localhost/api/chat', { method: 'POST', body: JSON.stringify({}) });
+    const req = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
     const res = await chatHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
 
   it('returns 400 when messages is not an array', async () => {
-    const req = new Request('http://localhost/api/chat', { method: 'POST', body: JSON.stringify({ messages: 'oops' }) });
+    const req = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages: 'oops' }),
+    });
     const res = await chatHandler(fakeFlow([]))(req);
     assert.equal(res.status, 400);
   });
@@ -329,7 +471,10 @@ describe('chatHandler — contextProvider', () => {
     const flow = {
       stream(_input: unknown, opts: unknown) {
         capturedOpts = opts;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
 
@@ -344,7 +489,9 @@ describe('chatHandler — contextProvider', () => {
   it('returns 401 when contextProvider throws', async () => {
     const err = Object.assign(new Error('Unauthorized'), { status: 401 });
     const res = await chatHandler(fakeFlow([]), {
-      contextProvider: async () => { throw err; },
+      contextProvider: async () => {
+        throw err;
+      },
     })(makeRequest([userMsg]));
     assert.equal(res.status, 401);
   });
@@ -360,7 +507,10 @@ describe('chatHandler — abort signal', () => {
     const flow = {
       stream(_input: unknown, opts: unknown) {
         capturedOpts = opts;
-        return { stream: (async function* () {})(), output: Promise.resolve('') };
+        return {
+          stream: (async function* () {})(),
+          output: Promise.resolve(''),
+        };
       },
     } as any;
 
@@ -378,4 +528,3 @@ describe('chatHandler — abort signal', () => {
 // ---------------------------------------------------------------------------
 // Response format
 // ---------------------------------------------------------------------------
-

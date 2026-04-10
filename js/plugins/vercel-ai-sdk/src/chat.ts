@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { type Action } from 'genkit/beta';
 import { type ContextProvider } from 'genkit/context';
-import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
-import { ChatFlowOutputSchema, MessagesSchema } from './schema.js';
 import { toGenkitMessages, type UIMessage } from './convert.js';
-import { dispatchChunk, closeOpenBlocks, createDispatchState } from './dispatch.js';
-import { headersToRecord, resolveStatus, normalizeFinishReason } from './utils.js';
+import {
+  closeOpenBlocks,
+  createDispatchState,
+  dispatchChunk,
+} from './dispatch.js';
+import { ChatFlowOutputSchema, MessagesSchema } from './schema.js';
+import {
+  headersToRecord,
+  normalizeFinishReason,
+  resolveStatus,
+} from './utils.js';
 
 /**
  * Options for `chatHandler`.
@@ -119,10 +127,10 @@ export function chatHandler(
           input: flowInput,
         });
       } catch (err) {
-        return new Response(
-          JSON.stringify({ error: String(err) }),
-          { status: resolveStatus(err), headers: { 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: String(err) }), {
+          status: resolveStatus(err),
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
     }
 

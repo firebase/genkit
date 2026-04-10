@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { completionHandler } from '@genkit-ai/vercel-ai-sdk';
 import { completionFlow } from '@/genkit/completion';
+import { completionHandler } from '@genkit-ai/vercel-ai-sdk';
 
 /**
  * useCompletion endpoint — SSE data-stream mode (default).

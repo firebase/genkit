@@ -25,27 +25,41 @@
  * Next.js App Router, Hono, SvelteKit, etc.
  */
 
-export { z } from './schema.js';
+export { chatHandler, type ChatHandlerOptions } from './chat.js';
+export {
+  completionHandler,
+  type CompletionHandlerOptions,
+} from './completion.js';
+export {
+  toGenkitMessages,
+  type GenkitMessageData,
+  type GenkitPart,
+  type UIMessage,
+  type UIMessagePart,
+} from './convert.js';
+export {
+  closeOpenBlocks,
+  createDispatchState,
+  dispatchChunk,
+  type DispatchState,
+} from './dispatch.js';
+export { objectHandler, type ObjectHandlerOptions } from './object.js';
 export {
   AiSdkChunkSchema,
-  MessagesSchema,
   ChatFlowOutputSchema,
   ContentPartSchema,
+  MessagesSchema,
+  z,
   type AiSdkChunk,
   type ChatFlowOutput,
   type ContentPart,
   type GenkitMessage,
   type Messages,
 } from './schema.js';
+export { normalizeFinishReason, type FinishReason } from './utils.js';
 export {
+  createTextStreamResponse,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  createTextStreamResponse,
   type UIMessageStreamWriter,
 } from './writer.js';
-export { normalizeFinishReason, type FinishReason } from './utils.js';
-export { toGenkitMessages, type UIMessage, type UIMessagePart, type GenkitMessageData, type GenkitPart } from './convert.js';
-export { dispatchChunk, closeOpenBlocks, createDispatchState, type DispatchState } from './dispatch.js';
-export { chatHandler, type ChatHandlerOptions } from './chat.js';
-export { completionHandler, type CompletionHandlerOptions } from './completion.js';
-export { objectHandler, type ObjectHandlerOptions } from './object.js';

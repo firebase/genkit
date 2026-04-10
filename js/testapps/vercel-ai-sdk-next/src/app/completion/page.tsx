@@ -48,8 +48,8 @@ export default function CompletionPage() {
       <h1>useCompletion demo</h1>
       <p>
         Backed by <code>completionHandler</code> + a Genkit flow with{' '}
-        <code>inputSchema: z.string()</code>. Reads the{' '}
-        <code>prompt</code> field and streams plain text deltas.
+        <code>inputSchema: z.string()</code>. Reads the <code>prompt</code>{' '}
+        field and streams plain text deltas.
       </p>
 
       <form onSubmit={handleSubmit} className="input-row">

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { chatHandler } from '@genkit-ai/vercel-ai-sdk';
 import { chatFlow } from '@/genkit/chat';
+import { chatHandler } from '@genkit-ai/vercel-ai-sdk';
 
 /**
  * useChat endpoint.

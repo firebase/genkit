@@ -142,7 +142,9 @@ export type AiSdkChunk = z.infer<typeof AiSdkChunkSchema>;
  */
 export const ContentPartSchema = z.union([
   z.object({ text: z.string() }),
-  z.object({ media: z.object({ url: z.string(), contentType: z.string().optional() }) }),
+  z.object({
+    media: z.object({ url: z.string(), contentType: z.string().optional() }),
+  }),
   z.object({
     toolRequest: z.object({
       name: z.string(),

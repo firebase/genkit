@@ -31,9 +31,9 @@
  * Pre-stream errors (auth failures, bad input) still return a non-2xx status.
  */
 
+import { NotificationsSchema, type Notification } from '@/lib/schemas';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { useState } from 'react';
-import { NotificationsSchema, type Notification } from '@/lib/schemas';
 
 export default function ObjectPage() {
   const [topic, setTopic] = useState('');
@@ -77,15 +77,17 @@ export default function ObjectPage() {
 
       {object?.notifications && object.notifications.length > 0 ? (
         <div className="cards">
-          {object.notifications.map((n: Partial<Notification> | undefined, i: number) => (
-            <div key={i} className="card">
-              <span className="icon">{n?.icon ?? '🔔'}</span>
-              <div className="card-body">
-                <div className="card-title">{n?.title ?? '…'}</div>
-                <div className="card-text">{n?.body ?? ''}</div>
+          {object.notifications.map(
+            (n: Partial<Notification> | undefined, i: number) => (
+              <div key={i} className="card">
+                <span className="icon">{n?.icon ?? '🔔'}</span>
+                <div className="card-body">
+                  <div className="card-title">{n?.title ?? '…'}</div>
+                  <div className="card-text">{n?.body ?? ''}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          )}
         </div>
       ) : (
         !isLoading && (
@@ -93,9 +95,7 @@ export default function ObjectPage() {
         )
       )}
 
-      {isLoading && (
-        <p className="status">Generating notifications…</p>
-      )}
+      {isLoading && <p className="status">Generating notifications…</p>}
     </div>
   );
 }

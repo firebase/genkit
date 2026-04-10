@@ -14,64 +14,103 @@
  * limitations under the License.
  */
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
   background: #f8f9fa;
   color: #1a1a1a;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   line-height: 1.5;
 }
 
-a { color: #0070f3; text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: #0070f3;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
 
 .container {
-  max-width: 720px;
   margin: 0 auto;
+  max-width: 720px;
   padding: 2rem 1rem;
 }
 
-h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-h2 { font-size: 1.25rem; margin-bottom: 1rem; color: #444; }
-p  { margin-bottom: 1rem; color: #555; }
-
-nav { margin-bottom: 2rem; display: flex; gap: 1rem; }
-nav a {
-  padding: 0.4rem 0.9rem;
-  background: #0070f3;
-  color: white;
-  border-radius: 6px;
-  font-size: 0.9rem;
+h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
 }
-nav a:hover { background: #005bb5; text-decoration: none; }
+h2 {
+  color: #444;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+p {
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+nav a {
+  background: #0070f3;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+}
+nav a:hover {
+  background: #005bb5;
+  text-decoration: none;
+}
 
 /* Chat */
 .messages {
+  background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  background: white;
-  padding: 1rem;
-  min-height: 200px;
-  max-height: 400px;
-  overflow-y: auto;
-  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  margin-bottom: 1rem;
+  max-height: 400px;
+  min-height: 200px;
+  overflow-y: auto;
+  padding: 1rem;
 }
 
-.message { display: flex; flex-direction: column; gap: 0.2rem; }
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
 .message .role {
+  color: #888;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #888;
+  text-transform: uppercase;
 }
-.message.user .role { color: #0070f3; }
-.message.assistant .role { color: #444; }
-.message .text { white-space: pre-wrap; }
+.message.user .role {
+  color: #0070f3;
+}
+.message.assistant .role {
+  color: #444;
+}
+.message .text {
+  white-space: pre-wrap;
+}
 
 /* Input row */
 .input-row {
@@ -79,39 +118,45 @@ nav a:hover { background: #005bb5; text-decoration: none; }
   gap: 0.5rem;
 }
 
-.input-row input, .input-row textarea {
-  flex: 1;
-  padding: 0.6rem 0.8rem;
+.input-row input,
+.input-row textarea {
+  background: white;
   border: 1px solid #ddd;
   border-radius: 6px;
+  flex: 1;
   font-size: 1rem;
-  background: white;
+  padding: 0.6rem 0.8rem;
 }
 
 button {
-  padding: 0.6rem 1.2rem;
   background: #0070f3;
-  color: white;
   border: none;
   border-radius: 6px;
-  font-size: 1rem;
+  color: white;
   cursor: pointer;
+  font-size: 1rem;
+  padding: 0.6rem 1.2rem;
   white-space: nowrap;
 }
-button:hover { background: #005bb5; }
-button:disabled { background: #aaa; cursor: default; }
+button:hover {
+  background: #005bb5;
+}
+button:disabled {
+  background: #aaa;
+  cursor: default;
+}
 
 /* Completion output */
 .output {
   background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 1rem;
-  min-height: 80px;
-  white-space: pre-wrap;
-  font-size: 0.95rem;
   color: #333;
+  font-size: 0.95rem;
   margin-top: 1rem;
+  min-height: 80px;
+  padding: 1rem;
+  white-space: pre-wrap;
 }
 
 /* Object cards */
@@ -123,18 +168,34 @@ button:disabled { background: #aaa; cursor: default; }
 }
 
 .card {
+  align-items: flex-start;
   background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 1rem;
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
+  padding: 1rem;
 }
 
-.card .icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
-.card .card-body { flex: 1; }
-.card .card-title { font-weight: 600; margin-bottom: 0.2rem; }
-.card .card-text  { font-size: 0.9rem; color: #555; }
+.card .icon {
+  flex-shrink: 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+.card .card-body {
+  flex: 1;
+}
+.card .card-title {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+.card .card-text {
+  color: #555;
+  font-size: 0.9rem;
+}
 
-.status { font-size: 0.85rem; color: #888; margin-top: 0.5rem; }
+.status {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}

@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { type ContextProvider, type RequestData, getHttpStatus } from 'genkit/context';
+import {
+  getHttpStatus,
+  type ContextProvider,
+  type RequestData,
+} from 'genkit/context';
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -23,7 +27,9 @@ import { type ContextProvider, type RequestData, getHttpStatus } from 'genkit/co
 /** Convert a Fetch API `Headers` object to a plain `Record<string, string>`. */
 export function headersToRecord(headers: Headers): Record<string, string> {
   const out: Record<string, string> = {};
-  headers.forEach((value, key) => { out[key] = value; });
+  headers.forEach((value, key) => {
+    out[key] = value;
+  });
   return out;
 }
 
@@ -60,16 +66,30 @@ export async function resolveContext(
 // ---------------------------------------------------------------------------
 
 /** Valid finish reasons accepted by the AI SDK `uiMessageChunkSchema`. */
-export type FinishReason = 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'other';
+export type FinishReason =
+  | 'stop'
+  | 'length'
+  | 'content-filter'
+  | 'tool-calls'
+  | 'error'
+  | 'other';
 
 const VALID_FINISH_REASONS: FinishReason[] = [
-  'stop', 'length', 'content-filter', 'tool-calls', 'error', 'other',
+  'stop',
+  'length',
+  'content-filter',
+  'tool-calls',
+  'error',
+  'other',
 ];
 
 /** Map an arbitrary Genkit `finishReason` string to a known AI SDK value, or `undefined`. */
-export function normalizeFinishReason(reason: string | undefined): FinishReason | undefined {
+export function normalizeFinishReason(
+  reason: string | undefined
+): FinishReason | undefined {
   if (reason == null) return undefined;
-  if ((VALID_FINISH_REASONS as string[]).includes(reason)) return reason as FinishReason;
+  if ((VALID_FINISH_REASONS as string[]).includes(reason))
+    return reason as FinishReason;
   if (reason === 'blocked') return 'content-filter';
   if (reason === 'unknown') return 'other';
   return undefined;
