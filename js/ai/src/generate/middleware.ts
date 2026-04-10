@@ -176,7 +176,7 @@ export function generateMiddleware<
   def.plugin = (pluginConfig: PluginOptions) => ({
     name: `middleware:${options.name}`,
     version: 'v2',
-    generateMiddleware: () => {
+    middleware: () => {
       const wrappedDef = Object.assign(
         function (config?: z.infer<ConfigSchema>) {
           return def(config);

@@ -666,7 +666,7 @@ export class Genkit extends GenkitAI implements HasRegistry {
     plugins.forEach((plugin) => {
       if (isPluginV2(plugin)) {
         logger.debug(`Registering v2 plugin ${plugin.name}...`);
-        plugin.generateMiddleware?.()?.forEach((middleware) => {
+        plugin.middleware?.()?.forEach((middleware) => {
           activeRegistry.registerValue(
             'middleware',
             middleware.name,
