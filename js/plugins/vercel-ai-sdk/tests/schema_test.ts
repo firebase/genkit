@@ -17,8 +17,8 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
-  AiSdkChunkSchema,
-  ChatFlowOutputSchema,
+  StreamChunkSchema,
+  FlowOutputSchema,
   MessagesSchema,
 } from '../src/schema.js';
 
@@ -143,26 +143,26 @@ describe('MessagesSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AiSdkChunkSchema
+// StreamChunkSchema
 // ---------------------------------------------------------------------------
 
-describe('AiSdkChunkSchema', () => {
+describe('StreamChunkSchema', () => {
   it('accepts text chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({ type: 'text', delta: 'Hello' }).success
+      StreamChunkSchema.safeParse({ type: 'text', delta: 'Hello' }).success
     );
   });
 
   it('accepts reasoning chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({ type: 'reasoning', delta: 'I think...' })
+      StreamChunkSchema.safeParse({ type: 'reasoning', delta: 'I think...' })
         .success
     );
   });
 
   it('accepts tool-request with inputDelta', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'tool-request',
         toolCallId: 'tc1',
         toolName: 'search',
@@ -173,7 +173,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts tool-request with full input', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'tool-request',
         toolCallId: 'tc1',
         toolName: 'search',
@@ -184,7 +184,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts tool-result', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'tool-result',
         toolCallId: 'tc1',
         output: { answer: 42 },
@@ -194,7 +194,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts file chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'file',
         url: 'data:image/png;base64,abc',
         mediaType: 'image/png',
@@ -204,7 +204,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts file chunk with filename', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'file',
         url: 'https://example.com/img.png',
         mediaType: 'image/png',
@@ -215,7 +215,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts source-url chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'source-url',
         sourceId: 's1',
         url: 'https://example.com',
@@ -225,7 +225,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts source-url with title', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'source-url',
         sourceId: 's1',
         url: 'https://example.com',
@@ -236,7 +236,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts source-document chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'source-document',
         sourceId: 's2',
         mediaType: 'application/pdf',
@@ -247,7 +247,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts source-document with filename', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'source-document',
         sourceId: 's2',
         mediaType: 'application/pdf',
@@ -259,7 +259,7 @@ describe('AiSdkChunkSchema', () => {
 
   it('accepts data chunk', () => {
     assert.ok(
-      AiSdkChunkSchema.safeParse({
+      StreamChunkSchema.safeParse({
         type: 'data',
         id: 'usage',
         value: { inputTokens: 10 },
@@ -268,24 +268,24 @@ describe('AiSdkChunkSchema', () => {
   });
 
   it('accepts step-start and step-end', () => {
-    assert.ok(AiSdkChunkSchema.safeParse({ type: 'step-start' }).success);
-    assert.ok(AiSdkChunkSchema.safeParse({ type: 'step-end' }).success);
+    assert.ok(StreamChunkSchema.safeParse({ type: 'step-start' }).success);
+    assert.ok(StreamChunkSchema.safeParse({ type: 'step-end' }).success);
   });
 
   it('rejects unknown type', () => {
     assert.ok(
-      !AiSdkChunkSchema.safeParse({ type: 'unknown-future-type' }).success
+      !StreamChunkSchema.safeParse({ type: 'unknown-future-type' }).success
     );
   });
 });
 
 // ---------------------------------------------------------------------------
-// ChatFlowOutputSchema
+// FlowOutputSchema
 // ---------------------------------------------------------------------------
 
-describe('ChatFlowOutputSchema', () => {
+describe('FlowOutputSchema', () => {
   it('accepts finishReason and usage', () => {
-    const r = ChatFlowOutputSchema.safeParse({
+    const r = FlowOutputSchema.safeParse({
       finishReason: 'stop',
       usage: { inputTokens: 10, outputTokens: 20 },
     });
@@ -296,15 +296,15 @@ describe('ChatFlowOutputSchema', () => {
 
   it('accepts partial output (only finishReason)', () => {
     assert.ok(
-      ChatFlowOutputSchema.safeParse({ finishReason: 'length' }).success
+      FlowOutputSchema.safeParse({ finishReason: 'length' }).success
     );
   });
 
   it('accepts empty object', () => {
-    assert.ok(ChatFlowOutputSchema.safeParse({}).success);
+    assert.ok(FlowOutputSchema.safeParse({}).success);
   });
 
   it('rejects non-object output (plain string)', () => {
-    assert.ok(!ChatFlowOutputSchema.safeParse('done').success);
+    assert.ok(!FlowOutputSchema.safeParse('done').success);
   });
 });

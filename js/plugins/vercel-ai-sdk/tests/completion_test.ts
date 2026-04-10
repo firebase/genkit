@@ -17,9 +17,9 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { completionHandler } from '../src/completion.js';
-import { type AiSdkChunk } from '../src/schema.js';
+import { type StreamChunk } from '../src/schema.js';
 
-function fakeFlow(chunks: (string | AiSdkChunk)[], finalOutput?: unknown) {
+function fakeFlow(chunks: (string | StreamChunk)[], finalOutput?: unknown) {
   return {
     stream(_input: unknown, _opts?: unknown) {
       return {
@@ -79,13 +79,13 @@ describe('completionHandler — lifecycle', () => {
   });
 });
 
-describe('completionHandler — rich chunks (AiSdkChunkSchema)', () => {
+describe('completionHandler — rich chunks (StreamChunkSchema)', () => {
   it('handles reasoning chunks', async () => {
     const events = await parseSSE(
       await completionHandler(
         fakeFlow([
-          { type: 'reasoning', delta: 'thinking...' } as AiSdkChunk,
-          { type: 'text', delta: 'answer' } as AiSdkChunk,
+          { type: 'reasoning', delta: 'thinking...' } as StreamChunk,
+          { type: 'text', delta: 'answer' } as StreamChunk,
         ])
       )(makeReq('prompt'))
     );
@@ -102,7 +102,7 @@ describe('completionHandler — rich chunks (AiSdkChunkSchema)', () => {
             type: 'file',
             url: 'data:image/png;base64,abc',
             mediaType: 'image/png',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeReq('prompt'))
     );
@@ -117,7 +117,7 @@ describe('completionHandler — rich chunks (AiSdkChunkSchema)', () => {
             type: 'source-url',
             sourceId: 's1',
             url: 'https://genkit.dev',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeReq('prompt'))
     );
@@ -126,7 +126,7 @@ describe('completionHandler — rich chunks (AiSdkChunkSchema)', () => {
 });
 
 describe('completionHandler — finish data', () => {
-  it('populates finish with finishReason from ChatFlowOutputSchema output', async () => {
+  it('populates finish with finishReason from FlowOutputSchema output', async () => {
     const flow = fakeFlow([], {
       finishReason: 'stop',
       usage: { inputTokens: 3 },
@@ -239,8 +239,8 @@ describe('completionHandler — streamProtocol: text', () => {
   it('extracts delta from typed text chunks', async () => {
     const res = await completionHandler(
       fakeFlow([
-        { type: 'text', delta: 'Hi' } as AiSdkChunk,
-        { type: 'text', delta: '!' } as AiSdkChunk,
+        { type: 'text', delta: 'Hi' } as StreamChunk,
+        { type: 'text', delta: '!' } as StreamChunk,
       ]),
       { streamProtocol: 'text' }
     )(makeReq('hi'));
@@ -250,8 +250,8 @@ describe('completionHandler — streamProtocol: text', () => {
   it('ignores non-text typed chunks', async () => {
     const res = await completionHandler(
       fakeFlow([
-        { type: 'reasoning', delta: 'thinking...' } as AiSdkChunk,
-        { type: 'text', delta: 'answer' } as AiSdkChunk,
+        { type: 'reasoning', delta: 'thinking...' } as StreamChunk,
+        { type: 'text', delta: 'answer' } as StreamChunk,
       ]),
       { streamProtocol: 'text' }
     )(makeReq('hi'));

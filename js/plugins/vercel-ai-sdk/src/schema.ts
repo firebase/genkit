@@ -19,7 +19,7 @@ import { z } from 'genkit/beta';
 export { z };
 
 // ---------------------------------------------------------------------------
-// AiSdkChunkSchema
+// StreamChunkSchema
 // ---------------------------------------------------------------------------
 
 /**
@@ -28,10 +28,10 @@ export { z };
  * protocol.  Use this as `streamSchema` in `ai.defineFlow(...)`.
  *
  * ```ts
- * import { AiSdkChunkSchema } from '@genkit-ai/vercel-ai-sdk';
+ * import { StreamChunkSchema } from '@genkit-ai/vercel-ai-sdk';
  *
  * const chatFlow = ai.defineFlow(
- *   { name: 'chat', inputSchema: MessagesSchema, streamSchema: AiSdkChunkSchema },
+ *   { name: 'chat', inputSchema: MessagesSchema, streamSchema: StreamChunkSchema },
  *   async (input, sc) => {
  *     const { stream, response } = ai.generateStream({ messages: input.messages });
  *     for await (const chunk of stream) {
@@ -46,7 +46,7 @@ export { z };
  * );
  * ```
  */
-export const AiSdkChunkSchema = z.discriminatedUnion('type', [
+export const StreamChunkSchema = z.discriminatedUnion('type', [
   /** A text delta — maps to text-start (lazy) + text-delta wire events. */
   z.object({
     type: z.literal('text'),
@@ -129,7 +129,7 @@ export const AiSdkChunkSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('step-end') }),
 ]);
 
-export type AiSdkChunk = z.infer<typeof AiSdkChunkSchema>;
+export type StreamChunk = z.infer<typeof StreamChunkSchema>;
 
 // ---------------------------------------------------------------------------
 // MessagesSchema (extended)
@@ -193,7 +193,7 @@ export type GenkitMessage = z.infer<typeof GenkitMessageSchema>;
 export type Messages = z.infer<typeof MessagesSchema>;
 
 // ---------------------------------------------------------------------------
-// ChatFlowOutputSchema
+// FlowOutputSchema
 // ---------------------------------------------------------------------------
 
 /**
@@ -204,7 +204,7 @@ export type Messages = z.infer<typeof MessagesSchema>;
  * ```ts
  * const chatFlow = ai.defineFlow(
  *   { name: 'chat', inputSchema: MessagesSchema,
- *     streamSchema: AiSdkChunkSchema, outputSchema: ChatFlowOutputSchema },
+ *     streamSchema: StreamChunkSchema, outputSchema: FlowOutputSchema },
  *   async (input, sc) => {
  *     const { stream, response } = ai.generateStream({ ... });
  *     for await (const chunk of stream) { ... }
@@ -214,9 +214,9 @@ export type Messages = z.infer<typeof MessagesSchema>;
  * );
  * ```
  */
-export const ChatFlowOutputSchema = z.object({
+export const FlowOutputSchema = z.object({
   finishReason: z.string().optional(),
   usage: z.record(z.unknown()).optional(),
 });
 
-export type ChatFlowOutput = z.infer<typeof ChatFlowOutputSchema>;
+export type FlowOutput = z.infer<typeof FlowOutputSchema>;

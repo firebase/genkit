@@ -24,7 +24,7 @@ import { ai } from './index';
  * streamSchema: z.string()  — plain text deltas (simplest stream format).
  *
  * Works with both the default SSE mode and streamProtocol: 'text' mode
- * since it emits plain string chunks (not typed AiSdkChunk objects).
+ * since it emits plain string chunks (not typed StreamChunk objects).
  */
 export const completionFlow = ai.defineFlow(
   {

@@ -45,13 +45,13 @@ export {
 } from './dispatch.js';
 export { objectHandler, type ObjectHandlerOptions } from './object.js';
 export {
-  AiSdkChunkSchema,
-  ChatFlowOutputSchema,
+  StreamChunkSchema,
+  FlowOutputSchema,
   ContentPartSchema,
   MessagesSchema,
   z,
-  type AiSdkChunk,
-  type ChatFlowOutput,
+  type StreamChunk,
+  type FlowOutput,
   type ContentPart,
   type GenkitMessage,
   type Messages,

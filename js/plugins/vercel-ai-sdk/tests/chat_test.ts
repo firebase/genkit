@@ -18,13 +18,13 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { chatHandler } from '../src/chat.js';
 import { type UIMessage } from '../src/convert.js';
-import { type AiSdkChunk } from '../src/schema.js';
+import { type StreamChunk } from '../src/schema.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function fakeFlow(chunks: (string | AiSdkChunk)[], finalOutput?: unknown) {
+function fakeFlow(chunks: (string | StreamChunk)[], finalOutput?: unknown) {
   return {
     stream(_input: unknown, _opts?: unknown) {
       return {
@@ -114,8 +114,8 @@ describe('chatHandler — text streaming', () => {
     const events = await parseSSE(
       await chatHandler(
         fakeFlow([
-          { type: 'text', delta: 'Hi' } as AiSdkChunk,
-          { type: 'text', delta: '!' } as AiSdkChunk,
+          { type: 'text', delta: 'Hi' } as StreamChunk,
+          { type: 'text', delta: '!' } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -141,8 +141,8 @@ describe('chatHandler — reasoning chunks', () => {
     const events = await parseSSE(
       await chatHandler(
         fakeFlow([
-          { type: 'reasoning', delta: 'hmm...' } as AiSdkChunk,
-          { type: 'text', delta: 'Answer' } as AiSdkChunk,
+          { type: 'reasoning', delta: 'hmm...' } as StreamChunk,
+          { type: 'text', delta: 'Answer' } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -167,13 +167,13 @@ describe('chatHandler — tool chunks', () => {
             toolCallId: 'tc1',
             toolName: 'search',
             inputDelta: '{"q":',
-          } as AiSdkChunk,
+          } as StreamChunk,
           {
             type: 'tool-request',
             toolCallId: 'tc1',
             toolName: 'search',
             inputDelta: '"hi"}',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -190,7 +190,7 @@ describe('chatHandler — tool chunks', () => {
             toolCallId: 'tc1',
             toolName: 'search',
             input: { q: 'genkit' },
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -209,7 +209,7 @@ describe('chatHandler — tool chunks', () => {
             type: 'tool-result',
             toolCallId: 'tc1',
             output: { hits: 3 },
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -233,7 +233,7 @@ describe('chatHandler — file output', () => {
             type: 'file',
             url: 'data:image/png;base64,abc',
             mediaType: 'image/png',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -259,7 +259,7 @@ describe('chatHandler — source citations', () => {
             sourceId: 's1',
             url: 'https://genkit.dev',
             title: 'Genkit Docs',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -279,7 +279,7 @@ describe('chatHandler — source citations', () => {
             mediaType: 'application/pdf',
             title: 'Report',
             filename: 'report.pdf',
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -303,7 +303,7 @@ describe('chatHandler — custom data', () => {
             type: 'data',
             id: 'usage',
             value: { inputTokens: 10 },
-          } as AiSdkChunk,
+          } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -324,9 +324,9 @@ describe('chatHandler — step markers', () => {
     const events = await parseSSE(
       await chatHandler(
         fakeFlow([
-          { type: 'step-start' } as AiSdkChunk,
-          { type: 'text', delta: 'hi' } as AiSdkChunk,
-          { type: 'step-end' } as AiSdkChunk,
+          { type: 'step-start' } as StreamChunk,
+          { type: 'text', delta: 'hi' } as StreamChunk,
+          { type: 'step-end' } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -338,9 +338,9 @@ describe('chatHandler — step markers', () => {
     const events = await parseSSE(
       await chatHandler(
         fakeFlow([
-          { type: 'text', delta: 'A' } as AiSdkChunk,
-          { type: 'step-end' } as AiSdkChunk,
-          { type: 'text', delta: 'B' } as AiSdkChunk,
+          { type: 'text', delta: 'A' } as StreamChunk,
+          { type: 'step-end' } as StreamChunk,
+          { type: 'text', delta: 'B' } as StreamChunk,
         ])
       )(makeRequest([userMsg]))
     );
@@ -355,7 +355,7 @@ describe('chatHandler — step markers', () => {
 
 describe('chatHandler — finish data', () => {
   it('emits finish with finishReason and usage in messageMetadata', async () => {
-    const flow = fakeFlow([{ type: 'text', delta: 'hi' } as AiSdkChunk], {
+    const flow = fakeFlow([{ type: 'text', delta: 'hi' } as StreamChunk], {
       finishReason: 'stop',
       usage: { inputTokens: 5, outputTokens: 10 },
     });
@@ -372,7 +372,7 @@ describe('chatHandler — finish data', () => {
 
   it('emits no finish event when flow returns plain string (no structured output)', async () => {
     const flow = fakeFlow(
-      [{ type: 'text', delta: 'hi' } as AiSdkChunk],
+      [{ type: 'text', delta: 'hi' } as StreamChunk],
       'plain string output'
     );
     const events = await parseSSE(

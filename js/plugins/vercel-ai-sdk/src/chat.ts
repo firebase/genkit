@@ -23,7 +23,7 @@ import {
   createDispatchState,
   dispatchChunk,
 } from './dispatch.js';
-import { ChatFlowOutputSchema, MessagesSchema } from './schema.js';
+import { FlowOutputSchema, MessagesSchema } from './schema.js';
 import {
   headersToRecord,
   normalizeFinishReason,
@@ -150,7 +150,7 @@ export function chatHandler(
 
         // Surface finishReason + usage from the flow's return value
         const finalOutput = await output.catch(() => undefined);
-        const parsed = ChatFlowOutputSchema.safeParse(finalOutput);
+        const parsed = FlowOutputSchema.safeParse(finalOutput);
         if (parsed.success) {
           const finishReason = normalizeFinishReason(parsed.data.finishReason);
           const usage = parsed.data.usage;

@@ -15,8 +15,8 @@
  */
 
 import {
-  AiSdkChunkSchema,
-  ChatFlowOutputSchema,
+  StreamChunkSchema,
+  FlowOutputSchema,
   MessagesSchema,
 } from '@genkit-ai/vercel-ai-sdk';
 import type { MessageData } from 'genkit';
@@ -27,9 +27,9 @@ import { ai } from './index';
  *
  * inputSchema:  MessagesSchema  — receives the full conversation history
  *               (already converted from UIMessage[] by chatHandler).
- * streamSchema: AiSdkChunkSchema — drives the full useChat protocol
+ * streamSchema: StreamChunkSchema — drives the full useChat protocol
  *               (text, reasoning, tools, citations, step markers, etc.).
- * outputSchema: ChatFlowOutputSchema — populates finish-message with
+ * outputSchema: FlowOutputSchema — populates finish-message with
  *               finishReason and token usage.
  *
  * Because input.messages is in Genkit's native Part format (after the
@@ -39,8 +39,8 @@ export const chatFlow = ai.defineFlow(
   {
     name: 'chat',
     inputSchema: MessagesSchema,
-    outputSchema: ChatFlowOutputSchema,
-    streamSchema: AiSdkChunkSchema,
+    outputSchema: FlowOutputSchema,
+    streamSchema: StreamChunkSchema,
   },
   async (input, { sendChunk }) => {
     const { stream, response } = ai.generateStream({

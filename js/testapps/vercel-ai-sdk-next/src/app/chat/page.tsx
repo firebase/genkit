@@ -20,7 +20,7 @@
  * useChat demo
  *
  * Server: src/app/api/chat/route.ts  →  chatHandler(chatFlow)
- * Flow:   src/genkit/chat.ts         →  MessagesSchema + AiSdkChunkSchema
+ * Flow:   src/genkit/chat.ts         →  MessagesSchema + StreamChunkSchema
  *
  * AI SDK v6 / @ai-sdk/react v3 API:
  *   - Input state is managed manually (no handleInputChange/handleSubmit).
@@ -58,7 +58,7 @@ export default function ChatPage() {
       <h1>useChat demo</h1>
       <p>
         Backed by <code>chatHandler</code> + a Genkit flow using{' '}
-        <code>MessagesSchema</code> and <code>AiSdkChunkSchema</code>.
+        <code>MessagesSchema</code> and <code>StreamChunkSchema</code>.
       </p>
 
       <div className="messages">

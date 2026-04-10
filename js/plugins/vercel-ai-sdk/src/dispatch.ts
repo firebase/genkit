@@ -15,13 +15,13 @@
  */
 
 /**
- * Maps AiSdkChunk union values (and plain strings for backward-compat) to
+ * Maps StreamChunk union values (and plain strings for backward-compat) to
  * `UIMessageStreamWriter.write()` calls, tracking which text/reasoning blocks
  * are currently open.
  */
 
 import type { UIMessageStreamWriter } from 'ai';
-import { AiSdkChunkSchema, type AiSdkChunk } from './schema.js';
+import { StreamChunkSchema, type StreamChunk } from './schema.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -51,7 +51,7 @@ export function createDispatchState(): DispatchState {
  * `UIMessageStreamWriter`.
  *
  * Accepts both plain strings (backward-compat, treated as text deltas) and
- * typed `AiSdkChunk` objects. Unknown shapes are silently dropped.
+ * typed `StreamChunk` objects. Unknown shapes are silently dropped.
  */
 export function dispatchChunk(
   writer: UIMessageStreamWriter,
@@ -70,9 +70,9 @@ export function dispatchChunk(
     return;
   }
 
-  const parsed = AiSdkChunkSchema.safeParse(rawChunk);
+  const parsed = StreamChunkSchema.safeParse(rawChunk);
   if (!parsed.success) return;
-  const chunk: AiSdkChunk = parsed.data;
+  const chunk: StreamChunk = parsed.data;
 
   switch (chunk.type) {
     case 'text': {

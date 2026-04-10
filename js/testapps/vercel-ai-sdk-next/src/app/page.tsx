@@ -37,7 +37,7 @@ export default function Home() {
       <p>
         <strong>chatHandler</strong> — wraps a Genkit flow that uses{' '}
         <code>MessagesSchema</code> as <code>inputSchema</code> and{' '}
-        <code>AiSdkChunkSchema</code> as <code>streamSchema</code>. Converts
+        <code>StreamChunkSchema</code> as <code>streamSchema</code>. Converts
         UIMessage history on every request and streams all Vercel AI SDK
         data-stream event types (text, reasoning, tools, citations, step
         markers, custom data).
