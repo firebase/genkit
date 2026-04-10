@@ -127,6 +127,10 @@ describe('LocalFileLogStore', () => {
 
     const result = await logStore.list({ traceId: 'trace-missing-id' });
     assert.strictEqual(result.logs.length, 1);
-    assert.ok(result.logs[0].logId.includes('trace-missing-id'));
+    assert.ok(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        result.logs[0].logId
+      )
+    );
   });
 });

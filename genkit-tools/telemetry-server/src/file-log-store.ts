@@ -22,6 +22,7 @@ import {
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Mutex } from 'async-mutex';
+import crypto from 'crypto';
 import fs from 'fs';
 import lockfile from 'lockfile';
 import path from 'path';
@@ -76,10 +77,8 @@ export class LocalFileLogStore implements LogStore {
 
       const linesToAppend = logs.map((log) => {
         // Ensure log id exists if not provided
-        if (!log.logId && log.traceId && log.spanId) {
-          log.logId = `${log.traceId}-${log.spanId}-${log.timestamp}-${Math.random().toString(36).substring(7)}`;
-        } else if (!log.logId) {
-          log.logId = `${log.timestamp}-${Math.random().toString(36).substring(7)}`;
+        if (!log.logId) {
+          log.logId = crypto.randomUUID();
         }
         const line = JSON.stringify(log) + '\n';
         const length = Buffer.byteLength(line, 'utf8');
