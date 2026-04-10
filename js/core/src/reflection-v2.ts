@@ -494,7 +494,11 @@ export class ReflectionServerV2 {
       this.activeActions.delete(traceId);
       this.sendResponse(request.id, { message: 'Action cancelled' });
     } else {
-      this.sendError(request.id, -32602, 'Action not found or already completed');
+      this.sendError(
+        request.id,
+        -32602,
+        'Action not found or already completed'
+      );
     }
   }
 
