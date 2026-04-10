@@ -242,9 +242,9 @@ export class GenkitAI {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    parts:
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
+    opts:
+      | GenerateStreamOptions<O, CustomOptions>
+      | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
   ): GenerateStreamResponse<z.infer<O>>;
 
   generateStream<
