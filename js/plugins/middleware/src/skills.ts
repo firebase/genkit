@@ -51,7 +51,7 @@ export const skills: GenerateMiddleware<typeof SkillsOptionsSchema> =
       >();
 
       function parseFrontmatter(content: string) {
-        const match = /^---\r?\n([^]*?)\r?\n---/.exec(content);
+        const match = /^---\s*\r?\n([^]*?)\r?\n---/.exec(content);
         if (!match) return null;
 
         const yaml = match[1];

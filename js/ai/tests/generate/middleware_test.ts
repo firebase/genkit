@@ -261,15 +261,12 @@ describe('generateMiddleware', () => {
 
     // Act as a plugin registering the middleware
     const myPlugin = preRegisteredMw.plugin({ pluginOption: 'plugin_config' });
-    assert.ok(myPlugin.generateMiddleware);
-    assert.deepStrictEqual(
-      (myPlugin.generateMiddleware()[0] as any).pluginOptions,
-      {
-        pluginOption: 'plugin_config',
-      }
-    );
+    assert.ok(myPlugin.middleware);
+    assert.deepStrictEqual((myPlugin.middleware()[0] as any).pluginOptions, {
+      pluginOption: 'plugin_config',
+    });
 
-    const middlewares = myPlugin.generateMiddleware();
+    const middlewares = myPlugin.middleware();
     assert.strictEqual(middlewares.length, 1);
     const mw = middlewares[0];
 

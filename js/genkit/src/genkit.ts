@@ -169,7 +169,6 @@ export interface GenkitOptions {
  * There may be multiple Genkit instances in a single codebase.
  */
 export class Genkit extends GenkitAI implements HasRegistry {
-  readonly registry: Registry;
   /** Developer-configured options. */
   readonly options: GenkitOptions;
   /** Reflection server for this registry. May be null if not started. */
@@ -184,7 +183,6 @@ export class Genkit extends GenkitAI implements HasRegistry {
   constructor(options?: GenkitOptions) {
     const registry = new Registry();
     super(registry);
-    this.registry = registry;
     this.options = options || {};
     if (this.options.context) {
       this.registry.context = this.options.context;
@@ -668,7 +666,7 @@ export class Genkit extends GenkitAI implements HasRegistry {
     plugins.forEach((plugin) => {
       if (isPluginV2(plugin)) {
         logger.debug(`Registering v2 plugin ${plugin.name}...`);
-        plugin.generateMiddleware?.()?.forEach((middleware) => {
+        plugin.middleware?.()?.forEach((middleware) => {
           activeRegistry.registerValue(
             'middleware',
             middleware.name,
