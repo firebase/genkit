@@ -100,7 +100,7 @@ describe('toStreamChunks', () => {
   it('maps tool requests using ref as toolCallId', () => {
     const result = toStreamChunks(
       fakeChunk({
-        toolRequests: [
+        content: [
           {
             toolRequest: {
               ref: 'call-1',
@@ -124,7 +124,7 @@ describe('toStreamChunks', () => {
   it('falls back to name when ref is missing', () => {
     const result = toStreamChunks(
       fakeChunk({
-        toolRequests: [{ toolRequest: { name: 'search', input: {} } }],
+        content: [{ toolRequest: { name: 'search', input: {} } }],
       })
     );
     assert.equal((result[0] as any).toolCallId, 'search');
@@ -133,7 +133,7 @@ describe('toStreamChunks', () => {
   it('handles multiple tool requests', () => {
     const result = toStreamChunks(
       fakeChunk({
-        toolRequests: [
+        content: [
           { toolRequest: { ref: 'c1', name: 'a', input: {} } },
           { toolRequest: { ref: 'c2', name: 'b', input: {} } },
         ],
@@ -147,8 +147,10 @@ describe('toStreamChunks', () => {
   it('emits media before tool requests', () => {
     const result = toStreamChunks(
       fakeChunk({
-        content: [{ media: { url: 'u1', contentType: 'image/png' } }],
-        toolRequests: [{ toolRequest: { ref: 'c1', name: 'a', input: {} } }],
+        content: [
+          { media: { url: 'u1', contentType: 'image/png' } },
+          { toolRequest: { ref: 'c1', name: 'a', input: {} } },
+        ],
       })
     );
     assert.equal(result[0].type, 'file');

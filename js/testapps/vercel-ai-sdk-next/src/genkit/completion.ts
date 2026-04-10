@@ -14,34 +14,42 @@
  * limitations under the License.
  */
 
+import {
+  FlowOutputSchema,
+  StreamChunkSchema,
+  toFlowOutput,
+  toStreamChunks,
+} from '@genkit-ai/vercel-ai-sdk';
 import { z } from 'genkit';
 import { ai } from './index';
 
 /**
  * Completion flow for use with completionHandler + useCompletion.
  *
- * inputSchema:  z.string()  — the raw prompt string sent by useCompletion.
- * streamSchema: z.string()  — plain text deltas (simplest stream format).
+ * inputSchema:  z.string()          — the raw prompt string sent by useCompletion.
+ * streamSchema: StreamChunkSchema   — typed chunks for the full SSE protocol.
+ * outputSchema: FlowOutputSchema    — finishReason + usage for the finish event.
  *
- * Works with both the default SSE mode and streamProtocol: 'text' mode
- * since it emits plain string chunks (not typed StreamChunk objects).
+ * Extra fields sent by the client via useCompletion({ body: {...} }) are
+ * available in the flow's context (set by completionHandler's contextProvider).
+ * Access them via ai.currentContext() or pass them to ai.generateStream().
  */
 export const completionFlow = ai.defineFlow(
   {
     name: 'completion',
     inputSchema: z.string(),
-    outputSchema: z.string(),
-    streamSchema: z.string(),
+    outputSchema: FlowOutputSchema,
+    streamSchema: StreamChunkSchema,
   },
   async (prompt, { sendChunk }) => {
     const { stream, response } = ai.generateStream(prompt);
 
     for await (const chunk of stream) {
-      if (chunk.text) {
-        sendChunk(chunk.text);
+      for (const sc of toStreamChunks(chunk)) {
+        sendChunk(sc);
       }
     }
 
-    return (await response).text;
+    return toFlowOutput(await response);
   }
 );

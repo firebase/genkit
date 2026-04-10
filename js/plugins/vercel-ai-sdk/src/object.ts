@@ -14,9 +14,22 @@
  * limitations under the License.
  */
 
-import { z, type Action } from 'genkit/beta';
 import { type ContextProvider } from 'genkit/context';
 import { headersToRecord, resolveStatus } from './utils.js';
+
+/**
+ * A Genkit flow compatible with `objectHandler`.
+ *
+ * Your flow must use `streamSchema: z.string()` — each chunk emitted via
+ * `sendChunk` should be a fragment of the JSON string being produced.
+ * The `inputSchema` is unconstrained (any JSON body is accepted).
+ */
+export type ObjectFlow = {
+  stream(
+    input?: any,
+    opts?: any
+  ): { stream: AsyncIterable<unknown>; output: Promise<unknown> };
+};
 
 /**
  * Options for `objectHandler`.
@@ -79,7 +92,7 @@ export interface ObjectHandlerOptions<
 export function objectHandler<
   Ctx extends Record<string, unknown> = Record<string, unknown>,
 >(
-  flow: Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodString>,
+  flow: ObjectFlow,
   opts?: ObjectHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
@@ -128,13 +141,12 @@ export function objectHandler<
 
         for await (const chunk of stream) {
           if (chunk) {
-            await writer.write(encoder.encode(chunk));
+            await writer.write(encoder.encode(String(chunk)));
           }
         }
       } catch (err) {
         // Do not write to the stream — any appended text would corrupt the
         // partial JSON already sent. Close the stream so useObject fires onError.
-        console.error('[objectHandler]', err);
         opts?.onError?.(err);
       } finally {
         await writer.close();
@@ -146,7 +158,6 @@ export function objectHandler<
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
-        'Transfer-Encoding': 'chunked',
       },
     });
   };

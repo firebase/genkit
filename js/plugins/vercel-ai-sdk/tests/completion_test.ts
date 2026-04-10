@@ -59,7 +59,7 @@ function makeReq(prompt: string) {
 }
 
 describe('completionHandler — lifecycle', () => {
-  it('emits text events and [DONE]', async () => {
+  it('emits start, text events, and [DONE]', async () => {
     const events = await parseSSE(
       await completionHandler(
         fakeFlow([
@@ -68,6 +68,7 @@ describe('completionHandler — lifecycle', () => {
         ])
       )(makeReq('tell me a story'))
     );
+    assert.equal((events[0] as any).type, 'start');
     assert.equal(eventsOfType(events, 'text-start').length, 1);
     assert.equal(eventsOfType(events, 'text-delta').length, 2);
     assert.equal(eventsOfType(events, 'text-end').length, 1);
@@ -328,24 +329,18 @@ describe('completionHandler — response format', () => {
 });
 
 describe('completionHandler — streamProtocol: text', () => {
-  it('returns text/plain with raw text chunks', async () => {
-    const res = await completionHandler(fakeFlow(['Hello', ', ', 'world!']), {
-      streamProtocol: 'text',
-    })(makeReq('hi'));
-    assert.equal(res.status, 200);
-    assert.ok(res.headers.get('Content-Type')?.includes('text/plain'));
-    assert.equal(await res.text(), 'Hello, world!');
-  });
-
-  it('extracts delta from typed text chunks', async () => {
+  it('returns text/plain and forwards text chunk deltas', async () => {
     const res = await completionHandler(
       fakeFlow([
-        { type: 'text', delta: 'Hi' } as StreamChunk,
-        { type: 'text', delta: '!' } as StreamChunk,
+        { type: 'text', delta: 'Hello' } as StreamChunk,
+        { type: 'text', delta: ', ' } as StreamChunk,
+        { type: 'text', delta: 'world!' } as StreamChunk,
       ]),
       { streamProtocol: 'text' }
     )(makeReq('hi'));
-    assert.equal(await res.text(), 'Hi!');
+    assert.equal(res.status, 200);
+    assert.ok(res.headers.get('Content-Type')?.includes('text/plain'));
+    assert.equal(await res.text(), 'Hello, world!');
   });
 
   it('ignores non-text typed chunks', async () => {
@@ -359,10 +354,15 @@ describe('completionHandler — streamProtocol: text', () => {
     assert.equal(await res.text(), 'answer');
   });
 
-  it('skips empty string chunks', async () => {
-    const res = await completionHandler(fakeFlow(['', 'ok', '']), {
-      streamProtocol: 'text',
-    })(makeReq('hi'));
+  it('skips empty text deltas', async () => {
+    const res = await completionHandler(
+      fakeFlow([
+        { type: 'text', delta: '' } as StreamChunk,
+        { type: 'text', delta: 'ok' } as StreamChunk,
+        { type: 'text', delta: '' } as StreamChunk,
+      ]),
+      { streamProtocol: 'text' }
+    )(makeReq('hi'));
     assert.equal(await res.text(), 'ok');
   });
 });

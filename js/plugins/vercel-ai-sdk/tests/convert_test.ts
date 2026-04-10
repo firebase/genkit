@@ -27,7 +27,12 @@ function msg(
   parts: UIMessage['parts'],
   content?: string
 ): UIMessage {
-  return { id: 'x', role, parts, content };
+  return {
+    id: 'x',
+    role,
+    parts,
+    ...(content !== undefined ? { content } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -75,17 +80,15 @@ describe('toGenkitMessages', () => {
     ]);
   });
 
-  it('converts tool-invocation (state: call) → toolRequest only', () => {
+  it('converts dynamic-tool (state: input-available) → toolRequest only', () => {
     const result = toGenkitMessages([
       msg('assistant', [
         {
-          type: 'tool-invocation',
-          toolInvocation: {
-            toolCallId: 'tc1',
-            toolName: 'search',
-            state: 'call',
-            args: { q: 'genkit' },
-          },
+          type: 'dynamic-tool',
+          toolCallId: 'tc1',
+          toolName: 'search',
+          state: 'input-available',
+          input: { q: 'genkit' },
         } as any,
       ]),
     ]);
@@ -96,18 +99,16 @@ describe('toGenkitMessages', () => {
     ]);
   });
 
-  it('converts tool-invocation (state: result) → model + tool messages', () => {
+  it('converts dynamic-tool (state: output-available) → model + tool messages', () => {
     const result = toGenkitMessages([
       msg('assistant', [
         {
-          type: 'tool-invocation',
-          toolInvocation: {
-            toolCallId: 'tc1',
-            toolName: 'search',
-            state: 'result',
-            args: { q: 'genkit' },
-            result: { hits: 5 },
-          },
+          type: 'dynamic-tool',
+          toolCallId: 'tc1',
+          toolName: 'search',
+          state: 'output-available',
+          input: { q: 'genkit' },
+          output: { hits: 5 },
         } as any,
       ]),
     ]);
@@ -119,6 +120,24 @@ describe('toGenkitMessages', () => {
     assert.equal(result[1].role, 'tool');
     assert.deepEqual(result[1].content, [
       { toolResponse: { ref: 'tc1', name: 'search', output: { hits: 5 } } },
+    ]);
+  });
+
+  it('converts static tool-${name} part → toolRequest', () => {
+    const result = toGenkitMessages([
+      msg('assistant', [
+        {
+          type: 'tool-search',
+          toolCallId: 'tc1',
+          state: 'input-available',
+          input: { q: 'genkit' },
+        } as any,
+      ]),
+    ]);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].role, 'model');
+    assert.deepEqual(result[0].content, [
+      { toolRequest: { ref: 'tc1', name: 'search', input: { q: 'genkit' } } },
     ]);
   });
 
@@ -142,26 +161,17 @@ describe('toGenkitMessages', () => {
     );
   });
 
-  it('throws on legacy tool role', () => {
-    assert.throws(
-      () => toGenkitMessages([msg('tool', [])]),
-      /UIMessage with role 'tool' is not supported/
-    );
-  });
-
-  it('handles assistant with text + tool-invocation result → 3 messages', () => {
+  it('handles assistant with text + tool output-available → model + tool messages', () => {
     const result = toGenkitMessages([
       msg('assistant', [
         { type: 'text', text: 'Let me check...' },
         {
-          type: 'tool-invocation',
-          toolInvocation: {
-            toolCallId: 'tc2',
-            toolName: 'calc',
-            state: 'result',
-            args: { expr: '2+2' },
-            result: 4,
-          },
+          type: 'dynamic-tool',
+          toolCallId: 'tc2',
+          toolName: 'calc',
+          state: 'output-available',
+          input: { expr: '2+2' },
+          output: 4,
         } as any,
       ]),
     ]);

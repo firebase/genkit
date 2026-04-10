@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit/beta';
+import { MessageSchema, z } from 'genkit/beta';
 
 // ---------------------------------------------------------------------------
 // StreamChunkSchema
@@ -94,6 +94,51 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
   }),
 
   /**
+   * A tool input parsing error — maps to `tool-input-error`.
+   * Emitted when a tool's input fails validation or parsing.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
+   */
+  z.object({
+    type: z.literal('tool-input-error'),
+    toolCallId: z.string(),
+    toolName: z.string(),
+    input: z.unknown(),
+    errorText: z.string(),
+  }),
+
+  /**
+   * A tool execution error — maps to `tool-output-error`.
+   * Emitted when a tool call fails during execution.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
+   */
+  z.object({
+    type: z.literal('tool-output-error'),
+    toolCallId: z.string(),
+    errorText: z.string(),
+  }),
+
+  /**
+   * A tool output denied — maps to `tool-output-denied`.
+   * Emitted when a tool's output is blocked or denied.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
+   */
+  z.object({
+    type: z.literal('tool-output-denied'),
+    toolCallId: z.string(),
+  }),
+
+  /**
+   * A tool approval request — maps to `tool-approval-request`.
+   * Emitted to request human-in-the-loop approval before executing a tool.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
+   */
+  z.object({
+    type: z.literal('tool-approval-request'),
+    approvalId: z.string(),
+    toolCallId: z.string(),
+  }),
+
+  /**
    * Arbitrary custom data — maps to a `data-${id}` wire event.
    * Accessible on the client via the `onData` callback in `useChat`.
    * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream protocol}
@@ -161,63 +206,26 @@ export type StreamChunk = z.infer<typeof StreamChunkSchema>;
 // ---------------------------------------------------------------------------
 
 /**
- * Genkit-native Part schemas.  These mirror Genkit's own Part types so that
- * `input.messages` from a flow using `MessagesSchema` as `inputSchema` can be
- * passed directly to `ai.generateStream({ messages: input.messages })`.
- */
-export const ContentPartSchema = z.union([
-  z.object({ text: z.string() }),
-  z.object({
-    media: z.object({ url: z.string(), contentType: z.string().optional() }),
-  }),
-  z.object({
-    toolRequest: z.object({
-      name: z.string(),
-      ref: z.string().optional(),
-      input: z.unknown().optional(),
-    }),
-  }),
-  z.object({
-    toolResponse: z.object({
-      name: z.string(),
-      ref: z.string().optional(),
-      output: z.unknown().optional(),
-    }),
-  }),
-]);
-
-export type ContentPart = z.infer<typeof ContentPartSchema>;
-
-const GenkitMessageSchema = z.object({
-  role: z.enum(['user', 'model', 'system', 'tool']),
-  content: z.array(ContentPartSchema),
-});
-
-/**
  * Zod schema for the multi-turn chat input accepted by `chatHandler()`.
  * Use this as the `inputSchema` of your chat flow.
  *
- * Supports all four Genkit message roles (`user`, `model`, `system`, `tool`)
- * and both flat string content and structured content parts (text, media,
- * tool-request, tool-result).
+ * Uses Genkit's own `MessageSchema` directly, so `input.messages` can be
+ * passed straight to `ai.generateStream({ messages: input.messages })`
+ * without type casts.
  *
  * The optional `body` field carries any extra fields the client sends via
  * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat#body `useChat({ body: {...} })`},
  * so flows can access per-request metadata (e.g. a session ID, selected
  * persona, or RAG filter) via `input.body`.
  *
- * Plain `{ role, content: string }` messages from the original schema are
- * still accepted — this is a strict superset.
- *
  * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat useChat() reference}
  */
 export const MessagesSchema = z.object({
-  messages: z.array(GenkitMessageSchema),
+  messages: z.array(MessageSchema),
   /** Extra fields sent by the client via useChat({ body: {...} }). */
   body: z.record(z.unknown()).optional(),
 });
 
-export type GenkitMessage = z.infer<typeof GenkitMessageSchema>;
 export type Messages = z.infer<typeof MessagesSchema>;
 
 // ---------------------------------------------------------------------------

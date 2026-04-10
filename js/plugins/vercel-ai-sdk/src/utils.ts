@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { FinishReason } from 'ai';
 import { getHttpStatus } from 'genkit/context';
 
 // ---------------------------------------------------------------------------
@@ -44,16 +45,7 @@ export function resolveStatus(err: unknown): number {
 // Finish reason normalisation
 // ---------------------------------------------------------------------------
 
-/** Valid finish reasons accepted by the AI SDK `uiMessageChunkSchema`. */
-export type FinishReason =
-  | 'stop'
-  | 'length'
-  | 'content-filter'
-  | 'tool-calls'
-  | 'error'
-  | 'other';
-
-const VALID_FINISH_REASONS: FinishReason[] = [
+const VALID_FINISH_REASONS: readonly FinishReason[] = [
   'stop',
   'length',
   'content-filter',

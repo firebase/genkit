@@ -42,7 +42,8 @@ export const notificationsFlow = ai.defineFlow(
       output: { schema: NotificationsSchema },
       prompt: `Generate 3 mobile app notifications about: "${topic}".
 Return ONLY valid JSON (no markdown, no explanation) matching this structure:
-{"notifications":[{"title":"...","body":"...","icon":"..."}]}`,
+{"notifications":[{"title":"...","body":"...","icon":"<single emoji>"}]}
+Use a single relevant emoji for the icon field.`,
     });
 
     for await (const chunk of stream) {

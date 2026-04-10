@@ -21,7 +21,7 @@ import {
   toFlowOutput,
   toStreamChunks,
 } from '@genkit-ai/vercel-ai-sdk';
-import { z, type MessageData } from 'genkit';
+import { z } from 'genkit';
 import { ai } from './index';
 
 /**
@@ -75,7 +75,7 @@ export const chatFlow = ai.defineFlow(
       system:
         'You are a helpful assistant. Be concise. ' +
         'You have access to a getWeather tool — use it when weather is mentioned.',
-      messages: input.messages as MessageData[],
+      messages: input.messages,
       tools: [getWeather],
     });
 

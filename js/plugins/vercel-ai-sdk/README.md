@@ -28,8 +28,10 @@ export const POST = chatHandler(chatFlow);
 
 ```ts
 // src/genkit/chat.ts
-import { FlowOutputSchema, MessagesSchema, StreamChunkSchema } from '@genkit-ai/vercel-ai-sdk';
-import type { MessageData } from 'genkit';
+import {
+  FlowOutputSchema, MessagesSchema, StreamChunkSchema,
+  toFlowOutput, toStreamChunks,
+} from '@genkit-ai/vercel-ai-sdk';
 
 export const chatFlow = ai.defineFlow(
   {
@@ -40,20 +42,19 @@ export const chatFlow = ai.defineFlow(
   },
   async (input, { sendChunk }) => {
     const { stream, response } = ai.generateStream({
-      messages: input.messages as MessageData[],
+      messages: input.messages,
     });
     for await (const chunk of stream) {
-      if (chunk.text) sendChunk({ type: 'text', delta: chunk.text });
+      for (const c of toStreamChunks(chunk)) sendChunk(c);
     }
-    const res = await response;
-    return { finishReason: res.finishReason, usage: res.usage };
+    return toFlowOutput(await response);
   }
 );
 ```
 
 ### `completionHandler` — `useCompletion()`
 
-Wraps a flow that takes `z.string()` as input. Supports both SSE (`'data'`) and plain text (`'text'`) stream protocols.
+Wraps a flow that takes `z.string()` as input and uses `StreamChunkSchema` as `streamSchema`. Supports both SSE (`'data'`) and plain text (`'text'`) stream protocols — in text mode only `{ type: 'text', delta }` chunks are forwarded; all other chunk types are skipped.
 
 ```ts
 // src/app/api/completion/route.ts
@@ -87,6 +88,10 @@ A discriminated union flows can use as `streamSchema` to drive the full UI Messa
 | `{ type: 'reasoning', delta }` | `reasoning-start` (lazy) + `reasoning-delta` |
 | `{ type: 'tool-request', toolCallId, toolName, inputDelta? \| input? }` | `tool-input-start` + `tool-input-delta` or `tool-input-available` |
 | `{ type: 'tool-result', toolCallId, output }` | `tool-output-available` |
+| `{ type: 'tool-input-error', toolCallId, toolName, input, errorText }` | `tool-input-start` + `tool-input-error` |
+| `{ type: 'tool-output-error', toolCallId, errorText }` | `tool-output-error` |
+| `{ type: 'tool-output-denied', toolCallId }` | `tool-output-denied` |
+| `{ type: 'tool-approval-request', approvalId, toolCallId }` | `tool-approval-request` |
 | `{ type: 'file', url, mediaType }` | `file` |
 | `{ type: 'source-url', sourceId, url, title? }` | `source-url` |
 | `{ type: 'source-document', sourceId, mediaType, title, filename? }` | `source-document` |
@@ -94,7 +99,7 @@ A discriminated union flows can use as `streamSchema` to drive the full UI Messa
 | `{ type: 'step-start' }` | `start-step` |
 | `{ type: 'step-end' }` | `finish-step` + closes open blocks |
 
-In `completionHandler` with `streamProtocol: 'text'`, plain `string` chunks are also accepted (forwarded as raw text). In SSE mode, only typed `StreamChunk` objects are dispatched.
+In `completionHandler` with `streamProtocol: 'text'`, only `{ type: 'text', delta }` chunks are forwarded; all other chunk types are skipped.
 
 ## Auth / Context
 
@@ -110,7 +115,9 @@ export const POST = chatHandler(chatFlow, {
 });
 ```
 
-## Client-supplied context (`useChat` body passthrough)
+## Client-supplied context
+
+### `useChat` body passthrough
 
 Extra fields sent by the client via `useChat({ body: { ... } })` are forwarded to the flow as `input.body`:
 
@@ -119,6 +126,19 @@ Extra fields sent by the client via `useChat({ body: { ... } })` are forwarded t
 const { messages } = useChat({ api: '/api/chat', body: { sessionId: 'abc' } });
 
 // Flow receives: { messages: [...], body: { sessionId: 'abc' } }
+```
+
+### `useCompletion` body passthrough
+
+Extra fields sent via `useCompletion({ body: { ... } })` are available in `contextProvider`. Place anything the flow needs into the returned context object — Genkit stores it in async-local storage so `ai.generate()` calls and tools within the flow can access it automatically:
+
+```ts
+export const POST = completionHandler(completionFlow, {
+  contextProvider: async ({ headers, input }) => {
+    const token = headers['authorization']?.slice(7);
+    return { userId: await verifyToken(token), sessionId: input.sessionId };
+  },
+});
 ```
 
 ## Framework compatibility

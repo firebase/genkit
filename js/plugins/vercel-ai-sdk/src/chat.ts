@@ -14,21 +14,40 @@
  * limitations under the License.
  */
 
-import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
-import { type Action } from 'genkit/beta';
 import { type ContextProvider } from 'genkit/context';
 import { toGenkitMessages, type UIMessage } from './convert.js';
-import {
-  closeOpenBlocks,
-  createDispatchState,
-  dispatchChunk,
-} from './dispatch.js';
-import { FlowOutputSchema, MessagesSchema } from './schema.js';
-import {
-  headersToRecord,
-  normalizeFinishReason,
-  resolveStatus,
-} from './utils.js';
+import { createSSEResponse } from './stream.js';
+import { headersToRecord, resolveStatus } from './utils.js';
+
+/**
+ * Shape of the input `chatHandler` will pass to the flow.
+ *
+ * Kept as an **interface** (not `z.infer<>` alias) so that TypeScript
+ * preserves the name in error messages — a user who passes a string-input
+ * flow sees `'string' is not assignable to 'ChatFlowInput'` rather than a
+ * wall of expanded Zod generics.
+ */
+interface ChatFlowInput {
+  messages: unknown[];
+  body?: Record<string, unknown>;
+}
+
+/**
+ * A Genkit flow compatible with `chatHandler`.
+ *
+ * Your flow must use:
+ * - `inputSchema: MessagesSchema`
+ * - `streamSchema: StreamChunkSchema`
+ *
+ * The `outputSchema` is unconstrained (use `FlowOutputSchema` to populate
+ * `finishReason` and `usage` in the finish SSE event, or omit it).
+ */
+export type ChatFlow = {
+  stream(
+    input?: ChatFlowInput,
+    opts?: any
+  ): { stream: AsyncIterable<unknown>; output: Promise<unknown> };
+};
 
 /**
  * Options for `chatHandler`.
@@ -102,7 +121,7 @@ export interface ChatHandlerOptions<
 export function chatHandler<
   Ctx extends Record<string, unknown> = Record<string, unknown>,
 >(
-  flow: Action<typeof MessagesSchema, any, any>,
+  flow: ChatFlow,
   opts?: ChatHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
@@ -152,37 +171,12 @@ export function chatHandler<
     }
 
     // ---- Stream -----------------------------------------------------------
-    const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
-        const { stream: chunkStream, output } = flow.stream(flowInput as any, {
-          context,
-          abortSignal: req.signal,
-        });
-
-        const state = createDispatchState();
-        for await (const chunk of chunkStream) {
-          dispatchChunk(writer, chunk, state);
-        }
-        closeOpenBlocks(writer, state);
-
-        // Surface finishReason + usage from the flow's return value
-        const finalOutput = await output.catch(() => undefined);
-        const parsed = FlowOutputSchema.safeParse(finalOutput);
-        if (parsed.success) {
-          const finishReason = normalizeFinishReason(parsed.data.finishReason);
-          const usage = parsed.data.usage;
-          writer.write({
-            type: 'finish',
-            ...(finishReason ? { finishReason } : {}),
-            ...(usage ? { messageMetadata: { usage } } : {}),
-          });
-        }
-      },
-      onError: opts?.onError
-        ? (err: unknown) => opts.onError!(err) ?? 'An error occurred.'
-        : undefined,
+    return createSSEResponse({
+      flow,
+      input: flowInput,
+      context,
+      request: req,
+      onError: opts?.onError,
     });
-
-    return createUIMessageStreamResponse({ stream });
   };
 }

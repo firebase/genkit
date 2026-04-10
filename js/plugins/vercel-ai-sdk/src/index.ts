@@ -42,13 +42,6 @@ export {
   MessagesSchema,
   StreamChunkSchema,
   type FlowOutput,
-  type GenkitMessage,
   type Messages,
   type StreamChunk,
 } from './schema.js';
-export {
-  createTextStreamResponse,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-  type UIMessageStreamWriter,
-} from './writer.js';

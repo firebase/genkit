@@ -61,17 +61,15 @@ export function toStreamChunks(chunk: GenerateResponseChunk): StreamChunk[] {
         url: part.media.url,
         mediaType: part.media.contentType ?? 'application/octet-stream',
       });
+    } else if ('toolRequest' in part && part.toolRequest) {
+      const { ref, name, input } = part.toolRequest;
+      chunks.push({
+        type: 'tool-request',
+        toolCallId: ref ?? name,
+        toolName: name,
+        input,
+      });
     }
-  }
-
-  for (const part of chunk.toolRequests) {
-    const { ref, name, input } = part.toolRequest;
-    chunks.push({
-      type: 'tool-request',
-      toolCallId: ref ?? name,
-      toolName: name,
-      input,
-    });
   }
 
   return chunks;

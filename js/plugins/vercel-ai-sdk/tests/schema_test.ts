@@ -267,6 +267,47 @@ describe('StreamChunkSchema', () => {
     );
   });
 
+  it('accepts tool-input-error', () => {
+    assert.ok(
+      StreamChunkSchema.safeParse({
+        type: 'tool-input-error',
+        toolCallId: 'tc1',
+        toolName: 'search',
+        input: '{"bad',
+        errorText: 'Invalid JSON',
+      }).success
+    );
+  });
+
+  it('accepts tool-output-error', () => {
+    assert.ok(
+      StreamChunkSchema.safeParse({
+        type: 'tool-output-error',
+        toolCallId: 'tc1',
+        errorText: 'Tool execution failed',
+      }).success
+    );
+  });
+
+  it('accepts tool-output-denied', () => {
+    assert.ok(
+      StreamChunkSchema.safeParse({
+        type: 'tool-output-denied',
+        toolCallId: 'tc1',
+      }).success
+    );
+  });
+
+  it('accepts tool-approval-request', () => {
+    assert.ok(
+      StreamChunkSchema.safeParse({
+        type: 'tool-approval-request',
+        approvalId: 'a1',
+        toolCallId: 'tc1',
+      }).success
+    );
+  });
+
   it('accepts step-start and step-end', () => {
     assert.ok(StreamChunkSchema.safeParse({ type: 'step-start' }).success);
     assert.ok(StreamChunkSchema.safeParse({ type: 'step-end' }).success);

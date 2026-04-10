@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-import {
-  createTextStreamResponse,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-} from 'ai';
-import { z, type Action } from 'genkit/beta';
+import { createTextStreamResponse } from 'ai';
 import { type ContextProvider } from 'genkit/context';
-import {
-  closeOpenBlocks,
-  createDispatchState,
-  dispatchChunk,
-} from './dispatch.js';
-import { FlowOutputSchema, StreamChunkSchema } from './schema.js';
-import {
-  headersToRecord,
-  normalizeFinishReason,
-  resolveStatus,
-} from './utils.js';
+import { StreamChunkSchema } from './schema.js';
+import { createSSEResponse } from './stream.js';
+import { headersToRecord, resolveStatus } from './utils.js';
+
+/**
+ * A Genkit flow compatible with `completionHandler`.
+ *
+ * Your flow must use:
+ * - `inputSchema: z.string()`
+ * - `streamSchema: StreamChunkSchema`
+ *
+ * The `outputSchema` is unconstrained (use `FlowOutputSchema` to populate
+ * `finishReason` and `usage` in the finish SSE event, or omit it).
+ */
+export type CompletionFlow = {
+  stream(
+    input?: string,
+    opts?: any
+  ): { stream: AsyncIterable<unknown>; output: Promise<unknown> };
+};
 
 /**
  * Options for `completionHandler`.
@@ -62,8 +66,8 @@ export interface CompletionHandlerOptions<
    * - **`'text'`** — Raw `text/plain` streaming.
    *   Use when `useCompletion` is configured with
    *   {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion#streamProtocol `streamProtocol: 'text'`}.
-   *   In this mode only plain string chunks and `{ type: 'text', delta }` chunks
-   *   are forwarded; other typed chunks are ignored.
+   *   In this mode only `{ type: 'text', delta }` chunks are forwarded;
+   *   other typed chunks are ignored.
    */
   streamProtocol?: 'data' | 'text';
 }
@@ -74,13 +78,28 @@ export interface CompletionHandlerOptions<
  * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion `useCompletion()`}
  * protocol.
  *
- * The flow must accept `z.string()` as `inputSchema`.  For `streamSchema`:
+ * The flow must accept `z.string()` as `inputSchema` and use
+ * `StreamChunkSchema` as `streamSchema`.  In `'data'` mode all chunk types
+ * are forwarded; in `'text'` mode only `{ type: 'text', delta }` chunks are
+ * forwarded and all others are silently skipped.
  *
- * - **`StreamChunkSchema`** — emit typed chunks for the full protocol (only
- *   meaningful in `'data'` mode; in `'text'` mode only `{ type: 'text' }`
- *   chunks are forwarded).
- * - **`z.string()`** — emit plain text deltas; only useful with
- *   `streamProtocol: 'text'` (strings are silently ignored in SSE mode).
+ * ## Client-supplied context
+ *
+ * Extra fields sent by the client via
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion#body `useCompletion({ body: {...} })`}
+ * are available in `contextProvider` as `input.fieldName`.  Place anything
+ * the flow needs (session ID, user preferences, etc.) into the returned
+ * context object — Genkit stores it in async-local storage so `ai.generate()`
+ * calls and tools within the flow can access it automatically.
+ *
+ * ```ts
+ * export const POST = completionHandler(completionFlow, {
+ *   contextProvider: async ({ headers, input }) => {
+ *     const userId = await verifyToken(headers['authorization']?.slice(7));
+ *     return { userId, sessionId: input.sessionId };
+ *   },
+ * });
+ * ```
  *
  * ```ts
  * // src/app/api/completion/route.ts  (default SSE mode)
@@ -98,7 +117,7 @@ export interface CompletionHandlerOptions<
 export function completionHandler<
   Ctx extends Record<string, unknown> = Record<string, unknown>,
 >(
-  flow: Action<z.ZodString, any, any>,
+  flow: CompletionFlow,
   opts?: CompletionHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
@@ -129,7 +148,7 @@ export function completionHandler<
         context = await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
-          input: prompt,
+          input: body,
         });
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
@@ -151,16 +170,14 @@ export function completionHandler<
             abortSignal: req.signal,
           });
           for await (const chunk of stream) {
-            let text: string | undefined;
-            if (typeof chunk === 'string') {
-              text = chunk;
-            } else {
-              const parsed = StreamChunkSchema.safeParse(chunk);
-              if (parsed.success && parsed.data.type === 'text') {
-                text = parsed.data.delta;
-              }
+            const parsed = StreamChunkSchema.safeParse(chunk);
+            if (
+              parsed.success &&
+              parsed.data.type === 'text' &&
+              parsed.data.delta
+            ) {
+              await writer.write(parsed.data.delta);
             }
-            if (text) await writer.write(text);
           }
         } catch (err) {
           const message =
@@ -176,36 +193,12 @@ export function completionHandler<
     }
 
     // ---- SSE mode (default) -----------------------------------------------
-    const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
-        const { stream: chunkStream, output } = flow.stream(prompt, {
-          context,
-          abortSignal: req.signal,
-        });
-
-        const state = createDispatchState();
-        for await (const chunk of chunkStream) {
-          dispatchChunk(writer, chunk, state);
-        }
-        closeOpenBlocks(writer, state);
-
-        const finalOutput = await output.catch(() => undefined);
-        const parsed = FlowOutputSchema.safeParse(finalOutput);
-        if (parsed.success) {
-          const finishReason = normalizeFinishReason(parsed.data.finishReason);
-          const usage = parsed.data.usage;
-          writer.write({
-            type: 'finish',
-            ...(finishReason ? { finishReason } : {}),
-            ...(usage ? { messageMetadata: { usage } } : {}),
-          });
-        }
-      },
-      onError: opts?.onError
-        ? (err: unknown) => opts.onError!(err) ?? 'An error occurred.'
-        : undefined,
+    return createSSEResponse({
+      flow,
+      input: prompt,
+      context,
+      request: req,
+      onError: opts?.onError,
     });
-
-    return createUIMessageStreamResponse({ stream });
   };
 }

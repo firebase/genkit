@@ -75,10 +75,11 @@ function makeRequest(
 // ---------------------------------------------------------------------------
 
 describe('chatHandler — lifecycle events', () => {
-  it('ends with [DONE]', async () => {
+  it('starts with a start event and ends with [DONE]', async () => {
     const events = await parseSSE(
       await chatHandler(fakeFlow(['hi']))(makeRequest([userMsg]))
     );
+    assert.equal((events[0] as any).type, 'start');
     assert.equal(events[events.length - 1], '[DONE]');
   });
 
@@ -209,6 +210,87 @@ describe('chatHandler — tool chunks', () => {
       (eventsOfType(events, 'tool-output-available')[0] as any).output,
       { hits: 3 }
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tool errors and approval
+// ---------------------------------------------------------------------------
+
+describe('chatHandler — tool errors and approval', () => {
+  it('emits tool-input-error with errorText', async () => {
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-input-error',
+            toolCallId: 'tc1',
+            toolName: 'search',
+            input: '{"bad',
+            errorText: 'Invalid JSON',
+          } as StreamChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    // Should emit tool-input-start then tool-input-error
+    assert.equal(eventsOfType(events, 'tool-input-start').length, 1);
+    const e = eventsOfType(events, 'tool-input-error')[0] as any;
+    assert.ok(e);
+    assert.equal(e.toolCallId, 'tc1');
+    assert.equal(e.toolName, 'search');
+    assert.equal(e.errorText, 'Invalid JSON');
+  });
+
+  it('emits tool-output-error with errorText', async () => {
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-output-error',
+            toolCallId: 'tc1',
+            errorText: 'Tool execution failed',
+          } as StreamChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    const e = eventsOfType(events, 'tool-output-error')[0] as any;
+    assert.ok(e);
+    assert.equal(e.toolCallId, 'tc1');
+    assert.equal(e.errorText, 'Tool execution failed');
+  });
+
+  it('emits tool-output-denied', async () => {
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-output-denied',
+            toolCallId: 'tc1',
+          } as StreamChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    const e = eventsOfType(events, 'tool-output-denied')[0] as any;
+    assert.ok(e);
+    assert.equal(e.toolCallId, 'tc1');
+  });
+
+  it('emits tool-approval-request', async () => {
+    const events = await parseSSE(
+      await chatHandler(
+        fakeFlow([
+          {
+            type: 'tool-approval-request',
+            approvalId: 'a1',
+            toolCallId: 'tc1',
+          } as StreamChunk,
+        ])
+      )(makeRequest([userMsg]))
+    );
+    const e = eventsOfType(events, 'tool-approval-request')[0] as any;
+    assert.ok(e);
+    assert.equal(e.approvalId, 'a1');
+    assert.equal(e.toolCallId, 'tc1');
   });
 });
 
@@ -362,7 +444,7 @@ describe('chatHandler — finish data', () => {
     });
   });
 
-  it('emits no finish event when flow returns plain string (no structured output)', async () => {
+  it('emits bare finish event when flow returns plain string (no structured output)', async () => {
     const flow = fakeFlow(
       [{ type: 'text', delta: 'hi' } as StreamChunk],
       'plain string output'
@@ -370,8 +452,11 @@ describe('chatHandler — finish data', () => {
     const events = await parseSSE(
       await chatHandler(flow)(makeRequest([userMsg]))
     );
-    // No finish chunk — createUIMessageStream only emits what we write
-    assert.equal(eventsOfType(events, 'finish').length, 0);
+    const finish = eventsOfType(events, 'finish');
+    assert.equal(finish.length, 1);
+    // No finishReason or usage — just the type
+    assert.equal((finish[0] as any).finishReason, undefined);
+    assert.equal((finish[0] as any).messageMetadata, undefined);
   });
 });
 

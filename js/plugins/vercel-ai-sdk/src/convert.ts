@@ -22,25 +22,38 @@ import type { MessageData, Part } from 'genkit';
 
 // ---------------------------------------------------------------------------
 // Vercel AI SDK UIMessage types (vendored — no runtime dep on `ai`)
+// Based on AI SDK v6.0 UIMessage format.  Audit for drift when upgrading.
+//
+// In v6, tool parts use `dynamic-tool` (or `tool-${name}` for statically
+// typed tools) with states: input-streaming, input-available,
+// output-available, output-error, output-denied.  Fields: `input` / `output`.
+// This replaced the v4/v5 `tool-invocation` with `call`/`result` states and
+// `args`/`result` fields.
 // ---------------------------------------------------------------------------
 
-/** A single content part inside a UIMessage (AI SDK v4+). */
+/** A single content part inside a UIMessage (AI SDK v6). */
 export interface UIMessagePart {
   type: string;
   text?: string;
   [key: string]: unknown;
 }
 
-/** A tool-invocation part inside an assistant UIMessage. */
-interface ToolInvocationPart {
-  type: 'tool-invocation';
-  toolInvocation: {
-    toolCallId: string;
-    toolName: string;
-    state: 'call' | 'partial-call' | 'result';
-    args?: unknown;
-    result?: unknown;
-  };
+/**
+ * A tool part inside an assistant UIMessage (AI SDK v6).
+ * Covers both `dynamic-tool` and `tool-${name}` part types.
+ */
+interface ToolPart {
+  type: string; // 'dynamic-tool' or 'tool-${name}'
+  toolCallId: string;
+  toolName?: string; // present on dynamic-tool; derived from type on static
+  state:
+    | 'input-streaming'
+    | 'input-available'
+    | 'output-available'
+    | 'output-error'
+    | 'output-denied';
+  input?: unknown;
+  output?: unknown;
 }
 
 /** A file/image attachment part inside a user UIMessage. */
@@ -57,7 +70,7 @@ interface FilePart {
  */
 export interface UIMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
+  role: 'user' | 'assistant' | 'system';
   parts: UIMessagePart[];
   /** @deprecated Legacy flat content field — prefer `parts`. */
   content?: string;
@@ -74,9 +87,9 @@ export interface UIMessage {
  * Handles:
  * - `text` parts → text part
  * - `file` / image attachment parts → media part
- * - `tool-invocation` parts in assistant messages:
- *   - state `call` / `partial-call` → appended as `toolRequest` to the model message
- *   - state `result` → model message with `toolRequest` + separate `tool` message with `toolResponse`
+ * - `dynamic-tool` / `tool-${name}` parts in assistant messages:
+ *   - state `input-available` / `input-streaming` → appended as `toolRequest` to the model message
+ *   - state `output-available` → model message with `toolRequest` + separate `tool` message with `toolResponse`
  * - `system` role → passed through as-is
  * - Legacy flat `content` string → treated as a single text part
  */
@@ -95,31 +108,32 @@ export function toGenkitMessages(messages: UIMessage[]): MessageData[] {
 
       case 'assistant': {
         // Collect all content parts for the model message.
-        // tool-invocation parts with state=result also generate a separate tool message.
+        // Tool parts with state=output-available also generate a separate tool message.
         const modelParts: Part[] = [];
         const toolMessages: MessageData[] = [];
 
         for (const part of msg.parts ?? []) {
           if (part.type === 'text' && typeof part.text === 'string') {
             modelParts.push({ text: part.text });
-          } else if (part.type === 'tool-invocation') {
-            const ti = (part as unknown as ToolInvocationPart).toolInvocation;
+          } else if (isToolPart(part)) {
+            const tp = part as unknown as ToolPart;
+            const toolName = tp.toolName ?? tp.type.replace(/^tool-/, '');
             modelParts.push({
               toolRequest: {
-                ref: ti.toolCallId,
-                name: ti.toolName,
-                input: ti.args,
+                ref: tp.toolCallId,
+                name: toolName,
+                input: tp.input,
               },
             });
-            if (ti.state === 'result') {
+            if (tp.state === 'output-available') {
               toolMessages.push({
                 role: 'tool',
                 content: [
                   {
                     toolResponse: {
-                      ref: ti.toolCallId,
-                      name: ti.toolName,
-                      output: ti.result,
+                      ref: tp.toolCallId,
+                      name: toolName,
+                      output: tp.output,
                     },
                   },
                 ],
@@ -142,16 +156,6 @@ export function toGenkitMessages(messages: UIMessage[]): MessageData[] {
         result.push(...toolMessages);
         break;
       }
-
-      case 'tool':
-        // The `tool` role is a Vercel AI SDK v3 artifact. In v4+ tool results
-        // are carried as `tool-invocation` parts (state: 'result') inside the
-        // assistant message. Receiving a bare `tool` role message means the
-        // client is using an outdated message format.
-        throw new Error(
-          `UIMessage with role 'tool' is not supported. ` +
-            `Use assistant messages with tool-invocation parts (state: 'result') instead.`
-        );
     }
   }
 
@@ -161,6 +165,17 @@ export function toGenkitMessages(messages: UIMessage[]): MessageData[] {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Returns true for AI SDK v6 tool parts: `dynamic-tool` or `tool-${name}`.
+ * Static tool parts have the format `tool-${toolName}` (never just `tool`).
+ */
+function isToolPart(part: UIMessagePart): boolean {
+  return (
+    part.type === 'dynamic-tool' ||
+    (part.type.startsWith('tool-') && 'toolCallId' in part)
+  );
+}
 
 /** Extract Genkit parts from the text and file parts of a UIMessage. */
 function extractParts(msg: UIMessage): Part[] {

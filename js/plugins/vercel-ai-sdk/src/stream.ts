@@ -15,25 +15,35 @@
  */
 
 /**
- * Maps {@link StreamChunk} union values to `UIMessageStreamWriter.write()`
- * calls, tracking which text/reasoning blocks are currently open.
+ * SSE streaming layer: maps {@link StreamChunk} values to
+ * `UIMessageStreamWriter.write()` calls and orchestrates the full
+ * SSE response lifecycle (start → chunks → finish/abort).
  */
 
-import type { UIMessageStreamWriter } from 'ai';
-import { StreamChunkSchema, type StreamChunk } from './schema.js';
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type UIMessageStreamWriter,
+} from 'ai';
+import {
+  FlowOutputSchema,
+  StreamChunkSchema,
+  type StreamChunk,
+} from './schema.js';
+import { normalizeFinishReason } from './utils.js';
 
 // ---------------------------------------------------------------------------
-// State
+// Dispatch state
 // ---------------------------------------------------------------------------
 
-export interface DispatchState {
+interface DispatchState {
   openTextId: string | null;
   openReasoningId: string | null;
   /** Tool call IDs for which tool-input-start has been written. */
   openToolCallIds: Set<string>;
 }
 
-export function createDispatchState(): DispatchState {
+function createDispatchState(): DispatchState {
   return {
     openTextId: null,
     openReasoningId: null,
@@ -42,14 +52,14 @@ export function createDispatchState(): DispatchState {
 }
 
 // ---------------------------------------------------------------------------
-// Main dispatch
+// Chunk dispatch
 // ---------------------------------------------------------------------------
 
 /**
  * Dispatch a single `StreamChunk` from a flow's stream to the AI SDK
  * `UIMessageStreamWriter`. Unknown shapes are silently dropped.
  */
-export function dispatchChunk(
+function dispatchChunk(
   writer: UIMessageStreamWriter,
   rawChunk: unknown,
   state: DispatchState
@@ -117,6 +127,51 @@ export function dispatchChunk(
       break;
     }
 
+    case 'tool-input-error': {
+      closeTextBlock(writer, state);
+      closeReasoningBlock(writer, state);
+      const { toolCallId, toolName } = chunk;
+      if (!state.openToolCallIds.has(toolCallId)) {
+        state.openToolCallIds.add(toolCallId);
+        writer.write({ type: 'tool-input-start', toolCallId, toolName });
+      }
+      writer.write({
+        type: 'tool-input-error',
+        toolCallId,
+        toolName,
+        input: chunk.input,
+        errorText: chunk.errorText,
+      });
+      state.openToolCallIds.delete(toolCallId);
+      break;
+    }
+
+    case 'tool-output-error': {
+      writer.write({
+        type: 'tool-output-error',
+        toolCallId: chunk.toolCallId,
+        errorText: chunk.errorText,
+      });
+      break;
+    }
+
+    case 'tool-output-denied': {
+      writer.write({
+        type: 'tool-output-denied',
+        toolCallId: chunk.toolCallId,
+      });
+      break;
+    }
+
+    case 'tool-approval-request': {
+      writer.write({
+        type: 'tool-approval-request',
+        approvalId: chunk.approvalId,
+        toolCallId: chunk.toolCallId,
+      });
+      break;
+    }
+
     case 'file': {
       writer.write({
         type: 'file',
@@ -174,10 +229,10 @@ export function dispatchChunk(
 }
 
 // ---------------------------------------------------------------------------
-// Block state helpers (exported so callers can close blocks at stream end)
+// Block state helpers
 // ---------------------------------------------------------------------------
 
-export function closeOpenBlocks(
+function closeOpenBlocks(
   writer: UIMessageStreamWriter,
   state: DispatchState
 ): void {
@@ -224,4 +279,90 @@ function closeReasoningBlock(
     writer.write({ type: 'reasoning-end', id: state.openReasoningId });
     state.openReasoningId = null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// SSE response factory
+// ---------------------------------------------------------------------------
+
+/** Options for {@link createSSEResponse}. */
+export interface SSEStreamOptions {
+  /** The flow to stream from. */
+  flow: {
+    stream(
+      input: any,
+      opts: any
+    ): { stream: AsyncIterable<unknown>; output: Promise<unknown> };
+  };
+  /** Input to pass to `flow.stream()`. */
+  input: unknown;
+  /** Context from `contextProvider`. */
+  context: Record<string, unknown>;
+  /** The incoming request (provides `signal` for abort). */
+  request: Request;
+  /** Optional error handler; return a string for the client or void for the default. */
+  onError?: (err: unknown) => string | void;
+}
+
+/**
+ * Creates a Fetch API `Response` that streams UI Message Stream SSE events
+ * from a Genkit flow.  Used by both `chatHandler` and `completionHandler`.
+ *
+ * Emits:
+ * - `start` — opens the message
+ * - chunk events via `dispatchChunk` (text, reasoning, tools, files, etc.)
+ * - `finish` — includes `finishReason` and `usage` when available
+ *
+ * If the flow's stream throws an `AbortError` (from `req.signal`), an `abort`
+ * event is emitted instead of an error.
+ */
+export function createSSEResponse(opts: SSEStreamOptions): Response {
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      writer.write({ type: 'start' });
+
+      const { stream: chunkStream, output } = opts.flow.stream(opts.input, {
+        context: opts.context,
+        abortSignal: opts.request.signal,
+      });
+
+      const state = createDispatchState();
+      try {
+        for await (const chunk of chunkStream) {
+          dispatchChunk(writer, chunk, state);
+        }
+      } catch (err) {
+        closeOpenBlocks(writer, state);
+        if (isAbortError(err)) {
+          writer.write({ type: 'abort' });
+          return;
+        }
+        throw err;
+      }
+      closeOpenBlocks(writer, state);
+
+      const finalOutput = await output.catch(() => undefined);
+      const parsed = FlowOutputSchema.safeParse(finalOutput);
+      if (parsed.success) {
+        const finishReason = normalizeFinishReason(parsed.data.finishReason);
+        const usage = parsed.data.usage;
+        writer.write({
+          type: 'finish',
+          ...(finishReason ? { finishReason } : {}),
+          ...(usage ? { messageMetadata: { usage } } : {}),
+        });
+      } else {
+        writer.write({ type: 'finish' });
+      }
+    },
+    onError: opts.onError
+      ? (err: unknown) => opts.onError!(err) ?? 'An error occurred.'
+      : undefined,
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'AbortError';
 }
