@@ -1,0 +1,58 @@
+{
+  "name": "@genkit-ai/vercel-ai-sdk",
+  "description": "Genkit adapters for the Vercel AI SDK UI hooks (useChat, useCompletion, useObject)",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "ai",
+    "genai",
+    "generative-ai",
+    "vercel",
+    "ai-sdk",
+    "useChat",
+    "useCompletion",
+    "useObject"
+  ],
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rimraf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
+    "test": "node --import tsx --test tests/*_test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/genkit-ai/genkit.git",
+    "directory": "js/plugins/vercel-ai-sdk"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "ai": ">=6.0.0",
+    "genkit": "workspace:^",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "ai": "^6.0.156",
+    "genkit": "workspace:^",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "zod": "^3.24.1"
+  },
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.js",
+      "default": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "types": "./lib/index.d.ts"
+    }
+  }
+}

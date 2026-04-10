@@ -1,0 +1,201 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #f8f9fa;
+  color: #1a1a1a;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: #0070f3;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+h2 {
+  color: #444;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+p {
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+nav a {
+  background: #0070f3;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+}
+nav a:hover {
+  background: #005bb5;
+  text-decoration: none;
+}
+
+/* Chat */
+.messages {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  max-height: 400px;
+  min-height: 200px;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.message .role {
+  color: #888;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.message.user .role {
+  color: #0070f3;
+}
+.message.assistant .role {
+  color: #444;
+}
+.message .text {
+  white-space: pre-wrap;
+}
+
+/* Input row */
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-row input,
+.input-row textarea {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  flex: 1;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+}
+
+button {
+  background: #0070f3;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.6rem 1.2rem;
+  white-space: nowrap;
+}
+button:hover {
+  background: #005bb5;
+}
+button:disabled {
+  background: #aaa;
+  cursor: default;
+}
+
+/* Completion output */
+.output {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #333;
+  font-size: 0.95rem;
+  margin-top: 1rem;
+  min-height: 80px;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+/* Object cards */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.card {
+  align-items: flex-start;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.card .icon {
+  flex-shrink: 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+.card .card-body {
+  flex: 1;
+}
+.card .card-title {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+.card .card-text {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.status {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}

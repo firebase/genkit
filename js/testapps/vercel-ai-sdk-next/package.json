@@ -1,0 +1,28 @@
+{
+  "name": "vercel-ai-sdk-next-sample",
+  "type": "module",
+  "version": "0.0.1-dev.1",
+  "description": "Sample Next.js app demonstrating @genkit-ai/vercel-ai-sdk adapters with useChat, useCompletion, and useObject",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/vercel-ai-sdk": "workspace:*",
+    "@ai-sdk/react": "^3.0.158",
+    "ai": "^6.0.156",
+    "genkit": "workspace:*",
+    "next": "^15.5.14",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.3"
+  }
+}
