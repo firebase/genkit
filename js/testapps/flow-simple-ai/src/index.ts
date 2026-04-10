@@ -18,6 +18,7 @@ import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI, vertexAI } from '@genkit-ai/google-genai';
+import { filesystem, skills, toolApproval } from '@genkit-ai/middleware';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
@@ -71,6 +72,9 @@ const ai = genkit({
         GenkitMetric.JSONATA,
       ],
     }),
+    filesystem.plugin(),
+    skills.plugin(),
+    toolApproval.plugin(),
   ],
   model: googleAI.model('gemini-flash-latest'),
 });
