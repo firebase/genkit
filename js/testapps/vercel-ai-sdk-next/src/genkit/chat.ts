@@ -15,9 +15,9 @@
  */
 
 import {
-  StreamChunkSchema,
   FlowOutputSchema,
   MessagesSchema,
+  StreamChunkSchema,
 } from '@genkit-ai/vercel-ai-sdk';
 import type { MessageData } from 'genkit';
 import { ai } from './index';

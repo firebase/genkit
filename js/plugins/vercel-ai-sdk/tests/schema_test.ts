@@ -17,9 +17,9 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
-  StreamChunkSchema,
   FlowOutputSchema,
   MessagesSchema,
+  StreamChunkSchema,
 } from '../src/schema.js';
 
 // ---------------------------------------------------------------------------
@@ -295,9 +295,7 @@ describe('FlowOutputSchema', () => {
   });
 
   it('accepts partial output (only finishReason)', () => {
-    assert.ok(
-      FlowOutputSchema.safeParse({ finishReason: 'length' }).success
-    );
+    assert.ok(FlowOutputSchema.safeParse({ finishReason: 'length' }).success);
   });
 
   it('accepts empty object', () => {

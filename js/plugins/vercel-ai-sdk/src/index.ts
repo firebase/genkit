@@ -45,16 +45,16 @@ export {
 } from './dispatch.js';
 export { objectHandler, type ObjectHandlerOptions } from './object.js';
 export {
-  StreamChunkSchema,
-  FlowOutputSchema,
   ContentPartSchema,
+  FlowOutputSchema,
   MessagesSchema,
+  StreamChunkSchema,
   z,
-  type StreamChunk,
-  type FlowOutput,
   type ContentPart,
+  type FlowOutput,
   type GenkitMessage,
   type Messages,
+  type StreamChunk,
 } from './schema.js';
 export { normalizeFinishReason, type FinishReason } from './utils.js';
 export {
