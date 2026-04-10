@@ -94,7 +94,7 @@ A discriminated union flows can use as `streamSchema` to drive the full UI Messa
 | `{ type: 'step-start' }` | `start-step` |
 | `{ type: 'step-end' }` | `finish-step` + closes open blocks |
 
-Plain `string` chunks are also accepted for backward compatibility (treated as `{ type: 'text', delta }`).
+In `completionHandler` with `streamProtocol: 'text'`, plain `string` chunks are also accepted (forwarded as raw text). In SSE mode, only typed `StreamChunk` objects are dispatched.
 
 ## Auth / Context
 
