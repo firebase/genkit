@@ -48,27 +48,32 @@ export interface ChatHandlerOptions {
 
 /**
  * Wraps a Genkit streaming flow and returns a Fetch API-compatible route
- * handler that speaks the Vercel AI SDK `useChat()` protocol.
+ * handler that speaks the Vercel AI SDK
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat `useChat()`}
+ * protocol.
  *
  * ## Flow contract
  *
  * The flow must use `MessagesSchema` as `inputSchema`.  For `streamSchema`:
  *
  * - **`z.string()`** — emit plain text deltas (backward-compatible).
- * - **`AiSdkChunkSchema`** — emit typed chunks for the full protocol (tools,
+ * - **`StreamChunkSchema`** — emit typed chunks for the full protocol (tools,
  *   reasoning, file output, source citations, step markers, custom data).
  *
  * The optional `body` field in `MessagesSchema` carries any extra fields the
- * client sends via `useChat({ body: {...} })`, accessible as `input.body`.
+ * client sends via
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat#body `useChat({ body: {...} })`},
+ * accessible as `input.body`.
  *
  * ## Client-side tool execution
  *
- * When `useChat` is configured with client-side tools, the browser executes
- * each tool and submits results via `addToolOutput()`.  This triggers a new
- * POST with the tool results already folded into the `messages` array as
- * `tool-invocation` parts (`state: 'result'`).  `chatHandler` converts these
- * automatically to Genkit tool-response messages via `toGenkitMessages()`,
- * so no special handling is required in your flow.
+ * When `useChat` is configured with
+ * {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling client-side tools},
+ * the browser executes each tool and submits results via `addToolOutput()`.
+ * This triggers a new POST with the tool results already folded into the
+ * `messages` array as `tool-invocation` parts (`state: 'result'`).
+ * `chatHandler` converts these automatically to Genkit tool-response messages
+ * via `toGenkitMessages()`, so no special handling is required in your flow.
  *
  * ```ts
  * // src/app/api/chat/route.ts
@@ -82,7 +87,10 @@ export interface ChatHandlerOptions {
  * ```
  *
  * - Request:  `POST` with `{ messages: UIMessage[], ...extraFields }`
- * - Response: SSE stream of UI Message Stream events
+ * - Response: {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream} (SSE)
+ *
+ * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat useChat() reference}
+ * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot Chatbot guide}
  */
 export function chatHandler(
   flow: Action<typeof MessagesSchema, any, any>,

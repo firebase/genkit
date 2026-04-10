@@ -47,10 +47,12 @@ export interface CompletionHandlerOptions {
   /**
    * Stream protocol to use in the response.
    *
-   * - **`'data'`** (default) — Vercel AI SDK data-stream format (SSE).
-   *   Use with the default `useCompletion()` configuration.
+   * - **`'data'`** (default) — Vercel AI SDK
+   *   {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream}
+   *   format (SSE). Use with the default `useCompletion()` configuration.
    * - **`'text'`** — Raw `text/plain` streaming.
-   *   Use when `useCompletion` is configured with `streamProtocol: 'text'`.
+   *   Use when `useCompletion` is configured with
+   *   {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion#streamProtocol `streamProtocol: 'text'`}.
    *   In this mode only plain string chunks and `{ type: 'text', delta }` chunks
    *   are forwarded; other typed chunks are ignored.
    */
@@ -59,13 +61,15 @@ export interface CompletionHandlerOptions {
 
 /**
  * Wraps a Genkit streaming flow and returns a Fetch API-compatible route
- * handler that speaks the Vercel AI SDK `useCompletion()` protocol.
+ * handler that speaks the Vercel AI SDK
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion `useCompletion()`}
+ * protocol.
  *
  * The flow must accept `z.string()` as `inputSchema`.  For `streamSchema`:
  *
  * - **`z.string()`** — emit plain text deltas (works in both `'data'` and
  *   `'text'` stream protocols).
- * - **`AiSdkChunkSchema`** — emit typed chunks for the full protocol (only
+ * - **`StreamChunkSchema`** — emit typed chunks for the full protocol (only
  *   meaningful in `'data'` mode).
  *
  * ```ts
@@ -77,7 +81,9 @@ export interface CompletionHandlerOptions {
  * ```
  *
  * - Request:  `POST` with `{ prompt: string }`
- * - Response: SSE stream (`'data'`) or plain text stream (`'text'`)
+ * - Response: {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream} (`'data'`) or `text/plain` (`'text'`)
+ *
+ * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion useCompletion() reference}
  */
 export function completionHandler(
   flow: Action<z.ZodString, any, any>,

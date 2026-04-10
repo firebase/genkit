@@ -38,16 +38,25 @@ export interface ObjectHandlerOptions {
 
 /**
  * Wraps a Genkit streaming flow and returns a Fetch API-compatible route
- * handler that speaks the Vercel AI SDK `useObject()` protocol.
+ * handler that speaks the Vercel AI SDK
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-object `useObject()`}
+ * protocol.
  *
  * The flow must have `streamSchema: z.string()` — each chunk emitted via
  * `streamingCallback` should be a fragment of the JSON string being produced.
  * The flow's `outputSchema` should describe the full object shape for
- * client-side type safety with `useObject({ schema })`.
+ * client-side type safety with
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-object#schema `useObject({ schema })`}.
  *
  * Unlike `chatHandler` and `completionHandler`, the response is raw
  * `text/plain` streaming partial JSON.  `useObject()` reassembles fragments
  * incrementally — each chunk does not need to be valid JSON on its own.
+ *
+ * Note: mid-stream errors cannot be surfaced to the client via a dedicated
+ * error channel — this is a
+ * {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol protocol constraint}
+ * of the `useObject()` text stream format.  Pre-stream errors (auth failures,
+ * bad input) still return a non-2xx HTTP status.
  *
  * ```ts
  * // src/app/api/notifications/route.ts
@@ -56,6 +65,9 @@ export interface ObjectHandlerOptions {
  *
  * - Request:  `POST` with any JSON body (passed verbatim as flow input)
  * - Response: `text/plain` streaming partial JSON
+ *
+ * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-object useObject() reference}
+ * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/object-generation Object generation guide}
  */
 export function objectHandler(
   flow: Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodString>,

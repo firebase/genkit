@@ -24,8 +24,13 @@ export { z };
 
 /**
  * Discriminated union of all chunk types a flow can emit via
- * `streamingCallback` to drive the full Vercel AI SDK UI Message Stream
+ * `streamingCallback` to drive the full Vercel AI SDK
+ * {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream}
  * protocol.  Use this as `streamSchema` in `ai.defineFlow(...)`.
+ *
+ * Each variant maps to one or more wire events understood by
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat `useChat()`} and
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion `useCompletion()`}.
  *
  * ```ts
  * import { StreamChunkSchema } from '@genkit-ai/vercel-ai-sdk';
@@ -47,13 +52,17 @@ export { z };
  * ```
  */
 export const StreamChunkSchema = z.discriminatedUnion('type', [
-  /** A text delta — maps to text-start (lazy) + text-delta wire events. */
+  /** A text delta — maps to `text-start` (lazy) + `text-delta` wire events. */
   z.object({
     type: z.literal('text'),
     delta: z.string(),
   }),
 
-  /** A reasoning/thinking delta — maps to reasoning-start (lazy) + reasoning-delta. */
+  /**
+   * A reasoning/thinking delta — maps to `reasoning-start` (lazy) +
+   * `reasoning-delta` wire events.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#reasoning Reasoning guide}
+   */
   z.object({
     type: z.literal('reasoning'),
     delta: z.string(),
@@ -63,8 +72,10 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
    * A tool invocation.  Supply either `inputDelta` (streaming partial JSON
    * input) or `input` (full input object) — not both.
    *
-   * - `inputDelta` → tool-input-start (first time) + tool-input-delta
-   * - `input`      → tool-input-start (if not already open) + tool-input-available
+   * - `inputDelta` → `tool-input-start` (first time) + `tool-input-delta`
+   * - `input`      → `tool-input-start` (if not already open) + `tool-input-available`
+   *
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
    */
   z.object({
     type: z.literal('tool-request'),
@@ -74,14 +85,21 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
     input: z.unknown().optional(),
   }),
 
-  /** A tool result — maps to tool-output-available. */
+  /**
+   * A tool result — maps to `tool-output-available`.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot-with-tool-calling Tool calling guide}
+   */
   z.object({
     type: z.literal('tool-result'),
     toolCallId: z.string(),
     output: z.unknown(),
   }),
 
-  /** Arbitrary custom data — maps to a `data-${id}` wire event. */
+  /**
+   * Arbitrary custom data — maps to a `data-${id}` wire event.
+   * Accessible on the client via the `onData` callback in `useChat`.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#ui-message-stream-protocol UI Message Stream protocol}
+   */
   z.object({
     type: z.literal('data'),
     id: z.string(),
@@ -91,6 +109,7 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
   /**
    * A file or image to surface in the chat UI — maps to a `file` wire event.
    * Note: the AI SDK wire format does not support a filename field.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#file-attachments File attachments}
    */
   z.object({
     type: z.literal('file'),
@@ -101,6 +120,7 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
   /**
    * A web source citation — maps to a `source-url` wire event.
    * Renders as a clickable source card alongside the response.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#sources Sources}
    */
   z.object({
     type: z.literal('source-url'),
@@ -113,6 +133,7 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
    * A document source citation — maps to a `source-document` wire event.
    * Use for RAG responses where the source is a local/retrieved document
    * rather than a live web URL.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#sources Sources}
    */
   z.object({
     type: z.literal('source-document'),
@@ -122,10 +143,16 @@ export const StreamChunkSchema = z.discriminatedUnion('type', [
     filename: z.string().optional(),
   }),
 
-  /** Begin a logical step (e.g. one LLM call in a multi-step agent loop). */
+  /**
+   * Begin a logical step (e.g. one LLM call in a multi-step agent loop).
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#multi-step-generation Multi-step generation}
+   */
   z.object({ type: z.literal('step-start') }),
 
-  /** End the current logical step. Closes any open text/reasoning blocks. */
+  /**
+   * End the current logical step. Closes any open text/reasoning blocks.
+   * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#multi-step-generation Multi-step generation}
+   */
   z.object({ type: z.literal('step-end') }),
 ]);
 
@@ -177,11 +204,14 @@ const GenkitMessageSchema = z.object({
  * tool-request, tool-result).
  *
  * The optional `body` field carries any extra fields the client sends via
- * `useChat()`'s `body` option, so flows can access per-request metadata
- * (e.g. a session ID, selected persona, or RAG filter) via `input.body`.
+ * {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat#body `useChat({ body: {...} })`},
+ * so flows can access per-request metadata (e.g. a session ID, selected
+ * persona, or RAG filter) via `input.body`.
  *
  * Plain `{ role, content: string }` messages from the original schema are
  * still accepted — this is a strict superset.
+ *
+ * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat useChat() reference}
  */
 export const MessagesSchema = z.object({
   messages: z.array(GenkitMessageSchema),
@@ -197,9 +227,11 @@ export type Messages = z.infer<typeof MessagesSchema>;
 // ---------------------------------------------------------------------------
 
 /**
- * Optional structured output schema for chat flows.  When a flow returns a
- * value matching this shape, `chatHandler` and `completionHandler` will
- * populate the `finish-message` SSE event with `finishReason` and `usage`.
+ * Optional structured output schema for chat and completion flows.  When a
+ * flow returns a value matching this shape, `chatHandler` and
+ * `completionHandler` will populate the
+ * {@link https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#finish-chunk `finish`}
+ * SSE event with `finishReason` and `usage`.
  *
  * ```ts
  * const chatFlow = ai.defineFlow(
