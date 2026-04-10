@@ -316,11 +316,11 @@ export class GenkitAI {
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *
    * ```ts
-   * ai.defineFlow('hello', async() => {
-   *   await ai.run('step1', async () => {
-   *     // ... step 1
+   * ai.defineFlow('hello', async(name) => {
+   *   const greeting = await ai.run('step1', name, async (input) => {
+   *     return `Hello, ${input}!`;
    *   });
-   *   await ai.run('step2', async () => {
+   *   const result = await ai.run('step2', greeting, async (input) => {
    *     // ... step 2
    *   });
    *   return result;
