@@ -117,6 +117,39 @@ describe('objectHandler — contextProvider', () => {
   });
 });
 
+describe('objectHandler — mid-stream errors', () => {
+  it('closes the stream without appending text so partial JSON is not corrupted', async () => {
+    let onErrorCalled = false;
+    const flow = {
+      stream(_: unknown, __: unknown) {
+        return {
+          stream: (async function* () {
+            yield '{"item":';
+            throw new Error('mid-stream failure');
+          })(),
+          output: Promise.resolve(''),
+        };
+      },
+    } as any;
+
+    const res = await objectHandler(flow, {
+      onError: () => {
+        onErrorCalled = true;
+      },
+    })(
+      new Request('http://localhost/api/object', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+    );
+
+    const text = await res.text();
+    // Should not have appended any error JSON — the partial JSON stands alone
+    assert.equal(text, '{"item":');
+    assert.ok(onErrorCalled);
+  });
+});
+
 describe('objectHandler — abort signal', () => {
   it('passes req.signal to flow.stream()', async () => {
     let capturedOpts: any;

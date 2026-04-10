@@ -22,8 +22,10 @@ import { headersToRecord, resolveStatus } from './utils.js';
  * Options for `objectHandler`.
  */
 export interface ObjectHandlerOptions {
-  /** Called on mid-stream error; return the text to emit (best-effort). */
-  onError?: (err: unknown) => string;
+  /** Called on mid-stream error for logging/reporting. The stream is closed
+   *  immediately after — appending error text is not possible without
+   *  corrupting the partial JSON that has already been sent. */
+  onError?: (err: unknown) => void;
   /**
    * Extract auth/session context from the incoming request.
    * Throw to reject the request before the stream opens; status is derived
@@ -109,11 +111,10 @@ export function objectHandler(
           }
         }
       } catch (err) {
-        const message = opts?.onError
-          ? opts.onError(err)
-          : 'An error occurred.';
+        // Do not write to the stream — any appended text would corrupt the
+        // partial JSON already sent. Close the stream so useObject fires onError.
         console.error('[objectHandler]', err);
-        await writer.write(encoder.encode(JSON.stringify({ error: message })));
+        opts?.onError?.(err);
       } finally {
         await writer.close();
       }
