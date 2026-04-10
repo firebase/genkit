@@ -40,7 +40,7 @@ export interface ObjectHandlerOptions<
    * to the `useObject()` protocol using raw text/plain — this is a protocol
    * constraint, not a Genkit limitation.
    */
-  contextProvider?: ContextProvider<any, Ctx>;
+  contextProvider?: ContextProvider<Ctx, any>;
 }
 
 /**
@@ -98,11 +98,11 @@ export function objectHandler<
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = (await opts.contextProvider({
+        context = await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input,
-        })) as Record<string, unknown>;
+        });
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),

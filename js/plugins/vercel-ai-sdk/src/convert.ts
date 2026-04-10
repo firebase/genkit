@@ -18,6 +18,8 @@
  * Conversion utilities: Vercel AI SDK UIMessage[] → Genkit MessageData[].
  */
 
+import type { MessageData, Part } from 'genkit';
+
 // ---------------------------------------------------------------------------
 // Vercel AI SDK UIMessage types (vendored — no runtime dep on `ai`)
 // ---------------------------------------------------------------------------
@@ -62,34 +64,6 @@ export interface UIMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Genkit MessageData types (mirrored here to avoid importing genkit at runtime)
-// ---------------------------------------------------------------------------
-
-export interface GenkitTextPart {
-  text: string;
-}
-export interface GenkitMediaPart {
-  media: { url: string; contentType?: string };
-}
-export interface GenkitToolReqPart {
-  toolRequest: { ref?: string; name: string; input?: unknown };
-}
-export interface GenkitToolResPart {
-  toolResponse: { ref?: string; name: string; output?: unknown };
-}
-
-export type GenkitPart =
-  | GenkitTextPart
-  | GenkitMediaPart
-  | GenkitToolReqPart
-  | GenkitToolResPart;
-
-export interface GenkitMessageData {
-  role: 'user' | 'model' | 'system' | 'tool';
-  content: GenkitPart[];
-}
-
-// ---------------------------------------------------------------------------
 // Conversion
 // ---------------------------------------------------------------------------
 
@@ -98,16 +72,16 @@ export interface GenkitMessageData {
  * `MessageData[]` for use as the `messages` parameter of `generateStream()`.
  *
  * Handles:
- * - `text` parts → `GenkitTextPart`
- * - `file` / image attachment parts → `GenkitMediaPart`
+ * - `text` parts → text part
+ * - `file` / image attachment parts → media part
  * - `tool-invocation` parts in assistant messages:
  *   - state `call` / `partial-call` → appended as `toolRequest` to the model message
  *   - state `result` → model message with `toolRequest` + separate `tool` message with `toolResponse`
  * - `system` role → passed through as-is
  * - Legacy flat `content` string → treated as a single text part
  */
-export function toGenkitMessages(messages: UIMessage[]): GenkitMessageData[] {
-  const result: GenkitMessageData[] = [];
+export function toGenkitMessages(messages: UIMessage[]): MessageData[] {
+  const result: MessageData[] = [];
 
   for (const msg of messages) {
     switch (msg.role) {
@@ -122,8 +96,8 @@ export function toGenkitMessages(messages: UIMessage[]): GenkitMessageData[] {
       case 'assistant': {
         // Collect all content parts for the model message.
         // tool-invocation parts with state=result also generate a separate tool message.
-        const modelParts: GenkitPart[] = [];
-        const toolMessages: GenkitMessageData[] = [];
+        const modelParts: Part[] = [];
+        const toolMessages: MessageData[] = [];
 
         for (const part of msg.parts ?? []) {
           if (part.type === 'text' && typeof part.text === 'string') {
@@ -157,8 +131,9 @@ export function toGenkitMessages(messages: UIMessage[]): GenkitMessageData[] {
         }
 
         // Fall back to legacy flat content string if parts is empty.
-        if (modelParts.length === 0 && msg.content) {
-          modelParts.push({ text: msg.content });
+        const legacyContent = (msg as { content?: string }).content;
+        if (modelParts.length === 0 && legacyContent) {
+          modelParts.push({ text: legacyContent });
         }
 
         if (modelParts.length > 0) {
@@ -188,8 +163,8 @@ export function toGenkitMessages(messages: UIMessage[]): GenkitMessageData[] {
 // ---------------------------------------------------------------------------
 
 /** Extract Genkit parts from the text and file parts of a UIMessage. */
-function extractParts(msg: UIMessage): GenkitPart[] {
-  const parts: GenkitPart[] = [];
+function extractParts(msg: UIMessage): Part[] {
+  const parts: Part[] = [];
 
   if (msg.parts?.length) {
     for (const part of msg.parts) {
@@ -205,8 +180,9 @@ function extractParts(msg: UIMessage): GenkitPart[] {
   }
 
   // Fall back to legacy flat content string.
-  if (parts.length === 0 && msg.content) {
-    parts.push({ text: msg.content });
+  const legacyContent = (msg as { content?: string }).content;
+  if (parts.length === 0 && legacyContent) {
+    parts.push({ text: legacyContent });
   }
 
   return parts;

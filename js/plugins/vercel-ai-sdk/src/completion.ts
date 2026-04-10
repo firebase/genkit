@@ -52,7 +52,7 @@ export interface CompletionHandlerOptions<
    * Extract auth/session context from the incoming request.
    * Throw to reject the request; status is derived via `getHttpStatus()`.
    */
-  contextProvider?: ContextProvider<any, Ctx>;
+  contextProvider?: ContextProvider<Ctx, any>;
   /**
    * Stream protocol to use in the response.
    *
@@ -76,10 +76,11 @@ export interface CompletionHandlerOptions<
  *
  * The flow must accept `z.string()` as `inputSchema`.  For `streamSchema`:
  *
- * - **`z.string()`** — emit plain text deltas (works in both `'data'` and
- *   `'text'` stream protocols).
  * - **`StreamChunkSchema`** — emit typed chunks for the full protocol (only
- *   meaningful in `'data'` mode).
+ *   meaningful in `'data'` mode; in `'text'` mode only `{ type: 'text' }`
+ *   chunks are forwarded).
+ * - **`z.string()`** — emit plain text deltas; only useful with
+ *   `streamProtocol: 'text'` (strings are silently ignored in SSE mode).
  *
  * ```ts
  * // src/app/api/completion/route.ts  (default SSE mode)
@@ -125,11 +126,11 @@ export function completionHandler<
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = (await opts.contextProvider({
+        context = await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input: prompt,
-        })) as Record<string, unknown>;
+        });
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),

@@ -15,9 +15,8 @@
  */
 
 /**
- * Maps StreamChunk union values (and plain strings for backward-compat) to
- * `UIMessageStreamWriter.write()` calls, tracking which text/reasoning blocks
- * are currently open.
+ * Maps {@link StreamChunk} union values to `UIMessageStreamWriter.write()`
+ * calls, tracking which text/reasoning blocks are currently open.
  */
 
 import type { UIMessageStreamWriter } from 'ai';

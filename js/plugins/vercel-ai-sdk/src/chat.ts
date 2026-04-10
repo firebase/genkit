@@ -52,7 +52,7 @@ export interface ChatHandlerOptions<
    * Throw from this function to reject the request — the HTTP status is
    * derived from the error using Genkit's standard `getHttpStatus()`.
    */
-  contextProvider?: ContextProvider<any, Ctx>;
+  contextProvider?: ContextProvider<Ctx, any>;
 }
 
 /**
@@ -63,11 +63,9 @@ export interface ChatHandlerOptions<
  *
  * ## Flow contract
  *
- * The flow must use `MessagesSchema` as `inputSchema`.  For `streamSchema`:
- *
- * - **`z.string()`** — emit plain text deltas (backward-compatible).
- * - **`StreamChunkSchema`** — emit typed chunks for the full protocol (tools,
- *   reasoning, file output, source citations, step markers, custom data).
+ * The flow must use `MessagesSchema` as `inputSchema` and `StreamChunkSchema`
+ * as `streamSchema` to drive the full protocol (tools, reasoning, file output,
+ * source citations, step markers, custom data).
  *
  * The optional `body` field in `MessagesSchema` carries any extra fields the
  * client sends via
@@ -140,11 +138,11 @@ export function chatHandler<
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = (await opts.contextProvider({
+        context = await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input: flowInput,
-        })) as Record<string, unknown>;
+        });
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),
@@ -156,7 +154,7 @@ export function chatHandler<
     // ---- Stream -----------------------------------------------------------
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const { stream: chunkStream, output } = flow.stream(flowInput, {
+        const { stream: chunkStream, output } = flow.stream(flowInput as any, {
           context,
           abortSignal: req.signal,
         });
