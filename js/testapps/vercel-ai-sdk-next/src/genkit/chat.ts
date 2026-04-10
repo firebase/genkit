@@ -18,6 +18,7 @@ import {
   FlowOutputSchema,
   MessagesSchema,
   StreamChunkSchema,
+  toStreamChunks,
 } from '@genkit-ai/vercel-ai-sdk';
 import type { MessageData } from 'genkit';
 import { ai } from './index';
@@ -25,15 +26,15 @@ import { ai } from './index';
 /**
  * Chat flow for use with chatHandler + useChat.
  *
- * inputSchema:  MessagesSchema  — receives the full conversation history
+ * inputSchema:  MessagesSchema    — receives the full conversation history
  *               (already converted from UIMessage[] by chatHandler).
  * streamSchema: StreamChunkSchema — drives the full useChat protocol
  *               (text, reasoning, tools, citations, step markers, etc.).
- * outputSchema: FlowOutputSchema — populates finish-message with
+ * outputSchema: FlowOutputSchema  — populates finish event with
  *               finishReason and token usage.
  *
- * Because input.messages is in Genkit's native Part format (after the
- * chatHandler conversion), it can be passed directly to generateStream.
+ * toStreamChunks() converts each GenerateResponseChunk to the appropriate
+ * StreamChunk values (text, reasoning, tool-request) automatically.
  */
 export const chatFlow = ai.defineFlow(
   {
@@ -45,25 +46,19 @@ export const chatFlow = ai.defineFlow(
   async (input, { sendChunk }) => {
     const { stream, response } = ai.generateStream({
       system: 'You are a helpful assistant. Be concise.',
-      // input.messages is in Genkit MessageData format — pass directly.
       messages: input.messages as MessageData[],
     });
 
     for await (const chunk of stream) {
-      if (chunk.text) {
-        sendChunk({ type: 'text', delta: chunk.text });
+      for (const c of toStreamChunks(chunk)) {
+        sendChunk(c);
       }
-      // Tool requests (if you add tools to the flow) would be forwarded like:
-      // for (const tr of chunk.toolRequests ?? []) {
-      //   sendChunk({ type: 'tool-request', toolCallId: tr.toolRequest.ref ?? '',
-      //               toolName: tr.toolRequest.name, input: tr.toolRequest.input });
-      // }
     }
 
     const res = await response;
     return {
       finishReason: res.finishReason,
-      usage: res.usage as Record<string, number> | undefined,
+      usage: res.usage as Record<string, unknown> | undefined,
     };
   }
 );

@@ -26,6 +26,7 @@
  */
 
 export { chatHandler, type ChatHandlerOptions } from './chat.js';
+export { toStreamChunks } from './generate.js';
 export {
   completionHandler,
   type CompletionHandlerOptions,
