@@ -16,7 +16,8 @@
 
 import type { ActionMetadata, ResolvableAction } from '@genkit-ai/core';
 import type { ActionType } from '@genkit-ai/core/registry';
-import { type ModelAction } from './model.js';
+import type { GenerateMiddleware } from './generate/middleware.js';
+import type { ModelAction } from './model.js';
 
 export interface GenkitPluginV2 {
   version: 'v2';
@@ -30,4 +31,7 @@ export interface GenkitPluginV2 {
 
   // A shortcut for resolving a model.
   model(name: string): Promise<ModelAction>;
+
+  // Returns a list of generate middleware to be used in `generate({use: [...])`.
+  middleware?: () => GenerateMiddleware<any, any>[];
 }
