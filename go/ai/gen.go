@@ -299,11 +299,8 @@ const (
 )
 
 type ModelReference struct {
-	Config       any    `json:"config,omitempty"`
-	ConfigSchema any    `json:"configSchema,omitempty"`
-	Info         any    `json:"info,omitempty"`
-	Name         string `json:"name,omitempty"`
-	Version      string `json:"version,omitempty"`
+	Config any    `json:"config,omitempty"`
+	Name   string `json:"name,omitempty"`
 }
 
 // A ModelRequest is a request to generate completions from a model.
