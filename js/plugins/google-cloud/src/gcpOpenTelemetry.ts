@@ -26,11 +26,12 @@ import { type ExportResult } from '@opentelemetry/core';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
-import { Resource } from '@opentelemetry/resources';
+import { Resource, resourceFromAttributes } from '@opentelemetry/resources';
 import {
+  AggregationOption,
   AggregationTemporality,
-  DefaultAggregation,
-  ExponentialHistogramAggregation,
+  AggregationType,
+  DataPointType,
   InMemoryMetricExporter,
   InstrumentType,
   PeriodicExportingMetricReader,
@@ -73,8 +74,10 @@ export class GcpOpenTelemetry {
 
   constructor(config: GcpTelemetryConfig) {
     this.config = config;
-    this.resource = new Resource({ type: 'global' }).merge(
-      new GcpDetectorSync().detect()
+
+    const detected = new GcpDetectorSync().detect();
+    this.resource = resourceFromAttributes({ type: 'global' }).merge(
+      resourceFromAttributes(detected.attributes ?? {})
     );
   }
 
@@ -106,10 +109,10 @@ export class GcpOpenTelemetry {
     spanProcessor = new BatchSpanProcessor(await this.createSpanExporter());
     return {
       resource: this.resource,
-      spanProcessor: spanProcessor,
+      spanProcessors: [spanProcessor],
       sampler: this.config.sampler,
       instrumentations: this.getInstrumentations(),
-      metricReader: await this.createMetricReader(),
+      metricReaders: [await this.createMetricReader()],
     };
   }
 
@@ -237,11 +240,11 @@ class MetricExporterWrapper extends MetricExporter {
     });
   }
 
-  selectAggregation(instrumentType: InstrumentType) {
+  selectAggregation(instrumentType: InstrumentType): AggregationOption {
     if (instrumentType === InstrumentType.HISTOGRAM) {
-      return new ExponentialHistogramAggregation();
+      return { type: AggregationType.EXPONENTIAL_HISTOGRAM };
     }
-    return new DefaultAggregation();
+    return { type: AggregationType.DEFAULT };
   }
 
   selectAggregationTemporality(instrumentType: InstrumentType) {
@@ -249,24 +252,50 @@ class MetricExporterWrapper extends MetricExporter {
   }
 
   /**
-   * Modify the start times of each data point to ensure no
-   * overlap with previous exports.
+   * Modify the start times of each data point to ensure no overlap with
+   * previous exports and that they are strictly before the end time.
    *
-   * Cloud metrics do not support delta metrics for custom metrics
-   * and will convert any DELTA aggregations to CUMULATIVE ones on
-   * export. There is implicit overlap in the start/end times that
-   * the Metric reader is sending -- the end_time of the previous
-   * export will become the start_time of the current export. The
-   * overlap in times means that only one of those records will
-   * persist and the other will be overwritten. This
-   * method adds a thousandth of a second to ensure discrete export
-   * timeframes.
+   * Cloud metrics do not support delta metrics for custom metrics and will
+   * convert any DELTA aggregations to CUMULATIVE ones on export. There is
+   * implicit overlap in the start/end times that the Metric reader is sending
+   * -- the end_time of the previous export will become the start_time of the
+   * current export. The overlap in times means that only one of those records
+   * will persist and the other will be overwritten. This method adds a
+   * thousandth of a second to ensure discrete export timeframes.
    */
   private modifyStartTimes(metrics: ResourceMetrics): void {
     metrics.scopeMetrics.forEach((scopeMetric) => {
       scopeMetric.metrics.forEach((metric) => {
         metric.dataPoints.forEach((dataPoint) => {
-          dataPoint.startTime[1] = dataPoint.startTime[1] + 1_000_000;
+          // 1. Ensure startTime is a fresh object to avoid side-effects from
+          // in-place mutation.
+          dataPoint.startTime = [...dataPoint.startTime];
+
+          // 2. Shift start time forward by 1ms to avoid boundary overlap with
+          // the previous point.
+          dataPoint.startTime[1] += 1_000_000;
+          if (dataPoint.startTime[1] >= 1_000_000_000) {
+            dataPoint.startTime[0] += 1;
+            dataPoint.startTime[1] -= 1_000_000_000;
+          }
+
+          // 3. For non-gauge metrics, GCP strictly requires startTime < endTime.
+          if (metric.dataPointType !== DataPointType.GAUGE) {
+            if (
+              dataPoint.startTime[0] > dataPoint.endTime[0] ||
+              (dataPoint.startTime[0] === dataPoint.endTime[0] &&
+                dataPoint.startTime[1] >= dataPoint.endTime[1])
+            ) {
+              // If the shift made startTime >= endTime, we force it to be 1ms
+              // before endTime.
+              dataPoint.startTime[0] = dataPoint.endTime[0];
+              dataPoint.startTime[1] = dataPoint.endTime[1] - 1_000_000;
+              if (dataPoint.startTime[1] < 0) {
+                dataPoint.startTime[0] -= 1;
+                dataPoint.startTime[1] += 1_000_000_000;
+              }
+            }
+          }
         });
       });
     });
