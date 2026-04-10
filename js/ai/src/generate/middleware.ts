@@ -225,7 +225,7 @@ export async function resolveMiddleware(
     result.push(
       def.instantiate({
         config: ref.config,
-        ai: new GenkitAI(registry),
+        ai,
         pluginConfig: (def as GenerateMiddlewarePluginInstance).pluginOptions,
       })
     );
