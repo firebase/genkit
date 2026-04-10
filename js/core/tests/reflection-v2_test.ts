@@ -274,7 +274,7 @@ describe('ReflectionServerV2', () => {
             );
           } else if (msg.id === '126') {
             assert.ok(msg.error);
-            assert.strictEqual(msg.error.code, 400);
+            assert.strictEqual(msg.error.code, -32602);
             assert.match(msg.error.message, /is not supported/);
             clearTimeout(timer);
             resolve();
