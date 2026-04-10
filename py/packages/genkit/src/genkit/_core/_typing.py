@@ -359,9 +359,6 @@ class ModelReference(GenkitModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(alias_generator=to_camel, extra='forbid', populate_by_name=True)
     name: str = Field(...)
-    config_schema: Any | None = Field(default=None)
-    info: Any | None = Field(default=None)
-    version: str | None = None
     config: Any | None = Field(default=None)
 
 
