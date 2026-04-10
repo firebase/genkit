@@ -185,7 +185,11 @@ export function completionHandler<
             'An error occurred.';
           await writer.write(message);
         } finally {
-          await writer.close();
+          try {
+            await writer.close();
+          } catch {
+            // Stream already closed (e.g. client aborted the request).
+          }
         }
       })();
 

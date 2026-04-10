@@ -149,7 +149,11 @@ export function objectHandler<
         // partial JSON already sent. Close the stream so useObject fires onError.
         opts?.onError?.(err);
       } finally {
-        await writer.close();
+        try {
+          await writer.close();
+        } catch {
+          // Stream already closed (e.g. client aborted the request).
+        }
       }
     })();
 
