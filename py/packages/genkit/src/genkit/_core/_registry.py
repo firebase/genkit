@@ -243,17 +243,40 @@ class Registry:
         with self._lock:
             return self._value_by_kind_and_name.get(kind, {}).get(name)
 
-    def list_values(self, kind: str) -> list[str]:
-        """List all values registered for a specific kind.
+    def list_values(self, kind: str) -> dict[str, object]:
+        """Return all values registered for a kind (name to value).
 
         Args:
-            kind: The kind of values to list (e.g., "defaultModel").
+            kind: The kind of values to list (e.g., ``defaultModel``).
 
         Returns:
-            A list of registered value names.
+            A dict mapping registered names to their values.
         """
         with self._lock:
-            return list(self._value_by_kind_and_name.get(kind, {}).keys())
+            kind_map = self._value_by_kind_and_name.get(kind)
+            if not kind_map:
+                return {}
+            return dict(kind_map)
+
+    async def initialize_all_plugins(self) -> None:
+        """Initialize every registered plugin once (lazy init is idempotent).
+
+        Used by the reflection server so values such as default models are
+        registered before ``list_values`` is called. Copies plugin names with
+        ``list(self._plugins)`` under ``_lock`` so iteration cannot race
+        ``register_plugin`` (unlike iterating ``dict.keys()`` views directly).
+        The loop then calls ``_ensure_plugin_initialized`` without holding
+        ``_lock``: that path must ``await plugin.init()``, and holding a
+        ``threading.Lock`` across an ``await`` would block every other thread that
+        needs the registry (including ``register_plugin``) for the entire duration
+        of each slow ``init()``, and can deadlock if ``init`` ever waits on work
+        that needs the same lock. The lock is only taken for short sync sections
+        (snapshot, or scheduling the init task in ``_ensure_plugin_initialized``).
+        """
+        with self._lock:
+            plugin_names = list(self._plugins)
+        for plugin_name in plugin_names:
+            await self._ensure_plugin_initialized(plugin_name)
 
     def register_plugin(self, plugin: Plugin) -> None:
         """Register a plugin with the registry.
