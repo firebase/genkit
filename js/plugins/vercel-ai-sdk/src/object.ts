@@ -20,12 +20,19 @@ import { headersToRecord, resolveStatus } from './utils.js';
 
 /**
  * Options for `objectHandler`.
+ *
+ * @typeParam Ctx - Shape of the context object returned by `contextProvider`.
+ *   TypeScript infers this from your `contextProvider` implementation.
  */
-export interface ObjectHandlerOptions {
-  /** Called on mid-stream error for logging/reporting. The stream is closed
-   *  immediately after — appending error text is not possible without
-   *  corrupting the partial JSON that has already been sent. */
-  onError?: (err: unknown) => void;
+export interface ObjectHandlerOptions<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+> {
+  /**
+   * Called on mid-stream error for logging/reporting.  The stream is closed
+   * immediately after — unlike `chatHandler`, any return value is ignored
+   * because appending text to a partial JSON stream would corrupt it.
+   */
+  onError?: (err: unknown) => string | void;
   /**
    * Extract auth/session context from the incoming request.
    * Throw to reject the request before the stream opens; status is derived
@@ -33,7 +40,7 @@ export interface ObjectHandlerOptions {
    * to the `useObject()` protocol using raw text/plain — this is a protocol
    * constraint, not a Genkit limitation.
    */
-  contextProvider?: ContextProvider<any, any>;
+  contextProvider?: ContextProvider<any, Ctx>;
 }
 
 /**
@@ -69,9 +76,11 @@ export interface ObjectHandlerOptions {
  * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-object useObject() reference}
  * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/object-generation Object generation guide}
  */
-export function objectHandler(
+export function objectHandler<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+>(
   flow: Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodString>,
-  opts?: ObjectHandlerOptions
+  opts?: ObjectHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     // ---- Parse request body -----------------------------------------------
@@ -89,11 +98,11 @@ export function objectHandler(
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = await opts.contextProvider({
+        context = (await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input,
-        });
+        })) as Record<string, unknown>;
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),

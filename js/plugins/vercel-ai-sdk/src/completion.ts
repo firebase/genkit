@@ -26,7 +26,7 @@ import {
   createDispatchState,
   dispatchChunk,
 } from './dispatch.js';
-import { FlowOutputSchema } from './schema.js';
+import { FlowOutputSchema, StreamChunkSchema } from './schema.js';
 import {
   headersToRecord,
   normalizeFinishReason,
@@ -35,15 +35,24 @@ import {
 
 /**
  * Options for `completionHandler`.
+ *
+ * @typeParam Ctx - Shape of the context object returned by `contextProvider`.
+ *   TypeScript infers this from your `contextProvider` implementation.
  */
-export interface CompletionHandlerOptions {
-  /** Called on unhandled error; return the text to surface to the client. */
-  onError?: (err: unknown) => string;
+export interface CompletionHandlerOptions<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+> {
+  /**
+   * Called on unhandled errors thrown by the flow.  Return a string to surface
+   * a message to the client; return `void` (or nothing) to use the default
+   * "An error occurred." message.
+   */
+  onError?: (err: unknown) => string | void;
   /**
    * Extract auth/session context from the incoming request.
    * Throw to reject the request; status is derived via `getHttpStatus()`.
    */
-  contextProvider?: ContextProvider<any, any>;
+  contextProvider?: ContextProvider<any, Ctx>;
   /**
    * Stream protocol to use in the response.
    *
@@ -85,9 +94,11 @@ export interface CompletionHandlerOptions {
  *
  * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-completion useCompletion() reference}
  */
-export function completionHandler(
+export function completionHandler<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+>(
   flow: Action<z.ZodString, any, any>,
-  opts?: CompletionHandlerOptions
+  opts?: CompletionHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     // ---- Parse & validate request body ------------------------------------
@@ -114,11 +125,11 @@ export function completionHandler(
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = await opts.contextProvider({
+        context = (await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input: prompt,
-        });
+        })) as Record<string, unknown>;
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),
@@ -142,19 +153,18 @@ export function completionHandler(
             let text: string | undefined;
             if (typeof chunk === 'string') {
               text = chunk;
-            } else if (
-              chunk !== null &&
-              typeof chunk === 'object' &&
-              (chunk as any).type === 'text'
-            ) {
-              text = (chunk as any).delta;
+            } else {
+              const parsed = StreamChunkSchema.safeParse(chunk);
+              if (parsed.success && parsed.data.type === 'text') {
+                text = parsed.data.delta;
+              }
             }
             if (text) await writer.write(text);
           }
         } catch (err) {
-          const message = opts?.onError
-            ? opts.onError(err)
-            : 'An error occurred.';
+          const message =
+            (opts?.onError ? opts.onError(err) : undefined) ??
+            'An error occurred.';
           await writer.write(message);
         } finally {
           await writer.close();
@@ -190,7 +200,9 @@ export function completionHandler(
           });
         }
       },
-      onError: opts?.onError,
+      onError: opts?.onError
+        ? (err: unknown) => opts.onError!(err) ?? 'An error occurred.'
+        : undefined,
     });
 
     return createUIMessageStreamResponse({ stream });

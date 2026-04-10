@@ -169,14 +169,14 @@ export function toGenkitMessages(messages: UIMessage[]): GenkitMessageData[] {
       }
 
       case 'tool':
-        // Legacy tool role — pass through as-is with a best-effort toolResponse.
-        result.push({
-          role: 'tool',
-          content: msg.content
-            ? [{ toolResponse: { name: 'unknown', output: msg.content } }]
-            : [],
-        });
-        break;
+        // The `tool` role is a Vercel AI SDK v3 artifact. In v4+ tool results
+        // are carried as `tool-invocation` parts (state: 'result') inside the
+        // assistant message. Receiving a bare `tool` role message means the
+        // client is using an outdated message format.
+        throw new Error(
+          `UIMessage with role 'tool' is not supported. ` +
+            `Use assistant messages with tool-invocation parts (state: 'result') instead.`
+        );
     }
   }
 

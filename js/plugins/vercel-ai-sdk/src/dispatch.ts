@@ -47,29 +47,14 @@ export function createDispatchState(): DispatchState {
 // ---------------------------------------------------------------------------
 
 /**
- * Dispatch a single raw chunk from a flow's stream to the AI SDK
- * `UIMessageStreamWriter`.
- *
- * Accepts both plain strings (backward-compat, treated as text deltas) and
- * typed `StreamChunk` objects. Unknown shapes are silently dropped.
+ * Dispatch a single `StreamChunk` from a flow's stream to the AI SDK
+ * `UIMessageStreamWriter`. Unknown shapes are silently dropped.
  */
 export function dispatchChunk(
   writer: UIMessageStreamWriter,
   rawChunk: unknown,
   state: DispatchState
 ): void {
-  // Backward-compat: plain string → text delta
-  if (typeof rawChunk === 'string') {
-    if (!rawChunk) return;
-    ensureTextOpen(writer, state);
-    writer.write({
-      type: 'text-delta',
-      id: state.openTextId!,
-      delta: rawChunk,
-    });
-    return;
-  }
-
   const parsed = StreamChunkSchema.safeParse(rawChunk);
   if (!parsed.success) return;
   const chunk: StreamChunk = parsed.data;
@@ -164,7 +149,13 @@ export function dispatchChunk(
     }
 
     case 'data': {
-      writer.write({ type: `data-${chunk.id}` as any, data: chunk.value });
+      // The AI SDK writer types `data-*` events via `z.custom<\`data-${string}\`>()`,
+      // which TypeScript cannot express as a literal template type on the write() overload.
+      // The cast is safe: any `data-${string}` value is accepted at runtime.
+      writer.write({
+        type: `data-${chunk.id}` as `data-${string}`,
+        data: chunk.value,
+      });
       break;
     }
 

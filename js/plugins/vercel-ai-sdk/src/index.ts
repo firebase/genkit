@@ -57,7 +57,6 @@ export {
   type Messages,
   type StreamChunk,
 } from './schema.js';
-export { normalizeFinishReason, type FinishReason } from './utils.js';
 export {
   createTextStreamResponse,
   createUIMessageStream,

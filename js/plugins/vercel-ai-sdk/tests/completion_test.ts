@@ -61,9 +61,12 @@ function makeReq(prompt: string) {
 describe('completionHandler — lifecycle', () => {
   it('emits text events and [DONE]', async () => {
     const events = await parseSSE(
-      await completionHandler(fakeFlow(['Once', ' upon']))(
-        makeReq('tell me a story')
-      )
+      await completionHandler(
+        fakeFlow([
+          { type: 'text', delta: 'Once' } as StreamChunk,
+          { type: 'text', delta: ' upon' } as StreamChunk,
+        ])
+      )(makeReq('tell me a story'))
     );
     assert.equal(eventsOfType(events, 'text-start').length, 1);
     assert.equal(eventsOfType(events, 'text-delta').length, 2);
@@ -71,9 +74,15 @@ describe('completionHandler — lifecycle', () => {
     assert.equal(events[events.length - 1], '[DONE]');
   });
 
-  it('skips empty chunks', async () => {
+  it('skips empty text delta chunks', async () => {
     const events = await parseSSE(
-      await completionHandler(fakeFlow(['', 'hello', '']))(makeReq('hi'))
+      await completionHandler(
+        fakeFlow([
+          { type: 'text', delta: '' } as StreamChunk,
+          { type: 'text', delta: 'hello' } as StreamChunk,
+          { type: 'text', delta: '' } as StreamChunk,
+        ])
+      )(makeReq('hi'))
     );
     assert.equal((eventsOfType(events, 'text-delta') as any[]).length, 1);
   });
@@ -212,6 +221,98 @@ describe('completionHandler — abort signal', () => {
     const res = await completionHandler(flow)(makeReq('hi'));
     await res.text(); // drain
     assert.ok(capturedOpts.abortSignal instanceof AbortSignal);
+  });
+});
+
+describe('completionHandler — onError (SSE mode)', () => {
+  it('surfaces custom onError string in the error SSE event', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const events = await parseSSE(
+      await completionHandler(throwingFlow, {
+        onError: () => 'oops',
+      })(makeReq('hi'))
+    );
+    const errEvent = events.find(
+      (e) => typeof e === 'object' && (e as any).type === 'error'
+    ) as any;
+    assert.ok(errEvent, 'expected an error event');
+    assert.equal(errEvent.errorText, 'oops');
+  });
+
+  it('uses default message when onError returns void', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const events = await parseSSE(
+      await completionHandler(throwingFlow, { onError: () => {} })(
+        makeReq('hi')
+      )
+    );
+    const errEvent = events.find(
+      (e) => typeof e === 'object' && (e as any).type === 'error'
+    ) as any;
+    assert.ok(errEvent);
+    assert.equal(errEvent.errorText, 'An error occurred.');
+  });
+});
+
+describe('completionHandler — onError (text mode)', () => {
+  it('writes custom error message to text stream', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            yield 'partial';
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const res = await completionHandler(throwingFlow, {
+      streamProtocol: 'text',
+      onError: () => ' [error]',
+    })(makeReq('hi'));
+    const text = await res.text();
+    assert.ok(text.endsWith(' [error]'));
+  });
+
+  it('uses default error message when onError returns void (text mode)', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const res = await completionHandler(throwingFlow, {
+      streamProtocol: 'text',
+      onError: () => {},
+    })(makeReq('hi'));
+    assert.equal(await res.text(), 'An error occurred.');
   });
 });
 

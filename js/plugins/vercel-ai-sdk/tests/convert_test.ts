@@ -142,6 +142,13 @@ describe('toGenkitMessages', () => {
     );
   });
 
+  it('throws on legacy tool role', () => {
+    assert.throws(
+      () => toGenkitMessages([msg('tool', [])]),
+      /UIMessage with role 'tool' is not supported/
+    );
+  });
+
   it('handles assistant with text + tool-invocation result → 3 messages', () => {
     const result = toGenkitMessages([
       msg('assistant', [

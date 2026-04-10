@@ -96,20 +96,6 @@ describe('chatHandler — lifecycle events', () => {
 // ---------------------------------------------------------------------------
 
 describe('chatHandler — text streaming', () => {
-  it('handles plain string chunks (backward-compat)', async () => {
-    const events = await parseSSE(
-      await chatHandler(fakeFlow(['Hello', ', ', 'world!']))(
-        makeRequest([userMsg])
-      )
-    );
-    assert.equal(eventsOfType(events, 'text-start').length, 1);
-    assert.deepEqual(
-      (eventsOfType(events, 'text-delta') as any[]).map((d) => d.delta),
-      ['Hello', ', ', 'world!']
-    );
-    assert.equal(eventsOfType(events, 'text-end').length, 1);
-  });
-
   it('handles {type:text} chunks', async () => {
     const events = await parseSSE(
       await chatHandler(
@@ -124,9 +110,15 @@ describe('chatHandler — text streaming', () => {
     assert.equal(eventsOfType(events, 'text-end').length, 1);
   });
 
-  it('skips empty string chunks', async () => {
+  it('skips empty text delta chunks', async () => {
     const events = await parseSSE(
-      await chatHandler(fakeFlow(['', 'hi', '']))(makeRequest([userMsg]))
+      await chatHandler(
+        fakeFlow([
+          { type: 'text', delta: '' } as StreamChunk,
+          { type: 'text', delta: 'hi' } as StreamChunk,
+          { type: 'text', delta: '' } as StreamChunk,
+        ])
+      )(makeRequest([userMsg]))
     );
     assert.equal((eventsOfType(events, 'text-delta') as any[]).length, 1);
   });
@@ -522,6 +514,80 @@ describe('chatHandler — abort signal', () => {
     const res = await chatHandler(flow)(req);
     await res.text(); // drain
     assert.ok(capturedOpts.abortSignal instanceof AbortSignal);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// onError / mid-stream errors
+// ---------------------------------------------------------------------------
+
+describe('chatHandler — onError', () => {
+  it('surfaces custom onError string in the error SSE event', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            yield { type: 'text', delta: 'partial' } as StreamChunk;
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const events = await parseSSE(
+      await chatHandler(throwingFlow, {
+        onError: () => 'something went wrong',
+      })(makeRequest([userMsg]))
+    );
+    const errEvent = events.find(
+      (e) => typeof e === 'object' && (e as any).type === 'error'
+    ) as any;
+    assert.ok(errEvent, 'expected an error event');
+    assert.equal(errEvent.errorText, 'something went wrong');
+  });
+
+  it('uses default message when onError returns void', async () => {
+    const throwingFlow = {
+      stream(_input: unknown, _opts?: unknown) {
+        return {
+          stream: (async function* () {
+            throw new Error('boom');
+          })(),
+          output: Promise.resolve(undefined),
+        };
+      },
+    } as any;
+
+    const events = await parseSSE(
+      await chatHandler(throwingFlow, { onError: () => {} })(
+        makeRequest([userMsg])
+      )
+    );
+    const errEvent = events.find(
+      (e) => typeof e === 'object' && (e as any).type === 'error'
+    ) as any;
+    assert.ok(errEvent);
+    assert.equal(errEvent.errorText, 'An error occurred.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// finish-reason normalisation
+// ---------------------------------------------------------------------------
+
+describe('chatHandler — finish-reason normalisation', () => {
+  it('omits finishReason from finish event when flow returns unknown reason', async () => {
+    const flow = fakeFlow([], {
+      finishReason: 'cancelled', // not a valid AI SDK finish reason
+      usage: {},
+    });
+    const events = await parseSSE(
+      await chatHandler(flow)(makeRequest([userMsg]))
+    );
+    const f = eventsOfType(events, 'finish')[0] as any;
+    assert.ok(f, 'expected finish event');
+    assert.ok(!('finishReason' in f), 'finishReason should be omitted');
   });
 });
 

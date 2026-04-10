@@ -32,10 +32,19 @@ import {
 
 /**
  * Options for `chatHandler`.
+ *
+ * @typeParam Ctx - Shape of the context object returned by `contextProvider`.
+ *   TypeScript infers this from your `contextProvider` implementation.
  */
-export interface ChatHandlerOptions {
-  /** Called on unhandled error; return the text to surface to the client. */
-  onError?: (err: unknown) => string;
+export interface ChatHandlerOptions<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+> {
+  /**
+   * Called on unhandled errors thrown by the flow.  Return a string to surface
+   * a message to the client; return `void` (or nothing) to use the default
+   * "An error occurred." message.
+   */
+  onError?: (err: unknown) => string | void;
   /**
    * Extract auth/session context from the incoming request.  The derived
    * context is forwarded to the flow via `ActionRunOptions.context`.
@@ -43,7 +52,7 @@ export interface ChatHandlerOptions {
    * Throw from this function to reject the request — the HTTP status is
    * derived from the error using Genkit's standard `getHttpStatus()`.
    */
-  contextProvider?: ContextProvider<any, any>;
+  contextProvider?: ContextProvider<any, Ctx>;
 }
 
 /**
@@ -92,9 +101,11 @@ export interface ChatHandlerOptions {
  * @see {@link https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat useChat() reference}
  * @see {@link https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot Chatbot guide}
  */
-export function chatHandler(
+export function chatHandler<
+  Ctx extends Record<string, unknown> = Record<string, unknown>,
+>(
   flow: Action<typeof MessagesSchema, any, any>,
-  opts?: ChatHandlerOptions
+  opts?: ChatHandlerOptions<Ctx>
 ): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     // ---- Parse & validate request body ------------------------------------
@@ -129,11 +140,11 @@ export function chatHandler(
     let context: Record<string, unknown> = {};
     if (opts?.contextProvider) {
       try {
-        context = await opts.contextProvider({
+        context = (await opts.contextProvider({
           method: 'POST',
           headers: headersToRecord(req.headers),
           input: flowInput,
-        });
+        })) as Record<string, unknown>;
       } catch (err) {
         return new Response(JSON.stringify({ error: String(err) }), {
           status: resolveStatus(err),
@@ -169,7 +180,9 @@ export function chatHandler(
           });
         }
       },
-      onError: opts?.onError,
+      onError: opts?.onError
+        ? (err: unknown) => opts.onError!(err) ?? 'An error occurred.'
+        : undefined,
     });
 
     return createUIMessageStreamResponse({ stream });

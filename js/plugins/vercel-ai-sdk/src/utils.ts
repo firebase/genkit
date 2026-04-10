@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  getHttpStatus,
-  type ContextProvider,
-  type RequestData,
-} from 'genkit/context';
+import { getHttpStatus } from 'genkit/context';
 
 // ---------------------------------------------------------------------------
 // HTTP helpers
@@ -42,23 +38,6 @@ export function resolveStatus(err: unknown): number {
   if (s !== 500) return s;
   const plain = (err as any)?.status;
   return typeof plain === 'number' && plain >= 100 && plain < 600 ? plain : 500;
-}
-
-// ---------------------------------------------------------------------------
-// Context provider helper
-// ---------------------------------------------------------------------------
-
-/**
- * Run the optional `contextProvider` and return the derived context object.
- * Returns `{}` if no provider is configured.
- * Throws the provider's error directly so the caller can return an HTTP error.
- */
-export async function resolveContext(
-  contextProvider: ContextProvider<any, any> | undefined,
-  requestData: RequestData
-): Promise<Record<string, unknown>> {
-  if (!contextProvider) return {};
-  return contextProvider(requestData);
 }
 
 // ---------------------------------------------------------------------------
