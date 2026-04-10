@@ -176,7 +176,7 @@ export function generateMiddleware<
   def.plugin = (pluginConfig: PluginOptions) => ({
     name: `middleware:${options.name}`,
     version: 'v2',
-    generateMiddleware: () => {
+    middleware: () => {
       const wrappedDef = Object.assign(
         function (config?: z.infer<ConfigSchema>) {
           return def(config);
@@ -210,6 +210,7 @@ export async function resolveMiddleware(
 ): Promise<GenerateMiddlewareDef[]> {
   const result: GenerateMiddlewareDef[] = [];
   if (!refs) return result;
+  const ai = new GenkitAI(registry);
   for (const ref of refs) {
     const def = await registry.lookupValue<GenerateMiddleware>(
       'middleware',
@@ -224,7 +225,7 @@ export async function resolveMiddleware(
     result.push(
       def.instantiate({
         config: ref.config,
-        ai: new GenkitAI(registry),
+        ai,
         pluginConfig: (def as GenerateMiddlewarePluginInstance).pluginOptions,
       })
     );
