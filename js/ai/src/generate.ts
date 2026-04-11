@@ -49,18 +49,22 @@ import {
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
+  GenerationUsageSchema,
   ResolvedModel,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
   type GenerationCommonConfigSchema,
+  type GenerationUsage,
   type MessageData,
   type MiddlewareRef,
   type ModelArgument,
   type ModelMiddlewareArgument,
   type Part,
+  type TokenCounterAction,
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
@@ -795,4 +799,107 @@ export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
       preamble: true,
     },
   }));
+}
+
+/**
+ * Counts the tokens for a given generate request.
+ */
+export async function countTokens<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<GenerationUsage> {
+  const resolvedOptions: GenerateOptions<O, CustomOptions> = {
+    ...(await Promise.resolve(options)),
+  };
+
+  const childRegistry = Registry.withParent(registry);
+
+  maybeRegisterDynamicTools(childRegistry, resolvedOptions);
+  maybeRegisterDynamicResources(childRegistry, resolvedOptions);
+
+  const resolvedModel = await resolveModel(
+    childRegistry,
+    resolvedOptions.model
+  );
+
+  const tools = await toolsToActionRefs(childRegistry, resolvedOptions.tools);
+  const resources = await resourcesToActionRefs(
+    childRegistry,
+    resolvedOptions.resources
+  );
+
+  const request = await toGenerateRequest(childRegistry, {
+    ...resolvedOptions,
+    tools,
+    resources,
+  });
+
+  request.config = {
+    ...(resolvedModel?.version ? { version: resolvedModel.version } : {}),
+    ...stripUndefinedOptions(resolvedModel?.config),
+    ...stripUndefinedOptions(request.config),
+  };
+  if (Object.keys(request.config || {}).length === 0) {
+    delete request.config;
+  }
+
+  const middlewareRefs = await normalizeMiddleware(
+    childRegistry,
+    resolvedOptions.use
+  );
+  const resolvedMiddleware = await resolveMiddleware(
+    childRegistry,
+    middlewareRefs
+  );
+  maybeRegisterDynamicMiddlewareTools(childRegistry, resolvedMiddleware);
+
+  let interceptedRequest = request;
+  if (resolvedMiddleware && resolvedMiddleware.length > 0) {
+    const dispatchModel = async (
+      index: number,
+      req: GenerateRequest
+    ): Promise<GenerateResponseData> => {
+      if (index === resolvedMiddleware.length) {
+        interceptedRequest = req;
+        // Return a dummy response to safely unwind the middleware chain without
+        // executing the actual model generation, since we only want to intercept the mutated request.
+        return {
+          message: { role: 'model', content: [] },
+          finishReason: 'stop',
+        };
+      }
+      const currentMiddleware = resolvedMiddleware[index];
+      if (currentMiddleware.model) {
+        return currentMiddleware.model(req, {}, async (modifiedReq) =>
+          dispatchModel(index + 1, modifiedReq || req)
+        );
+      } else {
+        return dispatchModel(index + 1, req);
+      }
+    };
+    await dispatchModel(0, request);
+  }
+
+  const counterActionName = `/model-token-counter/${resolvedModel.modelAction.__action.name}`;
+  const counterAction =
+    resolvedModel.modelAction.__tokenCounterAction ||
+    (await childRegistry.lookupAction<
+      typeof GenerateRequestSchema,
+      typeof GenerationUsageSchema,
+      TokenCounterAction<CustomOptions>
+    >(counterActionName));
+
+  if (!counterAction) {
+    throw new GenkitError({
+      status: 'NOT_FOUND',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support token counting (model-token-counter action not found).`,
+    });
+  }
+
+  return await counterAction(interceptedRequest);
 }

@@ -20,6 +20,7 @@ import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
+  countTokens,
   generate,
   generateStream,
   normalizeMiddleware,
@@ -30,6 +31,7 @@ import {
 import { generateMiddleware } from '../../src/generate/middleware.js';
 import {
   defineModel,
+  model,
   type ModelAction,
   type ModelMiddleware,
   type ModelMiddlewareWithOptions,
@@ -1022,6 +1024,266 @@ describe('normalizeMiddleware', () => {
       {
         name: 'GenkitError',
         status: 'INVALID_ARGUMENT',
+      }
+    );
+  });
+});
+
+describe('countTokens', () => {
+  let registry: Registry;
+
+  beforeEach(() => {
+    registry = new Registry();
+  });
+
+  it('calls model-token-counter action with proper request', async () => {
+    let receivedRequest: any;
+
+    const countTokensModel = defineModel(
+      registry,
+      {
+        name: 'countTokensModel',
+        countTokens: async (req) => {
+          receivedRequest = req;
+          return { totalTokens: 42 };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const result = await countTokens(registry, {
+      model: countTokensModel,
+      prompt: 'hello world',
+      config: { temperature: 0.5 },
+    });
+
+    assert.deepStrictEqual(result, { totalTokens: 42 });
+    assert.deepStrictEqual(receivedRequest.messages, [
+      { role: 'user', content: [{ text: 'hello world' }] },
+    ]);
+    assert.strictEqual(receivedRequest.config.temperature, 0.5);
+  });
+
+  it('registers dynamic tools and resources during countTokens', async () => {
+    let receivedRequest: any;
+
+    const countTokensModel = defineModel(
+      registry,
+      {
+        name: 'countTokensModelWithTools',
+        countTokens: async (req) => {
+          receivedRequest = req;
+          return { totalTokens: 10 };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const dynamicTestTool = defineTool(
+      registry,
+      {
+        name: 'dynamicTestTool',
+        description: 'dynamic tool for counting',
+        inputSchema: z.object({}),
+        outputSchema: z.string(),
+      },
+      async () => 'dynamic tool output'
+    );
+
+    const result = await countTokens(registry, {
+      model: countTokensModel,
+      prompt: 'test with dynamic tools',
+      tools: [dynamicTestTool],
+    });
+
+    assert.deepStrictEqual(result, { totalTokens: 10 });
+    assert.strictEqual(receivedRequest.tools.length, 1);
+    assert.strictEqual(receivedRequest.tools[0].name, 'dynamicTestTool');
+
+    // The tool should be registered dynamically
+    const toolAct = await registry.lookupAction('/tool/dynamicTestTool');
+    assert.ok(toolAct);
+  });
+
+  it('runs model-level middleware that modifies the request during countTokens', async () => {
+    let receivedRequest: any;
+
+    const modifyingMiddleware: ModelMiddleware = async (req, next) => {
+      const modifiedReq = {
+        ...req,
+        messages: [
+          ...req.messages,
+          {
+            role: 'user' as const,
+            content: [{ text: 'appended by model middleware' }],
+          },
+        ],
+      };
+      return next(modifiedReq);
+    };
+
+    const countTokensModelWithModelMiddleware = defineModel(
+      registry,
+      {
+        name: 'countTokensModelWithModelMiddleware',
+        use: [modifyingMiddleware],
+        countTokens: async (req) => {
+          receivedRequest = req;
+          return { totalTokens: JSON.stringify(req).length };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const countTokensModelNoMiddleware = defineModel(
+      registry,
+      {
+        name: 'countTokensModelNoMiddleware',
+        countTokens: async (req) => {
+          return { totalTokens: JSON.stringify(req).length };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const withoutMiddleware = await countTokens(registry, {
+      model: countTokensModelNoMiddleware,
+      prompt: 'hello world',
+    });
+
+    const withMiddleware = await countTokens(registry, {
+      model: countTokensModelWithModelMiddleware,
+      prompt: 'hello world',
+    });
+
+    assert.ok(withMiddleware.totalTokens! > withoutMiddleware.totalTokens!);
+    assert.strictEqual(receivedRequest.messages.length, 2);
+    assert.strictEqual(
+      receivedRequest.messages[1].content[0].text,
+      'appended by model middleware'
+    );
+  });
+
+  it('runs request-level middleware that modifies the request during countTokens', async () => {
+    let receivedRequest: any;
+
+    const countTokensModel = defineModel(
+      registry,
+      {
+        name: 'countTokensModelWithMiddleware',
+        countTokens: async (req) => {
+          receivedRequest = req;
+          return { totalTokens: JSON.stringify(req).length };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const modifyingMiddleware: ModelMiddleware = async (req, next) => {
+      const modifiedReq = {
+        ...req,
+        messages: [
+          ...req.messages,
+          {
+            role: 'user' as const,
+            content: [{ text: 'appended by middleware' }],
+          },
+        ],
+      };
+      return next(modifiedReq);
+    };
+
+    const withoutMiddleware = await countTokens(registry, {
+      model: countTokensModel,
+      prompt: 'hello world',
+    });
+
+    const withMiddleware = await countTokens(registry, {
+      model: countTokensModel,
+      prompt: 'hello world',
+      use: [modifyingMiddleware],
+    });
+
+    assert.ok(withMiddleware.totalTokens! > withoutMiddleware.totalTokens!);
+    assert.strictEqual(receivedRequest.messages.length, 2);
+    assert.strictEqual(
+      receivedRequest.messages[1].content[0].text,
+      'appended by middleware'
+    );
+  });
+
+  it('counts tokens using a dynamic unregistered model', async () => {
+    // `model` creates the Action object but does not register it in the registry.
+    const dynamicUnregisteredModel = model(
+      {
+        name: 'dynamicUnregisteredModel',
+        countTokens: async (req) => {
+          return { totalTokens: 999 };
+        },
+      },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    const result = await countTokens(registry, {
+      model: dynamicUnregisteredModel,
+      prompt: 'hello world',
+    });
+
+    assert.deepStrictEqual(result, { totalTokens: 999 });
+  });
+
+  it('throws NOT_FOUND if model does not support token counting', async () => {
+    const noTokensModel = defineModel(
+      registry,
+      { name: 'noTokensModel' },
+      async (request) => {
+        return {
+          message: { role: 'model', content: [{ text: 'response' }] },
+          finishReason: 'stop',
+        };
+      }
+    );
+
+    await assert.rejects(
+      async () => {
+        await countTokens(registry, {
+          model: noTokensModel,
+          prompt: 'hello world',
+        });
+      },
+      {
+        name: 'GenkitError',
+        status: 'NOT_FOUND',
       }
     );
   });
