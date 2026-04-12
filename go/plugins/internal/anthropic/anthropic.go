@@ -224,8 +224,20 @@ func toAnthropicRequest(provider string, i *ai.ModelRequest) (*anthropic.Message
 	sysBlocks := []anthropic.TextBlockParam{}
 	for _, message := range i.Messages {
 		if message.Role == ai.RoleSystem {
-			// only text is supported for system messages
-			sysBlocks = append(sysBlocks, anthropic.TextBlockParam{Text: message.Text()})
+			block := anthropic.TextBlockParam{Text: message.Text()}
+			// Enable prompt caching if the message has cache metadata.
+			// Callers set Metadata["cache"] = map[string]any{"type": "ephemeral"}
+			// to mark system prompts for Anthropic's prompt caching feature.
+			if message.Metadata != nil {
+				if cacheVal, ok := message.Metadata["cache"]; ok && cacheVal != nil {
+					if cacheMap, ok := cacheVal.(map[string]any); ok {
+						if cacheType, ok := cacheMap["type"].(string); ok && cacheType == "ephemeral" {
+							block.CacheControl = anthropic.CacheControlEphemeralParam{Type: "ephemeral"}
+						}
+					}
+				}
+			}
+			sysBlocks = append(sysBlocks, block)
 		} else if message.Content[len(message.Content)-1].IsToolResponse() {
 			// if the last message is a ToolResponse, the conversation must continue
 			// and the ToolResponse message must be sent as a user
@@ -474,6 +486,12 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 		InputTokens:         int(m.Usage.InputTokens),
 		OutputTokens:        int(m.Usage.OutputTokens),
 		CachedContentTokens: int(m.Usage.CacheReadInputTokens),
+	}
+	// Track cache creation tokens in Custom metrics (no dedicated field in GenerationUsage)
+	if m.Usage.CacheCreationInputTokens > 0 {
+		r.Usage.Custom = map[string]float64{
+			"cacheCreationInputTokens": float64(m.Usage.CacheCreationInputTokens),
+		}
 	}
 	return &r, nil
 }
