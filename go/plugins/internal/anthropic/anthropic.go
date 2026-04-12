@@ -226,15 +226,14 @@ func toAnthropicRequest(provider string, i *ai.ModelRequest) (*anthropic.Message
 		if message.Role == ai.RoleSystem {
 			block := anthropic.TextBlockParam{Text: message.Text()}
 			// Enable prompt caching if the message has cache metadata.
-			// Callers set Metadata["cache"] = map[string]any{"type": "ephemeral"}
-			// to mark system prompts for Anthropic's prompt caching feature.
-			if message.Metadata != nil {
-				if cacheVal, ok := message.Metadata["cache"]; ok && cacheVal != nil {
-					if cacheMap, ok := cacheVal.(map[string]any); ok {
-						if cacheType, ok := cacheMap["type"].(string); ok && cacheType == "ephemeral" {
-							block.CacheControl = anthropic.CacheControlEphemeralParam{Type: "ephemeral"}
-						}
-					}
+			// Supports both explicit {"type": "ephemeral"} and the generic
+			// {"ttlSeconds": N} used by ai.WithCacheTTL for cross-provider consistency.
+			// Anthropic only supports ephemeral caching regardless of TTL value.
+			if cache, ok := message.Metadata["cache"].(map[string]any); ok {
+				t, _ := cache["type"].(string)
+				_, hasTTL := cache["ttlSeconds"]
+				if t == "ephemeral" || hasTTL {
+					block.CacheControl = anthropic.CacheControlEphemeralParam{Type: "ephemeral"}
 				}
 			}
 			sysBlocks = append(sysBlocks, block)
@@ -489,9 +488,10 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 	}
 	// Track cache creation tokens in Custom metrics (no dedicated field in GenerationUsage)
 	if m.Usage.CacheCreationInputTokens > 0 {
-		r.Usage.Custom = map[string]float64{
-			"cacheCreationInputTokens": float64(m.Usage.CacheCreationInputTokens),
+		if r.Usage.Custom == nil {
+			r.Usage.Custom = make(map[string]float64)
 		}
+		r.Usage.Custom["cacheCreationInputTokens"] = float64(m.Usage.CacheCreationInputTokens)
 	}
 	return &r, nil
 }
