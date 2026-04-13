@@ -26,6 +26,7 @@ import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
 import {
   confirmLlmUse,
   findProjectRoot,
+  getProjectSettings,
   loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
@@ -88,6 +89,13 @@ export const evalRun = new Command('eval:run')
     }
 
     const projectRoot = await findProjectRoot();
+
+    if (!runtimeCommand || runtimeCommand.length === 0) {
+      const settings = await getProjectSettings();
+      if (settings.runtimeCommand) {
+        runtimeCommand = (settings.runtimeCommand as string).split(' ');
+      }
+    }
 
     const runAction = async (manager: BaseRuntimeManager) => {
       if (!actualDataset) {

@@ -15,7 +15,11 @@
  */
 
 import type { BaseRuntimeManager } from '@genkit-ai/tools-common/manager';
-import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
+import {
+  findProjectRoot,
+  getProjectSettings,
+  logger,
+} from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
@@ -66,6 +70,13 @@ export const flowRun = new Command('flow:run')
     }
 
     const projectRoot = await findProjectRoot();
+
+    if (!runtimeCommand || runtimeCommand.length === 0) {
+      const settings = await getProjectSettings();
+      if (settings.runtimeCommand) {
+        runtimeCommand = (settings.runtimeCommand as string).split(' ');
+      }
+    }
 
     const runAction = async (manager: BaseRuntimeManager) => {
       let traceId: string | undefined;
