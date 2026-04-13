@@ -167,6 +167,15 @@ Load prompts from .prompt files by specifying a prompt directory:
 	// Or with type parameters for structured I/O
 	recipePrompt := genkit.LookupDataPrompt[RecipeRequest, *Recipe](g, "recipe")
 
+# Developer UI datasets
+
+The `genkit` package also includes a local dataset store for evaluation and
+prompt-testing workflows in the Developer UI. The current UI reads datasets from
+`.genkit/datasets`, so [DefaultDatasetStore] and [NewLocalFileDatasetStore]
+persist the matching `index.json` and `<datasetId>.json` files. This lets Go
+applications define datasets programmatically while keeping them visible in
+local tooling.
+
 When using .prompt files with custom output schemas, register the schema first:
 
 	genkit.DefineSchemaFor[Recipe](g)
