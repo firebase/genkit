@@ -25,6 +25,7 @@ from google.genai import types as genai_types
 
 from genkit.plugins.google_genai.models.veo import (
     VeoConfigSchema,
+    VeoVersion,
     _from_veo_operation,
     _to_veo_parameters,
     is_veo_model,
@@ -47,6 +48,17 @@ class TestIsVeoModel:
         assert is_veo_model('gemini-2.0-flash') is False
 
 
+class TestVeoVersion:
+    """Tests for VeoVersion enum convenience constants."""
+
+    def test_includes_new_googleai_veo_models(self) -> None:
+        """New Veo 3.0/3.1 GoogleAI model names are exposed."""
+        assert VeoVersion.VEO_3_1_PREVIEW.value == 'veo-3.1-generate-preview'
+        assert VeoVersion.VEO_3_1_FAST_PREVIEW.value == 'veo-3.1-fast-generate-preview'
+        assert VeoVersion.VEO_3_0.value == 'veo-3.0-generate-001'
+        assert VeoVersion.VEO_3_0_FAST.value == 'veo-3.0-fast-generate-001'
+
+
 class TestToVeoParameters:
     """Tests for _to_veo_parameters."""
 
@@ -66,6 +78,13 @@ class TestToVeoParameters:
         result = _to_veo_parameters(config)
         assert result['aspectRatio'] == '16:9'
         assert result['durationSeconds'] == 5
+
+    def test_schema_config_includes_new_fields(self) -> None:
+        """VeoConfigSchema includes newer Veo parameters."""
+        config = VeoConfigSchema(resolution='1080p', seed=7)
+        result = _to_veo_parameters(config)
+        assert result['resolution'] == '1080p'
+        assert result['seed'] == 7
 
 
 class TestFromVeoOperation:
