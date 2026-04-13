@@ -22,7 +22,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from genkit import Genkit, ModelConfig
+from genkit import Genkit
 from genkit._core._background import lookup_background_action
 from genkit._core._typing import Operation, Part, Role, TextPart
 from genkit.model import Message, ModelRequest
@@ -52,6 +52,9 @@ class VideoInput(BaseModel):
         'googleai/veo-3.1-fast-generate-preview',
         'googleai/veo-3.0-generate-001',
         'googleai/veo-3.0-fast-generate-001',
+        'googleai/veo-3.1-generate-001',
+        'googleai/veo-3.1-fast-generate-001',
+        'googleai/veo-2.0-generate-001',
     ] = Field(default='googleai/veo-3.1-generate-preview', description='Veo model for generation')
     prompt: str = Field(
         default='A paper airplane gliding through a bright classroom, cinematic slow motion',
@@ -138,12 +141,12 @@ async def _generate_video_for_model(input: VideoPresetInput, model_name: str) ->
     operation = await action.start(
         ModelRequest(
             messages=[Message(role=Role.USER, content=[Part(root=TextPart(text=input.prompt))])],
-            config=ModelConfig.model_validate({
+            config={
                 'aspect_ratio': input.aspect_ratio,
                 'duration_seconds': input.duration_seconds,
                 'resolution': input.resolution,
                 'seed': input.seed,
-            }),
+            },
         )
     )
     operation = await _poll_video(operation, model_name)
