@@ -33,16 +33,12 @@ Example:
     app = FastAPI()
 
 
+    @app.post('/chat', response_model=None)
+    @genkit_fastapi_handler(ai)
     @ai.flow()
     async def chat_flow(prompt: str) -> str:
         response = await ai.generate(prompt=prompt)
         return response.text
-
-
-    @app.post('/chat')
-    @genkit_fastapi_handler(ai)
-    async def chat():
-        return chat_flow
     ```
 
 Running:

@@ -102,33 +102,25 @@ from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
-from genkit.ai import GENKIT_CLIENT_HEADER, Plugin
-from genkit.blocks.background_model import BackgroundAction
-from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedderOptions, EmbedderSupports, embedder_action_metadata
-from genkit.blocks.model import model_action_metadata
-from genkit.blocks.reranker import reranker_action_metadata
-from genkit.core._loop_local import _loop_local_client
-from genkit.core.action import Action, ActionMetadata
-from genkit.core.error import GenkitError
-from genkit.core.registry import ActionKind
-from genkit.core.schema import to_json_schema
-from genkit.core.typing import (
-    EvalFnResponse,
-    EvalRequest,
-    RankedDocumentData,
-    RankedDocumentMetadata,
-    RerankerRequest,
-    RerankerResponse,
+from genkit._core._action import ActionRunContext
+from genkit._core._model import ModelRequest, ModelResponse
+from genkit.embedder import EmbedderOptions, EmbedderSupports, embedder_action_metadata
+from genkit.evaluator import EvalFnResponse, EvalRequest
+from genkit.model import BackgroundAction, model_action_metadata
+from genkit.plugin_api import (
+    GENKIT_CLIENT_HEADER,
+    Action,
+    ActionKind,
+    ActionMetadata,
+    Plugin,
+    loop_local_client,
+    to_json_schema,
 )
 from genkit.plugins.google_genai.evaluators import (
     VertexAIEvaluationMetricType,
     create_vertex_evaluators,
 )
-from genkit.plugins.google_genai.models.embedder import (
-    Embedder,
-    default_embedder_info,
-)
+from genkit.plugins.google_genai.models.embedder import EMBEDDER_DIMENSIONS, Embedder
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
     GeminiModel,
@@ -146,15 +138,6 @@ from genkit.plugins.google_genai.models.veo import (
     VeoModel,
     is_veo_model,
     veo_model_info,
-)
-from genkit.plugins.google_genai.rerankers.reranker import (
-    KNOWN_MODELS as RERANKER_MODELS,
-    RerankRequest,
-    VertexRerankerClientOptions,
-    VertexRerankerConfig,
-    _from_rerank_response,
-    _to_reranker_doc,
-    reranker_rank,
 )
 
 
@@ -254,6 +237,11 @@ def _list_genai_models(client: genai.Client, is_vertex: bool) -> GenaiModels:
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
 
+PLUGIN_DISPLAY_NAME: dict[str, str] = {
+    GOOGLEAI_PLUGIN_NAME: 'Google AI',
+    VERTEXAI_PLUGIN_NAME: 'Vertex AI',
+}
+
 
 def googleai_name(name: str) -> str:
     """Create a GoogleAI action name.
@@ -295,14 +283,13 @@ def _create_embedder_action(
         Action object for the embedder.
     """
     clean_name = name.replace(f'{plugin_name}/', '') if name.startswith(plugin_name) else name
-    embedder_info = default_embedder_info(clean_name)
-
+    label = f'{PLUGIN_DISPLAY_NAME[plugin_name]} - {clean_name}'
     action_metadata = embedder_action_metadata(
         name=name,
         options=EmbedderOptions(
-            label=embedder_info.get('label'),
-            supports=EmbedderSupports(input=embedder_info.get('supports', {}).get('input')),
-            dimensions=embedder_info.get('dimensions'),
+            label=label,
+            supports=EmbedderSupports(input=['text']),
+            dimensions=EMBEDDER_DIMENSIONS.get(clean_name),
         ),
     )
 
@@ -416,7 +403,8 @@ class GoogleAI(Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -521,7 +509,7 @@ class GoogleAI(Plugin):
             return self._resolve_embedder(name)
         return None
 
-    def _resolve_veo_model(self, name: str) -> 'BackgroundAction':
+    def _resolve_veo_model(self, name: str) -> BackgroundAction:
         """Create a BackgroundAction for a Veo video generation model.
 
         Args:
@@ -591,7 +579,7 @@ class GoogleAI(Plugin):
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
 
-        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+        async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             else:
@@ -630,6 +618,8 @@ class GoogleAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
+        if self._list_actions_cache is not None:
+            return self._list_actions_cache
         genai_models = _list_genai_models(self._runtime_client(), is_vertex=False)
         actions_list = []
 
@@ -661,18 +651,18 @@ class GoogleAI(Plugin):
             )
 
         for name in genai_models.embedders:
-            embed_info = default_embedder_info(name)
             actions_list.append(
                 embedder_action_metadata(
                     name=googleai_name(name),
                     options=EmbedderOptions(
-                        label=embed_info.get('label'),
-                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                        dimensions=embed_info.get('dimensions'),
+                        label=f'{PLUGIN_DISPLAY_NAME[GOOGLEAI_PLUGIN_NAME]} - {name}',
+                        supports=EmbedderSupports(input=['text']),
+                        dimensions=EMBEDDER_DIMENSIONS.get(name),
                     ),
                 )
             )
 
+        self._list_actions_cache = actions_list
         return actions_list
 
 
@@ -774,7 +764,8 @@ class VertexAI(Plugin):
             'http_options': _inject_attribution_headers(http_options, base_url, api_version),
         }
         # Single loop-local client accessor used everywhere in plugin runtime paths.
-        self._runtime_client = _loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._runtime_client = loop_local_client(lambda: genai.client.Client(**self._client_kwargs))
+        self._list_actions_cache: list[ActionMetadata] | None = None
 
     async def init(self) -> list[Action]:
         """Initialize the plugin.
@@ -797,20 +788,16 @@ class VertexAI(Plugin):
         for name in genai_models.embedders:
             actions.append(self._resolve_embedder(vertexai_name(name)))
 
-        # Register Vertex AI rerankers
-        for name in RERANKER_MODELS:
-            actions.append(self._resolve_reranker(vertexai_name(name)))
-
         # Register Vertex AI evaluators
         # Deferred import to avoid circular dependency
-        from genkit.ai._registry import GenkitRegistry
+        from genkit import Genkit
 
         if not self._project:
             raise ValueError(
                 'VertexAI plugin requires a project ID to use evaluators. '
                 'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
             )
-        registry = GenkitRegistry()
+        registry = Genkit()
         actions.extend(
             create_vertex_evaluators(
                 registry,
@@ -856,8 +843,6 @@ class VertexAI(Plugin):
             return self._resolve_model(name)
         elif action_type == ActionKind.EMBEDDER:
             return self._resolve_embedder(name)
-        elif action_type == ActionKind.RERANKER:
-            return self._resolve_reranker(name)
         elif action_type == ActionKind.EVALUATOR:
             return self._resolve_evaluator(name)
         return None
@@ -879,9 +864,9 @@ class VertexAI(Plugin):
         except ValueError:
             return None
 
-        from genkit.ai._registry import GenkitRegistry
+        from genkit import Genkit
 
-        registry = GenkitRegistry()
+        registry = Genkit()
         if not self._project:
             raise ValueError(
                 'VertexAI plugin requires a project ID to use evaluators. '
@@ -921,7 +906,7 @@ class VertexAI(Plugin):
             SUPPORTED_MODELS[clean_name] = model_ref
             config_schema = get_model_config_schema(clean_name)
 
-        async def _run(request: Any, ctx: Any) -> Any:  # noqa: ANN401
+        async def _run(request: ModelRequest, ctx: ActionRunContext) -> ModelResponse:
             if clean_name.lower().startswith('image'):
                 model = ImagenModel(clean_name, self._runtime_client())
             elif is_veo_model(clean_name):
@@ -952,84 +937,6 @@ class VertexAI(Plugin):
         """
         return _create_embedder_action(name, self._runtime_client, VERTEXAI_PLUGIN_NAME)
 
-    def _resolve_reranker(self, name: str) -> Action:
-        """Create an Action object for a Vertex AI reranker.
-
-        Args:
-            name: The namespaced name of the reranker.
-
-        Returns:
-            Action object for the reranker.
-        """
-        # Extract local name (remove plugin prefix)
-        clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-
-        # Validate project is configured (required for reranker API)
-        if not self._project:
-            raise ValueError(
-                'VertexAI plugin requires a project ID to use rerankers. '
-                'Set the project parameter or GOOGLE_CLOUD_PROJECT environment variable.'
-            )
-
-        # Use project and location stored on the plugin instance during init.
-        # This avoids accessing private attributes of the client library.
-        client_options = VertexRerankerClientOptions(
-            project_id=self._project,
-            location=self._location,
-        )
-
-        async def wrapper(
-            request: RerankerRequest,
-            _ctx: Any,  # noqa: ANN401
-        ) -> RerankerResponse:
-            """Wrapper that takes RerankerRequest and returns RerankerResponse.
-
-            This matches the signature expected by the Action class (max 2 args).
-            """
-            query_doc = Document.from_document_data(request.query)
-            documents = [Document.from_document_data(d) for d in request.documents]
-            options = request.options
-
-            config = VertexRerankerConfig.model_validate(options or {})
-
-            # Use location from config if provided, otherwise use client default
-            effective_options = VertexRerankerClientOptions(
-                project_id=client_options.project_id,
-                location=config.location or client_options.location,
-            )
-
-            query_text = query_doc.text()
-            if not query_text:
-                raise GenkitError(message='Reranker query cannot be empty.')
-
-            rerank_request = RerankRequest(
-                model=clean_name,
-                query=query_text,
-                records=[_to_reranker_doc(doc, idx) for idx, doc in enumerate(documents)],
-                top_n=config.top_n,
-                ignore_record_details_in_response=config.ignore_record_details_in_response,
-            )
-
-            response = await reranker_rank(clean_name, rerank_request, effective_options)
-            ranked_docs = _from_rerank_response(response, documents)
-
-            # Convert to RerankerResponse format - ranked_docs are RankedDocument instances
-            response_docs: list[RankedDocumentData] = []
-            for doc in ranked_docs:
-                metadata = RankedDocumentMetadata(score=doc.score if doc.score is not None else 0.0)
-                response_docs.append(RankedDocumentData(content=doc.content, metadata=metadata))
-
-            return RerankerResponse(documents=response_docs)
-
-        metadata = reranker_action_metadata(name)
-
-        return Action(
-            kind=ActionKind.RERANKER,
-            name=name,
-            fn=wrapper,
-            metadata=metadata.metadata,
-        )
-
     async def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
@@ -1040,6 +947,8 @@ class VertexAI(Plugin):
                 - info (dict): The metadata dictionary describing the model configuration and properties.
                 - config_schema (type): The schema class used for validating the model's configuration.
         """
+        if self._list_actions_cache is not None:
+            return self._list_actions_cache
         genai_models = _list_genai_models(self._runtime_client(), is_vertex=True)
         actions_list = []
 
@@ -1071,14 +980,14 @@ class VertexAI(Plugin):
             )
 
         for name in genai_models.embedders:
-            embed_info = default_embedder_info(name)
+            dims = EMBEDDER_DIMENSIONS.get(name)
             actions_list.append(
                 embedder_action_metadata(
                     name=vertexai_name(name),
                     options=EmbedderOptions(
-                        label=embed_info.get('label'),
-                        supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
-                        dimensions=embed_info.get('dimensions'),
+                        label=f'{PLUGIN_DISPLAY_NAME[VERTEXAI_PLUGIN_NAME]} - {name}',
+                        supports=EmbedderSupports(input=['text']),
+                        dimensions=dims,
                     ),
                 )
             )
@@ -1096,6 +1005,7 @@ class VertexAI(Plugin):
                 )
             )
 
+        self._list_actions_cache = actions_list
         return actions_list
 
 

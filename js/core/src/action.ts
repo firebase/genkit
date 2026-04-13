@@ -53,6 +53,8 @@ export interface ActionMetadata<
 > {
   /** The type of action (e.g. 'prompt', 'flow'). */
   actionType?: ActionType;
+  /** The key of the action. */
+  key?: string;
   /** The name of the action. */
   name: string;
   /** Description of the action. */
@@ -72,6 +74,7 @@ export interface ActionMetadata<
 }
 
 export const ActionMetadataSchema = z.object({
+  key: z.string().optional(),
   actionType: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),
@@ -427,6 +430,7 @@ export function action<
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
   const actionMetadata = {
+    key: `/${config.actionType}/${actionName}`,
     name: actionName,
     description: config.description,
     inputSchema: config.inputSchema,
@@ -482,6 +486,7 @@ export function action<
 
     let traceId;
     let spanId;
+    const genkitKey = actionFn.__action.key;
     let output = await runInNewSpan(
       {
         metadata: {
@@ -490,6 +495,7 @@ export function action<
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
           'genkit:metadata:subtype': config.actionType,
+          ...(genkitKey ? { 'genkit:key': genkitKey } : {}),
           ...options?.telemetryLabels,
         },
       },
@@ -788,6 +794,7 @@ export function defineActionAsync<
         }
       );
       act.__action.actionType = actionType;
+      act.__action.key = `/${actionType}/${actionName}`;
       onInit?.(act);
       return act;
     })
